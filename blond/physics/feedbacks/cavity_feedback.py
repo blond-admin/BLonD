@@ -807,6 +807,13 @@ class IQCavityFeedbackTimingClass(IQCavityFeedbackBase):
         self.last_tracked_turn_frwrd: int = 0
         self.last_tracked_beam_state_frwrd: bool | None = None
 
+        # Simultaneous counter-rotating passage detection (see _track): the
+        # arrival time and direction of the previous _track call, plus the
+        # coarse-cell width of its forward grid as the coincidence tolerance.
+        self._last_track_arrival_time: float | None = None
+        self._last_track_is_counter_rotating: bool | None = None
+        self._last_forward_cell_width: float | None = None
+
         self.phase_offset_frwrd_next: float = 0.0
         self.phase_offset_frwrd: float = 0.0
 
@@ -2131,7 +2138,46 @@ class IQCavityFeedbackTimingClass(IQCavityFeedbackBase):
         ----------
         beam
             Beam to be tracked.
+
+        Raises
+        ------
+        NotImplementedError
+            When two counter-rotating beams pass this station simultaneously
+            (the station sits at a meeting azimuth of the two beams).
         """
+        # Simultaneous counter-rotating passage guard. When the station sits
+        # at a meeting azimuth of the two beams (e.g. the single mid-ring
+        # station of a one-section layout), both beams arrive at the same
+        # reference time and the per-passage grid machinery would silently
+        # serialize the two arrivals one full projection window apart -- the
+        # envelope then runs at twice the physical rate and the summed
+        # loading is wrong (measured ~47 % L2 on the first turn). Interleaved
+        # (offset-time) passages, e.g. any even section count with stations
+        # away from the meeting points, are handled correctly and pass this
+        # guard.
+        if (
+            self._last_track_is_counter_rotating is not None
+            and beam.is_counter_rotating
+            != self._last_track_is_counter_rotating
+            and self._last_track_arrival_time is not None
+            and self._last_forward_cell_width is not None
+            and abs(beam.reference.time - self._last_track_arrival_time)
+            < 0.5 * self._last_forward_cell_width
+        ):
+            raise NotImplementedError(
+                "Two counter-rotating beams pass this RF station "
+                "simultaneously (station at a meeting azimuth of the two "
+                "beams). The cavity feedback cannot yet integrate two "
+                "coincident beam currents; place the station away from the "
+                "beams' meeting points (e.g. an even number of sections "
+                "with the half-drift / station / half-drift layout), or "
+                "model the beam loading of this station with the "
+                "MultiPassResonatorSolver wakefield "
+                "(allow_delta_t_zero=True) instead."
+            )
+        self._last_track_arrival_time = beam.reference.time
+        self._last_track_is_counter_rotating = beam.is_counter_rotating
+
         if len(self.rf_centers) != 0:
             self.last_rf_centers_entry = self.rf_centers[-1]
 
@@ -2158,6 +2204,14 @@ class IQCavityFeedbackTimingClass(IQCavityFeedbackBase):
         # The flat rf_centers / rf_centers_lengths arrays are derived from
         # _segments; assert they stayed consistent after this turn's generation.
         self._validate_grid()
+
+        # Coincidence tolerance for the simultaneous-passage guard above:
+        # one coarse-cell width, taken from the last two grid centers.
+        min_centers_for_cell_width = 2
+        if len(self.rf_centers) >= min_centers_for_cell_width:
+            self._last_forward_cell_width = float(
+                self.rf_centers[-1] - self.rf_centers[-2]
+            )
 
         self.reset_arrays()
 
