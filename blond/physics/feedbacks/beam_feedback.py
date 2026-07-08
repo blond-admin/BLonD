@@ -52,34 +52,33 @@ class BeamFeedbackBase(GlobalFeedback):
     ----------
     profile
         Any Profile object which exposes the x- and y-axis of the beam line density.
-    delay
-        Delay (in units of turns) of the initial correction of the feedback system.
-    window_coefficient
-        Window coefficient for the calculation of the beam phase. This parameter will
-        reduce the weight of later samples of the beam profile.
-    time_offset
-        Time offset for the calculation of the beam phase.
-    sample_de
-        Determines downsampling of macroparticles for mean energy calculation.
-        Every <sample_dE>. particle is sampled.
     phase_noise
         Option to add phase noise through the beam control.
+    **kwargs
+        Additional variable keyword arguments for the class. These are
+
+        * delay: Delay (in units of turns) of the initial correction of the feedback system.
+
+        * window_coefficient: Window coefficient for the calculation of the beam phase.
+          This parameter will reduce the weight of later samples of the beam profile.
+
+        * time_offset: Time offset for the calculation of the beam phase.
+
+        * sample_de: Determines downsampling of macroparticles for mean energy calculation.
+          Every <sample_dE>. particle is sampled.
     """
 
     def __init__(
         self,
         profile: ProfileBaseClass,
-        delay: int = 0,
-        window_coefficient: float = 0.0,
-        time_offset: float | None = None,
-        sample_de: int = 1,
         phase_noise=None,
+        **kwargs,
     ):
         super().__init__(profile=profile)
-        self.delay = delay
-        self.window_coefficient = window_coefficient
-        self.time_offset = time_offset
-        self.sample_de = sample_de
+        self.delay = kwargs.get("delay", 0)
+        self.window_coefficient = kwargs.get("window_coefficient", 0.0)
+        self.time_offset = kwargs.get("time_offset")
+        self.sample_de = kwargs.get("sample_de", 1)
         self.phase_noise = phase_noise
 
         self.delta_omega_rf = 0.0

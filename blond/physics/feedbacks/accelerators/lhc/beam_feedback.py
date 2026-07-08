@@ -71,33 +71,28 @@ class LHCBeamControl(BeamFeedbackBase):
     ----------
     profile
         Any Profile object which exposes the x- and y-axis of the beam line density.
+    phase_noise
+        Option to add phase noise through the beam control.
     pl_gain
         The gain of the beam-phase loop.
     sl_gain
         The gain of the synchronization loop.
-    phase_noise
-        Option to add phase noise through the beam control.
     current_thres
         Beam current threshold for gating of the profiles.
-    *args
-        Variable positional arguments.
     **kwargs
-        Variable keyword arguments.
+        Variable keyword arguments for the `BeamFeedbackBase`.
     """
 
     def __init__(
         self,
         profile: ProfileBaseClass,
-        pl_gain: float,
-        sl_gain: float,
         phase_noise=None,
+        pl_gain: float = 0.0,
+        sl_gain: float = 0.0,
         current_thres: float = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(
-            *args, profile=profile, phase_noise=phase_noise, **kwargs
-        )
+        super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
 
         self.pl_gain = pl_gain
         self.sl_gain = sl_gain

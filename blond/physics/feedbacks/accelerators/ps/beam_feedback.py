@@ -70,13 +70,13 @@ class PSBeamControl(BeamFeedbackBase):
     ----------
     profile
         Any Profile object which exposes the x- and y-axis of the beam line density.
-    below_transition
-        Array of values for whether the current turns are above or below transition energy.
+    phase_noise
+        Option to add phase noise through the beam control.
     sample_de
         Determines downsampling of macroparticles for mean energy calculation.
         Every <sample_dE>. particle is sampled.
-    phase_noise
-        Option to add phase noise through the beam control.
+    below_transition
+        Array of values for whether the current turns are above or below transition energy.
     pl_gain
         The gain of the beam-phase loop [rad/s].
     rl_gain
@@ -97,18 +97,16 @@ class PSBeamControl(BeamFeedbackBase):
         Initial value for the phase output of the feedback.
     prev_out_radial
         Initial value for the radial output of the feedback.
-    *args
-        Variable positional arguments.
     **kwargs
-        Variable keyword arguments.
+        Variable keyword arguments for the `BeamFeedbackBase`.
     """
 
     def __init__(
         self,
         profile: ProfileBaseClass,
-        below_transition: ArrayLike,
-        sample_de: int = 1,
         phase_noise=None,
+        sample_de: int = 1,
+        below_transition: ArrayLike | None = None,
         pl_gain: float = 0,
         rl_gain: float = 0,
         gd_pl: float = 5.704,
@@ -119,11 +117,9 @@ class PSBeamControl(BeamFeedbackBase):
         prev_in_phase: float | None = 0,
         prev_out_phase: float | None = 0,
         prev_out_radial: float | None = 0,
-        *args,
         **kwargs,
     ):
         super().__init__(
-            *args,
             profile=profile,
             sample_de=sample_de,
             phase_noise=phase_noise,

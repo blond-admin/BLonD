@@ -42,6 +42,8 @@ class SPSBeamControl(BeamFeedbackBase):
     ----------
     profile
         Any Profile object which exposes the x- and y-axis of the beam line density.
+    phase_noise
+        Option to add phase noise through the beam control.
     k_phi_n
         Feedback gain for the phase loop error from the previous turn.
     k_phi_nm1
@@ -60,39 +62,32 @@ class SPSBeamControl(BeamFeedbackBase):
         Beam-phase loop gain of the beam control.
     action_delay
         Delay of the action of the beam-phase loop from the first turn.
-    phase_noise
-        Option to add phase noise through the beam control.
     delay_turns
         The delay [turns] between measurement at correction from the beam control.
     current_thres
         Beam current threshold for gating of the profiles.
-    *args
-        Variable positional arguments.
     **kwargs
-        Variable keyword arguments.
+        Variable keyword arguments for the `BeamFeedbackBase`.
     """
 
     def __init__(
         self,
         profile: ProfileBaseClass,
-        k_phi_n: float | NumpyArray,
-        k_phi_nm1: float | NumpyArray,
-        k_eps_n: float | NumpyArray,
-        k_z_n: float | NumpyArray,
-        k_a_n: float | NumpyArray,
-        k_b_n: float | NumpyArray,
-        phi_sync: float | NumpyArray,
-        pl_gain: float | NumpyArray,
-        action_delay: int,
         phase_noise=None,
+        k_phi_n: float | NumpyArray = 0.0,
+        k_phi_nm1: float | NumpyArray = 0.0,
+        k_eps_n: float | NumpyArray = 0.0,
+        k_z_n: float | NumpyArray = 0.0,
+        k_a_n: float | NumpyArray = 0.0,
+        k_b_n: float | NumpyArray = 0.0,
+        phi_sync: float | NumpyArray = 0.0,
+        pl_gain: float | NumpyArray = 0.0,
+        action_delay: int = 0,
         delay_turns: int = 2,
         current_thres: float = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(
-            *args, profile=profile, phase_noise=phase_noise, **kwargs
-        )
+        super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
 
         self.k_phi_n = k_phi_n
         self.k_phi_nm1 = k_phi_nm1

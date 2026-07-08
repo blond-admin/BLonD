@@ -45,39 +45,34 @@ class PSBBeamControl(BeamFeedbackBase):
     ----------
     profile
         Any Profile object which exposes the x- and y-axis of the beam line density.
+    phase_noise
+        Option to add phase noise through the beam control.
     pl_gain
         The gain of the beam-phase loop.
     rl_gain_a
         The first gain of the radial loop.
     rl_gain_b
         The second gain of the radial loop.
-    phase_noise
-        Option to add phase noise through the beam control.
     period
         Time [s] between the actions of the phase loop.
     coefficients
         Coefficients for the transfer function of the feedback.
-    *args
-        Variable positional arguments.
     **kwargs
-        Variable keyword arguments.
+        Variable keyword arguments for the `BeamFeedbackBase`.
     """
 
     def __init__(
         self,
         profile: ProfileBaseClass,
-        pl_gain: float | NumpyArray,
+        phase_noise=None,
+        pl_gain: float | NumpyArray = 0.0,
         rl_gain_a: float | NumpyArray = 0.0,
         rl_gain_b: float | NumpyArray = 0.0,
-        phase_noise=None,
         period: float = 10.0e-6,
         coefficients: list[float] = None,
-        *args,
         **kwargs,
     ):
-        super().__init__(
-            *args, profile=profile, phase_noise=phase_noise, **kwargs
-        )
+        super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
 
         self.pl_gain = pl_gain
 
