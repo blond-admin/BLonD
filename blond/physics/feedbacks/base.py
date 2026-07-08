@@ -211,8 +211,6 @@ class GlobalFeedback(FeedbackBaseClass):
         self,
         method_or_attr: str,
         rf_station_list: list[RFStationBaseClass] | None = None,
-        *args,
-        **kwargs,
     ) -> NumpyArray:
         """
         Call method or attribute from all rf station instances.
@@ -227,10 +225,6 @@ class GlobalFeedback(FeedbackBaseClass):
         rf_station_list
             List of rf station objects. If no list is passed, then the list of rf stations
             associated with the global feedback instance will be used.
-        *args
-            Variable positional arguments.
-        **kwargs
-            Variable keyword arguments.
 
         Returns
         -------
@@ -241,7 +235,7 @@ class GlobalFeedback(FeedbackBaseClass):
 
         def invoke(obj):
             value = getattr(obj, method_or_attr)
-            return value(*args, **kwargs) if callable(value) else value
+            return value() if callable(value) else value
 
         cavity_list = (
             self.cavities if rf_station_list is None else rf_station_list
