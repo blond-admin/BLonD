@@ -25,6 +25,15 @@ simulation_mock = Mock(Simulation)
 
 beam_mock = Mock(Beam)
 beam_mock.reference = Mock(ReferenceCoordinates)
+beam_mock.is_counter_rotating = False
+# Direction-signed charge (see BeamBaseClass.signed_charge_with_direction):
+# computed at call time from the mock's current particle_type / direction, so
+# tests may reassign either and stay consistent with the real semantics.
+beam_mock.signed_charge_with_direction = lambda: (
+    beam_mock.particle_type.charge * -1
+    if beam_mock.is_counter_rotating
+    else beam_mock.particle_type.charge
+)
 static_profile_mock = Mock(StaticProfile)
 wakefield_profile_mock = Mock(WakeField)
 cycle_const_mock = Mock(ConstantMagneticCycle)
