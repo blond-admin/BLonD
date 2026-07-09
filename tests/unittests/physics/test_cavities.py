@@ -895,6 +895,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.multi_harmonic_cavity._update_reference_based_attributes(
             reference=self.beam.reference
         )
+        # TODO: Maybe better to use self.assertEqual here instead
         assert (
             self.multi_harmonic_cavity.get_main_harmonic()
             == self.multi_harmonic_cavity.harmonic[
@@ -1333,6 +1334,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         self.single_harmonic_cavity._update_reference_based_attributes(
             reference=self.beam.reference
         )
+        # TODO: Maybe better to use self.assertEqual here instead
         assert (
             self.single_harmonic_cavity.get_main_harmonic()
             == self.single_harmonic_cavity.harmonic
