@@ -20,6 +20,7 @@ Oleksandr Naumenko
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from itertools import compress
 from typing import TYPE_CHECKING
@@ -120,6 +121,8 @@ class BeamFeedbackBase(GlobalFeedback):
         self.update_main_rf_stations()
         self._first_turn_value_checked = False
         self._simulation = simulation
+
+        self.check_main_rf_stations_with_cavity_feedback()
 
     @abstractmethod  # pragma: no cover
     def get_beam_attribute(self, beam: BeamBaseClass):
@@ -232,6 +235,7 @@ class BeamFeedbackBase(GlobalFeedback):
         cavity_sum: NumpyArray | None = None
 
         # iterate over rf stations on the main harmonic
+        # TODO: Handling of simulations with some main rf stations without cavity FB and some with
         for cav in self.main_cavities:
             # Get cavity feedback on main harmonic for every rf station
             _cavity_feedback = cav.get_main_harmonic_cavity_feedback()
@@ -312,6 +316,32 @@ class BeamFeedbackBase(GlobalFeedback):
         self.main_cavities = list(
             compress(self.cavities, self.main_rf_stations_mask)
         )
+
+    def check_main_rf_stations_with_cavity_feedback(self):
+        """
+        Check if all main RF stations have a cavity feedback or not.
+
+        This function checks all RF stations on the main harmonic for cavity feedbacks.
+        If some have feedbacks and others do not then a warning is raised.
+        """
+        cavity_feedback_list = self.get_from_all_rf_stations(
+            method_or_attr="get_main_harmonic_cavity_feedback",
+            rf_station_list=self.main_cavities,
+        )
+
+        mask = np.array(
+            [x is None for x in cavity_feedback_list.flat], dtype=bool
+        ).reshape(cavity_feedback_list.shape)
+
+        all_none = mask.all()
+        all_not_none = (~mask).all()
+
+        if not all_none or not all_not_none:
+            warnings.warn(
+                "Some RF stations acting on the main harmonic do not have a cavity feedback model."
+                "Calculation of cavity sum phase might give incorrect results.",
+                stacklevel=1,
+            )
 
     def _track(self, beam: BeamBaseClass):
         """

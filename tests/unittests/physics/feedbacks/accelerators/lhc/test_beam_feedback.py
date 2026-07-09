@@ -156,6 +156,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         time_offset: float | None = None,
         delay: int = 0,
         mock_cavity_feedback: bool = False,
+        one_mock_only: bool = False,
         current_thres: float | None = None,
         mock_phase_noise=None,
     ):
@@ -217,7 +218,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
             voltage=voltage / 2,
             phi_rf=0.0,
             harmonic=h,
-            cavity_feedback=cavity_feedback,
+            cavity_feedback=cavity_feedback if not one_mock_only else None,
             section_index=1,
         )
 
@@ -407,6 +408,14 @@ class TestLHCBeamFeedback(unittest.TestCase):
             injection_offset_phase + 10,
             places=2,
         )
+
+    def test_lhc_beam_control_warning_with_two_cavity_controllers(self):
+        with self.assertWarns(Warning):
+            self.create_double_scenario(
+                mock_cavity_feedback=True,
+                current_thres=0.5,
+                one_mock_only=True,
+            )
 
     def test_lhc_beam_control_mock_rf_noise(self):
         self.create_scenario(
