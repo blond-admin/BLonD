@@ -3,7 +3,15 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation
+from blond import (
+    ConstantMagneticCycle,
+    DriftSimple,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    proton,
+)
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
@@ -12,11 +20,55 @@ from blond.core.ring.beam_physics_relevant_elements import (
 )
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
+from blond.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedbackTimingClass,
+)
 
 
 class TestFunctions(unittest.TestCase):
     def test_pprint_executes(self):
         pretty_string(v=np.array(10))
+
+    def test_pretty_string_empty_array(self):
+        # Empty arrays (e.g. feedback grids before the first tracked turn)
+        # have no min/max; they must still format instead of raising.
+        result = pretty_string(v=np.zeros(0))
+        self.assertIn("empty", result)
+        self.assertIn("shape=(0,)", result)
+
+    def test_print_one_turn_execution_order_with_untracked_feedback(self):
+        # Regression test: IQCavityFeedbackTimingClass holds empty
+        # rf_centers arrays until the first tracked turn; printing the
+        # execution order before tracking must not raise.
+        harmonic = 35640
+        t_rf = 26658.883 / 299792458.0 / harmonic
+        profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 64, t_rf)
+        feedback = IQCavityFeedbackTimingClass(
+            profile=profile,
+            R_over_Q=45.0,
+            Q_L=2e4,
+            generator_current_bias=0.0 + 0.0j,
+            n_cavities=1,
+        )
+        rf_station = SingleHarmonicRFStation(
+            voltage=6e6,
+            phi_rf=0.0,
+            harmonic=harmonic,
+            cavity_feedback=feedback,
+            profile=profile,
+        )
+        drift = DriftSimple(
+            orbit_length=26658.883,
+            momentum_compaction_factor=3.2e-4,
+        )
+        ring = Ring(26658.883)
+        ring.add_elements([rf_station, drift])
+        magnetic_cycle = ConstantMagneticCycle(
+            value=450e9, reference_particle=proton
+        )
+        simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+
+        simulation.print_one_turn_execution_order()
 
 
 class TestBeamPhysicsRelevantElements(unittest.TestCase):

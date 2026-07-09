@@ -568,6 +568,8 @@ def pretty_string(v: NumpyArray | Any) -> Any:
         Formatted string representation of the input value.
     """
     try:  # handles NumPy and CuPy without import
+        if v.size == 0:  # min/max undefined on empty arrays
+            return f"{type(v)}(empty, shape={v.shape})"
         return f"{type(v)}(min={v.min()}, max={v.max()}, shape={v.shape})"
     except AttributeError:
         return v
