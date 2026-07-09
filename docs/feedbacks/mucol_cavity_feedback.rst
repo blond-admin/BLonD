@@ -18,7 +18,7 @@ by the test suite documented in :ref:`mucol_cavity_feedback_tests`.
 Classes at a glance
 -------------------
 
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedback`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackBase`
     Abstract base for IQ-envelope cavity feedbacks. Owns the profile, the
     coarse/fine grid arrays, the beam-current demodulation and the parent-RF-
     station accessors (``omega_rf``, ``phi_rf``, ``delta_omega_rf``, ...). The
