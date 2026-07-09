@@ -34,13 +34,39 @@ class StubBeam:
     ----------
     intensity
         Beam intensity (number of particles).
+    particle_type
+        Particle type of the beam; default ``mu_plus``.
+    is_counter_rotating
+        Whether the beam circulates against the ring direction.
     """
 
-    def __init__(self, intensity: float):
-        self.particle_type = mu_plus
+    def __init__(
+        self,
+        intensity: float,
+        particle_type=mu_plus,
+        is_counter_rotating: bool = False,
+    ):
+        self.particle_type = particle_type
         self.intensity = intensity
-        self.is_counter_rotating = False
+        self.is_counter_rotating = is_counter_rotating
         self.reference = StubReference()
+
+    def signed_charge_with_direction(self):
+        """
+        Return the charge corrected with the direction of the beam.
+
+        Mirrors :meth:`blond.core.beam.base.BeamBaseClass.signed_charge_with_direction`.
+
+        Returns
+        -------
+        float
+            ``particle_type.charge``, negated for a counter-rotating beam.
+        """
+        return (
+            self.particle_type.charge * -1
+            if self.is_counter_rotating
+            else self.particle_type.charge
+        )
 
 
 class StubRFStation:
