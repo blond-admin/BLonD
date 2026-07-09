@@ -99,7 +99,11 @@ class WakeFieldSolver:
             (macroparticles vs. real particles).
         """
         # TODO this might fail with MOI?
-        _factor = (-1 * beam.particle_type.charge * e) * (
+        # Direction-signed charge: the gap current of a counter-rotating beam
+        # has the same sign as the co-rotating one (opposite charge x opposite
+        # direction), matching the signed-charge kick in WakeField._track.
+        # Identical to the plain particle charge for co-rotating beams.
+        _factor = (-1 * beam.signed_charge_with_direction() * e) * (
             beam.intensity * profile.hist_y_to_density_factor
         )
         return _factor

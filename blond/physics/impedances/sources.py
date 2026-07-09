@@ -326,7 +326,20 @@ class Resonators(
     quality_factors
         Quality factors (Q) of the resonances, dimensionless.
     shunt_impedances_counter_rotating
-        Shunt impedances for counter-rotating mode.
+        Shunt impedances a *counter-rotating* witness experiences from the
+        wake of an opposite-direction source, in [:math:`\omega`]. The
+        witness's reversed integration direction through the mode field is
+        part of this parameter's definition, so with the beam-current signs
+        (charge x direction) on the source and kick side:
+
+        * ``+R`` -- symmetric coupling between the directions: two
+          counter-rotating beams of the **same charge** drive the mode
+          constructively (add up);
+        * ``-R`` -- the behaviour of an **asymmetric fundamental mode**: two
+          counter-rotating beams of **opposite charge** (the collider pair)
+          add up and receive the same kick, while same-charge beams cancel.
+          The sign is a property of the mode's field symmetry, not of
+          fundamental modes in general.
 
     Notes
     -----
@@ -644,7 +657,15 @@ class Resonators(
             wake += (
                 heaviside_like  # /2 from heaviside and *2 from linac R/Q cancel
                 * (
-                    self._shunt_impedances_counter_rotating[res_ind]
+                    # Convention: R_CR is the shunt the counter-rotating
+                    # witness *experiences*, including its reversed
+                    # integration direction through the mode field; the
+                    # extra direction sign is absorbed here. R_CR = +R then
+                    # means two counter-rotating beams of the SAME charge
+                    # add up, and an *asymmetric* fundamental mode (opposite
+                    # charges add up / receive the same kick) has
+                    # R_CR = -R.
+                    -self._shunt_impedances_counter_rotating[res_ind]
                     * self._alpha[res_ind]
                     * backend.exp(-self._alpha[res_ind] * time)
                 )
@@ -732,7 +753,9 @@ class Resonators(
             wake += (
                 heaviside_like
                 * (
-                    self._shunt_impedances_counter_rotating[res_ind]
+                    # Same witness-direction sign convention as
+                    # get_wake_counter_rotation (see there).
+                    -self._shunt_impedances_counter_rotating[res_ind]
                     * self._alpha[res_ind]
                     * backend.exp(-self._alpha[res_ind] * time)
                 )
@@ -900,6 +923,9 @@ class Resonators(
         poles1 = 1j * omega1
         # poles2 = 1j * np.real(omega2) - np.imag(omega2)
         if self._shunt_impedances_counter_rotating is None:
+            # Unset: the cross-direction behaviour of an asymmetric
+            # fundamental mode (kernel sign +1), matching a configured
+            # R_CR = -R below.
             cr_signs = np.ones(len(poles1), dtype=backend.float)
         else:
             # np.sign(0) == 0, which the backends treat as +1; require a
@@ -908,7 +934,11 @@ class Resonators(
                 "Counter-rotating shunt impedances must be non-zero to have a "
                 "well-defined sign."
             )
-            cr_signs = np.sign(self._shunt_impedances_counter_rotating)
+            # Same witness-direction sign convention as
+            # get_wake_counter_rotation: the kernel's cross-direction factor
+            # is -sign(R_CR), so R_CR = -R (an asymmetric fundamental mode)
+            # gives +1 and R_CR = +R (same-charge beams add up) gives -1.
+            cr_signs = -np.sign(self._shunt_impedances_counter_rotating)
         return poles1, residues1, cr_signs
 
 

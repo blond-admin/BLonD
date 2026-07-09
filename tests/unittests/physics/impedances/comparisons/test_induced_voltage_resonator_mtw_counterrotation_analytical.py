@@ -163,9 +163,15 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
                 center_frequencies=1 / self.t_rf,
                 quality_factors=self.Q_factor,
                 shunt_impedances=self.R_shunt,
-                shunt_impedances_counter_rotating=self.R_shunt
-                if counterrot
-                else self.R_shunt,  # charge will invert additionally
+                # Asymmetric fundamental mode: R_CR = -R (a property of
+                # the mode's field symmetry). The parameter is the shunt
+                # the counter-rotating witness *experiences* (its reversed
+                # integration direction included); sources and kicks carry
+                # the signed charges, so the collider pair (mu+ co-rotating,
+                # mu- counter-rotating) deposits same-sign gap currents and
+                # both beams see the same constructive loading -- the
+                # same-sign analytic convolution reference below.
+                shunt_impedances_counter_rotating=-self.R_shunt,
             )
 
             shc_list.append(
@@ -240,8 +246,12 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
 
         beam_CR = deepcopy(beam)
         beam_CR._is_counter_rotating = True
-        if counterrot:
-            beam_CR.reference._particle_type = mu_minus
+        # The physical collider pair: the counter-rotating beam is mu-minus,
+        # so its gap current (signed charge: opposite charge x opposite
+        # direction) has the same sign as the co-rotating mu+ beam and both
+        # deposits add constructively -- which is what the same-sign analytic
+        # convolution reference in ``test_blond3_mtw_no_counterrot`` encodes.
+        beam_CR.reference._particle_type = mu_minus
         sim.run_simulation(
             beams=(beam, beam_CR),
         )

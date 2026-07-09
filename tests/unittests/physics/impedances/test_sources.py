@@ -304,7 +304,10 @@ class TestResonators(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 2.0e9]),
             quality_factors=np.array([5, 5, 5]),
-            shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
+            # R_CR = +R: the counter-rotating witness experiences the
+            # inverted wake (witness-direction sign is part of the
+            # parameter; an asymmetric fundamental mode has R_CR = -R).
+            shunt_impedances_counter_rotating=np.array([1, 2, 3]),
         )  # values chosen such that they are easily reproducible in test of test_get_impedance
 
     def test___init__(self):
@@ -645,7 +648,11 @@ class TestResonators(unittest.TestCase):
             shunt_impedances=np.array([shut_imp]),
             center_frequencies=np.array([freq]),
             quality_factors=np.array([q_factor]),
-            shunt_impedances_counter_rotating=np.array([-shut_imp]),
+            # R_CR = +R: the counter-rotating witness experiences the
+            # inverted wake (the witness-direction sign is part of the
+            # parameter's definition; an asymmetric fundamental mode has
+            # R_CR = -R).
+            shunt_impedances_counter_rotating=np.array([shut_imp]),
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751)
 

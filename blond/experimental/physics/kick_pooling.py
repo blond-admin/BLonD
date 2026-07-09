@@ -192,7 +192,11 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                     dE=beam.write_partial_dE(),
                     bin_centers=time,
                     voltage=voltage,
-                    charge=beam.particle_type.charge,
+                    # Direction-signed charge, consistent with the direct
+                    # kick paths (WakeField._track, the RF stations): a
+                    # counter-rotating beam samples the pooled voltage with
+                    # the opposite sign. Plain charge for co-rotating beams.
+                    charge=beam.signed_charge_with_direction(),
                     acceleration_kick=0.0,
                 )
 

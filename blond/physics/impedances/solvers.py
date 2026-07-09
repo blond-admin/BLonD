@@ -689,7 +689,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         if self._wake_function_vals_needs_update:
             self._update_potential_sources()
 
-        _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
+        # Direction-signed charge: a counter-rotating beam's gap current has
+        # the same sign as the co-rotating one; plain particle charge for
+        # co-rotating beams (see WakeField._track kick convention).
+        _charge_per_macroparticle = (
+            -1 * beam.signed_charge_with_direction() * e
+        ) * (
             beam.intensity
             * self._parent_wakefield.profile.hist_y_to_density_factor
         )
@@ -1100,7 +1105,21 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         self._update_potential_sources(beam)
 
-        _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
+        # Direction-signed charge: the deposited (persisted) gap current of a
+        # counter-rotating beam has the same sign as the co-rotating one
+        # (for an asymmetric fundamental mode, R_CR = -R, the loading of
+        # both beams then adds constructively) and each beam's self-wake
+        # decelerates it. Direction-dependent mode geometry beyond this
+        # universal factor is carried per mode by
+        # ``shunt_impedances_counter_rotating`` (the co/counter wake
+        # selection below; the parameter is the shunt the counter-rotating
+        # witness experiences, its direction sign included -- the sign is a
+        # property of the mode's field symmetry, an *asymmetric* fundamental
+        # mode has R_CR = -R). Plain particle charge for co-rotating
+        # beams.
+        _charge_per_macroparticle = (
+            -1 * beam.signed_charge_with_direction() * e
+        ) * (
             beam.intensity
             * self._parent_wakefield.profile.hist_y_to_density_factor
         )
@@ -1434,8 +1453,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._states[-1] -= complex(passed_time)
             assert self._states[-1].real <= profile_dts[0]
 
+        # Direction-signed charge, consistent with MultiPassResonatorSolver:
+        # the injected gap current of a counter-rotating beam has the same
+        # sign as the co-rotating one; per-pole direction geometry is carried
+        # by ``counterrotating_pole_signs`` in the kernel.
         self._charge_per_macroparticle = (
-            -(1 * beam.particle_type.charge * e)
+            -(1 * beam.signed_charge_with_direction() * e)
             * beam.intensity
             * self._parent_wakefield.profile.hist_y_to_density_factor
         )

@@ -22,6 +22,7 @@ from blond import (
     Simulation,
     SingleHarmonicRFStation,
     WakeField,
+    mu_minus,
     mu_plus,
     uranium_29,
 )
@@ -35,6 +36,7 @@ from blond.physics.impedances.solvers import (
     InductiveImpedance,
     InductiveImpedanceSolver,
     MultiPassResonatorSolver,
+    MultiPoleSparseSolve,
     PeriodicFreqSolver,
     SingleTurnResonatorConvolutionSolver,
     TimeDomainFftSolver,
@@ -46,6 +48,35 @@ from blond.physics.profiles import (
     StaticProfile,
 )
 from blond.testing.helpers import enforce_64_bit_backend
+
+
+def _set_mock_beam_charge(
+    beam, charge: float = 1.0, is_counter_rotating: bool = False
+) -> None:
+    """
+    Configure charge and direction consistently on a ``Mock`` beam.
+
+    The solvers read the direction-signed charge
+    (:meth:`~blond.core.beam.base.BeamBaseClass.signed_charge_with_direction`,
+    ``charge * -1`` for a counter-rotating beam) on the source side, so a mock
+    beam must expose it alongside the raw ``particle_type.charge``. Configured
+    as a plain ``return_value`` (deepcopy-safe); call this helper again after
+    changing charge or direction on a (copied) mock.
+
+    Parameters
+    ----------
+    beam
+        ``Mock(BeamBaseClass)`` instance to configure.
+    charge
+        Particle charge in units of the elementary charge.
+    is_counter_rotating
+        Whether the beam circulates against the ring direction.
+    """
+    beam.particle_type.charge = charge
+    beam.is_counter_rotating = is_counter_rotating
+    beam.signed_charge_with_direction.return_value = (
+        charge * -1 if is_counter_rotating else charge
+    )
 
 
 class TestTimeDomainFftSolver(unittest.TestCase):
@@ -90,7 +121,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         self.beam = Mock(BeamBaseClass)
 
         self.beam.intensity = int(1e9)
-        self.beam.particle_type.charge = 1
+        _set_mock_beam_charge(self.beam)
         self.beam.n_macroparticles_partial.return_value = int(1e3)
         self.beam.ratio = (
             self.beam.intensity / self.beam.n_macroparticles_partial()
@@ -277,7 +308,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         beam.reference = Mock(ReferenceCoordinates)
         beam.intensity = 1e12
         beam.n_macroparticles_partial.return_value = 128
-        beam.particle_type.charge = 1
+        _set_mock_beam_charge(beam)
         beam.ratio = 1
 
         beam.reference.velocity = 123
@@ -428,7 +459,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = (
             1 / beam.n_macroparticles_partial.return_value
         )
-        beam.particle_type.charge = 1
+        _set_mock_beam_charge(beam)
         beam.ratio = 1e5
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
             beam=beam,
@@ -620,7 +651,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.beam = Mock(BeamBaseClass)
 
         self.beam.intensity = int(1e9)
-        self.beam.particle_type.charge = 1
+        _set_mock_beam_charge(self.beam)
         self.beam.n_macroparticles_partial.return_value = int(1e3)
 
         self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
@@ -989,7 +1020,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
     def test__update_potential_sources_result_values(self):
         beam = Mock(BeamBaseClass)
         beam.intensity = int(1e2)
-        beam.particle_type.charge = 1
+        _set_mock_beam_charge(beam)
         beam.n_macroparticles_partial.return_value = int(1e2)
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = (
             1 / beam.n_macroparticles_partial()
@@ -1094,7 +1125,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         beam = Mock(BeamBaseClass)
         beam.intensity = int(1e3)
-        beam.particle_type.charge = 1 / e
+        _set_mock_beam_charge(beam, charge=1 / e)
         beam.n_macroparticles_partial.return_value = int(1e3)
         # intensity == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
@@ -1119,7 +1150,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
     def test_calc_induced_voltage(self):
         beam = Mock(BeamBaseClass)
         beam.intensity = int(1e9)
-        beam.particle_type.charge = 1
+        _set_mock_beam_charge(beam)
         beam.n_macroparticles_partial.return_value = int(1e3)
         initial = (
             self.single_turn_resonator_convolution_solver.calc_induced_voltage(
@@ -1193,7 +1224,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
             quality_factors=np.array([10e3, 10e3, 10e3]),
-            shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
+            # R_CR = +R: the counter-rotating witness experiences the
+            # inverted wake (witness-direction sign is part of the
+            # parameter; an asymmetric fundamental mode has R_CR = -R).
+            shunt_impedances_counter_rotating=np.array([1, 2, 3]),
         )
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
         self.hist_step, self.hist_x = (
@@ -1228,10 +1262,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.reference = Mock(ReferenceCoordinates)
 
         self.beam.intensity = int(1e2)
-        self.beam.particle_type.charge = 1
+        _set_mock_beam_charge(self.beam)
         self.beam.n_macroparticles_partial.return_value = int(1e2)
         self.beam.reference.time = 0
-        self.beam.is_counter_rotating = False
 
     def test_info_string_with_RF_station(self):
         shc = SingleHarmonicRFStation(
@@ -2019,7 +2052,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
         beam = deepcopy(self.beam)
-        beam.is_counter_rotating = False
+        _set_mock_beam_charge(beam, is_counter_rotating=False)
         ind_volt_corot = local_res_corot.calc_induced_voltage(beam=beam)
 
         assert len(ind_volt_corot) == len(
@@ -2032,7 +2065,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
         beam = deepcopy(self.beam)
-        beam.is_counter_rotating = True
+        _set_mock_beam_charge(beam, is_counter_rotating=True)
         ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
         np.testing.assert_allclose(
             copy_to_cpu(ind_volt_corot), copy_to_cpu(ind_volt_corot)
@@ -2044,12 +2077,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         # avoid interference from current profile
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
-        beam.is_counter_rotating = False
+        _set_mock_beam_charge(beam, is_counter_rotating=False)
         beam.reference.time += np.finfo(float).eps
         counterrot_corot_ind_volt = (
             local_res_counterrot_corot.calc_induced_voltage(beam)
         )
-        beam.is_counter_rotating = True
+        _set_mock_beam_charge(beam, is_counter_rotating=True)
         counterrot_counterrot_ind_volt = (
             local_res_counterrot_counterrot.calc_induced_voltage(beam)
         )
@@ -2058,7 +2091,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             copy_to_cpu(counterrot_corot_ind_volt),
             copy_to_cpu(-counterrot_counterrot_ind_volt),
         )
-        # should be inverted as all shunt impedances are inverted
+        # Inverted between the two witness directions: the fixture has
+        # R_CR = +R, i.e. the cross-direction witness experiences the
+        # inverted wake (an asymmetric fundamental mode would be
+        # R_CR = -R).
 
     @pytest.mark.backend_mutation
     def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
@@ -2072,8 +2108,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
         beam = deepcopy(self.beam)
-        beam.particle_type.charge = -1
-        beam.is_counter_rotating = True
+        _set_mock_beam_charge(beam, charge=-1, is_counter_rotating=True)
         ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
         np.testing.assert_allclose(
             copy_to_cpu(ind_volt_corot), copy_to_cpu(ind_volt_corot)
@@ -2085,7 +2120,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         # avoid interference from current profile
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
-        beam.is_counter_rotating = False
+        _set_mock_beam_charge(beam, charge=-1, is_counter_rotating=False)
         beam.reference.time += np.finfo(float).eps
         beam.read_partial_dt.return_value = backend.linspace(
             local_res_counterrot._parent_wakefield.profile.hist_x[0],
@@ -2113,8 +2148,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam_corot_dt = beam_corot.read_partial_dt()
         beam_corot_dE = beam_corot.dE
 
-        beam.is_counter_rotating = True
-        beam.particle_type.charge = 1
+        _set_mock_beam_charge(beam, charge=1, is_counter_rotating=True)
         counterrot_counterrot_ind_volt = (
             local_res_counterrot_counterrot.calc_induced_voltage(beam)
         )
@@ -3342,6 +3376,677 @@ beam_profile = np.array(
 )
 
 
+class TestCounterRotatingBeamKickSymmetry(unittest.TestCase):
+    """
+    Asymmetric-fundamental-mode wake symmetry for counter-rotating beams.
+
+    In the symmetric collider ring the counter-rotating mu-minus beam has
+    opposite charge *and* opposite direction, so its gap current -- the
+    direction-signed charge -- has the same sign as the co-rotating mu-plus
+    beam. With an *asymmetric* fundamental mode's counter-rotating shunt
+    (``shunt_impedances_counter_rotating = -R``: the parameter is the shunt
+    the counter-rotating witness *experiences*, its direction sign included
+    -- the sign is a property of the mode's field symmetry, not of
+    fundamental modes in general; source and kick carry the signed
+    charges), the *kick* a particle
+    receives from its own
+    wake is identical in all four charge x direction corners
+    (``dE`` scales with the signed charge squared): every beam decelerates
+    itself -- the fundamental theorem of beam loading. The induced *voltage*
+    flips with the charge sign; the kick does not.
+
+    These tests drive the full production path (real ``Beam`` objects,
+    ``MultiPassResonatorSolver``, ``WakeField._track`` with its
+    signed-charge ``kick_interpolated``) -- unlike the mock-driven
+    counter-rotation tests above, which exercise the solver internals with
+    manual kicks. Before the direction-signed source charge, a
+    counter-rotating beam's self-kick came out sign-flipped (it would have
+    been *accelerated* by its own wake).
+    """
+
+    R_OVER_Q = 518.0
+    Q_L = 1.29e4
+    T_RF = 1.0e-9
+    INTENSITY = 2.7e12
+    N_MACRO = 64
+
+    def _profile_and_center(self) -> tuple[StaticProfile, float]:
+        """
+        A mid-window Gaussian bunch profile.
+
+        Returns
+        -------
+        profile
+            Static profile holding the bunch.
+        t0
+            Bunch-center time within the profile window.
+        """
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, 1024, self.T_RF
+        )
+        t = profile.hist_x
+        t0 = t[0] + 0.5 * (t[-1] - t[0])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.T_RF)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile, t0
+
+    def _self_wake(self, particle_type, is_counter_rotating: bool):
+        """
+        Single-pass self-wake of one beam through the production path.
+
+        Parameters
+        ----------
+        particle_type
+            Particle type of the beam.
+        is_counter_rotating
+            Whether the beam circulates against the ring direction.
+
+        Returns
+        -------
+        induced_voltage
+            The wakefield's induced voltage on the profile grid.
+        dE
+            The per-macroparticle energy kick applied by ``WakeField._track``.
+        """
+        wakefield = self._wakefield(
+            # Asymmetric fundamental mode: R_CR = -R (irrelevant for the
+            # single-beam self-wake computed here, which never consults the
+            # counter-rotating shunt).
+            shunt_counter_rotating=-self.R_OVER_Q * self.Q_L
+        )
+        beam = self._beam(particle_type, is_counter_rotating)
+        wakefield._track(beam)
+        return (
+            np.asarray(copy_to_cpu(wakefield.induced_voltage)).copy(),
+            np.asarray(copy_to_cpu(beam.dE.array_local)).copy(),
+        )
+
+    def _beam(self, particle_type, is_counter_rotating: bool, intensity=None):
+        """
+        A beam with macroparticles sitting on the bunch profile.
+
+        Parameters
+        ----------
+        particle_type
+            Particle type of the beam.
+        is_counter_rotating
+            Whether the beam circulates against the ring direction.
+        intensity
+            Beam intensity; ``None`` uses the class default. ``0`` gives a
+            zero-charge probe witness (receives kicks, deposits nothing).
+
+        Returns
+        -------
+        Beam
+            The prepared beam.
+        """
+        _, t0 = self._profile_and_center()
+        beam = Beam(
+            intensity=self.INTENSITY if intensity is None else intensity,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+        )
+        dt = np.linspace(
+            t0 - 0.05 * self.T_RF, t0 + 0.05 * self.T_RF, self.N_MACRO
+        )
+        beam.setup_beam(dt=dt, dE=np.zeros(self.N_MACRO))
+        return beam
+
+    def _wakefield(
+        self,
+        shunt_counter_rotating: float | None,
+        allow_delta_t_zero: bool = False,
+    ) -> WakeField:
+        """
+        A single-resonator wakefield on the frozen bunch profile.
+
+        Parameters
+        ----------
+        shunt_counter_rotating
+            Counter-rotating shunt impedance of the resonator -- the shunt
+            the counter-rotating witness *experiences*, its direction sign
+            included: ``-R`` is an asymmetric fundamental mode (opposite
+            charges add up / same kick), ``+R`` makes same-charge
+            counter-rotating beams add up. ``None`` leaves it unset, in which case the solver
+            *raises* if the counter-rotating wake is ever consulted.
+        allow_delta_t_zero
+            Passed to the solver; required when two beams pass at the same
+            reference time (coincident deposits).
+
+        Returns
+        -------
+        WakeField
+            The wakefield, ready for ``_track``.
+        """
+        profile, _ = self._profile_and_center()
+        cr_kwargs = (
+            {}
+            if shunt_counter_rotating is None
+            else {"shunt_impedances_counter_rotating": shunt_counter_rotating}
+        )
+        resonator = Resonators(
+            shunt_impedances=self.R_OVER_Q * self.Q_L,
+            center_frequencies=1.0 / self.T_RF,
+            quality_factors=self.Q_L,
+            **cr_kwargs,
+        )
+        solver = MultiPassResonatorSolver(
+            decay_fraction_threshold=1e-12,
+            allow_delta_t_zero=allow_delta_t_zero,
+        )
+        wakefield = WakeField(
+            sources=(resonator,), solver=solver, profile=profile
+        )
+        solver._parent_wakefield = wakefield
+        solver._maximum_storage_time = 1.0
+        solver._last_reference_time = -np.finfo(float).eps
+        profile.active = False  # frozen histogram: identical drive everywhere
+        return wakefield
+
+    def _coincident_two_beam_voltage(self, shunt_counter_rotating: float):
+        """
+        Voltage after coincident mu+ co-rotating and mu- CR deposits.
+
+        Parameters
+        ----------
+        shunt_counter_rotating
+            Counter-rotating shunt impedance of the resonator.
+
+        Returns
+        -------
+        v_single
+            Induced voltage after the mu+ deposit alone (fresh wakefield).
+        v_both
+            Induced voltage after both beams deposited at the same
+            reference time.
+        """
+        wakefield_single = self._wakefield(shunt_counter_rotating)
+        wakefield_single._track(self._beam(mu_plus, False))
+        v_single = np.asarray(
+            copy_to_cpu(wakefield_single.induced_voltage)
+        ).copy()
+
+        wakefield_both = self._wakefield(
+            shunt_counter_rotating, allow_delta_t_zero=True
+        )
+        wakefield_both._track(self._beam(mu_plus, False))
+        wakefield_both._track(self._beam(mu_minus, True))
+        v_both = np.asarray(copy_to_cpu(wakefield_both.induced_voltage)).copy()
+        return v_single, v_both
+
+    def _cross_kick(
+        self, shunt_counter_rotating: float, witness_type, witness_cr: bool
+    ):
+        """
+        Kick on a zero-charge witness from one mu+ co-rotating deposit.
+
+        Parameters
+        ----------
+        shunt_counter_rotating
+            Counter-rotating shunt impedance of the resonator.
+        witness_type
+            Particle type of the witness beam.
+        witness_cr
+            Whether the witness is counter-rotating.
+
+        Returns
+        -------
+        numpy.ndarray
+            Per-macroparticle energy kick on the witness (its own charge is
+            zero, so this is purely the source beam's wake).
+        """
+        wakefield = self._wakefield(
+            shunt_counter_rotating, allow_delta_t_zero=True
+        )
+        wakefield._track(self._beam(mu_plus, False))
+        witness = self._beam(witness_type, witness_cr, intensity=0.0)
+        wakefield._track(witness)
+        return np.asarray(copy_to_cpu(witness.dE.array_local)).copy()
+
+    def test_fm_shunt_doubles_the_coincident_two_beam_voltage(self):
+        """
+        Coincident deposits add for an asymmetric fundamental mode.
+
+        With an asymmetric fundamental mode (``R_CR = -R``: the
+        counter-rotating witness's direction sign is part of the parameter)
+        the mu+ co-rotating and mu- counter-rotating gap currents have the
+        same sign, so two coincident passages produce exactly twice the
+        single-beam voltage.
+        """
+        r = self.R_OVER_Q * self.Q_L
+        v_single, v_both = self._coincident_two_beam_voltage(-r)
+        scale = float(np.max(np.abs(v_single)))
+        self.assertGreater(scale, 0.0)
+        np.testing.assert_allclose(
+            v_both, 2.0 * v_single, rtol=0, atol=1e-9 * scale
+        )
+
+    def test_fm_shunt_cross_kick_is_identical_for_both_witnesses(self):
+        """
+        Get the same asymmetric-fundamental-mode kick in both directions.
+
+        From the same mu+ co-rotating source deposit, a mu+ co-rotating and
+        a mu- counter-rotating witness get the identical (decelerating)
+        kick: the mode voltage is witness-independent and the signed kick
+        charge is +1 for both -- the collider-pair equivalence at the
+        cross-term level.
+        """
+        r = self.R_OVER_Q * self.Q_L
+        de_co = self._cross_kick(-r, mu_plus, False)
+        de_cr = self._cross_kick(-r, mu_minus, True)
+        self.assertLess(float(np.sum(de_co)), 0.0)
+        np.testing.assert_array_equal(de_cr, de_co)
+
+    def test_equal_shunts_cancel_the_coincident_two_beam_voltage(self):
+        """
+        Equal shunts (``R_CR = +R``) cancel the collider-pair excitation.
+
+        With ``R_CR = +R`` the counter-rotating witness experiences the
+        inverted wake, so the mu+ co-rotating and mu- counter-rotating
+        deposits drive such a mode in antiphase: the summed voltage is
+        exactly zero (while same-charge beams would add up).
+        """
+        r = self.R_OVER_Q * self.Q_L
+        v_single, v_both = self._coincident_two_beam_voltage(+r)
+        scale = float(np.max(np.abs(v_single)))
+        self.assertGreater(scale, 0.0)
+        self.assertLess(float(np.max(np.abs(v_both))), 1e-9 * scale)
+
+    def test_equal_shunts_cross_kicks_are_opposite(self):
+        """
+        An equal-shunt mode (``R_CR = +R``) kicks the directions oppositely.
+
+        The complement of the cancellation above: from the same mu+
+        co-rotating deposit, the mu- counter-rotating witness receives
+        exactly the opposite kick of the co-rotating witness -- which is
+        why the collider pair's own excitations of such a mode cancel.
+        """
+        r = self.R_OVER_Q * self.Q_L
+        de_co = self._cross_kick(+r, mu_plus, False)
+        de_cr = self._cross_kick(+r, mu_minus, True)
+        self.assertGreater(float(np.max(np.abs(de_co))), 0.0)
+        np.testing.assert_array_equal(de_cr, -de_co)
+
+    def test_all_self_kicks_are_identical(self):
+        """
+        All four charge x direction corners receive the same self-kick.
+
+        ``dE`` scales with the signed charge squared, so mu+ co-rotating,
+        mu- counter-rotating (the collider pair), mu- co-rotating and mu+
+        counter-rotating all see the *identical* decelerating self-kick.
+        The counter-rotating corners were sign-flipped (accelerating,
+        unphysical) before the direction-signed source charge.
+        """
+        _, de_plus_co = self._self_wake(mu_plus, False)
+        _, de_minus_cr = self._self_wake(mu_minus, True)
+        _, de_minus_co = self._self_wake(mu_minus, False)
+        _, de_plus_cr = self._self_wake(mu_plus, True)
+
+        self.assertGreater(np.max(np.abs(de_plus_co)), 0.0)
+        np.testing.assert_array_equal(de_minus_cr, de_plus_co)
+        np.testing.assert_array_equal(de_minus_co, de_plus_co)
+        np.testing.assert_array_equal(de_plus_cr, de_plus_co)
+
+    def test_self_kick_decelerates_the_bunch(self):
+        """
+        The net self-kick removes energy from the bunch.
+
+        The fundamental theorem of beam loading: the bunch's own induced
+        voltage decelerates it on aggregate, for every charge / direction.
+        """
+        for particle_type, is_cr in (
+            (mu_plus, False),
+            (mu_minus, True),
+        ):
+            _, de = self._self_wake(particle_type, is_cr)
+            self.assertLess(float(np.sum(de)), 0.0)
+
+    def test_voltage_tracks_the_signed_charge(self):
+        """
+        Track the signed charge in the induced voltage.
+
+        mu- counter-rotating deposits the same-sign gap current as mu+
+        co-rotating (identical voltage -- the cavity cannot tell them
+        apart), while mu- co-rotating inverts the gap current and with it
+        the voltage.
+        """
+        v_plus_co, _ = self._self_wake(mu_plus, False)
+        v_minus_cr, _ = self._self_wake(mu_minus, True)
+        v_minus_co, _ = self._self_wake(mu_minus, False)
+
+        np.testing.assert_array_equal(v_minus_cr, v_plus_co)
+        np.testing.assert_array_equal(v_minus_co, -v_plus_co)
+
+    def test_single_beam_never_consults_the_counter_rotating_shunt(self):
+        """
+        Single-beam operation is independent of the counter-rotating shunt.
+
+        The cavity is symmetric: how much a single bunch induces (and the
+        kick it receives from its own wake) does not depend on its travel
+        direction; ``shunt_impedances_counter_rotating`` only encodes the
+        relationship *between* directions. Same-direction interactions take
+        the co-rotating wake by construction (the XOR selection), so a
+        counter-rotating beam alone runs with the shunt UNSET -- the source
+        raises if the counter-rotating wake were ever consulted -- and
+        setting it to either sign changes nothing, bit for bit.
+        """
+        r = self.R_OVER_Q * self.Q_L
+
+        def _cr_self_wake(shunt_counter_rotating):
+            wakefield = self._wakefield(shunt_counter_rotating)
+            beam = self._beam(mu_minus, True)
+            wakefield._track(beam)
+            return (
+                np.asarray(copy_to_cpu(wakefield.induced_voltage)).copy(),
+                np.asarray(copy_to_cpu(beam.dE.array_local)).copy(),
+            )
+
+        v_unset, de_unset = _cr_self_wake(None)  # raises if CR wake is used
+        self.assertGreater(float(np.max(np.abs(v_unset))), 0.0)
+        for shunt in (-r, +r):
+            v, de = _cr_self_wake(shunt)
+            np.testing.assert_array_equal(v, v_unset)
+            np.testing.assert_array_equal(de, de_unset)
+
+
+class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
+    """
+    Charge-pair x shunt-sign matrix for two counter-rotating passages.
+
+    The full 2x2 matrix of (equal vs opposite particle charges) x
+    (``R_CR = +R`` vs ``R_CR = -R``), run identically through BOTH multi-turn
+    solvers (:class:`MultiPassResonatorSolver` and
+    :class:`MultiPoleSparseSolve`):
+
+    ========================  ============  ============
+    charge pair               ``R_CR=+R``   ``R_CR=-R``
+    ========================  ============  ============
+    mu+ co / mu+ CR (equal)   build-up      cancellation
+    mu+ co / mu- CR (opp.)    cancellation  build-up (FM)
+    ========================  ============  ============
+
+    A co-rotating beam deposits at its reference time; the counter-rotating
+    beam passes ``2 t_rf`` later (commensurate with the resonator period, so
+    the carried wake returns in phase up to the decay factor
+    ``g = exp(-omega Delta / 2 Q)``; the pole-residue solver's sequential
+    state machine cannot take two passes at the identical time, so the
+    coincident limit is covered for the convolution solver in
+    :class:`TestCounterRotatingBeamKickSymmetry`). On the ringing tail the
+    closed form is exact:
+
+    ``v_2 = (s_2 - F g) v_1``
+
+    with ``s_2`` the signed charge of the counter-rotating beam (charge x
+    direction; ``-1`` for mu+ CR, ``+1`` for mu- CR) and ``F = R_CR / R``
+    (the parameter is the shunt the counter-rotating witness *experiences*,
+    its direction sign included, so the effective cross-coupling is ``-F``).
+    ``|s_2 - F g|`` is ``1 + g ~ 2`` (build-up) when ``s_2 F = -1`` and
+    ``1 - g ~ 5e-4`` (cancellation) when ``s_2 F = +1``.
+    """
+
+    R_OVER_Q = 518.0
+    Q_L = 1.29e4
+    T_RF = 1.0e-9
+    INTENSITY = 2.7e12
+    N_MACRO = 64
+    DELTA_T = 2.0e-9  # second passage offset: two resonator periods
+
+    _cache: dict = {}
+
+    def setUp(self):
+        """Force the CPU backend with the pole-residue kernel available."""
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
+
+    def _profile_and_center(self):
+        """
+        A mid-window Gaussian bunch profile.
+
+        Returns
+        -------
+        profile
+            Static profile holding the bunch.
+        t0
+            Bunch-center time within the profile window.
+        """
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, 1024, self.T_RF
+        )
+        t = profile.hist_x
+        t0 = t[0] + 0.5 * (t[-1] - t[0])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.T_RF)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile, t0
+
+    def _beam(self, particle_type, is_counter_rotating: bool):
+        """
+        A beam with macroparticles sitting on the bunch profile.
+
+        Parameters
+        ----------
+        particle_type
+            Particle type of the beam.
+        is_counter_rotating
+            Whether the beam circulates against the ring direction.
+
+        Returns
+        -------
+        Beam
+            The prepared beam.
+        """
+        _, t0 = self._profile_and_center()
+        beam = Beam(
+            intensity=self.INTENSITY,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+        )
+        dt = np.linspace(
+            t0 - 0.05 * self.T_RF, t0 + 0.05 * self.T_RF, self.N_MACRO
+        )
+        beam.setup_beam(dt=dt, dE=np.zeros(self.N_MACRO))
+        return beam
+
+    def _wakefield(self, solver_kind: str, shunt_counter_rotating: float):
+        """
+        A single-resonator wakefield with the requested multi-turn solver.
+
+        Parameters
+        ----------
+        solver_kind
+            ``"multipass"`` (convolution) or ``"multipole"`` (pole-residue).
+        shunt_counter_rotating
+            Counter-rotating shunt impedance of the resonator.
+
+        Returns
+        -------
+        WakeField
+            The wakefield, ready for ``_track``.
+        """
+        profile, _ = self._profile_and_center()
+        resonator = Resonators(
+            shunt_impedances=self.R_OVER_Q * self.Q_L,
+            center_frequencies=1.0 / self.T_RF,
+            quality_factors=self.Q_L,
+            shunt_impedances_counter_rotating=shunt_counter_rotating,
+        )
+        if solver_kind == "multipass":
+            solver = MultiPassResonatorSolver(decay_fraction_threshold=1e-12)
+        else:
+            solver = MultiPoleSparseSolve()
+        wakefield = WakeField(
+            sources=(resonator,), solver=solver, profile=profile
+        )
+        solver._parent_wakefield = wakefield
+        if solver_kind == "multipass":
+            solver._maximum_storage_time = 1.0
+            solver._last_reference_time = -np.finfo(float).eps
+        else:
+            solver._profile = profile
+            solver.last_reference_time = 0.0
+        profile.active = False
+        return wakefield
+
+    def _matrix_cell(self, solver_kind: str, cr_particle, shunt_sign: float):
+        """
+        Run (once, cached) one matrix cell and return its voltages.
+
+        Parameters
+        ----------
+        solver_kind
+            ``"multipass"`` or ``"multipole"``.
+        cr_particle
+            Particle type of the counter-rotating beam.
+        shunt_sign
+            ``+1`` or ``-1``, the sign of ``R_CR`` relative to ``R``.
+
+        Returns
+        -------
+        v_single
+            Induced voltage of the co-rotating mu+ deposit alone.
+        v_both
+            Induced voltage at the counter-rotating beam's passage
+            ``DELTA_T`` later, containing both contributions.
+        """
+        key = (solver_kind, cr_particle.charge, shunt_sign)
+        if key not in self._cache:
+            r_cr = shunt_sign * self.R_OVER_Q * self.Q_L
+            wakefield_single = self._wakefield(solver_kind, r_cr)
+            wakefield_single._track(self._beam(mu_plus, False))
+            v_single = np.asarray(
+                copy_to_cpu(wakefield_single.induced_voltage)
+            ).copy()
+
+            wakefield_both = self._wakefield(solver_kind, r_cr)
+            wakefield_both._track(self._beam(mu_plus, False))
+            beam_cr = self._beam(cr_particle, True)
+            beam_cr.reference.time += self.DELTA_T
+            wakefield_both._track(beam_cr)
+            v_both = np.asarray(
+                copy_to_cpu(wakefield_both.induced_voltage)
+            ).copy()
+            self._cache[key] = (v_single, v_both)
+        return self._cache[key]
+
+    def _assert_cell(self, cr_particle, shunt_sign: float, builds: bool):
+        """
+        Assert one matrix cell against the closed form, for both solvers.
+
+        Parameters
+        ----------
+        cr_particle
+            Particle type of the counter-rotating beam.
+        shunt_sign
+            ``+1`` or ``-1``, the sign of ``R_CR`` relative to ``R``.
+        builds
+            Expected outcome: True for build-up, False for cancellation.
+        """
+        # Signed charge of the counter-rotating beam (charge x direction).
+        s_2 = -cr_particle.charge
+        g = np.exp(-2.0 * np.pi / self.T_RF / (2.0 * self.Q_L) * self.DELTA_T)
+        # R_CR is the shunt the counter-rotating witness experiences (its
+        # direction sign included), so the effective cross-coupling carries
+        # a minus: build-up when s_2 * F = -1.
+        self.assertEqual(builds, s_2 * shunt_sign < 0)
+
+        for solver_kind in ("multipass", "multipole"):
+            with self.subTest(solver=solver_kind):
+                v_single, v_both = self._matrix_cell(
+                    solver_kind, cr_particle, shunt_sign
+                )
+                profile, t0 = self._profile_and_center()
+                # Ringing tail: past the bunch, where the fresh and carried
+                # contributions share the pure resonator oscillation (before
+                # the bunch the fresh term is zero by causality while the
+                # carried wake is not, so the closed form holds only here).
+                tail = profile.hist_x > (t0 + 0.15 * self.T_RF)
+                v_single_tail = v_single[tail]
+                v_both_tail = v_both[tail]
+                scale = float(np.max(np.abs(v_single_tail)))
+                self.assertGreater(scale, 0.0)
+
+                expected = (s_2 - shunt_sign * g) * v_single_tail
+                np.testing.assert_allclose(
+                    v_both_tail, expected, rtol=0, atol=1e-6 * scale
+                )
+                # The headline physics: amplitude doubles or dies.
+                amplitude_ratio = float(np.max(np.abs(v_both_tail))) / scale
+                if builds:
+                    self.assertGreater(amplitude_ratio, 1.9)
+                else:
+                    self.assertLess(amplitude_ratio, 1e-3)
+
+    def test_equal_charges_fm_shunt_cancel(self):
+        """
+        mu+ co and mu+ counter-rotating cancel for ``R_CR = -R``.
+
+        Same particle charge, opposite directions: the gap currents are
+        opposite, so the excitations of an asymmetric fundamental mode
+        cancel to ``1 - g``.
+        """
+        self._assert_cell(mu_plus, -1.0, builds=False)
+
+    def test_equal_charges_equal_shunts_build_up(self):
+        """
+        mu+ co and mu+ counter-rotating build up for ``R_CR = +R``.
+
+        The headline of the convention: with equal shunts, two
+        counter-rotating beams of the SAME charge add up (the witness's
+        inverted wake compensates their opposite gap currents).
+        """
+        self._assert_cell(mu_plus, +1.0, builds=True)
+
+    def test_opposite_charges_fm_shunt_builds_up(self):
+        """
+        mu+ co and mu- counter-rotating build up for ``R_CR = -R``.
+
+        The collider pair: equal gap currents, asymmetric-fundamental-mode
+        shunt -- the loading of both beams adds constructively to ``1 + g``
+        and both receive the same kick.
+        """
+        self._assert_cell(mu_minus, -1.0, builds=True)
+
+    def test_opposite_charges_equal_shunts_cancel(self):
+        """
+        mu+ co and mu- counter-rotating cancel for ``R_CR = +R``.
+
+        With equal shunts the counter-rotating witness experiences the
+        inverted wake: the collider pair drives such a mode in antiphase,
+        cancelling to ``1 - g``.
+        """
+        self._assert_cell(mu_minus, +1.0, builds=False)
+
+    def test_solvers_agree_cell_by_cell(self):
+        """
+        Convolution and pole-residue solvers agree in every matrix cell.
+
+        The pole-residue kernel's per-pole inject/readout sign flips must
+        reproduce the convolution solver's XOR wake selection exactly
+        (measured agreement ~1e-13 of the voltage scale).
+        """
+        for cr_particle in (mu_plus, mu_minus):
+            for shunt_sign in (+1.0, -1.0):
+                with self.subTest(
+                    cr_charge=cr_particle.charge, shunt_sign=shunt_sign
+                ):
+                    _, v_multipass = self._matrix_cell(
+                        "multipass", cr_particle, shunt_sign
+                    )
+                    _, v_multipole = self._matrix_cell(
+                        "multipole", cr_particle, shunt_sign
+                    )
+                    scale = float(np.max(np.abs(v_multipass)))
+                    self.assertGreater(scale, 0.0)
+                    np.testing.assert_allclose(
+                        v_multipole, v_multipass, rtol=0, atol=1e-11 * scale
+                    )
+
+
 class TestHeadlessSolvers(unittest.TestCase):
     def test_comp(self):
         t_rf = 7.706144104735e-10
@@ -3366,6 +4071,8 @@ class TestHeadlessSolvers(unittest.TestCase):
             beam.intensity / beam.n_macroparticles_partial.return_value
         )
         beam.particle_type = mu_plus
+        beam.is_counter_rotating = False
+        beam.signed_charge_with_direction.return_value = mu_plus.charge
 
         wf_td = WakeField.headless(
             sources=(
