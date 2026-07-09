@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -72,6 +72,18 @@ def _move_flagged_elements_to_end_py(
 
 class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
+
+    @staticmethod
+    def get_max_threads() -> int:  # pragma: no cover
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        return 1
 
     @staticmethod
     def beam_phase(
@@ -583,7 +595,7 @@ class PythonSpecials(Specials):
         dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
-    def kick_induced_voltage(
+    def kick_interpolated(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -625,6 +637,60 @@ class PythonSpecials(Specials):
             # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
             if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
                 dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+
+    @staticmethod
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: NumpyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        """
+        Apply synchrotron radiation and quantum excitation energy kicks.
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. Modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time of the considered synchrotron segment,
+            in [turn].
+        natural_energy_spread
+            Natural energy spread of the considered synchrotron segment,
+            [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+           Disables the quantum excitation kick.
+        """
+        damping_factor = 1.0 - 2.0 / longitudinal_damping_time
+        if disable_quantum_excitation:
+            beam_dE *= damping_factor
+            beam_dE -= energy_lost
+        else:
+            noise_scale = (
+                2.0
+                * natural_energy_spread
+                / float(np.sqrt(longitudinal_damping_time))
+                * total_energy
+            )
+            # Pre-combine the additive term in the noise buffer so that the
+            # final update over beam_dE is a single fused-multiply-add-like
+            # expression: beam_dE := damping_factor * beam_dE + noise_term.
+            # Legacy `np.random.standard_normal` is intentional: keeps
+            # `np.random.seed(...)` reproducibility on the Python reference
+            # backend.
+            noise_term = np.random.standard_normal(size=len(beam_dE))  # NOQA: NPY002
+            noise_term *= noise_scale
+            noise_term -= energy_lost
+            # One sweep on beam_dE: scale then add the prepared noise_term.
+            beam_dE *= damping_factor
+            beam_dE += noise_term
 
     @staticmethod
     def move_flagged_elements_to_end(
@@ -727,3 +793,112 @@ class PythonSpecials(Specials):
                 ),
             )
             out[sel] = hist
+
+    @staticmethod
+    def wake_from_pole_residue(
+        # read
+        profile: NumpyArray,
+        profile_dts: NumpyArray,
+        poles: NumpyArray,
+        residues: NumpyArray,
+        is_counterrotating_beam: bool,
+        counterrotating_pole_signs: NumpyArray,
+        update_on_bin: NumpyArray,
+        factor: float,
+        # write
+        states: NumpyArray,
+        voltage: NumpyArray,
+        voltage_threaded: NumpyArray,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        is_counterrotating_beam
+            If true, the current beam is counter-rotating.
+        counterrotating_pole_signs
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+        factor
+            To convert `profile` to current per bin [A].
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        n_poles = len(poles)
+        two_factor = 2 * factor
+        n_bins = len(profile)
+
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+
+        t_start = states[-1]
+
+        for pole_i in range(n_poles):
+            # `cr_pole_flip` is intentionally applied to BOTH the state
+            # injection and the output amplitude: for the counter-rotating
+            # beam's own wake the two factors cancel (flip**2 == 1); only
+            # contributions of the other beam, accumulated in the shared
+            # `states`, see a net sign flip.
+            cr_pole_flip = 1.0
+            if (
+                is_counterrotating_beam
+                and counterrotating_pole_signs[pole_i] == -1
+            ):
+                cr_pole_flip = -1.0
+
+            i_update = 0
+            # empty `update_on_bin` means "never update"; `decay` stays 0
+            update_on_bin_i = (
+                update_on_bin[0] if len(update_on_bin) > 0 else -1
+            )
+
+            pole = complex(poles[pole_i])
+            residue = complex(residues[pole_i])
+            state = complex(states[pole_i])
+
+            decay = 0.0 + 0j
+            for bin_i in range(n_bins):
+                profile_i_half = (
+                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                )
+
+                if bin_i == update_on_bin_i:
+                    if bin_i == 0:
+                        t_jump = profile_dts[0] - t_start + 0j
+                    else:
+                        t_jump = (
+                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
+                        )
+                    state *= np.exp(pole * t_jump)
+                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * dt)
+
+                    i_update += 1
+                    if i_update < len(update_on_bin):
+                        update_on_bin_i = update_on_bin[i_update]
+                else:
+                    state *= decay
+                state += profile_i_half
+                amp = float(np.real(residue * state))
+                voltage[bin_i] += cr_pole_flip * amp
+                state += profile_i_half
+            states[pole_i] = state
+
+        states[-1] = profile_dts[-1]

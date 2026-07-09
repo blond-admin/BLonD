@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,7 +14,9 @@ from typing import Literal
 
 
 def setup_backend(
-    mode: Literal["auto", "python", "cpp", "numba", "cuda"] = "auto",
+    mode: Literal[
+        "auto", "python", "cpp", "cpp_single_core", "numba", "cuda"
+    ] = "auto",
 ) -> None:
     """
     Set up the backend to be used.
@@ -23,7 +25,7 @@ def setup_backend(
     ----------
     mode
         Backend special mode to use.
-        If "auto", the fasted backend will be automatically choose.
+        If "auto", the fastest backend will be chosen automatically.
 
     Notes
     -----
@@ -39,7 +41,7 @@ def setup_backend(
 
         backend.change_backend(Cupy64Bit)
         backend.set_specials(mode)
-    elif mode in ("python", "cpp", "numba"):
+    elif mode in ("python", "cpp", "cpp_single_core", "numba"):
         from blond import Numpy64Bit
 
         backend.change_backend(Numpy64Bit)

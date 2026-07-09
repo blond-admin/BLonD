@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -9,16 +9,13 @@
 """Untested/unstable code that might be changed in the future."""
 
 __all__ = [
-    "FilamentationMatcher",
     "SemiEmpiricMatcher",
     "VariNoise",
     "ProfileMatcherAddon",
+    "PooledInterpolationKick",
 ]
 import warnings
 
-from blond.experimental.beam_preparation.filamentation_matcher import (
-    FilamentationMatcher,
-)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
@@ -28,6 +25,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_de
 from blond.experimental.cycles.noise_generators.vari_noise import (
     VariNoise,
 )
+from blond.experimental.physics.kick_pooling import PooledInterpolationKick
 from blond.generals.warnings_ import ExperimentalFeaturesWarning
 
 _msg = """

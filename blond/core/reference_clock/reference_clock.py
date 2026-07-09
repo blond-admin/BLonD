@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,6 +11,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from blond.core.reference_clock.reference_clock_numba import beta as beta_nb
 from blond.core.reference_clock.reference_clock_numba import gamma as gamma_nb
@@ -114,7 +116,9 @@ class ReferenceCoordinates:
         beta
             Beam reference fraction of speed of light (v/c0) [].
         """
-        return beta_nb(self._total_energy, self._particle_type.mass_inv)
+        beta = beta_nb(self._total_energy, self._particle_type.mass_inv)
+        assert not np.isnan(beta), f"{beta=}"
+        return beta
 
     @property
     def velocity(self) -> float:

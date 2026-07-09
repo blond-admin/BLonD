@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -17,6 +17,8 @@ import platform
 import subprocess
 import sys
 
+from blond.generals.hashing_ import hash_in_folder
+
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
@@ -28,14 +30,16 @@ cpp_files = [
     "linear_interp_kick.cpp",
     "histogram.cpp",
     "drift_exact.cpp",
-    "music_track.cpp",
-    "blondmath.cpp",
+    # "music_track.cpp",
+    # "blondmath.cpp",
+    "blondmath_new.cpp",
     # "fast_resonator.cpp",
     "histogram_sparse.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
     "move_flagged_elements_to_end.cpp",
     "poles.cpp",
+    "synchrotron_radiation_and_quantum_excitation.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]
@@ -78,7 +82,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    optimize: bool = False,
+    optimize: bool = True,
     libname: str | None = None,
 ) -> None:
     """
@@ -105,7 +109,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
     optimize : bool
-        If True, enable post-compilation optimizations.
+        If True (default), add `-march=native`, `-ffast-math` and
+        CPU-specific vectorization flags (AVX/SSE/FMA).
     libname : str
         Path and name of the output library (without file extension).
 
@@ -119,11 +124,13 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    print("\nTrying to compile C++ backend.")
-    for parallel in (True,):
-        if libname is None:
-            from blond.generals.hashing_ import hash_in_folder
+    for parallel in (False, True):
+        if parallel:
+            print("\nTrying to compile parallel C++ backend.")
+        else:
+            print("\nTrying to compile single core C++ backend.")
 
+        if libname is None:
             folder = os.path.dirname(os.path.abspath(__file__))
 
             hash_ = hash_in_folder(
@@ -139,12 +146,14 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
         cflags = [
             "-O3",
-            "-std=c++20",
+            "-std=c++11",
             "-shared",
             "-funroll-loops",  # Aggressive loop unrolling
             "-ftree-vectorize",
-            "-march=native",
         ]
+        if optimize:
+            # CPU-specific; --no-optimize keeps the binary portable
+            cflags += ["-march=native"]
         # Some additional warning reporting related flags
         cflags += [
             "-Wall",
@@ -189,7 +198,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             with_fftw_threads=with_fftw_threads,
         )
 
-        cflags, libname_double, libname_single = _prepare_cflags(
+        cflags, libname_double = _prepare_cflags(
             cflags=cflags,
             compiler=compiler,
             libname=libname,
@@ -223,6 +232,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
         print("Compiler flags: ", " ".join(cflags))
         print("Extra libraries: ", " ".join(libs_))
+
         command = (
             [compiler]
             + cflags
@@ -280,8 +290,6 @@ def _prepare_cflags(
         Updated compiler flags.
     libname_double
         Path to double-precision library.
-    libname_single
-        Path to single-precision library.
     """  # TODO undocumented port from BLOND2
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
@@ -297,9 +305,6 @@ def _prepare_cflags(
         root, ext = os.path.splitext(libname)
         if not ext:
             ext = ".so"
-        libname_single = os.path.abspath(
-            root + "_single" + parallel_suffix + ext
-        )
         libname_double = os.path.abspath(
             root + "_double" + parallel_suffix + ext
         )
@@ -318,9 +323,6 @@ def _prepare_cflags(
         if not ext:
             ext = ".dll"
 
-        libname_single = os.path.abspath(
-            root + "_single" + parallel_suffix + ext
-        )
         libname_double = os.path.abspath(
             root + "_double" + parallel_suffix + ext
         )
@@ -331,7 +333,7 @@ def _prepare_cflags(
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
-    return cflags, str(libname_double), str(libname_single)
+    return cflags, str(libname_double)
 
 
 def _prepare_fftw(
@@ -415,7 +417,7 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         text=True,
-        check=True,
+        check=False,
     )
     # If we have an error
     if proc.returncode != 0:
@@ -534,9 +536,10 @@ def main_cli() -> None:
     parser.add_argument(
         "-optimize",
         "--optimize",
-        type=bool,
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Auto optimize the compiled library.",
+        help="Auto optimize the compiled library"
+        " (disable with --no-optimize).",
     )
 
     # Parse command line options

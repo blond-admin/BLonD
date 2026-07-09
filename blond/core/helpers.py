@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -10,7 +10,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import types
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -114,6 +116,12 @@ def _find(
     ):
         if id(obj) in seen:
             return
+        # Never descend into imported modules: a module is a shared global
+        # namespace, so crawling its globals reaches arbitrary third-party
+        # state (e.g. pytest's ``mark``) instead of the simulation tree, and
+        # is never what we are looking for.
+        if isinstance(obj, types.ModuleType):
+            return
         # todo remove no cover when Python11 is the main CI tester.
         #  in Python10 this line is never hit..
         if (  # pragma: no cover
@@ -124,7 +132,11 @@ def _find(
         seen.add(id(obj))
         is_mock = isinstance(obj, Mock)
         if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
-            skip_list.extend(obj.skip_find_instances_attributes)
+            # Guard against objects whose ``__getattr__`` fabricates any
+            # attribute (e.g. pytest's ``MarkGenerator``): the value may be
+            # absent or not iterable, in which case there is nothing to skip.
+            with contextlib.suppress(TypeError):
+                skip_list.extend(obj.skip_find_instances_attributes)
 
         # Check if object has the desired method
         if is_wanted(obj):
@@ -191,10 +203,6 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     found_instances
         Set of instances that have the specified method.
 
-    See Also
-    --------
-    _find: Internal method used.
-
     Examples
     --------
     Class attributes that should not be searched for `method_name`
@@ -242,10 +250,6 @@ def find_instances_by_class(root: Any, class_: type[T]) -> T:
     -------
     found_instances
         Set of instances that are a ``isinstance(element, class_)``.
-
-    See Also
-    --------
-    _find: Internal method used.
     """
 
     def _matches_class(obj):

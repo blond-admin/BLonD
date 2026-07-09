@@ -1,6 +1,6 @@
 // Copyright CERN. This software is distributed under the
 // terms of the GNU General Public Licence version 3 (GPL Version 3),
-// copied verbatim in the file LICENCE.txt.
+// copied verbatim in the file LICENSE.txt.
 // In applying this licence, CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization or
 // submit itself to any jurisdiction.
@@ -19,9 +19,9 @@
 // Complex exponential: exp(a + bi) = exp(a) * (cos(b) + i*sin(b))
 static inline void fast_cexp(const real_t re, const real_t im,
                              real_t &out_re, real_t &out_im) {
-    const real_t e = FAST_EXP(re);
-    out_re = e * FAST_COS(im);
-    out_im = e * FAST_SIN(im);
+    const real_t cmplx_res = FAST_EXP(re);
+    out_re = cmplx_res * FAST_COS(im);
+    out_im = cmplx_res * FAST_SIN(im);
 }
 
 // Complex multiply: (a + bi) * (c + di)
@@ -44,31 +44,33 @@ static inline void cmul(const real_t a_re, const real_t a_im,
  * profile_dts    : Time step base, length n_profile_dts (>= n_bins + 1).
  * poles          : Complex poles, interleaved, length 2 * n_poles.
  * residues       : Complex residues, interleaved, length 2 * n_poles.
+ * is_counterrotating_beam : If true, the current beam is counter-rotating.
+ * counterrotating_pole_signs :  Array per pole, -1 if the sign of the
+ *                               impedance is flipped for a counter-rotating beam.
  * states         : Complex state vector, interleaved, length 2 * (n_poles + 1).
  *                  Last complex element stores t_start (real part only).
  * voltage        : Output voltage [V], length n_bins.
  * voltage_threaded : Per-thread voltage buffer, length n_threads * n_bins.
  * update_on_bin  : Bin indices triggering dt update, length n_updates.
  * factor         : Conversion factor (profile to current per bin [A]).
- * charge         : Charge of the particle.
  * n_bins         : Number of bins in profile.
  * n_poles        : Number of poles.
  * n_threads      : Size of first dimension of voltage_threaded (>= omp_get_max_threads()).
  * n_updates      : Length of update_on_bin.
  * n_profile_dts  : Length of profile_dts.
  */
-extern "C" void apply_poles(
+extern "C" void wake_from_pole_residue(
     const real_t *__restrict__ profile,
     const real_t *__restrict__ profile_dts,
     const real_t *__restrict__ poles,
     const real_t *__restrict__ residues,
-    const bool beam_counter_rotation_flag,
-    const real_t *__restrict__ cr_pole_flip_flags,
+    const bool is_counterrotating_beam,
+    const real_t *__restrict__ counterrotating_pole_signs,
+    const int *__restrict__ update_on_bin,
+    const real_t factor,
     real_t *__restrict__ states,
     real_t *__restrict__ voltage,
     real_t *__restrict__ voltage_threaded,
-    const int *__restrict__ update_on_bin,
-    const real_t factor,
     const int n_bins,
     const int n_poles,
     const int n_threads,
@@ -90,20 +92,25 @@ extern "C" void apply_poles(
     for (int pole_i = 0; pole_i < n_poles; pole_i++) {
         const int thread_i = omp_get_thread_num();
 
+        // `cr_pole_flip` is intentionally applied to BOTH the state injection
+        // and the output amplitude: for the counter-rotating beam's own wake
+        // the two factors cancel (flip * flip == 1); only contributions of
+        // the other beam, accumulated in the shared `states`, see a net
+        // sign flip.
         real_t cr_pole_flip = 1;
-        if (beam_counter_rotation_flag) {
-            if (cr_pole_flip_flags[pole_i] == -1) {
+        if (is_counterrotating_beam) {
+            if (counterrotating_pole_signs[pole_i] == -1) {
                 cr_pole_flip = -1;
             }
         }
+        const int pole_n = 2 * pole_i;
+        const real_t pole_re = poles[pole_n];
+        const real_t pole_im = poles[pole_n + 1];
+        const real_t res_re = residues[pole_n];
+        const real_t res_im = residues[pole_n + 1];
 
-        const real_t pole_re = poles[2 * pole_i];
-        const real_t pole_im = poles[2 * pole_i + 1];
-        const real_t res_re = residues[2 * pole_i];
-        const real_t res_im = residues[2 * pole_i + 1];
-
-        real_t state_re = states[2 * pole_i];
-        real_t state_im = states[2 * pole_i + 1];
+        real_t state_re = states[pole_n];
+        real_t state_im = states[pole_n + 1];
 
         int i_update = 0;
         int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
@@ -147,17 +154,17 @@ extern "C" void apply_poles(
                 state_im = new_im;
             }
 
-            const real_t profile_i_ = real_t(0.5) * profile[bin_i];
+            const real_t profile_i_half = cr_pole_flip * real_t(0.5) * profile[bin_i] * two_factor;
 
-            // state += profile_i_ (real part only, imag part is zero)
-            state_re += cr_pole_flip * profile_i_ * two_factor;
+            // real part only, imag part is zero
+            state_re +=  profile_i_half ;
 
             // amp = Re(residue * state)
             const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += cr_pole_flip * amp; //cr_pole_flip
+            vt[bin_i] += cr_pole_flip * amp;
 
-            // state += profile_i_ (second half of trapezoidal rule)
-            state_re += cr_pole_flip * profile_i_ * two_factor;
+            // second half of trapezoidal rule
+            state_re += profile_i_half;
         }
 
         // Store state back

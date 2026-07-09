@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +38,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from matplotlib.collections import PathCollection, QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation
     from blond.core.beam.particle_types import ParticleType
 
 
@@ -95,20 +94,6 @@ class Beam(BeamBaseClass):
                 self._ids is not None,
             )
         )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Initialize beam parameters when the simulation is created.
-
-        This method is automatically called during simulation initialization
-        to set up the beam within the simulation context.
-
-        Parameters
-        ----------
-        simulation
-            The simulation object that manages this beam.
-        """
-        super().on_init_simulation(simulation=simulation)
 
     def setup_beam(
         self,
@@ -212,37 +197,6 @@ class Beam(BeamBaseClass):
             )
         else:
             raise NameError(f"Unknown {mpi_mode=}")
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Prepare the beam before the simulation starts running.
-
-        This method is automatically called when `simulation.run_simulation()`
-        is invoked, allowing the beam to perform any necessary setup before
-        the turn-by-turn tracking begins.
-
-        Parameters
-        ----------
-        simulation
-            The simulation object managing the beam dynamics.
-        beam
-            The beam object being simulated (typically this beam itself).
-        n_turns
-            The total number of turns (revolutions) to simulate.
-        **kwargs
-            Additional keyword arguments for simulation setup.
-        """
-        super().on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=n_turns,
-        )
 
     @property
     def ratio(self) -> float:
@@ -582,7 +536,8 @@ class Beam(BeamBaseClass):
         )
         dEs = (
             mpi_aware_random_generator_cpu(
-                seed=seed, n_forward_per_rank=local_size
+                seed=None if seed is None else seed + 1,
+                n_forward_per_rank=local_size,
             ).standard_normal(size=local_size)
             * dE_scale
             + dE_offset

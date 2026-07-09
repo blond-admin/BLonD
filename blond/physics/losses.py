@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -19,9 +19,6 @@ from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
-    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
 
 
@@ -104,13 +101,13 @@ class BoxLosses(LossesBaseClass):
 
     Attributes
     ----------
-    t_min : float
+    t_min
         Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
-    t_max : float
+    t_max
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
-    e_min : float
+    e_min
         Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
-    e_max : float
+    e_max
         Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 
@@ -153,40 +150,6 @@ class BoxLosses(LossesBaseClass):
         self.t_max = float(t_max)
         self.e_min = float(e_min)
         self.e_max = float(e_max)
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        beam
-            Simulation beam object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     def _track(self, beam: BeamBaseClass) -> None:
         """

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -15,18 +15,15 @@ L. Valle
 
 from __future__ import annotations
 
-from abc import ABC
 from typing import TYPE_CHECKING
 
-import numpy as np
-from numpy.random import Generator
 from numpy.typing import NDArray as NumpyArray
 
-from blond import backend
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -35,68 +32,7 @@ if TYPE_CHECKING:
     from blond.core.simulation.simulation import Simulation
 
 
-def calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
-    beam_delta_energy_array: NumpyArray,
-    energy_lost: float,
-    longitudinal_damping_time: float,
-    natural_energy_spread: float | None = None,
-    total_energy: float | None = None,
-    random_generator: Generator | None = None,
-    disable_quantum_excitation: bool = False,
-) -> float | NumpyArray:
-    """
-    Energy kick induced by synchrotron radiation and quantum excitation.
-
-    Function to calculate the energy kick induced by the energy lost by
-    synchrotron radiation, its damping effect and the quantum excitation.
-    Class independent.
-
-    Parameters
-    ----------
-    beam_delta_energy_array
-        Beam energy array.
-    energy_lost
-        Energy lost through the considered synchrotron segment, in [eV per
-        turn].
-    longitudinal_damping_time
-        Longitudinal damping time of the considered synchrotron segment,
-        in [turn].
-    natural_energy_spread
-        Natural energy spread of the considered synchrotron segment,
-        [dimensionless].
-    total_energy
-        Beam total reference energy, in [eV].
-    random_generator
-        Random generator.
-    disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
-
-    Returns
-    -------
-    energy_kick
-        Energy kick induced by synchrotron radiation and quantum excitation.
-    """
-    if disable_quantum_excitation:
-        energy_kick = (
-            -energy_lost
-            - 2.0 / longitudinal_damping_time * beam_delta_energy_array
-        )
-    else:
-        energy_kick = (
-            -energy_lost
-            - 2.0 / longitudinal_damping_time * beam_delta_energy_array
-            + 2.0
-            * natural_energy_spread
-            / np.sqrt(longitudinal_damping_time)
-            * total_energy
-            * random_generator.standard_normal(
-                size=len(beam_delta_energy_array)
-            )
-        )
-    return backend.cast_arr_float_if_needed(energy_kick)
-
-
-class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
     """
     Base class for radiating ring elements.
 
@@ -110,9 +46,16 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
     seed
-        Random seed parameter.
+        Currently unsupported and must be left as ``None``. The
+        quantum-excitation noise is generated inside
+        ``backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick``
+        and each backend uses its own RNG (NumPy global state on the Python
+        backend, Numba's per-thread parallel PRNG, ``std::mt19937_64`` on the
+        C++ backend, cuRAND on the CUDA backend), so a single user-supplied
+        seed cannot be threaded through uniformly. Passing a value here will
+        raise ``NotImplementedError`` rather than silently being ignored.
     """
 
     def __init__(
@@ -123,11 +66,27 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         disable_quantum_excitation: bool = False,
         seed: int | None = None,
     ):
+        if seed is not None:  # pragma: no cover
+            raise NotImplementedError(
+                "`seed` is not supported: the quantum-excitation noise is "
+                "drawn inside the active backend's `specials` implementation "
+                "and the four backends (Python/Numba/C++/CUDA) each use a "
+                "different RNG (NumPy global state, Numba's per-thread "
+                "parallel PRNG, `std::mt19937_64`, cuRAND). A single seed "
+                "cannot be plumbed through uniformly today, so we refuse it "
+                "instead of silently ignoring it. Pass `seed=None` and (for "
+                "the Python backend only) call `np.random.seed(...)` before "
+                "tracking if you need reproducibility."
+            )
+
         super().__init__(name=name, section_index=section_index)
 
+        self._add_intended_schedule(
+            "share_of_radiation_integrals",
+        )
+
         self._simulation: Simulation | None = None
-        self._turn_i: DynamicParameter | int = 0
-        self._share_of_radiation_integrals = share_of_radiation_integrals
+        self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
@@ -135,41 +94,20 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time: float | None = None
         self._natural_energy_spread: float | None = None
 
-        self.rng = backend.default_rng(seed=seed)
-        # backend.default_rng
-
-    @property
-    def share_of_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the drift.
-
-        Returns
-        -------
-        synchrotron_radiation_integrals_drift
-            Synchrotron radiation integrals of the drift.
-        """
-        return self._share_of_radiation_integrals
-
-    def _calculate_kick(
+    def _apply_kick(
         self,
         beam: BeamBaseClass,
-    ) -> NumpyArray:
+    ) -> None:
         """
-        Energy kick induced by synchrotron radiation and quantum excitation.
+        Apply synchrotron radiation and quantum excitation energy kicks.
 
-        Function to calculate the energy kick induced by the energy lost by
-        synchrotron radiation, its damping effect and the quantum excitation.
-        Function used to update the beam partial energy dE.
+        Mutates ``beam._dE`` in place via
+        ``backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick``.
 
         Parameters
         ----------
         beam
              BeamBaseClass object.
-
-        Returns
-        -------
-        energy_kick
-            Energy kick to be applied on the energy coordinates of the beam.
         """
         total_energy = beam.reference.total_energy
         (
@@ -179,46 +117,23 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ) = gather_longitudinal_synchrotron_radiation_parameters(
             particle_type=beam.particle_type,
             energy=total_energy,
-            radiation_integrals=self._share_of_radiation_integrals,
+            radiation_integrals=self.share_of_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time
         self._natural_energy_spread = estimated_natural_energy_spread
 
-        beam_dE = beam.read_partial_dE()
-        random_generator = self.rng
-        return calculation_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE = beam.write_partial_dE()
+        backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
             energy_lost=estimated_energy_lost,
-            beam_delta_energy_array=beam_dE,
-            random_generator=random_generator,
+            beam_dE=beam_dE,
             natural_energy_spread=estimated_natural_energy_spread,
             longitudinal_damping_time=estimated_damping_time,
             total_energy=total_energy,
             disable_quantum_excitation=self._disable_quantum_excitation,
         )
 
-    def _update_beam_energy(
-        self,
-        beam: BeamBaseClass,
-    ) -> None:
-        """
-        Update the beam partial energy with radiation damping and excitation.
-
-        Function to update the beam partial energy including the energy lost by
-        synchrotron radiation, its damping effect and the quantum
-        excitation. Energy kick computed from self._calculate_kick method.
-
-        Parameters
-        ----------
-        beam
-            BeamBaseClass object.
-        """
-        # TODO write C++ routine
-        energy_change = self._calculate_kick(beam=beam)
-        dE = beam.write_partial_dE()
-        dE[:] += energy_change
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -226,27 +141,33 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._simulation = simulation
-        self._turn_i = simulation.turn_i
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            **kwargs,
+        )
 
-    def on_run_simulation(
+    def configure(
         self,
-        simulation: Simulation,
+        *,
+        turn_counter: DynamicParameter | None = None,
         **kwargs,
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Store the runtime references needed during tracking.
 
         Parameters
         ----------
-        simulation
-            `Simulation` context manager.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         **kwargs
-            Additional keyword arguments for simulation setup.
+            Passed to the next level in the MRO chain.
         """
-        pass
+        super().configure(**kwargs)
+        self._turn_counter = turn_counter
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -257,4 +178,12 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element.
         """
-        self._update_beam_energy(beam)
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=float(beam.reference.time),
+            )
+        self._apply_kick(beam)

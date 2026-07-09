@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,9 +14,9 @@ import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import numpy as np
+import sympy
 from scipy.constants import speed_of_light as c0
 
 from blond.acc_math.analytic.hamilton import (
@@ -30,16 +30,22 @@ from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
     DynamicParameter,
+    HasSymbolicHamiltonian,
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
+from blond.experimental.physics.kick_pooling import (
+    PooledInterpolationKick,
+    SupportsPooledInterpolationKickMixIn,
+)
 from blond.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
@@ -87,9 +93,13 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        self._turn_i: DynamicParameter | None = None
+        self._ring: Ring | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
+        self._turn_counter: DynamicParameter | None = None
+        self._magnetic_cycle: MagneticCycleBase | None = None
+        self._ring: Ring | None = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -97,10 +107,87 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            magnetic_cycle=simulation.magnetic_cycle,
+            ring=simulation.ring,
+            **kwargs,
+        )
 
-        self._turn_i = simulation.turn_i
+    def configure(
+        self,
+        *,
+        turn_counter: DynamicParameter | None = None,
+        magnetic_cycle: MagneticCycleBase | None = None,
+        ring: Ring,
+        **kwargs,
+    ) -> None:
+        """
+        Store the runtime references needed during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        magnetic_cycle
+            Energy program; provides ``get_target_total_energy``.
+        ring
+            Ring geometry; provides ``circumference`` and ``section_lengths``.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._turn_counter = turn_counter
+        self._magnetic_cycle = magnetic_cycle
+        self._ring = ring
+
+    def track_reference(
+        self,
+        reference: ReferenceCoordinates,
+        is_counter_rotating: bool = False,
+    ) -> float:
+        """
+        Update the coordinates of the reference coordinate system.
+
+        Parameters
+        ----------
+        reference
+            The object that holds the reference time [s] and total energy [eV].
+        is_counter_rotating
+            Whether the beam is counter rotating or not.
+
+        Returns
+        -------
+        reference_energy_change
+            Change of reference energy [eV].
+        """
+        # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
+        # or an external code such as xsuite owns the reference): the reference
+        # is left untouched and no acceleration kick is applied.
+        if self._magnetic_cycle is None:
+            return 0.0
+
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
+            reference_time=reference.time,
+            particle_type=reference.particle_type,
+        )
+        reference_energy_change = target_total_energy - reference.total_energy
+        reference.total_energy = target_total_energy
+        return reference_energy_change
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -113,8 +200,11 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super()._track(beam=beam)
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
-                turn_i=self._turn_i.value,
+                turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),
             )
 
@@ -141,6 +231,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         Optional beam feedback.
     name
         User given name of the element.
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
+    delayed_kick_time_axis
+        The time axis along which to interpolate the kick.
+        This impacts the accuracy and range of the RF kick.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -157,8 +253,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        assert n_rf > 0, f"{n_rf=}"
+
         super().__init__(
             section_index=section_index,
             name=name,
@@ -170,7 +270,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "phi_rf_design",
             "harmonic",
         )
-
         self._n_rf = n_rf
 
         self.cavity_feedback_list: list[
@@ -213,6 +312,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """Voltage/s, in [V]."""
         self.harmonic: NumpyArray | float | None = None
         """Harmonic number, relating the rf frequency/ies to the revolution frequency."""
+
+        self._delayed_kick = delayed_kick
+        if self._delayed_kick is not None and not self.any_feedback_not_none:
+            assert delayed_kick_time_axis is not None
+        self._delayed_kick_time_axis = delayed_kick_time_axis
+
+        # Cached reference-energy change from the most recent _track call.
+        # Used by get_hamilton_symbolic to include the acceleration term.
+        self._last_reference_energy_change: float | None = None
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -277,7 +385,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "`phi_rf` can not be set, use `phi_rf_design` instead!"
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -285,10 +393,10 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._magnetic_cycle = simulation.magnetic_cycle
-        self._ring = simulation.ring
+        super().on_init_simulation(simulation=simulation, **kwargs)
 
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
@@ -328,10 +436,31 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        # set design omega etc. for this turn
-        self._update_beam_based_attributes(beam=beam)
+        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Update design RF frequencies and phases from the beam reference.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated; provides ``beam.reference``.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; passed to the next MRO level.
+        """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
+        self._update_reference_based_attributes(reference=beam.reference)
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
@@ -437,22 +566,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         if harmonic_index is None and not isinstance(self.phi_rf, float):
             raise ValueError(
-                "If no harmonic_index is provided, phi_rf needs to be a float."
+                "If no `harmonic_index` is provided, `phi_rf` needs to be a float."
             )
 
         phi_rf = (
             self.phi_rf[harmonic_index]
-            if harmonic_index is not None
+            if isinstance(self, MultiHarmonicRFStation)
             else self.phi_rf
         )
         omega_rf = (
             self.omega_rf[harmonic_index]
-            if harmonic_index is not None
+            if isinstance(self, MultiHarmonicRFStation)
             else self.omega_rf
         )
         voltage = (
             self.voltage[harmonic_index]
-            if harmonic_index is not None
+            if isinstance(self, MultiHarmonicRFStation)
             else self.voltage
         )
         gap_voltage = (
@@ -638,11 +767,23 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Synchronous phase for the current RF parameters, in [rad].
         """
         # TODO rewrite for efficiency
+        if self._magnetic_cycle is None:
+            raise ValueError(
+                "Synchronous phase requires a `magnetic_cycle`; this RF station "
+                "was created via `headless(...)` without one "
+                "(`magnetic_cycle=None`)."
+            )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not beam.is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not beam.is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
@@ -696,17 +837,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         return self._n_rf
 
-    def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
+    def _update_reference_based_attributes(
+        self, reference: ReferenceCoordinates
+    ) -> None:
         """
         Update internal data based on the tracked beam.
 
         Parameters
         ----------
-        beam
-            Beam to update the attributes from.
+        reference
+            Reference to update the attributes from.
         """
+        assert self._ring is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
         self.omega_rf_design = self.calc_omega_rf_design(
-            beam_beta=beam.reference.beta,
+            beam_beta=reference.beta,
             ring_circumference=self._ring.circumference,
         )
 
@@ -721,9 +867,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         super()._track(beam=beam)
 
-        # set design omega etc. for this turn
-        self._update_beam_based_attributes(beam=beam)
-
         # Correction from cavity loop
         if not isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
             for feedback in self.cavity_feedback_list:
@@ -735,6 +878,28 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         if np.any(self.delta_omega_rf != 0):
             self._update_delta_phi_rf_from_beam_feedback()
+
+    def _track_interp(
+        self,
+        beam: BeamBaseClass,
+        reference_energy_change: float,
+        time_axis: NumpyArray | CupyArray,
+        voltage: NumpyArray | CupyArray,
+    ):
+        if self._delayed_kick is not None:
+            self._delayed_kick.register(
+                time_axis=time_axis,
+                voltage=voltage - reference_energy_change,
+            )
+        else:
+            backend.specials.kick_interpolated(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=backend.array(voltage, dtype=backend.float),
+                bin_centers=backend.array(time_axis, dtype=backend.float),
+                charge=beam.signed_charge_with_direction(),
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
 
     def _update_delta_phi_rf_from_beam_feedback(self):
         """
@@ -769,16 +934,33 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        # set design omega etc. for this turn (independent of the energy program)
+        self._update_reference_based_attributes(reference=reference)
+
+        # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
+        # or an external code such as xsuite owns the reference): the reference
+        # is left untouched and no acceleration kick is applied.
+        if self._magnetic_cycle is None:
+            self._last_reference_energy_change = 0.0
+            return 0.0
+
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=self._turn_i.value,
-            section_i=self.section_index
-            if not is_counter_rotating
-            else len(self._ring.section_lengths) - self.section_index - 1,
+            turn_i=(
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            ),
+            section_i=(
+                self.section_index
+                if not is_counter_rotating
+                else len(self._ring.section_lengths) - self.section_index - 1
+            ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
         )
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
+        self._last_reference_energy_change = reference_energy_change
         return reference_energy_change
 
     def calc_omega_rf_design(
@@ -835,6 +1017,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
 class SingleHarmonicRFStation(
     RFStationBaseClass,
+    SupportsPooledInterpolationKickMixIn,
+    HasSymbolicHamiltonian,
 ):
     r"""
     RF station with only one RF wave for beam interaction.
@@ -852,10 +1036,16 @@ class SingleHarmonicRFStation(
     ----------
     voltage
         RF station's effective voltage, in [V].
+        Use ``rf_station.schedule("voltage", ...)`` to influence
+        the parameter along the ramp.
     phi_rf
         RF station's design phase, in [rad].
+        Use rf_station``.schedule("phi_rf_design", ...)`` to influence
+        the parameter along the ramp.
     harmonic
         RF station's design harmonic [].
+        Use ``rf_station.schedule("harmonic", ...)`` to influence
+        the parameter along the ramp.
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -866,6 +1056,12 @@ class SingleHarmonicRFStation(
         Optional beam feedback.
     name
         User given name of the element.
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
+    delayed_kick_time_axis
+        The time axis along which to interpolate the kick.
+        This impacts the accuracy and range of the RF kick.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -877,8 +1073,12 @@ class SingleHarmonicRFStation(
     >>> import numpy as np
     >>> from blond import SingleHarmonicRFStation
     >>> rf_station = SingleHarmonicRFStation(...)
-    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
+    >>> rf_station.schedule(attribute='phi_rf_design', value=np.array(...))
     """
+
+    voltage: float | None
+    phi_rf: float | None
+    omega_rf: float | None
 
     def __init__(
         self,
@@ -892,8 +1092,15 @@ class SingleHarmonicRFStation(
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert voltage >= 0, f"{voltage=}"
+        if harmonic is not None:
+            assert harmonic > 0, f"{harmonic=}"
+
         super().__init__(
             n_rf=1,
             section_index=section_index,
@@ -901,6 +1108,8 @@ class SingleHarmonicRFStation(
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
+            delayed_kick=delayed_kick,
+            delayed_kick_time_axis=delayed_kick_time_axis,
             **kwargs,  # for MRO of fused elements
         )
 
@@ -911,6 +1120,12 @@ class SingleHarmonicRFStation(
         self.delta_phi_rf: float = 0.0
         self.delta_omega_rf: float = 0.0
         self._dphi_rf_next: float = 0.0
+
+        if self._delayed_kick is not None and self.any_feedback_not_none:
+            assert delayed_kick_time_axis is None, (
+                f"Got {delayed_kick_time_axis=}"
+            )
+        self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:
         """
@@ -988,6 +1203,32 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf
 
+    def calc_gap_voltage_without_feedbacks(
+        self, ts: NumpyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate total gap voltage in the RF station.
+
+        This function calculates the total gap voltage including
+        both the beam-induced and generator-induced voltages inside the
+        RF cavities of the RF station.
+
+        Parameters
+        ----------
+        ts
+            Time array at which to evaluate, in [s].
+
+        Returns
+        -------
+        gap_voltage
+            Gap voltage in [V] within the length of the profile.
+        """
+        gap_voltage = self._get_gap_voltage_per_harmonic(
+            ts=ts,
+            harmonic_index=None,
+        )
+        return gap_voltage
+
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
@@ -1010,25 +1251,63 @@ class SingleHarmonicRFStation(
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
-                gap_voltage = self.calc_gap_voltage_with_feedbacks()
-                backend.specials.kick_induced_voltage(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=backend.array(gap_voltage, dtype=backend.float),
-                    bin_centers=self.cavity_feedback_list[0].profile.hist_x,
-                    charge=beam.signed_charge_with_direction(),
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                voltage = backend.array(
+                    self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
+                )
+                time_axis = self.cavity_feedback_list[0].profile.hist_x
+                if self._delayed_kick is not None:
+                    assert (
+                        self._delayed_kick_time_axis is None
+                    )  # in principle checked at init
+
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
+                )
+            elif self._delayed_kick is not None:
+                assert self._delayed_kick_time_axis is not None
+
+                time_axis = self._delayed_kick_time_axis
+                voltage = self.calc_gap_voltage_without_feedbacks(ts=time_axis)
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
                 )
             else:
-                backend.specials.kick_single_harmonic(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=self.voltage,
-                    phi_rf=self.phi_rf,
-                    omega_rf=self.omega_rf,
-                    charge=beam.signed_charge_with_direction(),
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                self._track_no_interp(
+                    beam=beam, reference_energy_change=reference_energy_change
                 )
+
+    def _track_no_interp(
+        self, beam: BeamBaseClass, reference_energy_change: float
+    ):
+        """
+        Track without interpolation.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        reference_energy_change
+            Update of the reference coordinate system, in [eV].
+        """
+        assert self.voltage is not None
+        assert self.phi_rf is not None
+        assert self.omega_rf is not None
+
+        backend.specials.kick_single_harmonic(
+            dt=beam.read_partial_dt(),
+            dE=beam.write_partial_dE(),
+            voltage=self.voltage,
+            phi_rf=self.phi_rf,
+            omega_rf=self.omega_rf,
+            charge=beam.signed_charge_with_direction(),
+            acceleration_kick=-reference_energy_change,  # Mind the minus!
+        )
 
     def calc_gap_voltage_with_feedbacks(self):
         """
@@ -1060,10 +1339,13 @@ class SingleHarmonicRFStation(
         phi_rf: float,
         harmonic: float,
         circumference: float,
-        total_energy: float,
         beam_reference_beta: float,
+        magnetic_cycle: MagneticCycleBase | None = None,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> SingleHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1080,24 +1362,35 @@ class SingleHarmonicRFStation(
             RF station's design harmonic [].
         circumference
             Synchrotron circumference in [m].
-        total_energy
-            Target total energy in [eV].
         beam_reference_beta
             Beam velocity as a fraction of the speed of light [1].
+        magnetic_cycle
+            Energy program driving the reference-energy update.
+            If ``None`` (default), no reference-energy update is performed:
+            the beam reference is left untouched and only the RF kick is
+            applied (e.g. a pure RF kick, or when an external code such as
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
+            (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
+            accelerate towards a target total energy.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
             Optional cavity feedback to change cavity parameters.
+        delayed_kick
+            The common interface to apply the kick later.
+            `PooledInterpolationKick.track(...)` must be executed elsewhere.
+        delayed_kick_time_axis
+            The time axis along which to interpolate the kick.
+            This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
         rf_station
             Initialized RF station object.
         """
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.ring.ring import Ring
-        from blond.core.simulation.simulation import Simulation
-        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+        from types import SimpleNamespace
 
         single_harmonic_rf_station = SingleHarmonicRFStation(
             section_index=section_index,
@@ -1106,33 +1399,91 @@ class SingleHarmonicRFStation(
             voltage=voltage,
             phi_rf=phi_rf,
             harmonic=harmonic,
+            delayed_kick=delayed_kick,
+            delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
-        ring = Mock(Ring)
-        ring.circumference = circumference
+        single_harmonic_rf_station.configure(
+            turn_counter=turn_counter,
+            magnetic_cycle=magnetic_cycle,
+            ring=SimpleNamespace(
+                circumference=circumference,
+                section_lengths=np.array([circumference]),
+            ),
+        )
 
-        energy_cycle = Mock(ConstantMagneticCycle)
-        energy_cycle.get_target_total_energy.return_value = total_energy
-
-        simulation = Mock(Simulation)
-        simulation.ring = ring
-        simulation.magnetic_cycle = energy_cycle
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.reference.beta = beam_reference_beta
-        single_harmonic_rf_station.on_init_simulation(simulation=simulation)
-        single_harmonic_rf_station.on_run_simulation(
-            simulation=simulation,
+        single_harmonic_rf_station.configure_run(
+            beam=SimpleNamespace(
+                reference=SimpleNamespace(beta=beam_reference_beta)
+            ),
             n_turns=1,
-            beam=beam,
         )
         return single_harmonic_rf_station
 
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        r"""
+        Return the partial Hamiltonian symbolic expression.
 
-class MultiHarmonicRFStation(RFStationBaseClass):
+        The tracker applies the kick
+
+        .. math::
+
+            \Delta dE = q V \sin(\omega\, dt + \phi)
+                        - \Delta E_\mathrm{ref},
+
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
+        total energy on this turn (the ``acceleration_kick``). Hamilton's
+        equation :math:`\Delta dE = -\partial H/\partial dt` then gives
+
+        .. math::
+
+            H = \frac{q V}{\omega} \cos(\omega\, dt + \phi)
+                + \Delta E_\mathrm{ref}\, dt.
+
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
+        ``_track`` call (``self._last_reference_energy_change``); it is
+        zero before the first track and for non-accelerating cycles.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according symbolic variables will be replaced by
+            their current numeric value.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dt = sympy.Symbol("dt", real=True)
+        q = sympy.Symbol("q", real=True)
+        if replace_symbols:
+            assert self.voltage is not None
+            assert self.omega_rf_design is not None
+            assert self.phi_rf_design is not None
+
+            V = float(self.voltage)
+            omega = float(self.omega_rf_design)
+            phi = float(self.phi_rf_design)
+
+        else:
+            V = sympy.Symbol("V")
+            omega = sympy.Symbol("omega_rf", positive=True)
+            phi = sympy.Symbol("phi_rf", real=True)
+
+        return (
+            q * V / omega * sympy.cos(omega * dt + phi)
+            + float(self._last_reference_energy_change) * dt
+        )
+
+
+class MultiHarmonicRFStation(
+    RFStationBaseClass,
+    SupportsPooledInterpolationKickMixIn,
+    HasSymbolicHamiltonian,
+):
     r"""
     RF station with several RF wave for beam interaction.
 
@@ -1154,10 +1505,16 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         Used to calculate attributes that rely on only one harmonic.
     voltage
         Cavity's effective voltages (per harmonic) in [V].
+        Use ``rf_station.schedule("voltage", ...)`` to influence
+        the parameter along the ramp.
     phi_rf
         Cavity's design phases (per harmonic) in [rad].
+        Use rf_station``.schedule("phi_rf_design", ...)`` to influence
+        the parameter along the ramp.
     harmonic
         Cavity's design harmonics (per harmonic) [].
+        Use ``rf_station.schedule("harmonic", ...)`` to influence
+        the parameter along the ramp.
     section_index
         Section index to group elements into sections.
     local_wakefield
@@ -1168,6 +1525,12 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         Optional beam feedback.
     name
         User given name of the element.
+    delayed_kick
+        The common interface to apply the kick later.
+        `PooledInterpolationKick.track(...)` must be executed elsewhere.
+    delayed_kick_time_axis
+        The time axis along which to interpolate the kick.
+        This impacts the accuracy and range of the RF kick.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1178,8 +1541,12 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
     >>> from blond import MultiHarmonicRFStation
     >>> rf_station = MultiHarmonicRFStation(...)
-    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
+    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...))
     """
+
+    voltage: NumpyArray | CupyArray | None
+    phi_rf: NumpyArray | CupyArray | None
+    omega_rf: NumpyArray | CupyArray | None
 
     def __init__(
         self,
@@ -1195,8 +1562,15 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
-        **kwargs,  # for MRO of fused elements
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
+        if voltage is not None:
+            assert np.all(voltage >= 0), f"{voltage=}"
+        if harmonic is not None:
+            assert np.all(harmonic > 0), f"{harmonic=}"
+
         assert main_harmonic_idx < n_harmonics, (
             f"{n_harmonics=}, but {main_harmonic_idx=}."
         )
@@ -1208,6 +1582,8 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
+            delayed_kick=delayed_kick,
+            delayed_kick_time_axis=delayed_kick_time_axis,
             **kwargs,  # for MRO of fused elements
         )
 
@@ -1242,6 +1618,12 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         self.delta_phi_rf: NumpyArray = np.zeros(n_harmonics)
         self.delta_omega_rf: NumpyArray = np.zeros(n_harmonics)
         self._dphi_rf_next: NumpyArray = np.zeros(n_harmonics)
+
+        if self._delayed_kick is not None and self.any_feedback_not_none:
+            assert delayed_kick_time_axis is None, (
+                f"Got {delayed_kick_time_axis=}."
+            )
+        self._delayed_kick_time_axis = delayed_kick_time_axis
 
     def get_main_harmonic(self) -> float:
         """
@@ -1315,7 +1697,36 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         omega_rf
             The angular frequency of the main harmonic, in [rad/s].
         """
+        assert self.omega_rf is not None
         return self.omega_rf[self.main_harmonic_idx]
+
+    def calc_gap_voltage_without_feedbacks(
+        self, ts: NumpyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate total gap voltage in the RF station.
+
+        This function calculates the total gap voltage including
+        both the beam-induced and generator-induced voltages inside the
+        RF cavities of the RF station.
+
+        Parameters
+        ----------
+        ts
+            Time array at which to evaluate, in [s].
+
+        Returns
+        -------
+        gap_voltage
+            Gap voltage in [V] within the length of the profile.
+        """
+        gap_voltage = backend.zeros(len(ts))
+        for ind in range(self.n_rf):
+            gap_voltage += self._get_gap_voltage_per_harmonic(
+                ts=ts,
+                harmonic_index=ind,
+            )
+        return gap_voltage
 
     def calc_gap_voltage_with_feedbacks(self):
         """
@@ -1371,26 +1782,65 @@ class MultiHarmonicRFStation(RFStationBaseClass):
 
         if beam.common_array_size > 0:
             if self.any_feedback_not_none:
-                gap_voltage = self.calc_gap_voltage_with_feedbacks()
-                backend.specials.kick_induced_voltage(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=backend.array(gap_voltage, dtype=backend.float),
-                    bin_centers=self.cavity_feedback_list[0].profile.hist_x,
-                    charge=beam.signed_charge_with_direction(),
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                voltage = backend.array(
+                    self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
+                )
+                time_axis = self.cavity_feedback_list[0].profile.hist_x
+                if self._delayed_kick is not None:
+                    assert (
+                        self._delayed_kick_time_axis is None
+                    )  # in principle checked at init
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
+                )
+            elif self._delayed_kick is not None:
+                assert self._delayed_kick_time_axis is not None
+
+                time_axis = self._delayed_kick_time_axis
+                voltage = self.calc_gap_voltage_without_feedbacks(
+                    ts=self._delayed_kick_time_axis,
+                )
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
                 )
             else:
-                backend.specials.kick_multi_harmonic(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
-                    voltage=backend.array(self.voltage, dtype=backend.float),
-                    phi_rf=backend.array(self.phi_rf, dtype=backend.float),
-                    omega_rf=backend.array(self.omega_rf, dtype=backend.float),
-                    charge=beam.signed_charge_with_direction(),
-                    n_rf=self.n_rf,
-                    acceleration_kick=-reference_energy_change,  # Mind the minus!
+                self._track_no_interp(
+                    beam=beam, reference_energy_change=reference_energy_change
                 )
+
+    def _track_no_interp(
+        self, beam: BeamBaseClass, reference_energy_change: float
+    ):
+        """
+        Track without interpolation.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        reference_energy_change
+            Update of the reference coordinate system, in [eV].
+        """
+        assert self.voltage is not None
+        assert self.phi_rf is not None
+        assert self.omega_rf is not None
+
+        backend.specials.kick_multi_harmonic(
+            dt=beam.read_partial_dt(),
+            dE=beam.write_partial_dE(),
+            voltage=backend.array(self.voltage, dtype=backend.float),
+            phi_rf=backend.array(self.phi_rf, dtype=backend.float),
+            omega_rf=backend.array(self.omega_rf, dtype=backend.float),
+            charge=beam.signed_charge_with_direction(),
+            n_rf=self.n_rf,
+            acceleration_kick=-reference_energy_change,  # Mind the minus!
+        )
 
     @staticmethod
     def headless(
@@ -1399,12 +1849,15 @@ class MultiHarmonicRFStation(RFStationBaseClass):
         phi_rf: NumpyArray,
         harmonic: NumpyArray,
         circumference: float,
-        total_energy: float,
         main_harmonic_idx: int,
         beam_reference_beta: float,
+        magnetic_cycle: MagneticCycleBase | None = None,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
+        delayed_kick: PooledInterpolationKick | None = None,
+        delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        turn_counter: DynamicParameter | None = None,
     ) -> MultiHarmonicRFStation:
         """
         Initialize object without simulation context.
@@ -1421,29 +1874,40 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             RF station's design harmonics (per harmonic) [].
         circumference
             Synchrotron circumference in [m].
-        total_energy
-            Target total energy in [eV].
         main_harmonic_idx
             Index of the cavity's main harmonic
             Used to calculate attributes that rely on only one harmonic.
         beam_reference_beta
             Beam reference fraction of speed of light (v/c0) [].
+        magnetic_cycle
+            Energy program driving the reference-energy update.
+            If ``None`` (default), no reference-energy update is performed:
+            the beam reference is left untouched and only the RF kick is
+            applied (e.g. a pure RF kick, or when an external code such as
+            xsuite owns the reference). Pass a :class:`~blond.cycles.magnetic_cycle.MagneticCycleBase`
+            (e.g. ``ConstantMagneticCycle(..., in_unit="total energy")``) to
+            accelerate towards a target total energy.
         local_wakefield
             Optional wakefield to interact with beam.
         cavity_feedback
             Optional cavity feedback to change cavity parameters.
         beam_feedback
             Optional beam feedback to change cavity parameters.
+        delayed_kick
+            The common interface to apply the kick later.
+            `PooledInterpolationKick.track(...)` must be executed elsewhere.
+        delayed_kick_time_axis
+            The time axis along which to interpolate the kick.
+            This impacts the accuracy and range of the RF kick.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
 
         Returns
         -------
         rf_station
             Initialized RF station object.
         """
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.ring.ring import Ring
-        from blond.core.simulation.simulation import Simulation
-        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+        from types import SimpleNamespace
 
         multi_harmonic_rf_station = MultiHarmonicRFStation(
             harmonic=np.array(harmonic, dtype=float),
@@ -1455,28 +1919,83 @@ class MultiHarmonicRFStation(RFStationBaseClass):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             main_harmonic_idx=main_harmonic_idx,
+            delayed_kick=delayed_kick,
+            delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
-        ring = Mock(Ring)
-        ring.circumference = circumference
-
-        energy_cycle = Mock(ConstantMagneticCycle)
-        energy_cycle.get_target_total_energy.return_value = total_energy
-
-        simulation = Mock(Simulation)
-        simulation.ring = ring
-        simulation.magnetic_cycle = energy_cycle
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.reference.beta = beam_reference_beta
-        multi_harmonic_rf_station.on_init_simulation(simulation=simulation)
-        multi_harmonic_rf_station.on_run_simulation(
-            simulation=simulation,
+        multi_harmonic_rf_station.configure(
+            turn_counter=turn_counter,
+            magnetic_cycle=magnetic_cycle,
+            ring=SimpleNamespace(
+                circumference=circumference,
+                section_lengths=np.array([circumference]),
+            ),
+        )
+        multi_harmonic_rf_station.configure_run(
+            beam=SimpleNamespace(
+                reference=SimpleNamespace(beta=beam_reference_beta)
+            ),
             n_turns=1,
-            beam=beam,
         )
-
-        multi_harmonic_rf_station._update_beam_based_attributes(beam)
         return multi_harmonic_rf_station
+
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        r"""
+        Return the partial Hamiltonian symbolic expression.
+
+        The tracker applies the kick
+
+        .. math::
+
+            \Delta dE = \sum_j q V_j \sin(\omega_j\, dt + \phi_j)
+                        - \Delta E_\mathrm{ref},
+
+        where :math:`\Delta E_\mathrm{ref}` is the change of reference
+        total energy on this turn. Hamilton's equation
+        :math:`\Delta dE = -\partial H/\partial dt` gives
+
+        .. math::
+
+            H = \sum_j \frac{q V_j}{\omega_j}
+                       \cos(\omega_j\, dt + \phi_j)
+                + \Delta E_\mathrm{ref}\, dt.
+
+        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
+        ``_track`` call.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
+        """
+        dt = sympy.Symbol("dt", real=True)
+        q = sympy.Symbol("q", real=True)
+
+        expr = sympy.Integer(0)
+        for rf_idx in range(self.n_rf):
+            if replace_symbols:
+                assert self.voltage is not None
+                assert self.omega_rf_design is not None
+                assert self.phi_rf_design is not None
+
+                V_j = float(self.voltage[rf_idx])
+                omega_j = float(self.omega_rf_design[rf_idx])
+                phi_j = float(self.phi_rf_design[rf_idx])
+            else:
+                V_j = sympy.Symbol(f"V_{rf_idx}")
+                omega_j = sympy.Symbol(f"omega_{rf_idx}", positive=True)
+                phi_j = sympy.Symbol(f"phi_{rf_idx}", real=True)
+
+            expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
+
+        return expr + float(self._last_reference_energy_change) * dt

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -24,15 +24,19 @@ from blond import (
     Simulation,
     StaticProfile,
     StaticProfileObservation,
-    backend,
     copy_to_cpu,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.core.base import ScheduledInterpolation
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
@@ -142,7 +146,7 @@ def main(
     )
 
     bunch_time = copy_to_cpu(profile.hist_x) * 1e9
-    cycle_time = np.arange(0, n_turns + 1, each_turn_i_profile) * t_rev * 1e3
+    cycle_time = profile_observation.turns_array * t_rev * 1e3
     plt.figure("bunch evolution")
     plt.clf()
     plt.imshow(
@@ -165,3 +169,4 @@ def main(
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+    plt.show()

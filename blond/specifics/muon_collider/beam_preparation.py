@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -38,9 +38,9 @@ def load_beam_coordinates_counterrot_from_file(
         File that was saved with ``np.save(...)``
         that holds the dt and dE coordinates.
     beam
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
     beam_counterrot
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
 
     Notes
     -----
@@ -72,7 +72,7 @@ def load_beam_coordinates_from_file(
         File that was saved with ``np.save(...)``
         that holds the dt and dE coordinates.
     beam
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
 
     Notes
     -----

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -13,7 +13,6 @@ from __future__ import annotations
 import copy
 from abc import ABC
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
 
 import numpy as np
 
@@ -49,44 +48,6 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Initialize the ring when a simulation is created.
-
-        This method is automatically called during simulation initialization to
-        validate the ring configuration. It checks that RF stations are properly
-        configured and section indices are correctly ordered.
-
-        Parameters
-        ----------
-        simulation
-            The `Simulation` context manager that owns this ring.
-        """
-        pass  # pragma: no cover
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass  # pragma: no cover
 
 
 def _gen_array_bucket_index_to_memory_index(
@@ -189,6 +150,8 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._continuous_memory_hist_x = None
         self._continuous_memory_hist_y = None
+
+        self.hist_y_to_density_factor: float | None = None
 
     @staticmethod
     def init_from_padded_filling_pattern(
@@ -326,8 +289,6 @@ class EquidistantMultiProfile(MultiProfile):
         equidistant_profile
             The fully initialized ``EquidistantMultiProfile``.
         """
-        from blond.core.base import DynamicParameter
-
         d = EquidistantMultiProfile(
             filling_pattern=filling_pattern,
             bins_per_profile=bins_per_profile,
@@ -335,23 +296,11 @@ class EquidistantMultiProfile(MultiProfile):
             section_index=section_index,
             name=name,
         )
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-        simulation.get_t_rev_init.return_value = t_rev
-        d.on_init_simulation(simulation=simulation)
-        d.on_run_simulation(
-            simulation=simulation,
-            n_turns=1,
-            beam=Mock(BeamBaseClass),
-        )
+        d.configure(t_rev=t_rev)
         return d
 
     @requires(["RFStationBaseClass"])  # for `get_t_rev_init`
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -359,8 +308,27 @@ class EquidistantMultiProfile(MultiProfile):
         ----------
         simulation
             Simulation context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        t_rev = simulation.get_t_rev_init()
+        super().on_init_simulation(
+            simulation,
+            t_rev=simulation.get_t_rev_init(),
+            **kwargs,
+        )
+
+    def configure(self, *, t_rev: float, **kwargs) -> None:
+        """
+        Build profile time axes from the revolution period.
+
+        Parameters
+        ----------
+        t_rev
+            Revolution period in [s].
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
         n_slots = len(self._filling_pattern)
 
         # Turn     |-----------|
@@ -462,6 +430,8 @@ class EquidistantMultiProfile(MultiProfile):
         """
         if len(beam._dt.array_local) == 0:
             # No particles to track
+            self._continuous_memory_hist_y[:] = 0
+            self.hist_y_to_density_factor = 0.0
             return
         assert self._bucket_index_to_memory_index[-1] + self.profiles[
             0
@@ -478,6 +448,8 @@ class EquidistantMultiProfile(MultiProfile):
             filling_pattern=self._filling_pattern,
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,
         )
+
+        self.hist_y_to_density_factor = 1.0 / beam.common_array_size
 
     def __deepcopy__(self, memo: dict) -> EquidistantMultiProfile:
         """

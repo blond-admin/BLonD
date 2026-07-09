@@ -1,7 +1,6 @@
 """Example of how to configure a simulation with sparse multiturn wakefields."""
 
 import math
-from pstats import SortKey
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -17,15 +16,11 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
-    backend,
     electron,
 )
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-
-backend.set_specials("cpp")
-
 
 sync_momentum = 20e9  # [eV]
 
@@ -125,14 +120,6 @@ beam = make_multibunch_beam(
     common_offset=0,  # t_rf / 2,
 )
 
-sim.profiling(
-    beams=beam,
-    n_turns=10,
-    sortby=SortKey.CUMULATIVE,
-    start_turn_i=2,
-    print_n_lines=25,
-)
-
 
 def my_callback(simulation: Simulation, beam: Beam) -> None:
     """Utility function for plotting.
@@ -153,8 +140,8 @@ def my_callback(simulation: Simulation, beam: Beam) -> None:
 
 my_callback.each_turn_i = 10
 
-"""sim.run_simulation(
+sim.run_simulation(
     beams=beam,
     n_turns=3000,
     callbacks=my_callback,
-)"""
+)

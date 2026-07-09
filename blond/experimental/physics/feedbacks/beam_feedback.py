@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -23,7 +23,6 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from blond import Simulation
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
@@ -53,15 +52,6 @@ class BeamFeedbackBase(GlobalFeedback):
         self.dphi: float = 0.0
 
         self.phi_beam: float = 0.0
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        pass
 
     @abstractmethod
     def get_beam_attribute(self, beam: BeamBaseClass):

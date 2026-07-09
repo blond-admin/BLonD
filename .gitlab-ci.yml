@@ -3,11 +3,24 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+  # --- numba JIT cache (persisted across pipelines, see `.cache_numba`) ---
+  # Centralise numba's on-disk cache (.nbi/.nbc) into one dir so GitLab can
+  # cache it between runs; the kernels already use `cache=True`, but the
+  # cache is otherwise cold on every fresh runner and recompiles during the
+  # test run (the dominant cost).
+  NUMBA_CACHE_DIR: "${CI_PROJECT_DIR}/.numba_cache"
+  # Compile CPU-generic code so a cached entry is valid on ANY runner,
+  # independent of its CPU. numba self-validates entries, so a mismatch only
+  # ever forces a recompile (never wrong code); `generic` just maximises the
+  # cross-runner hit rate. Remove these two if the runner pool is
+  # CPU-homogeneous and you prefer full `-march=native` kernel speed.
+  NUMBA_CPU_NAME: "generic"
+  NUMBA_CPU_FEATURES: ""
 stages:
   - precommit
   - doc_build
   - test_without_gpu
-  - test_py310
+  - test_py314
   - test
   - deploy
 default:
@@ -20,6 +33,22 @@ workflow:
     - when: always
   auto_cancel:
     on_new_commit: interruptible
+
+.cache_numba:
+  # Persist numba's JIT cache between pipelines. The key is per-job, which
+  # also separates Python versions (different image -> different numba/python
+  # -> entries would not validate anyway). Safe to share across GPU and
+  # non-GPU runners: it holds only CPU kernel code and self-validates on load.
+  cache:
+    - key: "numba-${CI_JOB_NAME}"
+      paths:
+        - .numba_cache/
+  after_script:
+    # Bound the cache size before GitLab uploads it (after_script runs just
+    # before cache upload). Bare python3 + pure stdlib: no venv needed, and no
+    # `import blond` -- which would recompile kernels into the very cache we
+    # are pruning. Size budget: BLOND_NUMBA_CACHE_MAX_MB (default 500).
+    - python3 dev_tools/prune_numba_cache.py
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -73,11 +102,15 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    # `-p no:randomly`: both ranks MUST run tests in identical order. Random
+    # ordering can desync the ranks (one rank enters a collective while the
+    # other does not), deadlocking on the unmatched MPI call. A fixed seed is
+    # not enough: --cov on rank 0 alone perturbs the shuffle between ranks.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
-      -v unittests/
+      -v
       --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
@@ -102,7 +135,7 @@ workflow:
     - python3 -m pytest
       -m "not backend_mutation and not mpi"
       -m "not backend_mutation"
-      -v unittests/
+      -v
       --randomly-seed=$CI_PIPELINE_ID
 
 .main_no_gpu:
@@ -115,12 +148,14 @@ workflow:
     - pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
+    # they can desync on an MPI collective and deadlock (see .main for details).
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - pip uninstall -y cupy-cuda12x
     - python3 -m pytest
-      -v unittests/
+      -v
       --randomly-seed=$CI_PIPELINE_ID
 
 .main_many_environments:
@@ -132,34 +167,41 @@ workflow:
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - pip list
     - cd ${project_root}
+    - mkdir -p junit-reports
     # Run only MPI unittests. Only the main thread should report.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0 --cov --cov-config=.coveragerc; else python3 -m pytest -v unittests/ -m "mpi" --randomly-seed=0; fi'
+    # `-p no:randomly`: both ranks MUST run tests in identical order. Random
+    # ordering can desync the ranks (one rank enters a collective while the
+    # other does not), deadlocking on the unmatched MPI call. A fixed seed is
+    # not enough: --cov on rank 0 alone perturbs the shuffle between ranks.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
-      -v unittests/
+      -v
       --cov-append
       --cov
       --cov-config=.coveragerc
+      --junitxml=junit-reports/junit-report-numba.xml
     - export BLOND_BACKEND_MODE="cuda"
     - python3 -m pytest
-      -v unittests/
+      -v
       -m "not mpi and not backend_mutation"
       --cov-append
       --cov
       --cov-config=.coveragerc
+      --junitxml=junit-reports/junit-report-cuda.xml
     - export BLOND_BACKEND_MODE="numba"
     - pip uninstall -y cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
-      -v unittests/
+      -v
       --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
       --cov-config=.coveragerc
       --cov-report html:coverage-html
       --cov-report xml:coverage.xml
-      --junitxml=junit-report.xml
+      --junitxml=junit-reports/junit-report-numba-without-cuda.xml
     - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
     - echo "XML_COVERAGE=$COV"
   coverage: '/XML_COVERAGE=(\d+\.\d+)/'
@@ -174,19 +216,21 @@ workflow:
         coverage_format: cobertura
         path: ${project_root}coverage.xml
       # Enables https://docs.gitlab.com/ee/ci/unit_test_reports.html
-      junit: ${project_root}junit-report.xml
+      junit: ${project_root}junit-reports/junit-report-*.xml
     paths:
       - ${project_root}coverage-html/*
       - ${project_root}coverage.xml
-      - ${project_root}junit-report.xml
+      - ${project_root}junit-reports/junit-report-*.xml
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
 precommit-check:
 
-  image: python:3.12 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  image: python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
+  variables:
+    SKIP: no-commit-to-branch
   before_script:
     - pip install pre-commit
   script:
@@ -196,26 +240,46 @@ precommit-check:
     paths:
       - .cache/pre-commit
 
-test_py_310_no_cupy:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+test_py_314_no_cupy:
+  image: gitlab-registry.cern.ch/blond/blond/python314
   stage: test_without_gpu
   interruptible: true
   extends:
     - .before_no_gpu
     - .main_no_gpu
+    - .cache_numba
   dependencies: []
 
-test_py_310_main_many_environments:
-  image: gitlab-registry.cern.ch/blond/blond/python310
-  stage: test_py310
+test_py_314_main_many_environments:
+  image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: test_py314
   interruptible: true
   extends:
     - .before
     - .main_many_environments
     - .publish
+    - .cache_numba
   dependencies: []
   tags:
     - k8s-gpu
+
+test_py_310:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    # - .publish
+  dependencies: []
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
@@ -224,6 +288,7 @@ test_py_311:
   extends:
     - .before
     - .main
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -242,6 +307,7 @@ test_py_312:
   extends:
     - .before
     - .main
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -260,6 +326,7 @@ test_py_313:
   extends:
     - .before
     - .main
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -278,6 +345,7 @@ test_py_314:
   extends:
     - .before
     - .main
+    - .cache_numba
     # - .publish
   dependencies: []
   tags:
@@ -295,6 +363,7 @@ test_py_314_only_cupy:
   extends:
     - .before
     - .main_only_cupy
+    - .cache_numba
   dependencies: []
   tags:
     - k8s-gpu
@@ -308,6 +377,8 @@ test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
   interruptible: true
+  extends:
+    - .cache_numba
   dependencies: []
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
@@ -331,7 +402,7 @@ test_minimum:
     - cd ${project_root}
     # Run all unittests + the examples
     - python -m pytest
-      -v unittests/
+      -v
       --import-mode=importlib
   tags:
     - k8s-gpu
@@ -350,7 +421,7 @@ release_sdist_310:
   before_script:
     - python3 -m pip install --upgrade pip
     - python3 -m pip install build twine
-    # Without an up-to-date setuptools, we don't get the requirements.txt
+    # Without an up-to-date setuptools, we don't get the requirements
     # inside the sdist.
     - python3 -m pip install -U setuptools
     - eval ${PRE_SDIST_BUILD}
@@ -364,7 +435,7 @@ release_sdist_310:
       dist/*.tar.gz
 
 test_documentation_building:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python314
   stage: doc_build
   interruptible: true
   script:
@@ -382,7 +453,7 @@ test_documentation_building:
 
 
 pages:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python314
   script:
     - cd ${project_root}
     - mkdir public
