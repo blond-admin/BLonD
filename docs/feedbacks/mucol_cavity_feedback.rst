@@ -81,14 +81,24 @@ Each turn the timing class performs, in order:
    ``-0.5 I_beam (R/Q) omega dt``. Discretisation validity is enforced:
    ``_check_step_sizes`` warns above a per-step decay/rotation of 0.1 and
    raises above 2.0, and an analogous check warns/raises when the per-step
-   beam kick is large relative to the antenna voltage.
+   beam kick is large relative to the antenna voltage. With
+   ``exponential_coarse_solver=True`` the exact exponential propagator
+   ``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces the Euler step: it is
+   exact in decay and detuning rotation (a pure detuning becomes a pure
+   rotation instead of growing ``|V|`` by ``sqrt(1 + (delta_omega dt)^2)``
+   per step) and is the accurate alternative to sub-stepping at low ``Q_L``
+   or large detuning.
 
 4. **Optional generator-current control.** With a ``controller`` attached,
    each coarse step forms the error ``V_set - V_ant[n]`` and lets the
    controller produce ``I_gen[n]``, which drives the next step; without one,
    the generator current stays at the constant feedforward value
-   ``generator_current_bias``. The klystron limit is enforced on the fine
-   grid as well before the response solve.
+   ``generator_current_bias``. The controller is stepped only on the real
+   forward passage, never on the reverse reconstruction segments (those
+   carry a per-segment frame phase, so stepping there would integrate
+   frame-rotated errors and double-advance the delay line and integrator).
+   The klystron limit is enforced on the fine grid as well before the
+   response solve.
 
 5. **Fine-grid solve.** The generator current is interpolated onto the
    profile grid and the cavity response is solved as a sparse bidiagonal
@@ -140,6 +150,41 @@ step-size limits; the sub-stepping mode
 coarse centres tiling continuously across turn boundaries.
 
 
+Counter-rotating beams
+----------------------
+
+The collider ring accelerates a co-rotating mu+ and a counter-rotating mu-
+beam through the same cavities. The whole beam-loading chain (RF beam
+current, wake-solver sources, and every kick) uses the *direction-signed
+charge* ``beam.signed_charge_with_direction()`` (charge negated for a
+counter-rotating beam): the collider pair then carries same-sign gap
+currents, so for an asymmetric fundamental mode the loading of both beams
+adds constructively and both receive the same kick. A counter-rotating mu- beam alone reproduces the
+co-rotating mu+ run bit-for-bit, through the feedback and through the
+convolution reference alike.
+
+With two simultaneous beams (``MainloopCounterRotatingBeams``: each station
+is tracked once per beam per turn, the counter-rotating beam traversing the
+elements in reverse order), the supported regime is *offset passages* --
+stations away from the beams' meeting azimuths, e.g. any even section count
+with the half-drift / station / half-drift layout, where the two arrivals
+are ``T_rev / 2`` apart. There the per-passage grid machinery handles the
+alternating arrivals natively and matches the two-beam convolution at
+reference accuracy. A station *at* a meeting azimuth (both beams at the
+same reference time, e.g. the single mid-ring station of a one-section
+layout) is refused with ``NotImplementedError``: the machinery would
+silently serialize the coincident arrivals one projection window apart.
+Model such a station's loading with the ``MultiPassResonatorSolver``
+wakefield (``allow_delta_t_zero=True``) instead.
+
+For the wake-solver references, ``shunt_impedances_counter_rotating`` is the
+shunt a counter-rotating witness *experiences* (its reversed integration
+direction included). The sign is a property of the mode's field symmetry,
+not of fundamental modes in general: an *asymmetric* fundamental mode has
+``R_CR = -R`` (opposite charges add up and receive the same kick), while
+``R_CR = +R`` makes same-charge counter-rotating beams add up.
+
+
 Validation
 ----------
 
@@ -154,6 +199,16 @@ itself (see :ref:`mucol_cavity_feedback_tests` for the full inventory):
   with the accumulated phase :math:`\int \omega \, dt`;
 * the applied particle energy gain against the wake-kick path in a full
   simulation;
+* the self-consistent multi-turn bunch *dynamics* (centroid, bunch length,
+  emittance) against a twin simulation whose only difference is the
+  induced-voltage model (wake vs feedback), under strong beam loading on the
+  fast ramp;
+* a counter-rotating mu- beam against the co-rotating mu+ run (bit-for-bit)
+  and the two-beam offset-passage operation against the two-beam multi-pass
+  convolution, per station and turn;
+* the charge-pair x counter-rotating-shunt matrix (build-up vs cancellation,
+  closed form on the ringing tail) on both the convolution and the
+  pole-residue solver, which agree cell by cell to ~1e-13;
 * the shared helpers against the blond2 reference implementations (LHC
   comparison suite).
 
@@ -161,18 +216,33 @@ itself (see :ref:`mucol_cavity_feedback_tests` for the full inventory):
 Known limitations
 -----------------
 
-* ``delta_omega_rf != 0`` combined with multi-section rings is guarded
-  against (the station raises on changes) but per-segment application of a
-  static offset in the reverse tracking is not implemented; the reverse
-  segments currently use the phase at the current passage.
+* A harmonic number that is not divisible by ``2 * n_sections`` de-aligns
+  the coarse-grid tiling from the profile's charge-free leading edge, so
+  beam charge lands in the first coarse cell and ``rf_beam_current`` raises
+  before any voltage is produced (marked as an expected failure in the
+  multi-turn comparison suite).
+* ``delta_omega_rf != 0`` is exact for the slip bookkeeping, but the
+  demodulation acquires a lab-frame phase slip that grows with the absolute
+  reference time (~1 % per turn per 1e3 rad/s in the comparison
+  configuration); large offsets over many turns degrade the agreement with
+  the retuned convolution. In a ring with more than one RF station the
+  offset cannot be changed during the run (the station raises).
+* Driven (generator-bias) multi-section fast-ramp operation carries a
+  bounded frame slip between the constant-phase bias and the slipping
+  segment frame (percent-level ``|V_ant|`` drift over a few turns); it
+  cancels in the linear beam-induced part but is visible in absolute
+  antenna-voltage trajectories.
+* The undriven two-section fast-ramp carried wake shows a slow bounded
+  secular drift (~0.03 percentage points per turn over 20 turns) against
+  the convolution.
+* Two counter-rotating beams passing a station *simultaneously* (station at
+  a meeting azimuth) are refused rather than integrated; see
+  *Counter-rotating beams* above for the guard and the workaround.
 * The coarse re-binning of the beam current assumes the analytic uniform
   grid; configurations far from the tested ones (unusual profile placement)
   should be validated against the wake solvers. Sub-stepped beam loading
-  itself is validated against the convolution on a static cycle.
-* On the fast (transition-adjacent) ramp, the *multi-section* and the
-  *sub-stepped* carried wake drift in arrival time; these combinations are
-  marked as expected failures in the multi-turn comparison suite and should
-  not be relied on yet (single-section standard-grid fast ramp is validated).
+  itself is validated against the convolution, including with detuning and
+  on the fast ramp.
 * The fine-grid initial antenna voltage is taken from the first coarse cell
   of the forward segment (guarded by the first-cell charge check) rather
   than interpolated to the profile edge.

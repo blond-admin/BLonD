@@ -478,6 +478,28 @@ coarse-cell boundary (up to the whole bunch, depending on its phase).
 ``test_no_warning_when_profile_captures_full_beam``
     No warning when the window captures everything.
 
+**Class** ``TestRfBeamCurrentCounterRotating`` -- direction-signed charge in
+the RF beam current. In the symmetric muon-collider ring the counter-rotating
+mu-minus beam has opposite charge *and* opposite direction, so its gap current
+has the **same sign** as the co-rotating mu-plus beam. The source side of
+``rf_beam_current`` / ``rf_beam_current_partial`` uses
+``beam.signed_charge_with_direction()`` (charge negated for a counter-rotating
+beam), matching the RF-kick and wake-kick conventions; for co-rotating beams it
+equals the plain particle charge, so the shared (LHC) path is bit-unchanged.
+
+``test_counter_rotating_mu_minus_matches_co_rotating_mu_plus``
+    CR mu-minus current is bit-identical to the mu-plus current on both the
+    shared and the mucol downsampling paths (was exactly sign-flipped before
+    the fix).
+``test_co_rotating_mu_minus_flips_the_sign``
+    Charge alone (same direction) still flips the current -- ordinary
+    opposite-charge physics untouched.
+``test_counter_rotating_mu_plus_flips_the_sign``
+    Direction alone (same charge) flips the current -- the complementary
+    corner of the sign matrix.
+``test_co_rotating_signed_charge_is_the_plain_charge``
+    The bit-identity guarantee for the shared LHC path.
+
 
 ``test_mtw_vs_nondriven_feedback.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -581,6 +603,14 @@ voltage. Uses a high ``Q_L = 1.29e6`` so the previous-pass wake survives
     Sub-stepping (n = 0.5) combined with a static detuning of +/- two
     half-bandwidths holds against the convolution on both the static and fast
     cycles.
+``test_multiturn_counter_rotating_mu_minus_matches_mu_plus``
+    The symmetric-ring counter-rotating requirement applied to the feedback:
+    a counter-rotating mu-minus beam (opposite charge x opposite direction =
+    identical direction-signed gap current) reproduces the co-rotating
+    mu-plus run **bit-for-bit** through the full multi-turn Simulation --
+    feedback gap voltage, no-beam reference and convolution induced voltage
+    alike. Single section, static cycle, one beam per run (the
+    two-simultaneous-beam mainloop is a separate open problem).
 
 
 ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``
@@ -758,6 +788,60 @@ a few x above the measured floors (trailing 0.6 %, leading 1.0 %, global 0.3 %).
     rebuilt each turn, and the carried multi-bunch wake still holds.
 
 
+``test_two_beam_counterrotating_feedback.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Two *simultaneous* counter-rotating beams (mu+ co-rotating, mu-
+counter-rotating) through the cavity feedback, under
+``MainloopCounterRotatingBeams`` (each station tracked once per beam per
+turn; ``beams[1]`` traverses the elements in reverse order). Two regimes,
+split by the station azimuth:
+
+**Class** ``TestTwoBeamOffsetPassages`` -- stations away from the beams'
+meeting points (two sections: arrivals ``T_rev / 2`` apart, the true pattern
+of counter-rotating beams in the symmetric ring). The per-passage grid
+machinery handles the alternating arrivals natively: each ``_track`` spans
+the half turn to that beam's next passage, so the envelope paces at the
+physical rate and carries each beam's loading into the other's passage.
+
+``test_feedback_matches_two_beam_convolution``
+    The two-beam beam-induced part (two-beam gap voltage minus the two-beam
+    zero-intensity reference) matches the two-beam multi-pass convolution at
+    every station and turn (gate 0.5 %; measured floors 0.13 % -> 0.04 %).
+``test_two_beam_loading_exceeds_single_beam``
+    Non-triviality guard: the two-beam convolution differs from the
+    single-beam run by well more than the comparison gate, so the equality
+    cannot hold with the counter-rotating beam silently ignored.
+``test_both_stations_carry_comparable_loading``
+    Symmetric ring: both stations see the full two-beam loading (peaks agree
+    to a few percent; profiles differ only by their noise seed).
+
+**Class** ``TestSimultaneousPassageGuard`` -- a station at a meeting azimuth
+(e.g. the single mid-ring station of a one-section layout) sees both beams
+at the *same* reference time. The per-passage machinery would silently
+serialize the coincident arrivals one full projection window apart (envelope
+at twice the physical rate; measured ~47 % L2 waveform error on the first
+turn), so the feedback detects the coincident opposite-direction passage
+(within half a coarse cell) and refuses it.
+
+``test_single_section_two_beam_raises``
+    The coincident second passage raises ``NotImplementedError`` with the
+    workaround in the message (move the station off the meeting azimuth, or
+    model that station's loading with the ``MultiPassResonatorSolver``
+    wakefield, ``allow_delta_t_zero=True``).
+``test_single_section_convolution_reference_needs_delta_t_zero``
+    Pins that the recommended escape hatch exists: the solver's
+    monotonic-clock assertion rejects the coincident passage unless
+    ``allow_delta_t_zero=True``.
+
+.. note::
+
+   Integrating two *coincident* beam currents in the feedback (deposit-sum
+   into the same forward segment plus an envelope rewind/re-advance) is a
+   known open extension; the offset-passage regime above is the physically
+   relevant one for even section counts.
+
+
 Support modules
 ---------------
 
@@ -768,9 +852,10 @@ themselves.
     Lightweight, deepcopy-able mock objects that expose only the few
     attributes the solvers read, so the cavity-response and multi-turn
     resonator solvers can run without a full ``Beam`` or ``Simulation``:
-    ``StubReference`` (reference time/beta), ``StubBeam`` (intensity and
-    particle type) and ``StubRFStation`` (fixed design RF frequency and a
-    no-op reference tracking).
+    ``StubReference`` (reference time/beta), ``StubBeam`` (intensity,
+    particle type, rotation direction and the direction-signed charge
+    ``signed_charge_with_direction()``) and ``StubRFStation`` (fixed design
+    RF frequency and a no-op reference tracking).
 ``support.py``
     Numeric helpers shared across the test modules: ``rel_err`` (relative L2
     error ``||a - b|| / ||b||``) and ``lab_frame_voltage`` (projects the

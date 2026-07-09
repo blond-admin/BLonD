@@ -180,10 +180,14 @@ def rf_beam_current(  # noqa: PLR0912
             )
 
     # Convert from dimensionless to Coulomb/Ampères
-    # Take into account macro-particle charge with real-to-macro-particle ratio
+    # Take into account macro-particle charge with real-to-macro-particle ratio.
+    # The direction-signed charge makes the gap current of a counter-rotating
+    # beam come out with the correct sign (opposite charge x opposite direction
+    # = same current as the co-rotating beam); for co-rotating beams it is the
+    # plain particle charge, so the LHC path is bit-unchanged.
     charges = (
         -elementary_charge
-        * beam.particle_type.charge
+        * beam.signed_charge_with_direction()
         * beam.intensity
         * hist_y
         * profile.hist_y_to_density_factor
@@ -384,9 +388,12 @@ def rf_beam_current_partial(
             )
 
     # Convert from dimensionless to Coulomb, including the real-to-macro ratio.
+    # Direction-signed charge: a counter-rotating beam's gap current has the
+    # same sign as the co-rotating one (opposite charge x opposite direction);
+    # identical to the plain particle charge for co-rotating beams.
     charges = (
         -elementary_charge
-        * beam.particle_type.charge
+        * beam.signed_charge_with_direction()
         * beam.intensity
         * hist_y
         * profile.hist_y_to_density_factor

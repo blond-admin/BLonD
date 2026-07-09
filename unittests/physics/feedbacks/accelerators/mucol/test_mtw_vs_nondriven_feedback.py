@@ -60,6 +60,7 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    mu_minus,
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
@@ -537,6 +538,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         n_turns_override: int | None = None,
         harmonic_override: int | None = None,
         collect_antenna_voltage: bool = False,
+        counter_rotating_mu_minus: bool = False,
     ) -> list:
         """
         Run a full multi-turn Simulation and collect a voltage per turn.
@@ -594,6 +596,11 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         collect_antenna_voltage
             If True (feedback modes only), also return the per-turn, per-section
             antenna-voltage magnitude ``|V_ant|`` on the fine grid.
+        counter_rotating_mu_minus
+            If True, drive with a counter-rotating ``mu_minus`` beam instead
+            of the co-rotating ``mu_plus`` one. In the symmetric ring the
+            direction-signed gap current is identical, so every collected
+            voltage must reproduce the co-rotating run.
 
         Returns
         -------
@@ -715,7 +722,8 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             intensity=(
                 0.0 if mode == "fb_reference" else cls.MULTITURN_INTENSITY
             ),
-            particle_type=mu_plus,
+            particle_type=mu_minus if counter_rotating_mu_minus else mu_plus,
+            is_counter_rotating=counter_rotating_mu_minus,
         )
         beam.reference.total_energy = energy
         beam.setup_beam(dt=np.array([]), dE=np.array([]))
@@ -1403,6 +1411,50 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                     fast_ramp=fast_ramp,
                     delta_omega=delta_omega,
                 )
+
+    def test_multiturn_counter_rotating_mu_minus_matches_mu_plus(self):
+        """
+        A counter-rotating mu- beam reproduces the co-rotating mu+ run.
+
+        The symmetric-ring requirement applied to the *feedback* (and, in the
+        same sweep, the convolution): the counter-rotating mu-minus beam has
+        opposite charge and opposite direction, so its direction-signed gap
+        current -- hence its beam loading -- is identical to the co-rotating
+        mu-plus beam's. Runs the full multi-turn Simulation (reverse/forward
+        reference tracking, coarse-grid propagation, demodulation) once per
+        beam and compares the collected voltages per turn bit-for-bit:
+
+        * feedback station gap voltage (beam run and no-beam reference run),
+        * multi-pass convolution induced voltage.
+
+        Static cycle, single section (the single-stream geometry where the
+        counter-rotating reference walk is the mirror identity); the
+        two-simultaneous-beam mainloop is a separate, harder problem.
+        """
+        for mode in ("fb", "fb_reference", "mtw"):
+            with self.subTest(mode=mode):
+                per_turn_plus = self._run_multiturn_case(
+                    mode, n_sections=1, acceleration=False
+                )
+                per_turn_minus_cr = self._run_multiturn_case(
+                    mode,
+                    n_sections=1,
+                    acceleration=False,
+                    counter_rotating_mu_minus=True,
+                )
+                for turn_i, (turn_plus, turn_minus) in enumerate(
+                    zip(per_turn_plus, per_turn_minus_cr, strict=True)
+                ):
+                    np.testing.assert_array_equal(
+                        turn_minus[0],
+                        turn_plus[0],
+                        err_msg=f"mode {mode} turn {turn_i}",
+                    )
+                # Non-degenerate: the beam-driven runs carry real voltage.
+                if mode != "fb_reference":
+                    self.assertGreater(
+                        float(np.max(np.abs(per_turn_plus[-1][0]))), 0.0
+                    )
 
     def _plot_multiturn(self, v_convolution_turns, v_feedback_turns):
         """

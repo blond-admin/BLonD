@@ -19,12 +19,13 @@ from typing import Literal
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Resonators, StaticProfile, WakeField
+from blond import Resonators, StaticProfile, WakeField, mu_minus
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.helpers import (
     cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
     rf_beam_current,
+    rf_beam_current_partial,
 )
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
@@ -608,6 +609,168 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             warnings.simplefilter("always")
             self._downsampled(profile)
         self.assertEqual(caught, [])
+
+
+class TestRfBeamCurrentCounterRotating(unittest.TestCase):
+    """
+    Direction-signed charge in the RF beam current.
+
+    In the symmetric muon-collider ring the counter-rotating mu-minus beam has
+    *opposite charge and opposite direction*, so its gap (RF beam) current has
+    the **same sign** as the co-rotating mu-plus beam and both beams see the
+    same beam loading. ``rf_beam_current`` and ``rf_beam_current_partial``
+    therefore use ``beam.signed_charge_with_direction()`` (charge negated for a
+    counter-rotating beam) on the source side, matching the RF-kick and
+    wake-kick conventions. For co-rotating beams the signed charge equals the
+    plain particle charge, so the shared (LHC) path is bit-unchanged.
+
+    The full sign matrix is pinned: flipping *either* charge *or* direction
+    alone flips the current; flipping both restores it.
+    """
+
+    def setUp(self):
+        """Set up RF parameters and a shared mid-window bunch profile."""
+        self.t_rf = 1.0e-9
+        self.omega_rf = 2.0 * np.pi / self.t_rf
+        self.intensity = 2.7e12
+        # Mid-window Gaussian: keeps the first coarse cell charge-free for
+        # the partial (mucol) downsampling path.
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, 1024, self.t_rf
+        )
+        t = profile.hist_x
+        t0 = t[0] + 0.5 * (t[-1] - t[0])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        self.profile = profile
+
+    def _fine_current(self, beam) -> np.ndarray:
+        """
+        Fine-grid RF beam charge from the shared ``rf_beam_current``.
+
+        Parameters
+        ----------
+        beam
+            Beam (stub) to compute the current for.
+
+        Returns
+        -------
+        numpy.ndarray
+            Complex fine-grid RF beam charge.
+        """
+        return rf_beam_current(
+            beam=beam,
+            profile=self.profile,
+            omega_c=self.omega_rf,
+            T_rev=self.t_rf,
+            use_lowpass_filter=False,
+            external_reference=True,
+            dT=0.0,
+        )
+
+    def _partial_currents(self, beam) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Fine and coarse RF beam charge from the mucol forward-pass path.
+
+        Parameters
+        ----------
+        beam
+            Beam (stub) to compute the current for.
+
+        Returns
+        -------
+        charges_fine
+            Complex fine-grid RF beam charge.
+        charges_coarse
+            Complex coarse-grid RF beam charge.
+        """
+        return rf_beam_current_partial(
+            beam=beam,
+            profile=self.profile,
+            omega_c=self.omega_rf,
+            T_rev=self.t_rf,
+            sampling_time=self.t_rf,
+            n_points=8,
+            dT=0.0,
+        )
+
+    def test_counter_rotating_mu_minus_matches_co_rotating_mu_plus(self):
+        """
+        The CR mu-minus current is bit-identical to the mu-plus current.
+
+        Opposite charge x opposite direction = same gap current: the
+        symmetric-ring requirement. Before the direction-signed charge this
+        was exactly sign-flipped, so this test pins the fix on both the
+        shared (``rf_beam_current``) and the mucol
+        (``rf_beam_current_partial``) paths.
+        """
+        beam_plus = StubBeam(self.intensity)
+        beam_minus_cr = StubBeam(
+            self.intensity, particle_type=mu_minus, is_counter_rotating=True
+        )
+
+        np.testing.assert_array_equal(
+            self._fine_current(beam_minus_cr), self._fine_current(beam_plus)
+        )
+
+        fine_plus, coarse_plus = self._partial_currents(beam_plus)
+        fine_minus, coarse_minus = self._partial_currents(beam_minus_cr)
+        np.testing.assert_array_equal(fine_minus, fine_plus)
+        np.testing.assert_array_equal(coarse_minus, coarse_plus)
+        # Non-degenerate: there is real current to compare.
+        self.assertGreater(np.max(np.abs(fine_plus)), 0.0)
+
+    def test_co_rotating_mu_minus_flips_the_sign(self):
+        """
+        A co-rotating mu-minus beam still flips the current sign.
+
+        Ordinary opposite-charge physics (same direction) must be untouched
+        by the direction handling: charge alone flips the current.
+        """
+        beam_plus = StubBeam(self.intensity)
+        beam_minus = StubBeam(self.intensity, particle_type=mu_minus)
+        np.testing.assert_array_equal(
+            self._fine_current(beam_minus), -self._fine_current(beam_plus)
+        )
+        fine_plus, coarse_plus = self._partial_currents(beam_plus)
+        fine_minus, coarse_minus = self._partial_currents(beam_minus)
+        np.testing.assert_array_equal(fine_minus, -fine_plus)
+        np.testing.assert_array_equal(coarse_minus, -coarse_plus)
+
+    def test_counter_rotating_mu_plus_flips_the_sign(self):
+        """
+        A counter-rotating mu-plus beam flips the current sign.
+
+        Direction alone flips the gap current (same charge, opposite
+        traversal) -- the complementary corner of the sign matrix.
+        """
+        beam_plus = StubBeam(self.intensity)
+        beam_plus_cr = StubBeam(self.intensity, is_counter_rotating=True)
+        np.testing.assert_array_equal(
+            self._fine_current(beam_plus_cr), -self._fine_current(beam_plus)
+        )
+
+    def test_co_rotating_signed_charge_is_the_plain_charge(self):
+        """
+        For a co-rotating beam the signed charge is the plain charge.
+
+        This is the bit-identity guarantee for the shared LHC path: the
+        source-side switch to ``signed_charge_with_direction()`` changes
+        nothing for any co-rotating beam.
+        """
+        beam_plus = StubBeam(self.intensity)
+        self.assertEqual(
+            beam_plus.signed_charge_with_direction(),
+            beam_plus.particle_type.charge,
+        )
+        beam_minus = StubBeam(self.intensity, particle_type=mu_minus)
+        self.assertEqual(
+            beam_minus.signed_charge_with_direction(),
+            beam_minus.particle_type.charge,
+        )
 
 
 if __name__ == "__main__":

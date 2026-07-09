@@ -823,6 +823,9 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
             intensity=self.intensity,
             particle_type=mu_plus,
             is_counter_rotating=False,
+            # Direction-signed charge read by the solver's source side;
+            # co-rotating, so it is the plain particle charge.
+            signed_charge_with_direction=lambda: mu_plus.charge,
         )
         times, voltages = [], []
         for _ in range(self.N_TURNS):
