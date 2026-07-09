@@ -561,29 +561,22 @@ class RFCenterSegment:
     live in loose parallel arrays / a mutable scalar keeps them coherent and
     self-validating: the flat ``rf_centers`` / ``rf_centers_lengths`` arrays the
     tracking loop indexes are *derived* from the segment list
-    (:meth:`_rebuild_grid_arrays`), so they can no longer desync from it.
-
-    Attributes
-    ----------
-    omega : float
-        RF angular frequency [rad/s] this segment was generated at.
-    duration : float
-        Time span [s] the segment covers (``until_time`` in
-        :meth:`_generate_rf_centers`).
-    residual : float
-        Accumulator value after this segment: the leftover time [s] between
-        the last centre and the end of the segment (carried unchanged for an
-        empty segment). Feeds the sub-stepped cross-segment continuity and the
-        demodulation frame.
-    centers : NumpyArray
-        The coarse-grid centre times [s] of this segment (may be empty when the
-        segment is shorter than one coarse step).
+    (``_rebuild_grid_arrays``), so they can no longer desync from it.
     """
 
     omega: float
+    """RF angular frequency [rad/s] this segment was generated at."""
     duration: float
+    """Time span [s] the segment covers (``until_time`` in
+    ``_generate_rf_centers``)."""
     residual: float
+    """Accumulator value after this segment -- the leftover time [s] between
+    the last centre and the end of the segment (carried unchanged for an empty
+    segment). Feeds the sub-stepped cross-segment continuity and the
+    demodulation frame."""
     centers: NumpyArray
+    """The coarse-grid centre times [s] of this segment (may be empty when the
+    segment is shorter than one coarse step)."""
 
     def __post_init__(self) -> None:
         """Validate the segment fields (frequency, duration, residual, shape)."""
