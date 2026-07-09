@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.acc_math.analytic.hamilton import (
+    calc_synchrotron_tune_single_harmonic,
+)
 from blond.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
 )
@@ -140,10 +143,18 @@ class LHCBeamControl(BeamFeedbackBase):
             )
 
         if self.sl_gain != 0:
-            Q_s0 = self.main_cavities[0].calc_synchrotron_tune_main_harmonic(
-                beam,
-                np.pi,
-                simulation.ring.calc_average_eta_0(beam.reference.gamma),
+            voltages = self.get_from_all_rf_stations(
+                "get_main_harmonic_voltage", self.main_cavities
+            )
+
+            Q_s0 = calc_synchrotron_tune_single_harmonic(
+                charge=beam.particle_type.charge,
+                voltage=np.sum(voltages),
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
+                phi_s=np.pi,
+                harmonic=self.main_cavities[0].get_main_harmonic(),
+                eta_0=simulation.ring.calc_average_eta_0(beam.reference.gamma),
             ) * np.ones(n_turns + 1)
 
             omega_rf = self.main_cavities[
