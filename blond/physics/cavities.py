@@ -208,6 +208,27 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
                 reference_time=float(beam.reference.time),
             )
 
+    def _track_interp(
+        self,
+        beam: BeamBaseClass,
+        reference_energy_change: float,
+        time_axis: NumpyArray | CupyArray,
+        voltage: NumpyArray | CupyArray,
+    ):
+        if self._delayed_kick is not None:
+            self._delayed_kick.register(
+                time_axis=time_axis,
+                voltage=voltage - reference_energy_change,
+            )
+        else:
+            backend.specials.kick_interpolated(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=backend.array(voltage, dtype=backend.float),
+                bin_centers=backend.array(time_axis, dtype=backend.float),
+                charge=beam.signed_charge_with_direction(),
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
 
 class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     """
@@ -878,28 +899,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         if np.any(self.delta_omega_rf != 0):
             self._update_delta_phi_rf_from_beam_feedback()
-
-    def _track_interp(
-        self,
-        beam: BeamBaseClass,
-        reference_energy_change: float,
-        time_axis: NumpyArray | CupyArray,
-        voltage: NumpyArray | CupyArray,
-    ):
-        if self._delayed_kick is not None:
-            self._delayed_kick.register(
-                time_axis=time_axis,
-                voltage=voltage - reference_energy_change,
-            )
-        else:
-            backend.specials.kick_interpolated(
-                dt=beam.read_partial_dt(),
-                dE=beam.write_partial_dE(),
-                voltage=backend.array(voltage, dtype=backend.float),
-                bin_centers=backend.array(time_axis, dtype=backend.float),
-                charge=beam.signed_charge_with_direction(),
-                acceleration_kick=-reference_energy_change,  # Mind the minus!
-            )
 
     def _update_delta_phi_rf_from_beam_feedback(self):
         """
