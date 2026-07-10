@@ -214,7 +214,7 @@ class TestPSBeamFeedback(unittest.TestCase):
 
     def test_ps_beam_control_above_transition(self):
         self.create_scenario(
-            pl_gain=PL_gain, rl_gain=RL_gain, momentum=25.92e9
+            pl_gain=PL_gain, rl_gain=-RL_gain, momentum=25.92e9
         )
 
         # Check beam-phase loop output

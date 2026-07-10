@@ -25,8 +25,6 @@ from blond.physics.feedbacks.beam_feedback import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import ArrayLike
-
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
@@ -75,8 +73,6 @@ class PSBeamControl(BeamFeedbackBase):
     sample_de
         Determines downsampling of macroparticles for mean energy calculation.
         Every <sample_dE>. particle is sampled.
-    below_transition
-        Array of values for whether the current turns are above or below transition energy.
     pl_gain
         The gain of the beam-phase loop [rad/s].
     rl_gain
@@ -106,7 +102,6 @@ class PSBeamControl(BeamFeedbackBase):
         profile: ProfileBaseClass,
         phase_noise=None,
         sample_de: int = 1,
-        below_transition: ArrayLike | None = None,
         pl_gain: float = 0,
         rl_gain: float = 0,
         gd_pl: float = 5.704,
@@ -125,8 +120,6 @@ class PSBeamControl(BeamFeedbackBase):
             phase_noise=phase_noise,
             **kwargs,
         )
-
-        self.below_transition = below_transition
 
         self.pl_gain = pl_gain
         self.rl_gain = rl_gain
@@ -248,10 +241,7 @@ class PSBeamControl(BeamFeedbackBase):
         ) * self.drho + self.g_rl * self.prev_out_radial
 
         # Condition for stable gain on radial loop is dependent on whether we are below or above transition
-        if self.below_transition[counter]:
-            self.domega_dr = -self.rl_gain * drho_out
-        else:
-            self.domega_dr = self.rl_gain * drho_out
+        self.domega_dr = -self.rl_gain * drho_out
 
         self.prev_out_radial = drho_out
 
