@@ -75,8 +75,12 @@ class PSBeamControl(BeamFeedbackBase):
         Every <sample_dE>. particle is sampled.
     pl_gain
         The gain of the beam-phase loop [rad/s].
+        Use ``beam_control.schedule("pl_gain", ...)`` to influence
+        the parameter along the simulated cycle.
     rl_gain
         The gain of the radial loop [1/m s].
+        Use ``beam_control.schedule("rl_gain", ...)`` to influence
+        the parameter along the simulated cycle.
     gd_pl
         Hardware determined differential gain of the phase loop.
     gi_pl

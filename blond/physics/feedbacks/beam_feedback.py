@@ -28,6 +28,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond import Simulation, backend
+from blond.core.base import (
+    Schedulable,
+)
 from blond.core.ring.helpers import requires
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
@@ -41,7 +44,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import ProfileBaseClass
 
 
-class BeamFeedbackBase(GlobalFeedback):
+class BeamFeedbackBase(GlobalFeedback, Schedulable):
     """
     Base class for beam-based rf feedback systems in synchrotron particle accelerators.
 

@@ -78,8 +78,12 @@ class LHCBeamControl(BeamFeedbackBase):
         Option to add phase noise through the beam control.
     pl_gain
         The gain of the beam-phase loop.
+        Use ``beam_control.schedule("pl_gain", ...)`` to influence
+        the parameter along the simulated cycle.
     sl_gain
         The gain of the synchronization loop.
+        Use ``beam_control.schedule("sl_gain", ...)`` to influence
+        the parameter along the simulated cycle.
     current_thres
         Beam current threshold for gating of the profiles.
     **kwargs

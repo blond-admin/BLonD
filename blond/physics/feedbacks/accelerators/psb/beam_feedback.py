@@ -27,8 +27,6 @@ from blond.physics.feedbacks.beam_feedback import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
-
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
@@ -49,10 +47,16 @@ class PSBBeamControl(BeamFeedbackBase):
         Option to add phase noise through the beam control.
     pl_gain
         The gain of the beam-phase loop.
+        Use ``beam_control.schedule("pl_gain", ...)`` to influence
+        the parameter along the simulated cycle.
     rl_gain_a
         The first gain of the radial loop.
+        Use ``beam_control.schedule("rl_gain_a", ...)`` to influence
+        the parameter along the simulated cycle.
     rl_gain_b
         The second gain of the radial loop.
+        Use ``beam_control.schedule("rl_gain_b", ...)`` to influence
+        the parameter along the simulated cycle.
     period
         Time [s] between the actions of the phase loop.
     coefficients
@@ -65,9 +69,9 @@ class PSBBeamControl(BeamFeedbackBase):
         self,
         profile: ProfileBaseClass,
         phase_noise=None,
-        pl_gain: float | NumpyArray = 0.0,
-        rl_gain_a: float | NumpyArray = 0.0,
-        rl_gain_b: float | NumpyArray = 0.0,
+        pl_gain: float = 0.0,
+        rl_gain_a: float = 0.0,
+        rl_gain_b: float = 0.0,
         period: float = 10.0e-6,
         coefficients: list[float] = None,
         **kwargs,
@@ -148,11 +152,6 @@ class PSBBeamControl(BeamFeedbackBase):
             **kwargs,
         )
 
-        self.pl_gain = self.pl_gain * np.ones(n_turns + 1)
-
-        self.rl_gain_a = self.rl_gain_a * np.ones(n_turns + 1)
-        self.rl_gain_b = self.rl_gain_b * np.ones(n_turns + 1)
-
         self.precalculate_time(n_turns)
 
     def precalculate_time(self, n_turns: int):
@@ -230,9 +229,9 @@ class PSBBeamControl(BeamFeedbackBase):
                 - self.on_time[self.PL_counter - 1]
             )
 
-            self.domega_PL = 0.99803799 * self.domega_PL + self.pl_gain[
-                counter
-            ] * (0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev)
+            self.domega_PL = 0.99803799 * self.domega_PL + self.pl_gain * (
+                0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev
+            )
 
             self.dphi_av_prev = self.dphi_av
             self.dphi_sum = 0.0
@@ -255,9 +254,8 @@ class PSBBeamControl(BeamFeedbackBase):
 
             self.domega_RL = (
                 self.domega_RL
-                + self.rl_gain_a[counter]
-                * (self.dR_over_R - self.dR_over_R_prev)
-                + self.rl_gain_b[counter] * self.dR_over_R
+                + self.rl_gain_a * (self.dR_over_R - self.dR_over_R_prev)
+                + self.rl_gain_b * self.dR_over_R
             )
 
             self.dR_over_R_prev = self.dR_over_R
