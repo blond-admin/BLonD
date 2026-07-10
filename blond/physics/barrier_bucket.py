@@ -73,6 +73,9 @@ class BarrierRF(RFManipulationBaseClass):
 
         self._add_intended_schedule("t_center", "t_width", "peak_voltage")
 
+        # TODO:  Add delayed kick infrastructure
+        self._delayed_kick = None
+
     def waveform_at_turn_or_time(
         self, turn_i: int, reference_time: float, bin_centers: ArrayLike
     ) -> NumpyArray | CupyArray:
@@ -237,13 +240,11 @@ class BarrierRF(RFManipulationBaseClass):
         )
 
         # TODO: Integrate with `PooledInterpolationKick`
-        backend.specials.kick_interpolated(
-            beam.write_partial_dt(),
-            beam.write_partial_dE(),
-            waveform,
-            bins,
-            beam.particle_type.charge,
-            acceleration_kick=-reference_energy_change,
+        self._track_interp(
+            beam=beam,
+            reference_energy_change=reference_energy_change,
+            time_axis=bins,
+            voltage=waveform,
         )
 
 
