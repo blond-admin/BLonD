@@ -30,7 +30,7 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.beams import Beam, ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
@@ -43,6 +43,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
+    ArbitraryRFWaveform,
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
@@ -1526,6 +1527,43 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             }
         )
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
+
+
+class TestArbitraryRFWaveform(unittest.TestCase):
+    def test_init(self):
+        time = backend.linspace(0, 2e-6, 1024)
+        waveform = backend.linspace(-5e3, 5e3, 1024)
+        gain = 0.5
+
+        arbitrary_waveform = ArbitraryRFWaveform(time, waveform, gain)
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(time), copy_to_cpu(arbitrary_waveform.time)
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(waveform), copy_to_cpu(arbitrary_waveform.waveform)
+        )
+        self.assertEqual(gain, arbitrary_waveform.gain)
+
+    def test_track(self):
+
+        beam = Beam(0, proton)
+        beam.setup_beam(
+            backend.linspace(0.1e-6, 1.9e-6, int(1e5)), backend.zeros(int(1e5))
+        )
+
+        time = backend.linspace(0, 2e-6, 1024)
+        waveform = backend.linspace(-5e3, 5e3, 1024)
+        gain = 0.5
+
+        arbitrary_waveform = ArbitraryRFWaveform(time, waveform, gain)
+        arbitrary_waveform.track(beam)
+
+        expected = backend.interp(beam.dt.array_local, time, waveform * gain)
+
+        np.testing.assert_array_almost_equal(
+            copy_to_cpu(beam.dE.array_local), expected
+        )
 
 
 if __name__ == "__main__":
