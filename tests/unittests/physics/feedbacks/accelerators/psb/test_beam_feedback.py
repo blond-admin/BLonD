@@ -187,17 +187,6 @@ class TestPSBBeamFeedback(unittest.TestCase):
             pl_gain=1 / 25e-6, pl_schedule=pl_schedule, period=10e-6
         )
 
-        print(self.beam_control.dphi_sum)
-        print(self.beam_control.dphi_av)
-        print(self.beam_control.dphi_av_prev)
-
-        print(self.beam_control.dR_over_R_prev)
-        print(self.beam_control.dR_over_R)
-
-        print(self.beam_control.domega_PL)
-        print(self.beam_control.domega_RL)
-        print(self.beam_control.delta_omega_rf)
-
         # Check memory of the beam-phase loop
         self.assertAlmostEqual(
             self.beam_control.dphi_sum, 0.3221992010414767, places=5
