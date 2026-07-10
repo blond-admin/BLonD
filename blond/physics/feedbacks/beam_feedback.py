@@ -29,6 +29,7 @@ import numpy as np
 
 from blond import Simulation, backend
 from blond.core.base import (
+    DynamicParameter,
     Schedulable,
 )
 from blond.core.ring.helpers import requires
@@ -96,8 +97,46 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         self.main_cavities: list[RFStationBaseClass] | None = None
         self.main_harmonic: int | None = None
         self._simulation: Simulation | None = None
+        self._turn_counter: DynamicParameter | None = None
 
         self._first_turn_value_checked = False
+
+    @requires(["RFStationBaseClass"])
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
+        """
+        super().on_init_simulation(
+            simulation,
+            turn_counter=simulation.turn_counter,
+            **kwargs,
+        )
+
+    def configure(
+        self,
+        *,
+        turn_counter: DynamicParameter | None = None,
+        **kwargs,
+    ) -> None:
+        """
+        Store the runtime references needed during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._turn_counter = turn_counter
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -359,6 +398,12 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         beam
             The beam object used in the simulation.
         """
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=float(beam.reference.time),
+            )
+
         self.get_beam_attribute(
             beam=beam,
         )

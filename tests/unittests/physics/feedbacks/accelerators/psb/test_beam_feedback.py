@@ -37,7 +37,8 @@ voltage = 8e3
 class TestPSBBeamFeedback(unittest.TestCase):
     def create_scenario(
         self,
-        pl_gain,
+        pl_gain=0.0,
+        pl_schedule=None,
         rl_gain_a=0.0,
         rl_gain_b=0.0,
         period=0.00001,
@@ -91,6 +92,11 @@ class TestPSBBeamFeedback(unittest.TestCase):
             period=period,
             coefficients=coefficients,
         )
+
+        if pl_schedule is not None:
+            self.beam_control.schedule(
+                attribute="pl_gain", value=pl_gain * pl_schedule
+            )
 
         cavity.attach_beam_feedback(self.beam_control)
 
@@ -172,6 +178,48 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
         self.assertAlmostEqual(
             self.beam_control.delta_omega_rf, -13654.946393646453, places=5
+        )
+
+    def test_psb_beam_control_phase_loop_with_schedule(self):
+        pl_schedule = np.zeros(16)
+        pl_schedule[10:] = 1
+        self.create_scenario(
+            pl_gain=1 / 25e-6, pl_schedule=pl_schedule, period=10e-6
+        )
+
+        print(self.beam_control.dphi_sum)
+        print(self.beam_control.dphi_av)
+        print(self.beam_control.dphi_av_prev)
+
+        print(self.beam_control.dR_over_R_prev)
+        print(self.beam_control.dR_over_R)
+
+        print(self.beam_control.domega_PL)
+        print(self.beam_control.domega_RL)
+        print(self.beam_control.delta_omega_rf)
+
+        # Check memory of the beam-phase loop
+        self.assertAlmostEqual(
+            self.beam_control.dphi_sum, 0.3221992010414767, places=5
+        )
+        self.assertAlmostEqual(
+            self.beam_control.dphi_av, 0.341375890599374, places=5
+        )
+        self.assertAlmostEqual(
+            self.beam_control.dphi_av_prev, 0.341375890599374, places=5
+        )
+
+        # Check radial loop offsets
+        self.assertAlmostEqual(self.beam_control.dR_over_R_prev, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control.dR_over_R, 0.0, places=5)
+
+        # Check calculated corrections
+        self.assertAlmostEqual(
+            self.beam_control.domega_PL, 13697.498714931087, places=5
+        )
+        self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
+        self.assertAlmostEqual(
+            self.beam_control.delta_omega_rf, -13697.498714931087, places=5
         )
 
     def test_psb_beam_control_radial_loop(self):
