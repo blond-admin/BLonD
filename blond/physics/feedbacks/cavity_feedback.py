@@ -957,6 +957,17 @@ class IQCavityFeedbackTimingClass(IQCavityFeedbackBase):
         ``omega_rf_design``, which is only set once the station is fully
         initialised at the start of the run.
         """
+        # The exponential coarse solver integrates the decay and detuning
+        # terms exactly (an unconditional, exact propagator), so the
+        # forward-Euler step-size caps below -- and their accuracy warnings --
+        # do not apply. This is exactly the low-Q_L / large-detuning regime
+        # the option exists to enable, so gating it here would defeat its
+        # documented purpose. (The separate beam-kick magnitude check still
+        # runs: the piecewise-constant beam-current assumption is independent
+        # of the Euler-vs-exponential homogeneous propagator.)
+        if self.exponential_coarse_solver:
+            return
+
         max_step_angle = 0.1  # rad, heuristic threshold for Euler validity
         # Beyond this, the forward-Euler decay factor
         # (1 - 0.5 * omega * dt / Q_L) becomes negative, i.e. the

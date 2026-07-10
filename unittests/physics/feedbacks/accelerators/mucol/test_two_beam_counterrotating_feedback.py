@@ -79,7 +79,9 @@ def _base():
     return _mtw_reference.TestMultiTurnFeedbackVsConvolution
 
 
-def _build_two_beam_simulation(n_sections: int, mode: str):
+def _build_two_beam_simulation(
+    n_sections: int, mode: str, allow_delta_t_zero: bool = False
+):
     """
     Build the two-beam ring: half-drift / station / half-drift per section.
 
@@ -92,6 +94,10 @@ def _build_two_beam_simulation(n_sections: int, mode: str):
         beams at zero intensity) or ``"mtw"`` (multi-pass convolution
         wakefield with an asymmetric-fundamental-mode counter-rotating
         shunt).
+    allow_delta_t_zero
+        ``"mtw"`` only: passed to the ``MultiPassResonatorSolver``, allowing
+        two beams to deposit at the same reference time (needed for a
+        meeting-azimuth station where both arrive simultaneously).
 
     Returns
     -------
@@ -137,7 +143,8 @@ def _build_two_beam_simulation(n_sections: int, mode: str):
                     ),
                 ),
                 solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12
+                    decay_fraction_threshold=1e-12,
+                    allow_delta_t_zero=allow_delta_t_zero,
                 ),
                 profile=profile,
             )
@@ -205,7 +212,9 @@ def _build_two_beam_simulation(n_sections: int, mode: str):
     return sim, (beam, beam_cr), collected
 
 
-def _run_two_beam_case(n_sections: int, mode: str) -> list:
+def _run_two_beam_case(
+    n_sections: int, mode: str, allow_delta_t_zero: bool = False
+) -> list:
     """
     Run a two-beam Simulation and collect a voltage per turn per section.
 
@@ -215,6 +224,8 @@ def _run_two_beam_case(n_sections: int, mode: str) -> list:
         Number of RF stations per turn.
     mode
         See :func:`_build_two_beam_simulation`.
+    allow_delta_t_zero
+        See :func:`_build_two_beam_simulation`.
 
     Returns
     -------
@@ -223,7 +234,9 @@ def _run_two_beam_case(n_sections: int, mode: str) -> list:
         ``"mtw"``, the station gap voltage otherwise -- each reflecting the
         state after the LAST beam passage of that turn at that station.
     """
-    sim, beams, collected = _build_two_beam_simulation(n_sections, mode)
+    sim, beams, collected = _build_two_beam_simulation(
+        n_sections, mode, allow_delta_t_zero=allow_delta_t_zero
+    )
     per_turn = []
 
     def collect(simulation, beam_in_callback):
@@ -361,15 +374,22 @@ class TestSimultaneousPassageGuard(unittest.TestCase):
 
     def test_single_section_convolution_reference_needs_delta_t_zero(self):
         """
-        The convolution route for a meeting-azimuth station is documented.
+        The convolution route for a meeting-azimuth station works with the flag.
 
-        The solver's monotonic-clock assertion rejects the coincident
-        passage unless ``allow_delta_t_zero=True`` -- the workaround the
-        feedback's error message points to. This pins that the recommended
-        escape hatch actually exists.
+        Both halves of the escape hatch the feedback's error message points
+        to are pinned: without ``allow_delta_t_zero`` the solver's
+        monotonic-clock assertion rejects the coincident passage, and *with*
+        it the same two-beam convolution runs and produces finite induced
+        voltage.
         """
         with self.assertRaises(AssertionError):
             _run_two_beam_case(1, "mtw")
+
+        per_turn = _run_two_beam_case(1, "mtw", allow_delta_t_zero=True)
+        self.assertEqual(len(per_turn), N_TURNS)
+        peak = float(np.max(np.abs(per_turn[-1][0])))
+        self.assertTrue(np.isfinite(peak))
+        self.assertGreater(peak, 0.0)
 
 
 if __name__ == "__main__":

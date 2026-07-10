@@ -320,15 +320,6 @@ both with a clamped generator current.
     Opt-in diagnostic plot contrasting a bunch passage with sustained load.
 
 **Class** ``TestLoopDelaySampleSemantics`` -- ``n_delay`` counts coarse-grid
-*samples*, not time: driven by a sub-stepped feedback
-(``n_rf_periods_per_coarse_grid < 1``) the physical loop delay is
-``n_delay * n * t_rf``, i.e. it shrinks with the sub-step.
-
-``test_delay_is_counted_in_samples_not_time``
-    The generator current first reacts at the same sample offset after
-    beam-on for the standard (n = 1) and the sub-stepped (n = 0.5) grid.
-
-**Class** ``TestLoopDelaySampleSemantics`` -- ``n_delay`` counts coarse-grid
 *samples*, not time: with a sub-stepped grid the physical loop delay is
 ``n_delay * n_rf_periods_per_coarse_grid * t_rf`` and shrinks with the
 sub-step.

@@ -208,7 +208,10 @@ itself (see :ref:`mucol_cavity_feedback_tests` for the full inventory):
   convolution, per station and turn;
 * the charge-pair x counter-rotating-shunt matrix (build-up vs cancellation,
   closed form on the ringing tail) on both the convolution and the
-  pole-residue solver, which agree cell by cell to ~1e-13;
+  pole-residue solver, which agree cell by cell to ~1e-13 -- this one lives
+  in the impedance-solver suite
+  (``tests/unittests/physics/impedances/test_solvers.py``), not the mucol
+  inventory below;
 * the shared helpers against the blond2 reference implementations (LHC
   comparison suite).
 

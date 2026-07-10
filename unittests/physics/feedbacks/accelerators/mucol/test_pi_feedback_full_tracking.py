@@ -278,11 +278,14 @@ class TestPIReverseSpanFrameConsistency(unittest.TestCase):
     integrates frame-rotated errors and injects spurious quadrature
     current.
 
-    Isolation: with a matched bias and NO beam, a frame-consistent loop
-    sits exactly at its no-beam steady state (V = V_ss, I_gen = bias) on
-    every turn -- any drift of the generator current or antenna voltage is
-    the reverse-span frame error, not beam loading. Single-section (no
-    reverse segments) is the clean control.
+    Isolation: rather than measuring the (small) frame drift, these tests
+    pin the fix *structurally* by counting controller updates. A
+    frame-consistent loop must step the controller once per forward
+    (real-passage) coarse cell and never on a reverse reconstruction cell,
+    so ``controller-call count == sum(n_forward)`` while ``n_total`` is
+    strictly larger (the reverse cells exist but must be skipped). This is
+    independent of beam loading, so the tests run with a full-intensity
+    beam and assert the call count, not a voltage trajectory.
     """
 
     ENERGY = 4.0e9
