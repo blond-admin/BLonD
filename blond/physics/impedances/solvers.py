@@ -741,6 +741,12 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         subsequent entries from previous passes.
     _past_profile_times
         time axes corresponding to _past_profiles.
+
+    Notes
+    -----
+    Tracking a counter-rotating beam requires every source to define its
+    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_rotating``);
+    :meth:`calc_induced_voltage` raises otherwise.
     """
 
     def __init__(
@@ -1326,6 +1332,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     See Also
     --------
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
+
+    Notes
+    -----
+    Tracking a counter-rotating beam requires every source to define its
+    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_rotating``);
+    :meth:`calc_induced_voltage` raises otherwise.
     """
 
     def __init__(
