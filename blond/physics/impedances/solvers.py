@@ -1342,6 +1342,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+        # Whether any contributing source left its counter-rotating shunt
+        # (R_CR) unset. Such a source silently defaults its per-pole cross
+        # sign to +1; tracking a counter-rotating beam through it would give
+        # a silently-wrong cross-beam coupling, so we fail fast instead (see
+        # calc_induced_voltage). Set once the sources are finalized.
+        self._any_source_missing_shunt_cr: bool = False
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1365,14 +1371,29 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         residues = []
         counter_rotation_pole_flip = []
         assert self._parent_wakefield is not None
+        any_source_missing_shunt_cr = False
         for source in self._parent_wakefield.sources:
             vector_source: SupportsVectorFittedModel = source
 
             poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
 
+            # A source with no counter-rotating shunt (R_CR) reports its cross
+            # sign as the +1 default (asymmetric fundamental mode); record it
+            # so calc_induced_voltage can refuse a counter-rotating beam
+            # rather than apply that silent default. A source that does not
+            # participate in the R_CR convention at all is treated the same
+            # (its cross sign is likewise undefined for counter-rotation).
+            shunt_cr = getattr(
+                source, "_shunt_impedances_counter_rotating", None
+            )
+            if shunt_cr is None:
+                any_source_missing_shunt_cr = True
+
             poles.extend(poles_)
             residues.extend(residues_)
             counter_rotation_pole_flip.extend(cr_signs_)
+
+        self._any_source_missing_shunt_cr = any_source_missing_shunt_cr
 
         self._poles = backend.array(poles, dtype=complex)
         self._residues = backend.array(residues, dtype=complex)
@@ -1462,6 +1483,32 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             * beam.intensity
             * self._parent_wakefield.profile.hist_y_to_density_factor
         )
+
+        # Fail fast on a counter-rotating beam whose sources never defined
+        # their counter-rotating shunt (R_CR): the per-pole cross sign would
+        # silently default to +1 (asymmetric fundamental mode), the
+        # sign-OPPOSITE of the symmetric-mode (R_CR = +R) case, giving a
+        # silently-wrong cross-beam coupling. This mirrors the RuntimeError
+        # MultiPassResonatorSolver raises for the same misconfiguration.
+        #
+        # Deliberately gated on the CURRENT beam's direction only, so
+        # co-rotating runs (the common case) are unaffected. A lone
+        # counter-rotating beam's own wake is in fact R_CR-independent (the
+        # kernel applies the cross sign at both inject and readout, so it
+        # cancels), but the pole-residue solver bakes the sign array up front
+        # and cannot cheaply tell that case apart from genuine cross-beam
+        # coupling -- so it errs toward failing fast. Setting
+        # shunt_impedances_counter_rotating to any sign resolves it (and is
+        # bit-identical for a lone beam).
+        if beam.is_counter_rotating and self._any_source_missing_shunt_cr:
+            raise RuntimeError(
+                "shunt_impedances_counter_rotating (R_CR) needs to be set on "
+                "every source before tracking a counter-rotating beam through "
+                "MultiPoleSparseSolve. Leaving it unset silently defaults the "
+                "counter-rotating cross-coupling sign to +1 (an asymmetric "
+                "fundamental mode), which is the sign-opposite of the "
+                "symmetric-mode (R_CR = +R) case."
+            )
 
         backend.specials.wake_from_pole_residue(
             profile=profile_hist_y,

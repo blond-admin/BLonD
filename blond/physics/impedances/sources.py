@@ -872,8 +872,14 @@ class Resonators(
         impedance = backend.zeros(len(freq_x), dtype=complex)
         n_centers = len(self._center_frequencies)
 
+        # Direction-signed convention (see shunt_impedances_counter_rotating):
+        # R_CR is the shunt the counter-rotating witness *experiences*, its
+        # direction sign included, so the counter-rotating impedance carries
+        # the same -R_CR negation as get_wake_counter_rotation /
+        # get_vectorfit -- keeping the analytic and wake-derived
+        # counter-rotating impedances consistent.
         shunt_impedance = (
-            self._shunt_impedances_counter_rotating
+            -self._shunt_impedances_counter_rotating
             if counter_rotation
             else self._shunt_impedances
         )

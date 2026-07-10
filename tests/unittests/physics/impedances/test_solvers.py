@@ -4046,6 +4046,35 @@ class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
                         v_multipole, v_multipass, rtol=0, atol=1e-11 * scale
                     )
 
+    def test_counter_rotating_without_shunt_cr_raises_both_solvers(self):
+        """
+        Both multi-turn solvers fail fast on a counter-rotating beam when
+        ``shunt_impedances_counter_rotating`` was never set.
+
+        A co-rotating deposit followed by a counter-rotating passage
+        genuinely consults the cross-direction coupling. With ``R_CR`` unset
+        :class:`MultiPassResonatorSolver` already raises (its counter-rotating
+        wake is undefined), while :class:`MultiPoleSparseSolve` used to
+        silently default the per-pole cross sign to ``+1`` -- the
+        asymmetric-fundamental-mode case, the sign-OPPOSITE of the
+        symmetric-mode (``R_CR = +R``) result. That is a silently-wrong
+        cross-beam coupling, so the pole-residue solver now raises too.
+        """
+
+        def _run(solver_kind):
+            wakefield = self._wakefield(solver_kind, None)  # R_CR left unset
+            wakefield._track(self._beam(mu_plus, False))  # co-rotating deposit
+            beam_cr = self._beam(mu_minus, True)
+            beam_cr.reference.time += self.DELTA_T
+            wakefield._track(beam_cr)  # counter-rotating passage
+
+        for solver_kind in ("multipass", "multipole"):
+            with self.subTest(solver=solver_kind):
+                with self.assertRaisesRegex(
+                    RuntimeError, "shunt_impedances_counter_rotating"
+                ):
+                    _run(solver_kind)
+
 
 class TestHeadlessSolvers(unittest.TestCase):
     def test_comp(self):

@@ -459,8 +459,11 @@ class TestResonators(unittest.TestCase):
                 quality_factors=np.array(
                     [self.resonators._quality_factors[freq_ind]]
                 ),
+                # R_CR = +R: the counter-rotating witness experiences the
+                # inverted impedance (get_impedance negates R_CR), so the
+                # counter-rotating impedance below is -co, i.e. co == -CR.
                 shunt_impedances_counter_rotating=np.array(
-                    [-self.resonators._shunt_impedances[freq_ind]]
+                    [self.resonators._shunt_impedances[freq_ind]]
                 ),
             )
             freq_y = local_res.get_impedance(
