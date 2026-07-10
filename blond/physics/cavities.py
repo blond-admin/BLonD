@@ -40,12 +40,14 @@ from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
@@ -229,6 +231,83 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
                 charge=beam.signed_charge_with_direction(),
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
             )
+
+
+class ArbitraryRFWaveform(RFManipulationBaseClass):
+    """
+    Class to kick the beam with an arbitrary RF waveform.
+
+    The waveform is interpolated at the particle coordinates and treated
+    as a voltage that modifies the particle energy coordinates.  A gain
+    value can be specified, which is multiplied by the waveform to
+    allow easily varying the kick amplitude.
+
+    Parameters
+    ----------
+    time
+        The time array of the applied waveform.
+    waveform
+        The voltage waveform to be applied.
+    gain
+        A multiplication factor applied to the waveform.
+    section_index
+        Section index to group elements into sections.
+    name
+        User given name of the element.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+    """
+
+    def __init__(
+        self,
+        time: ArrayLike,
+        waveform: ArrayLike,
+        gain: float | None = 1,
+        section_index: int = 0,
+        name: str | None = None,
+        **kwargs: dict[str, Any],  # for MRO of fused elements
+    ):
+        super().__init__(section_index=section_index, name=name, **kwargs)
+
+        self.time: NumpyArray | CupyArray = backend.array(copy_to_cpu(time))
+        self.waveform: NumpyArray | CupyArray = backend.array(
+            copy_to_cpu(waveform)
+        )
+
+        self.gain: float = gain
+        self._add_intended_schedule("gain")
+
+        if len(self.time.shape) != 1 or len(self.waveform.shape) != 1:
+            raise ValueError("Both time and waveform must be 1 dimensional")
+
+        if self.time.size != self.waveform.size:
+            raise ValueError("")
+
+        # TODO:  Add delayed kick infrastructure
+        self._delayed_kick = None
+
+    def _track(self, beam: BeamBaseClass):
+        """
+        Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        super()._track(beam=beam)
+        reference_energy_change = self.track_reference(
+            beam.reference, beam.is_counter_rotating
+        )
+
+        self._track_interp(
+            beam=beam,
+            reference_energy_change=reference_energy_change,
+            time_axis=self.time,
+            voltage=self.waveform * self.gain,
+        )
+
 
 class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     """
