@@ -77,9 +77,9 @@ gpu_cuda13 = [
   "cupy-cuda13x", # GPU array computing (CUDA 13)
 ]
 xsuite = [
-  "xpart>=0.23.9",    # particle objects
-  "xobjects>=0.5.12", # xsuite low-level objects
-  "xtrack>=0.99.5",   # particle tracking
+  "xpart>=0.23.9, <0.23.16", # particle objects
+  "xobjects>=0.5.12",        # xsuite low-level objects
+  "xtrack>=0.99.5",          # particle tracking
 ]
 legacy = [
   "h5py>=3.11.0,<=3.15.1",      # HDF5 file format
