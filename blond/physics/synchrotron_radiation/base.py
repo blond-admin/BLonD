@@ -81,11 +81,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
 
         super().__init__(name=name, section_index=section_index)
 
+        self._turn_counter = None
         self._add_intended_schedule(
             "share_of_radiation_integrals",
         )
 
-        self._simulation: Simulation | None = None
         self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
