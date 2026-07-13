@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import TYPE_CHECKING
 
 import cupy as cp  # type: ignore
@@ -70,6 +71,12 @@ _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
 _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
+_apply_sr_without_quantum_excitation = gpu_module.get_function(
+    "apply_sr_without_quantum_excitation"
+)
+_apply_sr_with_quantum_excitation = gpu_module.get_function(
+    "apply_sr_with_quantum_excitation"
+)
 
 default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
 default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -487,6 +494,85 @@ class CudaSpecials(Specials):  # NOQA: D101
             shared_mem=2 * block_size[0] * np.dtype(FLOAT).itemsize,
         )
         return FLOAT(result[0].get() / result[1].get())
+
+    @staticmethod
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: CupyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        """
+        Apply synchrotron radiation and quantum excitation energy kicks.
+
+        Single fused CUDA kernel — one launch, one pass over ``beam_dE``,
+        no auxiliary noise buffer. The Gaussian noise is drawn with
+        NVIDIA's cuRAND device library (one state per thread), so the
+        memory footprint is just the beam itself.
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. CuPy array,
+            modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time, in [turn].
+        natural_energy_spread
+            Natural energy spread, [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+           Disables the quantum excitation kick.
+        """
+        assert beam_dE.device != "cpu", (
+            f"Requires Cupy array, but got {type(beam_dE)}."
+        )
+        assert beam_dE.dtype == FLOAT
+        assert beam_dE.flags.c_contiguous
+
+        damping_factor = FLOAT(1.0 - 2.0 / longitudinal_damping_time)
+        energy_lost_typed = FLOAT(energy_lost)
+        n_macroparticles = np.int32(len(beam_dE))
+        if disable_quantum_excitation:
+            _apply_sr_without_quantum_excitation(
+                args=(
+                    beam_dE,
+                    damping_factor,
+                    energy_lost_typed,
+                    n_macroparticles,
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
+        else:
+            noise_scale = FLOAT(
+                2.0
+                * natural_energy_spread
+                / float(np.sqrt(longitudinal_damping_time))
+                * total_energy
+            )
+            # Per-call seed: monotonic-clock nanoseconds give a fresh
+            # uncorrelated stream every invocation without keeping any
+            # global state. Each thread uses its tid as the cuRAND
+            # subsequence to stay decorrelated from the others.
+            base_seed = np.uint64(time.monotonic_ns())
+            _apply_sr_with_quantum_excitation(
+                args=(
+                    beam_dE,
+                    damping_factor,
+                    energy_lost_typed,
+                    noise_scale,
+                    base_seed,
+                    n_macroparticles,
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     @staticmethod
     def move_flagged_elements_to_end(  # NOQA: D102
