@@ -104,7 +104,10 @@ class LHCBeamControl(BeamFeedbackBase):
         self.pl_gain = pl_gain
         self.sl_gain = sl_gain
 
-        self.lhc_y = 0
+        self.lhc_y = 0.0
+
+        self.lhc_a = 0.0
+        self.lhc_t = 0.0
 
         self.delta_omega_rf = 0.0
         self.dphi = 0.0
@@ -147,40 +150,7 @@ class LHCBeamControl(BeamFeedbackBase):
             )
 
         if self.sl_gain != 0:
-            voltages = self.get_from_all_rf_stations(
-                "get_main_harmonic_voltage", self.main_cavities
-            )
-
-            Q_s0 = calc_synchrotron_tune_single_harmonic(
-                charge=beam.particle_type.charge,
-                voltage=np.sum(voltages),
-                beta=beam.reference.beta,
-                energy=beam.reference.total_energy,
-                phi_s=np.pi,
-                harmonic=self.main_cavities[0].get_main_harmonic(),
-                eta_0=simulation.ring.calc_average_eta_0(beam.reference.gamma),
-            ) * np.ones(n_turns + 1)
-
-            omega_rf = self.main_cavities[
-                0
-            ].get_main_harmonic_omega_rf_design() * np.ones(n_turns + 1)
-
-            harm = self.main_cavities[0].get_main_harmonic()
-
-            omega_s0 = Q_s0 * omega_rf / harm
-
-            #: | *LHC Synchronisation loop coefficient [1]*
-            self.lhc_a = 5.25 - omega_s0 / (np.pi * 40.0)
-            #: | *LHC Synchronisation loop time constant [turns]*
-            self.lhc_t = (2 * np.pi * Q_s0 * np.sqrt(self.lhc_a)) / np.sqrt(
-                1
-                + self.pl_gain
-                / self.sl_gain
-                * np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a))
-            )
-        else:
-            self.lhc_a = np.zeros(n_turns + 1)
-            self.lhc_t = np.zeros(n_turns + 1)
+            self.calculate_synchro_coefficients(beam=beam)
 
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
@@ -209,7 +179,6 @@ class LHCBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
-        counter = self._simulation.turn_counter.value
         dphi_rf = self.main_cavities[0].delta_phi_rf
 
         self.phase_difference(phase_noise=self.phase_noise)
@@ -224,10 +193,51 @@ class LHCBeamControl(BeamFeedbackBase):
 
         # Frequency correction from phase loop and synchro loop
         self.delta_omega_rf = -self.pl_gain * self.dphi - self.sl_gain * (
-            self.lhc_y + self.lhc_a[counter] * (dphi_rf + self.reference)
+            self.lhc_y + self.lhc_a * (dphi_rf + self.reference)
         )
 
         # Update recursion variable
-        self.lhc_y = (1 - self.lhc_t[counter]) * self.lhc_y + (
-            1 - self.lhc_a[counter]
-        ) * self.lhc_t[counter] * (dphi_rf + self.reference)
+        self.lhc_y = (1 - self.lhc_t) * self.lhc_y + (
+            1 - self.lhc_a
+        ) * self.lhc_t * (dphi_rf + self.reference)
+
+    def calculate_synchro_coefficients(self, beam: BeamBaseClass):
+        """
+        Calculate the coefficients for the LHC synchronization loop.
+
+        Parameters
+        ----------
+        beam
+            A beam object to extract the beam attribute from.
+        """
+        voltages = self.get_from_all_rf_stations(
+            "get_main_harmonic_voltage", self.main_cavities
+        )
+
+        Q_s0 = calc_synchrotron_tune_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=np.sum(voltages),
+            beta=beam.reference.beta,
+            energy=beam.reference.total_energy,
+            phi_s=np.pi,
+            harmonic=self.main_cavities[0].get_main_harmonic(),
+            eta_0=self._simulation.ring.calc_average_eta_0(
+                beam.reference.gamma
+            ),
+        )
+
+        omega_rf = self.main_cavities[0].get_main_harmonic_omega_rf_design()
+
+        harm = self.main_cavities[0].get_main_harmonic()
+
+        omega_s0 = Q_s0 * omega_rf / harm
+
+        #: | *LHC Synchronisation loop coefficient [1]*
+        self.lhc_a = 5.25 - omega_s0 / (np.pi * 40.0)
+        #: | *LHC Synchronisation loop time constant [turns]*
+        self.lhc_t = (2 * np.pi * Q_s0 * np.sqrt(self.lhc_a)) / np.sqrt(
+            1
+            + self.pl_gain
+            / self.sl_gain
+            * np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a))
+        )

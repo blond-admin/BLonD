@@ -292,11 +292,11 @@ class TestLHCBeamFeedback(unittest.TestCase):
         self.create_scenario(open_synchro=False)
 
         # Checks the correction calculation of the recursion parameters for the synchronization loop
-        self.assertAlmostEqual(self.beam_control.lhc_t[0], 0.0177111)
+        self.assertAlmostEqual(self.beam_control.lhc_t, 0.0177111)
 
         self.assertAlmostEqual(self.lhc_y_init, 0)
 
-        self.assertAlmostEqual(self.beam_control.lhc_a[0], 2.64280271)
+        self.assertAlmostEqual(self.beam_control.lhc_a, 2.64280271)
 
         # Checks the calculation done by the beam phase loop for the first turn
         self.assertAlmostEqual(
@@ -315,8 +315,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         synch_corr = self.beam_control.sl_gain * (
             self.lhc_y_init
-            + self.beam_control.lhc_a[0]
-            * (dphi_rf + self.beam_control.reference)
+            + self.beam_control.lhc_a * (dphi_rf + self.beam_control.reference)
         )
 
         self.assertAlmostEqual(synch_corr, -207.48175328)
@@ -337,11 +336,11 @@ class TestLHCBeamFeedback(unittest.TestCase):
         self.create_scenario(open_synchro=True)
 
         # Checks the correction calculation of the recursion parameters for the synchronization loop
-        self.assertAlmostEqual(self.beam_control.lhc_t[0], 0.0)
+        self.assertAlmostEqual(self.beam_control.lhc_t, 0.0)
 
         self.assertAlmostEqual(self.lhc_y_init, 0)
 
-        self.assertAlmostEqual(self.beam_control.lhc_a[0], 0.0)
+        self.assertAlmostEqual(self.beam_control.lhc_a, 0.0)
 
         # Checks the calculation done by the beam phase loop for the first turn
         self.assertAlmostEqual(
@@ -360,8 +359,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         synch_corr = self.beam_control.sl_gain * (
             self.lhc_y_init
-            + self.beam_control.lhc_a[0]
-            * (dphi_rf + self.beam_control.reference)
+            + self.beam_control.lhc_a * (dphi_rf + self.beam_control.reference)
         )
 
         self.assertAlmostEqual(synch_corr, 0.0)
