@@ -68,7 +68,19 @@ def copy_to_cpu(array: ArrayLike) -> NumpyArray:
     Changes to the returned array will not
     be reflected on the original memory.
     """
-    return array.get() if is_cupy_array(array) else np.array(array)
+    if is_cupy_array(array):
+        out_array = array.get()
+    else:
+        try:
+            out_array = np.array(array)
+        except TypeError:
+            # If the input is e.g. a list of cupy array, the input is
+            # not a cupy array, but the call to `np.array(array)` will
+            # fail.  In that case, iterate recursively over the
+            # elements to extract them individually.
+            out_array = np.array([copy_to_cpu(a) for a in array])
+
+    return out_array
 
 
 class _AsarrayOverrideManager:
