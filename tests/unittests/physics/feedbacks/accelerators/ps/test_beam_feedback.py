@@ -262,4 +262,4 @@ class TestPSBeamFeedback(unittest.TestCase):
         self.create_scenario(pl_gain=PL_gain, rl_gain=RL_gain, momentum=2.79e9)
 
         with self.assertRaises(ValueError):
-            self.beam_control.update_main_rf_stations(harmonic=7)
+            self.beam_control.update_main_rf_stations(new_main_harmonic=7)

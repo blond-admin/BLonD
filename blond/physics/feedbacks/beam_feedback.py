@@ -93,7 +93,6 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         self.drho = 0.0
         self.average_de = 0.0
-        self.main_rf_stations_mask: NumpyArray | None = None
         self.main_cavities: list[RFStationBaseClass] | None = None
         self.main_harmonic: int | None = None
         self._simulation: Simulation | None = None
@@ -212,19 +211,20 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         # Main RF frequency at the present turn
         omega_rf = self.main_cavities[0].get_main_harmonic_omega_rf()
 
-        # Calculate RF phase based on all the rf stations
+        # Calculate RF phase based on the vectorial sum of all voltages on the main harmonic frequency
         phi_rfs = self.get_from_all_rf_stations(
             "get_main_harmonic_phi_rf", rf_station_list=self.main_cavities
         )
         voltages = self.get_from_all_rf_stations(
             "get_main_harmonic_voltage", rf_station_list=self.main_cavities
         )
+        # Total RF phase for beam-phase calculation
         phi_rf = np.angle(np.sum(voltages * np.exp(1j * phi_rfs)))
 
         if self.time_offset is not None:
-            indexes = self.profile.hist_x >= self.time_offset
-            hist_x = self.profile.hist_x[indexes]
-            hist_y = self.profile.hist_y[indexes]
+            mask = self.profile.hist_x >= self.time_offset
+            hist_x = self.profile.hist_x[mask]
+            hist_y = self.profile.hist_y[mask]
         else:
             hist_x = self.profile.hist_x
             hist_y = self.profile.hist_y
@@ -322,7 +322,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         ring_radius = self._simulation.ring.circumference / (2 * np.pi)
 
         # Correct for design orbit
-        self.average_de = beam.read_partial_dE()[:: self.sample_de].mean()
+        self.average_de = float(
+            beam.read_partial_dE()[:: self.sample_de].mean()
+        )
 
         self.drho = (
             alpha
@@ -331,7 +333,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             / (beam.reference.beta**2.0 * beam.reference.total_energy)
         )
 
-    def update_main_rf_stations(self, harmonic: int = None):
+    def update_main_rf_stations(self, new_main_harmonic: int = None):
         """
         Update which rf stations are ones with the main harmonic.
 
@@ -340,7 +342,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         Parameters
         ----------
-        harmonic
+        new_main_harmonic
             The new main harmonic number. If no number is passed then
             the new main harmonic will be the main harmonic of the first
             rf station.
@@ -348,15 +350,17 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         harmonics = self.get_from_all_rf_stations(
             method_or_attr="get_main_harmonic"
         )
-        self.main_harmonic = harmonics[0] if harmonic is None else harmonic
+        self.main_harmonic = (
+            harmonics[0] if new_main_harmonic is None else new_main_harmonic
+        )
 
-        self.main_rf_stations_mask = harmonics == self.main_harmonic
+        main_rf_stations_mask = harmonics == self.main_harmonic
 
-        if not np.any(self.main_rf_stations_mask):
+        if not np.any(main_rf_stations_mask):
             raise ValueError("No RF stations are on the main harmonic")
 
         self.main_cavities = list(
-            compress(self.cavities, self.main_rf_stations_mask)
+            compress(self.cavities, main_rf_stations_mask)
         )
 
     def check_main_rf_stations_with_cavity_feedback(self):
