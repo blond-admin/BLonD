@@ -1781,7 +1781,7 @@ class TestArbitraryRFWaveform(unittest.TestCase):
         np.testing.assert_array_equal(
             copy_to_cpu(waveform), copy_to_cpu(arbitrary_waveform.waveform)
         )
-        self.assertEqual(gain, arbitrary_waveform.gain)
+        self.assertEqual(gain, arbitrary_waveform.waveform_gain)
 
         with self.assertRaises(ValueError):
             ArbitraryRFWaveform([time], waveform)

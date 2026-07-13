@@ -264,16 +264,16 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
 
     The waveform is interpolated at the particle coordinates and treated
     as a voltage that modifies the particle energy coordinates.  A gain
-    value can be specified, which is multiplied by the waveform to
-    allow easily varying the kick amplitude.
+    value can be specified, which the waveform is multiplied by to allow
+    for easy variation of the kick amplitude.
 
     Parameters
     ----------
     time
-        The time array of the applied waveform.
+        The time array of the applied waveform, in [s].
     waveform
-        The voltage waveform to be applied.
-    gain
+        The voltage waveform to be applied, in [V].
+    waveform_gain
         A multiplication factor applied to the waveform.
     section_index
         Section index to group elements into sections.
@@ -288,7 +288,7 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
         self,
         time: ArrayLike,
         waveform: ArrayLike,
-        gain: float | None = 1,
+        waveform_gain: float = 1,
         section_index: int = 0,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -300,11 +300,14 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
             copy_to_cpu(waveform)
         )
 
-        self.gain: float = gain
-        self._register_schedulable_variables("gain")
+        self.waveform_gain: float = waveform_gain
+        self._register_schedulable_variables("waveform_gain")
 
         if len(self.time.shape) != 1 or len(self.waveform.shape) != 1:
-            raise ValueError("Both time and waveform must be 1 dimensional")
+            raise ValueError(
+                "Both time and waveform must be 1 dimensional, but got "
+                f"{self.time.shape=} and {self.waveform.shape=}."
+            )
 
         if self.time.size != self.waveform.size:
             raise ValueError(
@@ -334,7 +337,7 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
             beam=beam,
             reference_energy_change=reference_energy_change,
             time_axis=self.time,
-            voltage=self.waveform * self.gain,
+            voltage=self.waveform * self.waveform_gain,
         )
 
 
