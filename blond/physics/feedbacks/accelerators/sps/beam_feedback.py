@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
     from blond.physics.profiles import ProfileBaseClass
 
 import numpy as np
@@ -46,20 +45,36 @@ class SPSBeamControl(BeamFeedbackBase):
         Option to add phase noise through the beam control.
     k_phi_n
         Feedback gain for the phase loop error from the previous turn.
+        Use ``beam_control.schedule("k_phi_n", ...)`` to influence
+        the parameter along the simulated cycle.
     k_phi_nm1
         Feedback gain for the phase loop error from two turn prior.
+        Use ``beam_control.schedule("k_phi_nm1", ...)`` to influence
+        the parameter along the simulated cycle.
     k_eps_n
         Feedback gain for the synchronization loop error.
+        Use ``beam_control.schedule("k_eps_n", ...)`` to influence
+        the parameter along the simulated cycle.
     k_z_n
         Feedback gain for the integration of synchronization loop error.
+        Use ``beam_control.schedule("k_z_n", ...)`` to influence
+        the parameter along the simulated cycle.
     k_a_n
         Feedback gain for the frequency loop error.
+        Use ``beam_control.schedule("k_a_n", ...)`` to influence
+        the parameter along the simulated cycle.
     k_b_n
         Feedback gain for the integration of the frequency loop error.
+        Use ``beam_control.schedule("k_b_n", ...)`` to influence
+        the parameter along the simulated cycle.
     phi_sync
         Synchronous phase of the beam [rad].
+        Use ``beam_control.schedule("phi_sync", ...)`` to influence
+        the parameter along the simulated cycle.
     pl_gain
         Beam-phase loop gain of the beam control.
+        Use ``beam_control.schedule("pl_gain", ...)`` to influence
+        the parameter along the simulated cycle.
     action_delay
         Delay of the action of the beam-phase loop from the first turn.
     delay_turns
@@ -74,14 +89,14 @@ class SPSBeamControl(BeamFeedbackBase):
         self,
         profile: ProfileBaseClass,
         phase_noise=None,
-        k_phi_n: float | NumpyArray = 0.0,
-        k_phi_nm1: float | NumpyArray = 0.0,
-        k_eps_n: float | NumpyArray = 0.0,
-        k_z_n: float | NumpyArray = 0.0,
-        k_a_n: float | NumpyArray = 0.0,
-        k_b_n: float | NumpyArray = 0.0,
-        phi_sync: float | NumpyArray = 0.0,
-        pl_gain: float | NumpyArray = 0.0,
+        k_phi_n: float = 0.0,
+        k_phi_nm1: float = 0.0,
+        k_eps_n: float = 0.0,
+        k_z_n: float = 0.0,
+        k_a_n: float = 0.0,
+        k_b_n: float = 0.0,
+        phi_sync: float = 0.0,
+        pl_gain: float = 0.0,
         action_delay: int = 0,
         delay_turns: int = 2,
         current_thres: float = None,
@@ -105,12 +120,12 @@ class SPSBeamControl(BeamFeedbackBase):
         self.domega_rf_corr = [0.0] * self.delay_turns
 
         # Internal feedback parameters
-        self.dphi_prev = 0
-        self.epsilon = 0
-        self.epsilon_prev = 0
-        self.zeta = 0
-        self.alpha = 0
-        self.alpha_prev = 0
+        self.dphi_prev = 0.0
+        self.epsilon = 0.0
+        self.epsilon_prev = 0.0
+        self.zeta = 0.0
+        self.alpha = 0.0
+        self.alpha_prev = 0.0
 
         self.delta_omega_rf = 0.0
         self.dphi = 0.0
@@ -157,46 +172,6 @@ class SPSBeamControl(BeamFeedbackBase):
                 "The filled slots in the machine is needed to compute the cavity sum phase"
             )
 
-        def convert_to_array(parameter: float, delay_action: int = 0):
-            result = np.zeros(n_turns + 1)
-            result[delay_action:] = parameter
-            return result
-
-        def ensure_array_length(_value, _name, _delay):
-            if isinstance(_value, float):
-                return convert_to_array(_value, _delay)
-
-            if len(_value) < n_turns + 1:
-                raise ValueError(
-                    f"Array `{_name}` is not the correct length, `n_turns + 1` or longer"
-                )
-
-            return _value
-
-        fields_with_delay = [
-            ("k_phi_nm1", self.action_delay),
-            ("k_phi_n", self.action_delay),
-        ]
-
-        fields_no_delay = [
-            "k_eps_n",
-            "k_z_n",
-            "k_a_n",
-            "k_b_n",
-            "phi_sync",
-            "pl_gain",
-        ]
-
-        # handle delayed parameters
-        for name, delay in fields_with_delay:
-            value = getattr(self, name)
-            setattr(self, name, ensure_array_length(value, name, delay))
-
-        # handle non-delayed parameters
-        for name in fields_no_delay:
-            value = getattr(self, name)
-            setattr(self, name, ensure_array_length(value, name, 0))
-
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
         Calculate the beam phase.
@@ -224,8 +199,6 @@ class SPSBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
-        counter = self._simulation.turn_counter.value
-
         t_rev = float(
             (2 * np.pi * self.cavities[0].get_main_harmonic())
             / self.cavities[0].get_main_harmonic_omega_rf_design()
@@ -244,25 +217,21 @@ class SPSBeamControl(BeamFeedbackBase):
 
         # Phase loop
         self.domega_dphi = (
-            -self.k_phi_n[counter] * self.dphi
-            - self.k_phi_nm1[counter] * self.dphi_prev
+            -self.k_phi_n * self.dphi - self.k_phi_nm1 * self.dphi_prev
         )
 
         # Synchro Loop
         self.epsilon = (
-            self.cavities[0].get_main_harmonic_phi_rf()
-            - self.phi_sync[counter]
+            self.cavities[0].get_main_harmonic_phi_rf() - self.phi_sync
         )
         self.zeta += self.epsilon_prev
         self.domega_sync = (
-            -self.k_eps_n[counter] * self.epsilon
-            - self.k_z_n[counter] * self.zeta
+            -self.k_eps_n * self.epsilon - self.k_z_n * self.zeta
         )
 
         # Frequency Loop
         self.domega_freq = (
-            -self.k_a_n[counter] * self.alpha
-            - self.k_b_n[counter] * self.alpha_prev
+            -self.k_a_n * self.alpha - self.k_b_n * self.alpha_prev
         )
 
         # Total frequency correction
@@ -279,4 +248,4 @@ class SPSBeamControl(BeamFeedbackBase):
         self.dphi_prev = self.dphi
 
         # Apply global gain
-        self.delta_omega_rf *= self.pl_gain[counter]
+        self.delta_omega_rf *= self.pl_gain

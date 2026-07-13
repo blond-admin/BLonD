@@ -111,18 +111,40 @@ class TestSPSBeamFeedback(unittest.TestCase):
         bigaussian = BiGaussian(
             n_macroparticles, sigma_dt=tau_bunch / 4, seed=1234
         )
-        self.beam_control = SPSBeamControl(
-            profile=self.profile,
-            k_phi_n=k_phi_n,
-            k_phi_nm1=k_phi_nm1,
-            k_eps_n=k_eps_n,
-            k_z_n=k_z_n,
-            k_a_n=k_a_n,
-            k_b_n=k_b_n,
-            phi_sync=phi_sync,
-            pl_gain=pl_gain,
-            action_delay=action_delay,
-        )
+        if isinstance(k_phi_n, float):
+            self.beam_control = SPSBeamControl(
+                profile=self.profile,
+                k_phi_n=k_phi_n,
+                k_phi_nm1=k_phi_nm1,
+                k_eps_n=k_eps_n,
+                k_z_n=k_z_n,
+                k_a_n=k_a_n,
+                k_b_n=k_b_n,
+                phi_sync=phi_sync,
+                pl_gain=pl_gain,
+                action_delay=action_delay,
+            )
+        else:
+            self.beam_control = SPSBeamControl(
+                profile=self.profile,
+                k_phi_n=k_phi_n[0],
+                k_phi_nm1=k_phi_nm1[0],
+                k_eps_n=k_eps_n[0],
+                k_z_n=k_z_n[0],
+                k_a_n=k_a_n[0],
+                k_b_n=k_b_n[0],
+                phi_sync=phi_sync[0],
+                pl_gain=pl_gain[0],
+                action_delay=action_delay,
+            )
+            self.beam_control.schedule("k_phi_n", k_phi_n)
+            self.beam_control.schedule("k_phi_nm1", k_phi_nm1)
+            self.beam_control.schedule("k_eps_n", k_eps_n)
+            self.beam_control.schedule("k_z_n", k_z_n)
+            self.beam_control.schedule("k_a_n", k_a_n)
+            self.beam_control.schedule("k_b_n", k_b_n)
+            self.beam_control.schedule("phi_sync", phi_sync)
+            self.beam_control.schedule("pl_gain", pl_gain)
 
         cavity.attach_beam_feedback(self.beam_control)
 
@@ -270,103 +292,6 @@ class TestSPSBeamFeedback(unittest.TestCase):
             [-3170.639876934075, 0.0],
             decimal=10,
         )
-
-    def test_sps_beam_control_incorrect_arrays(self):
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns),
-                pl_gain=1.0 * np.ones(n_turns + 1),
-            )
-
-        with self.assertRaises(ValueError):
-            self.create_scenario(
-                k_phi_n=k_phi_n * np.ones(n_turns + 1),
-                k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
-                k_eps_n=k_eps_n * np.ones(n_turns + 1),
-                k_z_n=k_z_n * np.ones(n_turns + 1),
-                k_a_n=k_a_n * np.ones(n_turns + 1),
-                k_b_n=k_b_n * np.ones(n_turns + 1),
-                phi_sync=reference * np.pi / 180 * np.ones(n_turns),
-                pl_gain=1.0 * np.ones(n_turns),
-            )
 
     def test_sps_beam_control_current_threshold(self):
         with self.assertRaises(RuntimeError):
