@@ -1,5 +1,8 @@
+import unittest
+
 import numpy as np
 from scipy.interpolate import PchipInterpolator
+
 from blond import (
     DriftSimple,
     MagneticCycleByTime,
@@ -9,7 +12,6 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-import unittest
 
 
 class TestGPUDev(unittest.TestCase):
