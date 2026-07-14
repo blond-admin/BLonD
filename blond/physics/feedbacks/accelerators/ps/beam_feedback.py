@@ -131,7 +131,6 @@ class PSBeamControl(BeamFeedbackBase):
         self.gd_pl = gd_pl
         self.g_rl = g_rl
 
-        self.dphi = 0.0
         self.reference = 0.0
 
         self.radial_reference = radial_reference

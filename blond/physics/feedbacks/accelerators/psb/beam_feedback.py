@@ -79,7 +79,6 @@ class PSBBeamControl(BeamFeedbackBase):
 
         self.pl_gain = pl_gain
 
-        self.dphi = 0.0
         self.reference = 0.0
 
         #: | *Radial loop gain, proportional [1] and integral [1/s].*

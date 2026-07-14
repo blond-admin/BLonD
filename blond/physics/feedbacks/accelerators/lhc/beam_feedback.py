@@ -109,7 +109,6 @@ class LHCBeamControl(BeamFeedbackBase):
         self.lhc_a = 0.0
         self.lhc_t = 0.0
 
-        self.dphi = 0.0
         self.reference = 0.0
         self.current_thres = current_thres
 

@@ -124,7 +124,6 @@ class SPSBeamControl(BeamFeedbackBase):
         self._alpha = 0.0
         self._alpha_prev = 0.0
 
-        self.dphi = 0.0  # phase loop error [rad]
         self.epsilon = 0.0  # synchro loop error [rad]
 
         # Frequency corrections
