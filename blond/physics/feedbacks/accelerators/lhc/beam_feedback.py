@@ -88,6 +88,17 @@ class LHCBeamControl(BeamFeedbackBase):
         Beam current threshold for gating of the profiles.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
+
+    Attributes
+    ----------
+    lhc_y
+        Recursion variable for the synchronization loop.
+    lhc_a
+        The synchronization loop coefficient.
+    lhc_t
+        The synchronization loop time constant.
+    reference
+        Reference phase [rad] for the synchronization loop.
     """
 
     def __init__(

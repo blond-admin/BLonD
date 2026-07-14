@@ -83,6 +83,17 @@ class SPSBeamControl(BeamFeedbackBase):
         Beam current threshold for gating of the profiles.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
+
+    Attributes
+    ----------
+    epsilon
+        The difference between the RF phase and the reference [rad], i.e. the synchronization loop error.
+    domega_phi
+        Angular frequency correction [rad/s] from the beam-phase loop.
+    domega_sync
+        Angular frequency correction [rad/s] from the synchronization loop.
+    domega_freq
+        Angular frequency correction [rad/s] from the frequency loop.
     """
 
     def __init__(

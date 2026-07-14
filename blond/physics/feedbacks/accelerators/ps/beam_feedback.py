@@ -98,6 +98,13 @@ class PSBeamControl(BeamFeedbackBase):
         Initial value for the radial output of the feedback.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
+
+    Attributes
+    ----------
+    domega_dphi
+        Angular frequency correction [rad/s] from the beam-phase loop.
+    domega_dr
+        Angular frequency correction [rad/s] from the radial loop.
     """
 
     def __init__(
@@ -130,8 +137,6 @@ class PSBeamControl(BeamFeedbackBase):
         self.gi_pl = gi_pl
         self.gd_pl = gd_pl
         self.g_rl = g_rl
-
-        self.reference = 0.0
 
         self.radial_reference = radial_reference
 

@@ -62,6 +62,15 @@ class PSBBeamControl(BeamFeedbackBase):
         Coefficients for the transfer function of the feedback.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
+
+    Attributes
+    ----------
+    domega_pl
+        Angular frequency correction [rad/s] from the beam-phase loop.
+    domega_rl
+        Angular frequency correction [rad/s] from the radial loop.
+    dr_over_r
+        Relative radial offset [-] between the beam orbit and the reference orbit.
     """
 
     def __init__(
@@ -78,8 +87,6 @@ class PSBBeamControl(BeamFeedbackBase):
         super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
 
         self.pl_gain = pl_gain
-
-        self.reference = 0.0
 
         #: | *Radial loop gain, proportional [1] and integral [1/s].*
         self.rl_gain_a = rl_gain_a
