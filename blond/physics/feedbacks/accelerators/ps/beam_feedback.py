@@ -26,7 +26,6 @@ from blond.physics.feedbacks.beam_feedback import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
-    from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -132,7 +131,6 @@ class PSBeamControl(BeamFeedbackBase):
         self.gd_pl = gd_pl
         self.g_rl = g_rl
 
-        self.delta_omega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
 
@@ -154,34 +152,6 @@ class PSBeamControl(BeamFeedbackBase):
 
         self.domega_dphi = 0.0
         self.domega_dr = 0.0
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        super().on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=n_turns,
-            **kwargs,
-        )
 
     def calculate_offsets(self, beam: BeamBaseClass):
         """

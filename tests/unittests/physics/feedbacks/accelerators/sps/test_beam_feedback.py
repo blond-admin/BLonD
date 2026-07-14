@@ -229,7 +229,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0)
 
         np.testing.assert_almost_equal(
-            self.beam_control.domega_rf_corr,
+            self.beam_control._domega_rf_corr,
             [-3170.639876934075, 0.0],
             decimal=10,
         )
@@ -288,7 +288,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0)
 
         np.testing.assert_almost_equal(
-            self.beam_control.domega_rf_corr,
+            self.beam_control._domega_rf_corr,
             [-3170.639876934075, 0.0],
             decimal=10,
         )

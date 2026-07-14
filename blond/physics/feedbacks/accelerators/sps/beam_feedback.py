@@ -99,7 +99,7 @@ class SPSBeamControl(BeamFeedbackBase):
         pl_gain: float = 0.0,
         action_delay: int = 0,
         delay_turns: int = 2,
-        current_thres: float = None,
+        current_thres: float | None = None,
         **kwargs,
     ):
         super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
@@ -115,20 +115,17 @@ class SPSBeamControl(BeamFeedbackBase):
         self.phi_sync = phi_sync
         self.pl_gain = pl_gain
 
-        self.delay_turns = delay_turns
-
-        self.domega_rf_corr = [0.0] * self.delay_turns
+        self._domega_rf_corr = [0.0] * delay_turns
 
         # Internal feedback parameters
-        self.dphi_prev = 0.0
-        self.epsilon = 0.0
+        self._dphi_prev = 0.0
         self.epsilon_prev = 0.0
         self.zeta = 0.0
         self.alpha = 0.0
         self.alpha_prev = 0.0
 
-        self.delta_omega_rf = 0.0
         self.dphi = 0.0
+        self.epsilon = 0.0
 
         # Frequency corrections
         self.domega_dphi = 0.0
@@ -166,7 +163,7 @@ class SPSBeamControl(BeamFeedbackBase):
         )
         if (
             self.current_thres is None
-            and self.main_cavities[0].any_feedback_not_none
+            and self._main_cavities[0].any_feedback_not_none
         ):
             raise RuntimeError(
                 "The filled slots in the machine is needed to compute the cavity sum phase"
@@ -212,7 +209,7 @@ class SPSBeamControl(BeamFeedbackBase):
         self.dphi = (
             self.dphi
             + np.pi
-            - self.main_cavities[0].calc_phi_s_main_harmonic(beam)
+            - self._main_cavities[0].calc_phi_s_main_harmonic(beam)
         )
 
         # Phase loop
@@ -235,11 +232,11 @@ class SPSBeamControl(BeamFeedbackBase):
         )
 
         # Total frequency correction
-        self.domega_rf_corr = [
+        self._domega_rf_corr = [
             self.domega_dphi + self.domega_sync + self.domega_freq
-        ] + self.domega_rf_corr[:-1]
+        ] + self._domega_rf_corr[:-1]
 
-        self.delta_omega_rf = self.domega_rf_corr[-1]
+        self.delta_omega_rf = self._domega_rf_corr[-1]
 
         # Update some parameters for the next turn
         self.alpha_prev = self.alpha

@@ -93,10 +93,10 @@ class LHCBeamControl(BeamFeedbackBase):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        phase_noise=None,
+        phase_noise=None,  # TODO refine when phase noise is merged
         pl_gain: float = 0.0,
         sl_gain: float = 0.0,
-        current_thres: float = None,
+        current_thres: float | None = None,
         **kwargs,
     ):
         super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
@@ -109,7 +109,6 @@ class LHCBeamControl(BeamFeedbackBase):
         self.lhc_a = 0.0
         self.lhc_t = 0.0
 
-        self.delta_omega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
         self.current_thres = current_thres
@@ -143,7 +142,7 @@ class LHCBeamControl(BeamFeedbackBase):
         )
         if (
             self.current_thres is None
-            and self.main_cavities[0].any_feedback_not_none
+            and self._main_cavities[0].any_feedback_not_none
         ):
             raise RuntimeError(
                 "The filled slots in the machine is needed to compute the cavity sum phase"
@@ -179,7 +178,7 @@ class LHCBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
-        dphi_rf = self.main_cavities[0].delta_phi_rf
+        dphi_rf = self._main_cavities[0].delta_phi_rf
 
         self.phase_difference(phase_noise=self.phase_noise)
         self.cavity_sum_phase(self.current_thres)
@@ -188,7 +187,7 @@ class LHCBeamControl(BeamFeedbackBase):
         self.dphi = (
             self.dphi
             + np.pi
-            - self.main_cavities[0].calc_phi_s_main_harmonic(beam)
+            - self._main_cavities[0].calc_phi_s_main_harmonic(beam)
         )
 
         # Frequency correction from phase loop and synchro loop
@@ -211,7 +210,7 @@ class LHCBeamControl(BeamFeedbackBase):
             A beam object to extract the beam attribute from.
         """
         voltages = self.get_from_all_rf_stations(
-            "get_main_harmonic_voltage", self.main_cavities
+            "get_main_harmonic_voltage", self._main_cavities
         )
 
         Q_s0 = calc_synchrotron_tune_single_harmonic(
@@ -220,15 +219,15 @@ class LHCBeamControl(BeamFeedbackBase):
             beta=beam.reference.beta,
             energy=beam.reference.total_energy,
             phi_s=np.pi,
-            harmonic=self.main_cavities[0].get_main_harmonic(),
+            harmonic=self._main_cavities[0].get_main_harmonic(),
             eta_0=self._simulation.ring.calc_average_eta_0(
                 beam.reference.gamma
             ),
         )
 
-        omega_rf = self.main_cavities[0].get_main_harmonic_omega_rf_design()
+        omega_rf = self._main_cavities[0].get_main_harmonic_omega_rf_design()
 
-        harm = self.main_cavities[0].get_main_harmonic()
+        harm = self._main_cavities[0].get_main_harmonic()
 
         omega_s0 = Q_s0 * omega_rf / harm
 

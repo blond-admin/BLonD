@@ -79,7 +79,6 @@ class PSBBeamControl(BeamFeedbackBase):
 
         self.pl_gain = pl_gain
 
-        self.delta_omega_rf = 0.0
         self.dphi = 0.0
         self.reference = 0.0
 
@@ -166,7 +165,7 @@ class PSBBeamControl(BeamFeedbackBase):
             Number of turns of the simulation.
         """
         if self.dt > 0:
-            n = self.delay + 1
+            n = self._delay + 1
             while n < n_turns + 1:
                 summa = 0
                 while summa < self.dt:
@@ -213,7 +212,7 @@ class PSBBeamControl(BeamFeedbackBase):
         self.dphi_sum += self.dphi
 
         # Phase and radial loop active on certain turns
-        if counter == self.on_time[self.PL_counter] and counter >= self.delay:
+        if counter == self.on_time[self.PL_counter] and counter >= self._delay:
             # Phase loop
             self.dphi_av = self.dphi_sum / (
                 self.on_time[self.PL_counter]

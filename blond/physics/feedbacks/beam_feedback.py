@@ -80,7 +80,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         **kwargs,
     ):
         super().__init__(profile=profile)
-        self.delay = kwargs.get("delay", 0)
+        self._delay = kwargs.get("delay", 0)
         self.window_coefficient = kwargs.get("window_coefficient", 0.0)
         self.time_offset = kwargs.get("time_offset")
         self.sample_de = kwargs.get("sample_de", 1)
@@ -93,8 +93,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         self.drho = 0.0
         self.average_de = 0.0
-        self.main_cavities: list[RFStationBaseClass] | None = None
         self.main_harmonic: int | None = None
+
+        self._main_cavities: list[RFStationBaseClass] | None = None
         self._simulation: Simulation | None = None
         self._turn_counter: DynamicParameter | None = None
 
@@ -209,14 +210,14 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         profile object.
         """
         # Main RF frequency at the present turn
-        omega_rf = self.main_cavities[0].get_main_harmonic_omega_rf()
+        omega_rf = self._main_cavities[0].get_main_harmonic_omega_rf()
 
         # Calculate RF phase based on the vectorial sum of all voltages on the main harmonic frequency
         phi_rfs = self.get_from_all_rf_stations(
-            "get_main_harmonic_phi_rf", rf_station_list=self.main_cavities
+            "get_main_harmonic_phi_rf", rf_station_list=self._main_cavities
         )
         voltages = self.get_from_all_rf_stations(
-            "get_main_harmonic_voltage", rf_station_list=self.main_cavities
+            "get_main_harmonic_voltage", rf_station_list=self._main_cavities
         )
         # Total RF phase for beam-phase calculation
         phi_rf = np.angle(np.sum(voltages * np.exp(1j * phi_rfs)))
@@ -278,7 +279,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         # iterate over rf stations on the main harmonic
         # TODO: Handling of simulations with some main rf stations without cavity FB and some with
-        for cav in self.main_cavities:
+        for cav in self._main_cavities:
             # Get cavity feedback on main harmonic for every rf station
             _cavity_feedback = cav.get_main_harmonic_cavity_feedback()
 
@@ -359,7 +360,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         if not np.any(main_rf_stations_mask):
             raise ValueError("No RF stations are on the main harmonic")
 
-        self.main_cavities = list(
+        self._main_cavities = list(
             compress(self.cavities, main_rf_stations_mask)
         )
 
@@ -372,7 +373,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         """
         cavity_feedback_list = self.get_from_all_rf_stations(
             method_or_attr="get_main_harmonic_cavity_feedback",
-            rf_station_list=self.main_cavities,
+            rf_station_list=self._main_cavities,
         )
 
         mask = np.array(
@@ -411,6 +412,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         self.get_beam_attribute(
             beam=beam,
         )
+        # TODO: maybe later such that delta_omega_rf is returned from this method
         self.compute_correction(
             beam=beam,
         )
@@ -423,7 +425,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             )
             self._first_turn_value_checked = True
 
-        if self._simulation.turn_counter.value >= self.delay:
+        if self._simulation.turn_counter.value >= self._delay:
             for cav in self.cavities:
                 # delta_omega_rf is updated later
                 # this means delta_omega_rf is effectively from last turn
