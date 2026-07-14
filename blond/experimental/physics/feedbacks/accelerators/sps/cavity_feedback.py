@@ -470,6 +470,32 @@ class SPSOneTurnFeedback(IQCavityFeedbackOld):
         self.V_ANT_FINE_START: NumpyArray | None = None
         self.phi_mod_0: Any | None = None
 
+    def rf_beam_current(
+        self,
+        beam: BeamBaseClass,
+        use_lowpass_filter: bool = False,
+    ) -> None:
+        r"""Calculate the RF beam current in the SPS OTFB reference frame.
+
+        The shared :func:`~blond.physics.feedbacks.helpers.rf_beam_current`
+        demodulates with the mucol convention, which carries an extra
+        ``+pi/2`` in the demodulation phase compared with the blond2
+        convention the SPS OTFB (and its reference values) are built on.
+        Apply the constant ``+pi/2`` (factor ``+1j``) rotation that brings
+        the beam current into the SPS reference frame before it is used by
+        :meth:`beam_model`. This is the SPS analogue of the compensation the
+        LHC loop performs in its ``circuit_track``; without it the beam-
+        induced voltage is rotated by 90 deg.
+        """
+        super().rf_beam_current(
+            beam=beam,
+            use_lowpass_filter=use_lowpass_filter,
+        )
+        self.I_BEAM_FINE = 1j * self.I_BEAM_FINE
+        self.I_BEAM_COARSE[-self.n_coarse :] = (
+            1j * self.I_BEAM_COARSE[-self.n_coarse :]
+        )
+
     def circuit_track(self, no_beam: bool = False):
         r"""Tracking the SPS CL internally."""
         # Update the impulse response at present carrier frequency

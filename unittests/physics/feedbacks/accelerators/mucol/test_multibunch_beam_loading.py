@@ -63,11 +63,11 @@ from blond import (
     WakeField,
     mu_plus,
 )
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from blond.physics.feedbacks.helpers import (
+from blond.physics.feedbacks.beam_current import (
     rf_beam_current,
     rf_beam_current_partial,
 )
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Import the reference *module* (not the class). Binding

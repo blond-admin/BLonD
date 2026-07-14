@@ -7,6 +7,8 @@ statistics, induced-voltage vs feedback-voltage comparisons and the
 generator power / antenna voltage of a PI-feedback run). Not a test module.
 """
 
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -361,3 +363,59 @@ def plot_ind_volt_cav_fdbk_voltage(
     plt.tight_layout()
     # plt.legend()
     plt.show()
+
+
+def plot_antenna_voltage(feedback, show: bool = True):
+    """
+    Plot the coarse-grid antenna voltage for debugging.
+
+    Plots the real, imaginary and absolute value of the coarse-grid
+    antenna voltage against the rf_centers time base.
+
+    Only sensible to call after circuit_track() has populated
+    antenna_voltage_coarse_grid; intended to be used with debug=True
+    to inspect the cavity-voltage evolution (amplitude decay/buildup
+    and detuning-induced phase rotation) turn by turn.
+
+    Parameters
+    ----------
+    feedback
+        The IQCavityFeedbackTimingClass whose coarse-grid antenna voltage to
+        plot.
+    show
+        If True, calls plt.show() at the end (blocking).
+    """
+    if (
+        feedback.antenna_voltage_coarse_grid is None
+        or len(feedback.rf_centers) == 0
+    ):
+        warnings.warn(
+            "Nothing to plot, antenna_voltage_coarse_grid/rf_centers empty",
+            stacklevel=2,
+        )
+        return
+
+    n = min(
+        len(feedback.rf_centers), len(feedback.antenna_voltage_coarse_grid)
+    )
+    t = feedback.rf_centers[-n:]
+    v = feedback.antenna_voltage_coarse_grid[-n:]
+
+    fig, (ax_re, ax_abs) = plt.subplots(2, 1, sharex=True)
+    fig.suptitle("IQCavityFeedbackTimingClass: antenna voltage (coarse grid)")
+
+    ax_re.plot(t, np.real(v), label="real")
+    ax_re.plot(t, np.imag(v), label="imag")
+    ax_re.set_ylabel("V_antenna [V]")
+    ax_re.legend()
+
+    ax_abs.plot(t, np.abs(v), label="abs")
+    ax_abs2 = ax_abs.twinx()
+    ax_abs2.plot(t, np.unwrap(np.angle(v)), color="C1", label="phase")
+    ax_abs.set_xlabel("time [s]")
+    ax_abs.set_ylabel("|V_antenna| [V]")
+    ax_abs2.set_ylabel("phase [rad]")
+
+    fig.tight_layout()
+    if show:
+        plt.show()

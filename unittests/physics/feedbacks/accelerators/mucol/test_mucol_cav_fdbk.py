@@ -15,11 +15,11 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackBase,
     IQCavityFeedbackTimingClass,
 )
-from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
@@ -29,7 +29,7 @@ from blond.physics.impedances.solvers import (
 from .stubs import StubBeam
 from .support import lab_frame_voltage
 
-DEBUG_PLOT = True
+DEBUG_PLOT = False
 
 
 class TestCavityFeedback(unittest.TestCase):
@@ -636,7 +636,9 @@ class TestCavityPrefill(unittest.TestCase):
 
     def test_steady_state_fill_on_resonance_matches_two_r_q_ql_ig(self):
         """No-injection fill converges to V_ss = 2 (R/Q) Q_L I_g on resonance."""
-        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+        from blond.physics.feedbacks.cavity_solvers import (
+            pretrack_fill_voltage,
+        )
 
         seed = pretrack_fill_voltage(
             r_over_q=self.R_over_Q,
@@ -652,7 +654,9 @@ class TestCavityPrefill(unittest.TestCase):
 
     def test_injection_voltage_seeds_at_the_requested_magnitude(self):
         """With injection_voltage, the seed magnitude is that target."""
-        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+        from blond.physics.feedbacks.cavity_solvers import (
+            pretrack_fill_voltage,
+        )
 
         injection_voltage = 20.0e6  # below the V0 = 30 MV steady-state fill
         seed = pretrack_fill_voltage(
@@ -675,7 +679,9 @@ class TestCavityPrefill(unittest.TestCase):
 
     def test_unreachable_injection_voltage_raises(self):
         """A target above the steady-state fill cannot be reached, so it raises."""
-        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+        from blond.physics.feedbacks.cavity_solvers import (
+            pretrack_fill_voltage,
+        )
 
         with self.assertRaises(ValueError) as cm:
             pretrack_fill_voltage(
@@ -757,7 +763,9 @@ class TestCavityPrefill(unittest.TestCase):
 
     def test_n_pretrack_seeds_init_voltage_with_the_fill(self):
         """On_run_simulation replaces init_voltage with the pre-fill seed."""
-        from blond.physics.feedbacks.helpers import pretrack_fill_voltage
+        from blond.physics.feedbacks.cavity_solvers import (
+            pretrack_fill_voltage,
+        )
 
         t_rf = 1.0e-9
         omega_rf = 2.0 * np.pi / t_rf

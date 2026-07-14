@@ -1,5 +1,10 @@
 """
-Tests for the cavity-response solvers in ``blond.physics.feedbacks.helpers``.
+Tests for the cavity-response solvers.
+
+``cavity_response_sparse_matrix`` lives in
+``blond.physics.feedbacks.helpers`` (shared with the LHC feedback);
+``cavity_response_sparse_matrix_second_order`` lives in
+``blond.physics.feedbacks.cavity_solvers`` (muon-collider only).
 
 Both :func:`cavity_response_sparse_matrix` (forward Euler, left-endpoint drive)
 and :func:`cavity_response_sparse_matrix_second_order` (trapezoidal /
@@ -20,13 +25,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField, mu_minus
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from blond.physics.feedbacks.helpers import (
-    cavity_response_sparse_matrix,
-    cavity_response_sparse_matrix_second_order,
+from blond.physics.feedbacks.beam_current import (
     rf_beam_current,
     rf_beam_current_partial,
 )
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_solvers import (
+    cavity_response_sparse_matrix_second_order,
+)
+from blond.physics.feedbacks.helpers import cavity_response_sparse_matrix
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative imports: the dirs above ``mucol`` have no __init__.py, so

@@ -64,8 +64,8 @@ from blond import (
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
-from blond.physics.feedbacks.helpers import rf_beam_current
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
