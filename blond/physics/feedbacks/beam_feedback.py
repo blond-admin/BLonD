@@ -67,10 +67,25 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         * window_coefficient: Window coefficient for the calculation of the beam phase.
           This parameter will reduce the weight of later samples of the beam profile.
 
-        * time_offset: Time offset for the calculation of the beam phase.
+        * time_offset: Time offset [s] for the calculation of the beam phase.
 
         * sample_de: Determines downsampling of macroparticles for mean energy calculation.
-          Every <sample_dE>. particle is sampled.
+          Every `sample_de` particle is sampled.
+
+    Attributes
+    ----------
+    delta_omega_rf
+        Angular frequency [rad/s] correction propagated to the RF station.
+    dphi
+        Phase difference [rad] between the beam and the RF system.
+    phi_beam
+        Phase of the beam [rad].
+    drho
+        Radial offset of the beam [m] with respect to reference orbit.
+    average_de
+        Average energy offset [eV] of the beam with respect to the synchronous energy.
+    main_harmonic
+        The harmonic number of the main RF system.
     """
 
     def __init__(
