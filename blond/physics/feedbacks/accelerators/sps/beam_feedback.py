@@ -119,16 +119,16 @@ class SPSBeamControl(BeamFeedbackBase):
 
         # Internal feedback parameters
         self._dphi_prev = 0.0
-        self.epsilon_prev = 0.0
-        self.zeta = 0.0
-        self.alpha = 0.0
-        self.alpha_prev = 0.0
+        self._epsilon_prev = 0.0
+        self._zeta = 0.0
+        self._alpha = 0.0
+        self._alpha_prev = 0.0
 
-        self.dphi = 0.0
-        self.epsilon = 0.0
+        self.dphi = 0.0  # phase loop error [rad]
+        self.epsilon = 0.0  # synchro loop error [rad]
 
         # Frequency corrections
-        self.domega_dphi = 0.0
+        self.domega_phi = 0.0
         self.domega_sync = 0.0
         self.domega_freq = 0.0
 
@@ -213,36 +213,36 @@ class SPSBeamControl(BeamFeedbackBase):
         )
 
         # Phase loop
-        self.domega_dphi = (
-            -self.k_phi_n * self.dphi - self.k_phi_nm1 * self.dphi_prev
+        self.domega_phi = (
+            -self.k_phi_n * self.dphi - self.k_phi_nm1 * self._dphi_prev
         )
 
         # Synchro Loop
         self.epsilon = (
             self.cavities[0].get_main_harmonic_phi_rf() - self.phi_sync
         )
-        self.zeta += self.epsilon_prev
+        self._zeta += self._epsilon_prev
         self.domega_sync = (
-            -self.k_eps_n * self.epsilon - self.k_z_n * self.zeta
+            -self.k_eps_n * self.epsilon - self.k_z_n * self._zeta
         )
 
         # Frequency Loop
         self.domega_freq = (
-            -self.k_a_n * self.alpha - self.k_b_n * self.alpha_prev
+            -self.k_a_n * self._alpha - self.k_b_n * self._alpha_prev
         )
 
         # Total frequency correction
         self._domega_rf_corr = [
-            self.domega_dphi + self.domega_sync + self.domega_freq
+            self.domega_phi + self.domega_sync + self.domega_freq
         ] + self._domega_rf_corr[:-1]
 
         self.delta_omega_rf = self._domega_rf_corr[-1]
 
         # Update some parameters for the next turn
-        self.alpha_prev = self.alpha
-        self.alpha = self.delta_omega_rf * t_rev
-        self.epsilon_prev = self.epsilon
-        self.dphi_prev = self.dphi
+        self._alpha_prev = self._alpha
+        self._alpha = self.delta_omega_rf * t_rev
+        self._epsilon_prev = self.epsilon
+        self._dphi_prev = self.dphi
 
         # Apply global gain
         self.delta_omega_rf *= self.pl_gain

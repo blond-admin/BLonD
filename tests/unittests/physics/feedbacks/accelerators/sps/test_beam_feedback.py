@@ -214,7 +214,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
 
         # Beam-phase loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dphi, -3073.547859760765
+            self.beam_control.domega_phi, -3073.547859760765
         )
 
         # Synchro loop output
@@ -273,7 +273,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
 
         # Beam-phase loop output
         self.assertAlmostEqual(
-            self.beam_control.domega_dphi, -3073.547859760765
+            self.beam_control.domega_phi, -3073.547859760765
         )
 
         # Synchro loop output
