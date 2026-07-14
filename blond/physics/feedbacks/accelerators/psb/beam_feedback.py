@@ -90,8 +90,8 @@ class PSBBeamControl(BeamFeedbackBase):
         self.dt = period
 
         # Counter of turns passed since last time the PL was active
-        self.PL_counter = 0
-        self.on_time = np.array([])
+        self._pl_counter = 0
+        self._on_time = np.array([])
 
         #: | *Array of transfer function coefficients.*
         if coefficients is None:
@@ -107,20 +107,20 @@ class PSBBeamControl(BeamFeedbackBase):
             self.coefficients = coefficients
 
         #: | *Memory of previous phase correction, for phase loop.*
-        self.dphi_sum = 0.0
-        self.dphi_av = 0.0
-        self.dphi_av_prev = 0.0
+        self._dphi_sum = 0.0
+        self._dphi_av = 0.0
+        self._dphi_av_prev = 0.0
 
         #: | *Memory of previous relative radial correction, for rad loop.*
-        self.dR_over_R_prev = 0.0
+        self._dr_over_r_prev = 0.0
 
         #: | *Phase loop frequency correction [1/s]*
-        self.domega_PL = 0.0
+        self.domega_pl = 0.0
 
         #: | *Radial loop frequency correction [1/s]*
-        self.domega_RL = 0.0
+        self.domega_rl = 0.0
 
-        self.dR_over_R = 0
+        self.dr_over_r = 0
 
     def on_run_simulation(
         self,
@@ -174,9 +174,9 @@ class PSBBeamControl(BeamFeedbackBase):
                         * self.cavities[0].get_main_harmonic()
                     )
                     n += 1
-                self.on_time = np.append(self.on_time, n - 1)
+                self._on_time = np.append(self._on_time, n - 1)
         else:
-            self.on_time = np.arange(n_turns + 1)
+            self._on_time = np.arange(n_turns + 1)
 
     def get_beam_attribute(self, beam: BeamBaseClass):
         """
@@ -209,25 +209,28 @@ class PSBBeamControl(BeamFeedbackBase):
 
         self.phase_difference()
 
-        self.dphi_sum += self.dphi
+        self._dphi_sum += self.dphi
 
         # Phase and radial loop active on certain turns
-        if counter == self.on_time[self.PL_counter] and counter >= self._delay:
+        if (
+            counter == self._on_time[self._pl_counter]
+            and counter >= self._delay
+        ):
             # Phase loop
-            self.dphi_av = self.dphi_sum / (
-                self.on_time[self.PL_counter]
-                - self.on_time[self.PL_counter - 1]
+            self._dphi_av = self._dphi_sum / (
+                self._on_time[self._pl_counter]
+                - self._on_time[self._pl_counter - 1]
             )
 
-            self.domega_PL = 0.99803799 * self.domega_PL + self.pl_gain * (
-                0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev
+            self.domega_pl = 0.99803799 * self.domega_pl + self.pl_gain * (
+                0.99901903 * self._dphi_av - 0.99901003 * self._dphi_av_prev
             )
 
-            self.dphi_av_prev = self.dphi_av
-            self.dphi_sum = 0.0
+            self._dphi_av_prev = self._dphi_av
+            self._dphi_sum = 0.0
 
             # Radial loop
-            self.dR_over_R = (
+            self.dr_over_r = (
                 self.cavities[0].get_main_harmonic_omega_rf()
                 - self.cavities[0].get_main_harmonic_omega_rf_design()
             ) / (
@@ -242,16 +245,16 @@ class PSBBeamControl(BeamFeedbackBase):
                 )
             )
 
-            self.domega_RL = (
-                self.domega_RL
-                + self.rl_gain_a * (self.dR_over_R - self.dR_over_R_prev)
-                + self.rl_gain_b * self.dR_over_R
+            self.domega_rl = (
+                self.domega_rl
+                + self.rl_gain_a * (self.dr_over_r - self._dr_over_r_prev)
+                + self.rl_gain_b * self.dr_over_r
             )
 
-            self.dR_over_R_prev = self.dR_over_R
+            self._dr_over_r_prev = self.dr_over_r
 
             # Counter to pick the next time step when the PL & RL will be active
-            self.PL_counter += 1
+            self._pl_counter += 1
 
         # Apply frequency correction
-        self.delta_omega_rf = -self.domega_PL - self.domega_RL
+        self.delta_omega_rf = -self.domega_pl - self.domega_rl

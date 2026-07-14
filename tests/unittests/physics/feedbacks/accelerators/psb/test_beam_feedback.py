@@ -154,28 +154,28 @@ class TestPSBBeamFeedback(unittest.TestCase):
 
         # Check memory of the beam-phase loop
         self.assertAlmostEqual(
-            self.beam_control.dphi_sum, 0.32288702705805883, places=5
+            self.beam_control._dphi_sum, 0.32288702705805883, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av, 0.341706136003109, places=5
+            self.beam_control._dphi_av, 0.341706136003109, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av_prev, 0.341706136003109, places=5
+            self.beam_control._dphi_av_prev, 0.341706136003109, places=5
         )
 
         # Check radial loop offsets
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R_prev, 1.0596857013162176e-06, places=5
+            self.beam_control._dr_over_r_prev, 1.0596857013162176e-06, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R, 1.0596857013162176e-06, places=5
+            self.beam_control.dr_over_r, 1.0596857013162176e-06, places=5
         )
 
         # Check calculated corrections
         self.assertAlmostEqual(
-            self.beam_control.domega_PL, 13654.946393646453, places=5
+            self.beam_control.domega_pl, 13654.946393646453, places=5
         )
-        self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control.domega_rl, 0.0, places=5)
         self.assertAlmostEqual(
             self.beam_control.delta_omega_rf, -13654.946393646453, places=5
         )
@@ -189,24 +189,26 @@ class TestPSBBeamFeedback(unittest.TestCase):
 
         # Check memory of the beam-phase loop
         self.assertAlmostEqual(
-            self.beam_control.dphi_sum, 0.3221992010414767, places=5
+            self.beam_control._dphi_sum, 0.3221992010414767, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av, 0.341375890599374, places=5
+            self.beam_control._dphi_av, 0.341375890599374, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av_prev, 0.341375890599374, places=5
+            self.beam_control._dphi_av_prev, 0.341375890599374, places=5
         )
 
         # Check radial loop offsets
-        self.assertAlmostEqual(self.beam_control.dR_over_R_prev, 0.0, places=5)
-        self.assertAlmostEqual(self.beam_control.dR_over_R, 0.0, places=5)
+        self.assertAlmostEqual(
+            self.beam_control._dr_over_r_prev, 0.0, places=5
+        )
+        self.assertAlmostEqual(self.beam_control.dr_over_r, 0.0, places=5)
 
         # Check calculated corrections
         self.assertAlmostEqual(
-            self.beam_control.domega_PL, 13697.498714931087, places=5
+            self.beam_control.domega_pl, 13697.498714931087, places=5
         )
-        self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control.domega_rl, 0.0, places=5)
         self.assertAlmostEqual(
             self.beam_control.delta_omega_rf, -13697.498714931087, places=5
         )
@@ -218,24 +220,24 @@ class TestPSBBeamFeedback(unittest.TestCase):
 
         # Check memory of the beam-phase loop
         self.assertAlmostEqual(
-            self.beam_control.dphi_sum, 0.33481055779883225, places=5
+            self.beam_control._dphi_sum, 0.33481055779883225, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av, 0.341375890599374, places=5
+            self.beam_control._dphi_av, 0.341375890599374, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av_prev, 0.341375890599374, places=5
+            self.beam_control._dphi_av_prev, 0.341375890599374, places=5
         )
 
         # Check radial loop offsets
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R_prev, 0.0, places=10
+            self.beam_control._dr_over_r_prev, 0.0, places=10
         )
-        self.assertAlmostEqual(self.beam_control.dR_over_R, 0.0, places=10)
+        self.assertAlmostEqual(self.beam_control.dr_over_r, 0.0, places=10)
 
         # Check calculated corrections
-        self.assertAlmostEqual(self.beam_control.domega_PL, 0.0, places=5)
-        self.assertAlmostEqual(self.beam_control.domega_RL, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control.domega_pl, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control.domega_rl, 0.0, places=5)
         self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0, places=5)
 
     def test_psb_beam_control_coefficients(self):
@@ -256,29 +258,31 @@ class TestPSBBeamFeedback(unittest.TestCase):
 
         # Check memory of the beam-phase loop
         self.assertAlmostEqual(
-            self.beam_control.dphi_sum, 0.22530578692634615, places=5
+            self.beam_control._dphi_sum, 0.22530578692634615, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av, 0.341706136003109, places=5
+            self.beam_control._dphi_av, 0.341706136003109, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av_prev, 0.341706136003109, places=5
+            self.beam_control._dphi_av_prev, 0.341706136003109, places=5
         )
 
         # Check radial loop offsets
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R_prev, 1.0596857013162176e-06, places=10
+            self.beam_control._dr_over_r_prev,
+            1.0596857013162176e-06,
+            places=10,
         )
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R, 1.0596857013162176e-06, places=10
+            self.beam_control.dr_over_r, 1.0596857013162176e-06, places=10
         )
 
         # Check calculated corrections
         self.assertAlmostEqual(
-            self.beam_control.domega_PL, 13654.946393646453, places=5
+            self.beam_control.domega_pl, 13654.946393646453, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.domega_RL, 105979.16698863493, places=2
+            self.beam_control.domega_rl, 105979.16698863493, places=2
         )
         self.assertAlmostEqual(
             self.beam_control.delta_omega_rf, -119634.11338228139, places=2
@@ -302,28 +306,28 @@ class TestPSBBeamFeedback(unittest.TestCase):
         )
 
         # Check memory of the beam-phase loop
-        self.assertAlmostEqual(self.beam_control.dphi_sum, 0.0, places=5)
+        self.assertAlmostEqual(self.beam_control._dphi_sum, 0.0, places=5)
         self.assertAlmostEqual(
-            self.beam_control.dphi_av, 0.3497491642743108, places=5
+            self.beam_control._dphi_av, 0.3497491642743108, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.dphi_av_prev, 0.3497491642743108, places=5
+            self.beam_control._dphi_av_prev, 0.3497491642743108, places=5
         )
 
         # Check radial loop offsets
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R_prev, 1.326094468588297e-07, places=10
+            self.beam_control._dr_over_r_prev, 1.326094468588297e-07, places=10
         )
         self.assertAlmostEqual(
-            self.beam_control.dR_over_R, 1.326094468588297e-07, places=10
+            self.beam_control.dr_over_r, 1.326094468588297e-07, places=10
         )
 
         # Check calculated corrections
         self.assertAlmostEqual(
-            self.beam_control.domega_PL, 13976.256485308591, places=5
+            self.beam_control.domega_pl, 13976.256485308591, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.domega_RL, 13262.270780351559, places=2
+            self.beam_control.domega_rl, 13262.270780351559, places=2
         )
         self.assertAlmostEqual(
             self.beam_control.delta_omega_rf, -27238.527265660152, places=2
