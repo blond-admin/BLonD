@@ -136,19 +136,19 @@ class PSBeamControl(BeamFeedbackBase):
 
         self.radial_reference = radial_reference
 
-        self.initialize_steady_state = initialize_steady_state
+        self._initialize_steady_state = initialize_steady_state
 
         # set initial gains to zero steady state is desired.
-        # If steady state is chosen prev_in_phase gets overritten on the first turn to match the beam
-        # prev_out_radial is just set to zero under the assumption that this is the steady state case
+        # If steady state is chosen _prev_in_phase gets overritten on the first turn to match the beam
+        # _prev_out_radial is just set to zero under the assumption that this is the steady state case
         if initialize_steady_state:
-            self.prev_in_phase = 0
-            self.prev_out_phase = 0
-            self.prev_out_radial = 0
+            self._prev_in_phase = 0
+            self._prev_out_phase = 0
+            self._prev_out_radial = 0
         else:  # put a use defined initial state
-            self.prev_in_phase = prev_in_phase
-            self.prev_out_phase = prev_out_phase
-            self.prev_out_radial = prev_out_radial
+            self._prev_in_phase = prev_in_phase
+            self._prev_out_phase = prev_out_phase
+            self._prev_out_radial = prev_out_radial
 
         self.domega_dphi = 0.0
         self.domega_dr = 0.0
@@ -196,27 +196,27 @@ class PSBeamControl(BeamFeedbackBase):
         counter = self._simulation.turn_counter.value
 
         if (
-            self.initialize_steady_state and counter == 1
+            self._initialize_steady_state and counter == 1
         ):  # We are assuming we are initially in a steady state
-            self.prev_in_phase = self.dphi
+            self._prev_in_phase = self.dphi
 
         # Frequency correction from phase loop
         dphi_out = (
-            self.gd_pl * (self.dphi - self.prev_in_phase)
-            + self.gi_pl * self.prev_out_phase
+            self.gd_pl * (self.dphi - self._prev_in_phase)
+            + self.gi_pl * self._prev_out_phase
         )
         self.domega_dphi = -self.pl_gain * dphi_out
-        self.prev_in_phase = self.dphi
-        self.prev_out_phase = dphi_out
+        self._prev_in_phase = self.dphi
+        self._prev_out_phase = dphi_out
 
         # Frequency correction from radial loop
         drho_out = (
             1 - self.g_rl
-        ) * self.drho + self.g_rl * self.prev_out_radial
+        ) * self.drho + self.g_rl * self._prev_out_radial
 
         # Condition for stable gain on radial loop is dependent on whether we are below or above transition
         self.domega_dr = -self.rl_gain * drho_out
 
-        self.prev_out_radial = drho_out
+        self._prev_out_radial = drho_out
 
         self.delta_omega_rf = self.domega_dphi + self.domega_dr

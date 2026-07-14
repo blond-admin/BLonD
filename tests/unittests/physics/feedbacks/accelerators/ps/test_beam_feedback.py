@@ -171,13 +171,13 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check one-turn memory variables
         self.assertAlmostEqual(
-            self.beam_control.prev_in_phase, 0.3492812266877152, places=5
+            self.beam_control._prev_in_phase, 0.3492812266877152, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.prev_out_phase, 1.9923001170267276, places=5
+            self.beam_control._prev_out_phase, 1.9923001170267276, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.prev_out_radial,
+            self.beam_control._prev_out_radial,
             1.029877479036536e-07,
             places=5,
         )
@@ -188,13 +188,15 @@ class TestPSBeamFeedback(unittest.TestCase):
 
         # Check one-turn memory variables
         self.assertAlmostEqual(
-            self.beam_control.prev_in_phase, 0.3466191124113115, places=5
+            self.beam_control._prev_in_phase, 0.3466191124113115, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.prev_out_phase, 1.992127583836593, places=5
+            self.beam_control._prev_out_phase, 1.992127583836593, places=5
         )
         self.assertAlmostEqual(
-            self.beam_control.prev_out_radial, 2.0532368635082497e-07, places=5
+            self.beam_control._prev_out_radial,
+            2.0532368635082497e-07,
+            places=5,
         )
 
         # Check beam-phase loop output
