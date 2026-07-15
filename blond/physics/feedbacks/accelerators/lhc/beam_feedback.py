@@ -46,7 +46,7 @@ class LHCBeamControl(BeamFeedbackBase):
     between beam and RF (actual synchronous phase). The transfer function is
 
     .. math::
-        \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
+        \Delta \omega_{rf}^{PL} = - g_{PL} (\Delta\varphi_{PL} + \phi_{N})
 
     where the phase noise for the controlled blow-up can be optionally
     activated.
@@ -54,21 +54,21 @@ class LHCBeamControl(BeamFeedbackBase):
     long-term frequency drifts:
 
     .. math::
-        \\Delta \\omega_{rf}^{SL} = - g_{SL} (y + a \\Delta\\varphi_{rf}) ,
+        \Delta \omega_{rf}^{SL} = - g_{SL} (y + a \Delta\varphi_{rf}) ,
 
     where we use the recursion
 
     .. math::
-        y_{n+1} = (1 - \\tau) y_n + (1 - a) \\tau \\Delta\\varphi_{rf} ,
+        y_{n+1} = (1 - \tau) y_n + (1 - a) \tau \Delta\varphi_{rf} ,
 
-    with a and \tau being defined through the synchrotron frequency f_s and
-    the synchrotron tune Q_s as
-
-    .. math::
-        a (f_s) \\equiv 5.25 - \\frac{f_s}{\\pi 40~\\text{Hz}} ,
+    with :math:`a` and :math:`\tau` being defined through the synchrotron frequency :math:`f_s` and
+    the synchrotron tune :math:`Q_s` as
 
     .. math::
-        \\tau(f_s) \\equiv 2 \\pi Q_s \\sqrt{ \\frac{a}{1 + \\frac{g_{PL}}{g_{SL}} \\sqrt{\\frac{1 + 1/a}{1 + a}} }}
+        a (f_s) \equiv 5.25 - \frac{f_s}{\pi 40~\text{Hz}} ,
+
+    .. math::
+        \tau(f_s) \equiv 2 \pi Q_s \sqrt{ \frac{a}{1 + \frac{g_{PL}}{g_{SL}} \sqrt{\frac{1 + 1/a}{1 + a}} }}
 
     Parameters
     ----------

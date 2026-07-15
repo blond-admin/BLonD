@@ -40,28 +40,28 @@ class PSBeamControl(BeamFeedbackBase):
     between beam and RF (actual synchronous phase). The transfer function is
 
     .. math::
-        \\Delta \\omega_{rf}^{PL} = - g_{PL} \\Delta \\varphi_{out}
+        \Delta \omega_{rf}^{PL} = - g_{PL} \Delta \varphi_{out}
 
     with the transfered phase being calculated as
 
     .. math::
-        \\Delta \\varphi_{out} = g_{diff} (\\Delta\\varphi_{PL} - \\Delta \\varphi_{prev}) + g_{int} \\ Delta \\varphi_{out,prev}
+        \Delta \varphi_{out} = g_{diff} (\Delta\varphi_{PL} - \Delta \varphi_{prev}) + g_{int} \Delta \varphi_{out,prev}
 
-    where the phase difference :math: \\Delta\\varphi_{PL} is calculated as
+    where the phase difference :math:`\Delta\varphi_{PL}` is calculated as
 
     .. math::
-        \\Delta\\varph_{PL} = \\varphi_{beam} - (\\varphi_{RF}+\\varphi_{programmed offset})
+        \Delta\varph_{PL} = \varphi_{beam} - (\varphi_{RF}+\varphi_{programmed offset})
 
     2. Radial loop using RL_gain: a radial loop to remove
     long-term frequency drifts:
 
     .. math::
-        \\Delta \\omega_{rf}^{RL} =  g_{RL} \\Delta \\rho_{out} ,
+        \Delta \omega_{rf}^{RL} =  g_{RL} \Delta \rho_{out} ,
 
     with
 
     .. math::
-        \\Delta \\rho_{out} = (1-g_{internal}) \\Delta \\rho + g_{internal} \\Delta \\rho_{prev}
+        \Delta \rho_{out} = (1-g_{internal}) \Delta \rho + g_{internal} \Delta \rho_{prev}
 
     Parameters
     ----------
@@ -119,9 +119,9 @@ class PSBeamControl(BeamFeedbackBase):
         g_rl: float = 1 - 1.853e-1,
         radial_reference: float = 0,
         initialize_steady_state: bool = True,
-        prev_in_phase: float | None = 0,
-        prev_out_phase: float | None = 0,
-        prev_out_radial: float | None = 0,
+        prev_in_phase: float = 0,
+        prev_out_phase: float = 0,
+        prev_out_radial: float = 0,
         **kwargs,
     ):
         super().__init__(
