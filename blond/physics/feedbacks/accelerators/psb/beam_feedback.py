@@ -160,7 +160,7 @@ class PSBBeamControl(BeamFeedbackBase):
         #: | *Radial loop frequency correction [1/s]*
         self.domega_rl = 0.0
 
-        self.dr_over_r = 0
+        self.dr_over_r = 0.0
 
     def on_run_simulation(
         self,
