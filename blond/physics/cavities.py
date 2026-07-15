@@ -278,7 +278,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         if not isinstance(cavity_feedback, list | None):
             self.attach_cavity_feedback(
-                cavity_feedback=cavity_feedback, harmonic_index=0
+                cavity_feedback=cavity_feedback,
+                harmonic_index=kwargs.get("main_harmonic_idx", 0),
             )
         elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -1634,6 +1635,7 @@ class MultiHarmonicRFStation(
             name=name,
             delayed_kick=delayed_kick,
             delayed_kick_time_axis=delayed_kick_time_axis,
+            main_harmonic_idx=main_harmonic_idx,
             **kwargs,  # for MRO of fused elements
         )
 

@@ -62,6 +62,8 @@ class TestSPSBeamFeedback(unittest.TestCase):
         phi_sync,
         pl_gain,
         mock_cavity_feedback: bool = False,
+        invert_main_harmonic: bool = False,
+        current_thres: float | None = None,
     ):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
@@ -82,20 +84,38 @@ class TestSPSBeamFeedback(unittest.TestCase):
         )
 
         if mock_cavity_feedback:
-            cavity_feedback = Mock(spec=LocalFeedback)
+            self.cavity_feedback = Mock(spec=LocalFeedback)
+            n_coarse = h
+            self.cavity_feedback.n_coarse = n_coarse
+            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse[0] = 1.5 + 0 * 1j
+            self.cavity_feedback.I_BEAM_COARSE = _i_coarse
+            _v_ant = np.zeros(n_coarse, dtype=complex)
+            _v_ant[:] = voltage_200 * np.exp(1j * 10 / 180 * np.pi)
+            self.cavity_feedback.V_ANT_COARSE = _v_ant
         else:
-            cavity_feedback = None
+            self.cavity_feedback = None
 
-        cavity = MultiHarmonicRFStation(
-            voltage=np.array([voltage_200, voltage_800]),
-            phi_rf=np.array([phase_200, phase_800]),
-            harmonic=np.array([h, 4 * h]),
-            n_harmonics=2,
-            main_harmonic_idx=0,
-            cavity_feedback=cavity_feedback,
-        )
+        if not invert_main_harmonic:
+            self.cavity = MultiHarmonicRFStation(
+                voltage=np.array([voltage_200, voltage_800]),
+                phi_rf=np.array([phase_200, phase_800]),
+                harmonic=np.array([h, 4 * h]),
+                n_harmonics=2,
+                main_harmonic_idx=0,
+                cavity_feedback=self.cavity_feedback,
+            )
+        else:
+            self.cavity = MultiHarmonicRFStation(
+                voltage=np.array([voltage_800, voltage_200]),
+                phi_rf=np.array([phase_800, phase_200]),
+                harmonic=np.array([4 * h, h]),
+                n_harmonics=2,
+                main_harmonic_idx=1,
+                cavity_feedback=self.cavity_feedback,
+            )
 
-        f_rf = cavity.calc_main_harmonic_omega_rf_design(
+        f_rf = self.cavity.calc_main_harmonic_omega_rf_design(
             rel_beta, lattice.orbit_length
         ) / (2 * np.pi)
         f_rev = f_rf / h
@@ -123,6 +143,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
                 phi_sync=phi_sync,
                 pl_gain=pl_gain,
                 action_delay=action_delay,
+                current_thres=current_thres,
             )
         else:
             self.beam_control = SPSBeamControl(
@@ -136,6 +157,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
                 phi_sync=phi_sync[0],
                 pl_gain=pl_gain[0],
                 action_delay=action_delay,
+                current_thres=current_thres,
             )
             self.beam_control.schedule("k_phi_n", k_phi_n)
             self.beam_control.schedule("k_phi_nm1", k_phi_nm1)
@@ -146,14 +168,14 @@ class TestSPSBeamFeedback(unittest.TestCase):
             self.beam_control.schedule("phi_sync", phi_sync)
             self.beam_control.schedule("pl_gain", pl_gain)
 
-        cavity.attach_beam_feedback(self.beam_control)
+        self.cavity.attach_beam_feedback(self.beam_control)
 
         ring = Ring(
             circumference,
         )
 
         ring.add_elements(
-            [self.profile, cavity, self.beam_control, lattice],
+            [self.profile, self.cavity, self.beam_control, lattice],
         )
 
         simulation = Simulation(
@@ -306,3 +328,40 @@ class TestSPSBeamFeedback(unittest.TestCase):
                 pl_gain=1.0,
                 mock_cavity_feedback=True,
             )
+
+    def test_sps_beam_control_changing_main_harmonic(self):
+        self.create_scenario(
+            k_phi_n=k_phi_n,
+            k_phi_nm1=k_phi_nm1,
+            k_eps_n=k_eps_n,
+            k_z_n=k_z_n,
+            k_a_n=k_a_n,
+            k_b_n=k_b_n,
+            phi_sync=reference * np.pi / 180,
+            pl_gain=1.0,
+            mock_cavity_feedback=True,
+            invert_main_harmonic=False,
+            current_thres=0.2,
+        )
+
+        self.assertEqual(
+            self.cavity.cavity_feedback_list[0], self.cavity_feedback
+        )
+
+        self.create_scenario(
+            k_phi_n=k_phi_n,
+            k_phi_nm1=k_phi_nm1,
+            k_eps_n=k_eps_n,
+            k_z_n=k_z_n,
+            k_a_n=k_a_n,
+            k_b_n=k_b_n,
+            phi_sync=reference * np.pi / 180,
+            pl_gain=1.0,
+            mock_cavity_feedback=True,
+            invert_main_harmonic=True,
+            current_thres=0.2,
+        )
+
+        self.assertEqual(
+            self.cavity.cavity_feedback_list[1], self.cavity_feedback
+        )
