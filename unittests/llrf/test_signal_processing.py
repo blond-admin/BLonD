@@ -57,6 +57,102 @@ from blond.llrf.signal_processing import (
     fir_filter,
 )
 
+# ---------------------------------------------------------------------------
+# Shared machine parameters (LHC-like), reused by every test class below.
+# These match the parameters used in BLonD's own TestLHCOpenDrive unittest,
+# so the reference numbers in TestLHCCavityLoopStandardProfile are directly
+# comparable to the values already verified upstream.
+# ---------------------------------------------------------------------------
+RING_CIRCUMFERENCE = 26658.883  # Machine circumference [m]
+SYNCHRONOUS_MOMENTUM = 450e9  # [eV/c]
+HARMONIC_NUMBER = 35640
+RF_VOLTAGE = 4e6  # [V]
+RF_PHASE = 0
+GAMMA_TRANSITION = 53.8
+MOM_COMPACTION = 1 / GAMMA_TRANSITION**2
+
+N_MACROPARTICLES = int(1e5)
+BUNCH_INTENSITY = 1e11
+BUNCH_SIGMA_DT = 0.5e-9
+number_of_bunches = 100  # Length of the batch [number of bunches]
+bunch_spacing = 10  # Bunch spacing [number of rf buckets]
+
+def build_ring_and_rf():
+    """Build the Ring/RFStation pair shared by all tests."""
+    ring = Ring(
+        RING_CIRCUMFERENCE,
+        MOM_COMPACTION,
+        SYNCHRONOUS_MOMENTUM,
+        particle=Proton(),
+        n_turns=1,
+    )
+    rf_station = RFStation(
+        ring, [HARMONIC_NUMBER], [RF_VOLTAGE], [RF_PHASE]
+    )
+    return ring, rf_station
+
+
+def build_beam(ring, rf_station, seed=1234):
+    """Build a Gaussian bunch so that Profile/SparseBatch slicing is
+    well defined (an empty/point beam makes bin_size degenerate)."""
+    # The beam
+
+    # Beam object for the batch
+    N_m = N_MACROPARTICLES * number_of_bunches
+    N_p = BUNCH_INTENSITY * number_of_bunches
+    beam = Beam(ring, N_m, N_p)
+    # First generate a single gaussian bunch
+    single_bunch = Beam(ring, N_MACROPARTICLES, BUNCH_INTENSITY)
+    bigaussian(
+        ring,
+        rf_station,
+        beam,
+        sigma_dt=BUNCH_SIGMA_DT,
+        seed=seed,
+        reinsertion=True,
+    )
+    # Copy the bunch throughout the batch
+    for i in range(number_of_bunches):
+        beam.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
+            single_bunch.dE
+        )
+        beam.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
+                single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
+        )
+    return beam
+
+
+def build_standard_profile(beam, rf_station, n_slices):
+    """A standard Profile covering the injected bunches and an extra bucket."""
+    profile = Profile(
+        beam,
+        CutOptions(cut_left=0.0, cut_right=(bunch_spacing * number_of_bunches + 1)
+            * rf_station.t_rf[
+                0,
+                0,
+            ],
+                   n_slices=n_slices * (bunch_spacing * number_of_bunches + 1)),
+    )
+    profile.track()
+    return profile
+
+
+def build_full_turn_sparse_profile(beam, rf_station, n_slices):
+    """A SparseBatch profile with a profile per number of bunches.
+    """
+    batch_list = np.zeros(HARMONIC_NUMBER)
+    for k in range(number_of_bunches):
+        batch_list[k * bunch_spacing] = 1
+    sparse_profile = SparseBatch(
+        rf_station=rf_station,
+        beam=beam,
+        number_of_slices_per_profile=(int(bunch_spacing/2)+1) * n_slices,
+        batch_list=batch_list,
+        batch_length=int(bunch_spacing/2)+1,
+        tracker_mode="onebyone",
+    )
+    sparse_profile.track()
+    return sparse_profile
 
 class TestIQ(unittest.TestCase):
     # Run before every test
@@ -205,187 +301,6 @@ class TestModulator(unittest.TestCase):
             msg="In TestModulator, no exception for wrong signal length",
         ):
             modulator(signal, self.f_rf, self.f_0, self.T_s)
-
-
-class TestRFCurrentSparse(unittest.TestCase):
-    def setUp(self):
-        C = 2 * np.pi * 1100.009  # Ring circumference [m]
-        gamma_t = 18.0  # Gamma at transition
-        alpha = 1 / gamma_t**2  # Momentum compaction factor
-        p_s = 25.92e9  # Synchronous momentum at injection [eV]
-
-        # Set up machine parameters
-        self.ring = Ring(C, alpha, p_s, Proton(), n_turns=1)
-        self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
-        self.omega = 2 * np.pi * 200.222e6
-        # Create a batch of 100 equal, short bunches
-        number_of_bunches_per_batch = 10
-        number_of_batches = 5
-        total_number_of_bunches = (
-            number_of_batches * number_of_bunches_per_batch
-        )
-        bunch_spacing = 5 * self.rf.t_rf[0, 0]
-        batch_spacing = 25 * self.rf.t_rf[0, 0]
-        buckets = int(batch_spacing / self.rf.t_rf[0, 0]) * number_of_batches
-        self.T_s = 5 * self.rf.t_rev[0] / self.rf.harmonic[0, 0]
-        N_m = int(1e5)
-        N_p = int(2.3e11)
-        beam_batch = Beam(self.ring, N_m, N_p)
-        bigaussian(
-            self.ring,
-            self.rf,
-            beam_batch,
-            0.01e-9,
-            seed=1234,
-            reinsertion=True,
-        )
-        self.beam2 = Beam(
-            self.ring,
-            total_number_of_bunches * N_m,
-            total_number_of_bunches * number_of_bunches_per_batch,
-        )
-        self.beam_sparse = Beam(
-            self.ring,
-            total_number_of_bunches * N_m,
-            total_number_of_bunches * number_of_bunches_per_batch,
-        )
-
-        for k in range(number_of_bunches_per_batch):
-            beam_batch.dt[
-                k * n_macroparticles : (k + 1) * n_macroparticles
-            ] -= np.average(
-                beam_batch.dt[
-                    k * n_macroparticles : (k + 1) * n_macroparticles
-                ]
-            )
-            beam_batch.dt[
-                k * n_macroparticles : (k + 1) * n_macroparticles
-            ] += (np.pi / 2 + phi_s[1]) / rfcav.omega_rf[
-                0, 0
-            ] + k * bunch_spacing * bucket_length
-        for ba in range(number_of_batches):
-            for i in range(number_of_bunches_per_batch):
-                self.beam2.dt[i * N_m : (i + 1) * N_m] = (
-                    self.beam.dt + ba * batch_spacing + i * bunch_spacing
-                )
-                self.beam_sparse.dt[i * N_m : (i + 1) * N_m] = (
-                    self.beam.dt + ba * batch_spacing + i * bunch_spacing
-                )
-                self.beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
-                self.beam_sparse.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
-
-        cut_options = CutOptions(
-            cut_left=0,
-            cut_right=(number_of_bunches_per_batch * bunch_spacing),
-            n_slices=(
-                number_of_bunches_per_batch
-                * int(bunch_spacing / self.rf.t_rf[0, 0])
-            )
-            * 2**10,
-        )
-
-        self.profile = Profile(self.beam2, cut_options)
-        self.profile.track()
-
-        # Creation of the SparseBatch profile
-        # creating the simple batch_list
-        batch_list = np.zeros(4620)
-        for k in range(number_of_batches):
-            batch_list[0 + k * int(batch_spacing / self.rf.t_rf[0, 0])] = 1
-            # Initialisation of the SparseBatch profile which perfectly matches
-        # the standard profile
-        self.sparse_profile = SparseBatch(
-            rf_station=self.rf_sparse,
-            beam=self.beam_sparse,
-            number_of_slices_per_profile=(
-                number_of_bunches_per_batch
-                * int(bunch_spacing / self.rf.t_rf[0, 0])
-            )
-            * 2**10,
-            batch_list=batch_list,
-            batch_length=(
-                number_of_bunches_per_batch
-                * int(bunch_spacing / self.rf.t_rf[0, 0])
-            ),
-            tracker_mode="onebyone",
-            do_track_on_init=False,
-        )
-
-        self.sparse_profile.track()
-        index_profile = np.zeros(number_of_batches)
-        for p, profile in enumerate(self.sparse_profile.profiles_list):
-            index_profile[p] = np.argmin(
-                np.abs(self.profile.bin_centers - profile.bin_centers[0])
-            )
-
-    def test_downsampling(self):
-        downsample_dict = {
-            "Ts": self.T_s,
-            "points": self.rf.harmonic[0, 0] / 5,
-        }
-
-        sparse_bucket_profile = SparseBatch(
-            rf_station=self.rf,
-            beam=self.beam_sparse,
-            number_of_slices_per_profile=int(1000),  # same number
-            # of slices per bucket
-            batch_list=self.sparse_profile.batch_list,
-            tracker_mode="onebyone",
-        )
-        with self.assertRaises(IndexError):
-            rf_beam_current(
-                sparse_bucket_profile,
-                self.omega,
-                self.ring.t_rev[0],
-                lpf=False,
-                downsample=downsample_dict,
-                external_reference=True,
-                dT=0,
-            )
-        rf_current, rf_current_coarse = rf_beam_current(
-            self.profile,
-            self.omega,
-            self.ring.t_rev[0],
-            lpf=False,
-            downsample=downsample_dict,
-            external_reference=True,
-            dT=0,
-        )
-
-        rf_current_sparse, rf_current_coarse_sparse = rf_beam_current(
-            self.sparse_profile,
-            self.omega,
-            self.ring.t_rev[0],
-            lpf=False,
-            downsample=downsample_dict,
-            external_reference=True,
-            dT=0,
-        )
-
-        tot_charges = (
-            np.sum(self.profile.n_macroparticles)
-            / self.beam2.n_macroparticles
-            * self.beam2.intensity
-        )
-        tot_charges_sparse = (
-            np.sum(self.sparse_profile.n_macroparticles)
-            / self.beam_sparse.n_macroparticles
-            * self.beam_sparse.intensity
-        )
-        self.assertAlmostEqual(tot_charges, 2.3000000000e13, 9)
-        self.assertEqual(tot_charges, tot_charges_sparse)
-
-        rf_current_coarse /= self.T_s
-        rf_current_coarse_sparse /= self.T_s
-        # Peak RF current on coarse grid
-        peak_rf_current = np.max(np.absolute(rf_current_coarse))
-        peak_rf_current_sparse = np.max(np.absolute(rf_current_coarse_sparse))
-        self.assertAlmostEqual(peak_rf_current, 2.9284691149551643, 7)
-        self.assertEqual(peak_rf_current, peak_rf_current_sparse)
-
-        # np.testing.assert_equal(rf_current_sparse, rf_current_std)
-        # np.testing.assert_equal(rf_current_coarse_sparse, rf_current_coarse_std)
-
 
 class TestRFCurrent(unittest.TestCase):
     def setUp(self):

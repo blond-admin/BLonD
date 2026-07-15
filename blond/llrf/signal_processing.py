@@ -275,28 +275,10 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
-
-        # Find which index in fine grid matches index in coarse grid
-
-        if isinstance(profile, SparseBatch):
-            charges_coarse = np.zeros(n_points, dtype=complex)
-            for profile_per_bucket in profile.profiles_list:
-                charges_coarse_profile = charges_from_fine_to_coarse(
-                    T_s,
-                    charges_fine,
-                    dT,
-                    n_points,
-                    omega_c,
-                    profile_per_bucket,
-                )
-                charges_coarse += charges_coarse_profile
-
-        elif isinstance(profile, Profile):
-            charges_coarse = charges_from_fine_to_coarse(
+        charges_coarse = charges_from_fine_to_coarse(
                 T_s, charges_fine, dT, n_points, omega_c, profile
             )
-        else:
-            raise TypeError(f"Profile type {type(profile)} not supported.")
+      
         return charges_fine, charges_coarse
 
     else:

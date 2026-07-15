@@ -1690,109 +1690,135 @@ class LHCCavityLoop(CavityFeedback):
 
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
-
+        # Find initial value of antenna voltage and generator current
+        t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
+        V_A_init = interp1d(
+            np.concatenate(
+                (
+                    self.rf_centers - self.T_s * self.n_coarse,
+                    self.rf_centers,
+                )
+            ),
+            self.V_ANT_COARSE,
+            fill_value="extrapolate",
+        )(t_at_init)
+        I_gen_init = interp1d(
+            np.concatenate(
+                (
+                    self.rf_centers - self.T_s * self.n_coarse,
+                    self.rf_centers,
+                )
+            ),
+            self.I_GEN_COARSE,
+            fill_value="extrapolate",
+        )(t_at_init)
+        # Number of samples on fine grid
+        self.samples_fine = self.omega_rf * self.profile.bin_size
         if isinstance(self.profile, SparseBatch):
             # reinitialisation necessary in case of multi-turn injection
-            self.V_ANT_FINE = np.zeros(
-                self.profile.n_slices + 1, dtype=complex
-            )
-            self.samples_fine = self.omega_rf * self.profile.bin_size
+            # self.V_ANT_FINE = np.zeros(
+            #     self.profile.n_slices + 1, dtype=complex
+            # )
             for p, profile in enumerate(self.profile.profiles_list):
-                # Number of samples on fine grid
-                samples_fine = self.omega_rf * profile.bin_size
-
-                # Find initial value of antenna voltage and generator current
-                t_at_init = profile.bin_centers[0] - profile.bin_size
-                V_A_init = interp1d(
-                    np.concatenate(
-                        (
-                            self.rf_centers - self.T_s * self.n_coarse,
-                            self.rf_centers,
-                        )
-                    ),
-                    self.V_ANT_COARSE,
-                    fill_value="extrapolate",
-                )(t_at_init)
-                I_gen_init = interp1d(
-                    np.concatenate(
-                        (
-                            self.rf_centers - self.T_s * self.n_coarse,
-                            self.rf_centers,
-                        )
-                    ),
-                    self.I_BEAM_COARSE,
-                    fill_value="extrapolate",
-                )(t_at_init)
                 if p == 0:
-                    self.V_ANT_FINE[0 : profile.n_slices + 1] = (
-                        cavity_response_sparse_matrix(
-                            I_beam=self.I_BEAM_FINE[
-                                p * profile.n_slices : (p + 1)
-                                * profile.n_slices
-                            ],
-                            I_gen=self.I_GEN_FINE[
-                                p * profile.n_slices : (p + 1)
-                                * profile.n_slices
-                            ],
-                            n_samples=profile.n_slices,
-                            V_ant_init=V_A_init,
-                            I_gen_init=I_gen_init,
-                            samples_per_rf=samples_fine,
-                            R_over_Q=self.R_over_Q,
-                            Q_L=self.Q_L,
-                            detuning=self.detuning,
-                        )
-                    )
-
-                else:
-                    self.V_ANT_FINE[
-                        p * profile.n_slices + 1 : (p + 1) * profile.n_slices
-                        + 1
-                    ] = cavity_response_sparse_matrix(
+                    self.V_ANT_FINE[0: profile.n_slices + 1] = (
+                            self.n_cavities
+                            * cavity_response_sparse_matrix(
                         I_beam=self.I_BEAM_FINE[
-                            p * profile.n_slices : (p + 1) * profile.n_slices
+                            p * profile.n_slices: (p + 1)
+                                                  * profile.n_slices
                         ],
                         I_gen=self.I_GEN_FINE[
-                            p * profile.n_slices : (p + 1) * profile.n_slices
+                            p * profile.n_slices: (p + 1)
+                                                  * profile.n_slices + 1
                         ],
                         n_samples=profile.n_slices,
                         V_ant_init=V_A_init,
                         I_gen_init=I_gen_init,
-                        samples_per_rf=samples_fine,
+                        samples_per_rf=self.samples_fine,
                         R_over_Q=self.R_over_Q,
                         Q_L=self.Q_L,
                         detuning=self.detuning,
-                    )[-profile.n_slices :]
+                    )
+                    )
 
-            self.V_ANT_FINE[-self.profile.n_slices :] *= self.n_cavities
+                else:
+                    # flipped arange to ensure all the bin centers of the
+                    # current profile are in the extended profile bin centers
+                    first_half = np.arange(
+                        start=profile.bin_centers[0],
+                        stop=(
+                            self.profile.profiles_list[p - 1].bin_centers[0]),
+                        step=-profile.bin_size)
+                    first_half.sort()
+                    extended_profile_length = np.concatenate((first_half,
+                                                              np.arange(
+                                                                  start=
+                                                                  profile.bin_centers[
+                                                                      0],
+                                                                  stop=
+                                                                  profile.bin_centers[
+                                                                      -1],
+                                                                  step=+profile.bin_size)
+                                                              ))
+
+                    I_GEN_FINE_previous_profile_extended = np.interp(
+                        extended_profile_length,
+                        self.rf_centers,
+                        self.I_GEN_COARSE[-self.n_coarse:],
+                    )
+
+                    I_BEAM_FINE_previous_profile_extended = np.concatenate((
+                        self.I_BEAM_FINE[
+                            (p - 1) * profile.n_slices: p * profile.n_slices],
+                        np.zeros(len(I_GEN_FINE_previous_profile_extended) -
+                                 profile.n_slices, dtype=complex)))
+
+                    V_ANT_FINE_previous_profile_extended = cavity_response_sparse_matrix(
+                        I_beam=I_BEAM_FINE_previous_profile_extended,
+                        I_gen=I_GEN_FINE_previous_profile_extended,
+                        n_samples=len(extended_profile_length),
+                        V_ant_init=V_A_init,
+                        I_gen_init=I_gen_init,
+                        samples_per_rf=self.samples_fine,
+                        R_over_Q=self.R_over_Q,
+                        Q_L=self.Q_L,
+                        detuning=self.detuning,
+                    )
+
+                    t_at_init = profile.bin_centers[
+                                    0] - profile.bin_size
+
+                    V_A_init = interp1d(extended_profile_length,
+                                        V_ANT_FINE_previous_profile_extended[
+                                            1:],
+                                        fill_value="extrapolate",
+                                        )(t_at_init)
+                    self.V_ANT_FINE[
+                        p * profile.n_slices + 1: (p + 1) * profile.n_slices
+                                                  + 1
+                    ] = (
+                            self.n_cavities
+                            * cavity_response_sparse_matrix(
+                        I_beam=self.I_BEAM_FINE[
+                            p * profile.n_slices: (p + 1) *
+                                                  profile.n_slices
+                        ],
+                        I_gen=self.I_GEN_FINE[
+                            p * profile.n_slices: (p + 1) *
+                                                  profile.n_slices
+                        ],
+                        n_samples=profile.n_slices,
+                        V_ant_init=V_A_init,
+                        I_gen_init=I_gen_init,
+                        samples_per_rf=self.samples_fine,
+                        R_over_Q=self.R_over_Q,
+                        Q_L=self.Q_L,
+                        detuning=self.detuning,
+                    )[-profile.n_slices:]
+                    )
 
         else:
-            # Number of samples on fine grid
-            self.samples_fine = self.omega_rf * self.profile.bin_size
-
-            # Find initial value of antenna voltage and generator current
-            t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
-            V_A_init = interp1d(
-                np.concatenate(
-                    (
-                        self.rf_centers - self.T_s * self.n_coarse,
-                        self.rf_centers,
-                    )
-                ),
-                self.V_ANT_COARSE,
-                fill_value="extrapolate",
-            )(t_at_init)
-            I_gen_init = interp1d(
-                np.concatenate(
-                    (
-                        self.rf_centers - self.T_s * self.n_coarse,
-                        self.rf_centers,
-                    )
-                ),
-                self.I_GEN_COARSE,
-                fill_value="extrapolate",
-            )(t_at_init)
-
             self.V_ANT_FINE = cavity_response_sparse_matrix(
                 I_beam=self.I_BEAM_FINE,
                 I_gen=self.I_GEN_FINE,
@@ -1805,8 +1831,8 @@ class LHCCavityLoop(CavityFeedback):
                 detuning=self.detuning,
             )
 
-            self.V_ANT_FINE[-self.profile.n_slices :] = (
-                self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
+            self.V_ANT_FINE[-self.profile.n_slices:] = (
+                    self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices:]
             )
 
     def generator_current(self):
