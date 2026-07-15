@@ -18,7 +18,10 @@ class TestEX_27_Synchrotron_Radiation_Matched(unittest.TestCase):
             EX_27_Synchrotron_Radiation_Matched,  # NOQA will run the
         )
 
-        EX_27_Synchrotron_Radiation_Matched.main()
+        EX_27_Synchrotron_Radiation_Matched.main(
+            n_turns=10,
+            n_macroparticles=100,
+        )
 
         # full script. just checking if it crashes
 
@@ -35,7 +38,14 @@ class TestEX_27_Synchrotron_Radiation_Matched(unittest.TestCase):
             EX_27_Synchrotron_Radiation_Matched,  # NOQA will run the
         )
 
-        EX_27_Synchrotron_Radiation_Matched.main()
+        EX_27_Synchrotron_Radiation_Matched.main(
+            n_turns=10,
+            n_macroparticles=100,
+        )
         backend.zeros(100)
 
         # full script. just checking if it crashes
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -85,7 +85,7 @@ def main(
     barrier_voltage[500:] = barrier_amplitude
     barrier_schedule = ScheduledArray(barrier_voltage)
 
-    barrier_rf.schedule(attribute="peak", value=barrier_schedule)
+    barrier_rf.schedule(attribute="peak_voltage", value=barrier_schedule)
 
     drift = DriftSimple(
         orbit_length=circumference,

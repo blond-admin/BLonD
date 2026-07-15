@@ -359,6 +359,21 @@ class TestResonators(unittest.TestCase):
                 quality_factors=0.49,
             )
 
+    def test_init_mixed_input(self):
+        r_shunt = [1]
+        f = 400e6
+        qual = np.array([200])
+
+        self.resonators = Resonators(
+            shunt_impedances=r_shunt,
+            center_frequencies=f,
+            quality_factors=qual,
+        )
+
+        self.assertEqual(self.resonators._shunt_impedances[0], r_shunt[0])
+        self.assertEqual(self.resonators._center_frequencies[0], f)
+        self.assertEqual(self.resonators._quality_factors[0], qual[0])
+
     def test_get_impedance_pinned(self):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -450,21 +465,21 @@ class TestResonators(unittest.TestCase):
             0, len(self.resonators._shunt_impedances)
         ):  # has to be single resonator, otherwise overlaps will occur
             local_res = Resonators(
-                shunt_impedances=np.array(
+                shunt_impedances=backend.array(
                     [self.resonators._shunt_impedances[freq_ind]]
                 ),
-                center_frequencies=np.array(
+                center_frequencies=backend.array(
                     [self.resonators._center_frequencies[freq_ind]]
                 ),
-                quality_factors=np.array(
+                quality_factors=backend.array(
                     [self.resonators._quality_factors[freq_ind]]
                 ),
+                shunt_impedances_counter_rotating=backend.array(
+                    [-self.resonators._shunt_impedances[freq_ind]]
                 # R_CR = +R: the counter-rotating witness experiences the
                 # inverted impedance (get_impedance negates R_CR), so the
                 # counter-rotating impedance below is -co, i.e. co == -CR.
-                shunt_impedances_counter_rotating=np.array(
-                    [self.resonators._shunt_impedances[freq_ind]]
-                ),
+               ),
             )
             freq_y = local_res.get_impedance(
                 freq_x=freq_x, simulation=simulation, beam=beam
@@ -570,9 +585,9 @@ class TestResonators(unittest.TestCase):
             self.resonators._shunt_impedances[0],
         )
         res = Resonators(
-            shunt_impedances=np.array([shut_imp]),
-            center_frequencies=np.array([freq]),
-            quality_factors=np.array([q_factor]),
+            shunt_impedances=backend.array([shut_imp]),
+            center_frequencies=backend.array([freq]),
+            quality_factors=backend.array([q_factor]),
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751, dtype=float)
         print(time[300])
@@ -648,14 +663,14 @@ class TestResonators(unittest.TestCase):
             self.resonators._shunt_impedances[0],
         )
         res = Resonators(
-            shunt_impedances=np.array([shut_imp]),
-            center_frequencies=np.array([freq]),
-            quality_factors=np.array([q_factor]),
+            shunt_impedances=backend.array([shut_imp]),
+            center_frequencies=backend.array([freq]),
+            quality_factors=backend.array([q_factor]),
             # R_CR = +R: the counter-rotating witness experiences the
             # inverted wake (the witness-direction sign is part of the
             # parameter's definition; an asymmetric fundamental mode has
             # R_CR = -R).
-            shunt_impedances_counter_rotating=np.array([shut_imp]),
+            shunt_impedances_counter_rotating=backend.array([shut_imp]),
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751)
 
@@ -825,15 +840,19 @@ class TestResonators(unittest.TestCase):
         )
         assert before_hashes != self.resonators._cache_impedance_from_wake_hash
         in_between_hashes = self.resonators._cache_impedance_from_wake_hash
+
+        n_fft = len(time)
         wake_imp = self.resonators.get_impedance_from_wake(
-            time=time, simulation=simulation, beam=beam, n_fft=len(time)
+            time=time, simulation=simulation, beam=beam, n_fft=n_fft
         )  # should not be recalculated as time did not change
         assert (
             in_between_hashes
             == self.resonators._cache_impedance_from_wake_hash
         )
 
-        wake_freq = self.resonators.get_impedance_from_wake_freq(time=time)
+        wake_freq = self.resonators.get_impedance_from_wake_freq(
+            time=time, n_fft=n_fft
+        )
 
         pinned_result = np.load(
             callers_relative_path(
@@ -866,13 +885,16 @@ class TestResonators(unittest.TestCase):
                 time=time, simulation=simulation, beam=beam, n_fft=len(time)
             )
         )
+        n_fft = len(time)
         wake_imp = self.resonators.get_impedance_from_wake(
             time=time,
             simulation=simulation,
             beam=beam,
-            n_fft=len(time),
+            n_fft=n_fft,
         )
-        wake_freq = self.resonators.get_impedance_from_wake_freq(time=time)
+        wake_freq = self.resonators.get_impedance_from_wake_freq(
+            time=time, n_fft=n_fft
+        )
 
         np.testing.assert_allclose(
             copy_to_cpu(wake_imp_counter_rotation), copy_to_cpu(-wake_imp)
@@ -907,7 +929,7 @@ class TestResonators(unittest.TestCase):
             ),
         )  # values chosen such that they are easily reproducible in test of test_get_impedance
 
-        freq = np.linspace(0, 4 * 1e9, 1000)
+        freq = backend.linspace(0, 4 * 1e9, 1000)
         imp = copy_to_cpu(
             resonators.get_impedance(backend.array(freq), None, None, False)
         )
@@ -926,15 +948,98 @@ class TestResonators(unittest.TestCase):
             plt.show()
 
         np.testing.assert_allclose(
-            imp.real,
-            imp2.real,
+            copy_to_cpu(imp.real),
+            copy_to_cpu(imp2.real),
             **allclose_tolerances(imp.real),
         )
         np.testing.assert_allclose(
-            imp.imag,
-            imp2.imag,
+            copy_to_cpu(imp.imag),
+            copy_to_cpu(imp2.imag),
             **allclose_tolerances(imp.imag),
         )
+
+    def test_impedance_from_wake_matches_analytic_impedance(self):
+        """
+        ``fft(get_wake)`` must reproduce the analytic ``get_impedance``.
+
+        ``get_impedance`` is validated independently of the wake (see
+        ``test_get_impedance``: peaks at the centre frequencies, peak
+        magnitude equal to the shunt impedance). Comparing it against
+        ``get_impedance_from_wake`` (= ``fft(get_wake)``) is therefore an
+        independent cross-check of the wake's decay and shape -- a wrong
+        decay rate changes the resonance linewidth (~ f_r / Q) and shows
+        up here, unlike the short-window or wake-vs-wake tests.
+        """
+        freq_r, q_factor, shunt = 1e9, 100.0, 1e6
+        res = Resonators(
+            shunt_impedances=np.array([shunt]),
+            center_frequencies=np.array([freq_r]),
+            quality_factors=np.array([q_factor]),
+        )
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+
+        # Causal time axis (t >= 0), long enough to resolve the linewidth
+        # (~ f_r / Q) and finely enough sampled to resolve f_r.
+        dt = 1e-10
+        alpha = float(copy_to_cpu(res._alpha[0]))
+        n = int(round(12.0 / alpha / dt))
+        time = backend.arange(n) * dt
+        n_fft = 2 * n
+
+        # rfft(wake) is an unscaled DFT; multiplying by dt approximates the
+        # continuous Fourier transform that defines the impedance.
+        imp_from_wake = (
+            copy_to_cpu(
+                res.get_impedance_from_wake(
+                    time=time, simulation=simulation, beam=beam, n_fft=n_fft
+                )
+            )
+            * dt
+        )
+        # Frequency axis from the public helper (must align with imp_from_wake).
+        freq = copy_to_cpu(
+            res.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
+        )
+        self.assertEqual(len(freq), len(imp_from_wake))
+        imp_analytic = copy_to_cpu(
+            res.get_impedance(backend.array(freq), simulation, beam)
+        )
+
+        # Compare in a band around the resonance where |Z| is significant.
+        band = (freq > 0.5 * freq_r) & (freq < 1.5 * freq_r)
+        max_rel_err = np.max(
+            np.abs(imp_from_wake[band] - imp_analytic[band])
+        ) / np.max(np.abs(imp_analytic[band]))
+        self.assertLess(max_rel_err, 5e-3)
+
+    def test_get_impedance_from_wake_freq_matches_impedance_array(self):
+        """
+        The frequency axis must align with the impedance-from-wake array.
+
+        ``get_impedance_from_wake`` returns ``rfft(wake, n=n_fft)``, which has
+        length ``n_fft // 2 + 1``, so the matching frequency axis is
+        ``rfftfreq(n_fft, dt)`` (same length). ``get_impedance_from_wake_freq``
+        must return exactly that, otherwise frequency and impedance values are
+        misaligned (wrong length and spacing).
+        """
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        dt = 1e-11
+        n = 500
+        time = backend.arange(n) * dt
+        n_fft = 2 * n
+
+        imp = self.resonators.get_impedance_from_wake(
+            time=time, simulation=simulation, beam=beam, n_fft=n_fft
+        )
+        freq = self.resonators.get_impedance_from_wake_freq(
+            time=time, n_fft=n_fft
+        )
+
+        expected_freq = np.fft.rfftfreq(n_fft, dt)
+        self.assertEqual(len(copy_to_cpu(freq)), len(copy_to_cpu(imp)))
+        np.testing.assert_allclose(copy_to_cpu(freq), expected_freq)
 
 
 class TestFitPoles(unittest.TestCase):

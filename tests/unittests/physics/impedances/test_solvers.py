@@ -16,7 +16,6 @@ from scipy.fft import next_fast_len
 from blond import (
     Beam,
     ConstantMagneticCycle,
-    Cupy64Bit,
     Numpy64Bit,
     Ring,
     Simulation,
@@ -30,6 +29,7 @@ from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
@@ -47,6 +47,7 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import enforce_64_bit_backend
 
 
@@ -439,10 +440,43 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver.t_periodicity = 1e-8
 
-    def _test_calc_induced_voltage(self, backend_class):
-        from blond import backend
+    def test__update_internal_data_warns_on_huge_n_time(self):
+        # A short profile combined with a long t_periodicity makes
+        # n_time = t_periodicity / hist_step explode into a huge FFT that is
+        # rebuilt every turn -> warn the user (likely wants TimeDomainFftSolver).
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
+        self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1e-7
+        self.periodic_freq_solver._parent_wakefield.profile.n_bins = 8
+        self.periodic_freq_solver._t_periodicity = 1.0  # n_time = 1e7
+        with self.assertWarns(PerformanceWarning):
+            self.periodic_freq_solver._update_internal_data()
 
-        backend.change_backend(backend_class)
+    def test__update_internal_data_no_warn_normal_n_time(self):
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
+        # default setup: t_periodicity=10, hist_step=1 -> n_time=10
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PerformanceWarning)
+            self.periodic_freq_solver._update_internal_data()
+
+    def test__update_internal_data_warn_disabled(self):
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
+        self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1e-7
+        self.periodic_freq_solver._parent_wakefield.profile.n_bins = 8
+        self.periodic_freq_solver._t_periodicity = 1.0  # n_time = 1e7
+        self.periodic_freq_solver.warn_above_n_time = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PerformanceWarning)
+            self.periodic_freq_solver._update_internal_data()
+
+    @multi_backend_testcase
+    def test_calc_induced_voltage(self):
+
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 11
         )
@@ -496,28 +530,6 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
-
-    @pytest.mark.backend_mutation
-    def test_calc_induced_voltage_gpu(self):
-        try:
-            import cupy  # type: ignore
-        except ImportError as exc:
-            # skip test if GPU is not available
-            self.skipTest(str(exc))
-
-        from blond import backend
-
-        backend_org = type(backend)
-        self._test_calc_induced_voltage(backend_class=Cupy64Bit)
-        backend.change_backend(backend_org)
-
-    @pytest.mark.backend_mutation
-    def test_calc_induced_voltage_cpu(self):
-        from blond import backend
-
-        backend_org = type(backend)
-        self._test_calc_induced_voltage(backend_class=Numpy64Bit)
-        backend.change_backend(backend_org)
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
