@@ -360,14 +360,16 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         ----------
         new_main_harmonic
             The new main harmonic number. If no number is passed then
-            the new main harmonic will be the main harmonic of the first
-            rf station.
+            the new main harmonic will be the lowest main harmonic of the
+            rf stations.
         """
         harmonics = self.get_from_all_rf_stations(
             method_or_attr="get_main_harmonic"
         )
         self.main_harmonic = (
-            harmonics[0] if new_main_harmonic is None else new_main_harmonic
+            np.min(harmonics)
+            if new_main_harmonic is None
+            else new_main_harmonic
         )
 
         main_rf_stations_mask = harmonics == self.main_harmonic
