@@ -68,7 +68,7 @@ class BarrierRF(RFManipulationBaseClass):
 
         self.t_center: float = t_center
         self.t_width: float = t_width
-        self.peak: float = peak_voltage
+        self.peak_voltage: float = peak_voltage
         self.n_bins = n_bins
 
         self._add_intended_schedule("t_center", "t_width", "peak_voltage")
@@ -99,7 +99,7 @@ class BarrierRF(RFManipulationBaseClass):
         self.apply_schedules(turn_i, reference_time)
 
         return compute_sin_barrier(
-            self.t_center, self.t_width, self.peak, bin_centers
+            self.t_center, self.t_width, self.peak_voltage, bin_centers
         )
 
     def to_fourier_series(
@@ -408,8 +408,8 @@ def waveform_to_harmonics(
         )
 
     harm_amps = backend.abs(harm_series) / (len(waveform) / 2)
-    harm_phases = (
-        backend.arctan2(harm_series.real, harm_series.imag) + backend.pi
+    harm_phases = backend.pi - backend.arctan2(
+        harm_series.real, harm_series.imag
     )
 
     return harm_amps, harm_phases

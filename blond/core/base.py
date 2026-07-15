@@ -199,6 +199,27 @@ class Schedulable:
     schedules
         Dictionary to update a certain attribute by some value
         via `apply_schedules`
+
+    Notes
+    -----
+    Schedulable attributes require two manual entries in the dedicated class:
+    - in the initialization:
+    >>> def __init__(self, attribute_to_be_scheduled)
+    >>>     self._add_intended_schedule("attribute_to_be_scheduled")
+    - in the initialisation method:
+    >>> def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    >>> super().on_init_simulation(
+    >>>        simulation,
+    >>>        turn_counter = simulation.turn_counter,
+    >>>        **kwargs,
+    >>>    )
+    - in the tracking method:
+    >>> def _track(self, beam: BeamBaseClass, **kwargs):
+    >>>     if self.schedule_active:
+    >>>         self.apply_schedules(
+    >>>            turn_i=self._turn_counter,
+    >>>            reference_time=float(beam.reference.time),
+    >>>         )
     """
 
     def __init__(self, **kwargs) -> None:
@@ -227,8 +248,10 @@ class Schedulable:
         attribute: str,
         value: ScheduledArray
         | ScheduledInterpolation
+        | ScheduledFunctional
         | NumpyArray
-        | tuple[NumpyArray, NumpyArray],
+        | tuple[NumpyArray, NumpyArray]
+        | Callable[..., Any],
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -756,8 +779,74 @@ class ScheduledInterpolation(ScheduledBaseClass):
         return value
 
 
+class ScheduledFunctional(ScheduledBaseClass):
+    """
+    Schedule values computed by a user-supplied callable.
+
+    The callable is evaluated once per turn and its return value is
+    written to the scheduled attribute. This allows the value to follow
+    an arbitrary functional relationship, e.g. a closed-form expression
+    in the turn index or time (which can be built from a `sympy`
+    expression via `sympy.lambdify`).
+
+    Parameters
+    ----------
+    function
+        Callable evaluated each turn. It is called with the keyword
+        arguments `turn_i` and `reference_time` (matching
+        `get_scheduled`) and must return the scheduled value. Arguments
+        that are not needed can simply be ignored.
+
+    Examples
+    --------
+    A sinusoidal voltage program in time:
+
+    >>> import numpy as np
+    >>> scheduler = ScheduledFunctional(
+    ...     lambda turn_i, reference_time: 6e6 * np.sin(2 * np.pi * reference_time)
+    ... )
+
+    A value that depends on the turn index:
+
+    >>> scheduler = ScheduledFunctional(
+    ...     lambda turn_i, reference_time: 1e3 * turn_i
+    ... )
+    """
+
+    def __init__(
+        self,
+        function: Callable[[int, float], Any],
+    ) -> None:
+        super().__init__()
+        self.function = function
+
+    def get_scheduled(
+        self,
+        turn_i: int,
+        reference_time: float,
+    ) -> Any:
+        """
+        Get the value of the schedule by evaluating the callable.
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index.
+        reference_time
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The value returned by the callable for the current turn/time.
+        """
+        return self.function(turn_i=turn_i, reference_time=reference_time)
+
+
 def get_scheduler(
-    value: NumpyArray | tuple[NumpyArray, NumpyArray],
+    value: NumpyArray
+    | tuple[NumpyArray, NumpyArray]
+    | Callable[[int, float], Any],
 ) -> ScheduledBaseClass:
     """
     Auto-select the correct class of the schedulers.
@@ -767,6 +856,7 @@ def get_scheduler(
     value
         Array - per turn
         (Array, Array) - time vs value, to be interpolated.
+        Callable - evaluated per turn via `ScheduledFunctional`.
 
     Returns
     -------
@@ -777,6 +867,8 @@ def get_scheduler(
         return ScheduledArray(values=value)
     elif isinstance(value, tuple):
         return ScheduledInterpolation(times=value[0], values=value[1])
+    elif callable(value):
+        return ScheduledFunctional(function=value)
     else:
         raise TypeError(type(value))
 

@@ -70,9 +70,7 @@ ASSIGNED_CATEGORIES = {
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision
-    "Cupy32Bit": Categories.BACKEND.value,
     "Cupy64Bit": Categories.BACKEND.value,
-    "Numpy32Bit": Categories.BACKEND.value,
     "Numpy64Bit": Categories.BACKEND.value,
 }
 

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import copy
 import unittest
 from random import random
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock
 
 import numpy as np
@@ -12,7 +15,9 @@ from blond import (
     positron,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType, electron
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
@@ -21,6 +26,11 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+from tests.unittests.core.beam.test_base import BeamBaseClassTester
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 
 class TestSynchrotronRadiationMaster(unittest.TestCase):
@@ -55,10 +65,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             ],
         )
 
-        self.assertIsNone(SRHandler._simulation)
-        self.assertIsNone(SRHandler._simulation)
         self.assertIsNone(SRHandler._natural_energy_spread)
-        self.assertIsNone(SRHandler._energy_loss_per_turn)
         self.assertIsNone(SRHandler._energy_loss_per_turn)
 
         self.assertListEqual(SRHandler.generated_children, [])
@@ -281,7 +288,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
@@ -452,7 +461,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
@@ -495,7 +506,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 decimal=self.decimal,
             )
             np.testing.assert_array_almost_equal(
-                sr_drift.radiation_integrals_tracker,
+                sr_drift.share_of_radiation_integrals,
                 self.synchrotron_radiation_integrals / 5,
                 decimal=self.decimal,
             )
@@ -505,7 +516,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
         self.cavity.voltage = 50.1e6
@@ -555,7 +568,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             decimal=self.decimal,
         )
         np.testing.assert_array_almost_equal(
-            sr_drifts.radiation_integrals_tracker,
+            sr_drifts.share_of_radiation_integrals,
             self.synchrotron_radiation_integrals,
             decimal=self.decimal,
         )
@@ -565,7 +578,9 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             90.65874532 * 1e3,
             radiation_integrals=self.synchrotron_radiation_integrals,
         )
-        momentum_compaction_factor = 0.646747216157 / (90.65874532 * 1e3)
+        momentum_compaction_factor = self.synchrotron_radiation_integrals[
+            0
+        ] / (90.65874532 * 1e3)
 
         number_of_sections = 4
         for i in range(number_of_sections):
@@ -622,7 +637,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             np.testing.assert_array_almost_equal(
                 ring_SRdrifts.elements.elements[
                     1 + 3 * i
-                ].radiation_integrals_tracker,
+                ].share_of_radiation_integrals,
                 self.synchrotron_radiation_integrals / number_of_sections,
                 decimal=self.decimal,
             )
@@ -706,3 +721,71 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
                 + f"Natural energy spread: {0.00016759685785477585}"
             ),
         )
+
+    def test_schedule(self):
+        SRM = SynchrotronRadiationMaster()
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        circumference = 90.65874532 * 1e3
+        ring = Ring(
+            circumference=circumference,
+            radiation_integrals=radiation_integrals,
+        )
+        momentum_compaction_factor = radiation_integrals[0] / circumference
+
+        number_of_sections = 4
+        number_of_turns = 10
+        for i in range(number_of_sections):
+            rf_station = SingleHarmonicRFStation(section_index=i)
+            rf_station.harmonic = 242400
+            rf_station.voltage = 50.1e6
+            rf_station.phi_rf_design = 0
+            ring.add_element(rf_station)
+            drift = DriftSimple(
+                name=f"drift{i + 1}",
+                orbit_length=ring.circumference / number_of_sections,
+                momentum_compaction_factor=momentum_compaction_factor
+                / number_of_sections,
+                section_index=i,
+            )
+            ring.add_element(drift, section_index=i)
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(
+            ring=ring, radiation_integrals=radiation_integrals
+        )
+        SRM.schedule(
+            attribute="share_of_radiation_integrals",
+            value=np.array(
+                [
+                    radiation_integrals * 1 / (k + 1)
+                    for k in range(number_of_turns)
+                ]
+            ),
+        )
+        beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=electron,
+            is_counter_rotating=False,
+            is_distributed=False,
+        )
+        for i, SRClass_child in enumerate(SRM.generated_children):
+            self.assertTrue(
+                "share_of_radiation_integrals"
+                in SRClass_child.intended_for_scheduling
+            )
+            for k in range(number_of_turns):
+                SRClass_child.apply_schedules(
+                    turn_i=k,
+                    reference_time=float(beam.reference.time),
+                )
+                np.testing.assert_array_almost_equal(
+                    SRClass_child.share_of_radiation_integrals,
+                    1 / (k + 1) * radiation_integrals / number_of_sections,
+                    decimal=self.decimal,
+                )

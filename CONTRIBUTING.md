@@ -24,6 +24,7 @@ blond/                        BLonD beam dynamics software.
 ├────── synchrotron_radiation/A collection of analytic equations required for synchrotron radiation.
 ├──── empiric/                Analytical equations for empirical observations.
 ├── beam_preparation/         Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├── convenience/              Convenience functions to interact with BLonD.
 ├── core/                     Core functionalities that define BLonD and its runtime.
 ├──── backends/               All helper functions and implementations for the numeric backends of BLonD.
 ├────── cpp/                  Holds `CppSpecials` and helper functions.
@@ -58,7 +59,7 @@ blond/                        BLonD beam dynamics software.
 ├── generals/                 Function definitions that are useful outside the beam physics context.
 ├──── cupy/                   Scripts that are useful to work with Cupy.
 ├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
-├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.Observables`.
+├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.ObservablesBaseClass`.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
 ├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
@@ -74,10 +75,11 @@ blond/                        BLonD beam dynamics software.
 ├────── ps/                   Utility functions for the CERN Proton Synchrotron.
 ├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
 ├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
-├──── muon_collider/          Helper scripts for the muon collider.
 ├──── fccee/                  Accelerator specifics for the future circular collider.
+├──── muon_collider/          Helper scripts for the muon collider.
 ├── testing/                  Utilities for testing of BLonD.
-├── convenience/              Convenience functions to interact with BLonD.
+├── utilities/                Module contains various utilities used throughout the library.
+├──── separatrix/             Package which contains utilities for working with separatrix.
 ```
 
 **Where to start reading:**
@@ -338,6 +340,18 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
        * Avoid committing untested code unless necessary.
        * For experimental/unverified code, use [`blond/experimental`](blond/experimental/), which is excluded from coverage reports.
+
+---
+
+## Guidelines for the use of AI
+
+When contributing code with the assistance of coding agents, the following guidelines should be considered:
+1. AI is a tool, not a collaborator, you are entirely responsible for what it does
+2. Be sure that you understand the code enough to extend or modify it yourself
+3. Know why the chosen solution is the right one, at least subjectively
+4. Make sure the documentation is clear, concise, and cites relevant sources
+
+In addition, adherence to the [general principles for the use of AI at CERN](https://home.cern/general-principles-use-ai-cern/) is expected.
 
 ---
 

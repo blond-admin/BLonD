@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import numbers
 import warnings
 from abc import abstractmethod
 from os import PathLike
@@ -89,7 +90,7 @@ def fit_poles(
     freq = rf.Frequency.from_f(freqs, unit="Hz")
     ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
 
-    vf = rf.VectorFitting(ntwk)
+    vf = rf.vectorFitting.VectorFitting(ntwk)
     if max_iterations is not None:
         vf.max_iterations = max_iterations
     vf.vector_fit(
@@ -351,9 +352,9 @@ class Resonators(
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | ArrayLike | float | int,
-        center_frequencies: NumpyArray | ArrayLike | float | int,
-        quality_factors: NumpyArray | ArrayLike | float | int,
+        shunt_impedances: ArrayLike | float | int,
+        center_frequencies: ArrayLike | float | int,
+        quality_factors: ArrayLike | float | int,
         shunt_impedances_counter_rotating: NumpyArray
         | float
         | ArrayLike
@@ -361,31 +362,33 @@ class Resonators(
     ):
         super().__init__(is_dynamic=False)
 
-        self._shunt_impedances: NumpyArray
-        self._center_frequencies: NumpyArray
-        self._quality_factors: NumpyArray
-        self._n_resonators: int
+        if isinstance(shunt_impedances, numbers.Number):
+            shunt_impedances = [shunt_impedances]
+        if isinstance(center_frequencies, numbers.Number):
+            center_frequencies = [center_frequencies]
+        if isinstance(quality_factors, numbers.Number):
+            quality_factors = [quality_factors]
 
-        if (
-            isinstance(shunt_impedances, float | int)
-            and isinstance(center_frequencies, float | int)
-            and isinstance(quality_factors, float | int)
-        ):
-            self._shunt_impedances = backend.array([shunt_impedances])
-            self._center_frequencies = backend.array([center_frequencies])
-            self._quality_factors = backend.array([quality_factors])
-            self._n_resonators = len(self._shunt_impedances)
-        else:
-            assert len(shunt_impedances) == len(center_frequencies), (
-                f"{len(shunt_impedances)} != {len(center_frequencies)}"
-            )
-            assert len(shunt_impedances) == len(quality_factors), (
-                f"{len(shunt_impedances)} != {len(quality_factors)}"
-            )
-            self._shunt_impedances = np.array(shunt_impedances)
-            self._center_frequencies = np.array(center_frequencies)
-            self._quality_factors = np.array(quality_factors)
-            self._n_resonators = len(shunt_impedances)
+        assert (
+            len(shunt_impedances)
+            == len(center_frequencies)
+            == len(quality_factors)
+        ), (
+            "The number of input shunt impedances, center frequencies and"
+            f" quality factors must match, got {len(shunt_impedances)=}, "
+            f"{len(center_frequencies)=}, {len(quality_factors)=}"
+        )
+
+        self._shunt_impedances = backend.cast_arr_float_if_needed(
+            shunt_impedances
+        )
+        self._center_frequencies = backend.cast_arr_float_if_needed(
+            center_frequencies
+        )
+        self._quality_factors = backend.cast_arr_float_if_needed(
+            quality_factors
+        )
+        self._n_resonators = len(shunt_impedances)
 
         self._shunt_impedances_counter_rotating: (
             NumpyArray | CupyArray | None
@@ -485,6 +488,10 @@ class Resonators(
         -------
         impedance_from_wake
             Wake impedance in frequency domain.
+
+        See Also
+        --------
+        get_impedance_from_wake_freq : Function used to calculate the corresponding frequency.
         """
         # Recalculate only if `time` has changed
         hash_ = get_hash(time)
@@ -543,7 +550,7 @@ class Resonators(
         )
         return impedance_from_wake_counter_rotation
 
-    def get_impedance_from_wake_freq(self, time):
+    def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
         Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
 
@@ -551,15 +558,19 @@ class Resonators(
         ----------
         time
             Time array, in [s].
+        n_fft
+            Number of fft bins to use.
 
         Returns
         -------
         frequency_array
             Frequency array corresponding to the wake impedance.
+
+        See Also
+        --------
+        get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
-        return backend.fft.rfftfreq(
-            len(self._cache_impedance_from_wake), time[1] - time[0]
-        )
+        return backend.fft.rfftfreq(n=n_fft, d=time[1] - time[0])
 
     def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         """
