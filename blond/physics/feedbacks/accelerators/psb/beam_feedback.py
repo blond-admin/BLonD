@@ -38,6 +38,39 @@ class PSBBeamControl(BeamFeedbackBase):
     This class implements the feedbacks present in the beam
     control of the rf system in the Proton Synchrotron Booster.
 
+    The beam control has a beam-phase loop, which acts on the difference between
+    the beam phase and the RF phase. The transfer function of the beam-phase loop is
+
+    .. math::
+        H(z) = g_{PL} \frac{b_0 + b_1 z^{-1}}{1 + a_1 z^{-1}}
+
+    in z-domain. In time-domain, the beam-phase loop correction from turn :math:`n` to turn :math:`n + 1` is
+
+    .. math::
+        \Delta \omega_{PL}^{n + 1} = - a_1 \Delta \omega_{PL}^{n} +
+        g_{PL} \left ( b_0 \Delta \varphi_{PL}^{n + 1} + b_1 \Delta \varphi_{PL}^{n} \right )
+
+    with :math:`\Delta \omega_{PL}` being the beam-phase loop angular frequency correction and
+    :math:`\varphi_{PL}` the phase-loop error.
+
+    The beam control also has a radial loop for longer-term corrections. The radial position is done through
+    a PI controller. The frequency correction from the radial loop :math:`\Delta \omega_{RL}` is given as
+
+    .. math::
+        \Delta \omega_{RL}^{n + 1} = \Delta \omega_{RL}^{n} +
+        g_{RL,a} \left [ \left ( \frac{\Delta R}{R} \right )^{n} -
+        \left ( \frac{\Delta R}{R} \right )^{n - 1} \right ]
+        + g_{RL,b} \left ( \frac{\Delta R}{R} \right )^{n}
+
+    with :math:`\Delta R/R` being the relative radial offset and :math:`g_{RL,a}` and :math:`g_{RL,b}` being the
+    proportional and integral gains respectively.
+
+    Both the beam-phase loop and the radial loop act only every 10 micro seconds. The total frequency
+    correction from the PSB beam control is
+
+    .. math::
+        \Delta \omega_{rf}^{n} = \Delta \omega_{PL}^{n} + \Delta \omega_{RL}^{n}.
+
     Parameters
     ----------
     profile
@@ -49,17 +82,24 @@ class PSBBeamControl(BeamFeedbackBase):
         Use ``beam_control.schedule("pl_gain", ...)`` to influence
         the parameter along the simulated cycle.
     rl_gain_a
-        The first gain of the radial loop.
+        The proportional gain of the radial loop.
         Use ``beam_control.schedule("rl_gain_a", ...)`` to influence
         the parameter along the simulated cycle.
     rl_gain_b
-        The second gain of the radial loop.
+        The integral gain of the radial loop.
         Use ``beam_control.schedule("rl_gain_b", ...)`` to influence
         the parameter along the simulated cycle.
     period
         Time [s] between the actions of the phase loop.
-    coefficients
-        Coefficients for the transfer function of the feedback.
+    pl_a_1
+        Coefficient for the denominator of the beam-phase loop transfer function.
+        See documentation above.
+    pl_b_0
+        First coefficient for the numerator of the beam-phase loop transfer function.
+        See documentation above.
+    pl_b_1
+        Second coefficient for the numerator of the beam-phase loop transfer function.
+        See documentation above.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
 
@@ -81,7 +121,9 @@ class PSBBeamControl(BeamFeedbackBase):
         rl_gain_a: float = 0.0,
         rl_gain_b: float = 0.0,
         period: float = 10.0e-6,
-        coefficients: list[float] = None,
+        pl_a_1: float = -0.99803799,
+        pl_b_0: float = 0.99901903,
+        pl_b_1: float = -0.99901003,
         **kwargs,
     ):
         super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
@@ -99,18 +141,10 @@ class PSBBeamControl(BeamFeedbackBase):
         self._pl_counter = 0
         self._on_time = np.array([])
 
-        #: | *Array of transfer function coefficients.*
-        if coefficients is None:
-            self.coefficients = [
-                0.999019,
-                -0.999019,
-                0.0,
-                1.0,
-                -0.998038,
-                0.0,
-            ]
-        else:
-            self.coefficients = coefficients
+        #: | *Array of transfer function coefficients for the beam-phase loop.*
+        self._a_1 = pl_a_1
+        self._b_0 = pl_b_0
+        self._b_1 = pl_b_1
 
         #: | *Memory of previous phase correction, for phase loop.*
         self._dphi_sum = 0.0
@@ -228,8 +262,8 @@ class PSBBeamControl(BeamFeedbackBase):
                 - self._on_time[self._pl_counter - 1]
             )
 
-            self.domega_pl = 0.99803799 * self.domega_pl + self.pl_gain * (
-                0.99901903 * self._dphi_av - 0.99901003 * self._dphi_av_prev
+            self.domega_pl = -self._a_1 * self.domega_pl + self.pl_gain * (
+                self._b_0 * self._dphi_av + self._b_1 * self._dphi_av_prev
             )
 
             self._dphi_av_prev = self._dphi_av
@@ -237,14 +271,14 @@ class PSBBeamControl(BeamFeedbackBase):
 
             # Radial loop
             self.dr_over_r = (
-                self.cavities[0].get_main_harmonic_omega_rf()
-                - self.cavities[0].get_main_harmonic_omega_rf_design()
+                self._main_cavities[0].get_main_harmonic_omega_rf()
+                - self._main_cavities[0].get_main_harmonic_omega_rf_design()
             ) / (
-                self.cavities[0].get_main_harmonic_omega_rf_design()
+                self._main_cavities[0].get_main_harmonic_omega_rf_design()
                 * (
                     1.0
                     / (
-                        self.cavities[0]._ring.momentum_compaction_factor
+                        self._simulation.ring.momentum_compaction_factor
                         * beam.reference.gamma**2
                     )
                     - 1.0

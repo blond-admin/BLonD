@@ -42,7 +42,6 @@ class TestPSBBeamFeedback(unittest.TestCase):
         rl_gain_a=0.0,
         rl_gain_b=0.0,
         period=0.00001,
-        coefficients=None,
         n_tracks=16,
     ):
         backend.change_backend(Numpy64Bit)
@@ -90,7 +89,6 @@ class TestPSBBeamFeedback(unittest.TestCase):
             rl_gain_a=rl_gain_a,
             rl_gain_b=rl_gain_b,
             period=period,
-            coefficients=coefficients,
         )
 
         if pl_schedule is not None:
@@ -246,14 +244,6 @@ class TestPSBBeamFeedback(unittest.TestCase):
             period=10e-6,
             rl_gain_a=1.0e7,
             rl_gain_b=1.0e11,
-            coefficients=[
-                0.999019,
-                -0.999019,
-                0.0,
-                1.0,
-                -0.998038,
-                0.0,
-            ],
         )
 
         # Check memory of the beam-phase loop
@@ -294,14 +284,6 @@ class TestPSBBeamFeedback(unittest.TestCase):
             period=0.0,
             rl_gain_a=1.0e7,
             rl_gain_b=1.0e11,
-            coefficients=[
-                0.999019,
-                -0.999019,
-                0.0,
-                1.0,
-                -0.998038,
-                0.0,
-            ],
             n_tracks=2,
         )
 
