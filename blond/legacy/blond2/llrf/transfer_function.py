@@ -97,7 +97,7 @@ class TransferFunction(object):
         f = np.concatenate([f_baseband[low], f_baseband[high]])
         H = np.concatenate([H_est[low], H_est[high]])
 
-        logger.debug("Transfer function reconstructed")
+        logger._debug("Transfer function reconstructed")
 
         if plot:
             TransferFunction.plot_magnitude_and_phase(f, H)

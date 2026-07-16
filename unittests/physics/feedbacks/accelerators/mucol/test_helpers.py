@@ -368,7 +368,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
                 initial_voltage=0.0,
                 n_rf_periods_per_coarse_grid=1,
                 delta_omega=0.0,
-                second_order_fine_grid_solver=second_order,
+                second_order_fine_grid_solver_enable=second_order,
             )
             feedback.beam_current_fine_grid = i_beam
             feedback.generator_current_fine_grid = np.zeros(n, dtype=complex)

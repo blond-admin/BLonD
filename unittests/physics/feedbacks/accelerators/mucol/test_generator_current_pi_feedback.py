@@ -138,10 +138,10 @@ def run_coarse_transient(
         Sample index at which the beam current switches off again; if None
         the beam stays on until the end of the run (sustained loading).
     """
-    cav.rf_centers = (np.arange(n_steps) + 0.5) * T_RF
-    cav.rf_centers_lengths = np.array([n_steps])
-    cav.residual_time_last_rf_centers_calculation = 0.0
-    cav.last_rf_centers_entry = None
+    cav._rf_centers = (np.arange(n_steps) + 0.5) * T_RF
+    cav._rf_centers_lengths = np.array([n_steps])
+    cav._residual_time_last_rf_centers_calculation = 0.0
+    cav._last_rf_centers_entry = None
     cav.reset_arrays()
 
     currents = np.zeros(n_steps, dtype=complex)
@@ -207,10 +207,10 @@ def run_multi_turn_fine_grid(
     fine_voltage_per_turn = []
     for turn in range(n_turns):
         beam_on = turn >= beam_on_turn
-        cav.rf_centers = rf_centers.copy()
-        cav.rf_centers_lengths = np.array([n_coarse])
-        cav.residual_time_last_rf_centers_calculation = 0.0
-        cav.last_rf_centers_entry = None
+        cav._rf_centers = rf_centers.copy()
+        cav._rf_centers_lengths = np.array([n_coarse])
+        cav._residual_time_last_rf_centers_calculation = 0.0
+        cav._last_rf_centers_entry = None
         cav.reset_arrays()
 
         coarse_beam = np.zeros(n_coarse, dtype=complex)
@@ -219,7 +219,7 @@ def run_multi_turn_fine_grid(
             coarse_beam[middle] = coarse_bunch
             fine_beam = peak_beam_current * bunch_shape
         cav.beam_current_forward_coarse_grid = coarse_beam
-        cav.last_val_beam_current = coarse_beam[-1]
+        cav._last_val_beam_current = coarse_beam[-1]
         cav.beam_current_fine_grid = fine_beam
 
         cav.circuit_track(
@@ -885,10 +885,10 @@ class TestLoopDelaySampleSemantics(unittest.TestCase):
         step = n_rf_periods * T_RF
         n_steps = 40
         beam_on = 10
-        cav.rf_centers = (np.arange(n_steps) + 0.5) * step
-        cav.rf_centers_lengths = np.array([n_steps])
-        cav.residual_time_last_rf_centers_calculation = 0.0
-        cav.last_rf_centers_entry = None
+        cav._rf_centers = (np.arange(n_steps) + 0.5) * step
+        cav._rf_centers_lengths = np.array([n_steps])
+        cav._residual_time_last_rf_centers_calculation = 0.0
+        cav._last_rf_centers_entry = None
         cav.reset_arrays()
         currents = np.zeros(n_steps, dtype=complex)
         currents[beam_on:] = I_BEAM

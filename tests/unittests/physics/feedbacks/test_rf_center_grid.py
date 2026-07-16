@@ -252,11 +252,11 @@ class TestIQCavityFeedbackTimingClass:
 
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing.forward_tracking_omega_rf * time_array[-1]
-                    + cav_fdbk_timing.phase_offset_frwrd
+                    cav_fdbk_timing._forward_tracking_omega_rf * time_array[-1]
+                    + cav_fdbk_timing._phase_offset_frwrd
                 )
             )
-            rf_centers_array.append(cav_fdbk_timing.rf_centers)
+            rf_centers_array.append(cav_fdbk_timing._rf_centers)
             if simulation.turn_i.value == 0:
                 self.t_rf_init = 2 * np.pi / self.rf_station.omega_rf_design
                 self.rf_station.delta_omega_rf = (
@@ -471,7 +471,7 @@ class TestIQCavityFeedbackTimingClass:
                     # cav_fdbk_timing.
                     # cav_fdbk_timing._parent_rf_station.calc_main_harmonic_omega_rf_design(beam_beta=beam.reference.beta, ring_circumference=self.circumference)
                     # cav_fdbk_timing._parent_rf_station.calc_main_harmonic_t_rf(beam_beta=beam.reference.beta, ring_circumference=self.circumference)
-                    cav_fdbk_timing.forward_tracking_time,
+                    cav_fdbk_timing._forward_tracking_time,
                     # * self.rf_station.harmonic,
                     num=vals_per_turn,
                 )
@@ -483,15 +483,15 @@ class TestIQCavityFeedbackTimingClass:
             )
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing.forward_tracking_omega_rf * time_array[-1]
-                    + cav_fdbk_timing.phase_offset_frwrd  # - 2*phase_offset
+                    cav_fdbk_timing._forward_tracking_omega_rf * time_array[-1]
+                    + cav_fdbk_timing._phase_offset_frwrd  # - 2*phase_offset
                 )
             )
-            rf_centers_array.append(cav_fdbk_timing.rf_centers)
+            rf_centers_array.append(cav_fdbk_timing._rf_centers)
             # omega_rf_save.append(cav_fdbk_timing.forward_tracking_omega_rf)
-            omega_rf_save.append(cav_fdbk_timing.forward_tracking_omega_rf)
+            omega_rf_save.append(cav_fdbk_timing._forward_tracking_omega_rf)
             print(cav_fdbk_timing.omega_rf)
-            print(cav_fdbk_timing.forward_tracking_omega_rf)
+            print(cav_fdbk_timing._forward_tracking_omega_rf)
             print(cav_fdbk_timing._parent_rf_station.delta_omega_rf)
             print(cav_fdbk_timing.phi_rf)
             print(
@@ -502,11 +502,11 @@ class TestIQCavityFeedbackTimingClass:
 
             if simulation.turn_i.value == 0:
                 self.t_rf_init = (
-                    2 * np.pi / cav_fdbk_timing.forward_tracking_omega_rf
+                    2 * np.pi / cav_fdbk_timing._forward_tracking_omega_rf
                 )
                 self.rf_station.delta_omega_rf = (
                     delta_omega_factor
-                    * cav_fdbk_timing.forward_tracking_omega_rf
+                    * cav_fdbk_timing._forward_tracking_omega_rf
                 )
 
         sim.run_simulation(
@@ -684,21 +684,21 @@ class TestIQCavityFeedbackTimingClass:
                     pytest.fail(
                         f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
                     )
-                time_passed_list.append(fdbk.forward_tracking_time)
-                omega_list.append(fdbk.forward_tracking_omega_rf)
-                rf_centers_list.append(fdbk.rf_centers)
+                time_passed_list.append(fdbk._forward_tracking_time)
+                omega_list.append(fdbk._forward_tracking_omega_rf)
+                rf_centers_list.append(fdbk._rf_centers)
 
                 assert (
-                    fdbk.tracked_forward_until_element
+                    fdbk._tracked_forward_until_element
                     not in fdbk.current_slice_elements_forward
                 )  # this element should be tracked afterwards, not now
                 assert (
-                    fdbk.tracked_forward_until_element
-                    is fdbk.reference_altering_elements[
+                    fdbk._tracked_forward_until_element
+                    is fdbk._reference_altering_elements[
                         (
-                            fdbk.own_index_in_reference_list + 3
+                                fdbk._own_index_in_reference_list + 3
                         )  # first element is skipped, since its the cavity itself
-                        % len(fdbk.reference_altering_elements)
+                        % len(fdbk._reference_altering_elements)
                     ]
                 )  # 2 elements between two cavities
 
@@ -788,20 +788,20 @@ class TestIQCavityFeedbackTimingClass:
                         f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
 
-                    time_passed_list.append(fdbk.reverse_tracking_time_array)
-                    msk = fdbk.reverse_tracking_time_array != 0
+                    time_passed_list.append(fdbk._reverse_tracking_time_array)
+                    msk = fdbk._reverse_tracking_time_array != 0
                     used_time_array = np.array(
-                        fdbk.reverse_tracking_time_array
+                        fdbk._reverse_tracking_time_array
                     )[msk]
                     check_fail_printing(
                         len(used_time_array) != 1,
                         f"time arr length err {len(used_time_array)} != 1 section {idx}, trn {simulation.turn_i.value}",
                     )  # should be unified to 1 value, since only one frequency is used, regardless of number of sections (no acceleration)
-                    omega_list.append(fdbk.reverse_tracking_omega_list)
+                    omega_list.append(fdbk._reverse_tracking_omega_list)
                     check_fail_printing(
-                        len(fdbk.reverse_tracking_omega_list)
-                        != len(fdbk.reverse_tracking_time_array),
-                        f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
+                        len(fdbk._reverse_tracking_omega_list)
+                        != len(fdbk._reverse_tracking_time_array),
+                        f"omega list not equal, {len(fdbk._reverse_tracking_omega_list)}, {len(fdbk._reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
 
             check_allclose_turn_printing_nested(
@@ -902,12 +902,12 @@ class TestIQCavityFeedbackTimingClass:
                         f"reference energy after reverse not within tolerance {fdbk.current_beam_reference_energy}, {fdbk.reference_energy_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
 
-                    msk = fdbk.reverse_tracking_time_array != 0
+                    msk = fdbk._reverse_tracking_time_array != 0
                     used_time_array = np.array(
-                        fdbk.reverse_tracking_time_array
+                        fdbk._reverse_tracking_time_array
                     )[msk]
                     used_omega_array = np.array(
-                        fdbk.reverse_tracking_omega_list
+                        fdbk._reverse_tracking_omega_list
                     )[msk]
                     target_length = n_sections - 1
                     check_fail_printing(
@@ -915,15 +915,15 @@ class TestIQCavityFeedbackTimingClass:
                         f"time arr length err {len(used_time_array)} != {target_length} section {idx}, trn {simulation.turn_i.value}",
                     )  # two drifts per section, 3 sections in between cavities
                     check_fail_printing(
-                        len(fdbk.reverse_tracking_omega_list)
-                        != len(fdbk.reverse_tracking_time_array),
-                        f"omega list not equal, {len(fdbk.reverse_tracking_omega_list)}, {len(fdbk.reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
+                        len(fdbk._reverse_tracking_omega_list)
+                        != len(fdbk._reverse_tracking_time_array),
+                        f"omega list not equal, {len(fdbk._reverse_tracking_omega_list)}, {len(fdbk._reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
                     used_omega_array = np.append(
-                        used_omega_array, fdbk.forward_tracking_omega_rf
+                        used_omega_array, fdbk._forward_tracking_omega_rf
                     )
                     used_time_array = np.append(
-                        used_time_array, fdbk.forward_tracking_time
+                        used_time_array, fdbk._forward_tracking_time
                     )
 
                     time_passed_list[idx][sim.turn_i.value - 1] = (
@@ -932,18 +932,18 @@ class TestIQCavityFeedbackTimingClass:
                     omega_list[idx][sim.turn_i.value - 1] = used_omega_array
 
                     check_fail_printing(
-                        fdbk.tracked_forward_until_element
+                        fdbk._tracked_forward_until_element
                         in fdbk.current_slice_elements_forward,
-                        f"{fdbk.tracked_forward_until_element} is in the current slice but should not yet be. ",
+                        f"{fdbk._tracked_forward_until_element} is in the current slice but should not yet be. ",
                     )
 
-                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk._rf_centers
                     check_fail_printing(
                         not (
-                            fdbk.tracked_forward_until_element
-                            is fdbk.reference_altering_elements[
-                                (fdbk.own_index_in_reference_list + 3)
-                                % len(fdbk.reference_altering_elements)
+                            fdbk._tracked_forward_until_element
+                            is fdbk._reference_altering_elements[
+                                (fdbk._own_index_in_reference_list + 3)
+                                % len(fdbk._reference_altering_elements)
                             ]
                         ),
                         f"tracking did no include 3 elements (two drift frwrd + element itself).",
@@ -1095,7 +1095,7 @@ class TestIQCavityFeedbackTimingClass:
                     else:
                         allowed = (expected,)
                     check_fail_printing(
-                        len(fdbk.rf_centers) not in allowed,
+                        len(fdbk._rf_centers) not in allowed,
                         f"improper rf centers length in turn zero for fdbk idx {idx}.",
                     )
 
@@ -1106,21 +1106,21 @@ class TestIQCavityFeedbackTimingClass:
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
                     check_fail_printing(
-                        len(fdbk.rf_centers) != 20,
-                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk.rf_centers)}",  # 15 from reverse and 5 from frwrd
+                        len(fdbk._rf_centers) != 20,
+                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk._rf_centers)}",  # 15 from reverse and 5 from frwrd
                     )
-                    msk = fdbk.reverse_tracking_time_array != 0
+                    msk = fdbk._reverse_tracking_time_array != 0
                     used_time_array = np.array(
-                        fdbk.reverse_tracking_time_array
+                        fdbk._reverse_tracking_time_array
                     )[msk]
                     used_omega_array = np.array(
-                        fdbk.reverse_tracking_omega_list
+                        fdbk._reverse_tracking_omega_list
                     )[msk]
                     used_omega_array = np.append(
-                        used_omega_array, fdbk.forward_tracking_omega_rf
+                        used_omega_array, fdbk._forward_tracking_omega_rf
                     )
                     used_time_array = np.append(
-                        used_time_array, fdbk.forward_tracking_time
+                        used_time_array, fdbk._forward_tracking_time
                     )
 
                     time_passed_list[idx][sim.turn_i.value - 1] = (
@@ -1128,7 +1128,7 @@ class TestIQCavityFeedbackTimingClass:
                     )
                     omega_list[idx][sim.turn_i.value - 1] = used_omega_array
 
-                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk._rf_centers
 
         sim.run_simulation(
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
@@ -1347,37 +1347,37 @@ class TestIQCavityFeedbackTimingClass:
                     assert (
                         fdbk.reference_index_until_tracked
                         == (  # TODO: rework with proper printing
-                            fdbk.own_index_in_reference_list + 3
+                                fdbk._own_index_in_reference_list + 3
                         )
-                        % len(fdbk.reference_altering_elements)
+                        % len(fdbk._reference_altering_elements)
                     )
                     assert fdbk.reference_index_until_tracked_reverse == (
-                        len(fdbk.reference_altering_elements)
-                        - (fdbk.own_index_in_reference_list + 3 + 1)
-                    ) % len(fdbk.reference_altering_elements)
+                        len(fdbk._reference_altering_elements)
+                        - (fdbk._own_index_in_reference_list + 3 + 1)
+                    ) % len(fdbk._reference_altering_elements)
                 else:
                     # first half --> counterrot last
                     assert fdbk.reference_index_until_tracked == (
-                        fdbk.own_index_in_reference_list - 3
-                    ) % len(fdbk.reference_altering_elements)
+                            fdbk._own_index_in_reference_list - 3
+                    ) % len(fdbk._reference_altering_elements)
                     assert fdbk.reference_index_until_tracked_reverse == (
-                        len(fdbk.reference_altering_elements)
-                        - (fdbk.own_index_in_reference_list - 3 + 1)
-                    ) % len(fdbk.reference_altering_elements)
+                        len(fdbk._reference_altering_elements)
+                        - (fdbk._own_index_in_reference_list - 3 + 1)
+                    ) % len(fdbk._reference_altering_elements)
             # equality of values check here
             for idx, fdbk in enumerate(
                 timing_fdbk_list[0 : len(timing_fdbk_list) // 2]
             ):
                 reverse_index = len(timing_fdbk_list) - idx - 1
                 np.testing.assert_allclose(
-                    fdbk.rf_centers,
-                    timing_fdbk_list[reverse_index].rf_centers,
+                    fdbk._rf_centers,
+                    timing_fdbk_list[reverse_index]._rf_centers,
                     atol=0,
                     rtol=1e-12,
                 )
                 check_allclose_turn_printing(
-                    fdbk.rf_centers,
-                    timing_fdbk_list[reverse_index].rf_centers,
+                    fdbk._rf_centers,
+                    timing_fdbk_list[reverse_index]._rf_centers,
                     simulation.turn_i.value,
                     "rf_centers equality check",
                 )
@@ -1388,15 +1388,15 @@ class TestIQCavityFeedbackTimingClass:
             ):
                 if n_sections == 2:
                     check_fail_printing(
-                        len(fdbk.rf_centers) != int(harm_per_full_drift),
+                        len(fdbk._rf_centers) != int(harm_per_full_drift),
                         f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value},"
-                        f" was {len(fdbk.rf_centers)} but should have been {int(harm_per_full_drift)}.",
+                        f" was {len(fdbk._rf_centers)} but should have been {int(harm_per_full_drift)}.",
                     )
                     check_fail_printing(
-                        len(timing_fdbk_list[1].rf_centers)
+                        len(timing_fdbk_list[1]._rf_centers)
                         != int(harm_per_full_drift),
                         f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value},"
-                        f" was f{len(timing_fdbk_list[1].rf_centers)} but should have been {int(harm_per_full_drift)}.",
+                        f" was f{len(timing_fdbk_list[1]._rf_centers)} but should have been {int(harm_per_full_drift)}.",
                     )
                     break
                 else:
@@ -1406,16 +1406,16 @@ class TestIQCavityFeedbackTimingClass:
                         * harm_per_full_drift
                     )
                     check_fail_printing(
-                        len(fdbk.rf_centers) != should_be_length,
+                        len(fdbk._rf_centers) != should_be_length,
                         f"problem with rf centers length check for fdbk idx {idx} in turn {simulation.turn_i.value},"
-                        f" was {len(fdbk.rf_centers)} but should have been {should_be_length}.",
+                        f" was {len(fdbk._rf_centers)} but should have been {should_be_length}.",
                     )
 
                     check_fail_printing(
-                        len(timing_fdbk_list[reverse_index].rf_centers)
+                        len(timing_fdbk_list[reverse_index]._rf_centers)
                         != should_be_length,
                         f"problem with rf centers reverse length check for fdbk idx {reverse_index} in turn {simulation.turn_i.value},"
-                        f" was {len(timing_fdbk_list[reverse_index].rf_centers)} but should have been {should_be_length}",
+                        f" was {len(timing_fdbk_list[reverse_index]._rf_centers)} but should have been {should_be_length}",
                     )
 
             # save for further analysis
@@ -1424,18 +1424,18 @@ class TestIQCavityFeedbackTimingClass:
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
-                    msk = fdbk.reverse_tracking_time_array != 0
+                    msk = fdbk._reverse_tracking_time_array != 0
                     used_time_array = np.array(
-                        fdbk.reverse_tracking_time_array
+                        fdbk._reverse_tracking_time_array
                     )[msk]
                     used_omega_array = np.array(
-                        fdbk.reverse_tracking_omega_list
+                        fdbk._reverse_tracking_omega_list
                     )[msk]
                     used_omega_array = np.append(
-                        used_omega_array, fdbk.forward_tracking_omega_rf
+                        used_omega_array, fdbk._forward_tracking_omega_rf
                     )
                     used_time_array = np.append(
-                        used_time_array, fdbk.forward_tracking_time
+                        used_time_array, fdbk._forward_tracking_time
                     )
 
                     time_passed_list[idx][sim.turn_i.value - 1] = (
@@ -1443,7 +1443,7 @@ class TestIQCavityFeedbackTimingClass:
                     )
                     omega_list[idx][sim.turn_i.value - 1] = used_omega_array
 
-                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk.rf_centers
+                    rf_center_list[idx][sim.turn_i.value - 1] = fdbk._rf_centers
 
         beam_cr = deepcopy(self.beam)
         beam_cr.reference._particle_type = mu_minus

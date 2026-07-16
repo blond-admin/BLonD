@@ -40,7 +40,7 @@ class TestMPILog(unittest.TestCase):
     @unittest.skip
     def test_debug(self):
         # TODO: implement test for `debug`
-        self.mpi_log.debug(string=None)
+        self.mpi_log._debug(string=None)
 
     @unittest.skip
     def test_disable(self):

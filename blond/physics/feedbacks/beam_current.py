@@ -11,9 +11,7 @@ RF beam-current demodulation for the cavity feedbacks.
 
 ``rf_beam_current`` and ``rf_beam_current_partial`` turn a beam profile into the
 complex IQ beam-current envelope at the carrier frequency, plus the low-pass
-filter they use. Split out of ``helpers.py`` so the LHC-frozen ``rf_beam_current``
-(byte-identical for co-rotating beams -- see the LHC comparison suite) lives at a
-clear module boundary. Re-exported from ``helpers`` for backward compatibility.
+filter they use.
 """
 
 from __future__ import annotations
@@ -65,8 +63,7 @@ def low_pass_filter(
     return scipy.signal.filtfilt(b, a, signal)
 
 
-# TODO: split this function into helpers and remove the PLR0912 noqa
-def rf_beam_current(  # noqa: PLR0912
+def rf_beam_current(
     beam: BeamBaseClass,
     profile: StaticProfile,
     omega_c: float,

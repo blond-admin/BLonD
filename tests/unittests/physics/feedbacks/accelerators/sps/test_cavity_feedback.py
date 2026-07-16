@@ -338,12 +338,12 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # interpolate from coarse mesh to fine mesh
         V_fine_tot_3 = np.interp(
             self.profile.hist_x,
-            self.OTFB.OTFB_1.rf_centers,
+            self.OTFB.OTFB_1._rf_centers,
             self.OTFB.OTFB_1.V_IND_COARSE_GEN[-self.OTFB.OTFB_1.n_coarse :],
         )
         V_fine_tot_4 = np.interp(
             self.profile.hist_x,
-            self.OTFB.OTFB_2.rf_centers,
+            self.OTFB.OTFB_2._rf_centers,
             self.OTFB.OTFB_2.V_IND_COARSE_GEN[-self.OTFB.OTFB_2.n_coarse :],
         )
 

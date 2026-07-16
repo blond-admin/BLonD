@@ -104,8 +104,8 @@ class TestFilamentationMatcher(unittest.TestCase):
     def test_converges_towards_matched_bunch(self):
         simulation_1 = ExampleSimulation01()
         simulation_2 = ExampleSimulation01()
-        simulation_1.simulation.turn_i.value = 0  # there is some cacheing
-        simulation_2.simulation.turn_i.value = 0
+        simulation_1.simulation.turn_counter.value = 0  # there is some cacheing
+        simulation_2.simulation.turn_counter.value = 0
 
         matcher_few = FilamentationMatcher(
             time_limit=self.time_limit,

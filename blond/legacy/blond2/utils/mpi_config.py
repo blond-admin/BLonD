@@ -170,7 +170,7 @@ class Worker:
             _type_: _description_
         """
         if self.log:
-            self.logger.debug("gather")
+            self.logger._debug("gather")
 
         # First I need to know the total size
         counts = np.zeros(self.workers, dtype=int)
@@ -207,7 +207,7 @@ class Worker:
             _type_: _description_
         """
         if self.log:
-            self.logger.debug("allgather")
+            self.logger._debug("allgather")
 
         # One first gather to collect all the sizes
         counts = np.zeros(self.workers, dtype=int)
@@ -237,7 +237,7 @@ class Worker:
             _type_: _description_
         """
         if self.log:
-            self.logger.debug("scatter")
+            self.logger._debug("scatter")
 
         # First broadcast the total_size from the master
         total_size = int(self.intercomm.bcast(len(var), root=0))
@@ -275,7 +275,7 @@ class Worker:
             _type_: _description_
         """
         if self.log:
-            self.logger.debug("broadcast")
+            self.logger._debug("broadcast")
 
         # First broadcast the size and dtype from the master
         # recvbuf = self.intercomm.bcast([len(var), var.dtype.char], root=0)
@@ -315,7 +315,7 @@ class Worker:
         # supported ops:
         # sum, mean, std, max, min, prod, custom_sum
         if self.log:
-            self.logger.debug("reduce")
+            self.logger._debug("reduce")
         operator = operator.lower()
         if operator in ["sum", "custom_sum"]:
             mpi_op = MPI.SUM
@@ -379,7 +379,7 @@ class Worker:
         # supported ops:
         # sum, mean, std, max, min, prod, custom_sum
         if self.log:
-            self.logger.debug("allreduce")
+            self.logger._debug("allreduce")
         operator = operator.lower()
 
         if operator in ["sum", "custom_sum"]:
@@ -414,26 +414,26 @@ class Worker:
     def sync(self):
         """Synchronize all workers."""
         if self.log:
-            self.logger.debug("sync")
+            self.logger._debug("sync")
         self.intercomm.Barrier()
 
     def finalize(self):
         """Leave MPI."""
         if self.log:
-            self.logger.debug("finalize")
+            self.logger._debug("finalize")
         if not self.is_master:
             sys.exit(0)
 
     def greet(self):
         """Print greeting message"""
         if self.log:
-            self.logger.debug("greet")
+            self.logger._debug("greet")
         print(f"[{self.rank}]@{self.hostname}: Hello World!")
 
     def print_version(self):
         """Print MPI version."""
         if self.log:
-            self.logger.debug("version")
+            self.logger._debug("version")
         print(f"[{self.rank}] Library: {MPI.get_vendor()}")
 
 

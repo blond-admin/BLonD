@@ -387,7 +387,7 @@ def plot_antenna_voltage(feedback, show: bool = True):
     """
     if (
         feedback.antenna_voltage_coarse_grid is None
-        or len(feedback.rf_centers) == 0
+        or len(feedback._rf_centers) == 0
     ):
         warnings.warn(
             "Nothing to plot, antenna_voltage_coarse_grid/rf_centers empty",
@@ -396,9 +396,9 @@ def plot_antenna_voltage(feedback, show: bool = True):
         return
 
     n = min(
-        len(feedback.rf_centers), len(feedback.antenna_voltage_coarse_grid)
+        len(feedback._rf_centers), len(feedback.antenna_voltage_coarse_grid)
     )
-    t = feedback.rf_centers[-n:]
+    t = feedback._rf_centers[-n:]
     v = feedback.antenna_voltage_coarse_grid[-n:]
 
     fig, (ax_re, ax_abs) = plt.subplots(2, 1, sharex=True)
