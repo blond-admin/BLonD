@@ -1109,6 +1109,34 @@ class MagneticCycleByTime(MagneticCycleBase):
         """
         super().configure(n_turns_max=n_turns_max, **kwargs)
 
+    def __deepcopy__(self, memo: dict) -> MagneticCycleByTime:
+        """
+        Custom deepcopy to handle scipy interpolators.
+
+        scipy >= 1.18 has issues with deepcopying interpolators; we avoid
+        this by recreating the interpolator from the base values.
+
+        Parameters
+        ----------
+        memo
+            Dictionary of objects already copied.
+
+        Returns
+        -------
+        copy
+            Deep copy of this MagneticCycleByTime instance.
+        """
+        # TODO DELETE THIS CODE AS SOON AS SCIPY ITSELF IS FIXED
+        cls = type(self)
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for key, value in self.__dict__.items():
+            if key == "_interpolator":
+                setattr(result, key, self._interpolator)
+            else:
+                setattr(result, key, deepcopy(value, memo))
+        return result
+
     def _calc_n_turns_max(self, simulation: Simulation):
         """
         Derive the maximum number of turns.
