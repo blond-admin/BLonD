@@ -51,7 +51,7 @@ MOM_COMPACTION = 1 / GAMMA_TRANSITION**2
 N_MACROPARTICLES = int(1e5)
 BUNCH_INTENSITY = 1e11
 BUNCH_SIGMA_DT = 0.5e-9
-number_of_bunches = 100  # Length of the batch [number of bunches]
+number_of_bunches = 50  # Length of the batch [number of bunches]
 bunch_spacing = 10  # Bunch spacing [number of rf buckets]
 
 def build_ring_and_rf():
