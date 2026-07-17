@@ -13,14 +13,9 @@ Unittest for trackers.tracker.py
 :Authors: **Konstantinos Iliakis**
 """
 
-import time
 import unittest
-from copy import deepcopy
-from unittest import skipIf
 
 import numpy as np
-import pytest
-
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
@@ -141,7 +136,7 @@ class TestRfVoltageCalc(unittest.TestCase):
             FitOptions(fit_option="gaussian"),
         )
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, profile=self.profile
+            self.rf, self.beam, Profile=self.profile
         )
 
     # Run after every test
@@ -236,7 +231,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
         )
 
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, profile=self.profile
+            self.rf, self.beam, Profile=self.profile
         )
 
     # Run after every test
@@ -332,7 +327,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
         )
 
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, profile=self.profile
+            self.rf, self.beam, Profile=self.profile
         )
 
         for i in range(self.N_t):
