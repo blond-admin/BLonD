@@ -1623,6 +1623,9 @@ class LHCCavityLoop(CavityFeedback):
         if not no_beam:
             # Resample generator current to the fine-grid
             if isinstance(self.profile, SparseBatch):
+                # reinitialisation necessary in case of multi-turn injection
+                self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1,
+                                           dtype=complex)
                 for p, profile in enumerate(self.profile.profiles_list):
                     if p == 0:
                         self.I_GEN_FINE[0 : profile.n_slices + 1] = np.interp(
