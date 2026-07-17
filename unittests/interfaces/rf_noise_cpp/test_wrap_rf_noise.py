@@ -52,7 +52,7 @@ class RfNoise(unittest.TestCase):
             r_seed=0,
             sampling_rate=11245.49,
             rms=1.0,
-            phase_array=results,
+            results=results,
         )
         freq = np.fft.rfftfreq(len(results), 1 / 11245.49)
         ampl = np.fft.rfft(results)
@@ -104,7 +104,7 @@ class RfNoise(unittest.TestCase):
             r_seed=0,
             sampling_rate=11245.49,
             rms=1.0,
-            phase_array=results,
+            results=results,
         )
         from matplotlib import pyplot as plt
 
