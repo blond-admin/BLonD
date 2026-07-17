@@ -1716,9 +1716,9 @@ class LHCCavityLoop(CavityFeedback):
         self.samples_fine = self.omega_rf * self.profile.bin_size
         if isinstance(self.profile, SparseBatch):
             # reinitialisation necessary in case of multi-turn injection
-            # self.V_ANT_FINE = np.zeros(
-            #     self.profile.n_slices + 1, dtype=complex
-            # )
+            self.V_ANT_FINE = np.zeros(
+                self.profile.n_slices + 1, dtype=complex
+            )
             for p, profile in enumerate(self.profile.profiles_list):
                 if p == 0:
                     self.V_ANT_FINE[0: profile.n_slices + 1] = (
@@ -1745,10 +1745,8 @@ class LHCCavityLoop(CavityFeedback):
                 else:
                     # flipped arange to ensure all the bin centers of the
                     # current profile are in the extended profile bin centers
-                    first_half = np.arange(
-                        start=profile.bin_centers[0],
-                        stop=(
-                            self.profile.profiles_list[p - 1].bin_centers[0]),
+                    first_half = np.arange(start=profile.bin_centers[0],
+                        stop=(self.profile.profiles_list[p - 1].bin_centers[0]),
                         step=-profile.bin_size)
                     first_half.sort()
                     extended_profile_length = np.concatenate((first_half,
