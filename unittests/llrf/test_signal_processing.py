@@ -323,7 +323,7 @@ class TestRFCurrent(unittest.TestCase):
         self.beam = Beam(self.ring, N_m, N_b)
         self.profile = Profile(
             self.beam,
-            cut_options=CutOptions(
+            CutOptions=CutOptions(
                 cut_left=-2e-9, cut_right=8e-9, n_slices=100
             ),
         )
@@ -351,7 +351,7 @@ class TestRFCurrent(unittest.TestCase):
         rf_theo_real = (
             2
             * self.beam.ratio
-            * self.profile.beam.particle.charge
+            * self.profile.Beam.Particle.charge
             * e
             * 2600
             * np.exp(-((t - 2.5e-9) ** 2) / (2 * 0.5 * 1e-9) ** 2)
@@ -362,7 +362,7 @@ class TestRFCurrent(unittest.TestCase):
         rf_theo_imag = (
             -2
             * self.beam.ratio
-            * self.profile.beam.particle.charge
+            * self.profile.Beam.Particle.charge
             * e
             * 2600
             * np.exp(-((t - 2.5e-9) ** 2) / (2 * 0.5 * 1e-9) ** 2)
@@ -902,7 +902,7 @@ class TestRFCurrent(unittest.TestCase):
             beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
         profile2 = Profile(
             beam2,
-            cut_options=CutOptions(
+            CutOptions=CutOptions(
                 cut_left=0,
                 cut_right=bunches * bunch_spacing,
                 n_slices=1000 * buckets,
@@ -1032,7 +1032,7 @@ class TestFeedforwardFilter(unittest.TestCase):
     def setUp(self):
         # Ring and RF definitions
         ring = Ring(
-            2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, particle=Proton()
+            2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, Particle=Proton()
         )
         rf = RFStation(ring, [4620], [4.5e6], [0.0], n_rf=1)
         self.T_s = 5 * rf.t_rf[0, 0]

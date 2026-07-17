@@ -1,12 +1,13 @@
-"""
-**Optimised next_regular routine to generate Hamming numbers:
+
+'''
+**Optimised next_regular routine to generate Hamming numbers: 
 the output will contain at least one factor 2.**
 
-:Authors: **Alexandre Lasheen**, **Juan F. Esteban Mueller**, **Danilo Quartullo**
-"""
+:Authors: **Alexandre Lasheen**, **Juan F. Esteban Mueller**, **Danilo Quartullo** 
+'''
 
 
-def next_regular(target: int) -> int:
+def next_regular(target):
     """
     Find the next regular number greater than or equal to target.
     Regular numbers are composites of the prime factors 2, 3, and 5.
@@ -24,7 +25,7 @@ def next_regular(target: int) -> int:
 
     target = -(-target // 2)
 
-    match = float("inf")  # Anything found will be smaller
+    match = float('inf')  # Anything found will be smaller
     p5 = 1
     while p5 < target:
         p35 = p5
@@ -35,10 +36,10 @@ def next_regular(target: int) -> int:
 
             # Quickly find next power of 2 >= quotient
             try:
-                p2 = 2 ** ((quotient - 1).bit_length())
+                p2 = 2**((quotient - 1).bit_length())
             except AttributeError:
                 # Fallback for Python <2.7
-                p2 = 2 ** (len(bin(quotient - 1)) - 2)
+                p2 = 2**(len(bin(quotient - 1)) - 2)
 
             N = p2 * p35
             if N == target:
@@ -57,7 +58,6 @@ def next_regular(target: int) -> int:
         match = p5
 
     return match * 2
-
 
 # THIS IS THE ORIGINAL PYTHON VERSION #
 

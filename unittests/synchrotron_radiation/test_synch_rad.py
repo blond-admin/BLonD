@@ -10,16 +10,16 @@
 """
 Unittest for synchrotron_radiation.synchrotron_radiation.py
 
-:Authors: **Markus Schwarz, Konstantinos Iliakis, Lina Valle**
+:Authors: **Markus Schwarz, Konstantinos Iliakis**
 """
 
 import os
 import unittest
-import random
+
 import numpy as np
 from scipy.constants import c, e, m_e
 
-from blond.beam.beam import Beam, Electron, Positron, Proton
+from blond.beam.beam import Beam, Electron, Positron
 from blond.beam.distributions import (
     bigaussian,
     matched_from_distribution_function,
@@ -31,7 +31,6 @@ from blond.synchrotron_radiation.synchrotron_radiation import (
     SynchrotronRadiation,
 )
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
-from blond.utils.exceptions import MissingParameterError
 
 
 class TestSynchtrotronRadiation(unittest.TestCase):
@@ -65,7 +64,6 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         self.rf_station = RFStation(
             self.ring, harmonic_number, voltage, phi_offsets, n_rf=1
         )
-        self.rf_station.sr_flag = True
         self.beam = Beam(self.ring, self.n_macroparticles, self.intensity)
 
         bigaussian(
@@ -150,31 +148,31 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         atol = 0
         rtol = 1e-7
         np.testing.assert_allclose(
-            actual=[np.mean(self.beam.dt)],
-            desired=[1.0019653703433631e-09],
+            [np.mean(self.beam.dt)],
+            [1.0019653703433631e-09],
             atol=atol,
             rtol=rtol,
             err_msg="Initial avg beam.dt wrong",
         )
 
         np.testing.assert_allclose(
-            actual=[np.std(self.beam.dt)],
-            desired=[1.1204522311616268e-11],
+            [np.std(self.beam.dt)],
+            [1.1204522311616268e-11],
             atol=atol,
             rtol=rtol,
             err_msg="Initial std beam.dt wrong",
         )
 
         np.testing.assert_allclose(
-            actual=[np.mean(self.beam.dE)],
-            desired=[10748.973035173622],
+            [np.mean(self.beam.dE)],
+            [10748.973035173622],
             atol=atol,
             rtol=rtol,
             err_msg="Initial avg beam.dE wrong",
         )
         np.testing.assert_allclose(
-            actual=[np.std(self.beam.dE)],
-            desired=[447988.3517788615],
+            [np.std(self.beam.dE)],
+            [447988.3517788615],
             atol=atol,
             rtol=rtol,
             err_msg="Initial std beam.dE wrong",
@@ -189,7 +187,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
             self.ring,
             self.rf_station,
             self.beam,
-            bending_radius=self.R_bend,
+            self.R_bend,
             seed=self.seed,
             n_kicks=1,
             shift_beam=False,
@@ -198,19 +196,23 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         )
         iSR.track()
         np.testing.assert_allclose(
-            actual=[np.mean(self.beam.dt)],
-            desired=[1.0019653703433631e-09],
+            [np.mean(self.beam.dt)],
+            [1.0019653703433631e-09],
             atol=atol,
             rtol=rtol,
             err_msg="SR affected mean beam.dt",
         )
         np.testing.assert_allclose(
-            actual=[np.std(self.beam.dt)],
-            desired=[1.1204522311616268e-11],
+            [np.std(self.beam.dt)],
+            [1.1204522311616268e-11],
             atol=atol,
             rtol=rtol,
             err_msg="SR affected std beam.dt",
         )
+
+        # np.testing.assert_almost_equal(
+        #     self.beam.dt[0], 1.0054066581358374e-09, decimal=10,
+        #     err_msg='SR affected beam.dt')
 
     def test_synchrotron_radiation_python_vs_C(self):
         atol = 0
@@ -220,7 +222,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
             self.ring,
             self.rf_station,
             self.beam,
-            bending_radius=self.R_bend,
+            self.R_bend,
             n_kicks=1,
             shift_beam=False,
             python=True,
@@ -238,7 +240,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
             self.ring,
             self.rf_station,
             beam_C,
-            bending_radius=self.R_bend,
+            self.R_bend,
             n_kicks=1,
             shift_beam=False,
             python=False,
@@ -248,15 +250,15 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         iSR.track()  # C implementation
 
         np.testing.assert_allclose(
-            actual=[np.mean(self.beam.dE)],
-            desired=[np.mean(beam_C.dE)],
+            [np.mean(self.beam.dE)],
+            [np.mean(beam_C.dE)],
             atol=atol,
             rtol=rtol,
             err_msg="Python anc C yield different avg beam.dE for single kick",
         )
         np.testing.assert_allclose(
-            actual=[np.std(self.beam.dE)],
-            desired=[np.std(beam_C.dE)],
+            [np.std(self.beam.dE)],
+            [np.std(beam_C.dE)],
             atol=atol,
             rtol=rtol,
             err_msg="Python anc C yield different std beam.dE for single kick",
@@ -270,7 +272,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
             self.ring,
             self.rf_station,
             self.beam,
-            bending_radius=self.R_bend,
+            self.R_bend,
             n_kicks=2,
             shift_beam=False,
             python=True,
@@ -288,7 +290,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
             self.ring,
             self.rf_station,
             beam_C,
-            bending_radius=self.R_bend,
+            self.R_bend,
             n_kicks=2,
             shift_beam=False,
             python=False,
@@ -298,26 +300,27 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         iSR.track()  # C implementation
 
         np.testing.assert_allclose(
-            actual=[np.mean(self.beam.dE)],
-            desired=[np.mean(beam_C.dE)],
+            [np.mean(self.beam.dE)],
+            [np.mean(beam_C.dE)],
             atol=atol,
             rtol=rtol,
             err_msg="Python anc C yield different avg beam.dE for two kicks",
         )
         np.testing.assert_allclose(
-            actual=[np.std(self.beam.dE)],
-            desired=[np.std(beam_C.dE)],
+            [np.std(self.beam.dE)],
+            [np.std(beam_C.dE)],
             atol=atol,
             rtol=rtol,
             err_msg="Python anc C yield different std beam.dE for two kicks",
         )
-
     def test_U0(self):
+
         # LEP, values from S. Lee 2nd ed., table 4.2
         circumference = 26658.9  # [m]
         energy = 55e9  # [eV]
         R_bend = 3096.2  # bending radius [m]
         alpha = 1e-3  # dummy value
+
         ring = Ring(
             circumference,
             alpha,
@@ -328,13 +331,13 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         )
 
         rf_station_dummy = RFStation(
-            ring, harmonic=42, voltage=1e6, phi_rf_d=0, n_rf=1
+            ring, 42, 1e6, 0, n_rf=1
         )
         iSR = SynchrotronRadiation(
             ring,
             rf_station_dummy,
             None,
-            bending_radius=R_bend,
+            R_bend,
             shift_beam=False,
             quantum_excitation=False,
         )
@@ -428,9 +431,9 @@ class TestSynchRad(unittest.TestCase):
         cut_options = CutOptions(
             cut_left=0.0, cut_right=self.bucket_length, n_slices=number_slices
         )
-        self.slice_beam = Profile(self.beam, cut_options=cut_options)
+        self.slice_beam = Profile(self.beam, CutOptions=cut_options)
 
-        self.slice_beam_cpp = Profile(self.beam_cpp, cut_options=cut_options)
+        self.slice_beam_cpp = Profile(self.beam_cpp, CutOptions=cut_options)
 
         # DEFINE TRACKER---------------------------------------------------------------
         self.longitudinal_tracker = []
@@ -438,14 +441,14 @@ class TestSynchRad(unittest.TestCase):
         for i in range(self.n_sections):
             self.longitudinal_tracker.append(
                 RingAndRFTracker(
-                    self.RF_sct_par[i], self.beam, profile=self.slice_beam
+                    self.RF_sct_par[i], self.beam, Profile=self.slice_beam
                 )
             )
             self.longitudinal_tracker_cpp.append(
                 RingAndRFTracker(
                     self.RF_sct_par_cpp[i],
                     self.beam_cpp,
-                    profile=self.slice_beam_cpp,
+                    Profile=self.slice_beam_cpp,
                 )
             )
 
@@ -580,10 +583,8 @@ class TestSynchRad(unittest.TestCase):
         os.environ["OMP_NUM_THREADS"] = "1"
         turns = 10
         atol = 0
-        # increased tolerances due to distribution
-        # difference between C and Python
-        rtol_std = 5e-3
-        rtol_avg = 5e-3
+        rtol_avg = 1e-2
+        rtol_std = 1e-2
         SR = []
         SR_cpp = []
 
@@ -774,10 +775,8 @@ class TestSynchRad(unittest.TestCase):
         os.environ["OMP_NUM_THREADS"] = "1"
         turns = 100
         atol = 0
-        # increased tolerances due to distribution
-        # difference between C and Python
-        rtol_avg = 5e-1
-        rtol_std = 5e-1
+        rtol_avg = 1e-2
+        rtol_std = 1e-1
         SR = []
         SR_cpp = []
 
@@ -843,14 +842,14 @@ class TestSynchRad(unittest.TestCase):
             avg_dt_cpp,
             atol=atol,
             rtol=rtol_avg,
-            err_msg="Python and C++ avg beam dt arrays not close",
+            err_msg="Pyhton and C++ avg beam dt arrays not close",
         )
         np.testing.assert_allclose(
             std_dt,
             std_dt_cpp,
             atol=atol,
             rtol=rtol_std,
-            err_msg="Python and C++ std beam dt arrays not close",
+            err_msg="Pyhton and C++ std beam dt arrays not close",
         )
 
         np.testing.assert_allclose(
@@ -858,14 +857,14 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp,
             atol=atol,
             rtol=rtol_avg,
-            err_msg="Python and C++ avg beam dE arrays not close",
+            err_msg="Pyhton and C++ avg beam dE arrays not close",
         )
         np.testing.assert_allclose(
             std_dE,
             std_dE_cpp,
             atol=atol,
             rtol=rtol_std,
-            err_msg="Python and C++ std beam dE arrays not close",
+            err_msg="Pyhton and C++ std beam dE arrays not close",
         )
 
     def test_no_quant_exc_10t_parallel(self):
@@ -968,8 +967,6 @@ class TestSynchRad(unittest.TestCase):
         os.environ["OMP_NUM_THREADS"] = "2"
         turns = 10
         atol = 0
-        # increased tolerances due to distribution
-        # difference between C and Python
         rtol_avg = 1e-2
         rtol_std = 1e-2
         SR = []
@@ -1037,14 +1034,14 @@ class TestSynchRad(unittest.TestCase):
             avg_dt_cpp,
             atol=atol,
             rtol=rtol_avg,
-            err_msg="Python and C++ avg beam dt arrays not close",
+            err_msg="Pyhton and C++ avg beam dt arrays not close",
         )
         np.testing.assert_allclose(
             std_dt,
             std_dt_cpp,
             atol=atol,
             rtol=rtol_std,
-            err_msg="Python and C++ std beam dt arrays not close",
+            err_msg="Pyhton and C++ std beam dt arrays not close",
         )
 
         np.testing.assert_allclose(
@@ -1052,14 +1049,14 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp,
             atol=atol,
             rtol=rtol_avg,
-            err_msg="Python and C++ avg beam dE arrays not close",
+            err_msg="Pyhton and C++ avg beam dE arrays not close",
         )
         np.testing.assert_allclose(
             std_dE,
             std_dE_cpp,
             atol=atol,
             rtol=rtol_std,
-            err_msg="Python and C++ std beam dE arrays not close",
+            err_msg="Pyhton and C++ std beam dE arrays not close",
         )
 
     def test_no_quant_exc_100t_parallel(self):
@@ -1133,14 +1130,14 @@ class TestSynchRad(unittest.TestCase):
             avg_dt_cpp,
             atol=atol,
             rtol=rtol_avg,
-            err_msg="Python and C++ avg beam dt arrays not close",
+            err_msg="Pyhton and C++ avg beam dt arrays not close",
         )
         np.testing.assert_allclose(
             std_dt,
             std_dt_cpp,
             atol=atol,
             rtol=rtol_std,
-            err_msg="Python and C++ std beam dt arrays not close",
+            err_msg="Pyhton and C++ std beam dt arrays not close",
         )
 
         np.testing.assert_allclose(
@@ -1148,23 +1145,21 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp,
             atol=atol,
             rtol=rtol_avg,
-            err_msg="Python and C++ avg beam dE arrays not close",
+            err_msg="Pyhton and C++ avg beam dE arrays not close",
         )
         np.testing.assert_allclose(
             std_dE,
             std_dE_cpp,
             atol=atol,
             rtol=rtol_std,
-            err_msg="Python and C++ std beam dE arrays not close",
+            err_msg="Pyhton and C++ std beam dE arrays not close",
         )
 
     def test_with_quant_exc_100t_parallel(self):
         os.environ["OMP_NUM_THREADS"] = "2"
         turns = 100
-        atol = 1e-1
-        # increased tolerances due to distribution
-        # difference between C and Python
-        rtol_avg = 1e-1
+        atol = 0
+        rtol_avg = 1e-2
         rtol_std = 1e-1
         SR = []
         SR_cpp = []

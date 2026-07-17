@@ -1,2 +1,0 @@
-monkeytype
-ruff>=0.7,<=0.15.5
