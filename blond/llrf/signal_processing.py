@@ -17,6 +17,7 @@ from __future__ import annotations
 
 # Set up logging
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
@@ -275,8 +276,37 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
+        if isinstance(profile, SparseBatch):
+            ind_fine = np.round(
+                (profile.profiles_list[-1].bin_centers - dT - np.pi /
+                 omega_c) /
+                T_s)
+            ind_fine = np.array(ind_fine, dtype=int)
+            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+            if len(indices) == 0:
+                extra_bins = np.arange(profile.bin_centers[-1], profile.bin_centers[-1] +
+                          1 * profile.rf_station.t_rf[0,0], step=profile.bin_size)
+                profile_bin_centers = np.concatenate((profile.bin_centers,extra_bins))
+                profile_n_macroparticles = np.concatenate((profile.n_macroparticles,
+                                                           np.zeros(len(extra_bins))))
+                charges = (
+                        profile.beam.ratio
+                        * profile.beam.particle.charge
+                        * e
+                        * np.copy(profile_n_macroparticles)
+                )
+                I_f = 2.0 * charges * np.cos(omega_c * profile_bin_centers)
+                Q_f = -2.0 * charges * np.sin(omega_c * profile_bin_centers)
+                charges_fine = I_f + 1j * Q_f
+                warnings.warn('The length of the sparse profile is too '
+                                 'short to properly convert the charges from the fine to the coarse grid.'
+                                 'Profile has been extented.')
+            else:
+                profile_bin_centers = profile.bin_centers
+        else:
+            profile_bin_centers = profile.bin_centers
         charges_coarse = charges_from_fine_to_coarse(
-                T_s, charges_fine, dT, n_points, omega_c, profile
+                T_s, charges_fine, dT, n_points, omega_c, profile_bin_centers,
             )
       
         return charges_fine, charges_coarse
@@ -291,9 +321,9 @@ def charges_from_fine_to_coarse(
     dT: float,
     n_points: int,
     omega_c: float,
-    profile: Profile | SparseBatch,
+    profile_bin_centers: ndarray,
 ) -> ndarray[tuple[int], dtype[Any]]:
-    ind_fine = np.round((profile.bin_centers - dT - np.pi / omega_c) / T_s)
+    ind_fine = np.round((profile_bin_centers - dT - np.pi / omega_c) / T_s)
     ind_fine = np.array(ind_fine, dtype=int)
     indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
