@@ -51,8 +51,16 @@ MOM_COMPACTION = 1 / GAMMA_TRANSITION**2
 N_MACROPARTICLES = int(1e5)
 BUNCH_INTENSITY = 1e11
 BUNCH_SIGMA_DT = 0.5e-9
-number_of_bunches = 100  # Length of the batch [number of bunches]
-bunch_spacing = 10  # Bunch spacing [number of rf buckets]
+number_of_batches = 10  # Length of the batch [number of batches]
+batch_spacing = 5  # Number of empty buckets between each batch [number of rf
+# buckets]
+
+number_of_bunches_per_batch = 3  # number of bunches per batch i.e. per profile
+bunch_spacing = 1  # Number of empty buckets between each bunch
+
+total_length_batch = (number_of_bunches_per_batch +
+                      (number_of_bunches_per_batch-1) * bunch_spacing)
+assert(total_length_batch <= batch_spacing)
 
 def build_ring_and_rf():
     """Build the Ring/RFStation pair shared by all tests."""
@@ -75,8 +83,8 @@ def build_beam(ring, rf_station, seed=1234):
     # The beam
 
     # Beam object for the batch
-    N_m = N_MACROPARTICLES * number_of_bunches
-    N_p = BUNCH_INTENSITY * number_of_bunches
+    N_m = N_MACROPARTICLES * number_of_batches * number_of_bunches_per_batch
+    N_p = BUNCH_INTENSITY * number_of_batches * number_of_bunches_per_batch
     beam = Beam(ring, N_m, N_p)
     # First generate a single gaussian bunch
     single_bunch = Beam(ring, N_MACROPARTICLES, BUNCH_INTENSITY)
@@ -89,43 +97,64 @@ def build_beam(ring, rf_station, seed=1234):
         reinsertion=True,
     )
     # Copy the bunch throughout the batch
-    for i in range(number_of_bunches):
-        beam.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
-            single_bunch.dE
-        )
-        beam.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
-                single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
-        )
+
+    if number_of_bunches_per_batch >1:
+        single_batch = Beam(ring,
+                            number_of_bunches_per_batch*N_MACROPARTICLES,
+                            number_of_bunches_per_batch*BUNCH_INTENSITY)
+        for i in range(number_of_bunches_per_batch):
+            single_batch.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] \
+                = single_bunch.dE
+            single_batch.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
+                    single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
+            )
+        for i in range(number_of_batches):
+            N_MACROPARTICLES_PER_BATCH = number_of_bunches_per_batch * N_MACROPARTICLES
+            beam.dE[i * N_MACROPARTICLES_PER_BATCH: (i + 1) * N_MACROPARTICLES_PER_BATCH] = (
+                single_batch.dE
+            )
+            beam.dt[i * N_MACROPARTICLES_PER_BATCH: (i + 1) * N_MACROPARTICLES_PER_BATCH] = (
+                    single_batch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
+            )
+    else:
+        for i in range(number_of_batches):
+            beam.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
+                single_bunch.dE
+            )
+            beam.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
+                    single_bunch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
+            )
     return beam
+
 
 
 def build_standard_profile(beam, rf_station, n_slices):
     """A standard Profile covering the injected bunches and an extra bucket."""
     profile = Profile(
         beam,
-        CutOptions(cut_left=0.0, cut_right=(bunch_spacing * number_of_bunches + 1)
+        CutOptions(cut_left=0.0, cut_right=(batch_spacing * number_of_batches + 1)
             * rf_station.t_rf[
                 0,
                 0,
             ],
-                   n_slices=n_slices * (bunch_spacing * number_of_bunches + 1)),
+                   n_slices=n_slices * (batch_spacing * number_of_batches + 1)),
     )
     profile.track()
     return profile
 
 
-def build_full_turn_sparse_profile(beam, rf_station, n_slices):
+def build_sparse_profile(beam, rf_station, n_slices):
     """A SparseBatch profile with a profile per number of bunches.
     """
     batch_list = np.zeros(HARMONIC_NUMBER)
-    for k in range(number_of_bunches):
-        batch_list[k * bunch_spacing] = 1
+    for k in range(number_of_batches):
+        batch_list[k * batch_spacing] = 1
     sparse_profile = SparseBatch(
         rf_station=rf_station,
         beam=beam,
-        number_of_slices_per_profile=(int(bunch_spacing/2)+1) * n_slices,
+        number_of_slices_per_profile=(int(batch_spacing/2)+1) * n_slices,
         batch_list=batch_list,
-        batch_length=int(bunch_spacing/2)+1,
+        batch_length=int(batch_spacing/2)+1,
         tracker_mode="onebyone",
     )
     sparse_profile.track()
@@ -222,7 +251,7 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
     def setUp(self):
         self.ring, self.rf = build_ring_and_rf()
         self.beam = build_beam(self.ring, self.rf)
-        self.profile = build_full_turn_sparse_profile(
+        self.profile = build_sparse_profile(
             self.beam, self.rf, n_slices=1000
         )
         self.RFFB = build_open_drive_commissioning()
@@ -246,7 +275,7 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
 
     def test_sparse_profile_is_recognised(self):
         self.assertIsInstance(self.profile, SparseBatch)
-        self.assertEqual(len(self.profile.profiles_list), number_of_bunches)
+        self.assertEqual(len(self.profile.profiles_list), number_of_batches)
 
     def test_open_drive_default_Q_L(self):
         CL = self._make_loop(Q_L=20000, R_over_Q=45)
@@ -301,7 +330,7 @@ class TestProfileEquivalence(unittest.TestCase):
         self.beam = build_beam(self.ring, self.rf)
         self.n_slices = 2000
         self.standard = build_standard_profile(self.beam, self.rf, self.n_slices)
-        self.sparse = build_full_turn_sparse_profile(
+        self.sparse = build_sparse_profile(
             self.beam, self.rf, self.n_slices
         )
 
@@ -345,7 +374,7 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
         self.profile_std = build_standard_profile(
             self.beam, self.rf, self.N_SLICES
         )
-        self.profile_sparse = build_full_turn_sparse_profile(
+        self.profile_sparse = build_sparse_profile(
             self.beam, self.rf, self.N_SLICES
         )
 
