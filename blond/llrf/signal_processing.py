@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Filters and methods for control loops**
 
 :Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
-'''
+"""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
@@ -53,7 +53,9 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-def polar_to_cartesian(amplitude, phase):
+def polar_to_cartesian(
+    amplitude: float | NumpyArray, phase: float | NumpyArray
+) -> NumpyArray | complex:
     """Convert data from polar to cartesian (I,Q) coordinates.
 
     Parameters
@@ -74,7 +76,7 @@ def polar_to_cartesian(amplitude, phase):
     return amplitude * (np.cos(phase) + 1j * np.sin(phase))
 
 
-def cartesian_to_polar(IQ_vector):
+def cartesian_to_polar(IQ_vector: NumpyArray) -> tuple[NumpyArray, NumpyArray]:
     """Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
@@ -96,7 +98,7 @@ def cartesian_to_polar(IQ_vector):
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def get_power_gen_i(I_gen_per_cav, Z_0):
+def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
     """RF generator power from generator current (physical, in [A]), for any
     f_r (and thus any tau)
 
@@ -112,10 +114,17 @@ def get_power_gen_i(I_gen_per_cav, Z_0):
         Absolute value of the generator power
 
     """
-    return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
+    return 0.5 * Z_0 * np.abs(I_gen_per_cav) ** 2
 
 
-def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
+def modulator(
+    signal: NumpyArray,
+    omega_i: float,
+    omega_f: float,
+    T_sampling: float,
+    phi_0: float = 0,
+    dt: float = 0,
+) -> NumpyArray:
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -129,7 +138,10 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
         Final revolution frequency [1/s] of signal (after demodulation)
     T_sampling : float
         Sampling period (temporal bin size) [s] of the signal
-
+    phi_0 : float
+        # todo
+    dt: float
+        # todo
     Returns
     -------
     float array
@@ -148,8 +160,8 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
     # Precompute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)
-    I_new = cs*signal.real - sn*signal.imag
-    Q_new = sn*signal.real + cs*signal.imag
+    I_new = cs * signal.real - sn * signal.imag
+    Q_new = sn * signal.real + cs * signal.imag
 
     return I_new + 1j * Q_new
 
@@ -200,7 +212,6 @@ def rf_beam_current(
     ----------
     Profile : class
         A Profile type class or a SparseBatch class.
-        #todo: understand the discrepancy with SparseBucket
         N.B.: the results are not working for the SparseBucket class at the
         moment.
     omega_c : float
@@ -328,14 +339,15 @@ def charges_from_fine_to_coarse(
         )  # TODO: modulo might not be physical
     return charges_coarse
 
-def comb_filter(y, x, a):
-    """Feedback comb filter.
-    """
+def comb_filter(y: NumpyArray, x: NumpyArray, a: float) -> NumpyArray:
+    """Feedback comb filter."""
 
     return a * y + (1 - a) * x
 
+def fir_filter_coefficients(
+            n_taps: int, sampling_freq: float, cutoff_freq: float
+    ) -> NumpyArray:
 
-def fir_filter_coefficients(n_taps, sampling_freq, cutoff_freq):
     """Band-stop type FIR filter from scipy
     http://docs.scipy.org
 
@@ -358,13 +370,13 @@ def fir_filter_coefficients(n_taps, sampling_freq, cutoff_freq):
 
     """
 
-    fPass = cutoff_freq/sampling_freq
+    fPass = cutoff_freq / sampling_freq
 
     return sgn.firwin(n_taps, [fPass], pass_zero=True)
 
 
-def fir_filter_lhc_otfb_coeff(n_taps=63):
-    '''FIR filter designed for the LHC OTFB, for a sampling frequency of
+def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:
+    """FIR filter designed for the LHC OTFB, for a sampling frequency of
     40 MS/s, with 63 taps.
 
     Parameters
@@ -376,35 +388,103 @@ def fir_filter_lhc_otfb_coeff(n_taps=63):
     -------
     double array
         Coefficients of LHC-type FIR filter
-    '''
-
+    """
+    # todo might return arrays?
     if n_taps == 15:
-        coeff = [-0.0469, -0.016, 0.001, 0.0321, 0.0724, 0.1127, 0.1425,
-                 0.1534, 0.1425, 0.1127, 0.0724, 0.0321, 0.001, -0.016, -0.0469]
+        coeff = [
+            -0.0469,
+            -0.016,
+            0.001,
+            0.0321,
+            0.0724,
+            0.1127,
+            0.1425,
+            0.1534,
+            0.1425,
+            0.1127,
+            0.0724,
+            0.0321,
+            0.001,
+            -0.016,
+            -0.0469,
+        ]
     elif n_taps == 63:
-
-        coeff = [-0.038636, -0.00687283, -0.00719296, -0.00733319, -0.00726159,
-            -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
-            -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
-            0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
-            0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
-            0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
-            0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
-            0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
-            0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
-            0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
-            -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
-            -0.00687283, -0.038636]
+        coeff = [
+            -0.038636,
+            -0.00687283,
+            -0.00719296,
+            -0.00733319,
+            -0.00726159,
+            -0.00694037,
+            -0.00634775,
+            -0.00548098,
+            -0.00432789,
+            -0.00288188,
+            -0.0011339,
+            0.00090253,
+            0.00321323,
+            0.00577238,
+            0.00856464,
+            0.0115605,
+            0.0147307,
+            0.0180265,
+            0.0214057,
+            0.0248156,
+            0.0282116,
+            0.0315334,
+            0.0347311,
+            0.0377502,
+            0.0405575,
+            0.0431076,
+            0.0453585,
+            0.047243,
+            0.0487253,
+            0.049782,
+            0.0504816,
+            0.0507121,
+            0.0504816,
+            0.049782,
+            0.0487253,
+            0.047243,
+            0.0453585,
+            0.0431076,
+            0.0405575,
+            0.0377502,
+            0.0347311,
+            0.0315334,
+            0.0282116,
+            0.0248156,
+            0.0214057,
+            0.0180265,
+            0.0147307,
+            0.0115605,
+            0.00856464,
+            0.00577238,
+            0.00321323,
+            0.00090253,
+            -0.0011339,
+            -0.00288188,
+            -0.00432789,
+            -0.00548098,
+            -0.00634775,
+            -0.00694037,
+            -0.00726159,
+            -0.00733319,
+            -0.00719296,
+            -0.00687283,
+            -0.038636,
+        ]
     else:
-        raise ValueError("In LHC FIR filter, number of taps has to be 15 or 63")
+        raise ValueError(
+            "In LHC FIR filter, number of taps has to be 15 or 63"
+        )
 
     return coeff
 
+def fir_filter(coeff: NumpyArray, signal: NumpyArray):
+    """Apply FIR filter on discrete time signal.
 
-def fir_filter(coeff, signal):
-    '''Apply FIR filter on discrete time signal.
-
-    Paramters
+    Parameters
     ---------
     coeff : double array
         Coefficients of FIR filter with length of number of taps
@@ -415,18 +495,20 @@ def fir_filter(coeff, signal):
     -------
     complex or double array
         Filtered signal of length len(signal) - len(coeff)
-    '''
+    """
 
     n_taps = len(coeff)
     filtered_signal = np.zeros(len(signal) - n_taps, dtype=signal.dtype)
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
-            filtered_signal[i-n_taps] += coeff[k] * signal[i - k]
+            filtered_signal[i - n_taps] += coeff[k] * signal[i - k]
 
     return filtered_signal
 
 
-def low_pass_filter(signal, cutoff_frequency=0.5):
+def low_pass_filter(
+    signal: NumpyArray, cutoff_frequency: float = 0.5
+) -> NumpyArray:
     """Low-pass filter based on Butterworth 5th order digital filter from
     scipy,
     http://docs.scipy.org
@@ -446,12 +528,14 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
 
     """
 
-    b, a = sgn.butter(5, cutoff_frequency, 'low', analog=False)
+    b, a = sgn.butter(5, cutoff_frequency, "low", analog=False)
 
     return sgn.filtfilt(b, a, signal)
 
 
-def moving_average(x, N, x_prev=None):
+def moving_average(
+    x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None
+) -> NumpyArray:
     """Function to calculate the moving average (or running mean) of the input
     data.
 
@@ -480,47 +564,121 @@ def moving_average(x, N, x_prev=None):
     # based on https://stackoverflow.com/a/14314054
     mov_avg = np.cumsum(x)
     mov_avg[N:] = mov_avg[N:] - mov_avg[:-N]
-    return mov_avg[N - 1:] / N
+    return mov_avg[N - 1 :] / N
 
 
-def moving_average_improved(x, N, x_prev=None):
-
+def moving_average_improved(
+    x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None
+):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
-    mov_avg = sgn.fftconvolve(x, (1 / N) * np.ones(N), mode='full')[-x.shape[0]:]
+    mov_avg = sgn.fftconvolve(x, (1 / N) * np.ones(N), mode="full")[
+        -x.shape[0] :
+    ]
 
-    return mov_avg[:x.shape[0] - N + 1]
+    return mov_avg[: x.shape[0] - N + 1]
 
 
-def H_cav(x, n_sections, x_prev=None):
-
+def H_cav(x: NumpyArray, n_sections: int, x_prev: Optional[NumpyArray] = None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
     if n_sections == 3:
-        h = np.array([-0.04120219, -0.00765499, -0.00724786, -0.00600952, -0.00380694, -0.00067663,
-                      0.00343537, 0.0084533, 0.01421418, 0.02071802, 0.02764441, 0.03476114,
-                      0.04193753, 0.04882965, 0.05522681, 0.06083675, 0.0654471, 0.06887487,
-                      0.07100091, 0.09043617, 0.07100091, 0.06887487, 0.0654471, 0.06083675,
-                      0.05522681, 0.04882965, 0.04193753, 0.03476114, 0.02764441, 0.02071802,
-                      0.01421418, 0.0084533, 0.00343537, -0.00067663, -0.00380694, -0.00600952,
-                      -0.00724786, -0.00765499, -0.04120219])
+        h = np.array(
+            [
+                -0.04120219,
+                -0.00765499,
+                -0.00724786,
+                -0.00600952,
+                -0.00380694,
+                -0.00067663,
+                0.00343537,
+                0.0084533,
+                0.01421418,
+                0.02071802,
+                0.02764441,
+                0.03476114,
+                0.04193753,
+                0.04882965,
+                0.05522681,
+                0.06083675,
+                0.0654471,
+                0.06887487,
+                0.07100091,
+                0.09043617,
+                0.07100091,
+                0.06887487,
+                0.0654471,
+                0.06083675,
+                0.05522681,
+                0.04882965,
+                0.04193753,
+                0.03476114,
+                0.02764441,
+                0.02071802,
+                0.01421418,
+                0.0084533,
+                0.00343537,
+                -0.00067663,
+                -0.00380694,
+                -0.00600952,
+                -0.00724786,
+                -0.00765499,
+                -0.04120219,
+            ]
+        )
     else:
-        h = np.array([-0.0671217, 0.01355402, 0.01365686, 0.01444814, 0.01571424, 0.01766679,
-                      0.01996413, 0.02251791, 0.02529718, 0.02817416, 0.03113348, 0.03398052,
-                      0.03674144, 0.03924433, 0.04153931, 0.04344182, 0.04502165, 0.04612467,
-                      0.04685122, 0.06409968, 0.04685122, 0.04612467, 0.04502165, 0.04344182,
-                      0.04153931, 0.03924433, 0.03674144, 0.03398052, 0.03113348, 0.02817416,
-                      0.02529718, 0.02251791, 0.01996413, 0.01766679, 0.01571424, 0.01444814,
-                      0.01365686, 0.01355402, -0.0671217])
+        h = np.array(
+            [
+                -0.0671217,
+                0.01355402,
+                0.01365686,
+                0.01444814,
+                0.01571424,
+                0.01766679,
+                0.01996413,
+                0.02251791,
+                0.02529718,
+                0.02817416,
+                0.03113348,
+                0.03398052,
+                0.03674144,
+                0.03924433,
+                0.04153931,
+                0.04344182,
+                0.04502165,
+                0.04612467,
+                0.04685122,
+                0.06409968,
+                0.04685122,
+                0.04612467,
+                0.04502165,
+                0.04344182,
+                0.04153931,
+                0.03924433,
+                0.03674144,
+                0.03398052,
+                0.03113348,
+                0.02817416,
+                0.02529718,
+                0.02251791,
+                0.01996413,
+                0.01766679,
+                0.01571424,
+                0.01444814,
+                0.01365686,
+                0.01355402,
+                -0.0671217,
+            ]
+        )
 
-    resp = sgn.fftconvolve(x, h, mode='full')[-x.shape[0]:]
+    resp = sgn.fftconvolve(x, h, mode="full")[-x.shape[0] :]
 
-    return resp[:x.shape[0] - h.shape[0] + 1]
+    return resp[: x.shape[0] - h.shape[0] + 1]
 
 
-def smooth_step(x, x_min=0, x_max=1, N=1):
+def smooth_step(x: NumpyArray, x_min: float = 0, x_max: float = 1, N: int = 1):
     """Function to make a smooth step.
 
     Parameters
@@ -551,8 +709,12 @@ def smooth_step(x, x_min=0, x_max=1, N=1):
     return result
 
 
-def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
-                       opt_output=False):
+def feedforward_filter(
+    TWC: TravellingWaveCavity,
+    T_s: float,
+    taps: Optional[int] = None,
+    opt_output: bool = False,
+) -> tuple[NumpyArray, int, int, int]:
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
     Parameters
@@ -603,9 +765,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
             if t[i] < -tauf:
                 output[i] = 0
             elif t[i] < 0:
-                output[i] = (t[i]/tauf + 1)**2 / 2
+                output[i] = (t[i] / tauf + 1) ** 2 / 2
             elif t[i] < tauf:
-                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf + 1/2
+                output[i] = -1 / 2 * (t[i] / tauf) ** 2 + t[i] / tauf + 1 / 2
             else:
                 output[i] = 1
         return output
@@ -617,9 +779,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
             if t[i] < -tauf:
                 output[i] = 0
             elif t[i] < 0:
-                output[i] = -(t[i]/tauf + 1)**2 / 2
+                output[i] = -((t[i] / tauf + 1) ** 2) / 2
             elif t[i] < tauf:
-                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf - 1/2
+                output[i] = -1 / 2 * (t[i] / tauf) ** 2 + t[i] / tauf - 1 / 2
             else:
                 output[i] = 0
         return output
@@ -682,33 +844,64 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
         return output
 
     def Hoptreal(Nt, L, P, Dvectoreven):
-        output = EvenMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ Rmatrix(P, L).T @ Dvectoreven
+        output = (
+            EvenMatrix(Nt).T
+            @ Smatrix(P + L - 1, Nt).T
+            @ Rmatrix(P, L).T
+            @ Dvectoreven
+        )
 
         matrix1 = EvenMatrix(Nt)
-        matrix1 = Rmatrix(P, L).T @ Weigthing(P, uniform_weighting) @ Rmatrix(P, L) @ Smatrix(P + L - 1, Nt) @ matrix1
+        matrix1 = (
+            Rmatrix(P, L).T
+            @ Weigthing(P, uniform_weighting)
+            @ Rmatrix(P, L)
+            @ Smatrix(P + L - 1, Nt)
+            @ matrix1
+        )
         matrix1 = EvenMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ matrix1
         matrix1 = npla.inv(matrix1)
 
         return matrix1 @ output
 
     def Hoptimag(Nt, L, P, Dvectorodd):
-        output = OddMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ Rmatrix(P, L).T @ Weigthing(P, uniform_weighting) \
-                 @ Dvectorodd
+        output = (
+            OddMatrix(Nt).T
+            @ Smatrix(P + L - 1, Nt).T
+            @ Rmatrix(P, L).T
+            @ Weigthing(P, uniform_weighting)
+            @ Dvectorodd
+        )
         matrix1 = OddMatrix(Nt)
-        matrix1 = Rmatrix(P, L).T @ Weigthing(P, uniform_weighting) @ Rmatrix(P, L) @ Smatrix(P + L - 1, Nt) @ matrix1
+        matrix1 = (
+            Rmatrix(P, L).T
+            @ Weigthing(P, uniform_weighting)
+            @ Rmatrix(P, L)
+            @ Smatrix(P + L - 1, Nt)
+            @ matrix1
+        )
         matrix1 = OddMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ matrix1
         matrix1 = npla.inv(matrix1)
 
         return matrix1 @ output
 
     def Hopteven(Nt, L, P, Dvectoreven):
-        return np.concatenate([Hoptreal(Nt, L, P, Dvectoreven)[1:][::-1], Hoptreal(Nt, L, P, Dvectoreven)])
+        return np.concatenate(
+            [
+                Hoptreal(Nt, L, P, Dvectoreven)[1:][::-1],
+                Hoptreal(Nt, L, P, Dvectoreven),
+            ]
+        )
 
     def Hoptodd(Nt, L, P, Dvectorodd):
-        output = np.concatenate([-Hoptimag(Nt, L, P, Dvectorodd)[::-1], np.array([0])])
+        output = np.concatenate(
+            [-Hoptimag(Nt, L, P, Dvectorodd)[::-1], np.array([0])]
+        )
         return np.concatenate([output, Hoptimag(Nt, L, P, Dvectorodd)])
 
-    h_ff = Hopteven(n_taps, n_filling, n_fit, Dvectoreven) + Hoptodd(n_taps, n_filling, n_fit, Dvectorodd)
+    h_ff = Hopteven(n_taps, n_filling, n_fit, Dvectoreven) + Hoptodd(
+        n_taps, n_filling, n_fit, Dvectorodd
+    )
 
     if opt_output:
         return h_ff, n_taps, n_filling, n_fit
@@ -717,55 +910,149 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
 
 
 feedforward_filter_TWC3 = np.array(
-    [-0.00760838, 0.01686764, 0.00205761, 0.00205761,
-     0.00205761, 0.00205761, -0.03497942, 0.00205761,
-     0.00205761, 0.00205761, 0.00205761, -0.0053474,
-     0.00689061, 0.00308642, 0.00308642, 0.00308642,
-     0.00308642, 0.00308642, -0.00071777, 0.01152024,
-     0.00411523, 0.00411523, 0.00411523, 0.00411523,
-     0.03806584, -0.00205761, -0.00205761, -0.00205761,
-     -0.00205761, -0.01686764, 0.00760838])
+    [
+        -0.00760838,
+        0.01686764,
+        0.00205761,
+        0.00205761,
+        0.00205761,
+        0.00205761,
+        -0.03497942,
+        0.00205761,
+        0.00205761,
+        0.00205761,
+        0.00205761,
+        -0.0053474,
+        0.00689061,
+        0.00308642,
+        0.00308642,
+        0.00308642,
+        0.00308642,
+        0.00308642,
+        -0.00071777,
+        0.01152024,
+        0.00411523,
+        0.00411523,
+        0.00411523,
+        0.00411523,
+        0.03806584,
+        -0.00205761,
+        -0.00205761,
+        -0.00205761,
+        -0.00205761,
+        -0.01686764,
+        0.00760838,
+    ]
+)
 
 feedforward_filter_TWC4 = np.array(
-    [0.01050256, -0.0014359, 0.00106667, 0.00106667,
-     0.00106667, -0.01226667, -0.01226667, 0.00106667,
-     0.00106667, 0.00106667, 0.00231795, -0.00365128,
-     0.0016, 0.0016, 0.0016, 0.0016,
-     0.0016, 0.0016, 0.0016, 0.0016,
-     0.0016, 0.0016, 0.0016, 0.0016,
-     0.0016, 0.00685128, 0.00088205, 0.00213333,
-     0.00213333, 0.00213333, 0.01506667, 0.01266667,
-     -0.00106667, -0.00106667, -0.00106667, 0.0014359,
-     -0.01050256])
+    [
+        0.01050256,
+        -0.0014359,
+        0.00106667,
+        0.00106667,
+        0.00106667,
+        -0.01226667,
+        -0.01226667,
+        0.00106667,
+        0.00106667,
+        0.00106667,
+        0.00231795,
+        -0.00365128,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.0016,
+        0.00685128,
+        0.00088205,
+        0.00213333,
+        0.00213333,
+        0.00213333,
+        0.01506667,
+        0.01266667,
+        -0.00106667,
+        -0.00106667,
+        -0.00106667,
+        0.0014359,
+        -0.01050256,
+    ]
+)
 
 feedforward_filter_TWC5 = np.array(
-    [0.01802423, -0.01004643,  0.00069372,  0.00069372,  0.00069372, -0.01005897,
-     -0.01005897,  0.00069372,  0.00069372,  0.00069372,  0.0060638,  -0.00797153,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.0100527,  -0.00398263,  0.00138744,  0.00138744,  0.00138744,
-     0.01187999,  0.01031911, -0.00069372, -0.00069372, -0.00069372,  0.01004643,
-     -0.01802423])
+    [
+        0.01802423,
+        -0.01004643,
+        0.00069372,
+        0.00069372,
+        0.00069372,
+        -0.01005897,
+        -0.01005897,
+        0.00069372,
+        0.00069372,
+        0.00069372,
+        0.0060638,
+        -0.00797153,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.00104058,
+        0.0100527,
+        -0.00398263,
+        0.00138744,
+        0.00138744,
+        0.00138744,
+        0.01187999,
+        0.01031911,
+        -0.00069372,
+        -0.00069372,
+        -0.00069372,
+        0.01004643,
+        -0.01802423,
+    ]
+)
 
 
-def plot_frequency_response(b, a=1):
+def plot_frequency_response(b: NumpyArray, a=1):
     """Plotting the frequency response of a filter with coefficients a, b."""
 
     w, H = sgn.freqz(b, a)
 
     plt.subplot(211)
     plt.plot(2 * w / np.max(w), np.absolute(H))
-    plt.ylabel('Amplitude [linear]')
-    plt.xlabel(r'Frequency w.r.t. sampling frequency')
-    plt.title(r'Frequency response')
+    plt.ylabel("Amplitude [linear]")
+    plt.xlabel(r"Frequency w.r.t. sampling frequency")
+    plt.title(r"Frequency response")
 
     plt.subplot(212)
     phase = np.unwrap(np.angle(H))
     plt.plot(w / max(w), phase)
-    plt.ylabel('Phase [radians]')
-    plt.xlabel(r'Frequency w.r.t. sampling frequency')
-    plt.title(r'Phase response')
+    plt.ylabel("Phase [radians]")
+    plt.xlabel(r"Frequency w.r.t. sampling frequency")
+    plt.title(r"Phase response")
     plt.subplots_adjust(hspace=0.5)
 
     plt.show()
