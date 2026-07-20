@@ -190,7 +190,7 @@ class LHCBeamControl(BeamFeedbackBase):
         """
         dphi_rf = self._main_cavities[0].delta_phi_rf
 
-        self.phase_difference(phase_noise=self.phase_noise)
+        self.update_phase_error(phase_noise=self.phase_noise)
         self.cavity_sum_phase(self.current_thres)
 
         # Take into account the synchronous phase
@@ -220,7 +220,8 @@ class LHCBeamControl(BeamFeedbackBase):
             A beam object to extract the beam attribute from.
         """
         voltages = self.get_from_all_rf_stations(
-            "get_main_harmonic_voltage", self._main_cavities
+            accessor=lambda rf: rf.get_main_harmonic_voltage(),
+            rf_station_list=self._main_cavities,
         )
 
         Q_s0 = calc_synchrotron_tune_single_harmonic(

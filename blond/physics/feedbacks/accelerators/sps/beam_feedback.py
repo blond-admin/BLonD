@@ -212,7 +212,7 @@ class SPSBeamControl(BeamFeedbackBase):
         )
 
         # Phase difference
-        self.phase_difference()
+        self.update_phase_error()
         self.cavity_sum_phase(self.current_thres)
 
         # Take into account the synchronous phase

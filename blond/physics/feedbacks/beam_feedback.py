@@ -229,10 +229,12 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         # Calculate RF phase based on the vectorial sum of all voltages on the main harmonic frequency
         phi_rfs = self.get_from_all_rf_stations(
-            "get_main_harmonic_phi_rf", rf_station_list=self._main_cavities
+            accessor=lambda rf: rf.get_main_harmonic_phi_rf(),
+            rf_station_list=self._main_cavities,
         )
         voltages = self.get_from_all_rf_stations(
-            "get_main_harmonic_voltage", rf_station_list=self._main_cavities
+            accessor=lambda rf: rf.get_main_harmonic_voltage(),
+            rf_station_list=self._main_cavities,
         )
         # Total RF phase for beam-phase calculation
         phi_rf = np.angle(np.sum(voltages * np.exp(1j * phi_rfs)))
@@ -254,9 +256,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             self.profile.hist_step,
         )
 
-        self.phi_beam = np.arctan(coeff)
+        self.phi_beam = np.arctan(float(coeff))
 
-    def phase_difference(self, phase_noise=None):
+    def update_phase_error(self, phase_noise=None):
         """
         Calculate phase difference between the beam and rf system.
 
@@ -291,6 +293,11 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         """
         filled_slots: NumpyArray | None = None
         cavity_sum: NumpyArray | None = None
+
+        # TODO: Remove warning with cavity feedback MR
+        warnings.warn(
+            "Cavity feedbacks are not yet implemented.", stacklevel=1
+        )
 
         # iterate over rf stations on the main harmonic
         # TODO: Handling of simulations with some main rf stations without cavity FB and some with
@@ -364,7 +371,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             rf stations.
         """
         harmonics = self.get_from_all_rf_stations(
-            method_or_attr="get_main_harmonic"
+            accessor=lambda rf: rf.get_main_harmonic()
         )
         self.main_harmonic = (
             np.min(harmonics)
@@ -389,7 +396,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         If some have feedbacks and others do not then a warning is raised.
         """
         cavity_feedback_list = self.get_from_all_rf_stations(
-            method_or_attr="get_main_harmonic_cavity_feedback",
+            accessor=lambda rf: rf.get_main_harmonic_cavity_feedback(),
             rf_station_list=self._main_cavities,
         )
 
