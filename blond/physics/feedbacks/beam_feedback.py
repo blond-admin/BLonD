@@ -85,7 +85,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
     average_de
         Average energy offset [eV] of the beam with respect to the synchronous energy.
     main_harmonic
-        The harmonic number of the main RF system.
+        The harmonic number of the main RF system. The type is int | None.
     """
 
     def __init__(
@@ -108,7 +108,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         self.drho = 0.0
         self.average_de = 0.0
-        self.main_harmonic: int | None = None
+        self.main_harmonic = (
+            None  # type is int | None, documented in class docstring
+        )
 
         self._main_cavities: list[RFStationBaseClass] | None = None
         self._simulation: Simulation | None = None
