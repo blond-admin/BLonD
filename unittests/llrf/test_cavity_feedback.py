@@ -60,7 +60,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         N_t = 1  # Number of turns to track
 
-        self.ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+        self.ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
         self.rf = RFStation(self.ring, h, V, phi)
 
         N_m = int(1e6)  # Number of macro-particles for tracking
@@ -78,7 +78,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         self.profile = Profile(
             self.beam,
-            CutOptions=CutOptions(
+            cut_options=CutOptions(
                 cut_left=(n_shift - 1.5) * self.rf.t_rf[0, 0],
                 cut_right=(n_shift + 2.5) * self.rf.t_rf[0, 0],
                 n_slices=4 * 64,
@@ -115,9 +115,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.cavity_tracker = RingAndRFTracker(
             self.rf,
             self.beam,
-            Profile=self.profile,
+            profile=self.profile,
             interpolation=True,
-            TotalInducedVoltage=self.induced_voltage,
+            total_induced_voltage=self.induced_voltage,
         )
 
         self.OTFB = SPSCavityFeedback(
@@ -135,9 +135,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.OTFB_tracker = RingAndRFTracker(
             self.rf,
             self.beam,
-            Profile=self.profile,
-            TotalInducedVoltage=None,
-            CavityFeedback=self.OTFB,
+            profile=self.profile,
+            total_induced_voltage=None,
+            cavity_feedback=self.OTFB,
             interpolation=True,
         )
 
@@ -623,7 +623,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.beam = Beam(self.ring, N_m, N_b)
         self.profile = Profile(
             self.beam,
-            CutOptions=CutOptions(
+            cut_options=CutOptions(
                 cut_left=0.0e-9,
                 cut_right=self.rfstation.t_rev[0],
                 n_slices=4620,
@@ -923,7 +923,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             2 * np.pi * 1100.009,
             1 / 18.0**2,
             25.92e9,
-            Particle=Proton(),
+            particle=Proton(),
             n_turns=1,
         )
         # Set up RF parameters
@@ -941,7 +941,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         )
         self.profile = Profile(
             self.beam,
-            CutOptions=CutOptions(
+            cut_options=CutOptions(
                 cut_left=0.0e-9, cut_right=self.rf.t_rev[0], n_slices=4620
             ),
         )
@@ -1058,7 +1058,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         alpha = 1 / gamma_t**2  # First order mom. comp. factor
 
         # Initialise necessary classes
-        ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
+        ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
         self.rf = RFStation(ring, [h], [V], [dphi])
         beam = Beam(ring, N_p, N_b)
         self.profile = Profile(beam)
