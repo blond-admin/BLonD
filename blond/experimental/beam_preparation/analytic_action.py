@@ -53,6 +53,7 @@ def action_from_potential_well(
     *,
     eom_factor_dE: float,
     single_bucket_tolerance: float = 1e-2,
+    allow_inner_buckets: bool = False,
     verbose: bool = False,
     plot: bool = False,
 ) -> tuple[NumpyArray, NumpyArray]:
@@ -82,6 +83,12 @@ def action_from_potential_well(
         :func:`check_single_bucket_well` (defined in
         ``analytic_potential_well``); loosen for coarsely sampled
         separatrix cuts, tighten for pristine stationary wells.
+    allow_inner_buckets
+        If True, a well with prominent inner maxima (e.g. split by an
+        induced potential during intensity iterations) is accepted with
+        a warning instead of raising; the zero-padded integral then
+        sums the islands below the inner separatrices (BLonD 2
+        behavior).
     verbose
         If True, print diagnostic quantities.
     plot
@@ -115,19 +122,25 @@ def action_from_potential_well(
         f"{time_array.shape=} must match {potential_well.shape=}"
     )
     check_single_bucket_well(
-        potential_well, relative_tolerance=single_bucket_tolerance
+        potential_well,
+        relative_tolerance=single_bucket_tolerance,
+        allow_inner_buckets=allow_inner_buckets,
     )
 
+    # Zero-padded formulation (as in BLonD 2): dE is zero outside the
+    # sublevel set and the integral runs over the full grid. On a single
+    # bucket this matches the masked integral; on a well with several
+    # minima (e.g. intensity-split, accepted via a loosened
+    # `single_bucket_tolerance`) it avoids the spurious gap-wide chord a
+    # masked integral would draw between disconnected islands, and the
+    # islands' areas are summed — the legacy semantics.
     action = np.zeros(len(potential_well), dtype=float)
     for index in range(len(potential_well)):
         hamiltonian_level = potential_well[index]
-        inside = potential_well <= hamiltonian_level
         deltaE_trajectory = np.sqrt(
-            (hamiltonian_level - potential_well[inside]) / eom_factor_dE
+            np.maximum(hamiltonian_level - potential_well, 0.0) / eom_factor_dE
         )
-        action[index] = (
-            np.trapezoid(deltaE_trajectory, x=time_array[inside]) / np.pi
-        )
+        action[index] = np.trapezoid(deltaE_trajectory, x=time_array) / np.pi
 
     order = potential_well.argsort()
     sorted_hamiltonian = potential_well[order]
@@ -231,9 +244,7 @@ def hamiltonian_from_emittance(
             f"bucket area {bucket_area:.4e} eV.s"
         )
     return float(
-        np.interp(
-            emittance / (2.0 * np.pi), sorted_action, sorted_hamiltonian
-        )
+        np.interp(emittance / (2.0 * np.pi), sorted_action, sorted_hamiltonian)
     )
 
 

@@ -72,6 +72,7 @@ def hamiltonian_grid(
     n_points_deltaE: int | None = None,
     energy_range: tuple[float, float] | None = None,
     single_bucket_tolerance: float = 1e-2,
+    allow_inner_buckets: bool = False,
     verbose: bool = False,
     plot: bool = False,
 ) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
@@ -117,6 +118,10 @@ def hamiltonian_grid(
         :func:`check_single_bucket_well` when the default
         ``energy_range`` is derived from the well; loosen for coarsely
         sampled separatrix cuts, tighten for pristine stationary wells.
+    allow_inner_buckets
+        If True, a well with prominent inner maxima (e.g. split by an
+        induced potential during intensity iterations) is accepted with
+        a warning instead of raising (BLonD 2 behavior).
     verbose
         If True, print diagnostic quantities.
     plot
@@ -150,7 +155,9 @@ def hamiltonian_grid(
 
     if energy_range is None:
         check_single_bucket_well(
-            potential_well, relative_tolerance=single_bucket_tolerance
+            potential_well,
+            relative_tolerance=single_bucket_tolerance,
+            allow_inner_buckets=allow_inner_buckets,
         )
         potential_well_amplitude = float(
             potential_well.max() - potential_well.min()

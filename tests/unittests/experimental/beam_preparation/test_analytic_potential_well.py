@@ -89,9 +89,7 @@ def test_eta_sign_flips_potential():
     time_array = bucket_time_array(OMEGA_RF, n_points=4000)
     total_voltage = _single_harmonic(time_array)
     common = dict(charge=1.0, t_rev=T_REV, subtract_min=False)
-    above = rf_potential_well(
-        time_array, total_voltage, eta_0=ETA_0, **common
-    )
+    above = rf_potential_well(time_array, total_voltage, eta_0=ETA_0, **common)
     below = rf_potential_well(
         time_array, total_voltage, eta_0=-ETA_0, **common
     )
@@ -123,9 +121,7 @@ def test_energy_gain_slope_sign_with_negative_charge():
     energy_gain = 1.0e5
     time_array = bucket_time_array(OMEGA_RF, n_points=8000)
     total_voltage = _single_harmonic(time_array)
-    common = dict(
-        charge=-1.0, t_rev=T_REV, eta_0=ETA_0, subtract_min=False
-    )
+    common = dict(charge=-1.0, t_rev=T_REV, eta_0=ETA_0, subtract_min=False)
     base = rf_potential_well(time_array, total_voltage, **common)
     tilted = rf_potential_well(
         time_array, total_voltage, energy_gain_per_turn=energy_gain, **common
@@ -158,9 +154,7 @@ def test_amplitude_scales_with_charge():
         t_rev=T_REV,
         eta_0=ETA_0,
     )
-    assert np.isclose(
-        well_qm1.max(), VOLTAGE / (np.pi * HARMONIC), rtol=1e-6
-    )
+    assert np.isclose(well_qm1.max(), VOLTAGE / (np.pi * HARMONIC), rtol=1e-6)
     # The convention holds: minimum sits mid-frame, not on an edge.
     n = len(time_array)
     assert 0.25 * n < well_qm1.argmin() < 0.75 * n
@@ -264,6 +258,44 @@ def test_check_accepts_sample_aligned_cut_of_tilted_well():
     i_right = i_min + int(np.argmax(well[i_min:] >= level))
     cut = well[i_unstable : i_right + 1]
     assert check_single_bucket_well(cut) is True
+
+
+def test_allow_inner_buckets_warns_instead_of_raising():
+    # Double-harmonic well with two sub-wells (inner maximum ~5 % of
+    # the amplitude) on a zero-margin frame: edges are the outer
+    # barriers, so only the inner structure is at stake.
+    time_array = bucket_time_array(OMEGA_RF, n_points=4000)
+    split_voltage = VOLTAGE * (
+        np.sin(OMEGA_RF * time_array)
+        + 0.8 * np.sin(2.0 * OMEGA_RF * time_array)
+    )
+    split_well = rf_potential_well(
+        time_array,
+        split_voltage,
+        charge=1.0,
+        t_rev=T_REV,
+        eta_0=ETA_0,
+    )
+    with pytest.raises(ValueError):
+        check_single_bucket_well(split_well)
+    with pytest.warns(UserWarning, match="inner"):
+        assert (
+            check_single_bucket_well(split_well, allow_inner_buckets=True)
+            is True
+        )
+    # The frame-edge criterion is NOT relaxed by allow_inner_buckets.
+    time_margined = bucket_time_array(
+        OMEGA_RF, n_points=2000, dt_margin_fraction=0.4
+    )
+    margined = rf_potential_well(
+        time_margined,
+        _single_harmonic(time_margined),
+        charge=1.0,
+        t_rev=T_REV,
+        eta_0=ETA_0,
+    )
+    with pytest.raises(ValueError):
+        check_single_bucket_well(margined, allow_inner_buckets=True)
 
 
 def test_shape_mismatch_raises():

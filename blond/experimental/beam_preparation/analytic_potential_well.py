@@ -21,6 +21,7 @@ single-bucket well and enforce it via :func:`check_single_bucket_well`.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -68,9 +69,7 @@ def bucket_time_array(
     """
     rf_period = 2.0 * np.pi / omega_rf
     margin = dt_margin_fraction * rf_period
-    return np.linspace(
-        -margin / 2.0, rf_period + margin / 2.0, int(n_points)
-    )
+    return np.linspace(-margin / 2.0, rf_period + margin / 2.0, int(n_points))
 
 
 def rf_potential_well(
@@ -181,6 +180,7 @@ def check_single_bucket_well(
     potential_well: NumpyArray,
     *,
     relative_tolerance: float = 1e-2,
+    allow_inner_buckets: bool = False,
     raise_error: bool = True,
 ) -> bool:
     """
@@ -209,6 +209,16 @@ def check_single_bucket_well(
         ignores sub-percent numerical wiggles, while still rejecting
         margined frames, multi-bucket spans and edge-split buckets
         (violations there are of order 0.1 to 1).
+    allow_inner_buckets
+        If True, prominent interior maxima (inner buckets — e.g. a well
+        split by the induced potential during intensity-matching
+        iterations) do not fail the check: a warning is emitted (as in
+        BLonD 2) and the caller proceeds with the full well. The
+        action/density machinery then integrates across the sub-wells,
+        summing the islands below the inner separatrices and neglecting
+        the fine structure. Humps below ``relative_tolerance`` are
+        ignored silently either way. The frame-edge criterion is still
+        enforced.
     raise_error
         If True (default), raise ``ValueError`` on failure; otherwise
         return False.
@@ -227,6 +237,7 @@ def check_single_bucket_well(
     potential_well = np.asarray(potential_well, dtype=float)
 
     problems = []
+    inner_buckets_message = None
     if potential_well.ndim != 1 or len(potential_well) < 3:
         problems.append(
             "a well needs at least 3 samples in a 1D array "
@@ -254,20 +265,35 @@ def check_single_bucket_well(
                     "well, or bucket split across the frame edges)"
                 )
             interior = potential_well[1:-1]
-            has_interior_maximum = bool(
-                np.any(
+            n_inner_maxima = int(
+                np.sum(
                     (interior > potential_well[:-2])
                     & (interior >= potential_well[2:])
                     & (interior > well_min + tolerance)
                 )
             )
-            if has_interior_maximum:
-                problems.append(
-                    "a prominent local maximum exists inside the frame "
-                    "(multi-bucket span or inner separatrix)"
-                )
+            if n_inner_maxima > 0:
+                if allow_inner_buckets:
+                    inner_buckets_message = (
+                        f"The potential well has {n_inner_maxima} "
+                        "prominent inner maximum(-a) — likely an "
+                        "induced potential splitting the well. "
+                        "Proceeding with the full well: F(H)/F(J) will "
+                        "integrate across the sub-wells (islands "
+                        "summed below the inner separatrices), "
+                        "neglecting the fine structure."
+                    )
+                else:
+                    problems.append(
+                        "a prominent local maximum exists inside the "
+                        "frame (multi-bucket span or inner separatrix; "
+                        "pass allow_inner_buckets=True to accept and "
+                        "warn instead)"
+                    )
 
     if not problems:
+        if inner_buckets_message is not None:
+            warnings.warn(inner_buckets_message, UserWarning, stacklevel=2)
         return True
     if raise_error:
         raise ValueError(
