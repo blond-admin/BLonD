@@ -12,6 +12,11 @@ Building blocks that reconstruct the single-turn RF potential well
 analytically, following the BLonD 2 ``potential_well_generation`` philosophy
 (the RF voltages are averaged over one turn). These feed the analytic
 distribution / line-density matchers ported from BLonD 2.
+
+The wells produced here are *uncut*: restricting a well to a single RF
+bucket (separatrix cut) is a separate, upcoming step. Downstream consumers
+(``hamiltonian_grid``, ``action_from_potential_well``) require a cut,
+single-bucket well and enforce it via :func:`check_single_bucket_well`.
 """
 
 from __future__ import annotations
@@ -28,7 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
 def bucket_time_array(
     omega_rf: float,
     n_points: int = 10_000,
-    dt_margin_percent: float = 0.0,
+    dt_margin_fraction: float = 0.0,
 ) -> NumpyArray:
     """
     Uniform time grid spanning one RF period of the main harmonic.
@@ -39,18 +44,30 @@ def bucket_time_array(
         Angular frequency of the main RF harmonic, in [rad/s].
     n_points
         Number of points in the grid.
-    dt_margin_percent
-        Fractional margin added on both sides of the RF period, so that
-        extrema sitting exactly on the edges remain visible. ``0.4`` adds
-        40 % of one RF period, split evenly before and after.
+    dt_margin_fraction
+        Fraction of one RF period added as margin, split evenly before
+        and after, so that extrema sitting exactly on the frame edges
+        remain visible. ``0.4`` adds 40 % of one RF period (same meaning
+        as the BLonD 2 ``dt_margin_percent`` parameter).
 
     Returns
     -------
     time_array
-        Time coordinates spanning one (optionally margined) RF period, in [s].
+        Time coordinates spanning one (optionally margined) RF period,
+        in [s].
+
+    Notes
+    -----
+    The frame spans ``[0, t_rf]`` plus margin. Following the BLonD 2
+    convention, choose ``phi_rf`` such that the stable phase sits near
+    the frame centre: for positive ``eta_0 * charge`` (e.g. protons
+    above transition) use ``phi_rf = 0``; for negative ``eta_0 * charge``
+    (e.g. protons below transition) use ``phi_rf = pi``. Otherwise the
+    bucket is split across the frame edges — detected loudly downstream
+    by :func:`check_single_bucket_well`.
     """
     rf_period = 2.0 * np.pi / omega_rf
-    margin = dt_margin_percent * rf_period
+    margin = dt_margin_fraction * rf_period
     return np.linspace(
         -margin / 2.0, rf_period + margin / 2.0, int(n_points)
     )
@@ -71,8 +88,8 @@ def rf_potential_well(
     r"""
     Analytic RF potential well from a total RF voltage waveform.
 
-    Integrates the RF voltage over one turn to obtain the effective potential
-    landscape the beam experiences, reproducing the BLonD 2
+    Integrates the RF voltage over one turn to obtain the effective
+    potential landscape the beam experiences, reproducing the BLonD 2
     ``potential_well_generation`` result:
 
     .. math::
@@ -90,10 +107,13 @@ def rf_potential_well(
     Parameters
     ----------
     time_array
-        Time coordinates of the voltage waveform, in [s]. May be non-uniform.
+        Time coordinates of the voltage waveform, in [s]. May be
+        non-uniform.
     total_voltage
-        Total RF voltage summed over all harmonics at ``time_array``, in [V]
-        (e.g. ``rf_station.calc_gap_voltage_without_feedbacks(ts=time_array)``).
+        Total RF voltage summed over all harmonics at ``time_array``,
+        in [V], as a host NumPy array — e.g. the output of
+        ``rf_station.calc_gap_voltage_without_feedbacks`` converted
+        with ``copy_to_cpu``.
     charge
         Particle charge, as number of elementary charges ``e``.
     t_rev
@@ -101,8 +121,8 @@ def rf_potential_well(
     eta_0
         Zeroth-order slippage factor. Only its sign enters the potential.
     energy_gain_per_turn
-        Design energy gain per turn, in [eV]. Zero for a coasting/constant
-        cycle; non-zero on a ramp, where it tilts the well.
+        Design energy gain per turn, in [eV]. Zero for a coasting or
+        constant cycle; non-zero on a ramp, where it tilts the well.
     subtract_min
         If True (default), shift the well so its minimum is at zero.
     verbose
@@ -114,6 +134,13 @@ def rf_potential_well(
     -------
     potential_well
         Effective potential at ``time_array``, in [eV].
+
+    Notes
+    -----
+    The returned well is *uncut*. Downstream Hamiltonian/action
+    functions require a single-bucket well (cut at the separatrix, with
+    the stable phase inside the frame — see the ``phi_rf`` convention in
+    :func:`bucket_time_array` and :func:`check_single_bucket_well`).
     """
     time_array = np.asarray(time_array, dtype=float)
     total_voltage = np.asarray(total_voltage, dtype=float)
@@ -138,7 +165,7 @@ def rf_potential_well(
     if verbose:
         print(
             "[rf_potential_well] "
-            f"eom_factor={eom_factor_potential:.3e} 1/(V.s), "
+            f"eom_factor={eom_factor_potential:.3e} e/s, "
             f"span={time_array[-1] - time_array[0]:.3e} s, "
             f"well min={potential_well.min():.3e} eV, "
             f"well max={potential_well.max():.3e} eV"
@@ -148,6 +175,109 @@ def rf_potential_well(
         _plot_potential_well(time_array, total_voltage, potential_well)
 
     return potential_well
+
+
+def check_single_bucket_well(
+    potential_well: NumpyArray,
+    *,
+    relative_tolerance: float = 1e-2,
+    raise_error: bool = True,
+) -> bool:
+    """
+    Check that a potential well is cut to a single RF bucket.
+
+    A single-bucket well decreases from a maximum at the first sample to
+    a unique minimum region and rises back to a maximum at the last
+    sample: both frame edges must reach the well maximum (within
+    tolerance) and no prominent local maximum may exist in between. The
+    2D Hamiltonian frame and the action integral are only meaningful on
+    such a well; margined frames, multi-bucket spans, tilted
+    (accelerating) uncut wells and wells with the minimum on a frame
+    edge all violate the condition and would silently corrupt the
+    results.
+
+    Parameters
+    ----------
+    potential_well
+        Potential well samples, in [eV]. At least 3 samples, no NaN.
+    relative_tolerance
+        Tolerance of the edge and interior-prominence criteria, relative
+        to the well depth. The default (``1e-2``) accepts sample-aligned
+        separatrix cuts of tilted wells (edge mismatch of order
+        ``slope * dt``, ~1e-4 to 1e-2 at realistic resolutions) and
+        ignores sub-percent numerical wiggles, while still rejecting
+        margined frames, multi-bucket spans and edge-split buckets
+        (violations there are of order 0.1 to 1).
+    raise_error
+        If True (default), raise ``ValueError`` on failure; otherwise
+        return False.
+
+    Returns
+    -------
+    is_single_bucket
+        True if the well satisfies the single-bucket condition.
+
+    Raises
+    ------
+    ValueError
+        If the well is not a single cut bucket and ``raise_error`` is
+        True.
+    """
+    potential_well = np.asarray(potential_well, dtype=float)
+
+    problems = []
+    if potential_well.ndim != 1 or len(potential_well) < 3:
+        problems.append(
+            "a well needs at least 3 samples in a 1D array "
+            f"(got shape {potential_well.shape})"
+        )
+    elif np.any(np.isnan(potential_well)):
+        # NaN compares False everywhere and would silently pass the
+        # numeric checks below (and bridge the action integral).
+        problems.append("the potential well contains NaN")
+    else:
+        well_max = float(potential_well.max())
+        well_min = float(potential_well.min())
+        barrier = well_max - well_min
+        if barrier <= 0.0:
+            problems.append("the potential well is flat")
+        else:
+            tolerance = relative_tolerance * barrier
+            if (
+                potential_well[0] < well_max - tolerance
+                or potential_well[-1] < well_max - tolerance
+            ):
+                problems.append(
+                    "the frame edges do not both reach the well "
+                    "maximum (margined frame, tilted/accelerating "
+                    "well, or bucket split across the frame edges)"
+                )
+            interior = potential_well[1:-1]
+            has_interior_maximum = bool(
+                np.any(
+                    (interior > potential_well[:-2])
+                    & (interior >= potential_well[2:])
+                    & (interior > well_min + tolerance)
+                )
+            )
+            if has_interior_maximum:
+                problems.append(
+                    "a prominent local maximum exists inside the frame "
+                    "(multi-bucket span or inner separatrix)"
+                )
+
+    if not problems:
+        return True
+    if raise_error:
+        raise ValueError(
+            "The potential well is not cut to a single bucket: "
+            + "; ".join(problems)
+            + ". Cut the well around the separatrix first (well-cut "
+            "step, see plan.md). Below transition, remember the "
+            "BLonD 2 convention phi_rf=pi (for positive charge) so "
+            "the stable phase sits mid-frame."
+        )
+    return False
 
 
 def _plot_potential_well(
