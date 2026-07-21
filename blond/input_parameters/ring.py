@@ -21,6 +21,7 @@ import numpy as np
 from scipy.constants import c
 
 from .ring_options import RingOptions
+from ..utils.exceptions import MissingParameterError
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:  # pragma: no cover  # only for Python type hints
@@ -80,6 +81,7 @@ class Ring:
     bending_radius : float
         Optional: Radius [m] of the bending magnets,
         required if 'bending field' is set for the synchronous_data_type
+    radiation_integrals : float array [5,1]
     n_sections : int
         Optional: number of ring sections/segments; default is 1
     alpha_1 : float (opt: float array/matrix [n_sections, n_turns+1])
@@ -223,6 +225,7 @@ class Ring:
         n_turns: int = 1,
         synchronous_data_type: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
+        radiation_integrals: Optional[NumpyArray] = None,
         n_sections: int = 1,
         alpha_1: None | float | list | tuple | NumpyArray = None,
         alpha_2: None | float | list | tuple | NumpyArray = None,
@@ -240,7 +243,6 @@ class Ring:
         )
         self.ring_circumference: float = np.sum(self.ring_length)
         self.ring_radius: float = self.ring_circumference / (2 * np.pi)
-
         self.bending_radius: Optional[float] = (
             float(bending_radius) if bending_radius is not None else None
         )
@@ -356,6 +358,11 @@ class Ring:
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
 
+        self.enable_synchrotron_radiation = False
+        self.assign_radiation_integrals(
+            radiation_integrals=radiation_integrals,
+            bending_radius=bending_radius)
+
     @property
     def Particle(self):
         from warnings import warn
@@ -399,6 +406,63 @@ class Ring:
             stacklevel=2,
         )
         self.ring_options = val
+
+    def assign_radiation_integrals(self, radiation_integrals, bending_radius):
+        """
+        Function to handle the synchrotron radiation integrals from an
+        input array or a bending radius input.
+        For more about synchrotron radiation damping and integral
+        definition, please refer to (non-exhaustive list):
+        A. Wolski, CAS Advanced Accelerator Physics, 19-29 August 2013
+        H. Wiedemann, Particle Accelerator Physics, Chapter Equilibrium
+        Particle Distribution, p. 384, Third Edition, Springer, 2007
+        """
+        if radiation_integrals is None:
+            if bending_radius is None:
+                    raise MissingParameterError(
+                        "Synchrotron radiation damping "
+                        "and quantum excitation require"
+                        " either the bending radius "
+                        + "for an isomagnetic ring, or the "
+                          "first five synchrotron radiation "
+                          "integrals."
+                    )
+            else:
+                self.bending_radius = bending_radius
+                self.I1 = self.alpha_0[0,0]*self.ring_circumference
+                self.I2 = 2.0 * np.pi / self.bending_radius
+                self.I3 = 2.0 * np.pi / self.bending_radius ** 2.0
+                self.I4 = (
+                        self.ring_circumference
+                        * self.alpha_0[0, 0]
+                        / self.bending_radius ** 2.0
+                )
+                self.I5 = 0
+        else:
+            if not isinstance(radiation_integrals, (np.ndarray, list)):
+                raise TypeError(
+                    f"Expected a list or a NDArray as an input. "
+                    f"Received type(radiation_integrals)="
+                    f"{type(radiation_integrals)}."
+                )
+            else:
+                integrals = np.array(radiation_integrals)
+                if len(integrals) < 5:
+                    raise ValueError(
+                        f"Length of radiation integrals must be "
+                        f"> 5, but is {len(integrals)}"
+                    )
+                if bending_radius is not None:
+                    warnings.warn(
+                        "Synchrotron radiation integrals prevail. "
+                        "'bending radius' is ignored."
+                    )
+                self.I1 = integrals[0]
+                self.I2 = integrals[1]
+                self.I3 = integrals[2]
+                self.I4 = integrals[3]
+                self.I5 = integrals[4]
+                self.enable_synchrotron_radiation = True
 
     def eta_generation(self):
         """Function to generate the slippage factors (zeroth, first, and
