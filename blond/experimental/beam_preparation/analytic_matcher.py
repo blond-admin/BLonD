@@ -46,7 +46,7 @@ from blond.experimental.beam_preparation.analytic_potential_well import (
 from blond.experimental.beam_preparation.analytic_well_cut import (
     cut_potential_well,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.generals.iterables_ import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -92,6 +92,9 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         Resolution of the internal time and energy grids.
     verbose
         If True, print matching diagnostics.
+    plot
+        If True, draw the requested (matched density) line density
+        against the generated macroparticle profile after sampling.
 
     Examples
     --------
@@ -121,6 +124,7 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         seed: int | None = 0,
         n_points_grid: int = 1000,
         verbose: bool = False,
+        plot: bool = False,
     ) -> None:
         super().__init__()
         if (bunch_length is None) == (emittance is None):
@@ -138,6 +142,7 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         self._seed = seed
         self._n_points_grid = int(n_points_grid)
         self._verbose = verbose
+        self._plot = plot
 
         #: Fitted distribution size parameter X0, in [eV] (after run).
         self.fitted_x_0: float | None = None
@@ -286,3 +291,43 @@ class AnalyticDistributionMatcher(MatchingRoutine):
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
         )
+
+        if self._plot:
+            self._plot_matched_profile(time_cut, line_density_values, beam)
+
+    def _plot_matched_profile(
+        self,
+        time_array,
+        line_density_values,
+        beam: BeamBaseClass,
+    ) -> None:
+        """Requested (matched density) vs generated beam profile."""
+        import matplotlib.pyplot as plt
+
+        time_step = float(time_array[1] - time_array[0])
+        requested_density = line_density_values / (
+            line_density_values.sum() * time_step
+        )  # probability density, in [1/s]
+        with AllowPlotting():
+            fig, ax = plt.subplots(num="AnalyticDistributionMatcher")
+            ax.hist(
+                copy_to_cpu(beam.read_partial_dt()),
+                bins=min(200, self._n_points_grid),
+                density=True,
+                alpha=0.5,
+                color="C0",
+                label="generated beam",
+            )
+            ax.plot(
+                time_array,
+                requested_density,
+                color="C1",
+                lw=2.0,
+                label="requested (matched density)",
+            )
+            ax.set_xlabel("Time [s]")
+            ax.set_ylabel("Line density [1/s]")
+            ax.set_title(f"{self._distribution_type}: requested vs generated")
+            ax.legend(loc="upper right")
+            ax.grid(alpha=0.3)
+            fig.tight_layout()

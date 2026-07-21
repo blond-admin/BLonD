@@ -98,6 +98,25 @@ def test_seed_reproducibility():
     np.testing.assert_array_equal(dts[0], dts[1])
 
 
+def test_plot_smoke():
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
+    import matplotlib.pyplot as plt
+
+    simulation, beam = _build_simulation()
+    matcher = AnalyticDistributionMatcher(
+        n_macroparticles=1_000,
+        distribution_type="gaussian",
+        bunch_length=1.0e-9,
+        seed=0,
+        n_points_grid=200,
+        plot=True,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+    plt.close("all")
+
+
 def test_target_validation():
     with pytest.raises(ValueError, match="exactly one"):
         AnalyticDistributionMatcher(
