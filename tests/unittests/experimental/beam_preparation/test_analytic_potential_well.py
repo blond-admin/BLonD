@@ -135,8 +135,8 @@ def test_energy_gain_slope_sign_with_negative_charge():
     assert np.isclose(coeffs[0], expected_slope, rtol=1e-6)
 
 
-def test_barrier_scales_with_charge():
-    # Stationary single-harmonic barrier is |q| * V / (pi * h).
+def test_amplitude_scales_with_charge():
+    # Stationary single-harmonic well amplitude is |q| * V / (pi * h).
     time_array = bucket_time_array(OMEGA_RF, n_points=8000)
     # q = +2, above transition, phi_rf = 0 (stable phase mid-frame)
     well_q2 = rf_potential_well(
@@ -241,7 +241,7 @@ def test_check_single_bucket_well():
 def test_check_accepts_sample_aligned_cut_of_tilted_well():
     # A separatrix cut done BLonD 2 style (sample-aligned, no endpoint
     # interpolation) of an accelerating well: the cut edges mismatch by
-    # ~slope*dt (~4e-4 of the barrier at n=20000), which the default
+    # ~slope*dt (~4e-4 of the well amplitude at n=20000) — the default
     # tolerance must accept.
     time_array = bucket_time_array(OMEGA_RF, n_points=20000)
     well = rf_potential_well(

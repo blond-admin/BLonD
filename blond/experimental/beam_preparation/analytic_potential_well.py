@@ -202,7 +202,8 @@ def check_single_bucket_well(
         Potential well samples, in [eV]. At least 3 samples, no NaN.
     relative_tolerance
         Tolerance of the edge and interior-prominence criteria, relative
-        to the well depth. The default (``1e-2``) accepts sample-aligned
+        to the potential-well amplitude (max minus min). The default
+        (``1e-2``) accepts sample-aligned
         separatrix cuts of tilted wells (edge mismatch of order
         ``slope * dt``, ~1e-4 to 1e-2 at realistic resolutions) and
         ignores sub-percent numerical wiggles, while still rejecting
@@ -238,11 +239,11 @@ def check_single_bucket_well(
     else:
         well_max = float(potential_well.max())
         well_min = float(potential_well.min())
-        barrier = well_max - well_min
-        if barrier <= 0.0:
+        potential_well_amplitude = well_max - well_min
+        if potential_well_amplitude <= 0.0:
             problems.append("the potential well is flat")
         else:
-            tolerance = relative_tolerance * barrier
+            tolerance = relative_tolerance * potential_well_amplitude
             if (
                 potential_well[0] < well_max - tolerance
                 or potential_well[-1] < well_max - tolerance
