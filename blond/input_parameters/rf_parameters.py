@@ -277,7 +277,14 @@ class RFStation:
         self.delta_E = ring.delta_E[self.section_index]
         self.alpha_order = ring.alpha_order
         self.charge = self.particle.charge
-
+        self.enable_synchrotron_radiation = False
+        if ring.enable_synchrotron_radiation:
+            self.enable_synchrotron_radiation = True
+            self.I1 = ring.I1
+            self.I2 = ring.I2
+            self.I3 = ring.I3
+            self.I4 = ring.I4
+            self.I5 = ring.I5
         # The order alpha_order used here can be replaced by Ring.alpha_order
         # when the assembler can differentiate the cases 'simple' and 'exact'
         # for the drift
@@ -709,6 +716,14 @@ def calculate_phi_s(
         acceleration_ratio = denergy / (
             particle.charge * rf_station.voltage[0, :]
         )
+        if rf_station.enable_synchrotron_radiation:
+            energy_loss_per_turn = (particle.c_gamma / ( 2 * np.pi) *
+                                    np.append(rf_station.energy[1:],
+                                              rf_station.energy[0])**4
+                                    )*rf_station.I2
+            acceleration_ratio += energy_loss_per_turn/ (
+            particle.charge * rf_station.voltage[0, :])
+            
         acceleration_test = (
             (acceleration_ratio > -1) & (acceleration_ratio < 1)
         ) == 0
