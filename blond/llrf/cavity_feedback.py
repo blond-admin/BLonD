@@ -1623,14 +1623,15 @@ class LHCCavityLoop(CavityFeedback):
         if not no_beam:
             # Resample generator current to the fine-grid
             if isinstance(self.profile, SparseBatch):
-                # reinitialisation necessary in case of multi-turn injection
-                self.I_GEN_FINE = np.zeros(self.profile.n_slices + 1,
-                                           dtype=complex)
+                # lengthening necessary in case of multi-turn injection
+                if len(self.I_GEN_FINE) != self.profile.n_slices + 1:
+                    difference = len(self.I_GEN_FINE) - (
+                            self.profile.n_slices + 1)
+                    self.I_GEN_FINE = np.concatenate((self.I_GEN_FINE,
+                                                      np.zeros(difference,
+                                               dtype=complex)))
                 for p, profile in enumerate(self.profile.profiles_list):
-                    # reinitialisation necessary in case of multi-turn injection
-                    self.I_GEN_FINE = np.zeros(
-                        self.profile.n_slices + 1, dtype=complex
-                    )
+
                     if p == 0:
                         self.I_GEN_FINE[0 : profile.n_slices + 1] = np.interp(
                             np.concatenate(
@@ -1722,10 +1723,13 @@ class LHCCavityLoop(CavityFeedback):
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.bin_size
         if isinstance(self.profile, SparseBatch):
-            # reinitialisation necessary in case of multi-turn injection
-            self.V_ANT_FINE = np.zeros(
-                self.profile.n_slices + 1, dtype=complex
-            )
+            # lengthening necessary in case of multi-turn injection
+            if len(self.V_ANT_FINE) != self.profile.n_slices + 1:
+                difference = len(self.V_ANT_FINE) - (
+                        self.profile.n_slices + 1)
+                self.V_ANT_FINE = np.concatenate((self.V_ANT_FINE,
+                                                  np.zeros(difference,
+                                                           dtype=complex)))
             for p, profile in enumerate(self.profile.profiles_list):
                 if p == 0:
                     self.V_ANT_FINE[0 : profile.n_slices + 1] = (
