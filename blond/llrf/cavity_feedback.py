@@ -1626,13 +1626,13 @@ class LHCCavityLoop(CavityFeedback):
             if isinstance(self.profile, SparseBatch):
                 # lengthening necessary in case of multi-turn injection
                 if len(self.I_GEN_FINE) != self.profile.n_slices + 1:
-                    difference = len(self.I_GEN_FINE) - (
-                            self.profile.n_slices + 1)
-                    self.I_GEN_FINE = np.concatenate((self.I_GEN_FINE,
-                                                      np.zeros(difference,
-                                               dtype=complex)))
+                    difference = (
+                        self.profile.n_slices + 1 - len(self.I_GEN_FINE)
+                    )
+                    self.I_GEN_FINE = np.concatenate(
+                        (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
+                    )
                 for p, profile in enumerate(self.profile.profiles_list):
-
                     if p == 0:
                         self.I_GEN_FINE[0 : profile.n_slices + 1] = np.interp(
                             np.concatenate(
@@ -1726,11 +1726,10 @@ class LHCCavityLoop(CavityFeedback):
         if isinstance(self.profile, SparseBatch):
             # lengthening necessary in case of multi-turn injection
             if len(self.V_ANT_FINE) != self.profile.n_slices + 1:
-                difference = len(self.V_ANT_FINE) - (
-                        self.profile.n_slices + 1)
-                self.V_ANT_FINE = np.concatenate((self.V_ANT_FINE,
-                                                  np.zeros(difference,
-                                                           dtype=complex)))
+                difference = self.profile.n_slices + 1 - len(self.V_ANT_FINE)
+                self.V_ANT_FINE = np.concatenate(
+                    (self.V_ANT_FINE, np.zeros(difference, dtype=complex))
+                )
             for p, profile in enumerate(self.profile.profiles_list):
                 if p == 0:
                     self.V_ANT_FINE[0 : profile.n_slices + 1] = (
@@ -2397,6 +2396,7 @@ class LHCCavityLoop(CavityFeedback):
         """
 
         return voltage / (R_over_Q * real_peak_beam_current)
+
 
 class FCCBoosterCavityLoop(LHCCavityLoop):
     r"""Cavity loop to regulate the RF voltage in the FCC ACS cavities.
