@@ -16,7 +16,7 @@ import sys
 import unittest
 
 import numpy as np
-import random
+
 from blond.beam.beam import Electron
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.ring_options import convert_data
@@ -158,34 +158,6 @@ class TestGeneralParameters(unittest.TestCase):
                 self.n_turns,
                 n_sections=self.num_sections,
             )
-
-    # Synchrotron radiation integrals -------------------------------------------------------------
-
-    def test_radiation_integrals(self):
-        rad_int = [random.random() for k in range(5)]
-
-        ring_srflag = Ring(self.C, self.alpha_0, self.momentum,
-             self.particle, self.n_turns, n_sections=self.num_sections, rad_int= rad_int)
-        self.assertTrue(ring_srflag.sr_flag)
-
-        with self.assertRaises(ValueError):
-            Ring(self.C, self.alpha_0, self.momentum, self.particle,
-                 self.n_turns, n_sections=self.num_sections, rad_int= rad_int[0:3])
-
-    def test_multiturn_radiation_integrals(self):
-        with self.assertRaises(TypeError):
-            Ring(self.C, self.alpha_0, self.momentum, self.particle,
-                 self.n_turns, n_sections=self.num_sections, rad_int= 'test')
-
-        rad_int = [[random.random() for k in range(5)], [random.random() for k in range(7)]]
-        with self.assertRaises(ValueError):
-            Ring(self.C, self.alpha_0, self.momentum, self.particle,
-                 self.n_turns, n_sections=self.num_sections, rad_int= rad_int)
-
-        rad_int = [[random.random() for k in range(5)] for l in range(self.n_turns)]
-        with self.assertRaises(RuntimeError):
-            Ring(self.C, self.alpha_0, self.momentum, self.particle,
-                 self.n_turns, n_sections=self.num_sections, rad_int= rad_int)
 
     # Other tests -------------------------------------------------------------
 

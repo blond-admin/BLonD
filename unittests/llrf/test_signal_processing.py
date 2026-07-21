@@ -16,18 +16,11 @@ Unittest for llrf.filters
 import unittest
 
 import numpy as np
-import matplotlib.pyplot as plt
-
 from scipy.constants import e
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_profiles import (
-    SparseProfileBaseClass,
-    SparseBatch,
-    SparseBucket,
-)
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.impulse_response import (
@@ -57,102 +50,6 @@ from blond.llrf.signal_processing import (
     fir_filter,
 )
 
-# ---------------------------------------------------------------------------
-# Shared machine parameters (LHC-like), reused by every test class below.
-# These match the parameters used in BLonD's own TestLHCOpenDrive unittest,
-# so the reference numbers in TestLHCCavityLoopStandardProfile are directly
-# comparable to the values already verified upstream.
-# ---------------------------------------------------------------------------
-RING_CIRCUMFERENCE = 26658.883  # Machine circumference [m]
-SYNCHRONOUS_MOMENTUM = 450e9  # [eV/c]
-HARMONIC_NUMBER = 35640
-RF_VOLTAGE = 4e6  # [V]
-RF_PHASE = 0
-GAMMA_TRANSITION = 53.8
-MOM_COMPACTION = 1 / GAMMA_TRANSITION**2
-
-N_MACROPARTICLES = int(1e5)
-BUNCH_INTENSITY = 1e11
-BUNCH_SIGMA_DT = 0.5e-9
-number_of_bunches = 100  # Length of the batch [number of bunches]
-bunch_spacing = 10  # Bunch spacing [number of rf buckets]
-
-def build_ring_and_rf():
-    """Build the Ring/RFStation pair shared by all tests."""
-    ring = Ring(
-        RING_CIRCUMFERENCE,
-        MOM_COMPACTION,
-        SYNCHRONOUS_MOMENTUM,
-        particle=Proton(),
-        n_turns=1,
-    )
-    rf_station = RFStation(
-        ring, [HARMONIC_NUMBER], [RF_VOLTAGE], [RF_PHASE]
-    )
-    return ring, rf_station
-
-
-def build_beam(ring, rf_station, seed=1234):
-    """Build a Gaussian bunch so that Profile/SparseBatch slicing is
-    well defined (an empty/point beam makes bin_size degenerate)."""
-    # The beam
-
-    # Beam object for the batch
-    N_m = N_MACROPARTICLES * number_of_bunches
-    N_p = BUNCH_INTENSITY * number_of_bunches
-    beam = Beam(ring, N_m, N_p)
-    # First generate a single gaussian bunch
-    single_bunch = Beam(ring, N_MACROPARTICLES, BUNCH_INTENSITY)
-    bigaussian(
-        ring,
-        rf_station,
-        beam,
-        sigma_dt=BUNCH_SIGMA_DT,
-        seed=seed,
-        reinsertion=True,
-    )
-    # Copy the bunch throughout the batch
-    for i in range(number_of_bunches):
-        beam.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
-            single_bunch.dE
-        )
-        beam.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
-                single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
-        )
-    return beam
-
-
-def build_standard_profile(beam, rf_station, n_slices):
-    """A standard Profile covering the injected bunches and an extra bucket."""
-    profile = Profile(
-        beam,
-        CutOptions(cut_left=0.0, cut_right=(bunch_spacing * number_of_bunches + 1)
-            * rf_station.t_rf[
-                0,
-                0,
-            ],
-                   n_slices=n_slices * (bunch_spacing * number_of_bunches + 1)),
-    )
-    profile.track()
-    return profile
-
-
-def build_full_turn_sparse_profile(beam, rf_station, n_slices):
-    """A SparseBatch profile with a profile per number of bunches.
-    """
-    batch_list = np.zeros(HARMONIC_NUMBER)
-    for k in range(number_of_bunches):
-        batch_list[k * bunch_spacing] = 1
-    sparse_profile = SparseBatch(
-        rf_station=rf_station,
-        beam=beam,
-        number_of_slices_per_profile=(int(bunch_spacing/2)+1) * n_slices,
-        batch_list=batch_list,
-        batch_length=int(bunch_spacing/2)+1,
-        tracker_mode="onebyone",
-    )
-    sparse_profile.track()
-    return sparse_profile
 
 class TestIQ(unittest.TestCase):
     # Run before every test
@@ -302,6 +199,7 @@ class TestModulator(unittest.TestCase):
         ):
             modulator(signal, self.f_rf, self.f_0, self.T_s)
 
+
 class TestRFCurrent(unittest.TestCase):
     def setUp(self):
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
@@ -323,7 +221,7 @@ class TestRFCurrent(unittest.TestCase):
         self.beam = Beam(self.ring, N_m, N_b)
         self.profile = Profile(
             self.beam,
-            CutOptions=CutOptions(
+            cut_options=CutOptions(
                 cut_left=-2e-9, cut_right=8e-9, n_slices=100
             ),
         )
@@ -351,7 +249,7 @@ class TestRFCurrent(unittest.TestCase):
         rf_theo_real = (
             2
             * self.beam.ratio
-            * self.profile.Beam.Particle.charge
+            * self.profile.beam.particle.charge
             * e
             * 2600
             * np.exp(-((t - 2.5e-9) ** 2) / (2 * 0.5 * 1e-9) ** 2)
@@ -362,7 +260,7 @@ class TestRFCurrent(unittest.TestCase):
         rf_theo_imag = (
             -2
             * self.beam.ratio
-            * self.profile.Beam.Particle.charge
+            * self.profile.beam.particle.charge
             * e
             * 2600
             * np.exp(-((t - 2.5e-9) ** 2) / (2 * 0.5 * 1e-9) ** 2)
@@ -902,7 +800,7 @@ class TestRFCurrent(unittest.TestCase):
             beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
         profile2 = Profile(
             beam2,
-            CutOptions=CutOptions(
+            cut_options=CutOptions(
                 cut_left=0,
                 cut_right=bunches * bunch_spacing,
                 n_slices=1000 * buckets,
@@ -1032,7 +930,7 @@ class TestFeedforwardFilter(unittest.TestCase):
     def setUp(self):
         # Ring and RF definitions
         ring = Ring(
-            2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, Particle=Proton()
+            2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, particle=Proton()
         )
         rf = RFStation(ring, [4620], [4.5e6], [0.0], n_rf=1)
         self.T_s = 5 * rf.t_rf[0, 0]
