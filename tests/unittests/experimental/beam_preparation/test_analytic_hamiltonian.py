@@ -67,9 +67,7 @@ def test_default_deltaE_frame_is_separatrix():
     # In the well-minimum column at dE=dE_max: H = amplitude + V.min(),
     # i.e. exactly the well maximum.
     i_min = int(well.argmin())
-    assert np.isclose(
-        EOM_FACTOR_DE * deltaE_max**2, potential_well_amplitude
-    )
+    assert np.isclose(EOM_FACTOR_DE * deltaE_max**2, potential_well_amplitude)
     assert np.isclose(hamilton[:, i_min].max(), well.max(), rtol=1e-9)
 
 
