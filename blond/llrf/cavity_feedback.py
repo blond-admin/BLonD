@@ -1755,6 +1755,17 @@ class LHCCavityLoop(CavityFeedback):
                     )
 
                 else:
+                    # find the closest previous profile
+                    distances = np.array(
+                        [
+                            profile.bin_centers[0] - profile_.bin_centers[-1]
+                            for profile_ in self.profile.profiles_list
+                        ]
+                    )
+                    minimum = min(distances[distances > 0])
+                    index_profile_to_use = int(
+                        np.where(distances == minimum)[0][0]
+                    )
                     # flipped arange to ensure all the bin centers of the
                     # current profile are in the extended profile bin centers
                     first_half = np.arange(
