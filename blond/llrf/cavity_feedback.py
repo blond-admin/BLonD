@@ -1771,7 +1771,7 @@ class LHCCavityLoop(CavityFeedback):
                     first_half = np.arange(
                         start=profile.bin_centers[0],
                         stop=(
-                            self.profile.profiles_list[p - 1].bin_centers[0]
+                            self.profile.profiles_list[index_profile_to_use].bin_centers[0]
                         ),
                         step=-profile.bin_size,
                     )
@@ -1792,7 +1792,8 @@ class LHCCavityLoop(CavityFeedback):
                         self.rf_centers,
                         self.I_GEN_COARSE[-self.n_coarse :],
                     )
-
+                    difference = (len(I_GEN_FINE_previous_profile_extended)
+                                  - profile.n_slices)
                     I_BEAM_FINE_previous_profile_extended = np.concatenate(
                         (
                             self.I_BEAM_FINE[
@@ -1800,8 +1801,7 @@ class LHCCavityLoop(CavityFeedback):
                                 * profile.n_slices
                             ],
                             np.zeros(
-                                len(I_GEN_FINE_previous_profile_extended)
-                                - profile.n_slices,
+                                difference,
                                 dtype=complex,
                             ),
                         )
