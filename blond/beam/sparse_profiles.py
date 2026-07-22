@@ -23,7 +23,7 @@ import numpy as np
 
 from .profile import CutOptions, Profile
 from ..utils import bmath as bm
-from ..utils.butils_wrap_python import sparse_histogram
+from ..utils.build_wrap_python import sparse_histogram
 
 if TYPE_CHECKING:
     from typing import Literal
