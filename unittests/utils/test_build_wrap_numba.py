@@ -27,8 +27,8 @@ from blond.impedances.music import Music
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.utils import bmath as bm
-from blond.utils.butils_wrap_cpp import get_libblond
-from blond.utils.butils_wrap_numba import (
+from blond.utils.build_wrap_cpp import get_libblond
+from blond.utils.build_wrap_numba import (
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba,
     _resonator_induced_voltage_1_turn,
     distribution_from_tomoscope,
@@ -38,7 +38,7 @@ from blond.utils.butils_wrap_numba import (
     synchrotron_radiation,
     synchrotron_radiation_full,
 )
-from blond.utils.butils_wrap_python import (
+from blond.utils.build_wrap_python import (
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_python,
 )
 

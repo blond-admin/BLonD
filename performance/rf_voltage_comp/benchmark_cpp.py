@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from blond.utils import butils_wrap_cpp
+from blond.utils import build_wrap_cpp
 
 
 def main():
