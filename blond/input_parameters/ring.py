@@ -417,10 +417,22 @@ class Ring:
         H. Wiedemann, Particle Accelerator Physics, Chapter Equilibrium
         Particle Distribution, p. 384, Third Edition, Springer, 2007
         """
-        if bending_radius is None:
-            if radiation_integrals is None:
+        if radiation_integrals is None:
+            if bending_radius is None :
                 pass
-            elif not isinstance(radiation_integrals, (np.ndarray, list)):
+            else:
+                self.bending_radius = bending_radius
+                self.I1 = self.alpha_0[0, 0] * self.ring_circumference
+                self.I2 = 2.0 * np.pi / self.bending_radius
+                self.I3 = 2.0 * np.pi / self.bending_radius ** 2.0
+                self.I4 = (
+                        self.ring_circumference
+                        * self.alpha_0[0, 0]
+                        / self.bending_radius ** 2.0
+                )
+                self.I5 = 0
+        else:
+            if not isinstance(radiation_integrals, (np.ndarray, list)):
                 raise TypeError(
                     f"Expected a list or a NDArray as an input. "
                     f"Received type(radiation_integrals)="
@@ -444,17 +456,6 @@ class Ring:
                 self.I4 = integrals[3]
                 self.I5 = integrals[4]
                 self.enable_synchrotron_radiation = True
-        else:
-            self.bending_radius = bending_radius
-            self.I1 = self.alpha_0[0, 0] * self.ring_circumference
-            self.I2 = 2.0 * np.pi / self.bending_radius
-            self.I3 = 2.0 * np.pi / self.bending_radius ** 2.0
-            self.I4 = (
-                    self.ring_circumference
-                    * self.alpha_0[0, 0]
-                    / self.bending_radius ** 2.0
-            )
-            self.I5 = 0
 
     def eta_generation(self):
         """Function to generate the slippage factors (zeroth, first, and
