@@ -575,7 +575,9 @@ class TestIQCavityFeedbackTimingClass:
 
         pass
 
-    def setup_simulation_multisection(self, n_sections, circumference):
+    def setup_simulation_multisection(
+        self, n_sections, circumference, sandwich_profiles=False
+    ):
         ring = Ring(circumference=circumference, check_section_indices=False)
         n_rf_points = 1
         element_list = []
@@ -588,6 +590,13 @@ class TestIQCavityFeedbackTimingClass:
                     section_index=section,
                 )
             )
+            if sandwich_profiles:
+                # Two-beam-compliant layout: every live profile is tracked
+                # on BOTH sides of its consumer, so each of the two
+                # counter-rotating beams re-histograms it immediately before
+                # the consumer in its own traversal order (enforced by the
+                # counter-rotating mainloop's placement check).
+                element_list.append(self.profile)
             timing_fdbk_list.append(
                 IQCavityFeedbackTimingClass(
                     profile=self.profile,
@@ -611,6 +620,8 @@ class TestIQCavityFeedbackTimingClass:
             )
             rf_station.attach_cavity_feedback(timing_fdbk_list[-1])
             element_list.append(rf_station)
+            if sandwich_profiles:
+                element_list.append(self.profile)
             element_list.append(
                 DriftSimple(
                     momentum_compaction_factor=5,
@@ -618,9 +629,10 @@ class TestIQCavityFeedbackTimingClass:
                     section_index=section,
                 )
             )
-            element_list.append(
-                StaticProfile.from_cutoff(0, 1e-9, 5e9, section_index=section)
+            section_profile = StaticProfile.from_cutoff(
+                0, 1e-9, 5e9, section_index=section
             )
+            element_list.append(section_profile)
             element_list.append(
                 WakeField(
                     section_index=section,
@@ -632,8 +644,14 @@ class TestIQCavityFeedbackTimingClass:
                         ),
                     ),
                     solver=SingleTurnResonatorConvolutionSolver(),
+                    # Bind explicitly: with sandwich_profiles the section
+                    # holds several profile placements, so the per-section
+                    # auto-binding scan would refuse to pick one.
+                    profile=section_profile,
                 )
             )
+            if sandwich_profiles:
+                element_list.append(section_profile)
         ring.add_elements(element_list)
 
         return ring, element_list, timing_fdbk_list
@@ -1284,7 +1302,12 @@ class TestIQCavityFeedbackTimingClass:
 
         ring, element_list, timing_fdbk_list = (
             self.setup_simulation_multisection(
-                circumference=circumference, n_sections=n_sections
+                circumference=circumference,
+                n_sections=n_sections,
+                # Two-beam run: the counter-rotating mainloop's
+                # placement check requires every live profile to be
+                # tracked on both sides of its consumer.
+                sandwich_profiles=True,
             )
         )
 

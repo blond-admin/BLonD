@@ -321,14 +321,14 @@ class Resonators(
     Parameters
     ----------
     shunt_impedances
-        Shunt impedances of the resonant circuits, in [:math:`\omega`].
+        Shunt impedances of the resonant circuits, in [:math:`\Omega`].
     center_frequencies
         Center frequencies of the resonances, in [Hz].
     quality_factors
         Quality factors (Q) of the resonances, dimensionless.
-    shunt_impedances_counter_rotating
+    shunt_impedances_counter_witness
         Shunt impedances a *counter-rotating* witness experiences from the
-        wake of an opposite-direction source, in [:math:`\omega`]. The
+        wake of an opposite-direction source, in [:math:`\Omega`]. The
         witness's reversed integration direction through the mode field is
         part of this parameter's definition, so with the beam-current signs
         (charge x direction) on the source and kick side:
@@ -341,6 +341,11 @@ class Resonators(
           add up and receive the same kick, while same-charge beams cancel.
           The sign is a property of the mode's field symmetry, not of
           fundamental modes in general.
+    shunt_impedances_counter_rotating
+        Removed legacy name of ``shunt_impedances_counter_witness``.
+        Passing it raises :class:`TypeError`: the rename came with a
+        sign-convention change, so old values must be re-derived rather
+        than silently reinterpreted.
 
     Notes
     -----
@@ -355,11 +360,27 @@ class Resonators(
         shunt_impedances: ArrayLike | float | int,
         center_frequencies: ArrayLike | float | int,
         quality_factors: ArrayLike | float | int,
-        shunt_impedances_counter_rotating: NumpyArray
+        shunt_impedances_counter_witness: NumpyArray
         | float
         | ArrayLike
         | None = None,
+        shunt_impedances_counter_rotating: None = None,
     ):
+        # Legacy-name trap: the parameter was renamed together with a SIGN
+        # CONVENTION change, so silently accepting (or auto-converting) the
+        # old name could invert the counter-rotating cross-coupling of an
+        # existing configuration. Fail loudly instead.
+        if shunt_impedances_counter_rotating is not None:
+            raise TypeError(
+                "shunt_impedances_counter_rotating was renamed to "
+                "shunt_impedances_counter_witness after a sign-convention "
+                "change: the parameter is now the shunt the "
+                "counter-rotating witness *experiences*, its reversed "
+                "integration direction included (an asymmetric fundamental "
+                "mode has -R; +R makes same-charge counter-rotating beams "
+                "add up). Re-derive the sign for your mode, then pass "
+                "shunt_impedances_counter_witness."
+            )
         super().__init__(is_dynamic=False)
 
         if isinstance(shunt_impedances, numbers.Number):
@@ -390,20 +411,20 @@ class Resonators(
         )
         self._n_resonators = len(shunt_impedances)
 
-        self._shunt_impedances_counter_rotating: (
+        self._shunt_impedances_counter_witness: (
             NumpyArray | CupyArray | None
         ) = None
 
-        if shunt_impedances_counter_rotating is not None:
-            if isinstance(shunt_impedances_counter_rotating, float | int):
-                shunt_impedances_counter_rotating = [
-                    shunt_impedances_counter_rotating
+        if shunt_impedances_counter_witness is not None:
+            if isinstance(shunt_impedances_counter_witness, float | int):
+                shunt_impedances_counter_witness = [
+                    shunt_impedances_counter_witness
                 ]
-            self._shunt_impedances_counter_rotating = backend.array(
-                shunt_impedances_counter_rotating
+            self._shunt_impedances_counter_witness = backend.array(
+                shunt_impedances_counter_witness
             )
 
-            assert len(self._shunt_impedances_counter_rotating) == len(
+            assert len(self._shunt_impedances_counter_witness) == len(
                 self._shunt_impedances
             ), (
                 "Array lengths between co- and counterrotating impedances need to match."
@@ -411,7 +432,7 @@ class Resonators(
 
             for imp, imp_cr in zip(
                 self._shunt_impedances,
-                self._shunt_impedances_counter_rotating,
+                self._shunt_impedances_counter_witness,
                 strict=False,
             ):
                 assert backend.isclose(
@@ -655,9 +676,10 @@ class Resonators(
         wake_potential
             Potential array, in [V].
         """
-        if self._shunt_impedances_counter_rotating is None:
+        if self._shunt_impedances_counter_witness is None:
             raise RuntimeError(
-                "_shunt_impedances_counter_rotating needs to be set before calling this function."
+                "shunt_impedances_counter_witness needs to be set on this "
+                "Resonators source before calling this function."
             )
 
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
@@ -676,7 +698,7 @@ class Resonators(
                     # add up, and an *asymmetric* fundamental mode (opposite
                     # charges add up / receive the same kick) has
                     # R_CR = -R.
-                    -self._shunt_impedances_counter_rotating[res_ind]
+                    -self._shunt_impedances_counter_witness[res_ind]
                     * self._alpha[res_ind]
                     * backend.exp(-self._alpha[res_ind] * time)
                 )
@@ -753,9 +775,10 @@ class Resonators(
         wake_quadrature
             Quadrature wake potential array, in [V].
         """
-        if self._shunt_impedances_counter_rotating is None:
+        if self._shunt_impedances_counter_witness is None:
             raise RuntimeError(
-                "_shunt_impedances_counter_rotating needs to be set before calling this function."
+                "shunt_impedances_counter_witness needs to be set on this "
+                "Resonators source before calling this function."
             )
 
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
@@ -766,7 +789,7 @@ class Resonators(
                 * (
                     # Same witness-direction sign convention as
                     # get_wake_counter_rotation (see there).
-                    -self._shunt_impedances_counter_rotating[res_ind]
+                    -self._shunt_impedances_counter_witness[res_ind]
                     * self._alpha[res_ind]
                     * backend.exp(-self._alpha[res_ind] * time)
                 )
@@ -883,14 +906,14 @@ class Resonators(
         impedance = backend.zeros(len(freq_x), dtype=complex)
         n_centers = len(self._center_frequencies)
 
-        # Direction-signed convention (see shunt_impedances_counter_rotating):
+        # Direction-signed convention (see shunt_impedances_counter_witness):
         # R_CR is the shunt the counter-rotating witness *experiences*, its
         # direction sign included, so the counter-rotating impedance carries
         # the same -R_CR negation as get_wake_counter_rotation /
         # get_vectorfit -- keeping the analytic and wake-derived
         # counter-rotating impedances consistent.
         shunt_impedance = (
-            -self._shunt_impedances_counter_rotating
+            -self._shunt_impedances_counter_witness
             if counter_rotation
             else self._shunt_impedances
         )
@@ -939,7 +962,7 @@ class Resonators(
         # because ``j * (1 + 2j) = 1j - 2``
         poles1 = 1j * omega1
         # poles2 = 1j * np.real(omega2) - np.imag(omega2)
-        if self._shunt_impedances_counter_rotating is None:
+        if self._shunt_impedances_counter_witness is None:
             # Unset: the cross-direction behaviour of an asymmetric
             # fundamental mode (kernel sign +1), matching a configured
             # R_CR = -R below.
@@ -947,7 +970,7 @@ class Resonators(
         else:
             # np.sign(0) == 0, which the backends treat as +1; require a
             # well-defined sign so the counter-rotating flip is unambiguous.
-            assert np.all(self._shunt_impedances_counter_rotating != 0), (
+            assert np.all(self._shunt_impedances_counter_witness != 0), (
                 "Counter-rotating shunt impedances must be non-zero to have a "
                 "well-defined sign."
             )
@@ -955,7 +978,7 @@ class Resonators(
             # get_wake_counter_rotation: the kernel's cross-direction factor
             # is -sign(R_CR), so R_CR = -R (an asymmetric fundamental mode)
             # gives +1 and R_CR = +R (same-charge beams add up) gives -1.
-            cr_signs = -np.sign(self._shunt_impedances_counter_rotating)
+            cr_signs = -np.sign(self._shunt_impedances_counter_witness)
         return poles1, residues1, cr_signs
 
 

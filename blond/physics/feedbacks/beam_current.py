@@ -324,7 +324,6 @@ def rf_beam_current_partial(
     sampling_time: float,
     n_points: int,
     dT: float,
-    use_lowpass_filter: bool = False,
 ) -> tuple[NumpyArray, NumpyArray]:
     r"""
     RF beam current on the sub-stepped coarse grid (mucol timing class only).
@@ -362,8 +361,6 @@ def rf_beam_current_partial(
     dT : float
         Demodulation time shift [s] that rotates the beam current into the
         frame of the coarse-grid envelope recursion.
-    use_lowpass_filter : bool
-        Apply the 20 MHz low-pass filter; default False.
 
     Returns
     -------
@@ -416,10 +413,6 @@ def rf_beam_current_partial(
     I_f = 2.0 * charges * np.cos(omega_c * hist_x)
     Q_f = -2.0 * charges * np.sin(omega_c * hist_x)
 
-    if use_lowpass_filter is True:
-        cutoff = 20.0e6 * 2.0 * profile.hist_step
-        I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
-        Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
 
     # External reference frame is always on for the timing class: rotate by the

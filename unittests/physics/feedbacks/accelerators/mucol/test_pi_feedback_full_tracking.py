@@ -148,6 +148,17 @@ def _run_config(
             controller=controller,
             voltage_setpoint=V_DESIGN + 0.0j,
         )
+        if controller_call_counter is not None:
+            # These structural tests count per-cell
+            # ``controller.update_generator_current`` calls to pin "the PI is
+            # stepped on forward cells only". That call structure is specific
+            # to the pure-Python reference path; the numba envelope kernel
+            # inlines the PI (never calling the controller method), so drive the
+            # reference path here. The kernel's equivalent forward-only stepping
+            # is pinned instead by the byte-identical coarse grids in
+            # test_envelope_kernel (a kernel stepping the PI on the reverse
+            # segments would diverge there).
+            feedback.use_numba_envelope_kernel = False
         station = SingleHarmonicRFStation(
             voltage=V_DESIGN,
             phi_rf=0.0,

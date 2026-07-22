@@ -307,7 +307,7 @@ class TestResonators(unittest.TestCase):
             # R_CR = +R: the counter-rotating witness experiences the
             # inverted wake (witness-direction sign is part of the
             # parameter; an asymmetric fundamental mode has R_CR = -R).
-            shunt_impedances_counter_rotating=np.array([1, 2, 3]),
+            shunt_impedances_counter_witness=np.array([1, 2, 3]),
         )  # values chosen such that they are easily reproducible in test of test_get_impedance
 
     def test___init__(self):
@@ -332,8 +332,21 @@ class TestResonators(unittest.TestCase):
             shunt_impedances=float(1),
             center_frequencies=float(1),
             quality_factors=float(1),
-            shunt_impedances_counter_rotating=float(1),
+            shunt_impedances_counter_witness=float(1),
         )
+
+    def test___init__legacy_counter_rotating_kwarg_raises(self):
+        # The rename came with a sign-convention change, so the old kwarg
+        # must fail loudly instead of being accepted or auto-converted.
+        with self.assertRaisesRegex(
+            TypeError, "shunt_impedances_counter_witness"
+        ):
+            Resonators(
+                shunt_impedances=float(1),
+                center_frequencies=float(1),
+                quality_factors=float(1),
+                shunt_impedances_counter_rotating=float(1),
+            )
 
     def test___init__neg_freq(self):
         with self.assertRaises(RuntimeError):
@@ -474,12 +487,12 @@ class TestResonators(unittest.TestCase):
                 quality_factors=backend.array(
                     [self.resonators._quality_factors[freq_ind]]
                 ),
-                shunt_impedances_counter_rotating=backend.array(
-                    [-self.resonators._shunt_impedances[freq_ind]]
                 # R_CR = +R: the counter-rotating witness experiences the
                 # inverted impedance (get_impedance negates R_CR), so the
                 # counter-rotating impedance below is -co, i.e. co == -CR.
-               ),
+                shunt_impedances_counter_witness=backend.array(
+                    [self.resonators._shunt_impedances[freq_ind]]
+                ),
             )
             freq_y = local_res.get_impedance(
                 freq_x=freq_x, simulation=simulation, beam=beam
@@ -518,7 +531,7 @@ class TestResonators(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([400e6, 600e6, 1.2e9]),
             quality_factors=np.array([1, 2, 3]),
-            shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
+            shunt_impedances_counter_witness=np.array([-1, -2, -3]),
         )
         hash_before = local_res._cache_impedance_from_wake_hash
         _ = local_res.get_impedance_from_wake(
@@ -670,7 +683,7 @@ class TestResonators(unittest.TestCase):
             # inverted wake (the witness-direction sign is part of the
             # parameter's definition; an asymmetric fundamental mode has
             # R_CR = -R).
-            shunt_impedances_counter_rotating=backend.array([shut_imp]),
+            shunt_impedances_counter_witness=backend.array([shut_imp]),
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751)
 
@@ -737,7 +750,7 @@ class TestResonators(unittest.TestCase):
             shunt_impedances=np.array([shunt]),
             center_frequencies=np.array([freq]),
             quality_factors=np.array([q_factor]),
-            shunt_impedances_counter_rotating=np.array([-shunt]),
+            shunt_impedances_counter_witness=np.array([-shunt]),
         )
         alpha = float(copy_to_cpu(res._alpha[0]))
 
@@ -905,11 +918,11 @@ class TestResonators(unittest.TestCase):
             plt.xlim(0, 1.5e9)
             plt.show()
 
-        save_cr_wake_imp = self.resonators._shunt_impedances_counter_rotating
+        save_cr_wake_imp = self.resonators._shunt_impedances_counter_witness
         with self.assertRaises(RuntimeError):
-            self.resonators._shunt_impedances_counter_rotating = None
+            self.resonators._shunt_impedances_counter_witness = None
             self.resonators.get_wake_counter_rotation(time=time)
-        self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
+        self.resonators._shunt_impedances_counter_witness = save_cr_wake_imp
 
     def test_get_vectorfit(self):
         from blond.testing.helpers import allclose_tolerances

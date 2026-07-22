@@ -20,11 +20,11 @@ silently-wrong cross-beam coupling on a symmetric mode, whereas the identical
 mistake hard-errored on **MultiPass**.
 
 - MultiPass: `get_wake_counter_rotation` raises `RuntimeError` when
-  `_shunt_impedances_counter_rotating is None` —
+  `_shunt_impedances_counter_witness is None` —
   `blond/physics/impedances/sources.py:648` (inside the method defined at
   `sources.py:631`).
 - MultiPole: `get_vectorfit` **substitutes** `cr_signs = np.ones` (i.e. `+1`)
-  when `_shunt_impedances_counter_rotating is None` — `sources.py:935` — instead
+  when `_shunt_impedances_counter_witness is None` — `sources.py:935` — instead
   of the real `-np.sign(R_CR)` (`sources.py:947`). After the CR-4 convention
   flip, `+1` equals the asymmetric-fundamental-mode cross-coupling and is the
   **sign-opposite** of the symmetric-mode (`+R`) case, so a symmetric mode is
@@ -59,7 +59,7 @@ cross-wake. Its guard is therefore a coarser superset (see below).
 
 - `MultiPoleSparseSolve._finalize_solver` records whether any contributing
   source lacked `R_CR`: `_any_source_missing_shunt_cr` via
-  `getattr(source, "_shunt_impedances_counter_rotating", None)` —
+  `getattr(source, "_shunt_impedances_counter_witness", None)` —
   `solvers.py:1399`.
 - The track/kernel dispatch raises `RuntimeError` when
   `beam.is_counter_rotating and self._any_source_missing_shunt_cr` —

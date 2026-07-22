@@ -41,6 +41,111 @@ logger = logging.getLogger(__name__)
 class MainloopCounterRotatingBeams(ExecutionModel):
     """Executor where one beams rotates forward, and the second backwards."""
 
+    @staticmethod
+    def _check_two_beam_profile_placement(simulation: Simulation) -> None:
+        """
+        Validate live-profile placement for two counter-rotating beams.
+
+        A shared profile is histogrammed in place by whichever beam tracked
+        it last. With two counter-rotating beams every element is tracked
+        once per beam per turn -- the co-rotating beam through the elements
+        in forward order, the counter-rotating beam in reverse order -- so a
+        consumer (RF station, wakefield) only reads the *correct* beam's
+        histogram if its profile is tracked as a ring element on **both
+        sides** of the consumer: each beam then re-histograms the profile
+        immediately before reaching the consumer in *its* traversal order.
+
+        For every element that consumes a live (``active=True``) profile
+        this check therefore requires the same profile object to appear in
+        the one-turn element list both before and after the consumer.
+        Frozen profiles (``active=False``) are deliberately static and are
+        skipped.
+
+        Parameters
+        ----------
+        simulation
+            Adapter for the Simulation object holding the ring elements.
+
+        Raises
+        ------
+        ValueError
+            When a consumer's live profile is never tracked, or is tracked
+            on only one side of the consumer.
+        """
+        elements = simulation._ring.elements.elements
+        for index, element in enumerate(elements):
+            # Candidate profiles this element consumes: its own, its local
+            # wakefield's, and those of any attached cavity feedbacks.
+            candidates = [getattr(element, "profile", None)]
+            local_wakefield = getattr(element, "_local_wakefield", None)
+            if local_wakefield is not None:
+                candidates.append(getattr(local_wakefield, "profile", None))
+            for feedback in getattr(element, "cavity_feedback_list", []):
+                candidates.append(getattr(feedback, "profile", None))
+            profiles = []
+            for candidate in candidates:
+                if candidate is None or any(candidate is p for p in profiles):
+                    continue
+                profiles.append(candidate)
+            for profile in profiles:
+                MainloopCounterRotatingBeams._check_one_profile(
+                    elements, index, element, profile
+                )
+
+    @staticmethod
+    def _check_one_profile(elements, index, element, profile) -> None:
+        """
+        Validate the placement of one consumed profile (see caller).
+
+        Parameters
+        ----------
+        elements
+            The one-turn ring element list.
+        index
+            Index of the consuming element in ``elements``.
+        element
+            The consuming element (for the error message).
+        profile
+            The profile object the element consumes.
+
+        Raises
+        ------
+        ValueError
+            When the live profile is never tracked, or tracked on only one
+            side of the consumer.
+        """
+        if not getattr(profile, "active", False):
+            # Frozen histogram: both beams read the same static line
+            # density by construction -- nothing to validate.
+            return
+        tracked_before = any(e is profile for e in elements[:index])
+        tracked_after = any(e is profile for e in elements[index + 1 :])
+        if not tracked_before and not tracked_after:
+            raise ValueError(
+                f"{type(element).__name__} (element {index}) consumes a "
+                "live profile that is never tracked as a ring element. "
+                "With two counter-rotating beams the profile must be "
+                "placed as an element on BOTH sides of its consumer "
+                "(profile, consumer, profile), so each beam re-histograms "
+                "it immediately before the consumer in its own traversal "
+                "order -- or freeze the histogram with "
+                "``profile.active = False`` if a static line density is "
+                "intended."
+            )
+        if not (tracked_before and tracked_after):
+            missing = "before" if not tracked_before else "after"
+            raise ValueError(
+                f"{type(element).__name__} (element {index}) consumes a "
+                f"live profile that is tracked only on one side (missing "
+                f"{missing} the consumer). With two counter-rotating "
+                "beams the profile must be placed as an element on BOTH "
+                "sides of its consumer (profile, consumer, profile): the "
+                "counter-rotating beam traverses the elements in reverse "
+                "order, so a one-sided profile is histogrammed with the "
+                "wrong beam for one of the two passages. Alternatively "
+                "freeze the histogram with ``profile.active = False``."
+            )
+
     def mainloop(
         self,
         simulation: Simulation,
@@ -97,6 +202,8 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             "First beam must be co-rotating, second beam must be counter-rotating."
         )
         warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
+
+        self._check_two_beam_profile_placement(simulation)
 
         if callbacks is not None:
             warnings.warn(

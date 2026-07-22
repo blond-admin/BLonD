@@ -73,7 +73,7 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
         assert len(poles) == len(residues), f"{len(poles)=}  {len(residues)=}"
         self.poles = poles
         self.residues = residues
-        self._shunt_impedances_counter_rotating = None
+        self._shunt_impedances_counter_witness = None
 
     def sort(self, by: str = "residues"):
         """

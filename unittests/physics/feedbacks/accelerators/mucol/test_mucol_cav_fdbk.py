@@ -1007,5 +1007,62 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         self.assertAlmostEqual(v_exp / v_eu, 1.0, places=9)
 
 
+class TestVoltageSetpointValidation(unittest.TestCase):
+    """
+    The explicit ``voltage_setpoint`` must be real and positive (phase 0).
+
+    The station's phase correction is referenced to the parent-derived
+    setpoint at phase 0, so an explicit setpoint with a non-zero phase would
+    be regulated by the PI controller but never reflected in the applied
+    kick. The constructor therefore rejects non-real (or non-positive)
+    setpoints instead of silently splitting the two frames.
+    """
+
+    def _build(self, voltage_setpoint):
+        """
+        Construct a timing-class feedback with the given setpoint.
+
+        Parameters
+        ----------
+        voltage_setpoint
+            Value passed through to the constructor.
+
+        Returns
+        -------
+        IQCavityFeedbackTimingClass
+            The constructed feedback.
+        """
+        return IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            R_over_Q=518.0,
+            Q_L=1.29e6,
+            generator_current_bias=0.0,
+            n_cavities=1,
+            voltage_setpoint=voltage_setpoint,
+        )
+
+    def test_real_positive_setpoint_accepted(self):
+        """A real, positive setpoint (float or 0-phase complex) is accepted."""
+        self.assertEqual(self._build(30e6)._voltage_setpoint, 30e6)
+        self.assertEqual(
+            self._build(30e6 + 0.0j)._voltage_setpoint, 30e6 + 0.0j
+        )
+
+    def test_none_setpoint_accepted(self):
+        """``None`` (parent-derived setpoint) stays supported."""
+        self.assertIsNone(self._build(None)._voltage_setpoint)
+
+    def test_complex_setpoint_raises(self):
+        """A setpoint with a non-zero imaginary part raises ``ValueError``."""
+        with self.assertRaises(ValueError) as ctx:
+            self._build(30e6 + 1e6j)
+        self.assertIn("phase 0", str(ctx.exception))
+
+    def test_negative_setpoint_raises(self):
+        """A negative (phase pi) setpoint raises ``ValueError``."""
+        with self.assertRaises(ValueError):
+            self._build(-30e6)
+
+
 if __name__ == "__main__":
     unittest.main()

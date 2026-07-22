@@ -772,7 +772,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     Notes
     -----
     Tracking a counter-rotating beam requires every source to define its
-    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_rotating``);
+    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_witness``);
     :meth:`calc_induced_voltage` raises otherwise.
     """
 
@@ -1144,7 +1144,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         # both beams then adds constructively) and each beam's self-wake
         # decelerates it. Direction-dependent mode geometry beyond this
         # universal factor is carried per mode by
-        # ``shunt_impedances_counter_rotating`` (the co/counter wake
+        # ``shunt_impedances_counter_witness`` (the co/counter wake
         # selection below; the parameter is the shunt the counter-rotating
         # witness experiences, its direction sign included -- the sign is a
         # property of the mode's field symmetry, an *asymmetric* fundamental
@@ -1363,7 +1363,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     Notes
     -----
     Tracking a counter-rotating beam requires every source to define its
-    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_rotating``);
+    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_witness``);
     :meth:`calc_induced_voltage` raises otherwise.
     """
 
@@ -1423,7 +1423,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             # participate in the R_CR convention at all is treated the same
             # (its cross sign is likewise undefined for counter-rotation).
             shunt_cr = getattr(
-                source, "_shunt_impedances_counter_rotating", None
+                source, "_shunt_impedances_counter_witness", None
             )
             if shunt_cr is None:
                 any_source_missing_shunt_cr = True
@@ -1537,11 +1537,11 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # cancels), but the pole-residue solver bakes the sign array up front
         # and cannot cheaply tell that case apart from genuine cross-beam
         # coupling -- so it errs toward failing fast. Setting
-        # shunt_impedances_counter_rotating to any sign resolves it (and is
+        # shunt_impedances_counter_witness to any sign resolves it (and is
         # bit-identical for a lone beam).
         if beam.is_counter_rotating and self._any_source_missing_shunt_cr:
             raise RuntimeError(
-                "shunt_impedances_counter_rotating (R_CR) needs to be set on "
+                "shunt_impedances_counter_witness (R_CR) needs to be set on "
                 "every source before tracking a counter-rotating beam through "
                 "MultiPoleSparseSolve. Leaving it unset silently defaults the "
                 "counter-rotating cross-coupling sign to +1 (an asymmetric "

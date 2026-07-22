@@ -17,8 +17,9 @@ Rapid-Cycling Synchrotrons (RCS):
   (``blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController``)
   and the feedback's controller-driven mode
   (``IQCavityFeedbackTimingClass(controller=...)``),
-* the cavity-response solvers and the beam-current demodulation in
-  ``blond.physics.feedbacks.helpers``, and
+* the cavity-response solvers (``blond.physics.feedbacks.helpers`` /
+  ``blond.physics.feedbacks.cavity_solvers``) and the beam-current
+  demodulation (``blond.physics.feedbacks.beam_current``), and
 * cross-checks of the feedback against the multi-turn resonator wake
   (``blond.physics.impedances.solvers.MultiPassResonatorSolver``).
 
@@ -132,7 +133,7 @@ amplitude scale (~1) and waveform (NRMSE < 1 %).
 **Class** ``TestCavityPrefill`` -- the feedforward cavity pre-fill / injection
 matching. The no-beam, constant-current cavity fills from cold as
 ``V(t) = V_ss (1 - exp(lambda t))``; the helper
-``blond.physics.feedbacks.helpers.pretrack_fill_voltage`` returns the complex
+``blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`` returns the complex
 seed antenna voltage, and ``n_pretrack`` / ``injection_voltage`` on
 ``IQCavityFeedbackTimingClass`` route it through ``on_run_simulation``. The PI
 controller (if any) does not act during the fill.
@@ -422,9 +423,12 @@ forward and total cell counts.
 ``test_helpers.py``
 ^^^^^^^^^^^^^^^^^^^
 
-Tests for the cavity-response solvers and beam-current demodulation in
-``blond.physics.feedbacks.helpers``. The solvers are driven directly on a
-static profile -- no ``Beam`` tracking and no full ``Simulation``.
+Tests for the cavity-response solvers (first-order in
+``blond.physics.feedbacks.helpers``, shared with the LHC feedback;
+second-order in ``blond.physics.feedbacks.cavity_solvers``) and the
+beam-current demodulation in ``blond.physics.feedbacks.beam_current``. The
+solvers are driven directly on a static profile -- no ``Beam`` tracking and
+no full ``Simulation``.
 
 **Class** ``TestCavityResponseSolverConvergence`` -- first-order forward Euler
 (``cavity_response_sparse_matrix``) versus second-order Crank-Nicolson
@@ -870,7 +874,9 @@ themselves.
     ``plot_ind_volt_cav_fdbk_voltage`` (induced voltage against the
     cavity-feedback voltage per station) and
     ``plot_generator_power_and_voltage`` (klystron power and antenna-voltage
-    swing of a PI-feedback run). Not a test module.
+    swing of a PI-feedback run) and ``plot_antenna_voltage`` (coarse-grid
+    antenna-voltage evolution of a feedback instance; moved here from the
+    timing class, where it was an unused debug method). Not a test module.
 ``__init__.py``
     Marks the directory as a package so the test modules can use the
     package-relative imports of ``stubs`` and ``support``.

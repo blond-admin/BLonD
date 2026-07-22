@@ -41,7 +41,7 @@ loose 2 %, so a sub-percent error in the carried inter-cell wake fails.
 
 To keep the first coarse cell charge-free (the
 ``forbid_charge_in_first_coarse_cell`` guard in
-:func:`~blond.physics.feedbacks.helpers.rf_beam_current_partial`, which the
+:func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial`, which the
 timing class enforces because it seeds the fine-grid initial antenna voltage from
 that cell), the profile is zeroed below :data:`ZERO_BELOW_TRF` ``t_rf`` -- well
 below the leading bunch's left tail (>6 sigma), so no physical charge is lost.
@@ -402,7 +402,7 @@ class TestSinglePassMultiBunch(unittest.TestCase):
 
         Exercises the real invariant the timing class relies on by driving the
         *actual* mucol coarse-grid downsampling,
-        :func:`~blond.physics.feedbacks.helpers.rf_beam_current_partial` (the
+        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial` (the
         function the forward pass calls -- it seeds the fine-grid initial antenna
         voltage from the first coarse cell and hard-enforces that it stay
         charge-free), rather than re-reading the profile builder's hard-zeroed

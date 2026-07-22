@@ -425,7 +425,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
     Charge conservation of the coarse-grid downsampling in rf_beam_current.
 
     Regression test for a dropped remainder in the ``downsample`` branch of
-    :func:`blond.physics.feedbacks.helpers.rf_beam_current`: all demodulated
+    :func:`blond.physics.feedbacks.beam_current.rf_beam_current`: all demodulated
     charge after the last coarse-cell boundary used to be silently discarded
     -- up to the *whole* bunch, depending on how the bunch sits relative to
     the cell boundaries (in the multi-turn comparison it was ~45 % with a

@@ -1,8 +1,8 @@
 # Muon-Collider Cavity Feedback — Work Context & Handoff
 
 Consolidated record of the mucol cavity-feedback work on the BLonD submodule
-(branch `blonder_feature/mucol_feedbacks`), July 2026. Everything below is in
-the working tree; **nothing has been committed** — review and commit when ready.
+(branch `blonder_feature/mucol_feedbacks`), July 2026. Checkpoint-committed
+2026-07-22 ("current state, tbr") — still to be reviewed before the MR.
 
 This file is a handoff summary. The authoritative living docs are
 `docs/feedbacks/mucol_cavity_feedback.rst` (design) and
@@ -67,7 +67,13 @@ before this work (shared with the design RF kick, immovable). Raw deposits ×
 signed kick meant a µ⁻ counter-rotating beam's self-wake **accelerated** it
 (measured `dE = −(µ⁺co)`). Signing the deposits was the only fix.
 
-### 1.2 `shunt_impedances_counter_rotating` (R_CR) convention
+### 1.2 `shunt_impedances_counter_witness` (R_CR) convention
+Public kwarg renamed from `shunt_impedances_counter_rotating` (2026-07-22,
+after the sign-convention flip); the old name is a trapped kwarg raising
+`TypeError` with a migration message. The internal attribute was renamed in
+a follow-up (user directive) to `_shunt_impedances_counter_witness` — the
+MultiPole solver guard's `getattr` string, EX_28, and the direct test
+accesses were swept together, so there is no old-name attribute anywhere.
 `R_CR` is **the shunt the counter-rotating witness experiences**, its reversed
 integration direction included. Effective cross-coupling = `−R_CR/R`. Therefore:
 
@@ -121,12 +127,51 @@ preserves `|V|` (a rotation) where Euler grows it by `√(1+(δω·dt)²)`. Test
 warnings no longer gate the exact solver (it was previously unreachable in the
 low-Q_L / large-detuning regime it exists for).
 
+### 2.2b P6 — numba coarse-envelope kernel (performance item #1, DONE)
+The per-cell coarse recursion (`circuit_track`→`cavity_response`→
+`_advance_coarse_voltage` + inline PI, ~10⁵ cells/turn, ~95% interpreter
+overhead) is compiled to a numba host kernel `envelope_pi_scan`
+(`envelope_kernel.py`). It is **host-only** (feedback is sequential signal
+processing — no GPU parallel scan) and **on by default**
+(`use_numba_envelope_kernel: bool = True`, class attribute; set `False` per
+instance to force the reference). Measured ~79× on a 1000-cell RCS segment
+(9.4 µs→0.12 µs per cell).
+
+`circuit_track`'s cell loop was extracted into `_circuit_track_cells`
+(dispatch) → `_circuit_track_cells_python` (byte-identical reference **and**
+fallback) / `_circuit_track_cells_kernel` (host glue + kernel call). The glue
+precomputes the *state-independent* per-cell voltage multiplier `B` (`1+L` Euler
+/ `e^L` exponential) and drive weight `W` (`1` / `(e^L−1)/L`) — "the elementwise
+glue on the python side" — so the kernel is **solver-agnostic** and byte-identical
+to *both* solvers without numba ever evaluating `exp`/`expm1`. Step sizes
+(`_coarse_step_sizes`), beam current (`_kernel_beam_current`) and PI state
+(`_kernel_controller_params`/`_store_controller_state`, deque↔circular-buffer)
+are marshalled per segment.
+
+Two exact-fallback paths keep it **byte-identical** (proven: full feedback suite
++ ~17-digit pinned trajectories pass unchanged with the kernel on):
+- **Coincident (zero) coarse step** → `_circuit_track_cells_python`
+  (skip-and-warn can't vectorise).
+- **Klystron-limit saturation** → the kernel flags any cell within a 1e-9 guard
+  band of `max_output` and the segment reruns on the reference path, because
+  numba's complex `abs` differs from numpy's *scalar* `np.abs` by 1 ULP (~40% of
+  values), which the reference `clamp_magnitude` would otherwise not match. When
+  no cell nears the limit the clamp is never applied → identical.
+
+`_check_beam_kick_magnitude` runs as a vectorised post-pass (`_check_beam_kicks`)
+that *delegates* to the per-cell checker for message fidelity + warn-then-raise
+ordering. Tests: `test_envelope_kernel.py` (bit-identity across Euler/exponential
+× constant/PI × delay/clamp/detuning × multi-section). `TestPIReverseSpanFrameConsistency`
+(below) and the pinned trajectories force/exercise the reference path.
+
 ### 2.3 P2 — PI reverse-span frame fix
 The controller is stepped only on the real forward passage
 (`if self._controller_active and not no_beam`), never on the reverse
 reconstruction segments (which carry a per-segment frame phase). Tests:
-`TestPIReverseSpanFrameConsistency` (structural call-count; mutation-verified —
-reverting the gate fails them).
+`TestPIReverseSpanFrameConsistency` (structural call-count on the pure-Python
+reference path — the kernel inlines the PI, so these count-tests set
+`use_numba_envelope_kernel=False`; mutation-verified — reverting the gate fails
+them).
 
 ### 2.4 Coverage tests T3, T5–T10
 - `test_wake_vs_feedback_dynamics.py` (T3): self-consistent multi-turn *dynamics*
@@ -197,32 +242,65 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
 ### 2.9 Misc
 - `DEBUG_PLOT` in `test_mucol_cav_fdbk.py` was `True` (the last stray) → `False`;
   no `plt.show()` fires in a normal mucol run now.
+- Public kwarg renamed `shunt_impedances_counter_rotating` →
+  `shunt_impedances_counter_witness` (see §1.2): legacy kwarg trapped with a
+  `TypeError` + migration message (sign convention changed with the rename, so
+  no silent pass-through), internal attribute kept, both source-side
+  `RuntimeError` messages now name the public kwarg, unit typo `\omega` →
+  `\Omega` fixed on both shunt docstrings. Swept: `sources.py`, `solvers.py`
+  (incl. the MultiPole guard message), 4 test files, feedback RST.
 
 ---
 
 ## 3. Open items / flagged (NOT done — need decisions)
 
-- **MultiPole vs MultiPass on missing R_CR** (spawned task): MultiPass raises
-  when a CR beam is tracked with `R_CR` unset; MultiPoleSparseSolve silently
-  defaults to +1 (asymmetric-mode sign). A forgotten `R_CR` can silently invert
-  cross-beam coupling on a symmetric mode. Fix = make MultiPole raise the same
-  way (shared solver code; wanted authorization). *A follow-up session was
-  started on this.*
-- **`barrier_bucket.py` CR kick** (spawned task): line ~245 uses raw
-  `particle_type.charge` instead of `signed_charge_with_direction()` — wrong-sign
-  barrier kick for a CR beam. Out of feedback scope.
-- **`phase_correction` vs `pi_setpoint` frame** (flagged, not changed): they use
-  different setpoints; disagree only for a *non-real* explicit `voltage_setpoint`
-  (nothing uses that today). Design-intent decision.
+- ~~MultiPole vs MultiPass on missing R_CR~~ **RESOLVED**: the follow-up
+  session's guard landed via `origin/blonder` (commit `2235e519`, merged in
+  `b047e972`) — MultiPoleSparseSolve now raises on a CR beam with any source
+  missing R_CR. NOTE: that merge also produced one **semantic conflict** in
+  `test_sources.py::test_get_impedance` (origin's `−R` construction ×
+  our negating `get_impedance` kept by the merge ⇒ sign flip); fixed by
+  restoring the `+R` construction matching the surviving convention.
+- **`barrier_bucket.py` CR kick** (spawned task, still pending): line ~245 uses
+  raw `particle_type.charge` instead of `signed_charge_with_direction()` —
+  wrong-sign barrier kick for a CR beam. Out of feedback scope.
+- ~~`print_one_turn_execution_order` crash on empty `rf_centers`~~ **RESOLVED**
+  (committed `0936668f`, with regression tests in
+  `tests/unittests/core/ring/test_beam_physics_relevant_elements.py`).
+- ~~`phase_correction` vs `pi_setpoint` frame~~ **RESOLVED (user decision:
+  error)**: the constructor now rejects a non-real / non-positive explicit
+  `voltage_setpoint` with `ValueError` (rotate `phi_rf` on the station
+  instead); `TestVoltageSetpointValidation` pins it.
 - **CR-3 equal-time patch path** (deferred by user): integrating two coincident
   beam currents in the feedback (deposit-sum + envelope rewind). Design options
   recorded in the memory note. Kick-ordering fork: symmetric one-passage delay /
   pooled kick / asymmetric lag.
 - **Per-beam live profiles** under two-beam tracking clobber each other (tests
-  use frozen profiles) — core gap.
-- `experimental/physics/feedbacks/helpers.py` still uses raw charge (out of
-  scope by decision).
+  use frozen profiles) — core gap. Mitigation shipped (user decision): the CR
+  mainloop now validates at start that every live profile consumed by an
+  element (direct, via `_local_wakefield`, or via `cavity_feedback_list`) is
+  tracked both before AND after that consumer — the (profile, consumer,
+  profile) sandwich — or is frozen (`active = False`); raises `ValueError`
+  otherwise. `_check_two_beam_profile_placement` in
+  `blond/core/simulation/execution_models/conterrotating_beams.py`, tests in
+  `test_simulation.py::TestTwoBeamProfilePlacementCheck`.
+- **`delta_omega_rf` lab-frame demod slip** (characterized, not fixed): fix =
+  anchor the demod carrier to accumulated ∫ω dt (reuse the kick-side slip
+  bookkeeping), gated on `delta_omega_rf ≠ 0` so LHC is untouched. Effort
+  ~0.5–1 day: the code change is small; validation dominates (T5 differential
+  rework, larger-offset multi-turn tests, turn-0 application convention,
+  substepping/multi-section interplay — the demod-frame area is historically
+  delicate).
+- `experimental/physics/feedbacks/helpers.py` still uses raw charge —
+  **confirmed intended**: its `rf_beam_current` copy is consumed only inside
+  `blond/experimental/physics/feedbacks/` (the old LHC/SPS feedbacks); nothing
+  in the main tree or mucol imports it.
 - **P6** (RF-parameter view mixin) skipped per user.
+- **Full Sphinx doc build not yet run**: only docutils structure-lint was run on
+  the two RSTs. CI builds with `sphinx-build -W` (warnings = errors, see
+  CLAUDE.md); run `cd docs && bash create_docs.sh` (sequentially, never looped)
+  before the MR. No new top-level exports were added, so
+  `ASSIGNED_CATEGORIES` needs no update.
 - The extracted mixins (`RFCenterGridMixin`, `GeneratorRegulationMixin`) are
   pure moves (methods still use `self`); promoting them to composed collaborators
   is the natural follow-up.
@@ -235,7 +313,8 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
 
 | module | holds |
 |---|---|
-| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`; orchestration (`_track`, `circuit_track`, `cavity_response`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `on_run_simulation`, pre-fill, `_check_step_sizes`, `_check_beam_kick_magnitude`) |
+| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`; orchestration (`_track`, `circuit_track`, `_circuit_track_cells{,_python,_kernel}` + `_coarse_step_sizes`/`_kernel_*` glue, `cavity_response`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `on_run_simulation`, pre-fill, `_check_step_sizes`, `_check_beam_kick_magnitude`/`_check_beam_kicks`) |
+| `envelope_kernel.py` | numba host kernel `envelope_pi_scan` — the sequential coarse-envelope + PI recursion (performance item #1); solver-agnostic, byte-identical to the Python reference |
 | `rf_center_segment.py` | `RFCenterSegment` value class (re-exported from cavity_feedback for compat) |
 | `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` grid construction (forward/reverse reference walks, segment generation, derived arrays) |
 | `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `generator_power`, `_update_generator_current` |

@@ -137,7 +137,7 @@ def _build_two_beam_simulation(
                         # parameter is the shunt the counter-rotating
                         # witness experiences, its direction sign included;
                         # sources and kicks carry the signed charges).
-                        shunt_impedances_counter_rotating=(
+                        shunt_impedances_counter_witness=(
                             -_base().MULTITURN_R_OVER_Q * _base().MULTITURN_Q_L
                         ),
                     ),

@@ -33,7 +33,7 @@ def lab_frame_voltage(v_ant, omega_rf, time, *, use_real: bool = False):
 
     By default this is the ``external_reference=True`` / ``+pi/2`` demodulation
     convention used by
-    :func:`blond.physics.feedbacks.helpers.rf_beam_current`; with
+    :func:`blond.physics.feedbacks.beam_current.rf_beam_current`; with
     ``use_real=True`` it is the ``external_reference=False`` convention.
 
     Parameters

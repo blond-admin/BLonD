@@ -171,7 +171,7 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
                 # mu- counter-rotating) deposits same-sign gap currents and
                 # both beams see the same constructive loading -- the
                 # same-sign analytic convolution reference below.
-                shunt_impedances_counter_rotating=-self.R_shunt,
+                shunt_impedances_counter_witness=-self.R_shunt,
             )
 
             shc_list.append(

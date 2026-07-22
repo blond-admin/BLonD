@@ -976,7 +976,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         Feedback coarse-grid propagation vs convolution on every turn.
 
         Regression test for the dropped downsample remainder in
-        :func:`blond.physics.feedbacks.helpers.rf_beam_current`: all
+        :func:`blond.physics.feedbacks.beam_current.rf_beam_current`: all
         demodulated charge after the last coarse-cell boundary used to be
         silently discarded (up to ~half the bunch, with a rotated phase
         centroid), which corrupted the coarse-grid beam loading and every
@@ -1258,7 +1258,8 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         tiling from the profile's zeroed leading edge, so beam charge is
         downsampled into the *first* coarse cell. Because the fine-grid initial
         antenna voltage is seeded from that cell, its beam kick would be
-        double-counted, and ``rf_beam_current`` raises ``ValueError`` (helpers.py,
+        double-counted, and ``rf_beam_current`` raises ``ValueError``
+        (beam_current.py,
         "Beam charge was downsampled into the first coarse-grid cell") before
         any voltage is produced.
 

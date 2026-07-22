@@ -40,15 +40,40 @@ Classes at a glance
     It is pure signal processing -- no cavity, profile or station -- and is
     attached to the feedback via the ``controller`` argument.
 
+:mod:`blond.physics.feedbacks.rf_center_grid`
+    The coarse-grid construction: ``RFCenterGridMixin``, the forward/reverse
+    reference walks and per-turn segment generation of the timing class.
+
+:mod:`blond.physics.feedbacks.rf_center_segment`
+    The ``RFCenterSegment`` value class the coarse grid is built from.
+
+:mod:`blond.physics.feedbacks.generator_regulation`
+    ``GeneratorRegulationMixin``: the controller-facing pieces of the timing
+    class (per-cavity IQ setpoint, klystron power, per-step generator-current
+    update).
+
+:mod:`blond.physics.feedbacks.beam_current`
+    The beam-current demodulation
+    (:func:`~blond.physics.feedbacks.beam_current.rf_beam_current` -- shared
+    with the LHC comparison path and kept byte-identical for co-rotating
+    beams -- and
+    :func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial`,
+    the forward-pass variant the timing class uses).
+
+:mod:`blond.physics.feedbacks.cavity_solvers`
+    The muon-collider-only numerics:
+    :func:`~blond.physics.feedbacks.cavity_solvers.cavity_response_sparse_matrix_second_order`
+    (trapezoidal / Crank-Nicolson) and the feedforward fill seed
+    :func:`~blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`.
+
 :mod:`blond.physics.feedbacks.helpers`
-    The numeric building blocks: the cavity-envelope solvers
-    (:func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`,
-    first-order forward Euler, and
-    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix_second_order`,
-    trapezoidal / Crank-Nicolson), the beam-current demodulation
-    :func:`~blond.physics.feedbacks.helpers.rf_beam_current` and the
-    feedforward fill seed
-    :func:`~blond.physics.feedbacks.helpers.pretrack_fill_voltage`.
+    The first-order (forward-Euler) fine-grid solver
+    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`,
+    shared with the (experimental) LHC feedback, plus backward-compatible
+    re-exports of the beam-current and IQ helpers.
+
+:mod:`blond.physics.feedbacks.iq`
+    IQ / polar conversions (``cartesian_to_polar``, ``polar_to_cartesian``).
 
 
 Signal path of one turn
@@ -66,7 +91,7 @@ Each turn the timing class performs, in order:
    per ring.
 
 2. **Beam-current demodulation.**
-   :func:`~blond.physics.feedbacks.helpers.rf_beam_current` converts the beam
+   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` converts the beam
    profile into the complex IQ beam-current envelope at the carrier frequency
    (factor-2 single-sideband demodulation), applies the reference-frame phase
    correction, and re-bins the fine-grid charge onto the coarse cells
@@ -177,7 +202,7 @@ silently serialize the coincident arrivals one projection window apart.
 Model such a station's loading with the ``MultiPassResonatorSolver``
 wakefield (``allow_delta_t_zero=True``) instead.
 
-For the wake-solver references, ``shunt_impedances_counter_rotating`` is the
+For the wake-solver references, ``shunt_impedances_counter_witness`` is the
 shunt a counter-rotating witness *experiences* (its reversed integration
 direction included). The sign is a property of the mode's field symmetry,
 not of fundamental modes in general: an *asymmetric* fundamental mode has

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import warnings
 from abc import abstractmethod
+from collections import deque
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -35,6 +36,7 @@ from blond.physics.feedbacks.cavity_solvers import (
     cavity_response_sparse_matrix_second_order,
     pretrack_fill_voltage,
 )
+from blond.physics.feedbacks.envelope_kernel import envelope_pi_scan
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
 )
@@ -520,7 +522,7 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         The parent station's actual RF phase ``phi_rf`` converted to a time,
         ``-phi_rf / omega_rf``. It is passed as the reference-frame shift
         ``dT`` to the beam-current demodulation (see
-        :func:`~blond.physics.feedbacks.helpers.rf_beam_current`), which
+        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current`), which
         applies the phase correction ``dT * omega_c``. The sign follows the
         reworked (mucol) convention; the LHC comparison path bridges to the
         blond2 convention via ``dT_index_sign`` in ``rf_beam_current``.
@@ -626,7 +628,11 @@ class IQCavityFeedbackTimingClass(
     voltage_setpoint
         Explicit per-cavity voltage setpoint in the IQ frame [V] used to form
         the error the controller acts on. If None, it is derived from the
-        parent rf station.
+        parent rf station. Must be real and positive (phase 0): the station's
+        phase correction is referenced to the parent-derived setpoint at
+        phase 0, so a rotated setpoint would be regulated but not applied --
+        a non-real value raises ``ValueError``. Rotate ``phi_rf`` on the
+        station instead.
     n_pretrack
         Feedforward cavity fill budget in turns. If given, the initial antenna
         voltage is seeded (in ``on_run_simulation``) from the constant-current
@@ -673,6 +679,13 @@ class IQCavityFeedbackTimingClass(
     above (the cavity *resonance* detuning), which enters the cavity response
     as a per-step phase rotation and does not move the grid.
     """
+
+    #: Compile the per-cell coarse-envelope recursion to a numba host kernel
+    #: (see :mod:`~blond.physics.feedbacks.envelope_kernel`). The pure-Python
+    #: path is kept as the byte-identical reference and the fallback for
+    #: degenerate (coincident) coarse steps and klystron-limit saturation. Set
+    #: ``False`` on an instance to force the reference path.
+    use_numba_envelope_kernel: bool = True
 
     def __init__(
         self,
@@ -773,6 +786,22 @@ class IQCavityFeedbackTimingClass(
         # current; see _update_generator_current. All control tuning lives on
         # the controller, not on this feedback.
         self._controller = controller
+        # The station's phase correction is formed against the parent-derived
+        # voltage_setpoint property, whose phase is 0 by construction; an
+        # explicit setpoint with a non-zero phase would make the PI regulate
+        # to a frame the phase correction does not use. Until that frame is
+        # unified, only real, positive setpoints are supported.
+        if voltage_setpoint is not None and (
+            np.imag(voltage_setpoint) != 0.0 or np.real(voltage_setpoint) <= 0
+        ):
+            raise ValueError(
+                f"voltage_setpoint={voltage_setpoint} must be real and "
+                "positive (phase 0): the RF station's phase correction is "
+                "referenced to the parent-derived setpoint at phase 0, so a "
+                "rotated explicit setpoint would be regulated by the "
+                "controller but not reflected in the applied kick. Rotate "
+                "phi_rf on the station instead."
+            )
         self._voltage_setpoint = voltage_setpoint
         self._omega_input_for_pi: float | None = None
 
@@ -974,10 +1003,129 @@ class IQCavityFeedbackTimingClass(
         end_index
             Index of rf_centers until which to compute the response.
         """
-        # Remember the segment frequency so the optional PI update inside
-        # cavity_response() can recover the per-step sampling time from
-        # ``omega_times_T_s``.
+        self._circuit_track_cells(
+            omega_input=omega_input,
+            no_beam=no_beam,
+            start_index=start_index,
+            end_index=end_index,
+        )
+
+        if not no_beam:
+            init_beam_time = self.profile.cut_left
+            assert init_beam_time > 0, (
+                f"{init_beam_time=} has to be > 0, shift profile."
+            )
+
+            # last entry is forward length
+            # TODO: check this, might be wrong
+            # antenna_voltage_init = interp1d(
+            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
+            #     self.antenna_voltage_coarse_grid[
+            #         -self.rf_centers_lengths[-1] :
+            #     ],
+            # )(
+            #     init_beam_time
+            # )  # This is already interpolated between 0 and 100%
+            antenna_voltage_init = self.antenna_voltage_coarse_grid[
+                -self.rf_centers_lengths[-1] :
+            ][0]
+            # generator_current_init = interp1d(
+            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
+            #     self.generator_current_coarse_grid[
+            #         -self.rf_centers_lengths[-1] :
+            #     ],
+            # )(
+            #     init_beam_time
+            # )  # TODO: this should also be before the bunch arrival time and not interpolated
+
+            generator_current_init = self.generator_current_coarse_grid[
+                -self.rf_centers_lengths[-1] :
+            ][0]
+
+            samples_per_rf_fine_grid = omega_input * self.profile.hist_step
+            # copy_to_cpu: the feedback signal processing is host-side
+            # (scipy), so a GPU-backend profile grid must be brought to host.
+            self.generator_current_fine_grid = np.interp(
+                copy_to_cpu(self.profile.hist_x),
+                self.rf_centers[-self.rf_centers_lengths[-1] :],
+                self.generator_current_coarse_grid[
+                    -self.rf_centers_lengths[-1] :
+                ],
+            )
+
+            relative_detuning = self.delta_omega / omega_input
+            self.cavity_response_fine(
+                antenna_voltage_init,
+                0,
+                generator_current_init,
+                samples_per_rf_fine_grid,
+                relative_detuning=relative_detuning,
+            )
+
+    def _circuit_track_cells(
+        self,
+        omega_input: float,
+        no_beam: bool,
+        start_index: int,
+        end_index: int,
+    ) -> None:
+        """
+        Advance the coarse-grid recursion over ``[start_index, end_index)``.
+
+        Dispatches to the compiled numba kernel
+        (:func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`)
+        when ``use_numba_envelope_kernel`` is set, otherwise to the pure-Python
+        per-cell reference. Both produce byte-identical coarse grids; the
+        kernel exists only to remove the per-cell interpreter overhead.
+
+        Parameters
+        ----------
+        omega_input
+            Angular frequency of this segment.
+        no_beam
+            Whether the segment carries no beam.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+        """
+        # The optional PI update recovers the per-step sampling time from
+        # ``omega_times_T_s / omega_input``; expose omega_input for it.
         self._omega_input_for_pi = omega_input
+        if self.use_numba_envelope_kernel:
+            self._circuit_track_cells_kernel(
+                omega_input, no_beam, start_index, end_index
+            )
+        else:
+            self._circuit_track_cells_python(
+                omega_input, no_beam, start_index, end_index
+            )
+
+    def _circuit_track_cells_python(
+        self,
+        omega_input: float,
+        no_beam: bool,
+        start_index: int,
+        end_index: int,
+    ) -> None:
+        """
+        Reference per-cell coarse-grid recursion (pure Python).
+
+        The readable reference the numba kernel mirrors, and the exact fallback
+        for degenerate coincident coarse points (zero step), which the kernel
+        path defers here so the skip-and-warn behaviour is preserved.
+
+        Parameters
+        ----------
+        omega_input
+            Angular frequency of this segment.
+        no_beam
+            Whether the segment carries no beam.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+        """
         for rf_centers_idx in range(start_index, end_index):
             if rf_centers_idx == 0:
                 if self.last_rf_centers_entry is None:
@@ -1041,56 +1189,431 @@ class IQCavityFeedbackTimingClass(
                 no_beam=no_beam,
             )
 
-        if not no_beam:
-            init_beam_time = self.profile.cut_left
-            assert init_beam_time > 0, (
-                f"{init_beam_time=} has to be > 0, shift profile."
+    def _coarse_step_sizes(
+        self,
+        omega_input: float,
+        start_index: int,
+        end_index: int,
+    ) -> NumpyArray | None:
+        """
+        Vectorised per-cell coarse step sizes for a segment.
+
+        Reproduces, bit-for-bit, the per-cell ``delta_t`` of
+        :meth:`_circuit_track_cells_python` -- the first-cell special cases and
+        the few-ULP negative clamp included.
+
+        Parameters
+        ----------
+        omega_input
+            Angular frequency of this segment.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+
+        Returns
+        -------
+        delta_t
+            Per-cell step sizes [s], or ``None`` when the segment contains a
+            zero (coincident) step that the reference path skips-and-warns.
+        """
+        n_cells = end_index - start_index
+        delta_t = np.empty(n_cells, dtype=np.float64)
+        if n_cells > 1:
+            # Bulk cells: consecutive rf_centers differences (== the reference
+            # ``else`` branch), bit-identical to the scalar subtraction.
+            delta_t[1:] = np.diff(self.rf_centers[start_index:end_index])
+        if start_index == 0:
+            if self.last_rf_centers_entry is None:
+                if start_index + 1 < end_index:
+                    delta_t[0] = self.rf_centers[1] - self.rf_centers[0]
+                else:
+                    delta_t[0] = (
+                        self.n_rf_periods_per_coarse_grid
+                        * 2
+                        * np.pi
+                        / omega_input
+                    )
+            else:
+                delta_t[0] = (
+                    self.rf_centers[0]
+                    + self.residual_time_last_rf_centers_calculation
+                )
+        else:
+            delta_t[0] = (
+                self.rf_centers[start_index]
+                + self.residual_time_last_rf_centers_calculation
             )
+        rf_period = 2 * np.pi / omega_input
+        tiny_negative = (delta_t > -1e-9 * rf_period) & (delta_t < 0)
+        delta_t[tiny_negative] = 0.0
+        assert (delta_t >= 0).all(), f"{delta_t.min()}"
+        if (delta_t == 0).any():
+            return None
+        return delta_t
 
-            # last entry is forward length
-            # TODO: check this, might be wrong
-            # antenna_voltage_init = interp1d(
-            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
-            #     self.antenna_voltage_coarse_grid[
-            #         -self.rf_centers_lengths[-1] :
-            #     ],
-            # )(
-            #     init_beam_time
-            # )  # This is already interpolated between 0 and 100%
-            antenna_voltage_init = self.antenna_voltage_coarse_grid[
-                -self.rf_centers_lengths[-1] :
-            ][0]
-            # generator_current_init = interp1d(
-            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
-            #     self.generator_current_coarse_grid[
-            #         -self.rf_centers_lengths[-1] :
-            #     ],
-            # )(
-            #     init_beam_time
-            # )  # TODO: this should also be before the bunch arrival time and not interpolated
+    def _circuit_track_cells_kernel(
+        self,
+        omega_input: float,
+        no_beam: bool,
+        start_index: int,
+        end_index: int,
+    ) -> None:
+        """
+        Compiled coarse-grid recursion over one segment.
 
+        Precomputes on the host the per-cell step sizes and the solver-specific
+        voltage multiplier / drive weight (both state-independent), marshals the
+        PI controller state into a circular buffer, and runs the sequential
+        recursion in a single :func:`~blond.physics.feedbacks.envelope_kernel.\
+envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
+        coincident points) fall back to :meth:`_circuit_track_cells_python`.
+
+        Parameters
+        ----------
+        omega_input
+            Angular frequency of this segment.
+        no_beam
+            Whether the segment carries no beam.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+        """
+        n_cells = end_index - start_index
+        if n_cells <= 0:
+            return
+
+        delta_t = self._coarse_step_sizes(omega_input, start_index, end_index)
+        if delta_t is None:
+            # A coincident (zero) step needs the skip-and-warn reference path.
+            self._circuit_track_cells_python(
+                omega_input, no_beam, start_index, end_index
+            )
+            return
+
+        omega_times_dt = omega_input * delta_t
+        relative_detuning = self.delta_omega / omega_input
+        voltage_multiplier, drive_weight = self._kernel_step_multipliers(
+            omega_times_dt, relative_detuning
+        )
+        beam_current = self._kernel_beam_current(
+            no_beam, start_index, end_index, n_cells
+        )
+
+        if start_index == 0:
+            voltage_init = complex(self.last_val_ant_voltage)
+            generator_current_init = complex(self.last_val_generator_current)
+        else:
+            voltage_init = self.antenna_voltage_coarse_grid[start_index - 1]
             generator_current_init = self.generator_current_coarse_grid[
-                -self.rf_centers_lengths[-1] :
-            ][0]
+                start_index - 1
+            ]
 
-            samples_per_rf_fine_grid = omega_input * self.profile.hist_step
-            # copy_to_cpu: the feedback signal processing is host-side
-            # (scipy), so a GPU-backend profile grid must be brought to host.
-            self.generator_current_fine_grid = np.interp(
-                copy_to_cpu(self.profile.hist_x),
-                self.rf_centers[-self.rf_centers_lengths[-1] :],
-                self.generator_current_coarse_grid[
-                    -self.rf_centers_lengths[-1] :
-                ],
+        controller_active = self._controller_active and not no_beam
+        (
+            gain_proportional,
+            gain_integral,
+            generator_current_bias,
+            max_output,
+            pi_setpoint,
+            delay_buffer,
+            integral,
+        ) = self._kernel_controller_params(controller_active)
+
+        voltage_out = np.empty(n_cells, dtype=np.complex128)
+        generator_current_out = np.empty(n_cells, dtype=np.complex128)
+
+        delay_head, integral, saturation_possible = envelope_pi_scan(
+            voltage_multiplier,
+            drive_weight,
+            omega_times_dt,
+            beam_current,
+            voltage_out,
+            generator_current_out,
+            voltage_init,
+            generator_current_init,
+            float(self.R_over_Q),
+            controller_active,
+            pi_setpoint,
+            float(omega_input),
+            gain_proportional,
+            gain_integral,
+            generator_current_bias,
+            delay_buffer,
+            0,
+            integral,
+            max_output,
+        )
+
+        if saturation_possible:
+            # A cell reached the klystron limit, whose numpy-magnitude clamp the
+            # kernel cannot reproduce bit-for-bit. Nothing has been committed
+            # yet (grids not written, controller state untouched), so rerun the
+            # segment on the exact reference path and discard the kernel result.
+            self._circuit_track_cells_python(
+                omega_input, no_beam, start_index, end_index
+            )
+            return
+
+        self.antenna_voltage_coarse_grid[start_index:end_index] = voltage_out
+        if controller_active:
+            # The constant-current / no-beam paths never touch the generator
+            # grid (it stays at the reset bias), so write it back only when the
+            # controller actually ran, matching the reference exactly.
+            self.generator_current_coarse_grid[start_index:end_index] = (
+                generator_current_out
+            )
+            self._store_controller_state(delay_buffer, delay_head, integral)
+
+        if not no_beam:
+            self._check_beam_kicks(
+                beam_current,
+                omega_times_dt,
+                voltage_init,
+                voltage_out,
+                skip_first=(start_index == 0),
             )
 
-            relative_detuning = self.delta_omega / omega_input
-            self.cavity_response_fine(
-                antenna_voltage_init,
-                0,
-                generator_current_init,
-                samples_per_rf_fine_grid,
-                relative_detuning=relative_detuning,
+    def _kernel_step_multipliers(
+        self,
+        omega_times_dt: NumpyArray,
+        relative_detuning: float,
+    ) -> tuple[NumpyArray, NumpyArray]:
+        """
+        Per-cell voltage multiplier and drive weight for the kernel.
+
+        Both depend only on the step size and detuning (not the recursion
+        state), so they are precomputed here on the host: ``B = 1 + L`` /
+        ``W = 1`` for forward Euler, ``B = e^L`` / ``W = (e^L - 1) / L`` for
+        the exponential propagator, with ``L`` the per-cell growth exponent.
+
+        Parameters
+        ----------
+        omega_times_dt
+            Per-cell ``omega * dt`` (strictly positive; zero steps have already
+            fallen back to the reference path).
+        relative_detuning
+            Detuning normalised to the segment frequency
+            (``delta_omega / omega``).
+
+        Returns
+        -------
+        voltage_multiplier
+            Per-cell voltage multiplier ``B`` (complex128).
+        drive_weight
+            Per-cell drive weight ``W`` (complex128).
+        """
+        step_exponent = (
+            -0.5 * omega_times_dt / self.Q_L
+            + 1j * relative_detuning * omega_times_dt
+        )
+        if self.exponential_coarse_solver:
+            voltage_multiplier = np.exp(step_exponent)
+            # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
+            # well defined.
+            drive_weight = np.expm1(step_exponent) / step_exponent
+        else:
+            voltage_multiplier = 1.0 + step_exponent
+            drive_weight = np.ones(
+                omega_times_dt.shape[0], dtype=np.complex128
+            )
+        return voltage_multiplier, drive_weight
+
+    def _kernel_beam_current(
+        self,
+        no_beam: bool,
+        start_index: int,
+        end_index: int,
+        n_cells: int,
+    ) -> NumpyArray:
+        """
+        Per-cell beam current for a kernel segment.
+
+        Mirrors ``cavity_response``: a no-beam segment is all zeros; otherwise
+        each cell reads the forward beam-current grid, except the carried
+        ``rf_centers`` index 0 (if present), which uses
+        ``last_val_beam_current``.
+
+        Parameters
+        ----------
+        no_beam
+            Whether the segment carries no beam.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+        n_cells
+            Number of cells in the segment.
+
+        Returns
+        -------
+        beam_current
+            Per-cell beam current (complex128, length ``n_cells``).
+        """
+        beam_current = np.zeros(n_cells, dtype=np.complex128)
+        if no_beam:
+            return beam_current
+        forward_offset = len(self.rf_centers) - self.rf_centers_lengths[-1]
+        global_indices = np.arange(start_index, end_index)
+        local_start = 1 if start_index == 0 else 0
+        beam_current[local_start:] = self.beam_current_forward_coarse_grid[
+            global_indices[local_start:] - forward_offset
+        ]
+        if start_index == 0:
+            # Carried index 0 uses last_val_beam_current (cavity_response).
+            beam_current[0] = self.last_val_beam_current
+        return beam_current
+
+    def _kernel_controller_params(
+        self, controller_active: bool
+    ) -> tuple[float, float, complex, float, complex, NumpyArray, complex]:
+        """
+        PI controller parameters and marshalled state for the kernel.
+
+        Extracts the controller gains, bias, klystron limit (``inf`` when
+        unlimited), IQ setpoint, delay-line buffer and error integral. When the
+        controller is inactive, returns neutral values so the kernel simply
+        holds the generator current.
+
+        Parameters
+        ----------
+        controller_active
+            Whether the PI controller runs on this segment.
+
+        Returns
+        -------
+        gain_proportional, gain_integral, generator_current_bias, max_output,\
+ pi_setpoint, delay_buffer, integral
+            The controller parameters and marshalled state passed to
+            :func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`.
+        """
+        if not controller_active:
+            return (
+                0.0,
+                0.0,
+                0.0 + 0.0j,
+                np.inf,
+                0.0 + 0.0j,
+                np.zeros(1, dtype=np.complex128),
+                0.0 + 0.0j,
+            )
+        controller = self._controller
+        max_output = (
+            np.inf
+            if controller.max_output is None
+            else float(controller.max_output)
+        )
+        return (
+            float(controller.gain_proportional),
+            float(controller.gain_integral),
+            complex(controller.generator_current_bias),
+            max_output,
+            complex(self.pi_setpoint),
+            np.array(controller._delay_line, dtype=np.complex128),
+            complex(controller._integral),
+        )
+
+    def _store_controller_state(
+        self,
+        delay_buffer: NumpyArray,
+        delay_head: int,
+        integral: complex,
+    ) -> None:
+        """
+        Write the kernel's PI state back into the controller.
+
+        Rebuilds the controller's delay-line :class:`~collections.deque` from
+        the circular buffer (oldest-first from ``delay_head``) and stores the
+        error integral, so a subsequent segment or turn resumes exactly where
+        the kernel left off.
+
+        Parameters
+        ----------
+        delay_buffer
+            The circular delay buffer after the kernel scan.
+        delay_head
+            The buffer head index after the scan.
+        integral
+            The committed error integral after the scan.
+        """
+        buffer_len = delay_buffer.shape[0]
+        self._controller._delay_line = deque(
+            (
+                delay_buffer[(delay_head + offset) % buffer_len]
+                for offset in range(buffer_len)
+            ),
+            maxlen=buffer_len,
+        )
+        self._controller._integral = integral
+
+    def _check_beam_kicks(
+        self,
+        beam_current: NumpyArray,
+        omega_times_dt: NumpyArray,
+        voltage_init: complex,
+        voltage_out: NumpyArray,
+        skip_first: bool,
+    ) -> None:
+        """
+        Vectorised beam-kick tripwire for a forward kernel segment.
+
+        Reproduces the per-cell :meth:`_check_beam_kick_magnitude` sweep of the
+        reference path: it locates the offending cells with vectorised numpy
+        and then delegates to :meth:`_check_beam_kick_magnitude` for the actual
+        raise/warn, so the exception and warning messages (and the once-only
+        warning flag) are identical. A merely-large kick that precedes any hard
+        violation warns first, matching the reference ordering.
+
+        Parameters
+        ----------
+        beam_current
+            Per-cell beam current of the segment.
+        omega_times_dt
+            Per-cell ``omega * dt`` of the segment.
+        voltage_init
+            Antenna voltage preceding the first cell.
+        voltage_out
+            Per-cell antenna voltage just computed for the segment.
+        skip_first
+            Whether to skip the first cell (the carried ``rf_centers`` index 0,
+            which the reference never checks).
+        """
+        previous_voltage = np.empty_like(voltage_out)
+        previous_voltage[0] = voltage_init
+        previous_voltage[1:] = voltage_out[:-1]
+        beam_kick = beam_current * 0.5 * self.R_over_Q * omega_times_dt
+        previous_voltage_abs = np.abs(previous_voltage)
+        valid = (beam_current != 0) & (previous_voltage_abs != 0)
+        if skip_first:
+            valid[0] = False
+        if not valid.any():
+            return
+        relative_kick = np.zeros(beam_current.shape[0], dtype=np.float64)
+        relative_kick[valid] = (
+            np.abs(beam_kick[valid]) / previous_voltage_abs[valid]
+        )
+        # Same thresholds as the per-cell _check_beam_kick_magnitude.
+        max_relative_kick = 0.1
+        max_relative_kick_hard = 1.0
+        hard = valid & (relative_kick > max_relative_kick_hard)
+        soft = valid & (relative_kick > max_relative_kick)
+        first_hard = int(np.argmax(hard)) if hard.any() else -1
+        first_soft = int(np.argmax(soft)) if soft.any() else -1
+
+        # Warn once if a merely-large kick precedes any hard violation, so the
+        # observable warn-then-raise ordering matches the per-cell loop.
+        if first_soft >= 0 and (first_hard < 0 or first_soft < first_hard):
+            self._check_beam_kick_magnitude(
+                beam_current[first_soft],
+                omega_times_dt[first_soft],
+                previous_voltage[first_soft],
+            )
+        if first_hard >= 0:
+            self._check_beam_kick_magnitude(
+                beam_current[first_hard],
+                omega_times_dt[first_hard],
+                previous_voltage[first_hard],
             )
 
     def _check_beam_kick_magnitude(
@@ -1416,8 +1939,12 @@ class IQCavityFeedbackTimingClass(
         self.calculate_rf_centers_for_forward_direction(beam=beam)
 
         # The flat rf_centers / rf_centers_lengths arrays are derived from
-        # _segments; assert they stayed consistent after this turn's generation.
-        self._validate_grid()
+        # _segments; assert they stayed consistent after this turn's
+        # generation. This is a per-turn integrity check with no effect on the
+        # result, so it runs only under ``debug`` (it walks the whole grid
+        # every turn otherwise).
+        if self.debug:
+            self._validate_grid()
 
         # Coincidence tolerance for the simultaneous-passage guard above:
         # one coarse-cell width, taken from the last two grid centers.
@@ -1505,7 +2032,6 @@ class IQCavityFeedbackTimingClass(
         # default behavior
         self.calculate_rf_beam_current_partial(
             beam=beam,
-            use_lowpass_filter=False,
             n_points=len_frwrd,
             remaining_delta_t_from_reverse_tracking=remaining_delta_t_from_reverse_tracking,
         )
@@ -1591,7 +2117,6 @@ class IQCavityFeedbackTimingClass(
         beam: BeamBaseClass,
         n_points: int,
         remaining_delta_t_from_reverse_tracking: float,
-        use_lowpass_filter: bool = False,
     ) -> None:
         r"""
         Calculate the IQ beam current for the coarse and fine grid.
@@ -1604,8 +2129,6 @@ class IQCavityFeedbackTimingClass(
             Number of points in the resulting coarse grid.
         remaining_delta_t_from_reverse_tracking
             Remaining time from the last rf_centers calculation, causes phase shift in beam current calculation.
-        use_lowpass_filter
-            Usage of low-pass filter in the calculation of the beam current.
         """
         if self.profile.active:
             self.profile.track(beam=beam)
@@ -1660,7 +2183,6 @@ class IQCavityFeedbackTimingClass(
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
             dT=dT_demodulation,
-            use_lowpass_filter=use_lowpass_filter,
         )  # TODO: this is wrong --> adjust to rf_centers calculation
 
         # Convert RF beam currents to be in units of Amperes

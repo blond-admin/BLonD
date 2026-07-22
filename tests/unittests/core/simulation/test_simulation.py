@@ -833,5 +833,145 @@ class TestSimulation(unittest.TestCase):
             plt.show()
 
 
+class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
+    """
+    Live-profile placement validation of the counter-rotating mainloop.
+
+    A live (``active=True``) profile consumed by an element must be tracked
+    as a ring element on both sides of the consumer, so each of the two
+    counter-rotating beams re-histograms it immediately before the consumer
+    in its own traversal order; frozen profiles are exempt. The checker is
+    exercised directly on lightweight stand-in objects.
+    """
+
+    @staticmethod
+    def _simulation_with(elements):
+        """
+        Wrap an element list in the minimal simulation stand-in.
+
+        Parameters
+        ----------
+        elements
+            The one-turn ring element list.
+
+        Returns
+        -------
+        SimpleNamespace
+            Object exposing ``._ring.elements.elements`` like a Simulation.
+        """
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            _ring=SimpleNamespace(elements=SimpleNamespace(elements=elements))
+        )
+
+    @staticmethod
+    def _profile(active):
+        """
+        A minimal profile stand-in.
+
+        Parameters
+        ----------
+        active
+            Whether the profile histogram is live.
+
+        Returns
+        -------
+        SimpleNamespace
+            Object exposing ``.active`` like a profile.
+        """
+        from types import SimpleNamespace
+
+        return SimpleNamespace(active=active)
+
+    @staticmethod
+    def _consumer(profile):
+        """
+        A minimal profile-consuming element stand-in.
+
+        Parameters
+        ----------
+        profile
+            The profile the element consumes.
+
+        Returns
+        -------
+        SimpleNamespace
+            Object exposing ``.profile`` like an RF station / wakefield.
+        """
+        from types import SimpleNamespace
+
+        return SimpleNamespace(profile=profile)
+
+    def _check(self, elements):
+        """
+        Run the placement check on an element list.
+
+        Parameters
+        ----------
+        elements
+            The one-turn ring element list.
+        """
+        from blond.core.simulation.execution_models.conterrotating_beams import (
+            MainloopCounterRotatingBeams,
+        )
+
+        MainloopCounterRotatingBeams._check_two_beam_profile_placement(
+            self._simulation_with(elements)
+        )
+
+    def test_sandwiched_live_profile_passes(self):
+        """Profile tracked on both sides of the consumer is accepted."""
+        profile = self._profile(active=True)
+        self._check([profile, self._consumer(profile), profile])
+
+    def test_frozen_profile_needs_no_tracking(self):
+        """A frozen (``active=False``) profile is exempt from the check."""
+        profile = self._profile(active=False)
+        self._check([self._consumer(profile)])
+
+    def test_untracked_live_profile_raises(self):
+        """A live profile that is never tracked is rejected."""
+        profile = self._profile(active=True)
+        with self.assertRaises(ValueError) as ctx:
+            self._check([self._consumer(profile)])
+        self.assertIn("never tracked", str(ctx.exception))
+
+    def test_one_sided_live_profile_raises(self):
+        """A live profile tracked on only one side is rejected."""
+        profile = self._profile(active=True)
+        with self.assertRaises(ValueError) as ctx:
+            self._check([profile, self._consumer(profile)])
+        self.assertIn("only on one side", str(ctx.exception))
+        self.assertIn("after", str(ctx.exception))
+
+    def test_attached_wakefield_profile_is_checked(self):
+        """A profile attached via ``_local_wakefield`` is validated too."""
+        from types import SimpleNamespace
+
+        profile = self._profile(active=True)
+        station = SimpleNamespace(
+            profile=None,
+            _local_wakefield=SimpleNamespace(profile=profile),
+        )
+        with self.assertRaises(ValueError):
+            self._check([profile, station])
+        # sandwiched: accepted
+        self._check([profile, station, profile])
+
+    def test_attached_feedback_profile_is_checked(self):
+        """A profile attached via ``cavity_feedback_list`` is validated too."""
+        from types import SimpleNamespace
+
+        profile = self._profile(active=True)
+        station = SimpleNamespace(
+            profile=None,
+            cavity_feedback_list=[SimpleNamespace(profile=profile)],
+        )
+        with self.assertRaises(ValueError):
+            self._check([station, profile])
+        self._check([profile, station, profile])
+
+
 if __name__ == "__main__":
     unittest.main()

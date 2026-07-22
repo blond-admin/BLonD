@@ -1239,7 +1239,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             # R_CR = +R: the counter-rotating witness experiences the
             # inverted wake (witness-direction sign is part of the
             # parameter; an asymmetric fundamental mode has R_CR = -R).
-            shunt_impedances_counter_rotating=np.array([1, 2, 3]),
+            shunt_impedances_counter_witness=np.array([1, 2, 3]),
         )
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
         self.hist_step, self.hist_x = (
@@ -3396,7 +3396,7 @@ class TestCounterRotatingBeamKickSymmetry(unittest.TestCase):
     opposite charge *and* opposite direction, so its gap current -- the
     direction-signed charge -- has the same sign as the co-rotating mu-plus
     beam. With an *asymmetric* fundamental mode's counter-rotating shunt
-    (``shunt_impedances_counter_rotating = -R``: the parameter is the shunt
+    (``shunt_impedances_counter_witness = -R``: the parameter is the shunt
     the counter-rotating witness *experiences*, its direction sign included
     -- the sign is a property of the mode's field symmetry, not of
     fundamental modes in general; source and kick carry the signed
@@ -3537,7 +3537,7 @@ class TestCounterRotatingBeamKickSymmetry(unittest.TestCase):
         cr_kwargs = (
             {}
             if shunt_counter_rotating is None
-            else {"shunt_impedances_counter_rotating": shunt_counter_rotating}
+            else {"shunt_impedances_counter_witness": shunt_counter_rotating}
         )
         resonator = Resonators(
             shunt_impedances=self.R_OVER_Q * self.Q_L,
@@ -3738,7 +3738,7 @@ class TestCounterRotatingBeamKickSymmetry(unittest.TestCase):
 
         The cavity is symmetric: how much a single bunch induces (and the
         kick it receives from its own wake) does not depend on its travel
-        direction; ``shunt_impedances_counter_rotating`` only encodes the
+        direction; ``shunt_impedances_counter_witness`` only encodes the
         relationship *between* directions. Same-direction interactions take
         the co-rotating wake by construction (the XOR selection), so a
         counter-rotating beam alone runs with the shunt UNSET -- the source
@@ -3885,7 +3885,7 @@ class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
             shunt_impedances=self.R_OVER_Q * self.Q_L,
             center_frequencies=1.0 / self.T_RF,
             quality_factors=self.Q_L,
-            shunt_impedances_counter_rotating=shunt_counter_rotating,
+            shunt_impedances_counter_witness=shunt_counter_rotating,
         )
         if solver_kind == "multipass":
             solver = MultiPassResonatorSolver(decay_fraction_threshold=1e-12)
@@ -4061,7 +4061,7 @@ class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
     def test_counter_rotating_without_shunt_cr_raises_both_solvers(self):
         """
         Both multi-turn solvers fail fast on a counter-rotating beam when
-        ``shunt_impedances_counter_rotating`` was never set.
+        ``shunt_impedances_counter_witness`` was never set.
 
         A co-rotating deposit followed by a counter-rotating passage
         genuinely consults the cross-direction coupling. With ``R_CR`` unset
@@ -4083,7 +4083,7 @@ class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
         for solver_kind in ("multipass", "multipole"):
             with self.subTest(solver=solver_kind):
                 with self.assertRaisesRegex(
-                    RuntimeError, "shunt_impedances_counter_rotating"
+                    RuntimeError, "shunt_impedances_counter_witness"
                 ):
                     _run(solver_kind)
 
