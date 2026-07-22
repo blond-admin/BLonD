@@ -624,7 +624,7 @@ class RingAndRFTracker:
                                                         * number_of_bins
                                 ],
                                 bin_centers=profile.bin_centers,
-                                charge=self.beam.Particle.charge,
+                                charge=self.beam.particle.charge,
                                 acceleration_kick=self.acceleration_kick[turn],
                             )
                     else:
