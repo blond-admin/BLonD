@@ -157,8 +157,13 @@ class SparseProfileBaseClass:
         self._generate_profile_list()
 
         # Track at initialisation
-        if self.do_track_on_init:
+        #if python is enabled, tracking should be done at initialisation to
+        # reinit the n_macroparticles aray per profile.
+        if tracker_mode == 'onebyone':
             self.track()
+        else:
+            if self.do_track_on_init:
+                self.track()
 
     @property
     def n_macroparticles_array(self):
