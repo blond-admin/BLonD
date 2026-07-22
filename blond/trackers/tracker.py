@@ -319,7 +319,7 @@ class RingAndRFTracker:
         periodicity: bool = False,
         interpolation: bool = False,
         with_xsuite: bool = False,
-        profile: Optional[Profile] = None,
+        profile: Optional[Profile|SparseProfileBaseClass] = None,
         total_induced_voltage: Optional[TotalInducedVoltage] = None,
     ):
         # Set up logging
