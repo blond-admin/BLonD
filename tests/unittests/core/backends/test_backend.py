@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 import unittest
 import warnings
 
@@ -12,7 +15,6 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond.core.backends.numba.callables import recompile_numba_backend
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -126,6 +128,86 @@ class TestBackendBaseClass(unittest.TestCase):
 
         backend.set_specials(mode=specials_org)  # prevent side effect on tests
         backend.change_backend(backend_org)
+
+    @pytest.mark.backend_mutation
+    def test_apply_environment_variables_error_names_env_var(self):
+        import os
+
+        # Save the original value so the try/finally can restore the process
+        # environment exactly as it was, leaking no state into other tests.
+        # mode_org is None when the var was unset, so we must distinguish
+        # "delete it again" from "put the old value back".
+        mode_org = os.environ.get("BLOND_BACKEND_MODE")
+        os.environ["BLOND_BACKEND_MODE"] = "doesnt_exist"
+        try:
+            with self.assertRaisesRegex(ValueError, "BLOND_BACKEND_MODE"):
+                self.backend_base_class.apply_environment_variables()
+        finally:
+            if mode_org is None:
+                del os.environ["BLOND_BACKEND_MODE"]
+            else:
+                os.environ["BLOND_BACKEND_MODE"] = mode_org
+
+    @pytest.mark.backend_mutation
+    def test_setup_backend_cpp_single_core(self):
+        from blond.core.backends.helpers import setup_backend
+
+        setup_backend("cpp_single_core")
+        self.assertEqual(backend.specials_mode, "cpp_single_core")
+
+
+def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
+    """Run a code snippet in a fresh interpreter without BLOND env vars."""
+    env = os.environ.copy()
+    for key in ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS"):
+        env.pop(key, None)
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=300,
+    )
+
+
+class TestImportSideEffects(unittest.TestCase):
+    """Importing the backend must not print, probe, or compile anything."""
+
+    def test_import_has_no_stdout_side_effects(self):
+        result = _run_python("import blond.core.backends.backend")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            result.stdout.strip(),
+            "",
+            msg=f"import must not print, got: {result.stdout!r}",
+        )
+
+    def test_available_backends_is_lazy(self):
+        result = _run_python(
+            "import blond.core.backends.backend as b;"
+            "print('AVAILABLE_BACKENDS' in vars(b));"
+            "print('Numpy64Bit' in b.AVAILABLE_BACKENDS);"
+            "print('AVAILABLE_BACKENDS' in vars(b))"
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            result.stdout.split(),
+            ["False", "True", "True"],
+            msg="backends must only be probed on first access",
+        )
+
+    def test_cpp_specials_is_lazy(self):
+        result = _run_python(
+            "import blond.core.backends.cpp.callables as c;"
+            "print('CppSpecials' in vars(c));"
+            "print(c.CppSpecials.__name__)"
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            result.stdout.split(),
+            ["False", "CppSpecials"],
+            msg="the C++ library must only be loaded on first access",
+        )
 
 
 class TestCupy64Bit(unittest.TestCase):
@@ -428,6 +510,254 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_zero_macroparticles(
+        self,
+    ) -> None:
+        """Empty beam must be a no-op (no errors, no allocation surprises)."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=False,
+            )
+            self.assertEqual(
+                beam_dE.shape,
+                (0,),
+                msg=f"Failed `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_noise_statistics(
+        self,
+    ) -> None:
+        """With QE on, mean ≈ damping result, std ≈ noise_scale ($1\\sigma$ check)."""
+        # Use a large beam so the sample stats converge tightly.
+        dtype = np.float64
+        n_macroparticles = 200_000
+        initial_dE = 20e9
+        energy_lost = 13e6
+        longitudinal_damping_time = 14955.0
+        natural_energy_spread = 1e-3
+        total_energy = 20e9
+        expected_mean = (
+            1.0 - 2.0 / longitudinal_damping_time
+        ) * initial_dE - energy_lost
+        expected_std = (
+            2.0
+            * natural_energy_spread
+            / np.sqrt(longitudinal_damping_time)
+            * total_energy
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.array(
+                initial_dE * np.ones(n_macroparticles, dtype=dtype),
+                dtype=backend.float,
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=energy_lost,
+                longitudinal_damping_time=longitudinal_damping_time,
+                natural_energy_spread=natural_energy_spread,
+                total_energy=total_energy,
+                disable_quantum_excitation=False,
+            )
+            dE_after_kick = copy_to_cpu(beam_dE)
+            sample_mean = float(dE_after_kick.mean())
+            sample_std = float(dE_after_kick.std())
+            # 5σ confidence at n=200k → mean error tol ~ 5·σ/√n ≈ 5·1.6e6/√2e5 ≈ 1.8e4
+            # Use a looser tol to keep flakes negligible across backends/RNGs.
+            self.assertAlmostEqual(
+                sample_mean,
+                expected_mean,
+                delta=max(1e-4 * abs(expected_mean), 5e4),
+                msg=(
+                    f"`{special}`: sample mean {sample_mean:.4e} far from "
+                    f"expected {expected_mean:.4e}"
+                ),
+            )
+            self.assertAlmostEqual(
+                sample_std / expected_std,
+                1.0,
+                delta=0.02,  # within 2% of true σ
+                msg=(
+                    f"`{special}`: sample std {sample_std:.4e} vs expected "
+                    f"{expected_std:.4e}"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_disable_qe_is_noiseless(
+        self,
+    ) -> None:
+        """When QE is disabled, two consecutive calls must give the same delta."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            kick_kwargs = dict(
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=True,
+            )
+            beam_dE_first_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            beam_dE_second_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_first_call, **kick_kwargs
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_second_call, **kick_kwargs
+            )
+            dE_first_call = copy_to_cpu(beam_dE_first_call)
+            dE_second_call = copy_to_cpu(beam_dE_second_call)
+            np.testing.assert_array_equal(
+                dE_first_call,
+                dE_second_call,
+                err_msg=f"`{special}` produced non-deterministic output",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_qe_adds_variance(
+        self,
+    ) -> None:
+        """With QE on, two calls with same scalar inputs must differ (noise)."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            kick_kwargs = dict(
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=False,
+            )
+            beam_dE_first_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            beam_dE_second_call = backend.array(
+                20e9 * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_first_call, **kick_kwargs
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE_second_call, **kick_kwargs
+            )
+            dE_first_call = copy_to_cpu(beam_dE_first_call)
+            dE_second_call = copy_to_cpu(beam_dE_second_call)
+            self.assertFalse(
+                np.array_equal(dE_first_call, dE_second_call),
+                msg=(
+                    f"`{special}`: two QE-enabled calls returned identical "
+                    f"output — noise term not active"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_deterministic(
+        self,
+    ) -> None:
+        """Disable QE → result is exactly ``(1 - 2/τ) * beam_dE - energy_lost``."""
+        dtype = np.float64
+        energy_lost = 13e6
+        longitudinal_damping_time = 14955.0
+        total_energy = 20e9
+        initial_dE = 20e9
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.array(
+                initial_dE * np.ones(1000, dtype=dtype), dtype=backend.float
+            )
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=energy_lost,
+                longitudinal_damping_time=longitudinal_damping_time,
+                natural_energy_spread=1e-3,
+                total_energy=total_energy,
+                disable_quantum_excitation=True,
+            )
+            expected_dE = (
+                1.0 - 2.0 / longitudinal_damping_time
+            ) * initial_dE - energy_lost
+            dE_after_kick = copy_to_cpu(beam_dE)
+            np.testing.assert_allclose(
+                np.asarray(dE_after_kick),
+                expected_dE * np.ones(1000, dtype=dtype),
+                rtol=self.rtol,
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_apply_synchrotron_radiation_and_quantum_excitation_energy_kick_inplace(
+        self,
+    ) -> None:
+        """The kick must mutate ``beam_dE`` in place — same object, not a copy."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            beam_dE = backend.array(
+                20e9 * np.ones(100, dtype=dtype), dtype=backend.float
+            )
+            id_before = id(beam_dE)
+            backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+                beam_dE=beam_dE,
+                energy_lost=13e6,
+                longitudinal_damping_time=14955,
+                natural_energy_spread=1e-3,
+                total_energy=20e9,
+                disable_quantum_excitation=False,
+            )
+            self.assertEqual(
+                id_before,
+                id(beam_dE),
+                msg=f"Inplace contract violated for `{special}`",
+            )
+            # Value must have actually changed (damping + noise).
+            dE_after_kick = copy_to_cpu(beam_dE)
+            self.assertFalse(
+                np.allclose(
+                    np.asarray(dE_after_kick),
+                    20e9 * np.ones(100, dtype=dtype),
+                ),
+                msg=f"`{special}` did not modify beam_dE",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_single_harmonic(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
@@ -532,6 +862,107 @@ class TestSpecials(unittest.TestCase):
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_far_outside_window(self) -> None:
+        """Particles far outside the window must not receive any kick.
+
+        The C++ kernel converted ``floor(...)`` of the bin index to
+        ``unsigned``, which is undefined behaviour for negative values: on
+        x86 it happens to produce a huge value that is skipped, but e.g. on
+        ARM the conversion saturates to 0 and such particles would wrongly
+        receive the kick of bin 0.
+        """
+        dtype = np.float64
+        dt_np = np.array(
+            [-1e30, -1e12, -4.5, 0.0, 4.5, 1e12, 1e30], dtype=dtype
+        )
+        in_range = np.zeros_like(dt_np, dtype=bool)
+        in_range[3] = True  # only dt = 0.0 is inside bin_centers [-4, 4]
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(dt_np, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+            voltage = bin_centers**2
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(10),
+                acceleration_kick=backend.float(0.5),
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            result = np.asarray(result)
+            np.testing.assert_array_equal(
+                result[~in_range],
+                0.0,
+                err_msg=(
+                    f"out-of-window particles must not be kicked, "
+                    f"{special=} {dtype=}"
+                ),
+            )
+            self.assertNotEqual(
+                result[3],
+                0.0,
+                msg=f"in-window particle must be kicked, {special=}",
+            )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_extreme_outliers(self) -> None:
+        """Histogram must ignore values of extreme magnitude.
+
+        Bin indices of such values overflow ``int``; the conversion is
+        undefined behaviour in C++ and must not be relied on. Also pins
+        the edge semantics: ``== start`` is counted in the first bin,
+        ``== stop`` in the last bin.
+        """
+        dtype = np.float64
+        values_np = np.array(
+            [-1e30, -1e12, -12.0, 0.0, 8.0, 1e12, 1e30], dtype=dtype
+        )
+        n_bins = 21
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[0] += 1  # -12.0 == start
+        expected[int((0.0 - -12.0) / 20.0 * n_bins)] += 1  # 0.0
+        expected[-1] += 1  # 8.0 == stop
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(-12),
+                stop=backend.float(8.0),
+            )
+            result = array_write
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                np.asarray(result),
+                expected,
+                err_msg=f"{special=} {dtype=}",
+            )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_bug(self) -> None:
@@ -1413,6 +1844,79 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_histogram_sparse_outside_edges(self) -> None:
+        """Particles slightly outside the profile windows must not be counted.
+
+        Regression test: the numba backend truncated negative float bin
+        indices toward zero (``int(-0.5) == 0``), so a particle up to one
+        bin width left of ``first_left_cut`` was counted into bin 0 of the
+        first profile.
+        """
+        dtype = np.float64
+        bins_per_profile = 4  # bin width = cut_width / 4 = 1
+        first_left_cut = -12
+        left_cut_distance = 8
+        cut_width = 4
+        # filled buckets 0, 2, 4 -> windows [-12,-8], [4,8], [20,24]
+        filling_pattern_np = np.array([1, 0, 1, 0, 1, 0], dtype=bool)
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 4, 4, 8, 8], dtype=np.int32
+        )
+        particles_np = np.array(
+            [
+                # outside any window, must never be counted
+                -12.5,  # < one bin left of first cut (numba truncation bug)
+                -15.9,  # < one bucket distance left of first cut
+                -20.5,  # more than one bucket distance left of first cut
+                8.5,  # just right of window [4,8], in a gap
+                24.5,  # just right of last window [20,24]
+                # inside windows, must be counted
+                -11.5,  # profile 0, bin 0
+                5.5,  # profile 1, bin 1
+                23.9,  # profile 2, bin 3
+            ],
+            dtype=dtype,
+        )
+        expected = np.zeros(12, dtype=dtype)
+        expected[0] = 1  # -11.5
+        expected[4 + 1] = 1  # 5.5
+        expected[8 + 3] = 1  # 23.9
+
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            particles_x = backend.array(particles_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            # initialised to ones to verify the output is zeroed
+            array_write = backend.ones(12, dtype=backend.float)
+            for _ in range(2):
+                backend.specials.histogram_sparse(
+                    x=particles_x,
+                    out=array_write,
+                    first_left_cut=first_left_cut,
+                    left_cut_distance=left_cut_distance,
+                    cut_width=cut_width,
+                    bins_per_profile=bins_per_profile,
+                    n_active_profiles=3,
+                    filling_pattern=filling_pattern,
+                    bucket_index_to_memory_index=bucket_index_to_memory_index,
+                )
+            result = array_write
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                result,
+                expected,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_histogram_long_profiles(self) -> None:
         """Specifically to test edge effects at beginning and end."""
         dtype = np.float64
@@ -1515,6 +2019,124 @@ class TestSpecials(unittest.TestCase):
                     rtol=self.rtol,
                     err_msg=f"{special=} {dtype=}",
                 )
+
+    def _run_wake_from_pole_residue(
+        self,
+        update_on_bin_np: np.ndarray,
+        n_calls: int = 1,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Run `wake_from_pole_residue` on the active backend.
+
+        Returns
+        -------
+        voltage, states
+            Output voltage and pole states as numpy arrays.
+        """
+        n = 16
+        rng = np.random.default_rng(42)
+        profile_np = rng.standard_normal(n)
+        centers_np = np.linspace(0.0, 1e-9, n)
+        bin_dt = centers_np[1] - centers_np[0]
+        poles_np = np.array(
+            [-1e8 + 2 * np.pi * 1e9j, -2e8 + 2 * np.pi * 1.5e9j],
+            dtype=complex,
+        )
+        residues_np = np.array([1.0 + 0.5j, 0.7 - 0.2j], dtype=complex)
+
+        profile = backend.array(profile_np, dtype=backend.float)
+        centers = backend.array(centers_np, dtype=backend.float)
+        poles = backend.array(poles_np, dtype=backend.complex)
+        residues = backend.array(residues_np, dtype=backend.complex)
+        states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
+        # non-zero state so decay handling is observable in the output
+        states[0] = 0.3 + 0.1j
+        states[-1] = centers_np[0] - bin_dt
+        voltage = backend.zeros(n, dtype=backend.float)
+        for _ in range(n_calls):
+            backend.specials.wake_from_pole_residue(
+                profile=profile,
+                profile_dts=centers,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=backend.ones_like(
+                    poles, dtype=backend.float
+                ),
+                update_on_bin=backend.array(update_on_bin_np, dtype=np.int32),
+                factor=1.0,
+                states=states,
+                voltage=voltage,
+                voltage_threaded=backend.zeros(
+                    (backend.specials.get_max_threads(), n),
+                    dtype=backend.float,
+                ),
+            )
+        if backend.is_gpu:
+            return voltage.get(), states.get()
+        return np.asarray(voltage), np.asarray(states)
+
+    def _assert_wake_matches_python(
+        self, update_on_bin_np: np.ndarray, n_calls: int = 1
+    ) -> None:
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            voltage, states = self._run_wake_from_pole_residue(
+                update_on_bin_np=update_on_bin_np,
+                n_calls=n_calls,
+            )
+            if i == 0:
+                voltage_python = voltage
+                states_python = states
+            else:
+                np.testing.assert_allclose(
+                    voltage,
+                    voltage_python,
+                    rtol=1e-10,
+                    err_msg=f"{special=} {dtype=}",
+                )
+                np.testing.assert_allclose(
+                    states,
+                    states_python,
+                    rtol=1e-10,
+                    err_msg=f"{special=} {dtype=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue(self) -> None:
+        """All backends must match python, incl. states over two calls."""
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([0], dtype=np.int32),
+            n_calls=2,
+        )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_update_not_on_first_bin(self) -> None:
+        """`update_on_bin[0] != 0` must behave like python (`decay = 0`).
+
+        Before the first update bin, ``state *= decay`` with ``decay = 0``
+        zeroes the state. The numba kernel did not initialise ``decay`` and
+        relied on implicit zero-initialisation of maybe-undefined variables.
+        """
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([2], dtype=np.int32),
+        )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_empty_update_on_bin(self) -> None:
+        """Empty `update_on_bin` must not read out of bounds.
+
+        The C++ and CUDA kernels treat an empty array as "never update"
+        (``decay`` stays 0). The python reference raised ``IndexError`` and
+        the numba kernel read ``update_on_bin[0]`` out of bounds.
+        """
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([], dtype=np.int32),
+        )
 
     @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
@@ -2469,16 +3091,6 @@ class TestSpecials(unittest.TestCase):
 
     def test_import(self):
         pass
-
-
-class TestNumbaCompilation(unittest.TestCase):
-    @pytest.mark.backend_mutation
-    def test_raising_of_error(self) -> None:
-        with self.assertRaises(TypeError):
-            recompile_numba_backend(floattype=np.float16)
-
-        with self.assertRaises(TypeError):
-            recompile_numba_backend(floattype=np.float32)
 
 
 if __name__ == "__main__":

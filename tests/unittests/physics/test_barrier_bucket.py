@@ -1,5 +1,6 @@
 # General imports
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 import numpy.testing as nptest
@@ -7,6 +8,8 @@ import numpy.testing as nptest
 # BLonD imports
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayShapeError
 from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
 
@@ -52,6 +55,32 @@ class TestBarrierBucketFunctions(unittest.TestCase):
                 -1e3,
                 places=1,
             )
+
+    def test_offset_barrier(self):
+        cent = 250e-9
+        width = 100e-9
+        ampl = 1e3
+
+        n_harmonics = 100
+
+        centers = np.linspace(0, 1000e-9, 1000)
+
+        waveform = copy_to_cpu(
+            bbuck.compute_sin_barrier(cent, width, ampl, centers)
+        )
+
+        amps, phases = bbuck.waveform_to_harmonics(
+            waveform, range(1, n_harmonics + 1)
+        )
+
+        recreated = copy_to_cpu(
+            bbuck.harmonics_to_waveform(
+                centers, range(1, n_harmonics + 1), amps, phases
+            )
+        )
+
+        np.testing.assert_allclose(waveform, recreated, atol=50)
+        np.testing.assert_allclose(waveform[500:], recreated[500:], atol=1)
 
     @multi_backend_testcase
     def test_periodic_barrier_right(self):
@@ -162,17 +191,17 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         ]
         phases_exp = [
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
+            0,
             3.14,
-            6.28,
-            3.13,
-            6.28,
+            0,
+            3.15,
+            0,
         ]
 
         for inp_cast in ArrayLikeScan():
@@ -180,9 +209,12 @@ class TestBarrierBucketFunctions(unittest.TestCase):
                 inp_cast(barrier), inp_cast(list(range(1, 13)))
             )
 
-            for a, a_exp, p, p_exp in zip(amps, amps_exp, phases, phases_exp):
-                self.assertAlmostEqual(float(a), a_exp, places=1)
-                self.assertAlmostEqual(float(p), p_exp, places=2)
+            np.testing.assert_array_almost_equal(
+                amps_exp, copy_to_cpu(amps), decimal=1
+            )
+            np.testing.assert_array_almost_equal(
+                phases_exp, copy_to_cpu(phases), decimal=2
+            )
 
     @multi_backend_testcase
     def test_sinc_filter(self):
@@ -221,8 +253,8 @@ class TestBarrierBucketFunctions(unittest.TestCase):
     @multi_backend_testcase
     def test_waveform_harmonics(self):
         harms = [1, 2, 3, 4, 5, 6, 7]
-        set_amps = [4e3, 0, 3e3, 0, 2e3, 0, 1e3]
-        set_phases = [0, 0, np.pi, 0, 0, 0, np.pi]
+        set_amps = [4e3, 1e3, 3e3, 5e3, 2e3, 3e3, 1e3]
+        set_phases = [0.5, 0.2, np.pi, 1, 1.2, 1.3, np.pi / 2]
 
         t_rev = 1e-6
         centers = backend.linspace(0, t_rev, 5000)
@@ -336,17 +368,17 @@ class TestBarrierBucketGenerator(unittest.TestCase):
     def test_variable_barrier(self):
         bin_cents = backend.linspace(0, 1000e-9, 10000)
 
-        peak = (np.array([0, 1]), np.array([1e3, 4e3]))
+        peak_voltage = (np.array([0, 1]), np.array([1e3, 4e3]))
         t_cent = (np.array([0, 1]), np.array([200e-9, 800e-9]))
         t_width = (np.array([0, 1]), np.array([100e-9, 150e-9]))
 
         generator = bbuck.BarrierRF()
         generator.schedule("t_center", t_cent)
         generator.schedule("t_width", t_width)
-        generator.schedule("peak", peak)
+        generator.schedule("peak_voltage", peak_voltage)
 
         for t in np.linspace(0, 1, 10):
-            peak_exp = np.interp(t, peak[0], peak[1])
+            peak_exp = np.interp(t, peak_voltage[0], peak_voltage[1])
             cent_exp = np.interp(t, t_cent[0], t_cent[1])
             width_exp = np.interp(t, t_width[0], t_width[1])
 
@@ -513,7 +545,7 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
         generator.schedule("t_center", cent)
         generator.schedule("t_width", width)
-        generator.schedule("peak", ampl)
+        generator.schedule("peak_voltage", ampl)
 
         t_rev = np.linspace(1000e-9, 900e-9, 10)
         harmonics = np.arange(1, 21)
@@ -539,6 +571,28 @@ class TestBarrierBucketGenerator(unittest.TestCase):
 
             self.assertAlmostEqual(bin_cents[high], c + w / 4)
             self.assertAlmostEqual(bin_cents[low], c - w / 4)
+
+    def test_track_reference_without_magnetic_cycle_returns_zero(self):
+        # ``BarrierRF`` uses the base ``RFManipulationBaseClass.track_reference``
+        # (it does not override it). With ``magnetic_cycle=None`` (e.g. an
+        # external code such as xsuite owns the reference) the reference is
+        # left untouched and no acceleration kick is applied.
+        barrier = bbuck.BarrierRF(
+            t_center=500e-9, t_width=100e-9, peak_voltage=1e3
+        )
+        barrier.configure(
+            turn_counter=Mock(),
+            magnetic_cycle=None,
+            ring=Mock(),
+        )
+
+        reference = Mock(ReferenceCoordinates)
+        reference.total_energy = 938e6
+
+        reference_energy_change = barrier.track_reference(reference=reference)
+
+        self.assertEqual(reference_energy_change, 0.0)
+        self.assertEqual(reference.total_energy, 938e6)
 
 
 if __name__ == "__main__":

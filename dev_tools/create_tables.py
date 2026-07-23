@@ -74,7 +74,7 @@ def generate_file_description_table(root_dir: os.PathLike) -> list[str]:
         if skip:
             continue
         try:
-            indent = root[root.index(str(Path("blond/"))) :].count(os.sep) - 1
+            indent = root[root.index(str(Path("blond/"))) :].count(os.sep)
         except ValueError:
             indent = 0
 

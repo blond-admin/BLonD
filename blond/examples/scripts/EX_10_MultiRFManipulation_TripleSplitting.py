@@ -27,11 +27,16 @@ from blond import (
     copy_to_cpu,
     momentum_compaction_factor,
     proton,
+    setup_backend,
 )
 from blond.core.base import ScheduledInterpolation
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
+from blond.testing import pytest_active
+
+if not pytest_active():  # pragma: no cover
+    setup_backend("auto")
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 

@@ -23,8 +23,6 @@ from blond.experimental.physics.kick_pooling import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -305,35 +303,12 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """
         pass
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     @requires(
         [
             "BeamPhysicsRelevantElements",  # for .section_index,
         ]
     )
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -341,6 +316,8 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
         from blond.physics.profiles import (
             ProfileBaseClass,  # prevent cyclic import
@@ -356,7 +333,24 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
                 f"`your_impedance.profile` in advance or remove the second "
                 f"profile from this group."
             )
-            self._profile = profiles[0]
+            profile = profiles[0]
+        else:
+            profile = self._profile
+        super().on_init_simulation(simulation, profile=profile, **kwargs)
+
+    def configure(self, *, profile: ProfileBaseClass, **kwargs) -> None:
+        """
+        Store the profile used for induced-voltage calculations.
+
+        Parameters
+        ----------
+        profile
+            Profile object that provides the beam histogram.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._profile = profile
 
 
 class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
@@ -468,7 +462,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         return self._induced_voltage
 
     @requires(["MagneticCycleBase"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -476,8 +470,10 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(simulation=simulation, **kwargs)
         assert len(self.sources) > 0, (
             "Provide for at least one `WakeFieldSource`"
         )
