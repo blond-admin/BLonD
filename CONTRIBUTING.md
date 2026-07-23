@@ -343,6 +343,18 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ---
 
+## Guidelines for the use of AI
+
+When contributing code with the assistance of coding agents, the following guidelines should be considered:
+1. AI is a tool, not a collaborator, you are entirely responsible for what it does
+2. Be sure that you understand the code enough to extend or modify it yourself
+3. Know why the chosen solution is the right one, at least subjectively
+4. Make sure the documentation is clear, concise, and cites relevant sources
+
+In addition, adherence to the [general principles for the use of AI at CERN](https://home.cern/general-principles-use-ai-cern/) is expected.
+
+---
+
 ## Release Process
 > [!WARNING]
 > As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the documentation website.
