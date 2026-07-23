@@ -493,7 +493,7 @@ extern "C" __global__ void wake_from_pole_residue(
     const real_t * __restrict__ profile_dts,
     const real_t * __restrict__ poles,
     const real_t * __restrict__ residues,
-    const int is_counterrotating_beam,
+    const bool is_counterrotating_beam,
     const real_t * __restrict__ cr_pole_signs,
     const int * __restrict__ update_on_bin,
     const real_t factor,

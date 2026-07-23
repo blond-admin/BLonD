@@ -26,7 +26,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
                             const real_t omega_bar, const real_t cnst,
                             const real_t coeff1, const real_t coeff2,
                             const real_t coeff3, const real_t coeff4,
-                            const int multiturn) {
+                            const bool multiturn) {
   /*
   This function calculates the induced voltage of one resonator and updates
   the energies of the particles.
@@ -45,8 +45,8 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
       number of macro-particles
   alpha, omega_bar, cnst, coeff1, coeff2, coeff3, coeff4 : floats
       See documentation in music.py
-  multiturn : int
-      0 for the first turn (recurrence starts fresh), non-zero to bridge
+  multiturn : bool
+      false for the first turn (recurrence starts fresh), true to bridge
       the wake from the previous turn across the revolution gap.
 
   Returns

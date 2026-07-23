@@ -735,7 +735,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(coeff2, floattype),
                 c_real(coeff3, floattype),
                 c_real(coeff4, floattype),
-                ct.c_int(int(multiturn)),
+                ct.c_bool(multiturn),
             )
 
     return CppSpecials

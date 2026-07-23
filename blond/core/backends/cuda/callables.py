@@ -790,7 +790,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 profile_dts,
                 poles_r,
                 residues_r,
-                np.int32(1 if is_counterrotating_beam else 0),
+                np.bool_(is_counterrotating_beam),
                 counterrotating_pole_signs,
                 update_on_bin,
                 FLOAT(factor),
