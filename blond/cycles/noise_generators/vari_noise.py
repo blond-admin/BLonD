@@ -68,11 +68,11 @@ class VariNoise(NoiseGenerator):
     n_source
         Minimum number of elementary harmonic noise sources; the frequency
         resolution is roughly ``(frequency_high - frequency_low) / n_source``
-        (the value actually used may be slightly larger to keep the FFT length
-        small-prime-factorable).
+        (forced to at least 128, and the value actually used may be slightly
+        larger to keep the FFT length small-prime-factorable).
     n_pnt_min
         Minimum number of steps to express the highest-frequency oscillation
-        (forced to at least 6).
+        (forced to at least 8).
     r_seed
         Starting seed for the (reproducible) random sequence. The underlying
         library takes it as an unsigned value, so a fixed ``r_seed`` always

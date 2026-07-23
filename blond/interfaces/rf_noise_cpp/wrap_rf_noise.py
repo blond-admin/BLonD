@@ -332,13 +332,14 @@ def rf_noise(
         Relative *amplitude* shape of the spectrum across the band (local rms
         amplitude, not power/PSD). Stays the same along time.
     n_source
-        Minimum number of elementary harmonic noise sources. To allow a
-        reasonable FFT with small prime factors the finally used number might
-        be slightly higher. The noise resolution is the bandwidth
-        ``(f_high - f_low)`` divided by ``n_source``.
+        Minimum number of elementary harmonic noise sources, automatically
+        raised to 128 if lower. To allow a reasonable FFT with small prime
+        factors the finally used number might be slightly higher. The noise
+        resolution is the bandwidth ``(f_high - f_low)`` divided by
+        ``n_source``.
     n_pnt_min
         Minimum number of steps to express the highest-frequency oscillation,
-        automatically set to 6 if lower. The finally used value might be
+        automatically raised to 8 if lower. The finally used value might be
         slightly higher so that ``n_source * n_pnt`` factorises into small
         primes (the FFT length).
     r_seed

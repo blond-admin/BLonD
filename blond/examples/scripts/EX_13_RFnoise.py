@@ -51,8 +51,7 @@ if not pytest_active():  # pragma: no cover
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
-def main():
-    n_turns = 20000
+def main(n_turns=20000):
     ring = Ring(circumference=26658.883)
     rf_station_1 = SingleHarmonicRFStation()
     rf_station_1.voltage = 6e6

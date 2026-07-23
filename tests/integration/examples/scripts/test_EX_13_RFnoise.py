@@ -30,7 +30,7 @@ class TestEX_13_RFnoise(unittest.TestCase):
         from blond.examples.scripts import EX_13_RFnoise
 
         # full script. just checking if it crashes
-        EX_13_RFnoise.main()
+        EX_13_RFnoise.main(n_turns=200)
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -44,5 +44,5 @@ class TestEX_13_RFnoise(unittest.TestCase):
         from blond.examples.scripts import EX_13_RFnoise
 
         # full script. just checking if it crashes
-        EX_13_RFnoise.main()
+        EX_13_RFnoise.main(n_turns=200)
         backend.zeros(100)
