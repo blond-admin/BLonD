@@ -351,6 +351,8 @@ When contributing code with the assistance of coding agents, the following guide
 3. Know why the chosen solution is the right one, at least subjectively
 4. Make sure the documentation is clear, concise, and cites relevant sources
 
+In addition, adherence to the [general principles for the use of AI at CERN](https://home.cern/general-principles-use-ai-cern/) is expected.
+
 ---
 
 ## Release Process

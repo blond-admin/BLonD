@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.ring.ring import Ring
-    from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import RFStationBaseClass
     from blond.physics.drifts import DriftBaseClass
 
@@ -63,7 +62,7 @@ class SynchrotronRadiationMaster(Schedulable):
         BeamPhysicsRelevant element class for which synchrotron radiation
         should be tracked.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
 
     Examples
     --------
@@ -113,7 +112,6 @@ class SynchrotronRadiationMaster(Schedulable):
                 DriftBaseClass,
             ]
 
-        self._simulation: Simulation | None = None
         self._disable_quantum_excitation = disable_quantum_excitation
 
         self._natural_energy_spread: NumpyArray | None = None
@@ -678,7 +676,7 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
     share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
     """
 
     def __init__(
