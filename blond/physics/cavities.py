@@ -895,8 +895,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             calc_synchrotron_tune_single_harmonic,
         )
 
+        # Direction-signed charge for consistency with phi_s (see
+        # calc_phi_s_main_harmonic); the tune itself is sign-robust
+        # (calc_synchrotron_tune_single_harmonic uses |charge| and
+        # |cos(phi_s)|), so this is a consistency choice, not a value change.
         Q_s0 = calc_synchrotron_tune_single_harmonic(
-            charge=beam.particle_type.charge,
+            charge=beam.signed_charge_with_direction(),
             voltage=self.get_main_harmonic_voltage(),
             beta=beam.reference.beta,
             energy=beam.reference.total_energy,
@@ -958,8 +962,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 target_total_energy - beam.reference.total_energy
             )
 
+        # Direction-signed charge, matching the tracking kick
+        # (signed_charge_with_direction, cavities.py kicks): a
+        # counter-rotating mu- beam is accelerated as if effective +1, so its
+        # analytic phi_s must use the same effective charge to mirror the
+        # co-rotating mu+ beam. Equals the raw charge for co-rotating beams.
         phi_s = calc_phi_s_single_harmonic(
-            charge=beam.particle_type.charge,
+            charge=beam.signed_charge_with_direction(),
             voltage=float(self.get_main_harmonic_voltage()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),

@@ -12,14 +12,18 @@ from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
+    Beam,
     ConstantMagneticCycle,
     MagneticCyclePerTurn,
     Ring,
     Simulation,
     StaticProfile,
+    mu_minus,
+    mu_plus,
     positron,
 )
 from blond.acc_math.analytic.hamilton import (
+    calc_phi_s_single_harmonic,
     calc_synchrotron_tune_single_harmonic,
 )
 from blond.acc_math.analytic.simple_math import (
@@ -718,6 +722,8 @@ class TestRFStationBaseClass(unittest.TestCase):
         beam = Mock(spec=BeamBaseClass)
         beam.particle_type = Mock(spec=ParticleType)
         beam.particle_type.charge = 2
+        # Co-rotating: direction-signed charge equals the raw charge.
+        beam.signed_charge_with_direction.return_value = 2
         beam.reference = Mock(spec=ReferenceCoordinates)
         beam.reference.beta = 1
         beam.reference.total_energy = 1e6
@@ -777,6 +783,8 @@ class TestRFStationBaseClass(unittest.TestCase):
         beam = Mock(spec=BeamBaseClass)
         beam.particle_type = Mock(spec=ParticleType)
         beam.particle_type.charge = 1
+        # Co-rotating: direction-signed charge equals the raw charge.
+        beam.signed_charge_with_direction.return_value = 1
         beam.reference = Mock(spec=ReferenceCoordinates)
         beam.reference.beta = 1
         beam.reference.total_energy = 450e9
@@ -1618,6 +1626,10 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         positron_beam.reference = Mock(ReferenceCoordinates)
 
         positron_beam.particle_type = positron
+        # Co-rotating: direction-signed charge equals the raw charge.
+        positron_beam.signed_charge_with_direction.return_value = (
+            positron.charge
+        )
         positron_beam.reference.total_energy = 20e9
         positron_beam.reference.time = 0
         positron_beam.reference.gamma = 40000
@@ -1734,6 +1746,134 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             }
         )
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
+
+
+class TestCounterRotatingSynchronousPhase(unittest.TestCase):
+    """Analytic ``phi_s`` must respect the collider's CR charge symmetry.
+
+    Every acceleration kick in ``cavities.py`` uses
+    ``beam.signed_charge_with_direction()``, which flips the sign of the
+    charge for a counter-rotating beam. A counter-rotating ``mu-`` beam is
+    therefore accelerated with effective charge ``+1`` -- identical to a
+    co-rotating ``mu+`` beam. The analytic synchronous phase must use the
+    same direction-signed charge so that it mirrors the kick, otherwise the
+    CR beam's ``phi_s`` disagrees with the ``mu+`` beam it should match.
+    """
+
+    def _build_accelerating_case(self, particle_type, is_counter_rotating):
+        """Return ``(rf_station, ring, cycle, beam)`` for an accelerating ring.
+
+        A single-section ring is used so the counter-rotating section index
+        (``len(section_lengths) - section_index - 1``) coincides with the
+        co-rotating one and both directions target the same energy program.
+        The gentle ramp keeps ``energy_gain / (voltage * charge)`` inside the
+        ``arcsin`` domain and the high energy keeps the beam above transition.
+        """
+        n_turns = 10000
+        ring = Ring(circumference=20e3)
+        rf_station = SingleHarmonicRFStation(
+            voltage=1e6, harmonic=10, phi_rf=np.deg2rad(-90)
+        )
+        drift = DriftSimple(
+            orbit_length=ring.circumference,
+            momentum_compaction_factor=1.0,  # positive -> above transition
+        )
+        energy_init = particle_type.mass + 1e12
+        ramp = np.linspace(energy_init, 1.005 * energy_init, n_turns + 1)
+        cycle = MagneticCyclePerTurn(
+            reference_particle=particle_type,
+            value_init=float(ramp[0]),
+            values_after_turn=ramp[1:],
+            in_unit="total energy",
+        )
+        ring.add_elements((rf_station, drift), reorder=False, section_index=0)
+        simulation = Simulation(ring=ring, magnetic_cycle=cycle)
+        _ = simulation  # wires _ring / _magnetic_cycle / _turn_counter
+        beam = Beam(
+            intensity=12,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+        )
+        beam.setup_beam(
+            dt=np.array([0.0]),
+            dE=np.array([0.0]),
+            reference_total_energy=float(ramp[0]),
+        )
+        return rf_station, ring, cycle, beam
+
+    def test_cr_symmetry_phi_s_matches_co_rotating(self):
+        # Co-rotating mu+ and counter-rotating mu- see the same effective
+        # charge (+1) in the kick, so their analytic phi_s must be equal.
+        rf_co, _, _, beam_co = self._build_accelerating_case(
+            mu_plus, is_counter_rotating=False
+        )
+        rf_cr, _, _, beam_cr = self._build_accelerating_case(
+            mu_minus, is_counter_rotating=True
+        )
+
+        phi_s_co = rf_co.calc_phi_s_main_harmonic(beam=beam_co)
+        phi_s_cr = rf_cr.calc_phi_s_main_harmonic(beam=beam_cr)
+
+        self.assertTrue(np.isfinite(phi_s_co))
+        self.assertTrue(np.isfinite(phi_s_cr))
+        # The pre-fix code passes the raw (unsigned) charge -1 for the CR
+        # beam, which lands on the wrong arcsin branch: this assertion is
+        # the RED step and only passes once both call sites use
+        # ``signed_charge_with_direction()``.
+        np.testing.assert_allclose(phi_s_cr, phi_s_co, rtol=0, atol=0)
+
+    def test_co_rotating_phi_s_unchanged(self):
+        # For a co-rotating beam signed charge == raw charge, so switching
+        # the call site to the direction-signed charge must leave the value
+        # bit-identical. Reconstruct the pre-fix computation with the raw
+        # charge and confirm the method still reproduces it.
+        rf_co, ring, cycle, beam_co = self._build_accelerating_case(
+            mu_plus, is_counter_rotating=False
+        )
+        phi_s_co = rf_co.calc_phi_s_main_harmonic(beam=beam_co)
+
+        self.assertEqual(
+            beam_co.signed_charge_with_direction(),
+            beam_co.particle_type.charge,
+        )
+
+        turn_i = (
+            rf_co._turn_counter.value
+            if rf_co._turn_counter is not None
+            else None
+        )
+        target_total_energy = cycle.get_target_total_energy(
+            turn_i=turn_i,
+            section_i=0,
+            reference_time=float(beam_co.reference.time),
+            particle_type=beam_co.particle_type,
+        )
+        energy_gain = target_total_energy - beam_co.reference.total_energy
+        phi_s_raw = calc_phi_s_single_harmonic(
+            charge=beam_co.particle_type.charge,  # raw, pre-fix behaviour
+            voltage=float(rf_co.get_main_harmonic_voltage()),
+            energy_gain=energy_gain,
+            above_transition=not ring.is_below_transition(beam=beam_co),
+        )
+        np.testing.assert_allclose(phi_s_co, phi_s_raw, rtol=0, atol=0)
+
+    def test_synchrotron_tune_sign_robust(self):
+        # The tune uses ``np.abs(charge)`` and ``np.abs(eta_0 * cos(phi_s))``,
+        # so the raw-vs-signed charge (and the phi_s branch flip it induces)
+        # cancels: the co- and counter-rotating tunes are identical. This is
+        # the invariant the fix must preserve.
+        rf_co, _, _, beam_co = self._build_accelerating_case(
+            mu_plus, is_counter_rotating=False
+        )
+        rf_cr, _, _, beam_cr = self._build_accelerating_case(
+            mu_minus, is_counter_rotating=True
+        )
+
+        tune_co = rf_co.calc_synchrotron_tune_main_harmonic(beam=beam_co)
+        tune_cr = rf_cr.calc_synchrotron_tune_main_harmonic(beam=beam_cr)
+
+        self.assertTrue(np.isfinite(tune_co))
+        np.testing.assert_allclose(tune_cr, tune_co, rtol=1e-12, atol=0)
 
 
 if __name__ == "__main__":
