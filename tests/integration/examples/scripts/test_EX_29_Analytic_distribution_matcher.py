@@ -21,7 +21,8 @@ class TestEX_29_Analytic_distribution_matcher(unittest.TestCase):
 
         EX_29_Analytic_distribution_matcher.N_TURNS = 20
         EX_29_Analytic_distribution_matcher.N_MACROPARTICLES = 2_000
-        # full script. just checking if it crashes
+        EX_29_Analytic_distribution_matcher.N_POINTS_GRID = 300
+        # full script (incl. intensity effects). just checking crashes
         EX_29_Analytic_distribution_matcher.main()
         plt.close("all")
 
@@ -40,7 +41,8 @@ class TestEX_29_Analytic_distribution_matcher(unittest.TestCase):
 
         EX_29_Analytic_distribution_matcher.N_TURNS = 20
         EX_29_Analytic_distribution_matcher.N_MACROPARTICLES = 2_000
-        # full script. just checking if it crashes
+        EX_29_Analytic_distribution_matcher.N_POINTS_GRID = 300
+        # full script (incl. intensity effects). just checking crashes
         EX_29_Analytic_distribution_matcher.main()
         plt.close("all")
 

@@ -15,6 +15,14 @@ and tracked (10 000 turns by default, ~200 turns per synchrotron period
 at these settings). A matched bunch must keep its bunch length and
 position stationary: the script records both every turn and reports
 their variation.
+
+With ``INTENSITY_EFFECTS = True`` a broadband resonator impedance is
+added to the ring: the matcher then iterates the induced potential of
+the smooth candidate line density to self-consistency (the distorted
+potential well is shown in the matcher plot), and the bunch is tracked
+with the wakefield active — the stationarity check then validates the
+intensity-effect matching. For impedances strong enough to make the
+iteration oscillate, see the matcher's ``relaxation_factor`` option.
 """
 
 import matplotlib.pyplot as plt
@@ -24,9 +32,12 @@ from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
     momentum_compaction_factor,
     proton,
     setup_backend,
@@ -34,6 +45,7 @@ from blond import (
 from blond.experimental.beam_preparation.analytic_matcher import (
     AnalyticDistributionMatcher,
 )
+from blond.physics.impedances.solvers import TimeDomainFftSolver
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover
@@ -41,8 +53,17 @@ if not pytest_active():  # pragma: no cover
 
 N_TURNS = 10_000
 N_MACROPARTICLES = 1e5
+N_POINTS_GRID = 1000
 TARGET_BUNCH_LENGTH = 1.2e-9  # s, 4 sigma rms
 DISTRIBUTION_TYPE = "parabolic_amplitude"
+
+# Intensity effects: simple broadband resonator, matched
+# self-consistently and kept active during tracking.
+INTENSITY_EFFECTS = True
+BEAM_INTENSITY = 2e11  # particles per bunch
+RESONATOR_R_SHUNT = 1e5  # Ohm
+RESONATOR_FREQUENCY = 8e8  # Hz
+RESONATOR_QUALITY_FACTOR = 1.0
 
 
 def main():
@@ -55,14 +76,39 @@ def main():
             transition_gamma=55.759505
         ),
     )
-    ring.add_elements([rf_station, drift])
+    elements = [rf_station, drift]
+    if INTENSITY_EFFECTS:
+        # Simple impedance model: one broadband resonator, driven by
+        # the tracked bunch profile over one RF bucket.
+        profile = StaticProfile(
+            cut_left=0.0,
+            cut_right=2.4951e-9,  # one RF period at 450 GeV
+            n_bins=512,
+        )
+        wakefield = WakeField(
+            sources=(
+                Resonators(
+                    RESONATOR_R_SHUNT,
+                    RESONATOR_FREQUENCY,
+                    RESONATOR_QUALITY_FACTOR,
+                ),
+            ),
+            solver=TimeDomainFftSolver(),
+            profile=profile,
+        )
+        elements += [wakefield, profile]
+    ring.add_elements(elements, reorder=True)
     magnetic_cycle = ConstantMagneticCycle(
         value=450e9, reference_particle=proton
     )
-    beam = Beam(intensity=1e11, particle_type=proton)
+    beam = Beam(intensity=BEAM_INTENSITY, particle_type=proton)
     simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
     # Matched beam ----------------------------------------------------
+    # With INTENSITY_EFFECTS the matcher auto-detects the wakefield and
+    # iterates the induced potential to self-consistency. If a stronger
+    # impedance makes that iteration oscillate, lower the matcher's
+    # `relaxation_factor` (e.g. 0.5).
     simulation.prepare_beam(
         beam=beam,
         preparation_routine=AnalyticDistributionMatcher(
@@ -70,9 +116,11 @@ def main():
             distribution_type=DISTRIBUTION_TYPE,
             bunch_length=TARGET_BUNCH_LENGTH,
             seed=0,
+            n_points_grid=N_POINTS_GRID,
             verbose=True,
             # Draws the requested (matched density) line density
-            # against the generated macroparticle profile.
+            # against the generated macroparticle profile (and the
+            # RF vs distorted well when intensity effects are active).
             plot=True,
         ),
     )
