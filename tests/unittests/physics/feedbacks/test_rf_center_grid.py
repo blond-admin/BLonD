@@ -2,6 +2,7 @@
 timing class -- moved from test_cavity_feedback.py alongside the
 RFCenterGridMixin extraction (blond/physics/feedbacks/rf_center_grid.py)."""
 
+import inspect
 import warnings
 from copy import deepcopy
 
@@ -33,11 +34,28 @@ from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
     RFCenterSegment,
 )
+from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 
 DEBUG_PLOTTING = False
+
+
+def test_rf_center_grid_mixin_self_is_typed_as_timing_class() -> None:
+    """Every mixin method must expose the concrete timing-class host type."""
+    mixin_methods = (
+        member
+        for member in RFCenterGridMixin.__dict__.values()
+        if inspect.isfunction(member)
+    )
+
+    for method in mixin_methods:
+        self_parameter = inspect.signature(method).parameters["self"]
+        assert self_parameter.annotation == "IQCavityFeedbackTimingClass", (
+            f"{method.__name__}.self is not typed as "
+            "IQCavityFeedbackTimingClass"
+        )
 
 
 class IQFDBKTester(IQCavityFeedbackBase):
