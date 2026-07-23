@@ -148,6 +148,13 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         Fitted distribution size parameter X0, in [eV] (after run).
     matched_bunch_length
         4-sigma rms bunch length of the matched density, in [s].
+    matched_emittance
+        Longitudinal emittance of the matched :math:`H = X_0` contour,
+        :math:`2\pi J(X_0)`, in [eV.s], evaluated in the final
+        (intensity-distorted, when wakefields are present) potential
+        well. For the binomial families this is the full-bunch
+        emittance (X0 is the support edge); for the gaussian it is the
+        area of the fitted contour.
     n_intensity_iterations
         Number of induced-potential updates performed (0 when the ring
         has no wakefields).
@@ -223,6 +230,8 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         self.fitted_x_0: float | None = None
         #: 4-sigma rms bunch length of the matched density, in [s].
         self.matched_bunch_length: float | None = None
+        #: Emittance of the matched H = X0 contour, 2*pi*J(X0) [eV.s].
+        self.matched_emittance: float | None = None
         #: Number of induced-potential updates performed.
         self.n_intensity_iterations: int = 0
         #: Last fixed-point residual of the induced potential.
@@ -462,6 +471,20 @@ class AnalyticDistributionMatcher(MatchingRoutine):
                 )
 
         # --- diagnostics ----------------------------------------------
+        # Emittance of the matched contour, 2*pi*J(X0), in the final
+        # (possibly intensity-distorted) well. The emittance-target
+        # path already tabulated J(H) for this well; the bunch-length
+        # path computes it here.
+        if self._bunch_length is not None:
+            sorted_hamiltonian, sorted_action = action_from_potential_well(
+                time_cut,
+                well_cut,
+                eom_factor_dE=eom_factor_dE,
+                allow_inner_buckets=self._allow_inner_buckets,
+            )
+        self.matched_emittance = float(
+            2.0 * np.pi * np.interp(x_0, sorted_hamiltonian, sorted_action)
+        )
         total = line_density_values.sum()
         mean_time = (line_density_values * time_cut).sum() / total
         self.matched_bunch_length = float(
@@ -484,6 +507,7 @@ class AnalyticDistributionMatcher(MatchingRoutine):
                 f"{self._distribution_type}, target {target}: "
                 f"x_0={self.fitted_x_0:.4e} eV, matched 4-sigma rms "
                 f"bunch length {self.matched_bunch_length:.4e} s, "
+                f"contour emittance {self.matched_emittance:.4f} eV.s, "
                 f"{self.n_intensity_iterations} intensity iteration(s)"
             )
 

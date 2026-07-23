@@ -145,6 +145,40 @@ def test_target_validation():
         )
 
 
+def test_matched_emittance_round_trip():
+    # The bunch-length target reports the emittance of the matched
+    # contour; targeting that emittance must recover the bunch length.
+    simulation, beam = _build_simulation()
+    matcher_length = AnalyticDistributionMatcher(
+        n_macroparticles=2_000,
+        distribution_type="parabolic_amplitude",
+        bunch_length=1.2e-9,
+        seed=0,
+        n_points_grid=400,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher_length)
+    assert matcher_length.matched_emittance is not None
+    assert 0.0 < matcher_length.matched_emittance < 1.24  # bucket area
+
+    simulation, beam = _build_simulation()
+    matcher_emittance = AnalyticDistributionMatcher(
+        n_macroparticles=2_000,
+        distribution_type="parabolic_amplitude",
+        emittance=matcher_length.matched_emittance,
+        seed=0,
+        n_points_grid=400,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher_emittance)
+    assert np.isclose(
+        matcher_emittance.matched_bunch_length, 1.2e-9, rtol=1e-2
+    )
+    assert np.isclose(
+        matcher_emittance.matched_emittance,
+        matcher_length.matched_emittance,
+        rtol=1e-3,
+    )
+
+
 def _intensity_matcher(relaxation_factor=1.0, maxiter=100, target=1.2e-9):
     return AnalyticDistributionMatcher(
         n_macroparticles=2_000,
@@ -166,6 +200,9 @@ def test_intensity_effects_converge():
     assert matcher.final_potential_well_error < 1e-6
     assert np.isclose(matcher.matched_bunch_length, 1.2e-9, rtol=1e-2)
     assert len(matcher.intensity_residuals) == (matcher.n_intensity_iterations)
+    # The contour emittance is evaluated in the distorted well.
+    assert matcher.matched_emittance is not None
+    assert 0.0 < matcher.matched_emittance < 1.24
 
 
 def test_weak_intensity_matches_zero_intensity_limit():
