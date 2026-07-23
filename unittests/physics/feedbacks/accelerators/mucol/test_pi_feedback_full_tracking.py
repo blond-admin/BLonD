@@ -229,9 +229,9 @@ def _run_config(
 
     def callback(_sim, b):
         rec["n_forward"].append(
-            [int(f.rf_centers_lengths[-1]) for f in feedbacks]
+            [int(f._rf_centers_lengths[-1]) for f in feedbacks]
         )
-        rec["n_total"].append([int(len(f.rf_centers)) for f in feedbacks])
+        rec["n_total"].append([int(len(f._rf_centers)) for f in feedbacks])
         # Only the forward segment of this turn (the last
         # rf_centers_lengths[-1] samples) -- the reverse part repeats the
         # previous turn's no-beam propagation.
@@ -240,7 +240,7 @@ def _run_config(
                 float(
                     np.abs(
                         f.antenna_voltage_coarse_grid[
-                            -int(f.rf_centers_lengths[-1]) :
+                            -int(f._rf_centers_lengths[-1]) :
                         ]
                     ).min()
                 )
@@ -258,7 +258,7 @@ def _run_config(
                 float(
                     np.abs(
                         f.generator_current_coarse_grid[
-                            -int(f.rf_centers_lengths[-1]) :
+                            -int(f._rf_centers_lengths[-1]) :
                         ]
                         - I_GEN_BIAS
                     ).max()

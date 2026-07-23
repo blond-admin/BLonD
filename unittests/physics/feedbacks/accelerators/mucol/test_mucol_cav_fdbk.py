@@ -85,23 +85,23 @@ class TestCavityFeedback(unittest.TestCase):
         dt = 1.2e-9
 
         # Build a constant-step rf_centers grid covering a single segment.
-        self.cav_fdbk.rf_centers = np.arange(1, n_steps + 1) * dt
-        self.cav_fdbk.rf_centers_lengths = np.array([n_steps])
-        self.cav_fdbk.residual_time_last_rf_centers_calculation = 0.0
-        self.cav_fdbk.last_rf_centers_entry = None
+        self.cav_fdbk._rf_centers = np.arange(1, n_steps + 1) * dt
+        self.cav_fdbk._rf_centers_lengths = np.array([n_steps])
+        self.cav_fdbk._residual_time_last_rf_centers_calculation = 0.0
+        self.cav_fdbk._last_rf_centers_entry = None
 
         # Zero out generator/beam current contributions so only the
         # `(1 - 0.5*omega*dt/Q_L + 1j*relative_detuning*omega*dt)` term
         # governs the antenna voltage evolution.
-        self.cav_fdbk.generator_current_bias = 0.0 + 0.0j
+        self.cav_fdbk._generator_current_bias = 0.0 + 0.0j
         self.cav_fdbk.generator_current_coarse_grid = np.zeros(
             n_steps, dtype=complex
         )
-        self.cav_fdbk.last_val_generator_current = 0.0 + 0.0j
-        self.cav_fdbk.last_val_beam_current = 0.0 + 0.0j
+        self.cav_fdbk._last_val_generator_current = 0.0 + 0.0j
+        self.cav_fdbk._last_val_beam_current = 0.0 + 0.0j
 
         v0 = self.initial_voltage + 0.0j
-        self.cav_fdbk.last_val_ant_voltage = v0
+        self.cav_fdbk._last_val_ant_voltage = v0
         self.cav_fdbk.antenna_voltage_coarse_grid = np.zeros(
             n_steps, dtype=complex
         )
@@ -212,8 +212,8 @@ class TestCavityFeedback(unittest.TestCase):
         # relative_kick should be between the soft (0.1) and hard (1.0)
         # thresholds: large enough to warn, small enough not to raise
         omega_times_T_s = 1.0
-        self.cav_fdbk.rf_centers = np.array([1e-9, 2e-9])
-        self.cav_fdbk.rf_centers_lengths = np.array([2])
+        self.cav_fdbk._rf_centers = np.array([1e-9, 2e-9])
+        self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
             [1.0 + 0.0j, 0.0j]
         )
@@ -238,8 +238,8 @@ class TestCavityFeedback(unittest.TestCase):
         # beam_current * 0.5 * R_over_Q * omega_times_T_s is a tiny fraction
         # of the previous antenna voltage
         omega_times_T_s = 1e-9
-        self.cav_fdbk.rf_centers = np.array([1e-9, 2e-9])
-        self.cav_fdbk.rf_centers_lengths = np.array([2])
+        self.cav_fdbk._rf_centers = np.array([1e-9, 2e-9])
+        self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
             [self.initial_voltage + 0.0j, 0.0j]
         )
@@ -348,8 +348,8 @@ class TestCavityFeedback(unittest.TestCase):
         # beam-induced kick exceeds the previous antenna voltage itself,
         # i.e. the Euler step would flip the sign of the antenna voltage
         omega_times_T_s = 1.0
-        self.cav_fdbk.rf_centers = np.array([1e-9, 2e-9])
-        self.cav_fdbk.rf_centers_lengths = np.array([2])
+        self.cav_fdbk._rf_centers = np.array([1e-9, 2e-9])
+        self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
             [1.0 + 0.0j, 0.0j]
         )
@@ -777,12 +777,12 @@ class TestCavityPrefill(unittest.TestCase):
             q_l=feedback.Q_L,
             omega=feedback.omega_rf,
             delta_omega=feedback.delta_omega,
-            generator_current=feedback.generator_current_bias,
+            generator_current=feedback._generator_current_bias,
             n_pretrack=50,
             t_rev=feedback.t_rev,
         )
-        self.assertAlmostEqual(feedback.init_voltage, expected, places=6)
-        self.assertGreater(abs(feedback.init_voltage), 0.0)
+        self.assertAlmostEqual(feedback._init_voltage, expected, places=6)
+        self.assertGreater(abs(feedback._init_voltage), 0.0)
 
     def test_fill_seed_is_an_equilibrium_of_the_coarse_step(self):
         """A no-beam cavity started at the fill seed does not drift."""
@@ -798,16 +798,16 @@ class TestCavityPrefill(unittest.TestCase):
         )
         # On resonance the fill seed is V_ss = 2 (R/Q) Q_L I_g = V0.
         v_ss = self.V0 + 0.0j
-        cav.rf_centers = np.arange(1, n_steps + 1) * dt
-        cav.rf_centers_lengths = np.array([n_steps])
-        cav.residual_time_last_rf_centers_calculation = 0.0
-        cav.last_rf_centers_entry = None
+        cav._rf_centers = np.arange(1, n_steps + 1) * dt
+        cav._rf_centers_lengths = np.array([n_steps])
+        cav._residual_time_last_rf_centers_calculation = 0.0
+        cav._last_rf_centers_entry = None
         cav.generator_current_coarse_grid = np.full(
             n_steps, self.I_g, dtype=complex
         )
-        cav.last_val_generator_current = self.I_g + 0.0j
-        cav.last_val_beam_current = 0.0 + 0.0j
-        cav.last_val_ant_voltage = v_ss
+        cav._last_val_generator_current = self.I_g + 0.0j
+        cav._last_val_beam_current = 0.0 + 0.0j
+        cav._last_val_ant_voltage = v_ss
         cav.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
 
         cav.circuit_track(
@@ -935,7 +935,7 @@ class TestExponentialCoarseSolver(unittest.TestCase):
             Q_L=self.Q_L,
             generator_current_bias=0.0,
             n_cavities=1,
-            exponential_coarse_solver=exponential,
+            exponential_coarse_solver_flag=exponential,
         )
 
     def test_euler_branch_matches_the_forward_euler_formula(self):

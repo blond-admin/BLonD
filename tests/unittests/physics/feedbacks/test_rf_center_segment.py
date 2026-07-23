@@ -133,9 +133,9 @@ class TestRFCenterSegment:
         # rf_centers is the concatenation; rf_centers_lengths the per-segment
         # lengths -- both purely derived, so they cannot desync.
         np.testing.assert_allclose(
-            fdbk.rf_centers, np.array([0.3, 0.8, 0.1, 0.3, 0.5])
+            fdbk._rf_centers, np.array([0.3, 0.8, 0.1, 0.3, 0.5])
         )
-        assert list(fdbk.rf_centers_lengths) == [2, 3]
+        assert list(fdbk._rf_centers_lengths) == [2, 3]
         # The per-turn consistency guard must pass.
         fdbk._validate_grid()
 
@@ -150,8 +150,8 @@ class TestRFCenterSegment:
             )
         )
         fdbk._clear_segments()
-        assert len(fdbk.rf_centers) == 0
-        assert len(fdbk.rf_centers_lengths) == 0
+        assert len(fdbk._rf_centers) == 0
+        assert len(fdbk._rf_centers_lengths) == 0
         fdbk._validate_grid()
 
     def test_empty_segment_contributes_zero_length(self):
@@ -173,8 +173,8 @@ class TestRFCenterSegment:
                 centers=np.array([0.4, 0.9]),
             )
         )
-        assert list(fdbk.rf_centers_lengths) == [0, 2]
-        assert len(fdbk.rf_centers) == 2
+        assert list(fdbk._rf_centers_lengths) == [0, 2]
+        assert len(fdbk._rf_centers) == 2
         fdbk._validate_grid()
 
     def test_validate_grid_detects_direct_mutation(self):
@@ -189,7 +189,7 @@ class TestRFCenterSegment:
                 centers=np.array([0.4, 0.9]),
             )
         )
-        fdbk.rf_centers_lengths = np.array(
+        fdbk._rf_centers_lengths = np.array(
             [5], dtype=int
         )  # corrupt on purpose
         with pytest.raises(AssertionError, match="out of sync"):

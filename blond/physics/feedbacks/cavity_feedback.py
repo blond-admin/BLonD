@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import AltersReference, DynamicParameter, HasPropertyCache
+from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Beam, Ring, Simulation
+    from blond import Beam, Simulation
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.feedbacks.generator_current_controller import (
         GeneratorCurrentController,
@@ -604,13 +604,13 @@ class IQCavityFeedbackTimingClass(
         Notes). Default is 0.
     debug
         Save debugging parameters during runtime.
-    second_order_fine_grid_solver
+    second_order_fine_grid_solver_enable
         If True, integrate the fine-grid cavity response with the second-order
         (trapezoidal / Crank-Nicolson) solver instead of the default
         first-order forward-Euler one. The second-order solver is much more
         accurate at coarse profile binning (its error scales as the bin size
         squared rather than linearly). Default is False.
-    exponential_coarse_solver
+    exponential_coarse_solver_flag
         If True, advance the *coarse* grid with the exact exponential
         propagator ``V_{n+1} = e^{L} V_n + src (e^{L}-1)/L`` (exact in decay
         and detuning rotation, unconditionally stable) instead of the default
@@ -698,8 +698,8 @@ class IQCavityFeedbackTimingClass(
         n_rf_periods_per_coarse_grid: int = 1,
         delta_omega: float = 0.0,
         debug: bool = False,
-        second_order_fine_grid_solver: bool = False,
-        exponential_coarse_solver: bool = False,
+        second_order_fine_grid_solver_enable: bool = False,
+        exponential_coarse_solver_flag: bool = False,
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
         n_pretrack: int | None = None,
@@ -721,35 +721,32 @@ class IQCavityFeedbackTimingClass(
         # _rebuild_grid_arrays) so the flat arrays the tracking loop indexes can
         # never desync from the segment list.
         self._segments: list[RFCenterSegment] = []
-        self.rf_centers = np.zeros(0)
-        self.rf_centers_lengths = np.zeros(0, dtype=int)
-        self.residual_time_last_rf_centers_calculation = 0
+        self._rf_centers = np.zeros(0)
+        self._rf_centers_lengths = np.zeros(0, dtype=int)
+        self._residual_time_last_rf_centers_calculation = 0
 
-        self.ring: Ring | None = None
-        self.turn_i: DynamicParameter | None = None
-
-        self.reference_altering_elements: (
+        self._reference_altering_elements: (
             tuple[AltersReference, ...] | None
         ) = None
-        self.reference_altering_elements_reverse: (
+        self._reference_altering_elements_reverse: (
             tuple[AltersReference, ...] | None
         ) = None
-        self.own_index_in_reference_list: int | None = None
-        self.own_index_in_reference_list_reverse: int | None = None
+        self._own_index_in_reference_list: int | None = None
+        self._own_index_in_reference_list_reverse: int | None = None
 
-        self.forward_tracking_omega_rf: float | None = None
-        self.forward_tracking_time: float | None = None
-        self.tracked_forward_until_element: AltersReference | None = None
-        self.last_forward_tracking_freq: float | None = None
-        self.residual_taps_last_rf_centers_calculation: int = 0
+        self._forward_tracking_omega_rf: float | None = None
+        self._forward_tracking_time: float | None = None
+        self._tracked_forward_until_element: AltersReference | None = None
+        self._last_forward_tracking_freq: float | None = None
+        self._residual_taps_last_rf_centers_calculation: int = 0
 
-        self.reverse_tracking_time_array: NumpyArray | None = None
-        self.reverse_tracking_omega_list: NumpyArray | None = None
+        self._reverse_tracking_time_array: NumpyArray | None = None
+        self._reverse_tracking_omega_list: NumpyArray | None = None
 
-        self.reference_state_until_tracked: ReferenceCoordinates | None = None
-        self.reference_turn_offset: int = 0
-        self.last_tracked_turn_frwrd: int = 0
-        self.last_tracked_beam_state_frwrd: bool | None = None
+        self._reference_state_until_tracked: ReferenceCoordinates | None = None
+        self._reference_turn_offset: int = 0
+        self._last_tracked_turn_frwrd: int = 0
+        self._last_tracked_beam_state_frwrd: bool | None = None
 
         # Simultaneous counter-rotating passage detection (see _track): the
         # arrival time and direction of the previous _track call, plus the
@@ -758,24 +755,26 @@ class IQCavityFeedbackTimingClass(
         self._last_track_is_counter_rotating: bool | None = None
         self._last_forward_cell_width: float | None = None
 
-        self.phase_offset_frwrd_next: float = 0.0
-        self.phase_offset_frwrd: float = 0.0
+        self._phase_offset_frwrd_next: float = 0.0
+        self._phase_offset_frwrd: float = 0.0
 
-        self.last_val_ant_voltage: float = 0.0
-        self.last_val_beam_current: float = 0.0
-        self.last_val_generator_current: float = 0.0
-        self.last_rf_centers_entry: float | None = None
+        self._last_val_ant_voltage: float = 0.0
+        self._last_val_beam_current: float = 0.0
+        self._last_val_generator_current: float = 0.0
+        self._last_rf_centers_entry: float | None = None
 
-        self.init_voltage = initial_voltage
+        self._init_voltage = initial_voltage
 
         self.n_cavities = n_cavities
 
-        self.debug = debug
+        self._debug = debug
 
-        self.second_order_fine_grid_solver = second_order_fine_grid_solver
-        self.exponential_coarse_solver = exponential_coarse_solver
+        self._second_order_fine_grid_solver_enable = (
+            second_order_fine_grid_solver_enable
+        )
+        self._exponential_coarse_solver_flag = exponential_coarse_solver_flag
 
-        self.generator_current_bias = generator_current_bias
+        self._generator_current_bias = generator_current_bias
 
         self._beam_kick_warning_issued = False
 
@@ -845,7 +844,7 @@ class IQCavityFeedbackTimingClass(
         # documented purpose. (The separate beam-kick magnitude check still
         # runs: the piecewise-constant beam-current assumption is independent
         # of the Euler-vs-exponential homogeneous propagator.)
-        if self.exponential_coarse_solver:
+        if self._exponential_coarse_solver_flag:
             return
 
         max_step_angle = 0.1  # rad, heuristic threshold for Euler validity
@@ -930,11 +929,8 @@ class IQCavityFeedbackTimingClass(
         **kwargs
             Unused in this function.
         """
-        self.turn_i = simulation.turn_i
-        self.ring = simulation.ring
-
-        self.reference_altering_elements = self.ring.elements.get_elements(
-            AltersReference
+        self._reference_altering_elements = (
+            simulation.ring.elements.get_elements(AltersReference)
         )
         # Number of RF stations in the ring. The multi-section frame
         # correction in _track only applies with more than one, since it
@@ -943,23 +939,23 @@ class IQCavityFeedbackTimingClass(
         # frequency mismatch), so the correction must be a no-op there.
         self._n_rf_stations_in_ring = sum(
             isinstance(element, RFStationBaseClass)
-            for element in self.reference_altering_elements
+            for element in self._reference_altering_elements
         )
-        self.own_index_in_reference_list = (
-            self.reference_altering_elements.index(self._parent_rf_station)
+        self._own_index_in_reference_list = (
+            self._reference_altering_elements.index(self._parent_rf_station)
         )
-        self.reference_altering_elements_reverse = (
-            self.reference_altering_elements[::-1]
+        self._reference_altering_elements_reverse = (
+            self._reference_altering_elements[::-1]
         )
-        self.own_index_in_reference_list_reverse = (
-            self.reference_altering_elements_reverse.index(
+        self._own_index_in_reference_list_reverse = (
+            self._reference_altering_elements_reverse.index(
                 self._parent_rf_station
             )
         )
 
-        self.reference_state_until_tracked = deepcopy(beam.reference)
-        self.phase_offset_frwrd_next = 0
-        self.phase_offset_frwrd = 0
+        self._reference_state_until_tracked = deepcopy(beam.reference)
+        self._phase_offset_frwrd_next = 0
+        self._phase_offset_frwrd = 0
 
         # The parent RF station is fully initialised at this point (see
         # docstring), so the step-size sanity check can read omega_rf.
@@ -971,12 +967,12 @@ class IQCavityFeedbackTimingClass(
         # acts on the tracked turns after injection, so the fill stays a pure
         # feedforward (constant generator_current_bias) transient.
         if self.n_pretrack is not None:
-            self.init_voltage = pretrack_fill_voltage(
+            self._init_voltage = pretrack_fill_voltage(
                 r_over_q=self.R_over_Q,
                 q_l=self.Q_L,
                 omega=self.omega_rf,
                 delta_omega=self.delta_omega,
-                generator_current=self.generator_current_bias,
+                generator_current=self._generator_current_bias,
                 n_pretrack=self.n_pretrack,
                 t_rev=self.t_rev,
                 injection_voltage=self.injection_voltage,
@@ -1128,7 +1124,7 @@ class IQCavityFeedbackTimingClass(
         """
         for rf_centers_idx in range(start_index, end_index):
             if rf_centers_idx == 0:
-                if self.last_rf_centers_entry is None:
+                if self._last_rf_centers_entry is None:
                     # First centre ever tracked: there is no previous centre to
                     # step from, so use the spacing to the next centre as the
                     # step proxy. That next centre must live in *this* segment,
@@ -1141,8 +1137,8 @@ class IQCavityFeedbackTimingClass(
                     # coarse step (n * t_rf at omega_input) in that case.
                     if rf_centers_idx + 1 < end_index:
                         delta_t = (
-                            self.rf_centers[rf_centers_idx + 1]
-                            - self.rf_centers[rf_centers_idx]
+                            self._rf_centers[rf_centers_idx + 1]
+                            - self._rf_centers[rf_centers_idx]
                         )
                     else:
                         delta_t = (
@@ -1153,18 +1149,18 @@ class IQCavityFeedbackTimingClass(
                         )
                 else:
                     delta_t = (
-                        self.rf_centers[0]
-                        + self.residual_time_last_rf_centers_calculation
+                        self._rf_centers[0]
+                        + self._residual_time_last_rf_centers_calculation
                     )
             elif rf_centers_idx == start_index:
                 delta_t = (
-                    self.rf_centers[rf_centers_idx]
-                    + self.residual_time_last_rf_centers_calculation
+                    self._rf_centers[rf_centers_idx]
+                    + self._residual_time_last_rf_centers_calculation
                 )
             else:
                 delta_t = (
-                    self.rf_centers[rf_centers_idx]
-                    - self.rf_centers[rf_centers_idx - 1]
+                    self._rf_centers[rf_centers_idx]
+                    - self._rf_centers[rf_centers_idx - 1]
                 )
             # delta_t can come out marginally negative (a few ULPs) when a
             # coarse-grid point lands almost exactly on a turn/segment
@@ -1754,7 +1750,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             -0.5 * omega_times_T_s / self.Q_L
             + 1j * relative_detuning * omega_times_T_s
         )
-        if not self.exponential_coarse_solver:
+        if not self._exponential_coarse_solver_flag:
             return v_prev * (1.0 + step_exponent) + drive
         # Exact exponential propagator. np.expm1 keeps the drive weight
         # (e^L - 1) / L accurate (-> 1) as L -> 0; guard the exact zero.
@@ -1791,7 +1787,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 beam_current = 0
             else:
                 forward_offset = (
-                    len(self.rf_centers) - self.rf_centers_lengths[-1]
+                    len(self._rf_centers) - self._rf_centers_lengths[-1]
                 )
                 beam_current = self.beam_current_forward_coarse_grid[
                     coarse_grid_index_to_update - forward_offset
@@ -1819,9 +1815,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         else:
             self.antenna_voltage_coarse_grid[coarse_grid_index_to_update] = (
                 self._advance_coarse_voltage(
-                    v_prev=self.last_val_ant_voltage,
-                    generator_current=self.last_val_generator_current,
-                    beam_current=self.last_val_beam_current,
+                    v_prev=self._last_val_ant_voltage,
+                    generator_current=self._last_val_generator_current,
+                    beam_current=self._last_val_beam_current,
                     omega_times_T_s=omega_times_T_s,
                     relative_detuning=relative_detuning,
                 )
@@ -1849,22 +1845,22 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
     def reset_arrays(self):
         """Reset coarse grid arrays to match rf_centers length and save last values."""
         if self.antenna_voltage_coarse_grid is None:
-            self.last_val_ant_voltage = self.init_voltage
+            self._last_val_ant_voltage = self._init_voltage
         else:
-            self.last_val_ant_voltage = self.antenna_voltage_coarse_grid[-1]
+            self._last_val_ant_voltage = self.antenna_voltage_coarse_grid[-1]
         self.antenna_voltage_coarse_grid = np.zeros(
-            len(self.rf_centers), dtype=np.complex128
+            len(self._rf_centers), dtype=np.complex128
         )
         if self.generator_current_coarse_grid is None:
-            self.last_val_generator_current = self.generator_current_bias
+            self._last_val_generator_current = self._generator_current_bias
         else:
-            self.last_val_generator_current = (
+            self._last_val_generator_current = (
                 self.generator_current_coarse_grid[-1]
             )
 
         self.generator_current_coarse_grid = (
-            np.ones(len(self.rf_centers), dtype=np.complex128)
-            * self.generator_current_bias
+            np.ones(len(self._rf_centers), dtype=np.complex128)
+            * self._generator_current_bias
         )
 
     def _track(self, beam: Beam) -> None:
@@ -1915,14 +1911,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self._last_track_arrival_time = beam.reference.time
         self._last_track_is_counter_rotating = beam.is_counter_rotating
 
-        if len(self.rf_centers) != 0:
-            self.last_rf_centers_entry = self.rf_centers[-1]
+        if len(self._rf_centers) != 0:
+            self._last_rf_centers_entry = self._rf_centers[-1]
 
         self._clear_segments()
 
-        if self.tracked_forward_until_element is not None:  # noqa: SIM102
+        if self._tracked_forward_until_element is not None:  # noqa: SIM102
             if (
-                self.tracked_forward_until_element
+                self._tracked_forward_until_element
                 is not self._parent_rf_station
             ):  # otherwise, the full turn was already tracked
                 self.calculate_rf_centers_for_reverse_direction(beam=beam)
@@ -1930,10 +1926,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
             self.calculate_rf_centers_for_reverse_direction(beam=beam)
 
-        len_rev = len(self.rf_centers)
+        len_rev = len(self._rf_centers)
 
         remaining_delta_t_from_reverse_tracking = (
-            self.residual_time_last_rf_centers_calculation
+            self._residual_time_last_rf_centers_calculation
         )
 
         self.calculate_rf_centers_for_forward_direction(beam=beam)
@@ -1943,15 +1939,15 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # generation. This is a per-turn integrity check with no effect on the
         # result, so it runs only under ``debug`` (it walks the whole grid
         # every turn otherwise).
-        if self.debug:
+        if self._debug:
             self._validate_grid()
 
         # Coincidence tolerance for the simultaneous-passage guard above:
         # one coarse-cell width, taken from the last two grid centers.
         min_centers_for_cell_width = 2
-        if len(self.rf_centers) >= min_centers_for_cell_width:
+        if len(self._rf_centers) >= min_centers_for_cell_width:
             self._last_forward_cell_width = float(
-                self.rf_centers[-1] - self.rf_centers[-2]
+                self._rf_centers[-1] - self._rf_centers[-2]
             )
 
         self.reset_arrays()
@@ -1965,15 +1961,15 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # the real pass, but under a ramp the spurious pass corrupted the
         # sub-stepped demodulation frame by -(turn+1) * 2 pi S per turn and
         # stepped an attached controller once per turn on garbage errors.
-        if len_rev > 0 and self.reverse_tracking_omega_list is not None:
+        if len_rev > 0 and self._reverse_tracking_omega_list is not None:
             for omega_index, omega_track in enumerate(
-                self.reverse_tracking_omega_list
+                self._reverse_tracking_omega_list
             ):
                 start_index = np.sum(
-                    self.rf_centers_lengths[:omega_index], dtype=int
+                    self._rf_centers_lengths[:omega_index], dtype=int
                 )
                 end_index = np.sum(
-                    self.rf_centers_lengths[: omega_index + 1], dtype=int
+                    self._rf_centers_lengths[: omega_index + 1], dtype=int
                 )
 
                 self.circuit_track(
@@ -1983,7 +1979,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                     no_beam=True,
                 )
 
-        len_frwrd = len(self.rf_centers) - len_rev
+        len_frwrd = len(self._rf_centers) - len_rev
 
         # Multi-section frame correction. Each reverse segment k reconstructs
         # the previous turn on a coarse grid re-seeded to phase 0 at its own
@@ -2007,22 +2003,22 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         if (
             self._n_rf_stations_in_ring > 1
             and len_rev > 0
-            and self.reverse_tracking_omega_list is not None
+            and self._reverse_tracking_omega_list is not None
         ):
             frame_phase = float(
                 np.sum(
                     (
-                        np.asarray(self.reverse_tracking_omega_list)
-                        - self.forward_tracking_omega_rf
+                        np.asarray(self._reverse_tracking_omega_list)
+                        - self._forward_tracking_omega_rf
                     )
-                    * np.asarray(self.reverse_tracking_time_array)
+                    * np.asarray(self._reverse_tracking_time_array)
                 )
             )
             self.antenna_voltage_coarse_grid[len_rev - 1] *= np.exp(
                 1j * frame_phase
             )
 
-        if self.debug:
+        if self._debug:
             self.relative_voltage_correction = np.ones_like(
                 self.profile.hist_x
             )
@@ -2037,10 +2033,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
 
         self.circuit_track(
-            omega_input=self.forward_tracking_omega_rf,
+            omega_input=self._forward_tracking_omega_rf,
             no_beam=False,
-            start_index=len(self.rf_centers) - len_frwrd,
-            end_index=len(self.rf_centers),
+            start_index=len(self._rf_centers) - len_frwrd,
+            end_index=len(self._rf_centers),
         )  # for all rf_centers
 
         # Convert to amplitude and phase
@@ -2096,7 +2092,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         cavity_response_solver = (
             cavity_response_sparse_matrix_second_order
-            if self.second_order_fine_grid_solver
+            if self._second_order_fine_grid_solver_enable
             else cavity_response_sparse_matrix
         )
         self.antenna_voltage_fine_grid = cavity_response_solver(
@@ -2138,9 +2134,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             self.n_rf_periods_per_coarse_grid
             * 2
             * np.pi
-            / self.forward_tracking_omega_rf
+            / self._forward_tracking_omega_rf
         )
-        self.last_val_beam_current = (
+        self._last_val_beam_current = (
             self.beam_current_forward_coarse_grid[-1]
             if self.beam_current_forward_coarse_grid is not None
             else 0
@@ -2167,7 +2163,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         #   sub-stepped convolution comparison.
         if self.n_rf_periods_per_coarse_grid < 1:
             dT_demodulation = (
-                self.rf_centers[len(self.rf_centers) - n_points]
+                self._rf_centers[len(self._rf_centers) - n_points]
                 + remaining_delta_t_from_reverse_tracking
             )
         else:
@@ -2178,8 +2174,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ) = rf_beam_current_partial(
             beam=beam,
             profile=self.profile,
-            omega_c=self.forward_tracking_omega_rf,
-            T_rev=self.forward_tracking_time,
+            omega_c=self._forward_tracking_omega_rf,
+            T_rev=self._forward_tracking_time,
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
             dT=dT_demodulation,

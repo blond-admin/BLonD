@@ -130,8 +130,8 @@ class RFCenterGridMixin:
                     el_ind + own_index_tracking
                     # This will be the next element
                 )
-                self.last_tracked_turn_frwrd = deepcopy(self.turn_i.value)
-                self.reference_turn_offset = -1
+                self._last_tracked_turn_frwrd = deepcopy(self.turn_i.value)
+                self._reference_turn_offset = -1
                 break
             element: AltersReference
             if isinstance(element, RFStationBaseClass):
@@ -157,15 +157,15 @@ class RFCenterGridMixin:
                                 self.reference_altering_elements
                             )  # This will be the next element
                         )
-                        self.last_tracked_turn_frwrd = deepcopy(
+                        self._last_tracked_turn_frwrd = deepcopy(
                             self.turn_i.value + 1
                         )
-                        self.reference_turn_offset = 0
+                        self._reference_turn_offset = 0
                         break
             else:
                 next_reference_altering_element_index = -1
 
-        self.forward_tracking_time = dummy_reference.time - start_time
+        self._forward_tracking_time = dummy_reference.time - start_time
         # The coarse grid must follow the *actual* RF frequency: the design
         # frequency at the tracked reference plus the station's RF-frequency
         # offset delta_omega_rf, so the rf_center spacing tracks the detuned
@@ -174,13 +174,13 @@ class RFCenterGridMixin:
         # spans other stations' sections) is safe because the RF station
         # forbids changing delta_omega_rf during the run when the ring has
         # more than one station (see RFStationBaseClass.delta_omega_rf).
-        self.forward_tracking_omega_rf = (
+        self._forward_tracking_omega_rf = (
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
             )
             + self.delta_omega_rf
         )
-        self.tracked_forward_until_element = (
+        self._tracked_forward_until_element = (
             forward_list[
                 next_reference_altering_element_index % len(forward_list)
             ]
@@ -189,16 +189,16 @@ class RFCenterGridMixin:
         )
         self.reference_index_until_tracked = (
             self.reference_altering_elements.index(
-                self.tracked_forward_until_element
+                self._tracked_forward_until_element
             )
         )
         self.reference_index_until_tracked_reverse = (
             self.reference_altering_elements_reverse.index(
-                self.tracked_forward_until_element
+                self._tracked_forward_until_element
             )
         )
-        self.last_tracked_beam_state_frwrd = beam.is_counter_rotating
-        self.reference_state_until_tracked = dummy_reference
+        self._last_tracked_beam_state_frwrd = beam.is_counter_rotating
+        self._reference_state_until_tracked = dummy_reference
 
         if self.debug:
             if (
@@ -236,26 +236,26 @@ class RFCenterGridMixin:
         """
         time_list = []
         omega_list = []
-        start_time = self.reference_state_until_tracked.time
+        start_time = self._reference_state_until_tracked.time
 
         found = False
 
-        if self.turn_i.value > self.last_tracked_turn_frwrd:
+        if self.turn_i.value > self._last_tracked_turn_frwrd:
             reference_turn_offset = -1
-        elif self.turn_i.value == self.last_tracked_turn_frwrd:
+        elif self.turn_i.value == self._last_tracked_turn_frwrd:
             reference_turn_offset = 0
         else:
             raise RuntimeError("Turn value not possible, was a turn skipped?")
 
-        if self.last_tracked_beam_state_frwrd is not None:
+        if self._last_tracked_beam_state_frwrd is not None:
             # Continue from where the last forward projection stopped, in that
             # beam's direction.
             reverse_tracking_list = self._reference_list_for_direction(
-                self.last_tracked_beam_state_frwrd
+                self._last_tracked_beam_state_frwrd
             )
             start_index = (
                 self.reference_index_until_tracked_reverse
-                if self.last_tracked_beam_state_frwrd
+                if self._last_tracked_beam_state_frwrd
                 else self.reference_index_until_tracked
             )
         else:
@@ -277,31 +277,31 @@ class RFCenterGridMixin:
                 # this is not strictly true for all cases, but only cases, where the reference crosses the turn border on the forward tracking
                 element._turn_counter._value += reference_turn_offset
                 element.track_reference(
-                    self.reference_state_until_tracked,
+                    self._reference_state_until_tracked,
                     beam.is_counter_rotating,
                 )
             else:
                 element.track_reference(
-                    self.reference_state_until_tracked
+                    self._reference_state_until_tracked
                 )  # no need for CR flag
             if isinstance(element, RFStationBaseClass):
                 element._turn_counter._value -= reference_turn_offset
 
             omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
-                    self.reference_state_until_tracked.beta,
+                    self._reference_state_until_tracked.beta,
                     self.ring.circumference,
                 )
             )
-            time_list.append(self.reference_state_until_tracked.time)
+            time_list.append(self._reference_state_until_tracked.time)
             isclose = np.isclose(
-                self.reference_state_until_tracked.time,
+                self._reference_state_until_tracked.time,
                 beam.reference.time,
                 rtol=1e-12,
                 atol=0,
             )
             is_above = (
-                self.reference_state_until_tracked.time > beam.reference.time
+                    self._reference_state_until_tracked.time > beam.reference.time
             )
             if isclose or is_above:  # counterrotation should break earlier
                 if is_above:
@@ -324,20 +324,20 @@ class RFCenterGridMixin:
                 element: AltersReference
                 if isinstance(element, RFStationBaseClass):
                     element.track_reference(
-                        self.reference_state_until_tracked,
+                        self._reference_state_until_tracked,
                         beam.is_counter_rotating,
                     )
                 else:
-                    element.track_reference(self.reference_state_until_tracked)
+                    element.track_reference(self._reference_state_until_tracked)
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
-                        self.reference_state_until_tracked.beta,
+                        self._reference_state_until_tracked.beta,
                         self.ring.circumference,
                     )
                 )
-                time_list.append(self.reference_state_until_tracked.time)
+                time_list.append(self._reference_state_until_tracked.time)
                 if np.isclose(
-                    self.reference_state_until_tracked.time,
+                    self._reference_state_until_tracked.time,
                     beam.reference.time,
                     rtol=1e-12,
                     atol=0,
@@ -345,19 +345,19 @@ class RFCenterGridMixin:
                     break
 
         if len(time_list) > 1:
-            self.reverse_tracking_time_array = np.append(
+            self._reverse_tracking_time_array = np.append(
                 np.array(time_list[0] - start_time), np.diff(time_list)
             )
             # Track the actual RF frequency (design + delta_omega_rf), see
             # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
-            self.reverse_tracking_omega_list = (
+            self._reverse_tracking_omega_list = (
                 np.array(omega_list) + self.delta_omega_rf
             )
         else:
-            self.reverse_tracking_time_array = np.array(time_list)
+            self._reverse_tracking_time_array = np.array(time_list)
             # Track the actual RF frequency (design + delta_omega_rf), see
             # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
-            self.reverse_tracking_omega_list = (
+            self._reverse_tracking_omega_list = (
                 np.array(omega_list) + self.delta_omega_rf
             )
 
@@ -365,11 +365,11 @@ class RFCenterGridMixin:
 
         if self.debug:
             self.reference_time_after_reverse = (
-                self.reference_state_until_tracked.time
+                self._reference_state_until_tracked.time
             )
             self.current_beam_reference_time = beam.reference.time
             self.reference_energy_after_reverse = (
-                self.reference_state_until_tracked.total_energy
+                self._reference_state_until_tracked.total_energy
             )
             self.current_beam_reference_energy = beam.reference.total_energy
 
@@ -390,15 +390,15 @@ class RFCenterGridMixin:
         list on every mutation makes the two impossible to desync.
         """
         if self._segments:
-            self.rf_centers = np.concatenate(
+            self._rf_centers = np.concatenate(
                 [segment.centers for segment in self._segments]
             )
-            self.rf_centers_lengths = np.array(
+            self._rf_centers_lengths = np.array(
                 [len(segment) for segment in self._segments], dtype=int
             )
         else:
-            self.rf_centers = np.zeros(0)
-            self.rf_centers_lengths = np.zeros(0, dtype=int)
+            self._rf_centers = np.zeros(0)
+            self._rf_centers_lengths = np.zeros(0, dtype=int)
 
     def _append_segment(self, segment: RFCenterSegment) -> None:
         """
@@ -427,12 +427,12 @@ class RFCenterGridMixin:
         going through :meth:`_append_segment` / :meth:`_clear_segments`.
         """
         segment_lengths = [len(segment) for segment in self._segments]
-        assert list(self.rf_centers_lengths) == segment_lengths, (
-            f"rf_centers_lengths {list(self.rf_centers_lengths)} out of sync "
+        assert list(self._rf_centers_lengths) == segment_lengths, (
+            f"rf_centers_lengths {list(self._rf_centers_lengths)} out of sync "
             f"with segment lengths {segment_lengths}"
         )
-        assert len(self.rf_centers) == sum(segment_lengths), (
-            f"rf_centers length {len(self.rf_centers)} != sum of segment "
+        assert len(self._rf_centers) == sum(segment_lengths), (
+            f"rf_centers length {len(self._rf_centers)} != sum of segment "
             f"lengths {sum(segment_lengths)}"
         )
 
@@ -505,13 +505,13 @@ class RFCenterGridMixin:
             return rf_centers
 
         # reset with current turn
-        self.residual_time_last_rf_centers_calculation = (
+        self._residual_time_last_rf_centers_calculation = (
             until_time - rf_centers[-1]
         )
-        self.residual_taps_last_rf_centers_calculation = (
-            self.residual_time_last_rf_centers_calculation / t_rf
+        self._residual_taps_last_rf_centers_calculation = (
+                self._residual_time_last_rf_centers_calculation / t_rf
         )
-        self.last_forward_tracking_freq = omega_rf
+        self._last_forward_tracking_freq = omega_rf
         return rf_centers
 
     def calculate_rf_centers_for_forward_direction(
@@ -534,38 +534,38 @@ class RFCenterGridMixin:
         # keeps the baseband/demodulated representation continuous across the
         # turn boundary when the RF is detuned. delta_omega_rf == 0 leaves
         # phase_offset_frwrd at 0 (unchanged behaviour).
-        self.phase_offset_frwrd_next = (
+        self._phase_offset_frwrd_next = (
             2.0
             * np.pi
             * self.harmonic
             * self.delta_omega_rf
             / self._parent_rf_station.calc_omega_rf_design(
-                beam_beta=self.reference_state_until_tracked.beta,
+                beam_beta=self._reference_state_until_tracked.beta,
                 ring_circumference=self.ring.circumference,
             )
         )
 
         new_rf_centers = self._generate_rf_centers(
-            t_rf=(2 * np.pi / self.forward_tracking_omega_rf),
+            t_rf=(2 * np.pi / self._forward_tracking_omega_rf),
             # TODO: this is indeed necessary for the multi-section acceleration tracking, delta_omega hast to be applied somewhere else if applicable
-            omega_rf=self.forward_tracking_omega_rf,
+            omega_rf=self._forward_tracking_omega_rf,
             phi_rf=self.phase_offset_frwrd,  # phase_offset_frwrd,
-            until_time=self.forward_tracking_time,
+            until_time=self._forward_tracking_time,
         )
 
         self._append_segment(
             RFCenterSegment(
-                omega=self.forward_tracking_omega_rf,
-                duration=self.forward_tracking_time,
-                residual=self.residual_time_last_rf_centers_calculation,
+                omega=self._forward_tracking_omega_rf,
+                duration=self._forward_tracking_time,
+                residual=self._residual_time_last_rf_centers_calculation,
                 centers=new_rf_centers,
             )
         )
 
     def _unify_same_frequency_time_points_reverse(self):
-        if len(self.reverse_tracking_time_array) > 1:
-            time_arr_to_use = np.copy(self.reverse_tracking_time_array)
-            omega_array_to_use = np.copy(self.reverse_tracking_omega_list)
+        if len(self._reverse_tracking_time_array) > 1:
+            time_arr_to_use = np.copy(self._reverse_tracking_time_array)
+            omega_array_to_use = np.copy(self._reverse_tracking_omega_list)
 
             for omega_ind in range(1, len(omega_array_to_use)):
                 if (
@@ -578,8 +578,8 @@ class RFCenterGridMixin:
                     time_arr_to_use[omega_ind - 1] = 0
 
             mask = time_arr_to_use != 0
-            self.reverse_tracking_time_array = time_arr_to_use[mask]
-            self.reverse_tracking_omega_list = omega_array_to_use[mask]
+            self._reverse_tracking_time_array = time_arr_to_use[mask]
+            self._reverse_tracking_omega_list = omega_array_to_use[mask]
 
     def calculate_rf_centers_for_reverse_direction(
         self, beam: BeamBaseClass
@@ -598,20 +598,20 @@ class RFCenterGridMixin:
         """
         if (
             self.own_index_in_reference_list == 0
-            and self.tracked_forward_until_element is None
+            and self._tracked_forward_until_element is None
         ):
             return
-        if beam.reference.time == self.reference_state_until_tracked.time:
+        if beam.reference.time == self._reference_state_until_tracked.time:
             return
 
         self.get_time_omega_array_reverse_direction(beam=beam)
 
-        for time_ind, time in enumerate(self.reverse_tracking_time_array):
+        for time_ind, time in enumerate(self._reverse_tracking_time_array):
             # if time == 0:  # cavities may cause this in debug mode
             #     continue
             new_rf_centers = self._generate_rf_centers(
-                t_rf=(2 * np.pi / self.reverse_tracking_omega_list[time_ind]),
-                omega_rf=self.reverse_tracking_omega_list[time_ind],
+                t_rf=(2 * np.pi / self._reverse_tracking_omega_list[time_ind]),
+                omega_rf=self._reverse_tracking_omega_list[time_ind],
                 phi_rf=self.phi_rf,
                 # The parent station accumulates the delta_omega_rf phase slip
                 # exactly, from the elapsed reference time (see
@@ -625,9 +625,9 @@ class RFCenterGridMixin:
             )
             self._append_segment(
                 RFCenterSegment(
-                    omega=self.reverse_tracking_omega_list[time_ind],
+                    omega=self._reverse_tracking_omega_list[time_ind],
                     duration=time,
-                    residual=self.residual_time_last_rf_centers_calculation,
+                    residual=self._residual_time_last_rf_centers_calculation,
                     centers=new_rf_centers,
                 )
             )
