@@ -44,6 +44,8 @@ from blond.physics.impedances.base import (
 from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
@@ -416,10 +418,11 @@ class Resonators(
                 shunt_impedances_counter_rotating
             )
 
-            assert (
-                len(self._shunt_impedances_counter_rotating)
-                == len(self._shunt_impedances)
-            ), "Array lengths between co- and counterrotating impedances need to match."
+            assert len(self._shunt_impedances_counter_rotating) == len(
+                self._shunt_impedances
+            ), (
+                "Array lengths between co- and counterrotating impedances need to match."
+            )
 
             for imp, imp_cr in zip(
                 self._shunt_impedances,
@@ -428,7 +431,9 @@ class Resonators(
             ):
                 assert backend.isclose(
                     backend.abs(imp), backend.abs(imp_cr)
-                ), "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
+                ), (
+                    "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
+                )
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
@@ -1124,12 +1129,12 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         a_factor: float | ArrayLike,
     ):
         if hasattr(R_S, "__len__"):
-            assert len(R_S) == len(
-                frequency_R
-            ), f"{len(R_S)=}, but {len(frequency_R)=}."
-            assert len(R_S) == len(
-                a_factor
-            ), f"{len(R_S)=}, but {len(a_factor)=}."
+            assert len(R_S) == len(frequency_R), (
+                f"{len(R_S)=}, but {len(frequency_R)=}."
+            )
+            assert len(R_S) == len(a_factor), (
+                f"{len(R_S)=}, but {len(a_factor)=}."
+            )
         else:
             R_S = float(R_S)
             frequency_R = float(frequency_R)
