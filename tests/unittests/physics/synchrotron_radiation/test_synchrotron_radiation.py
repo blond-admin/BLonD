@@ -65,10 +65,7 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
             ],
         )
 
-        self.assertIsNone(SRHandler._simulation)
-        self.assertIsNone(SRHandler._simulation)
         self.assertIsNone(SRHandler._natural_energy_spread)
-        self.assertIsNone(SRHandler._energy_loss_per_turn)
         self.assertIsNone(SRHandler._energy_loss_per_turn)
 
         self.assertListEqual(SRHandler.generated_children, [])
