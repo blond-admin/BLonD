@@ -210,18 +210,12 @@ class TestBeam(unittest.TestCase):
             dE_scale=1e9,
             dE_offset=0.5e9,
             dt_offset=0.5e-9,
+            seed=1,
         )
-        # places=1 because using random generator with low number of particles
-        self.assertAlmostEqual(
-            beam._dt.mean(), 5.194208272517843e-10, places=1
-        )
-        self.assertAlmostEqual(beam._dt.std(), 1.003710018454918e-09, places=1)
-        self.assertAlmostEqual(
-            beam._dE.mean() / 1e9, 510497638.7958076 / 1e9, places=1
-        )
-        self.assertAlmostEqual(
-            beam._dE.std() / 1e9, 996310643.973366 / 1e9, places=1
-        )
+        np.testing.assert_allclose(beam._dt.mean(), 4.890870988791548e-10)
+        np.testing.assert_allclose(beam._dt.std(), 9.984960296298784e-10)
+        np.testing.assert_allclose(beam._dE.mean(), 512871777.88223857)
+        np.testing.assert_allclose(beam._dE.std(), 1005397644.8793652)
 
     def test_plot_hist_executes_kwargs(self) -> None:
         beam = Mock(Beam)

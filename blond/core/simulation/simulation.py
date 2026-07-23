@@ -938,9 +938,12 @@ class Simulation(Preparable):
         See Also
         --------
         blond.beam_preparation.bigaussian.BiGaussian : Simple Gaussian beam distribution.
+        blond.beam_preparation.coasting.Coasting : Coasting beam distribution.
         blond.experimental.beam_preparation.empiric_matcher.EmpiricMatcher : Grid-based distribution matching.
         blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher : Hamiltonian-based matched distribution.
-        blond.interfaces.xsuite.beam_preparation.rfbucket_matching.XsuiteRFBucketMatcher : XSuite RF bucket matching.
+        blond.experimental.beam_preparation.filamentation_matcher.FilamentationMatcher : Filamentation-aware beam matcher.
+        blond.experimental.beam_preparation.synchrotron_radiation_matcher.SynchrotronRadiationMatcher : Matcher accounting for synchrotron radiation effects.
+        blond.interfaces.xsuite.beam_preparation.rfbucket_matching.XsuiteRFBucketMatcher : XSuite RF bucket matching interface.
 
         Notes
         -----

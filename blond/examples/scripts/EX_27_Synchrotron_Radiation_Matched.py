@@ -114,7 +114,7 @@ class SynchrotronRadiationSimulation:
         self.energy_spread = 1e-3
 
 
-def main(n_turns: int = 100):
+def main(n_turns: int = 100, n_macroparticles=int(1e4)):
     params = SynchrotronRadiationSimulation(n_turns=n_turns)
     simulation = Simulation(
         ring=params.ring,
@@ -126,7 +126,7 @@ def main(n_turns: int = 100):
         beam=params.beam,
         preparation_routine=SynchrotronRadiationMatcher(
             synchrotron_radiation_master=params.SRHandler,
-            n_macroparticles=1e4,
+            n_macroparticles=n_macroparticles,
             seed=1,
         ),
     )
@@ -138,24 +138,6 @@ def main(n_turns: int = 100):
     bunch_statistics = BeamStatisticsOncePerTurn(
         each_turn_i=1,
     )
-
-    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if (
-            simulation.turn_counter.value is None
-            or simulation.turn_counter.value % 1 != 0
-        ):
-            return
-
-        artist = beam.plot_hist2d()
-        plt.xlim([0, 1.5 * 1e-9])
-        plt.ylim([-0.5 * 1e9, 0.5 * 1e9])
-        plt.ylabel("DE [eV]")
-        plt.xlabel("t [s]")
-        plt.draw()
-        plt.pause(1e-1)
-        artist.remove()
-
-    # custom_action(simulation, beam=params.beam)
 
     def get_bunch_relative_energy(simulation, beam):
         bunch_relative_energy[simulation.turn_counter.value + 1] = np.mean(

@@ -24,7 +24,7 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.experimental import FilamentationMatcher
+from blond.beam_preparation.filamentation_matcher import FilamentationMatcher
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover
