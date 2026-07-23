@@ -209,8 +209,22 @@ reference accuracy. A station *at* a meeting azimuth (both beams at the
 same reference time, e.g. the single mid-ring station of a one-section
 layout) is refused with ``NotImplementedError``: the machinery would
 silently serialize the coincident arrivals one projection window apart.
-Model such a station's loading with the ``MultiPassResonatorSolver``
-wakefield (``allow_delta_t_zero=True``) instead.
+
+.. warning::
+
+   There is currently **no correct model for a station at a meeting
+   azimuth** with simultaneous coincident passages. The
+   ``MultiPassResonatorSolver`` wakefield with ``allow_delta_t_zero=True``
+   permits the coincident (``delta_t = 0``) deposit but applies each beam's
+   kick *inside its own track call*, before the other beam's coincident
+   profile has been deposited. The beam tracked first therefore sees only
+   its own self-loading ``W(0)/2`` while the beam tracked second sees
+   ``W(0)`` (self + the first beam's cross-wake): one beam is under-kicked
+   by the entire mutual beam-loading term, and swapping the track order
+   swaps which beam is affected. Do **not** rely on this path for a
+   meeting-azimuth station until the coincident cross-wake is symmetrised
+   (deposit both beams' coincident profiles before evaluating either kick).
+   Keep stations off the meeting azimuths (offset passages) instead.
 
 For the wake-solver references, ``shunt_impedances_counter_witness`` is the
 shunt a counter-rotating witness *experiences* (its reversed integration

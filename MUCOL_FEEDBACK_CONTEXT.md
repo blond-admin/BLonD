@@ -310,6 +310,53 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
 
 ## 3. Open items / flagged (NOT done — need decisions)
 
+**Physics review (2026-07-23, 46-agent adversarial workflow on committed HEAD
+post-phase-rework): 13 findings → 7 confirmed, 6 refuted, 4 coverage gaps.**
+Three confirmed items actioned as a focused cleanup pass (TDD, mutation-verified,
+zero regressions — full mucol battery 156 passed):
+- **#1/#5 (low) FIXED** — dead `_forward_carrier_omega_rf` attribute removed
+  (was computed in `rf_center_grid`, read nowhere); demod carrier is the
+  *design* RF, and the inter-turn slip enters only as the constant
+  `carrier_phase_offset=-(delta_phi_rf + carrier_slip_gap)`. Corrected the
+  class docstring + grid comments (they claimed the actual carrier was used
+  within the window); the only residual is the intra-window `δω·hist_x`, bounded
+  ~1e-6 rad and non-accumulating (bunch-local `hist_x`). Dropped the stale
+  `# TODO: this is wrong` on the validated anchor. **Answers the "which path is
+  more correct / can the param go to 0.0 / can it be removed" question**:
+  demod-at-actual-carrier is exactly correct, demod-at-design is correct to
+  ~1e-6 rad and simpler — both fine; the dead attribute is gone.
+- **#4 (medium) FIXED** — the forward-Euler beam-kick guards
+  (`_check_beam_kick_magnitude`, `_check_beam_kicks`) now early-return when
+  `_exponential_coarse_solver_flag` is set, mirroring `_check_step_sizes`. The
+  exact exponential propagator integrates the piecewise-constant drive (beam
+  included) exactly, so a large per-step beam kick is not a discretisation error
+  there; the guards could spuriously abort a valid exact large-step run. Tests:
+  `TestExponentialCoarseSolver::test_beam_kick_guard_skipped_for_exponential_solver`
+  (+ kernel-path variant), mutation-verified (Euler still raises).
+- **#7 (medium) doc-fixed** — the RST no longer *recommends* the
+  `MultiPassResonatorSolver(allow_delta_t_zero=True)` meeting-azimuth workaround;
+  a `.. warning::` now states it gives order-asymmetric coincident kicks (first
+  beam W(0)/2, second W(0)). The underlying solver asymmetry (solvers.py:934) is
+  **left for a decision** — the real fix is to deposit both coincident profiles
+  before evaluating either kick (symmetrise the mutual W(0)/2).
+- **#2/#3/#6 (2026-07-23) FIXED** via three parallel agents (TDD, all green):
+  - **#3** — `calc_phi_s_main_harmonic` / `calc_synchrotron_tune_main_harmonic`
+    (`cavities.py:962`, `:899`) now use `signed_charge_with_direction()`, so a
+    CR µ⁻ beam's analytic `phi_s` matches the µ⁺ co beam. Co-rotating
+    bit-identical (signed==raw). The **tune is sign-robust** (uses `|charge|`,
+    `|cos φ_s|`) so only `phi_s` changes value. Tests
+    `TestCounterRotatingSynchronousPhase` (`test_cavities.py`).
+  - **#6** — `_check_step_sizes` comment + raise message (and the class-docstring
+    Sub-stepping paragraph) corrected: the Euler decay factor turns negative at
+    `decay_per_step > 1` (sign-flip, still contracting) and diverges at `> 2`
+    (the `2.0` hard cap, unchanged). Text-only. **Judgment call for the user:
+    tighten the hard cap to 1.0?** (forbids the sign-flipping 1<d<2 band; left
+    at 2.0 = pure divergence guard).
+  - **#2** — the sandwich guard was REPLACED, and a prior belief CORRECTED (see
+    the per-beam-profiles bullet below).
+  Coverage gaps flagged (still open): closed-loop Robinson stability,
+  accel×two-beam-CR, δω_rf×CR, generator↔beam power/energy conservation.
+
 - ~~MultiPole vs MultiPass on missing R_CR~~ **RESOLVED**: the follow-up
   session's guard landed via `origin/blonder` (commit `2235e519`, merged in
   `b047e972`) — MultiPoleSparseSolve now raises on a CR beam with any source
@@ -332,14 +379,21 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
   recorded in the memory note. Kick-ordering fork: symmetric one-passage delay /
   pooled kick / asymmetric lag.
 - **Per-beam live profiles** under two-beam tracking clobber each other (tests
-  use frozen profiles) — core gap. Mitigation shipped (user decision): the CR
-  mainloop now validates at start that every live profile consumed by an
-  element (direct, via `_local_wakefield`, or via `cavity_feedback_list`) is
-  tracked both before AND after that consumer — the (profile, consumer,
-  profile) sandwich — or is frozen (`active = False`); raises `ValueError`
-  otherwise. `_check_two_beam_profile_placement` in
-  `blond/core/simulation/execution_models/conterrotating_beams.py`, tests in
-  `test_simulation.py::TestTwoBeamProfilePlacementCheck`.
+  use frozen profiles) — core gap. **CORRECTION (2026-07-23, #2):** the item-7
+  belief that a *(profile, consumer, profile) sandwich is sufficient* is WRONG.
+  The exact-interleave replay proves even the minimal sandwich `[P, C, P]` is
+  corrupt (the *forward* beam reads the counter's histogram), and `[P,C,P,Drift]`
+  corrupts the counter beam. A padded layout (e.g. `PCPDD`, `DPCPDDD`) can be
+  safe, but no simple positional rule characterises it. The guard was therefore
+  REPLACED: `_check_two_beam_profile_placement` now **replays the exact mainloop
+  interleave** (forward tracks `elements[k]`, then counter `elements[N-1-k]`;
+  two turns for steady state) and raises if any consumer reads the other beam's
+  histogram — provably correct (0 too-lax / 0 too-strict over 1792 layouts).
+  Frozen (`active=False`) profiles remain exempt. Tests in
+  `test_simulation.py::TestTwoBeamProfilePlacementCheck` (the old
+  `test_sandwiched_live_profile_passes` was corrected to
+  `test_minimal_sandwich_rejected`). The real long-term fix remains per-beam
+  profile instances; this guard turns silent corruption into a loud error.
 - ~~`delta_omega_rf` lab-frame demod slip~~ **RESOLVED (2026-07-22, task
   9)**: redesigned — the coarse-grid geometry is fully on the *design* RF
   clock (`forward_tracking_omega_rf` design-only; no detuned spacing; the
