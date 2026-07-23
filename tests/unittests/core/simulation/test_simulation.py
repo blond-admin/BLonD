@@ -903,6 +903,20 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
 
         return SimpleNamespace(profile=profile)
 
+    @staticmethod
+    def _drift():
+        """
+        A minimal non-consuming, non-histogramming element stand-in.
+
+        Returns
+        -------
+        SimpleNamespace
+            Object with no ``.profile`` (a drift/kick spacer element).
+        """
+        from types import SimpleNamespace
+
+        return SimpleNamespace()
+
     def _check(self, elements):
         """
         Run the placement check on an element list.
@@ -920,10 +934,21 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
             self._simulation_with(elements)
         )
 
-    def test_sandwiched_live_profile_passes(self):
-        """Profile tracked on both sides of the consumer is accepted."""
+    def test_minimal_sandwich_rejected(self):
+        """
+        The minimal ``(profile, consumer, profile)`` sandwich is rejected.
+
+        This previously asserted the sandwich was *accepted*, encoding the
+        old (incorrect) belief that placing the profile on both sides of
+        the consumer is sufficient. Replaying the counter-rotating
+        interleave shows it is not: for ``[profile, consumer, profile]``
+        the counter beam re-histograms the profile between the co-rotating
+        beam's own write and its read, so the co-rotating beam reads the
+        wrong line density. A correct guard rejects it.
+        """
         profile = self._profile(active=True)
-        self._check([profile, self._consumer(profile), profile])
+        with self.assertRaises(ValueError):
+            self._check([profile, self._consumer(profile), profile])
 
     def test_frozen_profile_needs_no_tracking(self):
         """A frozen (``active=False``) profile is exempt from the check."""
@@ -938,12 +963,17 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
         self.assertIn("never tracked", str(ctx.exception))
 
     def test_one_sided_live_profile_raises(self):
-        """A live profile tracked on only one side is rejected."""
+        """
+        A live profile tracked on only one side is rejected.
+
+        ``[profile, consumer]`` histograms the profile with the forward
+        beam, but the counter-rotating beam reads it first (in reverse
+        order) before re-histogramming it, so it reads the wrong beam.
+        """
         profile = self._profile(active=True)
         with self.assertRaises(ValueError) as ctx:
             self._check([profile, self._consumer(profile)])
-        self.assertIn("only on one side", str(ctx.exception))
-        self.assertIn("after", str(ctx.exception))
+        self.assertIn("counter-rotating", str(ctx.exception))
 
     def test_attached_wakefield_profile_is_checked(self):
         """A profile attached via ``_local_wakefield`` is validated too."""
@@ -956,8 +986,8 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             self._check([profile, station])
-        # sandwiched: accepted
-        self._check([profile, station, profile])
+        # verified-safe padded live layout: accepted
+        self._check([profile, station, profile, self._drift(), self._drift()])
 
     def test_attached_feedback_profile_is_checked(self):
         """A profile attached via ``cavity_feedback_list`` is validated too."""
@@ -970,7 +1000,85 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             self._check([station, profile])
-        self._check([profile, station, profile])
+        # verified-safe padded live layout: accepted
+        self._check([profile, station, profile, self._drift(), self._drift()])
+
+    def test_clobbering_layout_is_rejected(self):
+        """
+        ``[profile, consumer, profile, drift]`` corrupts and is rejected.
+
+        The old one-sided guard green-lit this layout (the profile appears
+        both before and after the consumer), yet tracing the mainloop's
+        forward-then-counter interleave shows the counter-rotating beam
+        reads the co-rotating beam's histogram at the consumer (bug #2).
+        """
+        profile = self._profile(active=True)
+        with self.assertRaises(ValueError) as ctx:
+            self._check(
+                [profile, self._consumer(profile), profile, self._drift()]
+            )
+        self.assertIn("counter-rotating", str(ctx.exception))
+
+    def test_interleave_corrupts_counter_beam_at_consumer(self):
+        """
+        Behavioural ground truth: the counter beam reads the wrong bunch.
+
+        This reproduces the exact mainloop schedule -- forward tracks
+        ``elements[k]`` then counter tracks ``elements[N-1-k]`` -- over the
+        ``[profile, consumer, profile, drift]`` layout with two distinct
+        bunches, and shows the counter-rotating beam reads the co-rotating
+        bunch's histogram at the consumer.
+        """
+        from types import SimpleNamespace
+
+        histogram = {"owner": None}  # which bunch last histogrammed profile
+        prof = SimpleNamespace(active=True)
+        reads = []
+
+        def track(element, bunch):
+            if element is prof:
+                histogram["owner"] = bunch  # histogram in place
+            elif getattr(element, "consumes", None) is prof:
+                reads.append((bunch, histogram["owner"]))
+
+        drift = SimpleNamespace()
+        consumer = SimpleNamespace(consumes=prof)
+        elements = [prof, consumer, prof, drift]
+        n = len(elements)
+        # Two turns so the histogram owner reaches steady state.
+        for _turn in range(2):
+            reads.clear()
+            for element_ind in range(n):
+                track(elements[element_ind], "forward")
+                track(elements[n - 1 - element_ind], "counter")
+
+        by_beam = {beam: owner for (beam, owner) in reads}
+        self.assertEqual(by_beam["forward"], "forward")
+        self.assertEqual(
+            by_beam["counter"],
+            "forward",
+            "counter beam is corrupted by the forward bunch's histogram",
+        )
+
+    def test_padded_safe_live_layout_passes(self):
+        """
+        A genuinely-safe padded live layout is accepted.
+
+        ``[profile, consumer, profile, drift, drift]`` is one of the
+        layouts whose interleave leaves each beam reading its own
+        histogram at the consumer (verified by exhaustive schedule
+        simulation); the guard must not reject it.
+        """
+        profile = self._profile(active=True)
+        self._check(
+            [
+                profile,
+                self._consumer(profile),
+                profile,
+                self._drift(),
+                self._drift(),
+            ]
+        )
 
 
 if __name__ == "__main__":

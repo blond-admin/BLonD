@@ -175,31 +175,28 @@ class RFCenterGridMixin:
                 next_reference_altering_element_index = -1
 
         self._forward_tracking_time = dummy_reference.time - start_time
-        # The coarse-grid GEOMETRY (spacing, tiling, residuals) stays on the
-        # *design* RF clock even under an RF-frequency offset, so every
-        # time-valued bookkeeping quantity (residuals, dT demodulation
-        # shifts) is independent of delta_omega_rf. The offset enters only
-        # as explicit phase terms: the demodulation carrier
-        # ``forward_carrier_omega_rf`` (the actual RF within the profile
-        # window) and the accumulated kick-clock slip ``delta_phi_rf``
-        # applied on the demodulation and readout sides. Feeding the offset
-        # into the grid times instead (detuned spacing or a slipping seed)
-        # drags the whole envelope timeline against the readout -- a frame
-        # drift no per-deposit bookkeeping can compensate (measured against
-        # the retuning convolution).
+        # The coarse-grid GEOMETRY (spacing, tiling, residuals) AND the
+        # beam-current demodulation carrier both stay on the *design* RF
+        # clock even under an RF-frequency offset, so every time-valued
+        # bookkeeping quantity (residuals, dT demodulation shifts) is
+        # independent of delta_omega_rf. The offset enters only as the
+        # accumulated kick-clock slip ``int delta_omega_rf dt`` (the parent
+        # station's ``delta_phi_rf`` plus its live end-of-track tail),
+        # applied as an explicit constant phase on the demodulation and
+        # readout sides (see IQCavityFeedbackTimingClass docstring). Feeding
+        # the offset into the grid times instead (detuned spacing or a
+        # slipping seed) drags the whole envelope timeline against the
+        # readout -- a frame drift no per-deposit bookkeeping can compensate
+        # (measured against the retuning convolution). The only residual is
+        # the intra-window mismatch delta_omega_rf * hist_x between the
+        # design demodulation carrier and the actual RF; that is bounded by
+        # the bunch-local time (order t_rf, reset each turn) to ~1e-6 rad and
+        # never accumulates, so demodulating at the design carrier is
+        # exact to well within the discretization floor.
         self._forward_tracking_omega_rf = (
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self._ring_circumference
             )
-        )
-        # The demodulation carrier: the actual RF frequency (design plus the
-        # station's RF-frequency offset). Applying the parent's offset
-        # across the whole forward-tracked segment (which spans other
-        # stations' sections) is safe because the RF station forbids
-        # changing delta_omega_rf during the run when the ring has more
-        # than one station (see RFStationBaseClass.delta_omega_rf).
-        self._forward_carrier_omega_rf = (
-            self._forward_tracking_omega_rf + self.delta_omega_rf
         )
         self._tracked_forward_until_element = (
             forward_list[
@@ -379,13 +376,15 @@ class RFCenterGridMixin:
             self._reverse_tracking_time_array = np.append(
                 np.array(time_list[0] - start_time), np.diff(time_list)
             )
-            # Track the actual RF frequency (design + delta_omega_rf), see
-            # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
+            # Grid geometry stays on the *design* RF clock (see
+            # forward_tracking_omega_rf); the RF-frequency offset enters only
+            # as the constant demodulation/readout phase, not the grid.
             self._reverse_tracking_omega_list = np.array(omega_list)
         else:
             self._reverse_tracking_time_array = np.array(time_list)
-            # Track the actual RF frequency (design + delta_omega_rf), see
-            # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
+            # Grid geometry stays on the *design* RF clock (see
+            # forward_tracking_omega_rf); the RF-frequency offset enters only
+            # as the constant demodulation/readout phase, not the grid.
             self._reverse_tracking_omega_list = np.array(omega_list)
 
         self._unify_same_frequency_time_points_reverse()
