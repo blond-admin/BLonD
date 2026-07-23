@@ -1217,12 +1217,24 @@ class LineDensityMatcher(MatchingRoutine):
         """Input vs reconstructed line density vs generated beam."""
         import matplotlib.pyplot as plt
 
+        # Two different scalings on purpose: the beam histogram and
+        # the reconstructed density are both integral-normalized
+        # (probability densities, [1/s]) so the sampling quality is
+        # judged fairly — peak normalization would bias the histogram
+        # low, its maximum being inflated by binning noise. The input
+        # profile is instead anchored to the PEAK of the reconstructed
+        # density: the Abel reconstruction reproduces the input exactly
+        # on the inverted branch up to an amplitude scale and both peak
+        # at the well minimum, so this overlays the matched branch
+        # exactly (e.g. the full first half for half_option="first") —
+        # which integral normalization would hide whenever the other
+        # branch differs (distorted wells).
         time_step = float(time_array[1] - time_array[0])
-        input_density = input_normalized / (
-            input_normalized.sum() * time_step
-        )  # probability density, in [1/s]
         reconstructed_density = reconstructed_line_density / (
             reconstructed_line_density.sum() * time_step
+        )  # probability density, in [1/s]
+        input_density = input_normalized * (
+            reconstructed_density.max() / input_normalized.max()
         )
         with_wells = rf_well_cut is not None
         with AllowPlotting():
@@ -1245,7 +1257,7 @@ class LineDensityMatcher(MatchingRoutine):
                 input_density,
                 color="k",
                 lw=2.0,
-                label="input line density (recentred)",
+                label="input line density (peak-anchored)",
             )
             ax.plot(
                 time_array,

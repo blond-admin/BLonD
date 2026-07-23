@@ -25,10 +25,14 @@ profile).
 With ``INTENSITY_EFFECTS = True`` a broadband resonator impedance is
 added to the ring: the matcher then iterates the profile centering and
 the induced potential to self-consistency, and the bunch is matched at
-the wake-shifted stable position. The reported profile-reconstruction
-error then also measures how compatible the requested profile is with a
-stationary distribution in the distorted well (``half_option="both"``
-averages the two well branches — the robust choice there).
+the wake-shifted stable position. A symmetric measured profile cannot
+be exactly stationary in the distorted (asymmetric) well: with
+``half_option="first"`` the inversion uses the left well branch only,
+so the matcher plot (peak-normalized) shows the reconstruction
+overlaying the measured first half exactly while the second half
+deviates; ``half_option="both"`` averages the two branches instead,
+spreading the deviation. The reported profile-reconstruction error
+quantifies it either way.
 """
 
 import matplotlib.pyplot as plt
