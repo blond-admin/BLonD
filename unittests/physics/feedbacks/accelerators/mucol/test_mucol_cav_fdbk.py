@@ -369,6 +369,57 @@ class TestCavityFeedback(unittest.TestCase):
             )
         self.assertIn("relative_kick", str(cm.exception))
 
+    def test_decay_hard_cap_bounds_divergence_not_sign_flip(self):
+        """
+        Pin that the decay hard cap guards divergence, not the sign flip.
+
+        The forward-Euler decay factor is ``1 - decay_per_step``. Just
+        above ``decay_per_step == 1`` the factor is negative but its
+        magnitude is still < 1 (the sign flips every step yet the voltage
+        keeps contracting -- oscillatory decay), so ``_check_step_sizes``
+        must NOT raise. Only above ``decay_per_step == 2`` does the factor
+        magnitude exceed 1 -- a genuinely divergent step -- which the hard
+        cap must reject with a message naming divergence/magnitude, the
+        numeric behaviour the corrected wording describes.
+        """
+        sampling_time_coarse = 1.0
+        Q_L = 1.0
+        self.cav_fdbk.Q_L = Q_L
+        self.cav_fdbk.delta_omega = 0.0  # isolate the decay branch
+
+        # Case 1: decay_per_step just above 1 -> factor negative, |factor|<1.
+        omega_rf = 2.2  # 0.5 * omega * dt / Q_L = 1.1
+        decay_per_step = 0.5 * omega_rf * sampling_time_coarse / Q_L
+        self.assertAlmostEqual(decay_per_step, 1.1)
+        euler_multiplier = 1.0 - decay_per_step
+        self.assertLess(euler_multiplier, 0.0)  # sign flips each step
+        self.assertLess(abs(euler_multiplier), 1.0)  # still contracting
+
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
+        )
+        with patch_omega, patch_dt, warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            # 1 < decay_per_step < 2 is contracting, so it must not raise.
+            self.cav_fdbk._check_step_sizes()
+
+        # Case 2: decay_per_step just above 2 -> |factor| > 1, divergent.
+        omega_rf = 4.2  # 0.5 * omega * dt / Q_L = 2.1
+        decay_per_step = 0.5 * omega_rf * sampling_time_coarse / Q_L
+        self.assertAlmostEqual(decay_per_step, 2.1)
+        euler_multiplier = 1.0 - decay_per_step
+        self.assertLess(euler_multiplier, -1.0)  # magnitude exceeds 1
+
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
+        )
+        with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
+            self.cav_fdbk._check_step_sizes()
+        message = str(cm.exception).lower()
+        self.assertIn("decay_per_step", message)
+        self.assertIn("magnitude", message)
+        self.assertIn("diverg", message)
+
 
 class TestFineGridResonatorBenchmark(unittest.TestCase):
     """
@@ -1005,6 +1056,73 @@ class TestExponentialCoarseSolver(unittest.TestCase):
             v_prev, i_gen, i_beam, omega_dt, rel_det
         )
         self.assertAlmostEqual(v_exp / v_eu, 1.0, places=9)
+
+    def test_beam_kick_guard_skipped_for_exponential_solver(self):
+        """
+        The forward-Euler beam-kick guard must not abort the exact solver.
+
+        ``_check_beam_kick_magnitude`` measures the *forward-Euler* beam
+        increment ``I_beam * 0.5 * R_over_Q * omega * dt`` and hard-raises
+        when it exceeds the antenna voltage it is added to. The exponential
+        propagator integrates the piecewise-constant drive exactly, so a
+        large per-step beam kick is not a discretisation error there; the
+        guard must be skipped, exactly as ``_check_step_sizes`` already is.
+        """
+        # Beam current chosen so the Euler relative kick exceeds the hard
+        # cap (relative_kick = |I| * 0.5 * R_over_Q * omega_dt / |V| > 1).
+        beam_current = 1000.0
+        omega_times_T_s = 2.0 * np.pi
+        previous_voltage = 1.0e6
+        relative_kick = (
+            abs(beam_current)
+            * 0.5
+            * self.R_over_Q
+            * omega_times_T_s
+            / abs(previous_voltage)
+        )
+        assert relative_kick > 1.0  # the scenario really trips the guard
+
+        # Euler mode: the guard is active and hard-raises.
+        cav_eu = self._feedback(exponential=False)
+        with self.assertRaises(ValueError):
+            cav_eu._check_beam_kick_magnitude(
+                beam_current, omega_times_T_s, previous_voltage
+            )
+
+        # Exponential mode: the exact solver makes the guard inapplicable,
+        # so it must return without raising.
+        cav_exp = self._feedback(exponential=True)
+        cav_exp._check_beam_kick_magnitude(
+            beam_current, omega_times_T_s, previous_voltage
+        )  # must not raise
+
+    def test_beam_kicks_kernel_guard_skipped_for_exponential_solver(self):
+        """The kernel-path beam-kick guard is skipped for the exact solver."""
+        # Two cells; only the second carries beam. Its relative kick vs the
+        # preceding voltage exceeds the hard cap (see per-cell test above).
+        beam_current = np.array([0.0, 1000.0])
+        omega_times_dt = np.array([2.0 * np.pi, 2.0 * np.pi])
+        voltage_init = 1.0e6 + 0j
+        voltage_out = np.array([1.0e6 + 0j, 1.0e6 + 0j])
+
+        cav_eu = self._feedback(exponential=False)
+        with self.assertRaises(ValueError):
+            cav_eu._check_beam_kicks(
+                beam_current,
+                omega_times_dt,
+                voltage_init,
+                voltage_out,
+                skip_first=False,
+            )
+
+        cav_exp = self._feedback(exponential=True)
+        cav_exp._check_beam_kicks(
+            beam_current,
+            omega_times_dt,
+            voltage_init,
+            voltage_out,
+            skip_first=False,
+        )  # must not raise
 
 
 class TestVoltageSetpointValidation(unittest.TestCase):

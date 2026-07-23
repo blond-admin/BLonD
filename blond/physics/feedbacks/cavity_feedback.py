@@ -697,9 +697,12 @@ class IQCavityFeedbackTimingClass(
         decay_per_step = 0.5 * omega_rf * dt / Q_L
                        = n_rf_periods_per_coarse_grid * pi / Q_L .
 
-    This must stay below the hard cap of 2.0 (above it the factor goes
-    negative and the discretisation diverges) and ideally ``<< 1`` for
-    accuracy; ``_check_step_sizes`` enforces this. For a low ``Q_L`` even a
+    This must stay below the hard cap of 2.0 (the Euler decay factor
+    ``1 - decay_per_step`` turns negative -- an unphysical per-step sign
+    flip -- already at ``decay_per_step > 1``, and its magnitude exceeds 1,
+    diverging, at ``decay_per_step > 2``, which the cap guards) and ideally
+    ``<< 1`` for accuracy; ``_check_step_sizes`` enforces this. For a low
+    ``Q_L`` even a
     single RF period per step (``n = 1``) can be unstable (``decay = pi/Q_L``),
     so ``n`` is lowered below 1 to sub-divide the RF period and shrink the step
     proportionally. In this mode the coarse grid no longer re-aligns to an RF
@@ -707,22 +710,27 @@ class IQCavityFeedbackTimingClass(
     (see ``_generate_rf_centers``).
 
     **RF-frequency offset.** The coarse-grid geometry (spacing, tiling,
-    residuals) stays on the *design* RF clock under a station RF-frequency
-    offset ``delta_omega_rf`` (see ``forward_tracking_omega_rf``); the offset
-    enters only as explicit phases. The beam current is demodulated onto the
-    *actual* RF carrier (``forward_carrier_omega_rf`` within the profile
-    window, plus the accumulated slip ``int delta_omega_rf dt`` -- the parent
-    station's kick clock ``delta_phi_rf`` plus its live end-of-track tail),
-    and the readout applies the identical total (the station clock via
-    ``phi_rf``, the tail via ``phase_correction``), so the demod/readout
-    chain closes exactly for every carried deposit -- validated at the
-    discretization floor against the retuning convolution
-    (``test_multiturn_delta_omega_rf_*``). Everything reduces bit-identically
-    to the undetuned behaviour when ``delta_omega_rf == 0``. Note this is the
-    RF *frequency* offset of the parent station, distinct from the
-    ``delta_omega`` constructor argument above (the cavity *resonance*
-    detuning), which enters the cavity response as a per-step phase rotation
-    and does not move the grid.
+    residuals) *and* the beam-current demodulation carrier both stay on the
+    *design* RF clock under a station RF-frequency offset ``delta_omega_rf``
+    (see ``forward_tracking_omega_rf``); the offset enters only as an
+    explicit phase. Concretely, the beam current is demodulated at the design
+    carrier ``forward_tracking_omega_rf`` and rotated by the accumulated slip
+    ``int delta_omega_rf dt`` -- the parent station's kick clock
+    ``delta_phi_rf`` plus its live end-of-track tail -- carried as a constant
+    ``carrier_phase_offset``. The readout applies the identical total (the
+    station clock via ``phi_rf``, the tail via ``phase_correction``), so the
+    inter-turn slip cancels and the demod/readout chain closes for every
+    carried deposit. The only residual is the intra-window mismatch
+    ``delta_omega_rf * hist_x`` between the design demodulation carrier and
+    the actual RF; ``hist_x`` is the bunch-local profile time (order
+    ``t_rf``, reset each turn), so this term is bounded to ~1e-6 rad and does
+    not accumulate -- validated at the discretization floor against the
+    retuning convolution (``test_multiturn_delta_omega_rf_*``). Everything
+    reduces bit-identically to the undetuned behaviour when
+    ``delta_omega_rf == 0``. Note this is the RF *frequency* offset of the
+    parent station, distinct from the ``delta_omega`` constructor argument
+    above (the cavity *resonance* detuning), which enters the cavity response
+    as a per-step phase rotation and does not move the grid.
     """
 
     #: Compile the per-cell coarse-envelope recursion to a numba host kernel
@@ -782,7 +790,6 @@ class IQCavityFeedbackTimingClass(
         self._own_index_in_reference_list_reverse: int | None = None
 
         self._forward_tracking_omega_rf: float | None = None
-        self._forward_carrier_omega_rf: float | None = None
         self._forward_tracking_time: float | None = None
         self._tracked_forward_until_element: AltersReference | None = None
         self._last_forward_tracking_freq: float | None = None
@@ -901,18 +908,27 @@ class IQCavityFeedbackTimingClass(
         # forward-Euler step-size caps below -- and their accuracy warnings --
         # do not apply. This is exactly the low-Q_L / large-detuning regime
         # the option exists to enable, so gating it here would defeat its
-        # documented purpose. (The separate beam-kick magnitude check still
-        # runs: the piecewise-constant beam-current assumption is independent
-        # of the Euler-vs-exponential homogeneous propagator.)
+        # documented purpose. (The separate beam-kick magnitude check is
+        # likewise a forward-Euler tripwire and is gated the same way inside
+        # _check_beam_kick_magnitude / _check_beam_kicks: the exponential
+        # propagator integrates the piecewise-constant drive -- beam included
+        # -- exactly, so a large per-step beam kick is not a discretisation
+        # error there either.)
         if self._exponential_coarse_solver_flag:
             return
 
         max_step_angle = 0.1  # rad, heuristic threshold for Euler validity
-        # Beyond this, the forward-Euler decay factor
-        # (1 - 0.5 * omega * dt / Q_L) becomes negative, i.e. the
-        # discretized cavity would *invert* the antenna voltage every step
-        # instead of merely damping it -- a clearly unphysical, divergent
-        # discretization rather than just an inaccurate one.
+        # Hard cap on the per-step decay ``d = decay_per_step``. The
+        # forward-Euler decay factor (real part, ignoring detuning) is
+        # ``1 - d``:
+        #   * d < 1:      factor in (0, 1)  -- ordinary contraction.
+        #   * 1 < d < 2:  factor in (-1, 0) -- the sign flips every step
+        #                 (unphysical), but |factor| < 1 so the voltage
+        #                 still contracts (oscillatory decay).
+        #   * d > 2:      |factor| > 1      -- the magnitude grows every
+        #                 step: a genuinely divergent discretization.
+        # The cap guards divergence, so it sits at d = 2 (the |factor| = 1
+        # boundary), not at the sign-flip boundary d = 1.
         max_step_angle_hard = 2.0
 
         # NB: use omega_rf, not omega_carrier. cavity_response() advances the
@@ -929,9 +945,13 @@ class IQCavityFeedbackTimingClass(
         if decay_per_step > max_step_angle_hard:
             raise ValueError(
                 f"{decay_per_step=:.3g} > {max_step_angle_hard}: the "
-                "forward-Euler decay factor (1 - 0.5 * omega * dt / Q_L) "
-                "used in cavity_response() would be negative, making the "
-                "discretized cavity response unphysical/divergent. "
+                "magnitude of the forward-Euler decay factor "
+                "(1 - 0.5 * omega * dt / Q_L) used in cavity_response() "
+                "exceeds 1, so the discretized cavity response grows every "
+                "step instead of decaying -- a divergent discretization. "
+                "(The factor already turns negative for decay_per_step > 1, "
+                "flipping sign each step, but stays contracting until "
+                "decay_per_step exceeds 2.) "
                 "Increase Q_L or decrease n_rf_periods_per_coarse_grid."
             )
         if decay_per_step > max_step_angle:
@@ -1652,6 +1672,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Whether to skip the first cell (the carried ``rf_centers`` index 0,
             which the reference never checks).
         """
+        # The exponential propagator integrates the piecewise-constant drive
+        # (beam included) exactly, so a large per-step beam kick is not a
+        # discretisation error -- the forward-Euler beam-kick tripwire does
+        # not apply and must be skipped, mirroring _check_step_sizes.
+        if self._exponential_coarse_solver_flag:
+            return
         previous_voltage = np.empty_like(voltage_out)
         previous_voltage[0] = voltage_init
         previous_voltage[1:] = voltage_out[:-1]
@@ -1719,6 +1745,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Antenna voltage of the previous coarse-grid step, which the
             kick is added to/subtracted from.
         """
+        # Forward-Euler validity check only: the exponential propagator
+        # integrates the piecewise-constant drive (beam included) exactly, so
+        # a large per-step beam kick is not a discretisation error there. Skip
+        # it for the exact solver, mirroring _check_step_sizes' early return.
+        if self._exponential_coarse_solver_flag:
+            return
         if beam_current == 0:
             return
 
@@ -2282,24 +2314,27 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ) = rf_beam_current_partial(
             beam=beam,
             profile=self.profile,
-            # The demodulation projects onto the *actual* RF carrier
-            # (design + delta_omega_rf) within the profile window; the grid
-            # geometry itself stays on the design clock.
+            # The demodulation carrier is the *design* RF frequency; the grid
+            # geometry stays on the design clock too. The RF-frequency offset
+            # enters only as the constant carrier_phase_offset below, not as
+            # a within-window carrier shift (the residual intra-window
+            # mismatch delta_omega_rf * hist_x is bunch-local and negligible;
+            # see the class docstring).
             omega_c=self._forward_tracking_omega_rf,
             T_rev=self._forward_tracking_time,
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
             dT=dT_demodulation,
-            # Anchor the demodulation carrier to the actual RF phase: the
-            # accumulated slip ``int delta_omega_rf dt`` at this passage,
-            # i.e. the station's kick clock (delta_phi_rf) plus the live
-            # gap since its last end-of-track tick. The readout applies
-            # the same total (station clock via phi_rf, gap via
-            # phase_correction), so the demod/readout chain closes exactly
-            # for every deposit, however long it is carried. Exactly 0.0
-            # without an RF-frequency offset (bit-identical demodulation).
+            # Anchor the demodulation to the accumulated actual RF phase: the
+            # slip ``int delta_omega_rf dt`` at this passage, i.e. the
+            # station's kick clock (delta_phi_rf) plus the live gap since its
+            # last end-of-track tick. The readout applies the same total
+            # (station clock via phi_rf, gap via phase_correction), so the
+            # inter-turn slip cancels for every deposit, however long it is
+            # carried. Exactly 0.0 without an RF-frequency offset
+            # (bit-identical demodulation).
             carrier_phase_offset=-(self.delta_phi_rf + self._carrier_slip_gap),
-        )  # TODO: this is wrong --> adjust to rf_centers calculation
+        )
 
         # Convert RF beam currents to be in units of Amperes
         self.beam_current_fine_grid = (
