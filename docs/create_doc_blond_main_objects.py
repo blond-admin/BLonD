@@ -53,6 +53,7 @@ ASSIGNED_CATEGORIES = {
     "MagneticCyclePerTurn": Categories.CYCLE.value,
     "MagneticCyclePerTurnAllRFStations": Categories.CYCLE.value,
     "ConstantMagneticCycle": Categories.CYCLE.value,
+    "DerivativeInterpolator": Categories.CYCLE.value,
     # Beam Generation & Distribution
     "Beam": Categories.BEAM.value,
     "EmptyBeam": Categories.BEAM.value,
