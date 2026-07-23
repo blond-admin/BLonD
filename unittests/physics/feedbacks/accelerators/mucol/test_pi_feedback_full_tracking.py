@@ -523,5 +523,38 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
         )
 
 
+class TestKernelMatchesReferenceEndToEnd(unittest.TestCase):
+    """The numba envelope kernel reproduces the reference over a full run."""
+
+    def test_multi_section_kernel_vs_python_bit_identical(self):
+        """
+        A 2-section multi-turn tracked run is byte-identical either path.
+
+        End-to-end guard for the envelope-kernel bit-identity invariant: it
+        drives the real turn loop (reset, reverse reconstruction segments,
+        demodulation, forward pass, PI regulation) on the default numba kernel
+        and on the pure-Python reference and pins the two byte-for-byte. This
+        exercises exactly the multi-section, turn>=1 carried-state reverse
+        segment where the kernel's generator-current / beam-current drive must
+        match the reference (the isolated regression lives in
+        test_envelope_kernel.py; this is the whole-simulation counterpart).
+        """
+        cls = IQCavityFeedbackTimingClass
+        original = cls.use_numba_envelope_kernel
+        try:
+            cls.use_numba_envelope_kernel = True
+            rec_kernel = _run_config(2, 4.0e9, 20.0e6, 4)
+            cls.use_numba_envelope_kernel = False
+            rec_python = _run_config(2, 4.0e9, 20.0e6, 4)
+        finally:
+            cls.use_numba_envelope_kernel = original
+        for key in ("v_min", "v_last", "i_max_dev"):
+            np.testing.assert_array_equal(
+                rec_kernel[key],
+                rec_python[key],
+                err_msg=f"kernel vs python diverged in {key!r}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
