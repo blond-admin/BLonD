@@ -3,9 +3,13 @@
 import unittest
 
 import numpy as np
+import pytest
 import scipy.constants as sc
-from matplotlib import pyplot as plt
-from tqdm import tqdm
+
+from .support import blond2_reference
+
+# The blond3 setup switches the global backend (Numpy64Bit + numba specials).
+pytestmark = pytest.mark.backend_mutation
 
 # Accelerator
 circumference = 26658.8832  # [m]
@@ -51,12 +55,197 @@ bunch_spacing = 10  # Bunch spacing [number of rf buckets]
 injection_energy_error = 0  # Injection energy error [eV]
 
 
+def _run_blond2() -> dict[str, np.ndarray]:
+    """
+    Run the frozen blond2 injection simulation with a phase error.
+
+    Only executed when the pinned reference file is absent or regeneration is
+    requested (see :func:`support.blond2_reference`); the legacy code and the
+    ``seed=1234`` make the outputs deterministic.
+
+    Returns
+    -------
+    dict
+        The per-turn generator power, antenna voltage, beam current and the
+        post-processed beam-current / beam-phase-loop phase evolutions of
+        the blond2 run.
+    """
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.distributions import (
+        bigaussian,
+    )
+    from blond.legacy.blond2.beam.profile import CutOptions, Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+    from blond.legacy.blond2.llrf.cavity_feedback import (
+        LHCCavityLoop,
+        LHCCavityLoopCommissioning,
+    )
+    from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
+    from blond.legacy.blond2.utils import bmath as bm
+
+    bm.use_numba()
+
+    ring = Ring(circumference, alpha, momentum, Proton(), n_turns=n_turns + 1)
+
+    rfstation = RFStation(ring, [h], [voltage], [dphi], n_rf=1)
+
+    # Beam object for the batch
+    N_m = n_macroparticles * number_of_bunches
+    N_p = bunch_intensity * number_of_bunches
+    beam = Beam(ring, N_m, N_p)
+
+    # First generate a single gaussian bunch
+    single_bunch = Beam(ring, n_macroparticles, bunch_intensity)
+    bigaussian(
+        ring,
+        rfstation,
+        single_bunch,
+        sigma_dt=tau_bunch / 4,
+        seed=1234,
+    )
+
+    # Copy the bunch throughout the batch
+    for i in range(number_of_bunches):
+        beam.dE[i * n_macroparticles : (i + 1) * n_macroparticles] = (
+            single_bunch.dE
+        )
+        beam.dt[i * n_macroparticles : (i + 1) * n_macroparticles] = (
+            single_bunch.dt + i * bunch_spacing * rfstation.t_rf[0, 0]
+        )
+
+    # Add final corrections to the bunch positions
+    beam.dt += (
+        bucket_shift * rfstation.t_rf[0, 0]
+        + injection_phase_error * rfstation.t_rf[0, 0] / 360
+    )
+    beam.dE += injection_energy_error
+
+    # The beam profile
+    cut_options = CutOptions(
+        cut_left=(-5.5 + bucket_shift) * rfstation.t_rf[0, 0],
+        cut_right=(6.5 + number_of_bunches * bunch_spacing + bucket_shift)
+        * rfstation.t_rf[
+            0,
+            0,
+        ],
+        n_slices=(10 * number_of_bunches + 12) * 2**5,
+    )
+    profile = Profile(beam, cut_options)
+
+    commissioning = LHCCavityLoopCommissioning(
+        G_a=G_a,
+        G_d=G_d,
+        tau_d=tau_d,
+        tau_a=tau_a,
+        alpha=a_comb,
+        G_o=G_otfb,
+        open_tuner=True,
+        open_rffb=False,
+        enable_klystron=False,
+    )
+
+    cavity_loop = LHCCavityLoop(
+        rfstation,
+        profile,
+        RFFB=commissioning,
+        f_c=rfstation.omega_rf[0, 0] / (2 * np.pi) + delta_f,
+        Q_L=Q_L,
+        tau_loop=tau_loop,
+        tau_otfb=tau_comp,
+        n_pretrack=200,
+        n_cavities=8,
+        n_h=0,
+    )
+
+    # Beam-phase loop
+    PL_gain = 1 / (5 * ring.t_rev[0])
+    SL_gain = PL_gain / 10
+    bl_config = {
+        "machine": "LHC",
+        "PL_gain": PL_gain,
+        "SL_gain": SL_gain,
+    }
+
+    beam_loop = BeamFeedback(
+        ring,
+        rfstation,
+        profile,
+        bl_config,
+        CavityFeedback=cavity_loop,
+        current_thres=0.5,
+    )
+
+    # The RF tracker
+    rftracker = RingAndRFTracker(
+        rfstation,
+        beam,
+        Profile=profile,
+        interpolation=True,
+        BeamFeedback=beam_loop,
+        CavityFeedback=cavity_loop,
+    )
+
+    # Initialize data arrays
+    rf_power = np.zeros((n_turns, cavity_loop.n_coarse), dtype=complex)
+    rf_voltage = np.zeros((n_turns, cavity_loop.n_coarse), dtype=complex)
+    rf_beam_current = np.zeros((n_turns, cavity_loop.n_coarse), dtype=complex)
+    rf_beam_current_phase = np.zeros((n_turns, number_of_bunches))
+    beam_loop_phase = np.zeros(n_turns)
+
+    # Tracking
+    profile.track()
+
+    for i in range(n_turns):
+        profile.track()
+        rftracker.track()
+
+        rf_power[i, :] = cavity_loop.generator_power()[-cavity_loop.n_coarse :]
+        rf_voltage[i, :] = cavity_loop.V_ANT_COARSE[-cavity_loop.n_coarse :]
+        rf_beam_current[i, :] = cavity_loop.I_BEAM_COARSE[
+            -cavity_loop.n_coarse :
+        ]
+        beam_loop_phase[i] = beam_loop.phi_beam * 180 / np.pi
+        rf_beam_current_phase[i, :] = -np.angle(
+            cavity_loop.I_BEAM_COARSE[
+                cavity_loop.n_coarse
+                + bucket_shift // 10 : cavity_loop.n_coarse
+                + bucket_shift // 10
+                + number_of_bunches
+            ]
+        )
+
+    rf_beam_current_phase = np.mean(
+        np.unwrap(rf_beam_current_phase) * 180 / np.pi,
+        axis=1,
+    )
+    rf_beam_current_phase = (
+        rf_beam_current_phase
+        - rf_beam_current_phase[0]
+        + injection_phase_error
+    )
+    beam_loop_phase = (
+        beam_loop_phase - beam_loop_phase[0] + injection_phase_error
+    )
+
+    return {
+        "rf_power_blond2": rf_power,
+        "rf_voltage_blond2": rf_voltage,
+        "rf_beam_current_blond2": rf_beam_current,
+        "rf_beam_current_phase_blond2": rf_beam_current_phase,
+        "beam_loop_phase_blond2": beam_loop_phase,
+    }
+
+
 class TestInjectionWithPhaseError(unittest.TestCase):
     """Test LHC feedback with injection phase error."""
 
     @classmethod
     def setUpClass(cls):  # noqa: PLR0915
-        """Running simulations for both blond2 and 3 and save the results."""
+        """Run the blond3 simulation against the pinned blond2 reference."""
 
         def setup_blond3():  # noqa: PLR0915
             """Set up blond3 feedback simulation and save the results."""
@@ -120,7 +309,9 @@ class TestInjectionWithPhaseError(unittest.TestCase):
                 n_bins=2**5 * (12 + n_bunches * 10),
             )
 
-            # LHC cavity feedback
+            # LHC cavity feedback. `open_tuner=True` matches the blond2
+            # setup above, which also freezes its tuner -- without it the
+            # blond3 tuner drifts the detuning while blond2's stays fixed.
             commissioning = LHCCavityLoopCommissioning(
                 G_a=6.79e-6,
                 G_d=10,
@@ -128,6 +319,7 @@ class TestInjectionWithPhaseError(unittest.TestCase):
                 tau_a=170e-6,
                 tau_d=400e-6,
                 tau_o=110e-6,
+                open_tuner=True,
             )
             cavity_control = LHCCavityLoop(
                 profile=profile,
@@ -235,251 +427,9 @@ class TestInjectionWithPhaseError(unittest.TestCase):
                 + injection_phase_error
             )
 
-        def setup_blond2():  # noqa: PLR0915
-            """Set up blond2 feedback simulation and saves the results."""
-            from blond.legacy.blond2.beam.beam import Beam, Proton
-            from blond.legacy.blond2.beam.distributions import (
-                bigaussian,
-            )
-            from blond.legacy.blond2.beam.profile import CutOptions, Profile
-            from blond.legacy.blond2.input_parameters.rf_parameters import (
-                RFStation,
-            )
-            from blond.legacy.blond2.input_parameters.ring import Ring
-            from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
-            from blond.legacy.blond2.llrf.cavity_feedback import (
-                LHCCavityLoop,
-                LHCCavityLoopCommissioning,
-            )
-            from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
-            from blond.legacy.blond2.utils import bmath as bm
-
-            bm.use_numba()
-
-            # Options
-            PLT_SIMS = False
-            DISABLE_PL = False
-            ring = Ring(
-                circumference, alpha, momentum, Proton(), n_turns=n_turns + 1
-            )
-
-            rfstation = RFStation(ring, [h], [voltage], [dphi], n_rf=1)
-
-            # Beam object for the batch
-            N_m = n_macroparticles * number_of_bunches
-            N_p = bunch_intensity * number_of_bunches
-            beam = Beam(ring, N_m, N_p)
-
-            # First generate a single gaussian bunch
-            single_bunch = Beam(ring, n_macroparticles, bunch_intensity)
-            bigaussian(
-                ring,
-                rfstation,
-                single_bunch,
-                sigma_dt=tau_bunch / 4,
-                seed=1234,
-            )
-
-            # Copy the bunch throughout the batch
-            for i in range(number_of_bunches):
-                beam.dE[i * n_macroparticles : (i + 1) * n_macroparticles] = (
-                    single_bunch.dE
-                )
-                beam.dt[i * n_macroparticles : (i + 1) * n_macroparticles] = (
-                    single_bunch.dt + i * bunch_spacing * rfstation.t_rf[0, 0]
-                )
-
-            # Add final corrections to the bunch positions
-            beam.dt += (
-                bucket_shift * rfstation.t_rf[0, 0]
-                + injection_phase_error * rfstation.t_rf[0, 0] / 360
-            )
-            beam.dE += injection_energy_error
-
-            # The beam profile
-            cut_options = CutOptions(
-                cut_left=(-5.5 + bucket_shift) * rfstation.t_rf[0, 0],
-                cut_right=(
-                    6.5 + number_of_bunches * bunch_spacing + bucket_shift
-                )
-                * rfstation.t_rf[
-                    0,
-                    0,
-                ],
-                n_slices=(10 * number_of_bunches + 12) * 2**5,
-            )
-            profile = Profile(beam, cut_options)
-
-            # Plot profile
-            if PLT_SIMS:
-                profile.track()
-                fig, ax = plt.subplots(figsize=(10, 5))
-                ax.plot(profile.bin_centers * 1e6, profile.n_macroparticles)
-                ax.set_xlabel(r"$\Delta t$ [$\mu$s]")
-                ax.set_ylabel(r"$\lambda (\Delta t)$ [arb. units]")
-                ax.set_yticks([])
-
-                plt.show()
-
-            commissioning = LHCCavityLoopCommissioning(
-                G_a=G_a,
-                G_d=G_d,
-                tau_d=tau_d,
-                tau_a=tau_a,
-                alpha=a_comb,
-                G_o=G_otfb,
-                open_tuner=True,
-                open_rffb=False,
-                enable_klystron=False,
-            )
-
-            cavity_loop = LHCCavityLoop(
-                rfstation,
-                profile,
-                RFFB=commissioning,
-                f_c=rfstation.omega_rf[0, 0] / (2 * np.pi) + delta_f,
-                Q_L=Q_L,
-                tau_loop=tau_loop,
-                tau_otfb=tau_comp,
-                n_pretrack=200,
-                n_cavities=8,
-                n_h=0,
-            )
-
-            # Beam-phase loop
-            # Beam Loops
-            PL_gain = 1 / (5 * ring.t_rev[0]) * int(not DISABLE_PL)
-            SL_gain = PL_gain / 10
-            bl_config = {
-                "machine": "LHC",
-                "PL_gain": PL_gain,
-                "SL_gain": SL_gain,
-            }
-
-            beam_loop = BeamFeedback(
-                ring,
-                rfstation,
-                profile,
-                bl_config,
-                CavityFeedback=cavity_loop,
-                current_thres=0.5,
-            )
-
-            # The RF tracker
-            rftracker = RingAndRFTracker(
-                rfstation,
-                beam,
-                Profile=profile,
-                interpolation=True,
-                BeamFeedback=beam_loop,
-                CavityFeedback=cavity_loop,
-            )
-
-            # Initialize data arrays
-            cls.rf_power_blond2 = np.zeros(
-                (n_turns, cavity_loop.n_coarse), dtype=complex
-            )
-            cls.rf_voltage_blond2 = np.zeros(
-                (n_turns, cavity_loop.n_coarse), dtype=complex
-            )
-            cls.rf_beam_current_blond2 = np.zeros(
-                (n_turns, cavity_loop.n_coarse), dtype=complex
-            )
-            cls.rf_beam_current_phase_blond2 = np.zeros(
-                (n_turns, number_of_bunches)
-            )
-            cls.beam_loop_phase_blond2 = np.zeros(n_turns)
-
-            print(profile.bin_size * 1e12)
-
-            # if DISABLE_PL:
-            #    profile.track()
-            #    beam_loop.track()
-            # Tracking
-            profile.track()
-            cls.line_density_blond2 = np.copy(profile.n_macroparticles)
-            cls.bin_centers_blond2 = np.copy(profile.bin_centers)
-
-            for i in tqdm(range(n_turns)):
-                profile.track()
-                rftracker.track()
-                cavity_loop.generator_power()
-
-                if i == 0:
-                    cls.rf_beam_current_fine_blond2 = cavity_loop.I_BEAM_FINE[
-                        -profile.n_slices :
-                    ]
-
-                cls.rf_power_blond2[i, :] = cavity_loop.generator_power()[
-                    -cavity_loop.n_coarse :
-                ]
-                cls.rf_voltage_blond2[i, :] = cavity_loop.V_ANT_COARSE[
-                    -cavity_loop.n_coarse :
-                ]
-                cls.rf_beam_current_blond2[i, :] = cavity_loop.I_BEAM_COARSE[
-                    -cavity_loop.n_coarse :
-                ]
-                cls.beam_loop_phase_blond2[i] = (
-                    beam_loop.phi_beam * 180 / np.pi
-                )
-                cls.rf_beam_current_phase_blond2[i, :] = -np.angle(
-                    cavity_loop.I_BEAM_COARSE[
-                        cavity_loop.n_coarse
-                        + bucket_shift // 10 : cavity_loop.n_coarse
-                        + bucket_shift // 10
-                        + number_of_bunches
-                    ]
-                )
-
-            cls.rf_beam_current_phase_blond2 = np.mean(
-                np.unwrap(cls.rf_beam_current_phase_blond2) * 180 / np.pi,
-                axis=1,
-            )
-            cls.rf_beam_current_phase_blond2 = (
-                cls.rf_beam_current_phase_blond2
-                - cls.rf_beam_current_phase_blond2[0]
-                + injection_phase_error
-            )
-            cls.beam_loop_phase_blond2 = (
-                cls.beam_loop_phase_blond2
-                - cls.beam_loop_phase_blond2[0]
-                + injection_phase_error
-            )
-
-            if PLT_SIMS:
-                plt.figure("Phase evolution")
-                plt.plot(
-                    cls.rf_beam_current_phase_blond2,
-                    color="black",
-                    label="RF beam current",
-                )
-                plt.plot(
-                    cls.beam_loop_phase_blond2,
-                    color="r",
-                    label="Beam-phase loop",
-                )
-                plt.legend()
-                plt.tight_layout()
-                plt.grid()
-                plt.xlim(0, n_turns - 1)
-
-                plt.figure("Phase difference")
-                plt.plot(
-                    100
-                    * (
-                        cls.rf_beam_current_phase_blond2
-                        - cls.beam_loop_phase_blond2
-                    )
-                    / cls.beam_loop_phase_blond2
-                )
-                plt.tight_layout()
-                plt.grid()
-                plt.xlim(0, n_turns - 1)
-
-                plt.show()
-
+        for key, value in blond2_reference("phase_error", _run_blond2).items():
+            setattr(cls, key, value)
         setup_blond3()
-        setup_blond2()
 
     def test_beam_phase_loop(self):
         """Test phase loop error."""
@@ -539,16 +489,12 @@ class TestInjectionWithPhaseError(unittest.TestCase):
 
     def test_rf_power_transient(self):
         """Test rf power error."""
+        # The generator power is real and non-negative by construction on
+        # both sides, so an angle comparison would be vacuous (0 == 0);
+        # only the magnitude carries information.
         np.testing.assert_allclose(
             np.abs(self.rf_power),
             np.abs(self.rf_power_blond2),
             rtol=2e-3,
             err_msg="Error in absolute value of rf power",
-        )
-
-        np.testing.assert_allclose(
-            np.angle(self.rf_power, deg=True),
-            np.angle(self.rf_power_blond2, deg=True),
-            atol=1e-9,
-            err_msg="Error in phase value of rf power",
         )

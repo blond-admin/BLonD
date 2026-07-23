@@ -1,8 +1,10 @@
-"""Test LHC feedback with injection phase error."""
+"""Compare blond3 and blond2 LHC cavity-loop transfer functions."""
 
 import unittest
 
 import numpy as np
+
+from .support import blond2_reference
 
 f_rf = 400.789e6
 harmonic = 35640
@@ -24,6 +26,106 @@ a_comb = 15 / 16  # Comb filter alpha [-]
 Q_L = 20000  # Loaded Quality factor [-]
 tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
 tau_o = 110e-6
+
+# The three measured loop configurations: (open_loop, open_otfb) flags of
+# the commissioning object; everything else is identical between them.
+_LOOP_CONFIGS = (
+    ("open_loop", True, True),
+    ("closed_loop", False, True),
+    ("full_loop", False, False),
+)
+
+
+def _run_blond2() -> dict[str, np.ndarray]:
+    """
+    Measure the frozen blond2 transfer functions for all loop configurations.
+
+    Only executed when the pinned reference file is absent or regeneration is
+    requested (see :func:`support.blond2_reference`); the legacy code and its
+    fixed excitation-noise seeds make the measurements deterministic.
+
+    Returns
+    -------
+    dict
+        The estimated transfer function and its frequency axis for the
+        open-loop, closed-loop and full-loop (with OTFB) configurations.
+    """
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.profile import CutOptions, Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.cavity_feedback import (
+        LHCCavityLoop,
+        LHCCavityLoopCommissioning,
+    )
+    from blond.legacy.blond2.llrf.transfer_function import (
+        TransferFunction,
+    )
+
+    ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
+    rf = RFStation(ring, [harmonic], [V], [0])
+    beam = Beam(ring, 1, 1)
+    profile = Profile(
+        beam,
+        CutOptions=CutOptions(
+            cut_left=2 * rf.t_rf[0, 0],
+            cut_right=3 * rf.t_rf[0, 0],
+            n_slices=64,
+        ),
+    )
+
+    results = {}
+    for prefix, open_loop, open_otfb in _LOOP_CONFIGS:
+        commissioning = LHCCavityLoopCommissioning(
+            alpha=a_comb,
+            d_phi_ad=0,
+            G_a=G_a,
+            G_d=G_d,
+            G_o=G_otfb,
+            tau_a=tau_a,
+            tau_d=tau_d,
+            tau_o=tau_o,
+            open_drive=False,
+            open_loop=open_loop,
+            open_otfb=open_otfb,
+            open_rffb=False,
+            open_tuner=True,
+            full_detuning=False,
+            excitation=True,
+            enable_klystron=False,
+        )
+
+        cavity_feedback = LHCCavityLoop(
+            rf,
+            profile,
+            n_cavities=1,
+            f_c=rf.omega_rf[0, 0] / (2 * np.pi),
+            G_gen=G_gen,
+            n_pretrack=200,
+            Q_L=Q_L,
+            R_over_Q=R_over_Q,
+            tau_loop=tau_loop,
+            tau_otfb=tau_comp,
+            RFFB=commissioning,
+        )
+
+        n_turns_excite = 200
+        cavity_feedback.track_no_beam_excitation(n_turns_excite)
+
+        transfer_function = TransferFunction(
+            cavity_feedback.V_EXC_IN,
+            cavity_feedback.V_EXC_OUT,
+            T_s=cavity_feedback.T_s,
+        )
+
+        transfer_function.analyse(3564 * 5)
+
+        results[f"{prefix}_transfer_function_blond2"] = transfer_function.H_est
+        results[f"{prefix}_freq_blond2"] = transfer_function.f_est
+
+    return results
 
 
 class TestLHCTransferFunction(unittest.TestCase):
@@ -98,179 +200,11 @@ class TestLHCTransferFunction(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Measure full transfer function in blond2 and save the results."""
-
-        def measure_transfer_functions_blond2():  # noqa: PLR0915
-            """Measure full transfer function in blond2."""
-            from blond.legacy.blond2.beam.beam import Beam, Proton
-            from blond.legacy.blond2.beam.profile import CutOptions, Profile
-            from blond.legacy.blond2.input_parameters.rf_parameters import (
-                RFStation,
-            )
-            from blond.legacy.blond2.input_parameters.ring import Ring
-            from blond.legacy.blond2.llrf.cavity_feedback import (
-                LHCCavityLoop,
-                LHCCavityLoopCommissioning,
-            )
-            from blond.legacy.blond2.llrf.transfer_function import (
-                TransferFunction,
-            )
-
-            ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
-            rf = RFStation(ring, [harmonic], [V], [0])
-            beam = Beam(ring, 1, 1)
-            profile = Profile(
-                beam,
-                CutOptions=CutOptions(
-                    cut_left=2 * rf.t_rf[0, 0],
-                    cut_right=3 * rf.t_rf[0, 0],
-                    n_slices=64,
-                ),
-            )
-
-            commissioning = LHCCavityLoopCommissioning(
-                alpha=a_comb,
-                d_phi_ad=0,
-                G_a=G_a,
-                G_d=G_d,
-                G_o=G_otfb,
-                tau_a=tau_a,
-                tau_d=tau_d,
-                tau_o=tau_o,
-                open_drive=False,
-                open_loop=True,
-                open_otfb=True,
-                open_rffb=False,
-                open_tuner=True,
-                full_detuning=False,
-                excitation=True,
-                enable_klystron=False,
-            )
-
-            cavity_feedback = LHCCavityLoop(
-                rf,
-                profile,
-                n_cavities=1,
-                f_c=rf.omega_rf[0, 0] / (2 * np.pi),
-                G_gen=G_gen,
-                n_pretrack=200,
-                Q_L=Q_L,
-                R_over_Q=R_over_Q,
-                tau_loop=tau_loop,
-                tau_otfb=tau_comp,
-                RFFB=commissioning,
-            )
-
-            n_turns_excite = 200
-            cavity_feedback.track_no_beam_excitation(n_turns_excite)
-
-            transfer_function = TransferFunction(
-                cavity_feedback.V_EXC_IN,
-                cavity_feedback.V_EXC_OUT,
-                T_s=cavity_feedback.T_s,
-            )
-
-            transfer_function.analyse(3564 * 5)
-
-            cls.open_loop_transfer_function_blond2 = transfer_function.H_est
-            cls.open_loop_freq_blond2 = transfer_function.f_est
-
-            commissioning = LHCCavityLoopCommissioning(
-                alpha=a_comb,
-                d_phi_ad=0,
-                G_a=G_a,
-                G_d=G_d,
-                G_o=G_otfb,
-                tau_a=tau_a,
-                tau_d=tau_d,
-                tau_o=tau_o,
-                open_drive=False,
-                open_loop=False,
-                open_otfb=True,
-                open_rffb=False,
-                open_tuner=True,
-                full_detuning=False,
-                excitation=True,
-                enable_klystron=False,
-            )
-
-            cavity_feedback = LHCCavityLoop(
-                rf,
-                profile,
-                n_cavities=1,
-                f_c=rf.omega_rf[0, 0] / (2 * np.pi),
-                G_gen=G_gen,
-                n_pretrack=200,
-                Q_L=Q_L,
-                R_over_Q=R_over_Q,
-                tau_loop=tau_loop,
-                tau_otfb=tau_comp,
-                RFFB=commissioning,
-            )
-
-            n_turns_excite = 200
-            cavity_feedback.track_no_beam_excitation(n_turns_excite)
-
-            transfer_function = TransferFunction(
-                cavity_feedback.V_EXC_IN,
-                cavity_feedback.V_EXC_OUT,
-                T_s=cavity_feedback.T_s,
-            )
-
-            transfer_function.analyse(3564 * 5)
-
-            cls.closed_loop_transfer_function_blond2 = transfer_function.H_est
-            cls.closed_loop_freq_blond2 = transfer_function.f_est
-
-            # Closed-loop transfer function with otfb measurement
-            commissioning = LHCCavityLoopCommissioning(
-                alpha=a_comb,
-                d_phi_ad=0,
-                G_a=G_a,
-                G_d=G_d,
-                G_o=G_otfb,
-                tau_a=tau_a,
-                tau_d=tau_d,
-                tau_o=tau_o,
-                open_drive=False,
-                open_loop=False,
-                open_otfb=False,
-                open_rffb=False,
-                open_tuner=True,
-                full_detuning=False,
-                excitation=True,
-                enable_klystron=False,
-            )
-
-            cavity_feedback = LHCCavityLoop(
-                rf,
-                profile,
-                n_cavities=1,
-                f_c=rf.omega_rf[0, 0] / (2 * np.pi),
-                G_gen=G_gen,
-                n_pretrack=200,
-                Q_L=Q_L,
-                R_over_Q=R_over_Q,
-                tau_loop=tau_loop,
-                tau_otfb=tau_comp,
-                RFFB=commissioning,
-            )
-
-            n_turns_excite = 200
-            cavity_feedback.track_no_beam_excitation(n_turns_excite)
-
-            transfer_function = TransferFunction(
-                cavity_feedback.V_EXC_IN,
-                cavity_feedback.V_EXC_OUT,
-                T_s=cavity_feedback.T_s,
-            )
-
-            transfer_function.analyse(3564 * 5)
-
-            cls.full_loop_transfer_function_blond2 = transfer_function.H_est
-            cls.full_loop_freq_blond2 = transfer_function.f_est
-
-        measure_transfer_functions_blond2()
+        """Load the pinned blond2 transfer-function measurements."""
+        for key, value in blond2_reference(
+            "transfer_function", _run_blond2
+        ).items():
+            setattr(cls, key, value)
 
     def test_open_loop_transfer_function(self):
         """Measure open loop transfer function in blond3 and compare with blond2."""
@@ -284,10 +218,16 @@ class TestLHCTransferFunction(unittest.TestCase):
             atol=1e-2,
             err_msg="Error in amplitude of open-loop transfer function",
         )
+        # Compare the phases via the wrapped difference angle(H3*conj(H2)):
+        # a direct np.angle() comparison jumps by 2*pi at the +-pi branch
+        # cut, which forced the previous tolerance above 2*pi and made it
+        # unfailable. Measured max deviation: 3.9e-3 rad.
         np.testing.assert_allclose(
-            np.angle(tf_est),
-            np.angle(self.open_loop_transfer_function_blond2),
-            atol=7,
+            np.angle(
+                tf_est * np.conj(self.open_loop_transfer_function_blond2)
+            ),
+            0,
+            atol=1e-2,
             err_msg="Error in phase of open-loop transfer function",
         )
 
@@ -303,10 +243,14 @@ class TestLHCTransferFunction(unittest.TestCase):
             atol=1e-2,
             err_msg="Error in amplitude of closed-loop transfer function",
         )
+        # Wrapped phase difference (see the open-loop test for why).
+        # Measured max deviation: 1.5e-6 rad.
         np.testing.assert_allclose(
-            np.angle(tf_est),
-            np.angle(self.closed_loop_transfer_function_blond2),
-            atol=7,
+            np.angle(
+                tf_est * np.conj(self.closed_loop_transfer_function_blond2)
+            ),
+            0,
+            atol=1e-5,
             err_msg="Error in phase of closed-loop transfer function",
         )
 
@@ -322,9 +266,15 @@ class TestLHCTransferFunction(unittest.TestCase):
             atol=6e-1,
             err_msg="Error in amplitude of closed-loop transfer function with otfb",
         )
+        # Wrapped phase difference (see the open-loop test for why). The
+        # full loop with OTFB genuinely deviates between the codes, in
+        # phase (measured max: 5.8e-1 rad) as in amplitude (atol=6e-1
+        # above); the tolerance brackets the current deviation.
         np.testing.assert_allclose(
-            np.angle(tf_est),
-            np.angle(self.full_loop_transfer_function_blond2),
-            atol=7,
+            np.angle(
+                tf_est * np.conj(self.full_loop_transfer_function_blond2)
+            ),
+            0,
+            atol=7e-1,
             err_msg="Error in phase of closed-loop transfer function with otfb",
         )

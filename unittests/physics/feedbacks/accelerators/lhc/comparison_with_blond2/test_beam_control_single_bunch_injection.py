@@ -2,10 +2,13 @@
 
 import unittest
 
-import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
-DEBUG_PLOTTING = False
+from .support import blond2_reference
+
+# The blond3 setup switches the global backend (Numpy64Bit + numba specials).
+pytestmark = pytest.mark.backend_mutation
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -23,13 +26,108 @@ number_of_bunches = 1  # Length of the batch [number of bunches]
 bunch_spacing = 10  # Bunch spacing [number of rf buckets]
 
 
+def _run_blond2() -> dict[str, np.ndarray]:
+    """
+    Run the frozen blond2 single-bunch injection simulation.
+
+    Only executed when the pinned reference file is absent or regeneration is
+    requested (see :func:`support.blond2_reference`); the legacy code and the
+    ``seed=1234`` make the outputs deterministic.
+
+    Returns
+    -------
+    dict
+        The per-turn phase-loop / synchro-loop errors and the RF
+        frequency/phase swings of the blond2 run.
+    """
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.distributions import bigaussian
+    from blond.legacy.blond2.beam.profile import CutOptions, Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+    from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
+
+    # Initialize the accelerator
+    ring = Ring(circumference, alpha, momentum, Proton(), n_turns=n_turns + 1)
+
+    # The RF station
+    rfstation = RFStation(ring, [h], [voltage], [0], n_rf=1)
+
+    # The beam
+    injection_energy_error = 0  # Injection energy error [eV]
+    # First generate a single gaussian bunch
+    beam = Beam(ring, n_macroparticles, intensity)
+    bigaussian(ring, rfstation, beam, sigma_dt=tau_bunch / 4, seed=1234)
+
+    # Add final corrections to the bunch positions
+    beam.dt += injection_offset_phase * rfstation.t_rf[0, 0] / 360
+    beam.dE += injection_energy_error
+
+    # The beam profile
+    cut_options = CutOptions(
+        cut_left=(-5.5) * rfstation.t_rf[0, 0],
+        cut_right=(6.5 + number_of_bunches * bunch_spacing)
+        * rfstation.t_rf[
+            0,
+            0,
+        ],
+        n_slices=(bunch_spacing * number_of_bunches + 12) * 2**5,
+    )
+    profile = Profile(beam, cut_options)
+
+    # Beam-phase loop
+    PL_gain = 1 / (5 * ring.t_rev[0])
+    SL_gain = PL_gain / bunch_spacing
+    bl_config = {
+        "machine": "LHC",
+        "PL_gain": PL_gain,
+        "SL_gain": SL_gain,
+    }
+
+    beam_loop = BeamFeedback(ring, rfstation, profile, bl_config)
+
+    # The RF tracker
+    rftracker = RingAndRFTracker(
+        rfstation,
+        beam,
+        Profile=profile,
+        interpolation=True,
+        BeamFeedback=beam_loop,
+    )
+
+    # Initialize data arrays
+    beam_loop_error = np.zeros(n_turns)
+    synchro_loop_error = np.zeros(n_turns)
+
+    omega_rf = np.zeros(n_turns)
+    phi_rf = np.zeros(n_turns)
+
+    for i in range(n_turns):
+        profile.track()
+        rftracker.track()
+
+        beam_loop_error[i] = beam_loop.dphi * 180 / np.pi
+        synchro_loop_error[i] = rfstation.dphi_rf[0] * 180 / np.pi
+        omega_rf[i] = rfstation.omega_rf[0, i]
+        phi_rf[i] = rfstation.phi_rf[0, i]
+
+    return {
+        "beam_loop_error_blond2": beam_loop_error,
+        "synchro_loop_error_blond2": synchro_loop_error,
+        "omega_rf_blond2": omega_rf,
+        "phi_rf_blond2": phi_rf,
+    }
+
+
 class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
     """Compare blond3 and blond2 phase-loop signals on single-bunch injection."""
 
     @classmethod
-    # TODO: split this setup into helpers and remove the PLR0915 noqa
-    def setUpClass(cls):  # noqa: PLR0915
-        """Run both the blond3 and blond2 single-bunch injection simulations."""
+    def setUpClass(cls):
+        """Run the blond3 simulation against the pinned blond2 reference."""
 
         def setup_blond3():
             """Run the blond3 single-bunch injection and store its results."""
@@ -143,144 +241,10 @@ class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
                     cavity.phase_correction_frequency_offset[0] * 180 / np.pi
                 )
 
-        # TODO: split this setup into helpers and remove the PLR0915 noqa
-        def setup_blond2():  # noqa: PLR0915
-            """Run the blond2 single-bunch injection and store its results."""
-            from tqdm import tqdm
-
-            from blond.legacy.blond2.beam.beam import Beam, Proton
-            from blond.legacy.blond2.beam.distributions import bigaussian
-            from blond.legacy.blond2.beam.profile import CutOptions, Profile
-            from blond.legacy.blond2.input_parameters.rf_parameters import (
-                RFStation,
-            )
-            from blond.legacy.blond2.input_parameters.ring import Ring
-            from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
-            from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
-
-            # Options
-            SAVE_SIM = True
-            DISABLE_PL = False
-
-            # Initialize the accelerator
-            ring = Ring(
-                circumference, alpha, momentum, Proton(), n_turns=n_turns + 1
-            )
-
-            # The RF station
-            rfstation = RFStation(ring, [h], [voltage], [0], n_rf=1)
-
-            # The beam
-            injection_energy_error = 0  # Injection energy error [eV]
-            # First generate a single gaussian bunch
-            beam = Beam(ring, n_macroparticles, intensity)
-            bigaussian(
-                ring, rfstation, beam, sigma_dt=tau_bunch / 4, seed=1234
-            )
-
-            # Add final corrections to the bunch positions
-            beam.dt += injection_offset_phase * rfstation.t_rf[0, 0] / 360
-            beam.dE += injection_energy_error
-
-            # The beam profile
-            cut_options = CutOptions(
-                cut_left=(-5.5) * rfstation.t_rf[0, 0],
-                cut_right=(6.5 + number_of_bunches * bunch_spacing)
-                * rfstation.t_rf[
-                    0,
-                    0,
-                ],
-                n_slices=(bunch_spacing * number_of_bunches + 12) * 2**5,
-            )
-            profile = Profile(beam, cut_options)
-
-            if DEBUG_PLOTTING:
-                # Plot profile
-                profile.track()
-                fig, ax = plt.subplots(figsize=(10, 5))
-                ax.plot(profile.bin_centers * 1e6, profile.n_macroparticles)
-                ax.set_xlabel(r"$\Delta t$ [$\mu$s]")
-                ax.set_ylabel(r"$\lambda (\Delta t)$ [arb. units]")
-                ax.set_yticks([])
-
-                plt.show()
-
-            # Beam-phase loop
-            # Beam Loops
-
-            PL_gain = 1 / (5 * ring.t_rev[0]) * int(not DISABLE_PL)
-            SL_gain = PL_gain / bunch_spacing
-            bl_config = {
-                "machine": "LHC",
-                "PL_gain": PL_gain,
-                "SL_gain": SL_gain,
-            }
-
-            beam_loop = BeamFeedback(ring, rfstation, profile, bl_config)
-
-            # The RF tracker
-            rftracker = RingAndRFTracker(
-                rfstation,
-                beam,
-                Profile=profile,
-                interpolation=True,
-                BeamFeedback=beam_loop,
-            )
-
-            # Initialize data arrays
-            beam_loop_error = np.zeros(n_turns)
-            synchro_loop_error = np.zeros(n_turns)
-
-            omega_rf = np.zeros(n_turns)
-            phi_rf = np.zeros(n_turns)
-
-            for i in tqdm(range(n_turns)):
-                profile.track()
-                rftracker.track()
-
-                beam_loop_error[i] = beam_loop.dphi * 180 / np.pi
-                synchro_loop_error[i] = rfstation.dphi_rf[0] * 180 / np.pi
-                omega_rf[i] = rfstation.omega_rf[0, i]
-                phi_rf[i] = rfstation.phi_rf[0, i]
-
-            if DEBUG_PLOTTING:
-                beam_loop_error = (
-                    beam_loop_error
-                    - beam_loop_error[0]
-                    + injection_offset_phase
-                )
-
-                plt.figure("Phase evolution")
-                plt.plot(beam_loop_error, color="r", label="Beam-phase loop")
-                plt.legend()
-                plt.tight_layout()
-                plt.grid()
-                plt.xlim(0, n_turns - 1)
-
-                plt.figure("Phase evolution")
-                plt.plot(
-                    synchro_loop_error, color="r", label="Beam-phase loop"
-                )
-                plt.legend()
-                plt.tight_layout()
-                plt.grid()
-                plt.xlim(0, n_turns - 1)
-
-                plt.show()
-
-            if SAVE_SIM:
-                if DISABLE_PL:
-                    cls.beam_loop_error_blond2 = beam_loop_error
-                    cls.synchro_loop_error_blond2 = synchro_loop_error
-                    cls.omega_rf_blond2 = omega_rf
-                    cls.phi_rf_blond2 = phi_rf
-                else:
-                    cls.beam_loop_error_blond2 = beam_loop_error
-                    cls.synchro_loop_error_blond2 = synchro_loop_error
-                    cls.omega_rf_blond2 = omega_rf
-                    cls.phi_rf_blond2 = phi_rf
-
-        setup_blond2()
+        for key, value in blond2_reference(
+            "beam_control", _run_blond2
+        ).items():
+            setattr(cls, key, value)
         setup_blond3()
 
     def test_phase_loop_error(self):

@@ -2,10 +2,13 @@
 
 import unittest
 
-import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
-DEBUG_PLOTTING = False
+from .support import blond2_reference
+
+# The blond3 setup switches the global backend (Numpy64Bit + numba specials).
+pytestmark = pytest.mark.backend_mutation
 
 voltages_tot = 7.9e6
 intensities = 2.3e11
@@ -37,122 +40,135 @@ G_gen = 1
 tau_o = 110e-6
 
 
+def _run_blond2() -> dict[str, np.ndarray]:
+    """
+    Run the frozen blond2 matched-beam injection simulation.
+
+    Only executed when the pinned reference file is absent or regeneration is
+    requested (see :func:`support.blond2_reference`); the legacy code and the
+    ``seed=1234`` make the outputs deterministic.
+
+    Returns
+    -------
+    dict
+        The per-turn generator power, beam current, antenna voltage and
+        line density of the blond2 run.
+    """
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.distributions import (
+        bigaussian,
+    )
+    from blond.legacy.blond2.beam.profile import (
+        CutOptions,
+        Profile,
+    )
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.cavity_feedback import (
+        LHCCavityLoop,
+        LHCCavityLoopCommissioning,
+    )
+    from blond.legacy.blond2.trackers.tracker import (
+        FullRingAndRF,
+        RingAndRFTracker,
+    )
+
+    ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=n_turns)
+    rf = RFStation(
+        ring, [h], [voltages_tot], [dphi]
+    )  # Assume filamented with SPS emittance
+    bunch = Beam(ring, n_macroparticles, intensities)
+    bigaussian(ring, rf, bunch, sigma_dt=bunch_lengths / 4, seed=1234)
+
+    beam = Beam(ring, n_macroparticles * n_bunches, intensities * n_bunches)
+    buckets = rf.t_rf[0, 0] * 10
+
+    for i in range(n_bunches):
+        beam.dt[i * n_macroparticles : (i + 1) * n_macroparticles] = (
+            bunch.dt[0:n_macroparticles]
+            + 100 * buckets
+            + 10 * rf.t_rf[0, 0] * i
+        )
+        beam.dE[i * n_macroparticles : (i + 1) * n_macroparticles] = bunch.dE[
+            0:n_macroparticles
+        ]
+
+    profile = Profile(
+        beam,
+        CutOptions(
+            n_slices=int(2**6 * (10 * n_bunches + 10)),
+            cut_left=(1000 - 5) * rf.t_rf[0, 0],
+            cut_right=(1000 + 10 * n_bunches + 5) * rf.t_rf[0, 0],
+        ),
+    )
+
+    profile.track()
+
+    RFFB = LHCCavityLoopCommissioning(
+        G_a=G_a,
+        G_d=G_d,
+        tau_d=tau_d,
+        tau_a=tau_a,
+        alpha=a_comb,
+        tau_o=tau_o,
+        open_otfb=False,
+        G_o=G_otfb,
+        mu=-20,
+        open_tuner=True,
+        d_phi_ad=0,
+        enable_klystron=False,
+    )
+    CL = LHCCavityLoop(
+        rf_station=rf,
+        profile=profile,
+        f_c=rf.omega_rf[0, 0] / (2 * np.pi) - 5e3,
+        I_gen_offset=0,
+        n_cavities=8,
+        n_pretrack=200,
+        Q_L=Q_L,
+        R_over_Q=R_over_Q,
+        tau_loop=tau_loop,
+        tau_otfb=tau_comp,
+        G_gen=G_gen,
+        RFFB=RFFB,
+    )
+
+    tracker = RingAndRFTracker(rf, beam, Profile=profile, CavityFeedback=CL)
+    tracker = FullRingAndRF([tracker])
+
+    rf_power = np.zeros((n_turns, CL.n_coarse), dtype=complex)
+    i_beam = np.zeros((n_turns, CL.n_coarse), dtype=complex)
+    v_ant = np.zeros((n_turns, CL.n_coarse), dtype=complex)
+    line_density = np.zeros((n_turns, profile.n_slices))
+
+    for i in range(n_turns):
+        profile.track()
+        tracker.track()
+
+        rf_power[i, :] = CL.generator_power()[-CL.n_coarse :]
+        i_beam[i, :] = CL.I_BEAM_COARSE[-CL.n_coarse :]
+        v_ant[i, :] = CL.V_ANT_COARSE[-CL.n_coarse :]
+        line_density[i, :] = profile.n_macroparticles
+
+    return {
+        "rf_power_blond2": rf_power,
+        "i_beam_blond2": i_beam,
+        "v_ant_blond2": v_ant,
+        "line_density_blond2": line_density,
+    }
+
+
 class TestInjectionMatchedBeam(unittest.TestCase):
     """Compare blond3 and blond2 injection-transient signals for a matched beam."""
 
     @classmethod
-    # TODO: split this setup into helpers and remove the PLR0915 noqa
     def setUpClass(cls):  # noqa: PLR0915
-        """Run both the blond3 and blond2 matched-beam injection simulations."""
-
-        def setup_blond2():
-            from blond.legacy.blond2.beam.beam import Beam, Proton
-            from blond.legacy.blond2.beam.distributions import (
-                bigaussian,
-            )
-            from blond.legacy.blond2.beam.profile import (
-                CutOptions,
-                Profile,
-            )
-            from blond.legacy.blond2.input_parameters.rf_parameters import (
-                RFStation,
-            )
-            from blond.legacy.blond2.input_parameters.ring import Ring
-            from blond.legacy.blond2.llrf.cavity_feedback import (
-                LHCCavityLoop,
-                LHCCavityLoopCommissioning,
-            )
-            from blond.legacy.blond2.trackers.tracker import (
-                FullRingAndRF,
-                RingAndRFTracker,
-            )
-
-            ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=n_turns)
-            rf = RFStation(
-                ring, [h], [voltages_tot], [dphi]
-            )  # Assume filamented with SPS emittance
-            bunch = Beam(ring, n_macroparticles, intensities)
-            bigaussian(ring, rf, bunch, sigma_dt=bunch_lengths / 4, seed=1234)
-
-            beam = Beam(
-                ring, n_macroparticles * n_bunches, intensities * n_bunches
-            )
-            buckets = rf.t_rf[0, 0] * 10
-
-            for i in range(n_bunches):
-                beam.dt[i * n_macroparticles : (i + 1) * n_macroparticles] = (
-                    bunch.dt[0:n_macroparticles]
-                    + 100 * buckets
-                    + 10 * rf.t_rf[0, 0] * i
-                )
-                beam.dE[i * n_macroparticles : (i + 1) * n_macroparticles] = (
-                    bunch.dE[0:n_macroparticles]
-                )
-
-            profile = Profile(
-                beam,
-                CutOptions(
-                    n_slices=int(2**6 * (10 * n_bunches + 10)),
-                    cut_left=(1000 - 5) * rf.t_rf[0, 0],
-                    cut_right=(1000 + 10 * n_bunches + 5) * rf.t_rf[0, 0],
-                ),
-            )
-
-            profile.track()
-
-            RFFB = LHCCavityLoopCommissioning(
-                G_a=G_a,
-                G_d=G_d,
-                tau_d=tau_d,
-                tau_a=tau_a,
-                alpha=a_comb,
-                tau_o=tau_o,
-                open_otfb=False,
-                G_o=G_otfb,
-                mu=-20,
-                open_tuner=True,
-                d_phi_ad=0,
-                enable_klystron=False,
-            )
-            CL = LHCCavityLoop(
-                rf_station=rf,
-                profile=profile,
-                f_c=rf.omega_rf[0, 0] / (2 * np.pi) - 5e3,
-                I_gen_offset=0,
-                n_cavities=8,
-                n_pretrack=200,
-                Q_L=Q_L,
-                R_over_Q=R_over_Q,
-                tau_loop=tau_loop,
-                tau_otfb=tau_comp,
-                G_gen=G_gen,
-                RFFB=RFFB,
-            )
-
-            tracker = RingAndRFTracker(
-                rf, beam, Profile=profile, CavityFeedback=CL
-            )
-            tracker = FullRingAndRF([tracker])
-
-            cls.rf_power_blond2 = np.zeros(
-                (n_turns, CL.n_coarse), dtype=complex
-            )
-            cls.i_beam_blond2 = np.zeros((n_turns, CL.n_coarse), dtype=complex)
-            cls.v_ant_blond2 = np.zeros((n_turns, CL.n_coarse), dtype=complex)
-            cls.line_density_blond2 = np.zeros((n_turns, profile.n_slices))
-
-            for i in range(n_turns):
-                profile.track()
-                tracker.track()
-
-                cls.rf_power_blond2[i, :] = CL.generator_power()[
-                    -CL.n_coarse :
-                ]
-                cls.i_beam_blond2[i, :] = CL.I_BEAM_COARSE[-CL.n_coarse :]
-                cls.v_ant_blond2[i, :] = CL.V_ANT_COARSE[-CL.n_coarse :]
-                cls.line_density_blond2[i, :] = profile.n_macroparticles
+        """Run the blond3 simulation against the pinned blond2 reference."""
 
         def setup_blond3():
+            """Run the blond3 matched-beam injection and store its results."""
             from blond import (
                 Beam,
                 BiGaussian,
@@ -308,7 +324,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
             cls.v_ant = np.zeros(
                 (n_turns, cavity_control.n_coarse), dtype=complex
             )
-            cls.v_ant_fine = np.zeros((n_turns, profile.n_bins), dtype=complex)
             cls.i_beam = np.zeros(
                 (n_turns, cavity_control.n_coarse), dtype=complex
             )
@@ -325,9 +340,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                 cls.v_ant[i, :] = cavity_control.V_ANT_COARSE[
                     -cavity_control.n_coarse :
                 ]
-                cls.v_ant_fine[i, :] = cavity_control.V_ANT_FINE[
-                    -profile.n_bins :
-                ]
                 cls.i_beam[i, :] = cavity_control.I_BEAM_COARSE[
                     -cavity_control.n_coarse :
                 ]
@@ -335,7 +347,10 @@ class TestInjectionMatchedBeam(unittest.TestCase):
                     -cavity_control.n_coarse :
                 ]
 
-        setup_blond2()
+        for key, value in blond2_reference(
+            "matched_beam", _run_blond2
+        ).items():
+            setattr(cls, key, value)
         setup_blond3()
 
     def test_line_density(self):
@@ -350,18 +365,6 @@ class TestInjectionMatchedBeam(unittest.TestCase):
     def test_beam_current(self):
         """Check the real and imaginary beam current match blond2."""
         # Real part
-        if DEBUG_PLOTTING:
-            end_bin = 500
-            for _ in range(5):
-                plt.plot(self.i_beam.real[_][0:end_bin])
-                plt.plot(self.i_beam_blond2.real[_][0:end_bin], ls="--")
-            plt.show()
-        if DEBUG_PLOTTING:
-            end_bin = 500
-            for _ in range(5):
-                plt.plot(self.i_beam.imag[_][0:end_bin])
-                plt.plot(self.i_beam_blond2.imag[_][0:end_bin], ls="--")
-            plt.show()
         np.testing.assert_allclose(
             self.i_beam.real,
             self.i_beam_blond2.real,

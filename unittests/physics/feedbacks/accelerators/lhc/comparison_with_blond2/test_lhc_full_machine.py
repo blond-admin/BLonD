@@ -2,8 +2,13 @@
 
 import unittest
 
-import matplotlib.pyplot as plt
 import numpy as np
+import pytest
+
+from .support import blond2_reference
+
+# The blond3 setup switches the global backend (Numpy64Bit + numba specials).
+pytestmark = pytest.mark.backend_mutation
 
 n_bunches = 2748
 
@@ -35,8 +40,6 @@ tau_comp = 1200e-9  # Complimentary delay in OTFB [s]
 G_gen = 1
 tau_o = 110e-6
 df_hd = -10.373079819809341e3
-
-DEBUG_PLOTTING = False
 
 batch_spacings = np.array(
     [
@@ -83,13 +86,158 @@ batch_spacings = np.array(
 )
 
 
+def _run_blond2() -> dict[str, np.ndarray]:
+    """
+    Run the frozen blond2 full-machine simulation.
+
+    Only executed when the pinned reference file is absent or regeneration is
+    requested (see :func:`support.blond2_reference`); the legacy code and the
+    ``seed=1234`` make the outputs deterministic.
+
+    Returns
+    -------
+    dict
+        The blond2 comparison signals plus the full-machine beam histogram
+        (``profile_bin_centers_blond2`` / ``profile_n_macroparticles_blond2``)
+        that the blond3 setup injects into its own profile.
+    """
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.distributions import (
+        bigaussian,
+    )
+    from blond.legacy.blond2.beam.profile import CutOptions, Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.cavity_feedback import (
+        LHCCavityLoop,
+        LHCCavityLoopCommissioning,
+    )
+
+    batch_lengths = np.ones(38, dtype=int) * 72
+    batch_lengths = np.concatenate(([12], batch_lengths), dtype=int)
+
+    injection_scheme = np.zeros(np.sum(batch_lengths), dtype=int)
+    NB = len(injection_scheme)
+
+    ring = Ring(circumference, alpha, momentum, Particle=Proton(), n_turns=1)
+    rf = RFStation(
+        ring, [h], [voltages_tot], [0.0]
+    )  # Assume filamented with SPS emittance
+    bunch = Beam(ring, n_macroparticles_per_bunch, intensity / NB)
+    bigaussian(ring, rf, bunch, sigma_dt=bunch_lengths / 4, seed=1234)
+
+    beam = Beam(ring, n_macroparticles_per_bunch * NB, intensity)
+    buckets = rf.t_rf[0, 0] * 10
+
+    n_batch = 0
+    n_bunch = 0
+    db = 0
+    for i in range(len(injection_scheme)):
+        injection_scheme[i] = db
+        n_bunch += 1
+        if n_bunch == batch_lengths[n_batch]:
+            n_bunch = 0
+            db += batch_spacings[n_batch]
+            n_batch += 1
+        else:
+            db += 10
+
+    for i in range(len(injection_scheme)):
+        beam.dt[
+            i * n_macroparticles_per_bunch : (i + 1)
+            * n_macroparticles_per_bunch
+        ] = (
+            bunch.dt[0:n_macroparticles_per_bunch]
+            + 100 * buckets
+            + injection_scheme[i] * rf.t_rf[0, 0]
+        )
+        beam.dE[
+            i * n_macroparticles_per_bunch : (i + 1)
+            * n_macroparticles_per_bunch
+        ] = bunch.dE[0:n_macroparticles_per_bunch]
+
+    profile = Profile(
+        beam,
+        CutOptions(
+            n_slices=int(2**6 * (35640)),
+            cut_left=0,  # 80 * buckets,
+            cut_right=rf.t_rev[
+                0
+            ],  # 80 * buckets + tot_buckets * rf.t_rf[0, 0]
+        ),
+    )
+    profile.track()
+
+    RFFB = LHCCavityLoopCommissioning(
+        G_a=G_a,
+        G_d=G_d,
+        tau_d=tau_d,
+        tau_a=tau_a,
+        alpha=a_comb,
+        tau_o=tau_o,
+        open_otfb=False,
+        G_o=G_otfb,
+        mu=-20,
+        open_tuner=False,
+        d_phi_ad=0,
+        enable_klystron=False,
+    )
+
+    CL = LHCCavityLoop(
+        rf_station=rf,
+        profile=profile,
+        f_c=rf.omega_rf[0, 0] / (2 * np.pi) + df_hd,
+        I_gen_offset=0,
+        n_cavities=8,
+        n_pretrack=200,
+        Q_L=Q_L,
+        R_over_Q=R_over_Q,
+        tau_loop=tau_loop,
+        tau_otfb=tau_comp,
+        G_gen=G_gen,
+        RFFB=RFFB,
+    )
+    CL.disable_fine_grid = True
+
+    detunings = np.zeros(n_detuning)
+
+    for i in range(n_detuning):
+        CL.track()
+        detunings[i] = CL.detuning
+
+    transient = CL.generator_power()
+    transient = transient * np.exp(1j * np.angle(CL.I_GEN_COARSE))
+
+    return {
+        "rf_power_blond2": transient[-CL.n_coarse :],
+        "rf_voltage_blond2": CL.V_ANT_COARSE[-CL.n_coarse :],
+        "rf_beam_current_blond2": CL.I_BEAM_COARSE[-CL.n_coarse :],
+        "profile_bin_centers_blond2": profile.bin_centers,
+        "profile_n_macroparticles_blond2": profile.n_macroparticles,
+        "detunings_blond2": detunings,
+        "rf_beam_current_fine_blond2": CL.I_BEAM_FINE[-profile.n_slices :],
+        "set_point_blond2": CL.V_SET[-CL.n_coarse :],
+    }
+
+
 class TestLHCFullMachine(unittest.TestCase):
-    """Compare blond3 and blond2 cavity feedback signals for the full LHC."""
+    """
+    Compare blond3 and blond2 cavity feedback signals for the full LHC.
+
+    Note that the blond3 side does not histogram its own particles: it
+    injects blond2's beam histogram directly into its profile (the dummy
+    macro-particles only define the beam's macro-particle count). The
+    beam-current comparisons therefore validate the current computation for
+    a *given* line density, not the particle-to-histogram step itself --
+    that step is cross-checked independently by the ``test_line_density``
+    comparisons of the injection-transient test classes.
+    """
 
     @classmethod
-    # TODO: split this setup into helpers and remove the PLR0915 noqa
     def setUpClass(cls):  # noqa: PLR0915
-        """Run both the blond3 and blond2 full-machine simulations."""
+        """Run the blond3 simulation against the pinned blond2 reference."""
 
         def setup_blond3():
             """Run the blond3 full-machine simulation and store its results."""
@@ -180,6 +328,9 @@ class TestLHCFullMachine(unittest.TestCase):
             cavity_control.disable_fine_grid = True
             cavity.attach_cavity_feedback(cavity_control)
 
+            # No seed: the generated coordinates are discarded below (the
+            # particle arrays are zeroed and the histogram is injected from
+            # blond2); only the macro-particle count is used.
             bigaussian = BiGaussian(
                 n_macroparticles_per_bunch, sigma_dt=bunch_lengths / 4
             )
@@ -255,159 +406,12 @@ class TestLHCFullMachine(unittest.TestCase):
                 -profile.n_bins :
             ]
 
-        # TODO: split this setup into helpers and remove the PLR0915 noqa
-        def setup_blond2():  # noqa: PLR0915
-            """Run the blond2 full-machine simulation and store its results."""
-            from blond.legacy.blond2.beam.beam import Beam, Proton
-            from blond.legacy.blond2.beam.distributions import (
-                bigaussian,
-            )
-            from blond.legacy.blond2.beam.profile import CutOptions, Profile
-            from blond.legacy.blond2.impedances.impedance_sources import (
-                Resonators,
-            )
-            from blond.legacy.blond2.input_parameters.rf_parameters import (
-                RFStation,
-            )
-            from blond.legacy.blond2.input_parameters.ring import Ring
-            from blond.legacy.blond2.llrf.cavity_feedback import (
-                LHCCavityLoop,
-                LHCCavityLoopCommissioning,
-            )
-
-            batch_lengths = np.ones(38, dtype=int) * 72
-            batch_lengths = np.concatenate(([12], batch_lengths), dtype=int)
-
-            injection_scheme = np.zeros(np.sum(batch_lengths), dtype=int)
-            NB = len(injection_scheme)
-
-            ring = Ring(
-                circumference, alpha, momentum, Particle=Proton(), n_turns=1
-            )
-            rf = RFStation(
-                ring, [h], [voltages_tot], [0.0]
-            )  # Assume filamented with SPS emittance
-            bunch = Beam(ring, n_macroparticles_per_bunch, intensity / NB)
-            bigaussian(ring, rf, bunch, sigma_dt=bunch_lengths / 4, seed=1234)
-
-            beam = Beam(ring, n_macroparticles_per_bunch * NB, intensity)
-            buckets = rf.t_rf[0, 0] * 10
-
-            n_batch = 0
-            n_bunch = 0
-            db = 0
-            for i in range(len(injection_scheme)):
-                injection_scheme[i] = db
-                n_bunch += 1
-                if n_bunch == batch_lengths[n_batch]:
-                    n_bunch = 0
-                    db += batch_spacings[n_batch]
-                    n_batch += 1
-                else:
-                    db += 10
-
-            for i in range(len(injection_scheme)):
-                beam.dt[
-                    i * n_macroparticles_per_bunch : (i + 1)
-                    * n_macroparticles_per_bunch
-                ] = (
-                    bunch.dt[0:n_macroparticles_per_bunch]
-                    + 100 * buckets
-                    + injection_scheme[i] * rf.t_rf[0, 0]
-                )
-                beam.dE[
-                    i * n_macroparticles_per_bunch : (i + 1)
-                    * n_macroparticles_per_bunch
-                ] = bunch.dE[0:n_macroparticles_per_bunch]
-
-            profile = Profile(
-                beam,
-                CutOptions(
-                    n_slices=int(2**6 * (35640)),
-                    cut_left=0,  # 80 * buckets,
-                    cut_right=rf.t_rev[
-                        0
-                    ],  # 80 * buckets + tot_buckets * rf.t_rf[0, 0]
-                ),
-            )
-            profile.track()
-
-            # DUMMY TO CALCULATE PEAK BEAM CURRENT
-            RFFB = LHCCavityLoopCommissioning(
-                G_a=G_a,
-                G_d=G_d,
-                tau_d=tau_d,
-                tau_a=tau_a,
-                alpha=a_comb,
-                tau_o=tau_o,
-                open_otfb=False,
-                G_o=G_otfb,
-                mu=-20,
-                open_tuner=False,
-                d_phi_ad=0,
-                enable_klystron=False,
-            )
-
-            CL = LHCCavityLoop(
-                rf_station=rf,
-                profile=profile,
-                f_c=rf.omega_rf[0, 0] / (2 * np.pi) + df_hd,
-                I_gen_offset=0,
-                n_cavities=8,
-                n_pretrack=200,
-                Q_L=Q_L,
-                R_over_Q=R_over_Q,
-                tau_loop=tau_loop,
-                tau_otfb=tau_comp,
-                G_gen=G_gen,
-                RFFB=RFFB,
-            )
-            CL.disable_fine_grid = True
-
-            n_detuning = 50
-            detunings = np.zeros(n_detuning)
-
-            for i in range(n_detuning):
-                CL.track()
-                detunings[i] = CL.detuning
-
-            transient = CL.generator_power()
-            transient = transient * np.exp(1j * np.angle(CL.I_GEN_COARSE))
-
-            if DEBUG_PLOTTING:
-                plt.figure()
-                plt.plot(np.abs(transient))
-                plt.grid()
-
-                # plt.xlim(0, tot_buckets // 10 + 200)
-
-                plt.figure()
-                plt.plot(detunings)
-                plt.show()
-
-            R_S = Q_L * 45
-            resonator = Resonators(
-                R_S=R_S, frequency_R=rf.omega_rf[0, 0] / (2 * np.pi), Q=Q_L
-            )
-            freq = np.linspace(
-                rf.omega_rf[0, 0] / (2 * np.pi) - 25e3,
-                rf.omega_rf[0, 0] / (2 * np.pi) + 25e3,
-                int(1e6),
-            )
-            resonator.imped_calc(freq)
-
-            cls.rf_power_blond2 = transient[-CL.n_coarse :]
-            cls.rf_voltage_blond2 = CL.V_ANT_COARSE[-CL.n_coarse :]
-            cls.rf_beam_current_blond2 = CL.I_BEAM_COARSE[-CL.n_coarse :]
-            cls.profile_bin_centers_blond2 = profile.bin_centers
-            cls.profile_n_macroparticles_blond2 = profile.n_macroparticles
-            cls.detunings_blond2 = detunings
-            cls.rf_beam_current_fine_blond2 = CL.I_BEAM_FINE[
-                -profile.n_slices :
-            ]
-            cls.set_point_blond2 = CL.V_SET[-CL.n_coarse :]
-
-        setup_blond2()
+        # The loader must run before `setup_blond3`: blond3 consumes the
+        # pinned blond2 histogram (see the class docstring).
+        for key, value in blond2_reference(
+            "full_machine", _run_blond2
+        ).items():
+            setattr(cls, key, value)
         setup_blond3()
 
     def test_tuner_algorithm(self):
@@ -488,7 +492,7 @@ class TestLHCFullMachine(unittest.TestCase):
         )
 
     def test_set_point_voltage(self):
-        """Check the real and imaginary set-point voltage match blond2."""
+        """Check the set-point voltage matches blond2 and stays real."""
         # Real part
         np.testing.assert_allclose(
             self.set_point.real,
@@ -496,10 +500,17 @@ class TestLHCFullMachine(unittest.TestCase):
             atol=1e-9,
             err_msg="Error in real part of set point voltage",
         )
-        # Imaginary part
-        np.testing.assert_allclose(
+        # Both codes place the set point on the real I/Q axis, so the
+        # imaginary parts are identically zero and comparing them against
+        # each other would be vacuous. Assert the invariant instead, so a
+        # phase-convention change on either side is caught.
+        np.testing.assert_array_equal(
             self.set_point.imag,
+            0.0,
+            err_msg="blond3 set point voltage left the real I/Q axis",
+        )
+        np.testing.assert_array_equal(
             self.set_point_blond2.imag,
-            atol=1e-9,
-            err_msg="Error in imaginary part of set point voltage",
+            0.0,
+            err_msg="blond2 set point voltage left the real I/Q axis",
         )
