@@ -71,10 +71,22 @@ def test_music_track_single_turn_matches_legacy():
     dt_s = np.ascontiguousarray(dt[idx])
     dE_s = np.ascontiguousarray(dE[idx])
     iv = np.zeros(n, dtype=backend.float)
-    ap = np.array([1.0, 0.0, t_rev, dt_s[-1]], dtype=backend.float)
+    ap = np.array([1.0, 0.0, dt_s[-1]], dtype=backend.float)
 
     backend.specials.music_track(
-        dt_s, dE_s, iv, ap, alpha, omega_bar, const, c1, c2, c3, c4, False
+        dt_s,
+        dE_s,
+        iv,
+        ap,
+        alpha,
+        omega_bar,
+        const,
+        c1,
+        c2,
+        c3,
+        c4,
+        t_rev,
+        False,
     )
 
     np.testing.assert_allclose(iv, legacy.induced_voltage, rtol=1e-12)
@@ -100,10 +112,22 @@ def test_music_track_matches_bruteforce_ground_truth():
     dt_s = np.ascontiguousarray(dt[idx])
     dE_s = np.ascontiguousarray(dE[idx])
     iv = np.zeros(n, dtype=backend.float)
-    ap = np.array([1.0, 0.0, t_rev, dt_s[-1]], dtype=backend.float)
+    ap = np.array([1.0, 0.0, dt_s[-1]], dtype=backend.float)
 
     backend.specials.music_track(
-        dt_s, dE_s, iv, ap, alpha, omega_bar, const, c1, c2, c3, c4, False
+        dt_s,
+        dE_s,
+        iv,
+        ap,
+        alpha,
+        omega_bar,
+        const,
+        c1,
+        c2,
+        c3,
+        c4,
+        t_rev,
+        False,
     )
 
     # rtol above the O(n) vs O(n^2) round-off (recurrence accumulates over
@@ -128,9 +152,21 @@ def test_music_track_multiturn_matches_legacy():
     dt_s = np.ascontiguousarray(dt[idx])
     dE_s = np.ascontiguousarray(dE[idx])
     iv = np.zeros(n, dtype=backend.float)
-    ap = np.array([1.0, 0.0, t_rev, dt_s[-1]], dtype=backend.float)
+    ap = np.array([1.0, 0.0, dt_s[-1]], dtype=backend.float)
     backend.specials.music_track(
-        dt_s, dE_s, iv, ap, alpha, omega_bar, const, c1, c2, c3, c4, False
+        dt_s,
+        dE_s,
+        iv,
+        ap,
+        alpha,
+        omega_bar,
+        const,
+        c1,
+        c2,
+        c3,
+        c4,
+        t_rev,
+        False,
     )
     # turn 2: legacy keeps the turn-1 dE result and re-sorts by dt2,
     # carrying the running state via ``ap`` (set by the turn-1 kernel).
@@ -138,9 +174,20 @@ def test_music_track_multiturn_matches_legacy():
     dt2_s = np.ascontiguousarray(dt2[idx2])
     dE2_s = np.ascontiguousarray(dE_s[idx2])
     iv2 = np.zeros(n, dtype=backend.float)
-    ap[2] = t_rev
     backend.specials.music_track(
-        dt2_s, dE2_s, iv2, ap, alpha, omega_bar, const, c1, c2, c3, c4, True
+        dt2_s,
+        dE2_s,
+        iv2,
+        ap,
+        alpha,
+        omega_bar,
+        const,
+        c1,
+        c2,
+        c3,
+        c4,
+        t_rev,
+        True,
     )
 
     np.testing.assert_allclose(iv2, legacy.induced_voltage, rtol=1e-12)

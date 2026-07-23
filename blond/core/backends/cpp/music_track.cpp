@@ -26,6 +26,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
                             const real_t omega_bar, const real_t cnst,
                             const real_t coeff1, const real_t coeff2,
                             const real_t coeff3, const real_t coeff4,
+                            const real_t time_since_last_track,
                             const bool multiturn) {
   /*
   This function calculates the induced voltage of one resonator and updates
@@ -40,11 +41,15 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
   induced_voltage : float array
       array used to store the output of the computation
   parameter_array : float array
-      [input_first, input_second, t_rev, last_dt]; see music.py
+      [input_first, input_second, last_dt]; the state carried across
+      turns, written back in place. See music_algorithm.py
   n_macroparticles : int
       number of macro-particles
   alpha, omega_bar, cnst, coeff1, coeff2, coeff3, coeff4 : floats
-      See documentation in music.py
+      See documentation in music_algorithm.py
+  time_since_last_track : float
+      Time elapsed [s] since the previous call, used to span the gap to
+      the previous turn. Ignored when multiturn is false.
   multiturn : bool
       false for the first turn (recurrence starts fresh), true to bridge
       the wake from the previous turn across the revolution gap.
@@ -68,7 +73,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
   if (multiturn) {
     // Bridge the wake coming from the previous turn.
     const real_t time_difference_0 =
-        beam_dt[0] + parameter_array[2] - parameter_array[3];
+        beam_dt[0] + time_since_last_track - parameter_array[2];
     const real_t exp_term = FAST_EXP(-alpha * time_difference_0);
     const real_t cos_term = FAST_COS(omega_bar * time_difference_0);
     const real_t sin_term = FAST_SIN(omega_bar * time_difference_0);
@@ -111,5 +116,5 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
 
   parameter_array[0] = input_first_component;
   parameter_array[1] = input_second_component;
-  parameter_array[3] = beam_dt[n_macroparticles - 1];
+  parameter_array[2] = beam_dt[n_macroparticles - 1];
 }

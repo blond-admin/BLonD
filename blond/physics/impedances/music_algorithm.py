@@ -146,11 +146,9 @@ class Music(BeamPhysicsRelevant):
         # two passages (used to bridge the inter-turn gap).
         self._prev_reference_time: float | None = None
         # Running state carried across turns, layout
-        # [input_first, input_second, delta_t, last_dt]:
+        # [input_first, input_second, last_dt]:
         #   - input_first/second: 2-component oscillator state of the
         #     recurrence after the last processed particle,
-        #   - delta_t: reference-time elapsed since the previous turn,
-        #     refreshed each turn before bridging,
         #   - last_dt: dt of the last (largest-dt) particle of the previous
         #     turn, used to span the gap to this turn's first particle.
         self._parameter_array: NumpyArray | None = None
@@ -227,7 +225,7 @@ class Music(BeamPhysicsRelevant):
         self._first_turn = True
         self._prev_reference_time = None
         self._parameter_array = backend.array(
-            [1.0, 0.0, 0.0, 0.0], dtype=backend.float
+            [1.0, 0.0, 0.0], dtype=backend.float
         )
         self.induced_voltage = None
 
@@ -263,10 +261,9 @@ class Music(BeamPhysicsRelevant):
         # samples differ by exactly one revolution.
         reference_time = float(beam.reference.time)
         multiturn = not self._first_turn
-        if multiturn:
-            self._parameter_array[2] = (
-                reference_time - self._prev_reference_time
-            )
+        time_since_last_track = (
+            reference_time - self._prev_reference_time if multiturn else 0.0
+        )
         backend.specials.music_track(
             dt,
             dE,
@@ -279,6 +276,7 @@ class Music(BeamPhysicsRelevant):
             self._coeff2,
             self._coeff3,
             self._coeff4,
+            time_since_last_track,
             multiturn,
         )
         self._prev_reference_time = reference_time

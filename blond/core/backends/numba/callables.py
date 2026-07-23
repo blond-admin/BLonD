@@ -849,6 +849,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         coeff2: float,
         coeff3: float,
         coeff4: float,
+        time_since_last_track: float,
         multiturn: bool,
     ) -> None:
         # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend

@@ -422,6 +422,7 @@ class Specials(ABC):
         coeff2: float,
         coeff3: float,
         coeff4: float,
+        time_since_last_track: float,
         multiturn: bool,
     ) -> None:
         """
@@ -439,12 +440,10 @@ class Specials(ABC):
         induced_voltage
             Output induced voltage [V]; filled by the kernel.
         parameter_array
-            Length-4 state vector
-            ``[input_first, input_second, t_rev, last_dt]``; the running
-            state and ``last_dt`` are written back in place. When
-            ``multiturn`` is ``True`` the caller must set ``t_rev``
-            (index 2) and the previous-turn state/``last_dt`` must be
-            present.
+            Length-3 state vector
+            ``[input_first, input_second, last_dt]``, carried across turns
+            and written back in place. When ``multiturn`` is ``True`` it
+            must hold the state left by the previous turn.
         alpha
             Resonator damping ``omega_R / (2 Q)`` [rad/s].
         omega_bar
@@ -459,6 +458,9 @@ class Specials(ABC):
             Recurrence coefficient.
         coeff4
             Recurrence coefficient.
+        time_since_last_track
+            Time elapsed [s] since the previous call, used to span the gap
+            to the previous turn. Ignored when ``multiturn`` is ``False``.
         multiturn
             If ``False`` (turn 1) the recurrence starts fresh. If ``True``
             the wake from the previous turn is bridged across the

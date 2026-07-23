@@ -711,6 +711,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             coeff2: float,
             coeff3: float,
             coeff4: float,
+            time_since_last_track: float,
             multiturn: bool,
         ) -> None:
             assert beam_dt.dtype == floattype
@@ -735,6 +736,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(coeff2, floattype),
                 c_real(coeff3, floattype),
                 c_real(coeff4, floattype),
+                c_real(time_since_last_track, floattype),
                 ct.c_bool(multiturn),
             )
 

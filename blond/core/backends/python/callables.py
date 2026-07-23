@@ -698,12 +698,13 @@ class PythonSpecials(Specials):
         coeff2: float,
         coeff3: float,
         coeff4: float,
+        time_since_last_track: float,
         multiturn: bool,
     ) -> None:
         if multiturn:
             # Bridge the wake from the previous turn across the rev. gap.
             time_difference_0 = (
-                beam_dt[0] + parameter_array[2] - parameter_array[3]
+                beam_dt[0] + time_since_last_track - parameter_array[2]
             )
             exp_term = np.exp(-alpha * time_difference_0)
             cos_term = np.cos(omega_bar * time_difference_0)
@@ -740,7 +741,7 @@ class PythonSpecials(Specials):
         )
         parameter_array[0] = input_first
         parameter_array[1] = input_second
-        parameter_array[3] = beam_dt[len(beam_dt) - 1]
+        parameter_array[2] = beam_dt[len(beam_dt) - 1]
 
 
 def _music_recurrence(

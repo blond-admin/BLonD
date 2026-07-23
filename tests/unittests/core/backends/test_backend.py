@@ -439,21 +439,32 @@ class TestSpecials(unittest.TestCase):
 
             dE = self.dE.copy()
             iv = backend.zeros(n, dtype=backend.float)
-            ap = backend.array([1.0, 0.0, 10.0, 0.0], dtype=backend.float)
+            ap = backend.array([1.0, 0.0, 0.0], dtype=backend.float)
+            time_since_last_track = 10.0
 
             if special in ("numba", "cuda"):
                 # MuSiC was not shipped for these backends in BLonD2.
                 with self.assertRaises(NotImplementedError):
                     backend.specials.music_track(
-                        self.dt, dE, iv, ap, *coeffs, False
+                        self.dt,
+                        dE,
+                        iv,
+                        ap,
+                        *coeffs,
+                        time_since_last_track,
+                        False,
                     )
                 continue
 
             # turn 1 (single-turn) then turn 2 (multi-turn)
-            backend.specials.music_track(self.dt, dE, iv, ap, *coeffs, False)
+            backend.specials.music_track(
+                self.dt, dE, iv, ap, *coeffs, time_since_last_track, False
+            )
             single = copy_to_cpu(iv)
             iv2 = backend.zeros(n, dtype=backend.float)
-            backend.specials.music_track(self.dt, dE, iv2, ap, *coeffs, True)
+            backend.specials.music_track(
+                self.dt, dE, iv2, ap, *coeffs, time_since_last_track, True
+            )
             multi = copy_to_cpu(iv2)
 
             if reference_single is None:
