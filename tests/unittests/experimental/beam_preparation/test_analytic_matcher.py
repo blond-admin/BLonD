@@ -1,4 +1,4 @@
-"""Tests for the AnalyticDistributionMatcher."""
+"""Tests for the AnalyticDistributionMatcher and LineDensityMatcher."""
 
 import numpy as np
 import pytest
@@ -16,8 +16,12 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.experimental.beam_preparation.analytic_distributions import (
+    line_density,
+)
 from blond.experimental.beam_preparation.analytic_matcher import (
     AnalyticDistributionMatcher,
+    LineDensityMatcher,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import TimeDomainFftSolver
@@ -322,3 +326,267 @@ def test_matched_bunch_is_stationary_over_turns():
     # A matched bunch neither blows up nor drifts over 30 turns.
     assert abs(final_length - initial_length) / initial_length < 0.05
     assert abs(final_position - initial_position) < 0.05e-9
+
+
+# --------------------------- LineDensityMatcher ---------------------------
+
+
+def _measured_profile(
+    full_length=1.6e-9, position=0.15e-9, baseline=0.0, n_samples=201
+):
+    """Synthetic 'measured' profile on its own (bucket-unrelated) axis."""
+    time_measured = np.linspace(-1.0e-9, 1.0e-9, n_samples)
+    profile = (
+        line_density(
+            time_measured,
+            "binomial",
+            full_length,
+            bunch_position=position,
+            exponent=1.5,
+        )
+        + baseline
+    )
+    return time_measured, profile
+
+
+def test_line_density_family_mode():
+    simulation, beam = _build_simulation()
+    full_length = 1.5e-9
+    matcher = LineDensityMatcher(
+        n_macroparticles=20_000,
+        line_density_type="parabolic_amplitude",
+        bunch_length=full_length,
+        seed=0,
+        n_points_grid=500,
+        n_points_abel=5_000,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+    dt = copy_to_cpu(beam.read_partial_dt())
+    assert len(dt) == 20_000
+    # Full length -> 4 sigma rms: sqrt(6)/2 for parabolic_amplitude.
+    expected_4sigma = full_length / (np.sqrt(6.0) / 2.0)
+    assert np.isclose(matcher.matched_bunch_length, expected_4sigma, rtol=2e-2)
+    assert np.isclose(4.0 * np.std(dt), expected_4sigma, rtol=3e-2)
+    # Centred on the stable phase, everything inside the bucket.
+    assert np.isclose(np.mean(dt), RF_PERIOD / 2.0, atol=0.02e-9)
+    assert dt.min() > 0.0 and dt.max() < RF_PERIOD
+    # The Abel closure reproduces the requested profile.
+    assert matcher.profile_reconstruction_error < 0.02
+
+
+def test_line_density_measured_mode_recenters():
+    # An arbitrarily positioned profile with a constant baseline, on
+    # its own time axis, is recentred onto the bucket and reproduced.
+    time_measured, profile = _measured_profile(position=0.15e-9, baseline=0.02)
+    simulation, beam = _build_simulation()
+    matcher = LineDensityMatcher(
+        n_macroparticles=20_000,
+        time_array=time_measured,
+        line_density_values=profile,
+        half_option="both",
+        seed=0,
+        n_points_grid=500,
+        n_points_abel=5_000,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+    dt = copy_to_cpu(beam.read_partial_dt())
+    assert np.isclose(
+        matcher.matched_bunch_position, RF_PERIOD / 2.0, atol=0.01e-9
+    )
+    assert np.isclose(np.mean(dt), RF_PERIOD / 2.0, atol=0.02e-9)
+    assert matcher.profile_reconstruction_error < 0.02
+    # Matched length agrees with the input profile's own 4 sigma rms
+    # (computed on the baseline-subtracted input).
+    clean = profile - profile.min()
+    mean_time = np.sum(clean * time_measured) / np.sum(clean)
+    input_4sigma = 4.0 * np.sqrt(
+        np.sum(clean * (time_measured - mean_time) ** 2) / np.sum(clean)
+    )
+    assert np.isclose(matcher.matched_bunch_length, input_4sigma, rtol=3e-2)
+    # The input arrays were not mutated.
+    assert profile.min() > 0.0
+
+
+def test_line_density_half_options_consistent():
+    # In the bare (symmetric) bucket the three half options must give
+    # the same match.
+    time_measured, profile = _measured_profile(position=0.0)
+    lengths = {}
+    for half_option in ("first", "second", "both"):
+        simulation, beam = _build_simulation()
+        matcher = LineDensityMatcher(
+            n_macroparticles=2_000,
+            time_array=time_measured,
+            line_density_values=profile,
+            half_option=half_option,
+            seed=0,
+            n_points_grid=400,
+            n_points_abel=3_000,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        lengths[half_option] = matcher.matched_bunch_length
+    assert np.isclose(lengths["first"], lengths["second"], rtol=1e-2)
+    assert np.isclose(lengths["first"], lengths["both"], rtol=1e-2)
+
+
+def test_line_density_barycenter_centering():
+    # The barycenter mode must centre a (noise-free) profile like the
+    # peak mode does.
+    time_measured, profile = _measured_profile(position=0.2e-9)
+    positions = {}
+    for profile_centering in ("peak", "barycenter"):
+        simulation, beam = _build_simulation()
+        matcher = LineDensityMatcher(
+            n_macroparticles=2_000,
+            time_array=time_measured,
+            line_density_values=profile,
+            profile_centering=profile_centering,
+            seed=0,
+            n_points_grid=400,
+            n_points_abel=3_000,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        positions[profile_centering] = matcher.matched_bunch_position
+    assert np.isclose(positions["peak"], positions["barycenter"], atol=0.01e-9)
+
+
+def test_line_density_seed_reproducibility():
+    time_measured, profile = _measured_profile()
+    dts = []
+    for _ in range(2):
+        simulation, beam = _build_simulation()
+        matcher = LineDensityMatcher(
+            n_macroparticles=2_000,
+            time_array=time_measured,
+            line_density_values=profile,
+            seed=42,
+            n_points_grid=300,
+            n_points_abel=2_000,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        dts.append(copy_to_cpu(beam.read_partial_dt()).copy())
+    np.testing.assert_array_equal(dts[0], dts[1])
+
+
+def test_line_density_input_validation():
+    time_measured, profile = _measured_profile()
+    with pytest.raises(ValueError, match="exactly one"):
+        LineDensityMatcher(n_macroparticles=1000)
+    with pytest.raises(ValueError, match="exactly one"):
+        LineDensityMatcher(
+            n_macroparticles=1000,
+            time_array=time_measured,
+            line_density_values=profile,
+            line_density_type="gaussian",
+            bunch_length=1e-9,
+        )
+    with pytest.raises(ValueError, match="half_option"):
+        LineDensityMatcher(
+            n_macroparticles=1000,
+            time_array=time_measured,
+            line_density_values=profile,
+            half_option="not_a_half",
+        )
+    with pytest.raises(ValueError, match="profile_centering"):
+        LineDensityMatcher(
+            n_macroparticles=1000,
+            time_array=time_measured,
+            line_density_values=profile,
+            profile_centering="not_a_mode",
+        )
+    with pytest.raises(ValueError, match="relaxation_factor"):
+        LineDensityMatcher(
+            n_macroparticles=1000,
+            time_array=time_measured,
+            line_density_values=profile,
+            relaxation_factor=0.0,
+        )
+    with pytest.raises(AssertionError, match="increasing"):
+        LineDensityMatcher(
+            n_macroparticles=1000,
+            time_array=time_measured[::-1],
+            line_density_values=profile,
+        )
+
+
+def test_line_density_intensity_effects():
+    # With a wakefield: centering + induced potential iterate to a
+    # fixed point, the bunch sits at the wake-shifted position, and the
+    # generated bunch is stationary when tracked with the wakefield.
+    time_measured, profile = _measured_profile(position=0.0)
+    simulation, beam = _build_simulation(resonator_r_shunt=1e5, intensity=2e11)
+    matcher = LineDensityMatcher(
+        n_macroparticles=5_000,
+        time_array=time_measured,
+        line_density_values=profile,
+        half_option="both",
+        seed=0,
+        n_points_grid=400,
+        n_points_abel=3_000,
+        allow_inner_buckets=True,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+    assert 1 <= matcher.n_intensity_iterations <= 30
+    assert matcher.final_potential_well_error < 1e-6
+    # The wake shifts the stable position off the bare-bucket centre.
+    assert matcher.matched_bunch_position < RF_PERIOD / 2.0 - 0.01e-9
+
+    dt = copy_to_cpu(beam.read_partial_dt())
+    initial_length = 4.0 * float(np.std(dt))
+    initial_position = float(np.mean(dt))
+    simulation.run_simulation(
+        beams=(beam,), n_turns=30, show_progressbar=False
+    )
+    final_dt = copy_to_cpu(beam.read_partial_dt())
+    assert (
+        abs(4.0 * float(np.std(final_dt)) - initial_length) / initial_length
+        < 0.05
+    )
+    assert abs(float(np.mean(final_dt)) - initial_position) < 0.05e-9
+
+
+def test_line_density_matched_bunch_is_stationary_over_turns():
+    time_measured, profile = _measured_profile()
+    simulation, beam = _build_simulation()
+    matcher = LineDensityMatcher(
+        n_macroparticles=2_000,
+        time_array=time_measured,
+        line_density_values=profile,
+        seed=1,
+        n_points_grid=400,
+        n_points_abel=3_000,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+    initial_length = 4.0 * float(np.std(copy_to_cpu(beam.read_partial_dt())))
+    initial_position = float(np.mean(copy_to_cpu(beam.read_partial_dt())))
+    simulation.run_simulation(
+        beams=(beam,), n_turns=30, show_progressbar=False
+    )
+    final_dt = copy_to_cpu(beam.read_partial_dt())
+    final_length = 4.0 * float(np.std(final_dt))
+    final_position = float(np.mean(final_dt))
+    assert abs(final_length - initial_length) / initial_length < 0.05
+    assert abs(final_position - initial_position) < 0.05e-9
+
+
+def test_line_density_plot_smoke():
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
+    import matplotlib.pyplot as plt
+
+    time_measured, profile = _measured_profile()
+    simulation, beam = _build_simulation()
+    matcher = LineDensityMatcher(
+        n_macroparticles=1_000,
+        time_array=time_measured,
+        line_density_values=profile,
+        seed=0,
+        n_points_grid=200,
+        n_points_abel=1_000,
+        plot=True,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+    plt.close("all")
