@@ -322,6 +322,7 @@ def rf_beam_current_partial(
     sampling_time: float,
     n_points: int,
     dT: float,
+    carrier_phase_offset: float = 0.0,
 ) -> tuple[NumpyArray, NumpyArray]:
     r"""
     RF beam current on the sub-stepped coarse grid (mucol timing class only).
@@ -359,6 +360,15 @@ def rf_beam_current_partial(
     dT : float
         Demodulation time shift [s] that rotates the beam current into the
         frame of the coarse-grid envelope recursion.
+    carrier_phase_offset : float
+        Additional demodulation-carrier phase [rad], on top of the
+        ``dT``-derived rotation. Used by the timing class to anchor the
+        carrier to the accumulated actual RF phase
+        (``- int delta_omega_rf dt`` since simulation start) when the
+        parent station runs with an RF-frequency offset; without one it is
+        exactly ``0.0`` (bit-identical demodulation). A pure phase: it
+        must not (and does not) move the fine-to-coarse binning, which
+        follows the physical sample times.
 
     Returns
     -------
@@ -418,7 +428,9 @@ def rf_beam_current_partial(
     # current I/Q axis with the antenna-voltage lab-frame convention.
     charges_fine = I_f + 1j * Q_f
     dphi = dT * omega_c
-    charges_fine = charges_fine * np.exp(1j * (dphi + np.pi / 2))
+    charges_fine = charges_fine * np.exp(
+        1j * (dphi + np.pi / 2 + carrier_phase_offset)
+    )
 
     # Downsample onto the coarse grid. The mapping is centred on half a coarse
     # cell and dT enters with +1 sign (the mucol convention).
