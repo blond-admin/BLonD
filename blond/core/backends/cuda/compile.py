@@ -82,7 +82,7 @@ def compile_cuda_library(  # NOQA: PLR0915
         extensions=(".py", ".cu"),
         recursive=False,
     )
-    target = os.path.join(folder, "compiled", hash_)
+    target = os.path.join(folder, "compiled", hash_[-5:])
     os.makedirs(target, exist_ok=True)
 
     # The CUDA library name, without the file extension.

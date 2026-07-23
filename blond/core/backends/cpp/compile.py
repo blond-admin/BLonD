@@ -138,7 +138,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
                 extensions=(".py", ".h", ".cpp"),
                 recursive=False,
             )
-            target = os.path.join(folder, "compiled", hash_)
+            target = os.path.join(folder, "compiled", hash_[-5:])
             os.makedirs(target, exist_ok=True)
             libname = os.path.join(target, default_libname)
         # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native

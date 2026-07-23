@@ -98,7 +98,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             extensions=(".py", ".h", ".cpp"),
             recursive=False,
         )
-        basepath = os.path.join(folder, "compiled", hash_)
+        basepath = os.path.join(folder, "compiled", hash_[-5:])
         if "posix" in os.name:
             if libblond_path_:
                 libblond_path = os.path.abspath(libblond_path_)
