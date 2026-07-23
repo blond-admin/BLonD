@@ -313,7 +313,7 @@ class RFCenterGridMixin:
                 atol=0,
             )
             is_above = (
-                    self._reference_state_until_tracked.time > beam.reference.time
+                self._reference_state_until_tracked.time > beam.reference.time
             )
             if isclose or is_above:  # counterrotation should break earlier
                 if is_above:
@@ -340,7 +340,9 @@ class RFCenterGridMixin:
                         beam.is_counter_rotating,
                     )
                 else:
-                    element.track_reference(self._reference_state_until_tracked)
+                    element.track_reference(
+                        self._reference_state_until_tracked
+                    )
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
                         self._reference_state_until_tracked.beta,
@@ -362,16 +364,12 @@ class RFCenterGridMixin:
             )
             # Track the actual RF frequency (design + delta_omega_rf), see
             # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
-            self._reverse_tracking_omega_list = (
-                np.array(omega_list) + self.delta_omega_rf
-            )
+            self._reverse_tracking_omega_list = np.array(omega_list)
         else:
             self._reverse_tracking_time_array = np.array(time_list)
             # Track the actual RF frequency (design + delta_omega_rf), see
             # forward_tracking_omega_rf. delta_omega_rf == 0 leaves it unchanged.
-            self._reverse_tracking_omega_list = (
-                np.array(omega_list) + self.delta_omega_rf
-            )
+            self._reverse_tracking_omega_list = np.array(omega_list)
 
         self._unify_same_frequency_time_points_reverse()
 
@@ -510,7 +508,7 @@ class RFCenterGridMixin:
             until_time - rf_centers[-1]
         )
         self._residual_taps_last_rf_centers_calculation = (
-                self._residual_time_last_rf_centers_calculation / t_rf
+            self._residual_time_last_rf_centers_calculation / t_rf
         )
         self._last_forward_tracking_freq = omega_rf
         return rf_centers
