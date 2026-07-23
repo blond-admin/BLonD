@@ -1139,18 +1139,16 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
            tracks the retuning convolution (``delta_f = delta_omega_rf / 2 pi``)
            to the 2 % per-turn gate.
 
-        KNOWN LIMITATION -- why the offset is kept small (~8e2 rad/s, a quarter
-        of the ~3.2e3 rad/s cavity half-bandwidth) and the consistency gate is
-        loose: ``delta_omega_rf`` (a lab-frame carrier slip that grows with the
-        absolute reference time, ~1.1 %/1e3 rad/s per turn) and the
-        convolution's ``delta_f`` (a resonator retuning) are *different
-        conventions*. Their absolute voltages agree only approximately, and the
-        offset-induced *change* does not match beyond the floor (the
-        difference-of-differences disagrees by tens of percent by turn 2), so a
-        few 1e3 rad/s would cross the 2 % gate. This test is therefore a
-        beam-path regression guard for the offset chain, not a tight
-        cross-validation of it -- the tight validation of ``delta_omega_rf``
-        lives in the LHC comparison suite. Single section, static cycle.
+        The demodulation carrier is anchored to the accumulated actual RF
+        phase (the station kick clock plus its live tail), so the feedback
+        matches the retuning convolution at the discretization floor for
+        any offset; the tight validation lives in
+        ``test_multiturn_delta_omega_rf_large_offset_consistency`` and
+        ``test_multiturn_delta_omega_rf_differential``. This test keeps
+        the small-offset non-triviality guard: a regression that dropped
+        the offset from the beam path entirely would still pass the
+        consistency gates trivially, but collapses ``fb(offset) -
+        fb(no offset)`` and fails here. Single section, static cycle.
         """
         convolution, feedback = self._feedback_vs_convolution(
             1, False, delta_omega_rf=8.0e2
@@ -1167,6 +1165,117 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         )
 
         # (2) Consistency: the small offset run still tracks the convolution.
+        for turn_i, (conv_turn, fb_turn) in enumerate(
+            zip(convolution, feedback, strict=True)
+        ):
+            for section_i, (v_conv, v_fb) in enumerate(
+                zip(conv_turn, fb_turn, strict=True)
+            ):
+                self.assertLess(
+                    rel_err(v_fb, v_conv),
+                    0.02,
+                    f"turn {turn_i} section {section_i}",
+                )
+
+    def test_multiturn_delta_omega_rf_large_offset_consistency(self):
+        """
+        A large RF-frequency offset stays consistent turn over turn.
+
+        Same layout as ``test_multiturn_delta_omega_rf_with_beam`` but with
+        an offset of 2e3 rad/s (past half the ~3.2e3 rad/s cavity
+        half-bandwidth) where the demodulation-frame slip, if present,
+        dominates the discretization floor: the slip grows by
+        ``delta_omega_rf * t_rev`` (~4 % vector error) per turn, so an
+        unanchored demodulation carrier fails the 2 % gate within two
+        turns. Guards the accumulated ``int omega dt`` anchoring of the
+        beam-current demodulation against the retuning convolution.
+        """
+        convolution, feedback = self._feedback_vs_convolution(
+            1, False, delta_omega_rf=2.0e3
+        )
+        for turn_i, (conv_turn, fb_turn) in enumerate(
+            zip(convolution, feedback, strict=True)
+        ):
+            for section_i, (v_conv, v_fb) in enumerate(
+                zip(conv_turn, fb_turn, strict=True)
+            ):
+                self.assertLess(
+                    rel_err(v_fb, v_conv),
+                    0.02,
+                    f"turn {turn_i} section {section_i}",
+                )
+
+    def test_multiturn_delta_omega_rf_differential(self):
+        """
+        The offset-induced *change* of the feedback matches the convolution.
+
+        Difference-of-differences at the small (8e2 rad/s) offset: the
+        offset-induced move of the feedback's beam-induced voltage,
+        ``fb(offset) - fb(no offset)``, must equal the retuning
+        convolution's move ``conv(offset) - conv(no offset)`` -- the
+        per-turn baseline discretization error cancels in each difference,
+        so this isolates the offset chain itself. Normalized by the full
+        voltage magnitude (the moves themselves start at zero on turn 0,
+        where the convolution does not move).
+
+        With the demodulation carrier anchored to the accumulated actual
+        RF phase this agrees to well below the gate; an unanchored (or
+        per-turn re-anchored) carrier leaves a spurious move of
+        ~``delta_omega_rf * t_elapsed`` (0.9 %-1.7 % of ``|V|`` here) and
+        fails.
+        """
+        conv_off, fb_off = self._feedback_vs_convolution(
+            1, False, delta_omega_rf=8.0e2
+        )
+        conv_no, fb_no = self._feedback_vs_convolution(
+            1, False, delta_omega_rf=0.0
+        )
+        for turn_i in range(len(fb_off)):
+            fb_move = fb_off[turn_i][0] - fb_no[turn_i][0]
+            cv_move = conv_off[turn_i][0] - conv_no[turn_i][0]
+            spurious = np.linalg.norm(fb_move - cv_move) / np.linalg.norm(
+                conv_off[turn_i][0]
+            )
+            self.assertLess(spurious, 0.005, f"turn {turn_i}")
+
+    def test_multiturn_delta_omega_rf_substepped(self):
+        """
+        The large RF-frequency offset also holds on the sub-stepped grid.
+
+        Same large offset as
+        ``test_multiturn_delta_omega_rf_large_offset_consistency`` but with
+        ``n_rf_periods_per_coarse_grid = 0.5``: the tiling grid (no per-turn
+        bucket re-seed) exercises the residual carry-over and the tiling-gap
+        demodulation frame together with the offset's carrier anchoring --
+        historically the most delicate frame bookkeeping in the class.
+        """
+        convolution, feedback = self._feedback_vs_convolution(
+            1, False, n_rf_periods=0.5, delta_omega_rf=2.0e3
+        )
+        for turn_i, (conv_turn, fb_turn) in enumerate(
+            zip(convolution, feedback, strict=True)
+        ):
+            for section_i, (v_conv, v_fb) in enumerate(
+                zip(conv_turn, fb_turn, strict=True)
+            ):
+                self.assertLess(
+                    rel_err(v_fb, v_conv),
+                    0.02,
+                    f"turn {turn_i} section {section_i}",
+                )
+
+    def test_multiturn_delta_omega_rf_multisection(self):
+        """
+        The large RF-frequency offset also holds with two RF stations.
+
+        Two sections at the large offset (set on both stations before the
+        run): the reverse-tracked segments, the per-station kick clocks
+        (each anchored at its own first passage) and the multi-section
+        frame correction must stay consistent with the carrier anchoring.
+        """
+        convolution, feedback = self._feedback_vs_convolution(
+            2, False, delta_omega_rf=2.0e3
+        )
         for turn_i, (conv_turn, fb_turn) in enumerate(
             zip(convolution, feedback, strict=True)
         ):

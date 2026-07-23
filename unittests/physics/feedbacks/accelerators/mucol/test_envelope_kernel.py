@@ -80,7 +80,16 @@ def _make_feedback(
     return feedback
 
 
-def _seed_single_segment(feedback, n, *, v_init, i_init, beam):
+def _seed_single_segment(
+    feedback,
+    n,
+    *,
+    v_init,
+    i_init,
+    beam,
+    last_val_generator_current=None,
+    last_val_beam_current=0.0 + 0.0j,
+):
     """
     Populate the coarse-grid arrays for a single-segment run.
 
@@ -97,6 +106,14 @@ def _seed_single_segment(feedback, n, *, v_init, i_init, beam):
     beam
         Forward-grid beam current samples (complex array, length ``n``), or
         None for a no-beam segment.
+    last_val_generator_current
+        Carried generator current (``last_val_generator_current``); defaults to
+        ``i_init``. Pass a value off the bias to exercise the reverse-segment
+        drive (the reference drives cells >=1 from the reset-bias grid, cell 0
+        from the carried value).
+    last_val_beam_current
+        Carried beam current (``last_val_beam_current``) at the carried cell 0,
+        used even by a no-beam segment; defaults to zero.
     """
     dt = T_RF
     feedback.rf_centers = np.arange(1, n + 1) * dt
@@ -106,8 +123,12 @@ def _seed_single_segment(feedback, n, *, v_init, i_init, beam):
     feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
     feedback.generator_current_coarse_grid = np.full(n, BIAS, dtype=complex)
     feedback.last_val_ant_voltage = v_init
-    feedback.last_val_generator_current = i_init
-    feedback.last_val_beam_current = 0.0 + 0.0j
+    feedback.last_val_generator_current = (
+        i_init
+        if last_val_generator_current is None
+        else last_val_generator_current
+    )
+    feedback.last_val_beam_current = last_val_beam_current
     if beam is not None:
         feedback.beam_current_forward_coarse_grid = beam.astype(complex)
 
@@ -181,6 +202,8 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         delta_omega=0.0,
         n=64,
         v_init=3.0e7 + 1.0e6j,
+        last_val_generator_current=None,
+        last_val_beam_current=0.0 + 0.0j,
     ):
         """
         Build, seed and drive a single-segment feedback on one path.
@@ -201,6 +224,11 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             Number of coarse cells.
         v_init
             Carried antenna voltage seeding cell 0.
+        last_val_generator_current
+            Carried generator current; defaults to the bias. A value off the
+            bias exercises the reverse-segment drive divergence.
+        last_val_beam_current
+            Carried index-0 beam current (used even for a no-beam segment).
 
         Returns
         -------
@@ -226,7 +254,13 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
                 rng.standard_normal(n) + 1j * rng.standard_normal(n)
             ) * 1e-4
         _seed_single_segment(
-            feedback, n, v_init=v_init, i_init=BIAS, beam=beam
+            feedback,
+            n,
+            v_init=v_init,
+            i_init=BIAS,
+            beam=beam,
+            last_val_generator_current=last_val_generator_current,
+            last_val_beam_current=last_val_beam_current,
         )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -321,7 +355,55 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             },
         )
 
-    def _run_multi_section(self, use_kernel):
+    def test_no_beam_carried_generator_current_off_bias(self):
+        """
+        Reverse segment whose carried generator current is off the bias.
+
+        The reference drives the carried cell 0 from ``last_val_generator_``
+        ``current`` but every later cell from the reset-bias generator grid; a
+        kernel that held the carried value for all cells would diverge. This is
+        the normal state of the first reverse segment of a multi-section ring on
+        any turn >= 1 after a PI controller has regulated the generator current.
+        """
+        self._compare(
+            no_beam=True,
+            last_val_generator_current=0.05 + 0.03j,
+        )
+
+    def test_no_beam_carried_beam_current_nonzero(self):
+        """
+        Reverse segment whose carried index-0 beam current is nonzero.
+
+        ``cavity_response`` uses ``last_val_beam_current`` at the carried cell 0
+        even for a no-beam segment; a kernel that zeroed it there would diverge.
+        This is the normal state of the first reverse segment once beam has
+        passed on a prior turn.
+        """
+        self._compare(
+            no_beam=True,
+            last_val_beam_current=8.0e-3 + 2.0e-3j,
+        )
+
+    def test_forward_pi_carried_beam_current_nonzero(self):
+        """Forward PI segment with a nonzero carried index-0 beam current."""
+        self._compare(
+            no_beam=False,
+            last_val_beam_current=5.0e-3 + 1.0e-3j,
+            controller_kw={
+                "gain_proportional": 1e-9,
+                "gain_integral": 5e-4,
+                "generator_current_bias": BIAS,
+                "n_delay": 2,
+            },
+        )
+
+    def _run_multi_section(
+        self,
+        use_kernel,
+        *,
+        last_val_generator_current=BIAS,
+        last_val_beam_current=0.0 + 0.0j,
+    ):
         """
         Drive a reverse + forward two-segment layout on one path.
 
@@ -329,6 +411,11 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         ----------
         use_kernel
             Which path to use.
+        last_val_generator_current
+            Carried generator current seeding the run (off the bias exercises
+            the reverse-segment drive divergence).
+        last_val_beam_current
+            Carried index-0 beam current seeding the run.
 
         Returns
         -------
@@ -356,8 +443,8 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             n, BIAS, dtype=complex
         )
         feedback.last_val_ant_voltage = 3.0e7 + 1.0e6j
-        feedback.last_val_generator_current = BIAS
-        feedback.last_val_beam_current = 0.0 + 0.0j
+        feedback.last_val_generator_current = last_val_generator_current
+        feedback.last_val_beam_current = last_val_beam_current
         rng = np.random.default_rng(77)
         feedback.beam_current_forward_coarse_grid = (
             (rng.standard_normal(n_frwrd) + 1j * rng.standard_normal(n_frwrd))
@@ -384,6 +471,26 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         """Two-segment (reverse + forward) run is bit-identical."""
         kernel_snap = self._run_multi_section(True)
         python_snap = self._run_multi_section(False)
+        _assert_bit_identical(self, kernel_snap, python_snap)
+
+    def test_multi_section_carried_state_off_trivial(self):
+        """
+        Two-segment run with off-bias / nonzero carried state.
+
+        Reproduces the live multi-section turn >= 1 condition end-to-end: the
+        first reverse segment carries a regulated (off-bias) generator current
+        and a nonzero beam current, and the divergence must still not appear.
+        """
+        kernel_snap = self._run_multi_section(
+            True,
+            last_val_generator_current=0.05 + 0.03j,
+            last_val_beam_current=8.0e-3 + 2.0e-3j,
+        )
+        python_snap = self._run_multi_section(
+            False,
+            last_val_generator_current=0.05 + 0.03j,
+            last_val_beam_current=8.0e-3 + 2.0e-3j,
+        )
         _assert_bit_identical(self, kernel_snap, python_snap)
 
 
