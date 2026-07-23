@@ -22,7 +22,7 @@ def get_poles(
     ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
 
     print("Fit")
-    vf = rf.VectorFitting(ntwk)
+    vf = rf.vectorFitting.VectorFitting(ntwk)
     if max_iterations is not None:
         vf.max_iterations = max_iterations
     print(f"start with {n_pole} complex pairs")

@@ -25,7 +25,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import Schedulable
+from blond.core.base import Schedulable, ScheduledBaseClass
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
@@ -39,14 +39,10 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.ring.ring import Ring
-    from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import RFStationBaseClass
     from blond.physics.drifts import DriftBaseClass
 
     T = TypeVar("T")
-
-# TODO allow schedulable synchrotron radiation integrals in the master (e.g.
-# tapering)
 
 
 class SynchrotronRadiationMaster(Schedulable):
@@ -66,7 +62,7 @@ class SynchrotronRadiationMaster(Schedulable):
         BeamPhysicsRelevant element class for which synchrotron radiation
         should be tracked.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
 
     Examples
     --------
@@ -107,6 +103,8 @@ class SynchrotronRadiationMaster(Schedulable):
 
         super().__init__()
 
+        self._add_intended_schedule("radiation_integrals")
+
         if track_before_element_type is not None:
             self.track_before_element_type = track_before_element_type
         else:
@@ -114,7 +112,6 @@ class SynchrotronRadiationMaster(Schedulable):
                 DriftBaseClass,
             ]
 
-        self._simulation: Simulation | None = None
         self._disable_quantum_excitation = disable_quantum_excitation
 
         self._natural_energy_spread: NumpyArray | None = None
@@ -543,6 +540,10 @@ class SynchrotronRadiationMaster(Schedulable):
                 f"allowed, but {element_list} was found."
             )
 
+        self.normalized_share_of_synchrotron_integrals = (
+            shares_of_radiation_integrals
+        ) / ring.radiation_integrals
+
     def _insert_radiation_trackers(
         self,
         ring: Ring,
@@ -581,6 +582,30 @@ class SynchrotronRadiationMaster(Schedulable):
                 # between the stored array and the ring elements
             )
             self.generated_children.append(SRClass_child)
+
+    def schedule(
+        self,
+        attribute: str,
+        value: ScheduledBaseClass | NumpyArray | tuple[NumpyArray, NumpyArray],
+    ) -> None:
+        """
+        Propagate the scheduled radiation integrals to the trackers.
+
+        Parameters
+        ----------
+        attribute
+            The name of the attribute to be scheduled.
+            Must be an existing attribute of the object.
+        value
+            The schedule definition for the attribute. ScheduledBaseClass
+            object.
+        """
+        for i, SRClass_child in enumerate(self.generated_children):
+            SRClass_child.schedule(
+                attribute=attribute,
+                value=self.normalized_share_of_synchrotron_integrals[i]
+                * value,
+            )
 
     def prepare_ring_for_synchrotron_radiation_tracking(
         self,
@@ -651,7 +676,7 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
     share_of_radiation_integrals
         Share of synchrotron radiation integrals.
     disable_quantum_excitation
-        Expert user only. Disables the quantum excitation kick.
+       Disables the quantum excitation kick.
     """
 
     def __init__(
@@ -675,32 +700,8 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
 
         Returns
         -------
-        energy_lost_due_to_synchrotron_radiation_drift
-            Energy lost due to synchrotron radiation along the drift,
+        energy_lost_due_to_synchrotron_radiation_tracker
+            Energy lost due to synchrotron radiation along the tracker,
             in [eV per turn].
         """
         return self._energy_lost_due_to_synchrotron_radiation
-
-    @property
-    def share_of_radiation_integrals(self) -> NumpyArray | None:
-        """
-        Share of radiation integrals.
-
-        Returns
-        -------
-        share_of_radiation_integrals
-            Synchrotron radiation integrals of the tracker.
-        """
-        return self._share_of_radiation_integrals
-
-    @property
-    def radiation_integrals_tracker(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals of the arc covered by the tracker.
-
-        Returns
-        -------
-        radiation_integrals_tracker
-            Synchrotron radiation integrals of the tracker.
-        """
-        return self._share_of_radiation_integrals

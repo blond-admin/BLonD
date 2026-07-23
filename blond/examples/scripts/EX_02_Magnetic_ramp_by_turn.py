@@ -39,7 +39,10 @@ if not pytest_active():  # pragma: no cover
 logging.basicConfig(level=logging.INFO)
 
 
-def main():
+def main(
+    n_turns=int(1e3),
+    n_macroparticles=int(1e3),
+):
     ring = Ring(26658.883)
 
     rf_station = SingleHarmonicRFStation()
@@ -47,10 +50,8 @@ def main():
     rf_station.voltage = 6e6
     rf_station.phi_rf_design = 0
 
-    N_TURNS = int(1e3)
-
     energy_cycle = MagneticCyclePerTurn.init_from_linspace(
-        values=np.linspace(450e9, 450e9, N_TURNS + 1),
+        values=np.linspace(450e9, 450e9, n_turns + 1),
         reference_particle=proton,
     )
 
@@ -80,7 +81,7 @@ def main():
                 sigma_dE=1e9 / 4,
                 reinsertion=False,
                 seed=1,
-                n_macroparticles=1e3,
+                n_macroparticles=n_macroparticles,
             ),
         )
     else:  # pragma: no cover
@@ -88,7 +89,7 @@ def main():
             beam=beam1,
             preparation_routine=SemiEmpiricMatcher(
                 time_limit=(0, 2.5e-9),
-                n_macroparticles=1e6,
+                n_macroparticles=n_macroparticles,
                 seed=0,
                 maxiter_intensity_effects=0,
                 hamilton_to_density_kwargs=dict(
@@ -125,7 +126,7 @@ def main():
     try:
         sim.load_results(
             beams=(beam1,),
-            n_turns=N_TURNS,
+            n_turns=(n_turns),
             observe=(phase_observation, bunch_observation),
         )
         print(
@@ -134,7 +135,7 @@ def main():
     except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
-            n_turns=N_TURNS,
+            n_turns=(n_turns),
             observe=(phase_observation, bunch_observation),
             callbacks=animate_live,
         )
@@ -142,7 +143,7 @@ def main():
     if ANIMATE:  # pragma: no cover
         plt.plot(phase_observation.phases)
         plt.figure()
-        for i in range(N_TURNS):
+        for i in range(n_turns):
             plt.clf()
             plt.hist2d(
                 bunch_observation.dts[i, :],
