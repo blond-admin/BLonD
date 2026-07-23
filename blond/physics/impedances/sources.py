@@ -110,7 +110,7 @@ def fit_poles(
     return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
 
 
-def get_hash(array1d: NumpyArray | CupyArray) -> int:
+def get_hash(array1d: NumpyArray | CupyArray, *, salt: Any = None) -> int:
     """
     Compute a lightweight, approximate hash value for a 1D NumPy array.
 
@@ -124,6 +124,8 @@ def get_hash(array1d: NumpyArray | CupyArray) -> int:
     ----------
     array1d : numpy.ndarray
         One-dimensional NumPy array of numeric values.
+    salt
+        Additional information to generate a hash.
 
     Returns
     -------
@@ -165,6 +167,7 @@ def get_hash(array1d: NumpyArray | CupyArray) -> int:
             float(array1d[int(len_ // 2)]),
             float(array1d[-1]),
             len_,
+            salt,
         )
     )
 
@@ -263,16 +266,23 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             Derivative impedance in frequency domain.
         """
         # Recalculate only if `freq_x` or `hist_step` is changed
-        hash_ = hash((get_hash(freq_x), hist_step))
+        hash_ = get_hash(freq_x, salt=hist_step)
         if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
         if hist_step is None:
             # The signal length is ambiguous from the half spectrum
-            # alone; assume the even-length `irfft` default.
-            df = float(freq_x[1] - freq_x[0])  # frequency spacing
-            n = 2 * (len(freq_x) - 1)  # original signal length
-            hist_step = 1 / (n * df)
+            # alone; assume the even-length `irfft` default, i.e. that
+            # freq_x[-1] is the Nyquist frequency, so that
+            # hist_step = 1 / (2 * f_nyquist). This only holds for an
+            # `rfftfreq` axis, which starts at zero and increases.
+            assert float(freq_x[0]) == 0.0, (
+                "`freq_x` must be a half spectrum starting at 0 Hz."
+            )
+            assert float(freq_x[-1]) > 0.0, (
+                "`freq_x` must be a half spectrum with a positive Nyquist."
+            )
+            hist_step = 0.5 / float(freq_x[-1])
         h = hist_step
         k = 2 * np.pi * freq_x
         # central finite difference (f(x+h) - f(x-h)) / 2h
@@ -406,11 +416,10 @@ class Resonators(
                 shunt_impedances_counter_rotating
             )
 
-            assert len(self._shunt_impedances_counter_rotating) == len(
-                self._shunt_impedances
-            ), (
-                "Array lengths between co- and counterrotating impedances need to match."
-            )
+            assert (
+                len(self._shunt_impedances_counter_rotating)
+                == len(self._shunt_impedances)
+            ), "Array lengths between co- and counterrotating impedances need to match."
 
             for imp, imp_cr in zip(
                 self._shunt_impedances,
@@ -419,9 +428,7 @@ class Resonators(
             ):
                 assert backend.isclose(
                     backend.abs(imp), backend.abs(imp_cr)
-                ), (
-                    "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
-                )
+                ), "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
@@ -526,7 +533,8 @@ class Resonators(
             Wake impedance in frequency domain for counter-rotating mode.
         """
         # Recalculate only if `time` has changed
-        hash_ = get_hash(time + 1)  # to distinguish between counterrotation
+        hash_ = get_hash(time, salt=1)  # to distinguish between
+        # counterrotation
         if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
             return self._cache_impedance_from_wake_counter_rotation
 
@@ -775,7 +783,7 @@ class Resonators(
         """
         # Recalculate only if `freq_x` is changed
 
-        hash_ = get_hash(freq_x + counter_rotation)
+        hash_ = get_hash(freq_x, salt=counter_rotation)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
@@ -1116,12 +1124,12 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         a_factor: float | ArrayLike,
     ):
         if hasattr(R_S, "__len__"):
-            assert len(R_S) == len(frequency_R), (
-                f"{len(R_S)=}, but {len(frequency_R)=}."
-            )
-            assert len(R_S) == len(a_factor), (
-                f"{len(R_S)=}, but {len(a_factor)=}."
-            )
+            assert len(R_S) == len(
+                frequency_R
+            ), f"{len(R_S)=}, but {len(frequency_R)=}."
+            assert len(R_S) == len(
+                a_factor
+            ), f"{len(R_S)=}, but {len(a_factor)=}."
         else:
             R_S = float(R_S)
             frequency_R = float(frequency_R)

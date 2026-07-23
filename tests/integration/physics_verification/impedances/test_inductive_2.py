@@ -23,6 +23,7 @@ from blond import (
     Simulation,
     StaticProfile,
     WakeField,
+    backend,
     copy_to_cpu,
     proton,
 )
@@ -43,7 +44,7 @@ class _FakeProfile(StaticProfile):
         super().__init__(
             cut_left=cut_left, cut_right=cut_right, n_bins=len(profile_y)
         )
-        self._hist_y = np.array(profile_y, dtype=float)
+        self._hist_y = backend.array(profile_y, dtype=backend.float)
         self.hist_y_to_density_factor = 1.0
 
 
@@ -59,7 +60,7 @@ def _calc_induced_voltage(solver, profile_y) -> np.ndarray:
         particle_type=proton,
         intensity=1e12,
         reference_total_energy=1e12,
-        dt=np.array([0]),
+        dt=backend.array([0], dtype=backend.float),
     )
     ring = Ring(circumference=circumference)
     ring.add_elements([profile, wakefield])
