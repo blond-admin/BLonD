@@ -164,6 +164,31 @@ ordering. Tests: `test_envelope_kernel.py` (bit-identity across Euler/exponentia
 × constant/PI × delay/clamp/detuning × multi-section). `TestPIReverseSpanFrameConsistency`
 (below) and the pinned trajectories force/exercise the reference path.
 
+**Adversarial review (5-dimension find → verify-with-probe) found & fixed 3
+carried-state divergences the first tests missed** (they seeded
+`last_val_beam_current=0` and `last_val_generator_current=bias` — the values
+that hide the bugs), all in the carried index-0 cell of a `no_beam` (reverse)
+segment starting at grid index 0, i.e. the **first reverse segment of a
+multi-section ring on turn ≥ 1**:
+1. **Generator-current drive** (HIGH): the kernel held `generator_current_init`
+   for every cell; `cavity_response` uses `last_val_generator_current` only at
+   cell 0 and the (static, reset-bias) `generator_current_coarse_grid[idx-1]`
+   for cells ≥ 1. Fix: the kernel now reads each cell's drive from the
+   pre-filled `generator_current_out[cell-1]` (PI output when active, static
+   grid when inactive), mirroring the reference exactly.
+2. **Beam current at cell 0** (HIGH): `_kernel_beam_current` zeroed cell 0 for
+   `no_beam`; the reference `idx==0` branch uses `last_val_beam_current`
+   unconditionally. Fix: set it before the `no_beam` early return.
+3. **Warn/assert ordering on an invalid grid** (LOW): `_coarse_step_sizes` now
+   defers *any* non-positive step to the reference loop (which warns-and-skips a
+   zero then asserts on a negative in order) instead of a pre-emptive vectorised
+   assert.
+Regression tests seed off-bias / nonzero carried state (bit-exact
+`np.array_equal`); `TestKernelMatchesReferenceEndToEnd` pins a full 2-section
+4-turn run kernel-vs-python byte-for-byte. REFUTED by the review: float32-grid
+NEP-50 (unreachable), hard-kick post-raise state (simulation aborts), the
+test-coverage observations (gaps, since covered).
+
 ### 2.3 P2 — PI reverse-span frame fix
 The controller is stepped only on the real forward passage
 (`if self._controller_active and not no_beam`), never on the reverse
@@ -250,6 +275,37 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
   `\Omega` fixed on both shunt docstrings. Swept: `sources.py`, `solvers.py`
   (incl. the MultiPole guard message), 4 test files, feedback RST.
 
+### 2.10 LHC blond2-comparison suite — speed refactor (pinned references)
+
+`unittests/physics/feedbacks/accelerators/lhc/comparison_with_blond2/`
+(reviewed physics + structure + speed; suite was 806.5 s / 13.4 min):
+
+- **All 5 test classes now load pinned blond2 references** via
+  `support.blond2_reference(name, builder)`: the frozen-legacy half runs
+  once, its outputs are stored losslessly in
+  `resources/<name>_blond2_reference.npz` and loaded on later runs.
+  Regenerate with `BLOND_REGEN_BLOND2_REFERENCE=1` (env var). Every
+  compared value and tolerance is unchanged; blond3 sides byte-identical
+  except the two approved physics fixes below.
+- blond2 closures became module-level `_run_blond2()` builders; dead code
+  removed (tqdm/matplotlib/DEBUG blocks, never-asserted captures, the
+  full-machine `imped_calc` block, a double `generator_power()` call);
+  `pytestmark = backend_mutation` added where the backend is switched.
+- **Physics fixes (both strictly tighten):** phase_error blond3
+  commissioning now passes `open_tuner=True` (matches blond2's frozen
+  tuner — it silently diverged before); the transfer-function suite's
+  three phase assertions were vacuous (`atol=7` > 2π, chosen to survive
+  ±π branch cuts) → replaced by wrapped-difference
+  `angle(H3·conj(H2))` checks calibrated at 1e-2 / 1e-5 / 7e-1 rad
+  (measured 3.9e-3 / 1.5e-6 / 5.8e-1). Also: vacuous rf-power angle
+  assert deleted (power is real-positive both sides), full-machine
+  set-point imag → exact-zero invariant on both sides, full-machine
+  circularity (blond3 injects blond2's histogram) documented in the
+  class docstring.
+- Deliberately **skipped**: shrinking full_machine's dummy
+  `_dE/_flags/_ids` arrays (`n_macroparticles_partial` reads
+  `_dE.local_size`; risk not worth ~2 GB RAM).
+
 ---
 
 ## 3. Open items / flagged (NOT done — need decisions)
@@ -284,13 +340,31 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
   otherwise. `_check_two_beam_profile_placement` in
   `blond/core/simulation/execution_models/conterrotating_beams.py`, tests in
   `test_simulation.py::TestTwoBeamProfilePlacementCheck`.
-- **`delta_omega_rf` lab-frame demod slip** (characterized, not fixed): fix =
-  anchor the demod carrier to accumulated ∫ω dt (reuse the kick-side slip
-  bookkeeping), gated on `delta_omega_rf ≠ 0` so LHC is untouched. Effort
-  ~0.5–1 day: the code change is small; validation dominates (T5 differential
-  rework, larger-offset multi-turn tests, turn-0 application convention,
-  substepping/multi-section interplay — the demod-frame area is historically
-  delicate).
+- ~~`delta_omega_rf` lab-frame demod slip~~ **RESOLVED (2026-07-22, task
+  9)**: redesigned — the coarse-grid geometry is fully on the *design* RF
+  clock (`forward_tracking_omega_rf` design-only; no detuned spacing; the
+  former `phase_offset_frwrd`/`_next` slip attributes are removed entirely,
+  and BOTH the forward and reverse paths seed at the constant `t_rf / 2` —
+  the `phi_rf` parameter of `_generate_rf_centers` and the
+  `_get_time_to_next_rising_edge_zero` helper are deleted, resolving the
+  reverse path's per-segment-phase TODO; the multi-section 2e3 rad/s
+  offset run is measured IDENTICAL to the δω=0 baseline per turn), and
+  the offset enters only as explicit phases: the demod carrier
+  `forward_carrier_omega_rf` (+δω, window-local) and the accumulated slip
+  `−(parent.delta_phi_rf + live gap)` on the demodulation with the same
+  total re-applied at readout (station clock via `phi_rf`, live gap added
+  to `phase_correction`). The live gap `δω·(t_now −
+  station._last_reference_time_phase_slip)` compensates the kick clock's
+  end-of-track lag (blond2 convention, untouchable). Measured: net
+  carrier-phase error vs the retuning convolution ≤ 2e-5 rad/turn at 8e2
+  and 2e3 rad/s (was ~2 %/turn per 1e3 rad/s). Four tests
+  (`test_multiturn_delta_omega_rf_{large_offset_consistency,differential,
+  substepped,multisection}`), mutation-verified; grid geometry tests
+  updated to design-clock expectations; docs (design RST + test inventory)
+  updated. Diagnosis was empirical: a per-turn linear-response solve over
+  free demod phases proved the residual error was a whole-envelope readout
+  frame drift from the slipping grid, not a per-deposit demod error —
+  hence the geometry redesign rather than a phase patch.
 - `experimental/physics/feedbacks/helpers.py` still uses raw charge —
   **confirmed intended**: its `rf_beam_current` copy is consumed only inside
   `blond/experimental/physics/feedbacks/` (the old LHC/SPS feedbacks); nothing
@@ -304,6 +378,21 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
 - The extracted mixins (`RFCenterGridMixin`, `GeneratorRegulationMixin`) are
   pure moves (methods still use `self`); promoting them to composed collaborators
   is the natural follow-up.
+- **LHC-suite npz references vs the large-files hook** (user decision): the
+  five pinned `resources/*_blond2_reference.npz` total ~61 MB and three
+  exceed pre-commit's `check-added-large-files --maxkb=5000`
+  (transfer_function 10.8, full_machine 15.1, phase_error 30.4 MB).
+  Options: git-lfs, raise `maxkb`, or don't commit the large ones — the
+  loader self-heals by regenerating on first run (at the old one-time
+  cost per machine).
+- **LHC suite CI visibility** (user decision): `pyproject.toml`
+  `testpaths = ["tests/unittests", "tests/integration"]` means CI never
+  collects the repo-root `unittests/` tree (LHC + mucol suites). With
+  pinning the LHC suite is now cheap enough to consider moving under
+  `tests/unittests/` (behind a marker) or adding a dedicated CI job.
+- **pytest-xdist** for the comparison directory (follow-up, after the CI
+  decision): with blond2 pinned, `-n auto --dist loadscope` would run the
+  five classes' blond3 sides in parallel processes.
 
 ---
 

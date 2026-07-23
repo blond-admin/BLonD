@@ -567,13 +567,31 @@ voltage. Uses a high ``Q_L = 1.29e6`` so the previous-pass wake survives
     collapses this to ~0 and fails, which a plain per-turn gate cannot catch
     (with the offset ignored the reference-subtracted voltage still sits at the
     baseline, ~88 % of the 2 % gate, and passes); (2) the small offset still
-    tracks the retuning convolution to the 2 % gate. **Known limitation:**
-    ``delta_omega_rf`` (a lab-frame carrier slip growing with absolute time) and
-    the convolution's ``delta_f`` (a resonator retuning) are different
-    conventions -- the offset-induced *change* disagrees by tens of percent by
-    turn 2, so the offset is kept small (~8e2 rad/s) and this is a beam-path
-    regression guard, not a tight cross-validation (that lives in the LHC
-    suite).
+    tracks the retuning convolution to the 2 % gate.
+``test_multiturn_delta_omega_rf_large_offset_consistency``
+    A 2e3 rad/s offset (past half the cavity half-bandwidth) tracks the
+    retuning convolution to the 2 % per-turn gate. Before the demodulation
+    carrier was anchored to the accumulated actual RF phase this failed
+    within two turns (the former lab-frame slip grew by
+    ``delta_omega_rf * t_rev``, ~4 % vector error, per turn); anchored, the
+    residual sits at the discretization floor (measured net carrier-phase
+    error <= 2e-5 rad per turn, offset-independent).
+``test_multiturn_delta_omega_rf_differential``
+    Difference-of-differences at the small offset: the offset-induced move
+    ``fb(offset) - fb(no offset)`` matches the convolution's move to
+    < 0.5 % of ``|V|`` per turn (the baseline discretization error cancels
+    in each difference, isolating the offset chain). Unanchored, the
+    spurious move was 0.9-1.7 % of ``|V|``.
+``test_multiturn_delta_omega_rf_substepped``
+    The large offset also holds on the sub-stepped grid (n = 0.5): tiling
+    residual carry-over and the tiling-gap demodulation frame compose with
+    the carrier anchoring.
+``test_multiturn_delta_omega_rf_multisection``
+    The large offset also holds with two RF stations: reverse-tracked
+    segments, per-station kick clocks and the multi-section frame
+    correction stay consistent with the carrier anchoring. All four
+    offset tests are mutation-verified (flipping the anchor sign fails
+    every one).
 ``test_multiturn_secular_drift_long_horizon``
     Long-horizon guard for the shorter consistency tests: the most drift-prone
     case (2 sections, fast undriven) run for 20 turns has a bounded per-turn

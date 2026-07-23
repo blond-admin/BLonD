@@ -84,11 +84,12 @@ Each turn the timing class performs, in order:
 1. **Coarse-grid construction** (``rf_centers``). The feedback tracks a copy
    of the beam reference forward to the next RF station and, on later turns,
    re-derives the segments that elapsed since its last update (reverse
-   tracking). Each segment carries the RF frequency it was tracked with
-   (design frequency at the local reference energy plus the station's
-   frequency offset ``delta_omega_rf``), so the coarse-step spacing follows
-   the detuned RF period even under acceleration and with several stations
-   per ring.
+   tracking). Each segment carries the *design* RF frequency it was tracked
+   with (at the local reference energy), so the coarse-step spacing follows
+   the design RF period even under acceleration and with several stations
+   per ring. A station RF-frequency offset ``delta_omega_rf`` never moves
+   the grid: it enters only as explicit phases (the demodulation carrier
+   and the accumulated kick-clock slip, see below).
 
 2. **Beam-current demodulation.**
    :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` converts the beam
@@ -161,9 +162,18 @@ Two distinct frequency knobs exist and must not be confused:
 
 ``delta_omega_rf`` (RF station attribute)
     The station's *RF frequency* offset added on top of the design frequency.
-    The coarse grid follows it, and the station integrates the resulting RF
-    phase slip exactly from the elapsed reference time
-    (``delta_omega_rf * dt``, accumulated at the end of each station track).
+    The station integrates the resulting RF phase slip exactly from the
+    elapsed reference time (``delta_omega_rf * dt``, accumulated at the end
+    of each station track). The timing class demodulates the beam current
+    onto the actual RF carrier -- the offset carrier within the profile
+    window plus the accumulated slip (the station's kick clock
+    ``delta_phi_rf`` and its live end-of-track tail) -- and the readout
+    applies the identical total (the clock via ``phi_rf``, the tail via
+    ``phase_correction``), so the demodulation/readout chain closes exactly
+    for every carried deposit; the coarse grid itself stays on the design
+    clock. Validated against the retuning convolution at the discretization
+    floor (``test_multiturn_delta_omega_rf_*``: large offset, differential,
+    sub-stepped, multi-section).
     Guards on the station enforce the supported use: in a ring with more than
     one RF station the offset cannot be changed during the run, and the
     slip bookkeeping only runs when a beam feedback (phase loop) exists in
@@ -249,12 +259,13 @@ Known limitations
   beam charge lands in the first coarse cell and ``rf_beam_current`` raises
   before any voltage is produced (marked as an expected failure in the
   multi-turn comparison suite).
-* ``delta_omega_rf != 0`` is exact for the slip bookkeeping, but the
-  demodulation acquires a lab-frame phase slip that grows with the absolute
-  reference time (~1 % per turn per 1e3 rad/s in the comparison
-  configuration); large offsets over many turns degrade the agreement with
-  the retuned convolution. In a ring with more than one RF station the
-  offset cannot be changed during the run (the station raises).
+* In a ring with more than one RF station the ``delta_omega_rf`` offset
+  cannot be changed during the run (the station raises). The former
+  lab-frame demodulation slip under an offset (an error growing with the
+  absolute reference time) is fixed: the demodulation carrier is anchored
+  to the accumulated actual RF phase and validated at the discretization
+  floor for offsets beyond the cavity half-bandwidth
+  (``test_multiturn_delta_omega_rf_*``).
 * Driven (generator-bias) multi-section fast-ramp operation carries a
   bounded frame slip between the constant-phase bias and the slipping
   segment frame (percent-level ``|V_ant|`` drift over a few turns); it
