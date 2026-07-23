@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import warnings
 from abc import ABC, abstractmethod
@@ -30,11 +31,14 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
-ALL_BACKENDS: dict[str, BackendBaseClass] = {}
-AVAILABLE_BACKENDS: dict[str, BackendBaseClass] = {}
+ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
+# `AVAILABLE_BACKENDS` is provided lazily via the module-level
+# `__getattr__` below; see `_probe_available_backends`.
 
 
 def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
@@ -366,6 +370,55 @@ class Specials(ABC):
             "The backend for `wake_from_pole_residue` is missing."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: NumpyArray | CupyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        r"""
+        Apply synchrotron radiation and quantum excitation energy kicks.
+
+        Updates ``beam_dE`` in place with
+
+        .. math::
+
+            \Delta E \mapsto \left(1 - \frac{2}{\tau}\right)\,\Delta E
+                            - U_0
+                            + 2 \sigma_\delta \frac{E_0}{\sqrt{\tau}}\,
+                              \mathcal{N}(0, 1)
+
+        where the gaussian noise term is omitted when
+        ``disable_quantum_excitation`` is ``True``.
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. Modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time of the considered synchrotron segment,
+            in [turn].
+        natural_energy_spread
+            Natural energy spread of the considered synchrotron segment,
+            [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+           Disables the quantum excitation kick.
+        """
+        raise NotImplementedError(
+            "Abstract method "
+            "`apply_synchrotron_radiation_and_quantum_excitation_energy_kick` "
+            "is not implemented."
+        )
+
 
 class _ModeSwitchHelper:
     """
@@ -522,8 +575,13 @@ class BackendBaseClass(ABC):
                 self.change_backend(new_backend=backend_)
                 self.set_specials(mode=mode_)
                 return
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "autoselect: `%s`/`%s` is not available: %r",
+                    backend_.__name__,
+                    mode_,
+                    exc,
+                )
 
     def change_backend(
         self,
@@ -583,17 +641,21 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'cpp_single_core',
+          'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can only be '64'
         """
-        _backend_mode_raw: str = os.environ.get(
-            "BLOND_BACKEND_MODE",
-            DEFAULT_BACKEND,  # default
-        ).lower()
-        if _backend_mode_raw != "numba":
+        _backend_mode_env = os.environ.get("BLOND_BACKEND_MODE")
+        if _backend_mode_env is not None:
             print(
-                f"Using environment variable BLOND_BACKEND_MODE = {_backend_mode_raw}"
+                f"Using environment variable "
+                f"BLOND_BACKEND_MODE = {_backend_mode_env}"
             )
+        _backend_mode_raw: str = (
+            _backend_mode_env
+            if _backend_mode_env is not None
+            else DEFAULT_BACKEND
+        ).lower()
         _allowed_backend_modes = (
             "python",
             "cpp",
@@ -611,7 +673,7 @@ class BackendBaseClass(ABC):
             ] = _backend_mode_raw  # type: ignore
         else:
             raise ValueError(
-                f"The environment variable `BLOND_BACKEND` "
+                f"The environment variable `BLOND_BACKEND_MODE` "
                 f"was set to '{_backend_mode_raw}', but can only be one "
                 f"of {_allowed_backend_modes}."
             )
@@ -1057,18 +1119,55 @@ class Cupy64Bit(CupyBackend):
         )
 
 
+def _probe_available_backends() -> dict[str, type[BackendBaseClass]]:
+    """
+    Probe which of the registered backends can be instantiated.
+
+    Returns
+    -------
+    available_backends
+        Mapping from backend name to backend class.
+    """
+    available: dict[str, type[BackendBaseClass]] = {}
+    for k, v in ALL_BACKENDS.items():
+        try:
+            v()
+        # Skip on any exception, we only care that it's not available.
+        except Exception as exc:  # pragma: no cover
+            logger.debug("Backend `%s` is not available: %r", k, exc)
+        else:
+            available[k] = v
+    return available
+
+
+def __getattr__(name: str):
+    """
+    Provide lazy module attributes (PEP 562).
+
+    Probing `AVAILABLE_BACKENDS` instantiates every registered backend,
+    which for CUDA queries the GPU and may even trigger a compilation.
+    This must not happen as a side effect of importing this module.
+
+    Parameters
+    ----------
+    name
+        Name of the requested module attribute.
+
+    Returns
+    -------
+    attribute
+        The lazily created module attribute.
+    """
+    if name == "AVAILABLE_BACKENDS":
+        available = _probe_available_backends()
+        globals()["AVAILABLE_BACKENDS"] = available
+        return available
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 default = Numpy64Bit  # use .change_backend(...) to change it anywhere
 backend: Numpy64Bit | Cupy64Bit = default()
-backend.verbose = True
 backend.apply_environment_variables()
-
-
-for k, v in ALL_BACKENDS.items():
-    try:
-        v()
-    # Skip on any exception, we only care that it's not available,
-    # we don't care why.
-    except Exception:  # pragma: no cover
-        pass
-    else:
-        AVAILABLE_BACKENDS[k] = v
+# verbose only after the initial setup, so that importing blond stays
+# quiet, but later backend changes are reported to the user
+backend.verbose = True

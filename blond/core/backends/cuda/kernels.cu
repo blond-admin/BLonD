@@ -415,6 +415,68 @@ __global__ void loss_box(
         }
 }
 
+// =================================================================
+// Synchrotron-radiation + quantum-excitation energy kick
+//
+// Fused: beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
+//                   + noise_scale * N(0, 1)
+//
+// The Gaussian noise is drawn with NVIDIA's cuRAND device library
+// (curand_kernel.h) so we do not maintain (or have to justify) a
+// hand-rolled PRNG. Each thread keeps its own cuRAND state, seeded
+// from a call-unique `base_seed` with the global thread index as the
+// cuRAND subsequence, giving every thread on every launch an
+// independent, well-decorrelated stream.
+// =================================================================
+
+#include <curand_kernel.h>
+
+// N(0, 1) draw at the backend's real_t precision.
+__device__ __forceinline__ real_t
+curand_standard_normal(curandStatePhilox4_32_10_t* state) {
+#ifdef USEFLOAT
+    return curand_normal(state);
+#else
+    return curand_normal_double(state);
+#endif
+}
+
+extern "C" __global__ void apply_sr_without_quantum_excitation(
+    real_t * __restrict__ beam_dE,
+    const real_t damping_factor,
+    const real_t energy_lost,
+    const int n_macroparticles
+) {
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int i = tid; i < n_macroparticles; i += stride) {
+        beam_dE[i] = damping_factor * beam_dE[i] - energy_lost;
+    }
+}
+
+extern "C" __global__ void apply_sr_with_quantum_excitation(
+    real_t * __restrict__ beam_dE,
+    const real_t damping_factor,
+    const real_t energy_lost,
+    const real_t noise_scale,
+    const unsigned long long base_seed,
+    const int n_macroparticles
+) {
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    // One cuRAND state per thread. `base_seed` is unique per launch and
+    // `tid` selects the cuRAND subsequence, so the streams are independent
+    // across threads and across launches.
+    curandStatePhilox4_32_10_t state;
+    curand_init(base_seed, tid, 0, &state);
+
+    for (int i = tid; i < n_macroparticles; i += stride) {
+        beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
+                   + noise_scale * curand_standard_normal(&state);
+    }
+}
+
 extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
                                        const real_t *__restrict__ beam_dE,
                                        const real_t T, const real_t alpha_zero,

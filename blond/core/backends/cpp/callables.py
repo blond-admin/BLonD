@@ -52,7 +52,7 @@ def c_real_t(
 
 def reload_cpp_backend(  # NOQA: PLR0915
     floattype: type[np.float64], parallel: bool = True
-) -> CppSpecials:
+) -> type[Specials]:
     """
     Load and link the according C++ backend.
 
@@ -505,6 +505,43 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
+        def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+            beam_dE: NumpyArray,
+            energy_lost: float,
+            longitudinal_damping_time: float,
+            natural_energy_spread: float,
+            total_energy: float,
+            disable_quantum_excitation: bool = False,
+        ) -> None:
+            assert beam_dE.dtype == floattype
+            assert beam_dE.flags.c_contiguous
+
+            damping_factor = floattype(1.0 - 2.0 / longitudinal_damping_time)
+            energy_lost_typed = floattype(energy_lost)
+
+            if disable_quantum_excitation:
+                _LIBBLOND.apply_synchrotron_radiation_no_excitation(
+                    _getPointer(beam_dE),
+                    c_real(damping_factor, floattype),
+                    c_real(energy_lost_typed, floattype),
+                    _getLen(beam_dE),
+                )
+            else:
+                noise_scale = floattype(
+                    2.0
+                    * natural_energy_spread
+                    / np.sqrt(longitudinal_damping_time)
+                    * total_energy
+                )
+                _LIBBLOND.apply_synchrotron_radiation_and_quantum_excitation(
+                    _getPointer(beam_dE),
+                    c_real(damping_factor, floattype),
+                    c_real(energy_lost_typed, floattype),
+                    c_real(noise_scale, floattype),
+                    _getLen(beam_dE),
+                )
+
+        @staticmethod
         def move_flagged_elements_to_end(
             flag: int,
             flags: NumpyArray,  # also purged
@@ -693,4 +730,30 @@ def reload_cpp_backend(  # NOQA: PLR0915
     return CppSpecials
 
 
-CppSpecials = reload_cpp_backend(backend.float)
+def __getattr__(name: str):
+    """
+    Provide `CppSpecials` lazily (PEP 562).
+
+    Building `CppSpecials` loads (and potentially compiles) the C++
+    library, which must not happen as a side effect of importing this
+    module; `set_specials("cpp")` builds it via `reload_cpp_backend`
+    anyway.
+
+    Parameters
+    ----------
+    name
+        Name of the requested module attribute.
+
+    Returns
+    -------
+    attribute
+        The lazily created module attribute.
+    """
+    if name == "CppSpecials":
+        cpp_specials = reload_cpp_backend(
+            floattype=backend.float,
+            parallel=True,
+        )
+        globals()["CppSpecials"] = cpp_specials
+        return cpp_specials
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

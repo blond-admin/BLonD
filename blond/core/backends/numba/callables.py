@@ -233,6 +233,48 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
 )
 _lost = BeamFlags.LOST.value
 
+sig_apply_sr_without_quantum_excitation = void(sig_dE, nb_f, nb_f)
+sig_apply_sr_with_quantum_excitation = void(sig_dE, nb_f, nb_f, nb_f)
+
+
+@njit(
+    sig_apply_sr_without_quantum_excitation,
+    parallel=True,
+    fastmath=True,
+    cache=False,
+)
+def _apply_sr_without_quantum_excitation(  # pragma: no cover
+    beam_dE: NumpyArray,
+    damping_factor: float,
+    energy_lost: float,
+) -> None:
+    for i in prange(len(beam_dE)):
+        beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
+
+
+@njit(
+    sig_apply_sr_with_quantum_excitation,
+    parallel=True,
+    fastmath=True,
+    cache=False,
+)
+def _apply_sr_with_quantum_excitation(  # pragma: no cover
+    beam_dE: NumpyArray,
+    damping_factor: float,
+    energy_lost: float,
+    noise_scale: float,
+) -> None:
+    # `np.random.standard_normal()` inside a `prange` is intercepted by
+    # numba and uses its parallel-aware PRNG (one stream per thread, no
+    # allocation). Switching to `np.random.Generator` would bypass that
+    # interception, so we keep the legacy API here.
+    for i in prange(len(beam_dE)):
+        beam_dE[i] = (
+            damping_factor * beam_dE[i]
+            - energy_lost
+            + noise_scale * np.random.standard_normal()  # NOQA: NPY002
+        )
+
 
 class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     @staticmethod
@@ -809,3 +851,29 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
         voltage[:] = np.sum(voltage_threaded, axis=0)
         states[-1] = profile_dts[-1]
+
+    @staticmethod
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(  # NOQA: D102
+        beam_dE: NumpyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        damping_factor = FLOAT(1.0 - 2.0 / longitudinal_damping_time)
+        energy_lost_typed = FLOAT(energy_lost)
+        if disable_quantum_excitation:
+            _apply_sr_without_quantum_excitation(
+                beam_dE, damping_factor, energy_lost_typed
+            )
+        else:
+            noise_scale = FLOAT(
+                2.0
+                * natural_energy_spread
+                / np.sqrt(longitudinal_damping_time)
+                * total_energy
+            )
+            _apply_sr_with_quantum_excitation(
+                beam_dE, damping_factor, energy_lost_typed, noise_scale
+            )

@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Matching with filamentation tracking."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -32,33 +34,33 @@ class FilamentationMatcher(MatchingRoutine):
 
     Parameters
     ----------
-    time_limit : tuple[float, float]
+    time_limit
         Lower and upper limits for the time coordinate, in [s].
         The user should adjust this until they find their matched bunch, they
         can inspect using the animate flag.
-    energy_limit : tuple[float, float]
+    energy_limit
         Lower and upper limits for the energy deviation, in [eV].
         The user should adjust this until they find their matched bunch, they
         can inspect using the animate flag.
-    n_macroparticles : int
+    n_macroparticles
         Number of macroparticles used to initialize the beam.
-    n_iter : int
+    n_iter
         Number of simulation iterations to perform.
-    animate: bool
+    animate
         Whether or not to display the simulation animation.
-    animate_pause_time: float
+    animate_pause_time
         Time to pause the simulation animation, default 0.1, in [s].
-    every_iter_to_plot : int, optional
+    every_iter_to_plot
         A snapshot of the beam is
         produced every ``n_iter / every_iter_to_plot`` iterations.
         Default is ``10``.
-    purge : bool, optional
+    purge
         If ``True``, macroparticles outside user-defined phase-space limits
         are removed during the matching process. Default is ``False``.
-    purge_limit_time : tuple[float, float], optional
+    purge_limit_time
         Lower and upper bounds in time, in [s]. Used to purge particles when
         ``purge=True``. If ``None``, no time-based purging is applied.
-    purge_limit_energy : tuple[float, float], optional
+    purge_limit_energy
         Lower and upper bounds in energy deviation, in [eV]. Used to purge
         particles when ``purge=True``. If ``None``, no energy-based purging
         is applied.
@@ -74,9 +76,8 @@ class FilamentationMatcher(MatchingRoutine):
     When ``purge=True``, macroparticles outside the specified phase-space
     limits are permanently removed. This reduces the number of macroparticles.
 
-    Example
-    -------
-
+    Examples
+    --------
     >>> from blond import (
     ...     Beam,
     ...     ConstantMagneticCycle,
@@ -86,7 +87,7 @@ class FilamentationMatcher(MatchingRoutine):
     ...     SingleHarmonicRFStation,
     ...     proton,
     ... )
-    >>> from blond.experimental.beam_preparation.filamentation_matcher import (
+    >>> from blond.beam_preparation.filamentation_matcher import (
     ...     FilamentationMatcher,
     ... )
     >>> from blond.handle_results.observables_as_elements import (
@@ -208,9 +209,9 @@ class FilamentationMatcher(MatchingRoutine):
 
         Parameters
         ----------
-        simulation : Simulation
+        simulation
             Simulation object used to track the beam.
-        beam : BeamBaseClass
+        beam
             Beam instance to be initialized and matched.
         """
         from blond import BoxLosses, backend
@@ -275,6 +276,7 @@ class FilamentationMatcher(MatchingRoutine):
             # --------------------------------------------------
         for i in range(self.n_iter):
             sim_copy = deepcopy(simulation)
+            sim_copy.turn_i.value = 0
             sim_copy.run_simulation(
                 beams=[beam], n_turns=1, show_progressbar=False
             )
