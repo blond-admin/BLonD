@@ -895,8 +895,8 @@ class TestBaseCoarseGridSizing(unittest.TestCase):
                 simulation=Mock(), beam=Mock(), n_turns=1
             )
 
-        self.assertIsInstance(feedback.n_samples_coarse, int)
-        self.assertEqual(feedback.n_samples_coarse, 200)
+        self.assertIsInstance(feedback._n_samples_coarse, int)
+        self.assertEqual(feedback._n_samples_coarse, 200)
         self.assertEqual(len(feedback.antenna_voltage_coarse_grid), 200)
         self.assertEqual(len(feedback.generator_current_coarse_grid), 200)
 

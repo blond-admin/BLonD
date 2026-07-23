@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Beam, Simulation
+    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.feedbacks.generator_current_controller import (
         GeneratorCurrentController,
@@ -147,9 +147,10 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
                 stacklevel=2,
             )
         self.n_rf_periods_per_coarse_grid = n_rf_periods_per_coarse_grid
+        # TODO: what is the difference to the next one?
 
         # Update the coarse grid sampling
-        self.n_samples_coarse: int | None = None
+        self._n_samples_coarse: int | None = None
 
         self.beam_current_forward_coarse_grid: NumpyArray | None = None
         self.beam_current_fine_grid: NumpyArray | None = None
@@ -191,24 +192,24 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         # (floor), consistent with the arange-based rf_centers of the timing
         # subclass. int() is required because np.zeros() below rejects a float
         # length on numpy >= 2.
-        self.n_samples_coarse = int(
+        self._n_samples_coarse = int(
             np.floor(self.t_rev / self.sampling_time_coarse)
         )
 
         self.beam_current_forward_coarse_grid = np.zeros(
-            self.n_samples_coarse, dtype=complex
+            self._n_samples_coarse, dtype=complex
         )
         self.beam_current_fine_grid = np.zeros(
             self.profile.n_bins, dtype=complex
         )
         self.antenna_voltage_coarse_grid = np.zeros(
-            self.n_samples_coarse, dtype=complex
+            self._n_samples_coarse, dtype=complex
         )
         self.antenna_voltage_fine_grid = np.zeros(
             self.profile.n_bins, dtype=complex
         )
         self.generator_current_coarse_grid = np.zeros(
-            self.n_samples_coarse, dtype=complex
+            self._n_samples_coarse, dtype=complex
         )
         self.generator_current_fine_grid = np.zeros(
             self.profile.n_bins, dtype=complex
@@ -282,7 +283,7 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         """
         pass
 
-    def track_no_beam(self, n_pretrack: int | None = 1) -> None:
+    def track_no_beam(self, n_pretrack: int = 1) -> None:
         r"""
         Tracking method of the cavity feedback without beam in the accelerator.
 
@@ -385,7 +386,25 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
             0,
         )
 
-        return V_set * np.ones(self.n_samples_coarse)
+        return V_set * np.ones(self._n_samples_coarse)
+
+    @property
+    def n_samples_coarse(self) -> int | None:
+        """
+        Number of complete coarse-grid cells per revolution.
+
+        Read-only view of the private ``_n_samples_coarse`` set in
+        :meth:`on_run_simulation`; ``None`` before the simulation starts.
+        Exposed for observers such as
+        :class:`~blond.handle_results.observables.IQCavityFeedbackObservation`.
+
+        Returns
+        -------
+        n_samples_coarse
+            Number of coarse-grid samples per turn, or ``None`` if the
+            feedback has not been initialised yet.
+        """
+        return self._n_samples_coarse
 
     @property
     def harmonic(self) -> float:
@@ -751,6 +770,8 @@ class IQCavityFeedbackTimingClass(
         self._rf_centers_lengths = np.zeros(0, dtype=int)
         self._residual_time_last_rf_centers_calculation = 0
 
+        self._ring_circumference: float | None = None
+
         self._reference_altering_elements: (
             tuple[AltersReference, ...] | None
         ) = None
@@ -971,6 +992,8 @@ class IQCavityFeedbackTimingClass(
         self._reference_altering_elements = (
             simulation.ring.elements.get_elements(AltersReference)
         )
+
+        self._ring_circumference = simulation.ring.circumference
         # Number of RF stations in the ring. The multi-section frame
         # correction in _track only applies with more than one, since it
         # compensates the *other* stations' mid-turn grid re-seeding; a
@@ -1034,7 +1057,7 @@ class IQCavityFeedbackTimingClass(
         no_beam
             No beam in this segment.
         start_index
-            Index of self.rf_centers at which to start computing the response.
+            Index of self._rf_centers at which to start computing the response.
         end_index
             Index of rf_centers until which to compute the response.
         """
@@ -1054,27 +1077,27 @@ class IQCavityFeedbackTimingClass(
             # last entry is forward length
             # TODO: check this, might be wrong
             # antenna_voltage_init = interp1d(
-            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
+            #     self._rf_centers[-self._rf_centers_lengths[-1] :],
             #     self.antenna_voltage_coarse_grid[
-            #         -self.rf_centers_lengths[-1] :
+            #         -self._rf_centers_lengths[-1] :
             #     ],
             # )(
             #     init_beam_time
             # )  # This is already interpolated between 0 and 100%
             antenna_voltage_init = self.antenna_voltage_coarse_grid[
-                -self.rf_centers_lengths[-1] :
+                -self._rf_centers_lengths[-1] :
             ][0]
             # generator_current_init = interp1d(
-            #     self.rf_centers[-self.rf_centers_lengths[-1] :],
+            #     self._rf_centers[-self._rf_centers_lengths[-1] :],
             #     self.generator_current_coarse_grid[
-            #         -self.rf_centers_lengths[-1] :
+            #         -self._rf_centers_lengths[-1] :
             #     ],
             # )(
             #     init_beam_time
             # )  # TODO: this should also be before the bunch arrival time and not interpolated
 
             generator_current_init = self.generator_current_coarse_grid[
-                -self.rf_centers_lengths[-1] :
+                -self._rf_centers_lengths[-1] :
             ][0]
 
             samples_per_rf_fine_grid = omega_input * self.profile.hist_step
@@ -1082,9 +1105,9 @@ class IQCavityFeedbackTimingClass(
             # (scipy), so a GPU-backend profile grid must be brought to host.
             self.generator_current_fine_grid = np.interp(
                 copy_to_cpu(self.profile.hist_x),
-                self.rf_centers[-self.rf_centers_lengths[-1] :],
+                self._rf_centers[-self._rf_centers_lengths[-1] :],
                 self.generator_current_coarse_grid[
-                    -self.rf_centers_lengths[-1] :
+                    -self._rf_centers_lengths[-1] :
                 ],
             )
 
@@ -1257,11 +1280,11 @@ class IQCavityFeedbackTimingClass(
         if n_cells > 1:
             # Bulk cells: consecutive rf_centers differences (== the reference
             # ``else`` branch), bit-identical to the scalar subtraction.
-            delta_t[1:] = np.diff(self.rf_centers[start_index:end_index])
+            delta_t[1:] = np.diff(self._rf_centers[start_index:end_index])
         if start_index == 0:
-            if self.last_rf_centers_entry is None:
+            if self._last_rf_centers_entry is None:
                 if start_index + 1 < end_index:
-                    delta_t[0] = self.rf_centers[1] - self.rf_centers[0]
+                    delta_t[0] = self._rf_centers[1] - self._rf_centers[0]
                 else:
                     delta_t[0] = (
                         self.n_rf_periods_per_coarse_grid
@@ -1271,13 +1294,13 @@ class IQCavityFeedbackTimingClass(
                     )
             else:
                 delta_t[0] = (
-                    self.rf_centers[0]
-                    + self.residual_time_last_rf_centers_calculation
+                    self._rf_centers[0]
+                    + self._residual_time_last_rf_centers_calculation
                 )
         else:
             delta_t[0] = (
-                self.rf_centers[start_index]
-                + self.residual_time_last_rf_centers_calculation
+                self._rf_centers[start_index]
+                + self._residual_time_last_rf_centers_calculation
             )
         rf_period = 2 * np.pi / omega_input
         tiny_negative = (delta_t > -1e-9 * rf_period) & (delta_t < 0)
@@ -1342,8 +1365,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
 
         if start_index == 0:
-            voltage_init = complex(self.last_val_ant_voltage)
-            generator_current_init = complex(self.last_val_generator_current)
+            voltage_init = complex(self._last_val_ant_voltage)
+            generator_current_init = complex(self._last_val_generator_current)
         else:
             voltage_init = self.antenna_voltage_coarse_grid[start_index - 1]
             generator_current_init = self.generator_current_coarse_grid[
@@ -1456,7 +1479,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             -0.5 * omega_times_dt / self.Q_L
             + 1j * relative_detuning * omega_times_dt
         )
-        if self.exponential_coarse_solver:
+        if self._exponential_coarse_solver_flag:
             voltage_multiplier = np.exp(step_exponent)
             # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
             # well defined.
@@ -1504,10 +1527,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         if start_index == 0:
             # Carried index 0 uses last_val_beam_current unconditionally --
             # cavity_response's idx==0 branch has no no_beam guard.
-            beam_current[0] = self.last_val_beam_current
+            beam_current[0] = self._last_val_beam_current
         if no_beam:
             return beam_current
-        forward_offset = len(self.rf_centers) - self.rf_centers_lengths[-1]
+        forward_offset = len(self._rf_centers) - self._rf_centers_lengths[-1]
         global_indices = np.arange(start_index, end_index)
         local_start = 1 if start_index == 0 else 0
         beam_current[local_start:] = self.beam_current_forward_coarse_grid[
@@ -1917,7 +1940,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             * self._generator_current_bias
         )
 
-    def _track(self, beam: Beam) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Track the feedback for one turn.
 

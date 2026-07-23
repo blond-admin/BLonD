@@ -72,7 +72,7 @@ def _make_feedback(
         generator_current_bias=BIAS,
         n_cavities=1,
         delta_omega=delta_omega,
-        exponential_coarse_solver=exponential,
+        exponential_coarse_solver_flag=exponential,
         controller=controller,
         voltage_setpoint=voltage_setpoint,
     )
@@ -116,19 +116,19 @@ def _seed_single_segment(
         used even by a no-beam segment; defaults to zero.
     """
     dt = T_RF
-    feedback.rf_centers = np.arange(1, n + 1) * dt
-    feedback.rf_centers_lengths = np.array([n])
-    feedback.residual_time_last_rf_centers_calculation = 0.0
-    feedback.last_rf_centers_entry = None
+    feedback._rf_centers = np.arange(1, n + 1) * dt
+    feedback._rf_centers_lengths = np.array([n])
+    feedback._residual_time_last_rf_centers_calculation = 0.0
+    feedback._last_rf_centers_entry = None
     feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
     feedback.generator_current_coarse_grid = np.full(n, BIAS, dtype=complex)
-    feedback.last_val_ant_voltage = v_init
-    feedback.last_val_generator_current = (
+    feedback._last_val_ant_voltage = v_init
+    feedback._last_val_generator_current = (
         i_init
         if last_val_generator_current is None
         else last_val_generator_current
     )
-    feedback.last_val_beam_current = last_val_beam_current
+    feedback._last_val_beam_current = last_val_beam_current
     if beam is not None:
         feedback.beam_current_forward_coarse_grid = beam.astype(complex)
 
@@ -434,17 +434,17 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             use_kernel, controller=controller, voltage_setpoint=3.0e7 + 0.0j
         )
         dt = T_RF
-        feedback.rf_centers = np.arange(1, n + 1) * dt
-        feedback.rf_centers_lengths = np.array([n_rev, n_frwrd])
-        feedback.residual_time_last_rf_centers_calculation = 0.0
-        feedback.last_rf_centers_entry = None
+        feedback._rf_centers = np.arange(1, n + 1) * dt
+        feedback._rf_centers_lengths = np.array([n_rev, n_frwrd])
+        feedback._residual_time_last_rf_centers_calculation = 0.0
+        feedback._last_rf_centers_entry = None
         feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
         feedback.generator_current_coarse_grid = np.full(
             n, BIAS, dtype=complex
         )
-        feedback.last_val_ant_voltage = 3.0e7 + 1.0e6j
-        feedback.last_val_generator_current = last_val_generator_current
-        feedback.last_val_beam_current = last_val_beam_current
+        feedback._last_val_ant_voltage = 3.0e7 + 1.0e6j
+        feedback._last_val_generator_current = last_val_generator_current
+        feedback._last_val_beam_current = last_val_beam_current
         rng = np.random.default_rng(77)
         feedback.beam_current_forward_coarse_grid = (
             (rng.standard_normal(n_frwrd) + 1j * rng.standard_normal(n_frwrd))

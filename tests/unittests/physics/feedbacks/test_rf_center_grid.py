@@ -1369,7 +1369,7 @@ class TestIQCavityFeedbackTimingClass:
                 if idx >= n_sections // 2:
                     # second half, corot last
                     assert (
-                        fdbk.reference_index_until_tracked
+                        fdbk._reference_index_until_tracked
                         == (  # TODO: rework with proper printing
                             fdbk._own_index_in_reference_list + 3
                         )
@@ -1381,7 +1381,7 @@ class TestIQCavityFeedbackTimingClass:
                     ) % len(fdbk._reference_altering_elements)
                 else:
                     # first half --> counterrot last
-                    assert fdbk.reference_index_until_tracked == (
+                    assert fdbk._reference_index_until_tracked == (
                         fdbk._own_index_in_reference_list - 3
                     ) % len(fdbk._reference_altering_elements)
                     assert fdbk.reference_index_until_tracked_reverse == (

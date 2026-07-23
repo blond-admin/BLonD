@@ -40,14 +40,17 @@ from blond.physics.feedbacks.rf_center_segment import RFCenterSegment
 
 if TYPE_CHECKING:
     from blond.core.beam.base import BeamBaseClass
+    from blond.physics.feedbacks.cavity_feedback import (
+        IQCavityFeedbackTimingClass,
+    )
 
 
 class RFCenterGridMixin:
     """Coarse-grid (``rf_centers``) construction mixin (see module docstring)."""
 
     def _reference_list_for_direction(
-        self, is_counter_rotating: bool
-    ) -> tuple[AltersReference, ...]:
+        self: IQCavityFeedbackTimingClass, is_counter_rotating: bool
+    ) -> tuple[AltersReference, ...] | None:
         """
         Reference-altering element list for one beam direction.
 
@@ -70,12 +73,14 @@ class RFCenterGridMixin:
             otherwise ``reference_altering_elements``.
         """
         return (
-            self.reference_altering_elements_reverse
+            self._reference_altering_elements_reverse
             if is_counter_rotating
-            else self.reference_altering_elements
+            else self._reference_altering_elements
         )
 
-    def _own_index_for_direction(self, is_counter_rotating: bool) -> int:
+    def _own_index_for_direction(
+        self: IQCavityFeedbackTimingClass, is_counter_rotating: bool
+    ) -> int | None:
         """
         Return this feedback's index in the direction's reference list.
 
@@ -91,12 +96,14 @@ class RFCenterGridMixin:
             otherwise ``own_index_in_reference_list``.
         """
         return (
-            self.own_index_in_reference_list_reverse
+            self._own_index_in_reference_list_reverse
             if is_counter_rotating
-            else self.own_index_in_reference_list
+            else self._own_index_in_reference_list
         )
 
-    def get_passed_time_forward_direction(self, beam: BeamBaseClass):  # noqa: PLR0912
+    def get_passed_time_forward_direction(  # noqa: PLR0912
+        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+    ):
         """
         Determine the slice of elements, which should be tracked in the forward direction.
 
@@ -130,7 +137,9 @@ class RFCenterGridMixin:
                     el_ind + own_index_tracking
                     # This will be the next element
                 )
-                self._last_tracked_turn_frwrd = deepcopy(self.turn_i.value)
+                self._last_tracked_turn_frwrd = deepcopy(
+                    self._parent_rf_station._turn_counter.value
+                )
                 self._reference_turn_offset = -1
                 break
             element: AltersReference
@@ -154,11 +163,11 @@ class RFCenterGridMixin:
                         next_reference_altering_element_index = (
                             el_ind
                             + len(
-                                self.reference_altering_elements
+                                self._reference_altering_elements
                             )  # This will be the next element
                         )
                         self._last_tracked_turn_frwrd = deepcopy(
-                            self.turn_i.value + 1
+                            self._parent_rf_station._turn_counter.value + 1
                         )
                         self._reference_turn_offset = 0
                         break
@@ -180,7 +189,7 @@ class RFCenterGridMixin:
         # the retuning convolution).
         self._forward_tracking_omega_rf = (
             self._parent_rf_station.calc_omega_rf_design(
-                dummy_reference.beta, self.ring.circumference
+                dummy_reference.beta, self._ring_circumference
             )
         )
         # The demodulation carrier: the actual RF frequency (design plus the
@@ -212,30 +221,32 @@ class RFCenterGridMixin:
         self._last_tracked_beam_state_frwrd = beam.is_counter_rotating
         self._reference_state_until_tracked = dummy_reference
 
-        if self.debug:
+        if self._debug:
             if (
                 next_reference_altering_element_index == -1
                 or next_reference_altering_element_index
-                >= len(self.reference_altering_elements)
+                >= len(self._reference_altering_elements)
             ):
                 # either none were found or it is around two turns
                 self.current_slice_elements_forward = (
-                    self.reference_altering_elements[
-                        self.own_index_in_reference_list :
+                    self._reference_altering_elements[
+                        self._own_index_in_reference_list :
                     ]
                 )
                 self.current_slice_elements_forward += (
-                    self.reference_altering_elements[
+                    self._reference_altering_elements[
                         0 : next_reference_altering_element_index
-                        - len(self.reference_altering_elements)
+                        - len(self._reference_altering_elements)
                     ]
                 )
             else:  # element is in the same turn
-                self.current_slice_elements_forward = self.reference_altering_elements[
-                    self.own_index_in_reference_list : next_reference_altering_element_index
+                self.current_slice_elements_forward = self._reference_altering_elements[
+                    self._own_index_in_reference_list : next_reference_altering_element_index
                 ]
 
-    def get_time_omega_array_reverse_direction(self, beam: BeamBaseClass):  # noqa: PLR0912, PLR0915
+    def get_time_omega_array_reverse_direction(  # noqa: PLR0912, PLR0915
+        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+    ):
         """
         Determine the slice of elements, which should be tracked in the reverse direction.
 
@@ -252,9 +263,15 @@ class RFCenterGridMixin:
 
         found = False
 
-        if self.turn_i.value > self._last_tracked_turn_frwrd:
+        if (
+            self._parent_rf_station._turn_counter.value
+            > self._last_tracked_turn_frwrd
+        ):
             reference_turn_offset = -1
-        elif self.turn_i.value == self._last_tracked_turn_frwrd:
+        elif (
+            self._parent_rf_station._turn_counter.value
+            == self._last_tracked_turn_frwrd
+        ):
             reference_turn_offset = 0
         else:
             raise RuntimeError("Turn value not possible, was a turn skipped?")
@@ -268,7 +285,7 @@ class RFCenterGridMixin:
             start_index = (
                 self.reference_index_until_tracked_reverse
                 if self._last_tracked_beam_state_frwrd
-                else self.reference_index_until_tracked
+                else self._reference_index_until_tracked
             )
         else:
             # first turn, nothing has been tracked yet.
@@ -302,7 +319,7 @@ class RFCenterGridMixin:
             omega_list.append(
                 self._parent_rf_station.calc_omega_rf_design(
                     self._reference_state_until_tracked.beta,
-                    self.ring.circumference,
+                    self._ring_circumference,
                 )
             )
             time_list.append(self._reference_state_until_tracked.time)
@@ -326,7 +343,7 @@ class RFCenterGridMixin:
                 break
 
         until_index = self._own_index_for_direction(
-            reverse_tracking_list is self.reference_altering_elements_reverse
+            reverse_tracking_list is self._reference_altering_elements_reverse
         )
 
         if not found:
@@ -346,7 +363,7 @@ class RFCenterGridMixin:
                 omega_list.append(
                     self._parent_rf_station.calc_omega_rf_design(
                         self._reference_state_until_tracked.beta,
-                        self.ring.circumference,
+                        self._ring_circumference,
                     )
                 )
                 time_list.append(self._reference_state_until_tracked.time)
@@ -373,7 +390,7 @@ class RFCenterGridMixin:
 
         self._unify_same_frequency_time_points_reverse()
 
-        if self.debug:
+        if self._debug:
             self.reference_time_after_reverse = (
                 self._reference_state_until_tracked.time
             )
@@ -383,7 +400,9 @@ class RFCenterGridMixin:
             )
             self.current_beam_reference_energy = beam.reference.total_energy
 
-    def _rebuild_grid_arrays(self) -> None:
+    def _rebuild_grid_arrays(
+        self: IQCavityFeedbackTimingClass,
+    ) -> None:
         """
         Rebuild the flat ``rf_centers`` / ``rf_centers_lengths`` from segments.
 
@@ -403,7 +422,9 @@ class RFCenterGridMixin:
             self._rf_centers = np.zeros(0)
             self._rf_centers_lengths = np.zeros(0, dtype=int)
 
-    def _append_segment(self, segment: RFCenterSegment) -> None:
+    def _append_segment(
+        self: IQCavityFeedbackTimingClass, segment: RFCenterSegment
+    ) -> None:
         """
         Append a coarse-grid segment and refresh the derived flat arrays.
 
@@ -415,12 +436,12 @@ class RFCenterGridMixin:
         self._segments.append(segment)
         self._rebuild_grid_arrays()
 
-    def _clear_segments(self) -> None:
+    def _clear_segments(self: IQCavityFeedbackTimingClass) -> None:
         """Drop all segments (start-of-turn) and clear the derived arrays."""
         self._segments = []
         self._rebuild_grid_arrays()
 
-    def _validate_grid(self) -> None:
+    def _validate_grid(self: IQCavityFeedbackTimingClass) -> None:
         """
         Assert the derived flat arrays are consistent with the segment list.
 
@@ -439,7 +460,12 @@ class RFCenterGridMixin:
             f"lengths {sum(segment_lengths)}"
         )
 
-    def _generate_rf_centers(self, t_rf, omega_rf, until_time: float):
+    def _generate_rf_centers(
+        self: IQCavityFeedbackTimingClass,
+        t_rf,
+        omega_rf,
+        until_time: float,
+    ):
         # Segments always seed at the design bucket phase: the first centre
         # sits on the falling-edge zero half an RF period into the segment
         # (sin(omega * t) crosses zero falling at t = t_rf / 2). Station
@@ -451,7 +477,7 @@ class RFCenterGridMixin:
 
         step_width_rf_centers = t_rf * self.n_rf_periods_per_coarse_grid
         if (
-            self.residual_taps_last_rf_centers_calculation != 0
+            self._residual_taps_last_rf_centers_calculation != 0
             and self.n_rf_periods_per_coarse_grid < 1
         ):
             # Sub-stepping (n < 1): the coarse grid sub-divides the RF period,
@@ -469,20 +495,20 @@ class RFCenterGridMixin:
                 self.n_rf_periods_per_coarse_grid
                 * 2
                 * np.pi
-                / self.last_forward_tracking_freq
+                / self._last_forward_tracking_freq
             )
             time_to_next_falling_edge_zero = (
                 step_width_previous
-                - self.residual_time_last_rf_centers_calculation
+                - self._residual_time_last_rf_centers_calculation
             )
         elif (
-            self.residual_taps_last_rf_centers_calculation != 0
+            self._residual_taps_last_rf_centers_calculation != 0
             and self.n_rf_periods_per_coarse_grid != 1
         ):
-            # while time_to_next_falling_edge_zero + self.residual_time_last_rf_centers_calculation < step_width_rf_centers:
+            # while time_to_next_falling_edge_zero + self._residual_taps_last_rf_centers_calculation < step_width_rf_centers:
             time_to_next_falling_edge_zero += t_rf * (
                 self.n_rf_periods_per_coarse_grid
-                - int(self.residual_taps_last_rf_centers_calculation)
+                - int(self._residual_taps_last_rf_centers_calculation)
                 - 1
             )
         rf_centers = np.arange(
@@ -493,7 +519,7 @@ class RFCenterGridMixin:
 
         if len(rf_centers) == 0:
             warnings.warn(
-                f"no rf centers in turn {self.turn_i.value} at {self.section_index}",
+                f"no rf centers in turn {self._parent_rf_station._turn_counter.value} at {self.section_index}",
                 stacklevel=2,
             )
             # A segment shorter than one coarse step legitimately contains no
@@ -514,7 +540,7 @@ class RFCenterGridMixin:
         return rf_centers
 
     def calculate_rf_centers_for_forward_direction(
-        self, beam: BeamBaseClass
+        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
     ) -> None:
         """
         Calculate the centers of the rf buckets in the current turn.
@@ -548,7 +574,9 @@ class RFCenterGridMixin:
             )
         )
 
-    def _unify_same_frequency_time_points_reverse(self):
+    def _unify_same_frequency_time_points_reverse(
+        self: IQCavityFeedbackTimingClass,
+    ):
         if len(self._reverse_tracking_time_array) > 1:
             time_arr_to_use = np.copy(self._reverse_tracking_time_array)
             omega_array_to_use = np.copy(self._reverse_tracking_omega_list)
@@ -568,7 +596,7 @@ class RFCenterGridMixin:
             self._reverse_tracking_omega_list = omega_array_to_use[mask]
 
     def calculate_rf_centers_for_reverse_direction(
-        self, beam: BeamBaseClass
+        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
     ) -> None:
         """
         Compute the coarse-grid rf_centers for the reverse-tracking direction.
@@ -583,7 +611,7 @@ class RFCenterGridMixin:
             Beam object to receive the reference frame.
         """
         if (
-            self.own_index_in_reference_list == 0
+            self._own_index_in_reference_list == 0
             and self._tracked_forward_until_element is None
         ):
             return
