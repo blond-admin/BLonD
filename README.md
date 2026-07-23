@@ -49,7 +49,7 @@ pip install blond[gpu_cuda13]
 ```
 
 ### Configuration
-Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
+Optional backends can be compiled after installation using the commands `blond-compile-cpp` or `blond-compile-cuda`
 for improved performance. The backend can be selected in Python using ```setup_backend(...)```.
 
 NB: check your cuda version with `nvidia-smi`, to ensure you select the correct optional dependency.
