@@ -92,16 +92,21 @@ def envelope_pi_scan(
     voltage_out
         Output antenna voltage, written in place (complex128, length ``N``).
     generator_current_out
-        Output generator current, written in place (complex128, length ``N``).
+        Generator current (complex128, length ``N``), in/out: pre-filled by the
+        caller with the current generator grid (the drive source for the
+        inactive path and for cell ``c``'s read of cell ``c-1``); when
+        ``controller_active`` each cell's PI output is written over it.
     voltage_init
         Antenna voltage seeding the first cell (previous cell's value).
     generator_current_init
-        Generator current seeding the first cell.
+        Generator current driving the first cell (the carried ``last_val`` at a
+        segment starting at grid index 0, else the previous grid cell).
     r_over_q
         Cavity ``R/Q`` [Ohm].
     controller_active
-        Whether to run the PI controller; if False the generator current is
-        held at ``generator_current_init``.
+        Whether to run the PI controller; if False each cell's drive uses the
+        pre-filled generator grid (cell 0 uses ``generator_current_init``) and
+        the grid is left unchanged.
     pi_setpoint
         PI voltage setpoint in the IQ frame.
     omega_input
@@ -138,17 +143,27 @@ def envelope_pi_scan(
     n = omega_times_dt.shape[0]
     buffer_len = delay_buffer.shape[0]
     voltage_prev = voltage_init
-    generator_current_prev = generator_current_init
     # Guard band below the limit: comfortably wider than a double-precision ULP
     # (~2e-16) yet negligible physically, so it can never miss a cell the
     # reference would clamp while almost never firing spuriously.
     saturation_guard = max_output * (1.0 - 1.0e-9)
     saturation_possible = False
     for cell in range(n):
+        # Drive current: the carried value for the first cell, otherwise the
+        # generator current currently in the grid at the previous cell -- the PI
+        # output the controller just wrote (active), or the untouched static
+        # grid value the caller pre-filled (inactive / constant current / no
+        # beam). This mirrors cavity_response, which reads
+        # generator_current_coarse_grid[idx-1] for idx>=1 and only uses the
+        # carried last_val at idx==0.
+        if cell == 0:
+            generator_current_drive = generator_current_init
+        else:
+            generator_current_drive = generator_current_out[cell - 1]
         drive = (
             r_over_q
             * omega_times_dt[cell]
-            * (generator_current_prev - 0.5 * beam_current[cell])
+            * (generator_current_drive - 0.5 * beam_current[cell])
         )
         voltage = voltage_prev * voltage_multiplier[cell] + (
             drive * drive_weight[cell]
@@ -176,13 +191,11 @@ def envelope_pi_scan(
                 saturation_possible = True
             if magnitude > max_output:
                 # Saturated: freeze the integral (anti-windup) and clamp.
-                generator_current = output * (max_output / magnitude)
+                generator_current_out[cell] = output * (max_output / magnitude)
             else:
                 integral = candidate_integral
-                generator_current = output
-        else:
-            generator_current = generator_current_prev
-        generator_current_out[cell] = generator_current
+                generator_current_out[cell] = output
+        # Inactive: leave generator_current_out[cell] at its pre-filled static
+        # grid value -- the constant-current / no-beam path never rewrites it.
         voltage_prev = voltage
-        generator_current_prev = generator_current
     return delay_head, integral, saturation_possible

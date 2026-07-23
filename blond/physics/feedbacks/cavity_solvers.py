@@ -41,8 +41,9 @@ def cavity_response_sparse_matrix_second_order(
     r"""
     Second-order (trapezoidal / Crank-Nicolson) ACS cavity response solver.
 
-    Drop-in alternative to :func:`cavity_response_sparse_matrix`. It solves
-    the same cavity-envelope ODE
+    Drop-in alternative to
+    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`.
+    It solves the same cavity-envelope ODE
 
     .. math::
         \frac{\mathrm{d}V}{\mathrm{d}t}
@@ -51,8 +52,9 @@ def cavity_response_sparse_matrix_second_order(
 
     but integrates it with the trapezoidal rule (averaging the homogeneous
     term *and* the current drive over each step) instead of the forward-Euler
-    (left-endpoint) step used by :func:`cavity_response_sparse_matrix`. The
-    truncation error is therefore :math:`O(\Delta t^2)` rather than
+    (left-endpoint) step used by
+    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`.
+    The truncation error is therefore :math:`O(\Delta t^2)` rather than
     :math:`O(\Delta t)`, which matters most at coarse binning (large
     ``samples_per_rf``).
 

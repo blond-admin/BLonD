@@ -417,6 +417,27 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         )
 
     @property
+    def delta_phi_rf(self) -> float:
+        """
+        Accumulated RF phase slip of the parent cavity at harmonic_index.
+
+        The parent station's kick clock: the phase slip
+        ``int delta_omega_rf dt`` accumulated since the first passage
+        (see ``RFStationBaseClass._update_delta_phi_rf_from_beam_feedback``).
+        ``0.0`` before the first passage and whenever no RF-frequency offset
+        ever acted.
+
+        Returns
+        -------
+        delta_phi_rf
+            Accumulated RF phase slip of the parent cavity at harmonic_index.
+        """
+        value = self._parent_rf_station.delta_phi_rf
+        if value is None:
+            return 0.0
+        return self._resolve_main_harmonic(value)
+
+    @property
     def omega_rf_design(self) -> float:
         """
         Design RF frequency of the parent cavity at harmonic_index.
@@ -666,18 +687,23 @@ class IQCavityFeedbackTimingClass(
     bucket each turn; the centres tile continuously across the turn boundary
     (see ``_generate_rf_centers``).
 
-    **RF-frequency offset and coarse-grid spacing.** The ``rf_centers`` track
-    the *actual* RF frequency: the design frequency at the tracked reference
-    plus the station's RF-frequency offset ``delta_omega_rf`` (see
-    ``forward_tracking_omega_rf`` and ``reverse_tracking_omega_list``). The
-    coarse-grid spacing therefore follows the detuned RF period, and the
-    per-turn RF phase slip caused by ``delta_omega_rf`` is accumulated into
-    ``phase_offset_frwrd`` so the baseband representation stays continuous
-    across turn boundaries. Both reduce to the undetuned behaviour when
-    ``delta_omega_rf == 0``. Note this is the RF *frequency* offset of the
-    parent station, distinct from the ``delta_omega`` constructor argument
-    above (the cavity *resonance* detuning), which enters the cavity response
-    as a per-step phase rotation and does not move the grid.
+    **RF-frequency offset.** The coarse-grid geometry (spacing, tiling,
+    residuals) stays on the *design* RF clock under a station RF-frequency
+    offset ``delta_omega_rf`` (see ``forward_tracking_omega_rf``); the offset
+    enters only as explicit phases. The beam current is demodulated onto the
+    *actual* RF carrier (``forward_carrier_omega_rf`` within the profile
+    window, plus the accumulated slip ``int delta_omega_rf dt`` -- the parent
+    station's kick clock ``delta_phi_rf`` plus its live end-of-track tail),
+    and the readout applies the identical total (the station clock via
+    ``phi_rf``, the tail via ``phase_correction``), so the demod/readout
+    chain closes exactly for every carried deposit -- validated at the
+    discretization floor against the retuning convolution
+    (``test_multiturn_delta_omega_rf_*``). Everything reduces bit-identically
+    to the undetuned behaviour when ``delta_omega_rf == 0``. Note this is the
+    RF *frequency* offset of the parent station, distinct from the
+    ``delta_omega`` constructor argument above (the cavity *resonance*
+    detuning), which enters the cavity response as a per-step phase rotation
+    and does not move the grid.
     """
 
     #: Compile the per-cell coarse-envelope recursion to a numba host kernel
@@ -735,6 +761,7 @@ class IQCavityFeedbackTimingClass(
         self._own_index_in_reference_list_reverse: int | None = None
 
         self._forward_tracking_omega_rf: float | None = None
+        self._forward_carrier_omega_rf: float | None = None
         self._forward_tracking_time: float | None = None
         self._tracked_forward_until_element: AltersReference | None = None
         self._last_forward_tracking_freq: float | None = None
@@ -748,12 +775,7 @@ class IQCavityFeedbackTimingClass(
         self._last_tracked_turn_frwrd: int = 0
         self._last_tracked_beam_state_frwrd: bool | None = None
 
-        # Simultaneous counter-rotating passage detection (see _track): the
-        # arrival time and direction of the previous _track call, plus the
-        # coarse-cell width of its forward grid as the coincidence tolerance.
-        self._last_track_arrival_time: float | None = None
-        self._last_track_is_counter_rotating: bool | None = None
-        self._last_forward_cell_width: float | None = None
+        self._init_passage_tracking_state()
 
         self._phase_offset_frwrd_next: float = 0.0
         self._phase_offset_frwrd: float = 0.0
@@ -817,6 +839,23 @@ class IQCavityFeedbackTimingClass(
                 "injection_voltage requires n_pretrack (the cavity fill "
                 "budget in turns); set n_pretrack or drop injection_voltage."
             )
+
+    def _init_passage_tracking_state(self) -> None:
+        """
+        Initialise the per-passage bookkeeping attributes.
+
+        Groups the state written once per ``_track`` call: the
+        simultaneous counter-rotating passage detection (the arrival time
+        and direction of the previous ``_track`` call, plus the
+        coarse-cell width of its forward grid as the coincidence
+        tolerance) and the live tail of the RF-frequency-offset phase
+        slip (the slip accumulated since the station kick clock's last
+        end-of-track tick; ``0.0`` without an offset).
+        """
+        self._last_track_arrival_time: float | None = None
+        self._last_track_is_counter_rotating: bool | None = None
+        self._last_forward_cell_width: float | None = None
+        self._carrier_slip_gap: float = 0.0
 
     @requires(["RFStationBaseClass"])
     def _check_step_sizes(self) -> None:
@@ -1243,8 +1282,13 @@ class IQCavityFeedbackTimingClass(
         rf_period = 2 * np.pi / omega_input
         tiny_negative = (delta_t > -1e-9 * rf_period) & (delta_t < 0)
         delta_t[tiny_negative] = 0.0
-        assert (delta_t >= 0).all(), f"{delta_t.min()}"
-        if (delta_t == 0).any():
+        # Any non-positive step is degenerate/invalid: a coincident (zero) step,
+        # or a genuinely-negative one that violates ordering. Defer the whole
+        # segment to the reference loop, which -- processing cells in order --
+        # warns-and-skips a zero step and asserts on a negative one, so its
+        # warnings and assertion message are reproduced exactly rather than
+        # pre-empted by a vectorised assert here.
+        if not (delta_t > 0).all():
             return None
         return delta_t
 
@@ -1318,7 +1362,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ) = self._kernel_controller_params(controller_active)
 
         voltage_out = np.empty(n_cells, dtype=np.complex128)
-        generator_current_out = np.empty(n_cells, dtype=np.complex128)
+        # Pre-fill with the current generator grid: the inactive (no-beam /
+        # constant-current) path reads it as each cell's drive current, matching
+        # cavity_response reading generator_current_coarse_grid[idx-1]; the
+        # active path overwrites every cell with its PI output. astype copies,
+        # so the kernel never mutates the grid before the write-back below.
+        generator_current_out = self.generator_current_coarse_grid[
+            start_index:end_index
+        ].astype(np.complex128)
 
         delay_head, integral, saturation_possible = envelope_pi_scan(
             voltage_multiplier,
@@ -1353,13 +1404,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             return
 
         self.antenna_voltage_coarse_grid[start_index:end_index] = voltage_out
+        # Commit the generator grid. Active: the PI outputs. Inactive: the
+        # unchanged pre-filled values, i.e. a no-op vs the reference (which
+        # leaves the generator grid untouched on the constant-current/no-beam
+        # path). Only the controller's own state is synced when it actually ran.
+        self.generator_current_coarse_grid[start_index:end_index] = (
+            generator_current_out
+        )
         if controller_active:
-            # The constant-current / no-beam paths never touch the generator
-            # grid (it stays at the reset bias), so write it back only when the
-            # controller actually ran, matching the reference exactly.
-            self.generator_current_coarse_grid[start_index:end_index] = (
-                generator_current_out
-            )
             self._store_controller_state(delay_buffer, delay_head, integral)
 
         if not no_beam:
@@ -1426,10 +1478,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         Per-cell beam current for a kernel segment.
 
-        Mirrors ``cavity_response``: a no-beam segment is all zeros; otherwise
-        each cell reads the forward beam-current grid, except the carried
-        ``rf_centers`` index 0 (if present), which uses
-        ``last_val_beam_current``.
+        Mirrors ``cavity_response``: the carried ``rf_centers`` index 0 (when
+        the segment starts there) always uses ``last_val_beam_current`` -- even
+        for a ``no_beam`` segment, since the reference's idx==0 branch ignores
+        ``no_beam`` -- and every later cell is zero for a no-beam segment or
+        reads the forward beam-current grid otherwise.
 
         Parameters
         ----------
@@ -1448,6 +1501,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Per-cell beam current (complex128, length ``n_cells``).
         """
         beam_current = np.zeros(n_cells, dtype=np.complex128)
+        if start_index == 0:
+            # Carried index 0 uses last_val_beam_current unconditionally --
+            # cavity_response's idx==0 branch has no no_beam guard.
+            beam_current[0] = self.last_val_beam_current
         if no_beam:
             return beam_current
         forward_offset = len(self.rf_centers) - self.rf_centers_lengths[-1]
@@ -1456,9 +1513,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         beam_current[local_start:] = self.beam_current_forward_coarse_grid[
             global_indices[local_start:] - forward_offset
         ]
-        if start_index == 0:
-            # Carried index 0 uses last_val_beam_current (cavity_response).
-            beam_current[0] = self.last_val_beam_current
         return beam_current
 
     def _kernel_controller_params(
@@ -1911,6 +1965,27 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self._last_track_arrival_time = beam.reference.time
         self._last_track_is_counter_rotating = beam.is_counter_rotating
 
+        # Live tail of the RF-frequency-offset phase slip: the station's
+        # kick clock (delta_phi_rf) is accumulated only at the END of each
+        # station track (the blond2 convention the LHC comparisons pin), so
+        # during this passage it lags the true integral
+        # ``int delta_omega_rf dt`` by the slip since its last tick. The
+        # station clock plus this gap is the exact, continuous slip at the
+        # current passage; the demodulation subtracts it and
+        # ``phase_correction`` adds it back at the readout, anchoring the
+        # envelope frame to the actual RF carrier on both sides (see
+        # calculate_rf_beam_current_partial). Exactly 0.0 without an
+        # offset.
+        station_clock_last = (
+            self._parent_rf_station._last_reference_time_phase_slip
+        )
+        self._carrier_slip_gap = (
+            0.0
+            if station_clock_last is None
+            else self.delta_omega_rf
+            * (beam.reference.time - station_clock_last)
+        )
+
         if len(self._rf_centers) != 0:
             self._last_rf_centers_entry = self._rf_centers[-1]
 
@@ -2048,8 +2123,16 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self.relative_voltage_correction /= (
             self.get_voltage_from_parent_rf_station()
         )
-        self.phase_correction = alpha_sum - np.mean(
-            np.angle(self.voltage_setpoint)
+        # The station applies its (end-of-track-lagged) kick clock via
+        # phi_rf; adding the live slip gap here completes the readout to
+        # the exact accumulated actual-RF phase at this passage -- the
+        # same total the demodulation subtracted (see
+        # calculate_rf_beam_current_partial). Exactly +0.0 without an
+        # RF-frequency offset.
+        self.phase_correction = (
+            alpha_sum
+            - np.mean(np.angle(self.voltage_setpoint))
+            + self._carrier_slip_gap
         )
 
         # dummy values
@@ -2145,11 +2228,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # coarse-grid envelope recursion. Where that phase lives depends on
         # the grid convention of _generate_rf_centers:
         #
-        # * n >= 1 (grid re-seeded from the RF phase every turn): the
-        #   residual measures the grid against the RF buckets and therefore
-        #   already contains the *accumulated* frame slip (mod t_rf) plus
-        #   the half-period bucket-centre offset -- the former residual-only
-        #   demodulation term, validated by the n = 1 acceleration tests.
+        # * n >= 1 (grid re-seeded at the design bucket phase every turn):
+        #   the residual measures the grid against the design buckets and
+        #   therefore already contains the *accumulated* acceleration frame
+        #   slip (mod t_rf) plus the half-period bucket-centre offset -- the
+        #   former residual-only demodulation term, validated by the n = 1
+        #   acceleration tests. (An RF-frequency offset never enters the
+        #   residual: the grid geometry is design-clock only.)
         # * n < 1 (sub-stepped grid, tiling continuously across turns): the
         #   demod frame is the gap from the previous turn's last centre to
         #   the first forward centre, which by the tiling construction is
@@ -2174,11 +2259,23 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ) = rf_beam_current_partial(
             beam=beam,
             profile=self.profile,
+            # The demodulation projects onto the *actual* RF carrier
+            # (design + delta_omega_rf) within the profile window; the grid
+            # geometry itself stays on the design clock.
             omega_c=self._forward_tracking_omega_rf,
             T_rev=self._forward_tracking_time,
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
             dT=dT_demodulation,
+            # Anchor the demodulation carrier to the actual RF phase: the
+            # accumulated slip ``int delta_omega_rf dt`` at this passage,
+            # i.e. the station's kick clock (delta_phi_rf) plus the live
+            # gap since its last end-of-track tick. The readout applies
+            # the same total (station clock via phi_rf, gap via
+            # phase_correction), so the demod/readout chain closes exactly
+            # for every deposit, however long it is carried. Exactly 0.0
+            # without an RF-frequency offset (bit-identical demodulation).
+            carrier_phase_offset=-(self.delta_phi_rf + self._carrier_slip_gap),
         )  # TODO: this is wrong --> adjust to rf_centers calculation
 
         # Convert RF beam currents to be in units of Amperes

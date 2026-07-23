@@ -38,7 +38,8 @@ class RFCenterSegment:
 
     The timing-class grid is built per turn as an ordered list of these
     records -- one per reverse-tracking frequency segment plus one forward
-    segment (see :meth:`IQCavityFeedbackTimingClass.calculate_rf_centers_for_reverse_direction`
+    segment (see
+    :meth:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin.calculate_rf_centers_for_reverse_direction`
     and ``..._for_forward_direction``). Bundling the four pieces that used to
     live in loose parallel arrays / a mutable scalar keeps them coherent and
     self-validating: the flat ``rf_centers`` / ``rf_centers_lengths`` arrays the

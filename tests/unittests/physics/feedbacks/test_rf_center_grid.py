@@ -86,10 +86,11 @@ def check_fail_printing(bool_expr: bool, msg: str):
 
 _phase_shifts = [0, -1, 1]
 # delta_omega_factor scales the RF-frequency offset applied to the station
-# (delta_omega_rf = factor * omega_rf). The coarse grid tracks the *actual* RF
-# frequency (design + delta_omega_rf; see forward_tracking_omega_rf and
-# reverse_tracking_omega_list), so the rf_center spacing follows the detuned
-# period the distance check compares against.
+# (delta_omega_rf = factor * omega_rf). The coarse-grid GEOMETRY stays on the
+# *design* RF clock under an offset (see forward_tracking_omega_rf): the
+# offset enters only as explicit carrier/kick-clock phases, never as a
+# spacing or seed-time change, so the distance checks compare against the
+# design period regardless of the offset.
 _delta_omega_factors = [0.0, 0.13, -0.13]
 # Each entry is (n_rf_periods_per_coarse_grid, Q_L). The per-step decay is
 # n * pi / Q_L and must stay below the hard stability cap of 2.0:
@@ -303,11 +304,13 @@ class TestIQCavityFeedbackTimingClass:
                 voltage_array[ind - 1][-1] + 3, voltage_array[ind][0] + 3
             )  # +3 to be robust against zero-relative problems
 
-        # distance testing
+        # distance testing: the grid geometry stays on the design RF clock
+        # under an RF-frequency offset (the offset is carried as pure
+        # phase), so the expected spacing uses omega_rf_design.
         timestep_end = (
             2
             * np.pi
-            / self.rf_station.omega_rf
+            / self.rf_station.omega_rf_design
             * cav_fdbk_timing.n_rf_periods_per_coarse_grid
         )
         for ind in range(3, len(voltage_array) - 1):
@@ -476,15 +479,9 @@ class TestIQCavityFeedbackTimingClass:
                     num=vals_per_turn,
                 )
             )
-            phase_offset = (
-                cav_fdbk_timing._parent_rf_station.phase_correction_frequency_offset
-                if simulation.turn_i.value > 1
-                else 0
-            )
             voltage_array.append(
                 np.sin(
                     cav_fdbk_timing._forward_tracking_omega_rf * time_array[-1]
-                    + cav_fdbk_timing._phase_offset_frwrd  # - 2*phase_offset
                 )
             )
             rf_centers_array.append(cav_fdbk_timing._rf_centers)

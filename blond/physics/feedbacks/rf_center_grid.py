@@ -18,7 +18,7 @@ segment is generated at, the segment generation itself, and the derived flat
 
 It is a *mixin*: the methods read and write grid state
 (``_segments``, ``rf_centers``, ``reference_state_until_tracked``,
-``residual_time_last_rf_centers_calculation``, ``phase_offset_frwrd*``, the
+``residual_time_last_rf_centers_calculation``, the
 ``last_tracked_*`` / ``reference_*`` bookkeeping, ...) that the host feedback
 class initialises in ``__init__`` / ``on_run_simulation``, and the RF-parameter
 accessors (``omega_rf``, ``harmonic``, ``t_rf``, ``sampling_time_coarse``, ...)
@@ -166,19 +166,31 @@ class RFCenterGridMixin:
                 next_reference_altering_element_index = -1
 
         self._forward_tracking_time = dummy_reference.time - start_time
-        # The coarse grid must follow the *actual* RF frequency: the design
-        # frequency at the tracked reference plus the station's RF-frequency
-        # offset delta_omega_rf, so the rf_center spacing tracks the detuned
-        # period. delta_omega_rf == 0 leaves this unchanged. Applying the
-        # parent's offset across the whole forward-tracked segment (which
-        # spans other stations' sections) is safe because the RF station
-        # forbids changing delta_omega_rf during the run when the ring has
-        # more than one station (see RFStationBaseClass.delta_omega_rf).
+        # The coarse-grid GEOMETRY (spacing, tiling, residuals) stays on the
+        # *design* RF clock even under an RF-frequency offset, so every
+        # time-valued bookkeeping quantity (residuals, dT demodulation
+        # shifts) is independent of delta_omega_rf. The offset enters only
+        # as explicit phase terms: the demodulation carrier
+        # ``forward_carrier_omega_rf`` (the actual RF within the profile
+        # window) and the accumulated kick-clock slip ``delta_phi_rf``
+        # applied on the demodulation and readout sides. Feeding the offset
+        # into the grid times instead (detuned spacing or a slipping seed)
+        # drags the whole envelope timeline against the readout -- a frame
+        # drift no per-deposit bookkeeping can compensate (measured against
+        # the retuning convolution).
         self._forward_tracking_omega_rf = (
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self.ring.circumference
             )
-            + self.delta_omega_rf
+        )
+        # The demodulation carrier: the actual RF frequency (design plus the
+        # station's RF-frequency offset). Applying the parent's offset
+        # across the whole forward-tracked segment (which spans other
+        # stations' sections) is safe because the RF station forbids
+        # changing delta_omega_rf during the run when the ring has more
+        # than one station (see RFStationBaseClass.delta_omega_rf).
+        self._forward_carrier_omega_rf = (
+            self._forward_tracking_omega_rf + self.delta_omega_rf
         )
         self._tracked_forward_until_element = (
             forward_list[
@@ -187,13 +199,13 @@ class RFCenterGridMixin:
             if next_reference_altering_element_index != -1
             else self._parent_rf_station
         )
-        self.reference_index_until_tracked = (
-            self.reference_altering_elements.index(
+        self._reference_index_until_tracked = (
+            self._reference_altering_elements.index(
                 self._tracked_forward_until_element
             )
         )
         self.reference_index_until_tracked_reverse = (
-            self.reference_altering_elements_reverse.index(
+            self._reference_altering_elements_reverse.index(
                 self._tracked_forward_until_element
             )
         )
@@ -373,13 +385,6 @@ class RFCenterGridMixin:
             )
             self.current_beam_reference_energy = beam.reference.total_energy
 
-    @staticmethod
-    def _get_time_to_next_rising_edge_zero(
-        phi: float, frequency: float
-    ) -> float:
-        phi_modulated = np.mod(phi, 2 * np.pi)
-        return np.mod(np.pi - phi_modulated, 2 * np.pi) / frequency
-
     def _rebuild_grid_arrays(self) -> None:
         """
         Rebuild the flat ``rf_centers`` / ``rf_centers_lengths`` from segments.
@@ -436,19 +441,15 @@ class RFCenterGridMixin:
             f"lengths {sum(segment_lengths)}"
         )
 
-    def _generate_rf_centers(self, t_rf, omega_rf, phi_rf, until_time: float):
-        time_to_next_falling_edge_zero = (
-            self._get_time_to_next_rising_edge_zero(
-                phi_rf,
-                omega_rf,
-            )
-        )
-
-        # 2nd part of if: floating precision would miss this in the last turn, hence has to be done this turn
-        if time_to_next_falling_edge_zero <= 0 and not np.isclose(
-            self.residual_taps_last_rf_centers_calculation, 1
-        ):
-            time_to_next_falling_edge_zero += t_rf
+    def _generate_rf_centers(self, t_rf, omega_rf, until_time: float):
+        # Segments always seed at the design bucket phase: the first centre
+        # sits on the falling-edge zero half an RF period into the segment
+        # (sin(omega * t) crosses zero falling at t = t_rf / 2). Station
+        # phases (phi_rf_design, the accumulated delta_omega_rf kick-clock
+        # slip) never shift the seed -- they are applied as explicit
+        # demodulation/readout phases, keeping the grid geometry a pure
+        # function of the design frequency and the reference times.
+        time_to_next_falling_edge_zero = t_rf / 2
 
         step_width_rf_centers = t_rf * self.n_rf_periods_per_coarse_grid
         if (
@@ -526,30 +527,17 @@ class RFCenterGridMixin:
             Beam object to receive the reference frame.
         """
         self.get_passed_time_forward_direction(beam=beam)
-        self.phase_offset_frwrd += self.phase_offset_frwrd_next
-        # Per-turn phase slip of the RF clock from the RF-frequency offset:
-        # over one turn (2*pi*harmonic / omega_rf_design seconds) a frequency
-        # offset delta_omega_rf advances the RF phase by
-        # delta_omega_rf * turn_time. Accumulating it into phase_offset_frwrd
-        # keeps the baseband/demodulated representation continuous across the
-        # turn boundary when the RF is detuned. delta_omega_rf == 0 leaves
-        # phase_offset_frwrd at 0 (unchanged behaviour).
-        self._phase_offset_frwrd_next = (
-            2.0
-            * np.pi
-            * self.harmonic
-            * self.delta_omega_rf
-            / self._parent_rf_station.calc_omega_rf_design(
-                beam_beta=self._reference_state_until_tracked.beta,
-                ring_circumference=self.ring.circumference,
-            )
-        )
+        # The grid stays fully on the *design* RF clock (design spacing,
+        # phase 0 at the bucket edges) even under an RF-frequency offset:
+        # the accumulated phase slip ``int delta_omega_rf dt`` is carried as
+        # a pure phase by the parent station's kick clock (``delta_phi_rf``)
+        # and applied to the beam-current demodulation (see
+        # ``calculate_rf_beam_current_partial``) -- never as a time shift or
+        # spacing change of the grid (see forward_tracking_omega_rf).
 
         new_rf_centers = self._generate_rf_centers(
             t_rf=(2 * np.pi / self._forward_tracking_omega_rf),
-            # TODO: this is indeed necessary for the multi-section acceleration tracking, delta_omega hast to be applied somewhere else if applicable
             omega_rf=self._forward_tracking_omega_rf,
-            phi_rf=self.phase_offset_frwrd,  # phase_offset_frwrd,
             until_time=self._forward_tracking_time,
         )
 
@@ -612,15 +600,6 @@ class RFCenterGridMixin:
             new_rf_centers = self._generate_rf_centers(
                 t_rf=(2 * np.pi / self._reverse_tracking_omega_list[time_ind]),
                 omega_rf=self._reverse_tracking_omega_list[time_ind],
-                phi_rf=self.phi_rf,
-                # The parent station accumulates the delta_omega_rf phase slip
-                # exactly, from the elapsed reference time (see
-                # RFStationBaseClass._update_delta_phi_rf_from_beam_feedback).
-                # TODO: phi_rf is the phase at the *current* passage; with
-                #  delta_omega_rf != 0 each reverse segment would need the
-                #  phase at its own start, phi_rf - delta_omega_rf *
-                #  (t_now - t_segment_start), reconstructable from the
-                #  segment times gathered above.
                 until_time=time,
             )
             self._append_segment(
