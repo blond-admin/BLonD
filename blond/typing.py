@@ -6,20 +6,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Shared type hints for BLonD."""
+
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
-import numpy as np
-
-from blond.cycles.noise_generators.base import NoiseGenerator
-
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-
-class VariNoise(NoiseGenerator):
-    def get_noise(self, n_turns: int) -> NumpyArray:
-        warnings.warn("VariNoise needs to be implemented!")
-        return np.ones(n_turns)
+    AnyArray = NumpyArray | CupyArray | ArrayLike
