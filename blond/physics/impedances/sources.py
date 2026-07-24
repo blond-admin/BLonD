@@ -668,20 +668,37 @@ class Resonators(
             antiderivative(time + dt / 2) - antiderivative(time - dt / 2)
         ) / dt
 
-    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+    def get_wake_per_particle(
+        self,
+        time: NumpyArray | CupyArray,
+        counter_rotating: bool = False,
+    ) -> NumpyArray | CupyArray:
         """
-        Compute the wake function of all resonators in time domain for the given time and return the summed potential.
+        Compute the point-charge wake of all resonators in time domain and return the summed potential.
 
         Parameters
         ----------
         time
             Time array at which the wake is calculated, in [s].
+        counter_rotating
+            If ``True``, use the counter-rotating shunt impedances instead of
+            the co-rotating ones.
 
         Returns
         -------
         wake
             Wake potential array, in [V].
         """
+        shunt_impedances = (
+            self._shunt_impedances_counter_rotating
+            if counter_rotating
+            else self._shunt_impedances
+        )
+        if counter_rotating and shunt_impedances is None:
+            raise RuntimeError(
+                "_shunt_impedances_counter_rotating needs to be set before calling this function."
+            )
+
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
 
         heaviside_like = self.heaviside_eps_at_0(time)
@@ -690,7 +707,7 @@ class Resonators(
             wake += (
                 heaviside_like
                 * (
-                    self._shunt_impedances[res_ind]
+                    shunt_impedances[res_ind]
                     * self._alpha[res_ind]
                     * backend.exp(-self._alpha[res_ind] * time)
                 )
@@ -734,50 +751,6 @@ class Resonators(
         bugfix = backend.abs(time) < tol
         heaviside_like[bugfix] = 1
         return heaviside_like
-
-    def get_wake_counter_rotation(
-        self, time: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Compute the wake function of all resonators in time domain for the given time and return the summed potential.
-
-        Parameters
-        ----------
-        time
-            Time array at which the wake is calculated, in [s].
-
-        Returns
-        -------
-        wake_potential
-            Potential array, in [V].
-        """
-        if self._shunt_impedances_counter_rotating is None:
-            raise RuntimeError(
-                "_shunt_impedances_counter_rotating needs to be set before calling this function."
-            )
-
-        wake = backend.zeros(len(time), dtype=backend.float, order="C")
-
-        heaviside_like = self.heaviside_eps_at_0(time)
-
-        for res_ind in range(self._n_resonators):
-            wake += (
-                (
-                    heaviside_like
-                )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
-                * (
-                    self._shunt_impedances_counter_rotating[res_ind]
-                    * self._alpha[res_ind]
-                    * backend.exp(-self._alpha[res_ind] * time)
-                )
-                * (
-                    backend.cos(self._omega_bar[res_ind] * time)
-                    - self._alpha[res_ind]
-                    / self._omega_bar[res_ind]
-                    * backend.sin(self._omega_bar[res_ind] * time)
-                )
-            )
-        return wake
 
     def calculate_envelope(
         self, time_axis: NumpyArray | CupyArray | None = None
@@ -1139,7 +1112,11 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         self._cache_impedance_from_wake = impedance_from_wake
         return impedance_from_wake
 
-    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+    def get_wake_per_particle(
+        self,
+        time: NumpyArray | CupyArray,
+        counter_rotating: bool = False,
+    ) -> NumpyArray | CupyArray:
         """
         Point-sampled tabulated wake, interpolated onto ``time``.
 
@@ -1151,12 +1128,18 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         ----------
         time
             Time array at which the wake is evaluated, in [s].
+        counter_rotating
+            Not supported; must be ``False``.
 
         Returns
         -------
         wake
             Interpolated wake, in [V].
         """
+        if counter_rotating:
+            raise RuntimeError(
+                "ImpedanceTableTime has no counter-rotating wake."
+            )
         if time.min() < self._wake_x.min():
             warnings.warn(
                 "Interpolation of wake outside boundaries",
@@ -1315,7 +1298,11 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         return impedance_from_wake
 
-    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+    def get_wake_per_particle(
+        self,
+        time: NumpyArray | CupyArray,
+        counter_rotating: bool = False,
+    ) -> NumpyArray | CupyArray:
         """
         Point-sampled travelling-wave-cavity wake (alias of :func:`wake_calc`).
 
@@ -1326,12 +1313,18 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         ----------
         time
             Time array at which the wake is evaluated, in [s].
+        counter_rotating
+            Not supported; must be ``False``.
 
         Returns
         -------
         wake
             Wake potential array, in [V].
         """
+        if counter_rotating:
+            raise RuntimeError(
+                "TravelingWaveCavity has no counter-rotating wake."
+            )
         return self.wake_calc(time=time)
 
     def get_impedance(

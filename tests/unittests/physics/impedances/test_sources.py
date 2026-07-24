@@ -134,6 +134,18 @@ class TestImpedanceTableTime(unittest.TestCase):
             )
         )
 
+    def test_get_wake_per_particle_cr_raises_without_cr_shunt(self):
+        table = ImpedanceTableTime.from_file(
+            filepath=callers_relative_path(
+                "resources/example_impedance_table.csv", stacklevel=1
+            ),
+            reader=CsvReader(delimiter=","),
+        )
+        with self.assertRaises(RuntimeError):
+            table.get_wake_per_particle(
+                backend.array(np.linspace(1, 5, 8)), counter_rotating=True
+            )
+
     def test_get_wake_binned_default_is_piecewise_linear_bin_average(self):
         """The generic TimeDomain.get_wake_binned default bin-averages.
 
@@ -156,9 +168,9 @@ class TestImpedanceTableTime(unittest.TestCase):
         np.testing.assert_allclose(
             copy_to_cpu(binned)[1:-1], expected[1:-1], rtol=1e-12
         )
-        # and it genuinely differs from point-sampling get_wake
+        # and it genuinely differs from point-sampling get_wake_per_particle
         assert not np.allclose(
-            copy_to_cpu(binned), copy_to_cpu(table.get_wake(time))
+            copy_to_cpu(binned), copy_to_cpu(table.get_wake_per_particle(time))
         )
 
     def test_get_impedance_from_wake_within_bounds_no_warning(self):
@@ -599,7 +611,7 @@ class TestResonators(unittest.TestCase):
         print(time[300])
         print(np.argmin(np.abs(time)))
 
-        wake_potential = res.get_wake(time=time)
+        wake_potential = res.get_wake_per_particle(time=time)
         wake_potential = copy_to_cpu(wake_potential)
         time = copy_to_cpu(time)
         assert wake_potential.shape == time.shape
@@ -676,7 +688,9 @@ class TestResonators(unittest.TestCase):
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = backend.linspace(-1e-9, 1.5e-9, 751)
 
-        wake_potential = res.get_wake_counter_rotation(time=time)
+        wake_potential = res.get_wake_per_particle(
+            time=time, counter_rotating=True
+        )
         assert wake_potential.shape == time.shape
         DEV_DEBBUG = False
         if DEV_DEBBUG:
@@ -708,7 +722,9 @@ class TestResonators(unittest.TestCase):
             rtol=1e-4,
         )  # *2 from heaviside
 
-        wake_potential_corot = copy_to_cpu(res.get_wake(time=time))
+        wake_potential_corot = copy_to_cpu(
+            res.get_wake_per_particle(time=time)
+        )
         np.testing.assert_allclose(wake_potential, -wake_potential_corot)
 
         # check periodicity
@@ -724,6 +740,29 @@ class TestResonators(unittest.TestCase):
                 plt.tight_layout()
                 # plt.savefig("")
                 plt.show()
+
+    def test_get_wake_per_particle_counter_rotating_selects_cr_shunt(self):
+        res = Resonators(
+            shunt_impedances=np.array([1.0]),
+            center_frequencies=np.array([1e9]),
+            quality_factors=np.array([5.0]),
+            shunt_impedances_counter_rotating=np.array([-1.0]),
+        )
+        time = backend.array(np.linspace(0, 5e-9, 64))
+        co = copy_to_cpu(
+            res.get_wake_per_particle(time, counter_rotating=False)
+        )
+        cr = copy_to_cpu(
+            res.get_wake_per_particle(time, counter_rotating=True)
+        )
+        np.testing.assert_allclose(co, -cr)
+
+    def test_get_wake_per_particle_cr_raises_without_cr_shunt(self):
+        res = Resonators(np.array([1.0]), np.array([1e9]), np.array([5.0]))
+        with self.assertRaises(RuntimeError):
+            res.get_wake_per_particle(
+                backend.array(np.linspace(0, 1e-9, 8)), counter_rotating=True
+            )
 
     def test_get_wake_binned_is_exact_bin_average(self):
         """get_wake_binned returns the exact bin-average of the point wake.
@@ -745,7 +784,7 @@ class TestResonators(unittest.TestCase):
         shifts = (np.arange(n_sub) + 0.5) / n_sub * dt - dt / 2
         wake_avg = backend.zeros(len(time), dtype=backend.float)
         for s in shifts:
-            wake_avg = wake_avg + local_res.get_wake(time + s)
+            wake_avg = wake_avg + local_res.get_wake_per_particle(time + s)
         wake_avg = wake_avg / n_sub
 
         binned = local_res.get_wake_binned(time)
@@ -761,7 +800,8 @@ class TestResonators(unittest.TestCase):
         assert (
             np.max(
                 np.abs(
-                    copy_to_cpu(binned) - copy_to_cpu(local_res.get_wake(time))
+                    copy_to_cpu(binned)
+                    - copy_to_cpu(local_res.get_wake_per_particle(time))
                 )
             )
             > 0.1 * peak
@@ -793,7 +833,7 @@ class TestResonators(unittest.TestCase):
         shifts = (np.arange(n_sub) + 0.5) / n_sub * dt - dt / 2
         wake_avg = backend.zeros(len(time), dtype=backend.float)
         for s in shifts:
-            wake_avg = wake_avg + local_res.get_wake(time + s)
+            wake_avg = wake_avg + local_res.get_wake_per_particle(time + s)
         wake_avg = wake_avg / n_sub
         expected = backend.fft.rfft(wake_avg, n=n_fft)
 
@@ -891,7 +931,9 @@ class TestResonators(unittest.TestCase):
         save_cr_wake_imp = self.resonators._shunt_impedances_counter_rotating
         with self.assertRaises(RuntimeError):
             self.resonators._shunt_impedances_counter_rotating = None
-            self.resonators.get_wake_counter_rotation(time=time)
+            self.resonators.get_wake_per_particle(
+                time=time, counter_rotating=True
+            )
         self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
 
     def test_get_vectorfit(self):
