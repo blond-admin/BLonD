@@ -127,7 +127,9 @@ class LHCBeamControl(BeamFeedbackBase):
         self.reference = 0.0
         self.current_thres = current_thres
 
-        self._add_intended_schedule("pl_gain", "sl_gain", "lhc_a", "lhc_t")
+        self._register_schedulable_variables(
+            "pl_gain", "sl_gain", "lhc_a", "lhc_t"
+        )
 
     @property
     def lhc_y(self):

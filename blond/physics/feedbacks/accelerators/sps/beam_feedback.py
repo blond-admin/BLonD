@@ -144,7 +144,7 @@ class SPSBeamControl(BeamFeedbackBase):
 
         self.current_thres = current_thres
 
-        self._add_intended_schedule(
+        self._register_schedulable_variables(
             "k_phi_n",
             "k_phi_nm1",
             "k_eps_n",

@@ -265,7 +265,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._add_intended_schedule(
+        self._register_schedulable_variables(
             "voltage",
             "phi_rf_design",
             "harmonic",

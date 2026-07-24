@@ -157,7 +157,7 @@ class PSBeamControl(BeamFeedbackBase):
         self.domega_dphi = 0.0
         self.domega_dr = 0.0
 
-        self._add_intended_schedule("pl_gain", "rl_gain")
+        self._register_schedulable_variables("pl_gain", "rl_gain")
 
     def calculate_offsets(self, beam: BeamBaseClass):
         """
