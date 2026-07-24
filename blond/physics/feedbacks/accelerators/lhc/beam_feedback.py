@@ -86,17 +86,15 @@ class LHCBeamControl(BeamFeedbackBase):
         the parameter along the simulated cycle.
     current_thres
         Beam current threshold for gating of the profiles.
+    lhc_a
+        The synchronization loop coefficient.
+    lhc_t
+        The synchronization loop time constant.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
 
     Attributes
     ----------
-    lhc_y
-        Recursion variable for the synchronization loop.
-    lhc_a
-        The synchronization loop coefficient.
-    lhc_t
-        The synchronization loop time constant.
     reference
         Reference phase [rad] for the synchronization loop.
     """
@@ -108,6 +106,8 @@ class LHCBeamControl(BeamFeedbackBase):
         pl_gain: float = 0.0,
         sl_gain: float = 0.0,
         current_thres: float | None = None,
+        lhc_a: float | None = None,
+        lhc_t: float | None = None,
         **kwargs,
     ):
         super().__init__(profile=profile, phase_noise=phase_noise, **kwargs)
@@ -115,13 +115,25 @@ class LHCBeamControl(BeamFeedbackBase):
         self.pl_gain = pl_gain
         self.sl_gain = sl_gain
 
-        self.lhc_y = 0.0
+        self._lhc_y = 0.0
 
-        self.lhc_a = 0.0
-        self.lhc_t = 0.0
+        self.lhc_a = lhc_a
+        self.lhc_t = lhc_t
 
         self.reference = 0.0
         self.current_thres = current_thres
+
+    @property
+    def lhc_y(self):
+        """
+        Recursion variable for the synchronization loop.
+
+        Returns
+        -------
+        lhc_y
+            Recursion variable for the synchronization loop.
+        """
+        return self._lhc_y
 
     def on_run_simulation(
         self,
@@ -158,8 +170,14 @@ class LHCBeamControl(BeamFeedbackBase):
                 "The filled slots in the machine is needed to compute the cavity sum phase"
             )
 
-        if self.sl_gain != 0:
-            self.calculate_synchro_coefficients(beam=beam)
+        if self.lhc_t is None or self.lhc_a is None:
+            if self.sl_gain != 0:
+                self.lhc_a, self.lhc_t = self.calculate_synchro_coefficients(
+                    beam=beam
+                )
+            else:
+                self.lhc_a = 0.0
+                self.lhc_t = 0.0
 
     def update_beam_attributes(self, beam: BeamBaseClass):
         """
@@ -206,7 +224,7 @@ class LHCBeamControl(BeamFeedbackBase):
         )
 
         # Update recursion variable
-        self.lhc_y = (1 - self.lhc_t) * self.lhc_y + (
+        self._lhc_y = (1 - self.lhc_t) * self.lhc_y + (
             1 - self.lhc_a
         ) * self.lhc_t * (dphi_rf + self.reference)
 
@@ -218,6 +236,13 @@ class LHCBeamControl(BeamFeedbackBase):
         ----------
         beam
             A beam object to extract the beam attribute from.
+
+        Returns
+        -------
+        lhc_a
+            The synchronization loop coefficient.
+        lhc_t
+            The synchronization loop time constant.
         """
         voltages = self.get_from_all_rf_stations(
             accessor=lambda rf: rf.get_main_harmonic_voltage(),
@@ -243,11 +268,13 @@ class LHCBeamControl(BeamFeedbackBase):
         omega_s0 = Q_s0 * omega_rf / harm
 
         #: | *LHC Synchronisation loop coefficient [1]*
-        self.lhc_a = 5.25 - omega_s0 / (np.pi * 40.0)
+        lhc_a = 5.25 - omega_s0 / (np.pi * 40.0)
         #: | *LHC Synchronisation loop time constant [turns]*
-        self.lhc_t = (2 * np.pi * Q_s0 * np.sqrt(self.lhc_a)) / np.sqrt(
+        lhc_t = (2 * np.pi * Q_s0 * np.sqrt(lhc_a)) / np.sqrt(
             1
             + self.pl_gain
             / self.sl_gain
-            * np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a))
+            * np.sqrt((1 + 1 / lhc_a) / (1 + lhc_a))
         )
+
+        return lhc_a, lhc_t
