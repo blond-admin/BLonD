@@ -6,4 +6,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module to manage and describe rf feedback systems."""
+"""Module to manage and describe rf feedback systems for the Large Hadron Collider."""
+
+__all__ = ["LHCBeamControl"]
+from blond.physics.feedbacks.accelerators.lhc.beam_feedback import (
+    LHCBeamControl,
+)

@@ -6,4 +6,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module to manage and describe rf feedback systems."""
+"""Module to manage and describe rf feedback systems for the Super Proton Synchrotron."""
+
+__all__ = ["SPSBeamControl"]
+from blond.physics.feedbacks.accelerators.sps.beam_feedback import (
+    SPSBeamControl,
+)
