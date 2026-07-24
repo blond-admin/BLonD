@@ -258,6 +258,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             self.profile.hist_step,
         )
 
+        # TODO: Maybe add this statement into the backend
         self.phi_beam = np.arctan(float(coeff))
 
     def update_phase_error(self, phase_noise=None):
