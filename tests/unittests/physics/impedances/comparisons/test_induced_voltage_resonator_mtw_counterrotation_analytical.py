@@ -285,16 +285,25 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
 
         for inter_turn_ind in range(self.n_stations):
             for trn_ind in range(self.n_turns * 2):
-                np.testing.assert_allclose(
-                    cav_obs_list_conv[inter_turn_ind].induced_voltage[trn_ind],
-                    cav_obs_list_pole[inter_turn_ind].induced_voltage[trn_ind],
-                    atol=np.max(
+                # Both solvers bin-average the resonator wake and agree to
+                # round-off: the convolution solver via
+                # TimeDomain.get_wake_binned, the pole-residue solver by scaling
+                # each residue with sinh(p*dt/2)/(p*dt/2) for lag >= 1 plus the
+                # causal self-bin correction in MultiPoleSparseSolve. The atol
+                # (scaled to the peak) only rescues the near-zero bins where
+                # rtol is meaningless.
+                scale = np.max(
+                    np.abs(
                         cav_obs_list_pole[inter_turn_ind].induced_voltage[
                             trn_ind
                         ]
                     )
-                    * 1e-12,
-                    rtol=0,  # problem with close to 0 values --> 1e-38 vs 1e-9
+                )
+                np.testing.assert_allclose(
+                    cav_obs_list_conv[inter_turn_ind].induced_voltage[trn_ind],
+                    cav_obs_list_pole[inter_turn_ind].induced_voltage[trn_ind],
+                    atol=scale * 1e-9,
+                    rtol=1e-9,
                 )
 
     @pytest.mark.backend_mutation

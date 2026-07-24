@@ -121,6 +121,45 @@ class WakeFieldSource(ABC):
 class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
 
+    def get_wake_binned(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Wake averaged over each sample bin ``[t - dt/2, t + dt/2]``.
+
+        A BLonD profile is a histogram (piecewise-constant charge per bin), so
+        the induced voltage of the beam is the convolution of the histogram
+        with the wake integrated over each bin, not the wake point-sampled at
+        the bin centres. Point-sampling a wake that oscillates several times
+        within a few bins aliases badly (the low-Q / broadband resonator bug);
+        bin-averaging removes it. Time-domain solvers should use this instead
+        of :func:`get_wake` so they agree with the frequency-domain solver and
+        with each other.
+
+        The default is the exact centered bin-average of the *piecewise-linear*
+        interpolant through the point-sampled wake, which on a uniform grid is
+        the parameter-free stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (interior
+        points; the edges extrapolate the boundary value). For a tabulated wake
+        this is exact, since the table is piecewise-linear by construction.
+        Sources with an analytic wake (e.g. :class:`Resonators`) override this
+        with the exact closed-form bin-average, which is more accurate when the
+        wake oscillates several times within a bin.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres) at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        wake = self.get_wake(time)
+        wake_prev = backend.concatenate((wake[:1], wake[:-1]))
+        wake_next = backend.concatenate((wake[1:], wake[-1:]))
+        return (wake_prev + 6.0 * wake + wake_next) / 8.0
+
     @abstractmethod  # pragma: no cover
     def get_impedance_from_wake(
         self,
@@ -188,6 +227,28 @@ class TimeDomainCounterRotation(ABC):
             Potential array, in [V].
         """
         pass
+
+    def get_wake_counter_rotation_binned(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Bin-averaged counter-rotating wake (see :func:`TimeDomain.get_wake_binned`).
+
+        The default falls back to point-sampling
+        (:func:`get_wake_counter_rotation`); sources with an analytic wake
+        override it with the exact closed-form bin-average.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres) at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged counter-rotating wake, in [V].
+        """
+        return self.get_wake_counter_rotation(time)
 
     @abstractmethod  # pragma: no cover
     def get_impedance_from_wake_counter_rotation(

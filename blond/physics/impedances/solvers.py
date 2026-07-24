@@ -54,6 +54,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
+# Poles with |p*dt/2| below this are treated as the p -> 0 limit (the
+# bin-average factor and self-bin correction both tend to well-defined limits
+# there), avoiding a 0/0 division.
+_NEGLIGIBLE_POLE_DT = 1e-30
+
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
@@ -664,7 +669,9 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             ] = 0.0
         self._wake_function_vals = backend.zeros_like(self._wake_function_time)
         for source in self._parent_wakefield.sources:
-            self._wake_function_vals += source.get_wake(
+            # bin-averaged wake so this solver agrees with the frequency-domain
+            # solver (and TimeDomainFftSolver) for under-resolved resonators
+            self._wake_function_vals += source.get_wake_binned(
                 self._wake_function_time
             )
 
@@ -938,15 +945,19 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+                # bin-averaged wakes so this solver agrees with the other
+                # time-domain solvers on under-resolved resonators
                 self._wake_function_vals[prof_ind] += (
-                    source.get_wake_counter_rotation(
+                    source.get_wake_counter_rotation_binned(
                         self._wake_function_time[prof_ind]
                     )
                     if (
                         self._past_profiles_counter_rotation_flag[prof_ind]
                         ^ self._past_profiles_counter_rotation_flag[0]
                     )
-                    else source.get_wake(self._wake_function_time[prof_ind])
+                    else source.get_wake_binned(
+                        self._wake_function_time[prof_ind]
+                    )
                 )
                 # exclusive OR, only if directionality of current profile and past profile differ,
                 # its actually counter-rotating
@@ -1078,12 +1089,13 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ``get_wake``."""
+        """Check that the sources implement ``get_wake_binned``."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
-            if not hasattr(source, "get_wake"):
+            if not hasattr(source, "get_wake_binned"):
                 raise AttributeError(
-                    f"The {source=} should implement `TimeDomain.get_wake`."
+                    f"The {source=} should implement"
+                    " `TimeDomain.get_wake_binned`."
                 )
 
     def on_wakefield_init_simulation(
@@ -1128,7 +1140,9 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what the we expect
-            wake_kernel_tmp = source.get_wake(time_axis)
+            # bin-averaged wake for consistency with the other time-domain
+            # solvers on under-resolved resonators
+            wake_kernel_tmp = source.get_wake_binned(time_axis)
 
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
@@ -1234,6 +1248,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self.last_reference_time: float | None = None
 
         self._charge_per_macroparticle: float | None = None  # in Coulomb
+        self._self_bin_correction: float | None = None
 
         # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
@@ -1292,6 +1307,51 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._states = backend.zeros(len(self._poles) + 1, complex)
         hist_x = hist_x_profile
         bin_dt = float(hist_x[1] - hist_x[0])
+
+        # Bin-average the pole wake so this solver matches the other
+        # time-domain solvers (and the frequency-domain solver) on
+        # under-resolved resonators. Averaging exp(p*t) over a centred bin
+        # [t - dt/2, t + dt/2] scales each residue by
+        # sinh(p*dt/2) / (p*dt/2); the p -> 0 limit is 1. See
+        # TimeDomain.get_wake_binned for the same correction in the other
+        # solvers.
+        half_p_dt = self._poles * (bin_dt / 2.0)
+        half_p_dt_safe = backend.where(
+            backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
+            half_p_dt,
+            backend.ones_like(half_p_dt),
+        )
+        bin_average_factor = backend.where(
+            backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
+            (backend.exp(half_p_dt) - backend.exp(-half_p_dt))
+            / (2.0 * half_p_dt_safe),
+            backend.ones_like(half_p_dt),
+        )
+
+        # Self-bin correction. The symmetric bin-average above is exact for
+        # every lag >= 1, but the self-bin (a source bin's contribution to its
+        # own voltage) must be the CAUSAL bin-average: the wake integrated over
+        # only the [0, dt/2] half of the bin, since the wake is zero for
+        # negative lag. The recursion instead evaluates the symmetric
+        # Re(residue) there. The difference is a per-bin term
+        # profile[n] * factor * Re(sum_k residue_k
+        #   * (exp(p_k dt/2) + exp(-p_k dt/2) - 2) / (p_k dt)),
+        # added in calc_induced_voltage. It is independent of the beam
+        # direction (the counter-rotating sign enters squared in the self-bin).
+        # Without it this solver stays O((p*dt)^2) off the convolution solvers.
+        self._self_bin_correction = float(
+            backend.sum(
+                backend.where(
+                    backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
+                    self._residues
+                    * (backend.exp(half_p_dt) + backend.exp(-half_p_dt) - 2.0)
+                    / (2.0 * half_p_dt_safe),
+                    backend.zeros_like(half_p_dt),
+                )
+            ).real
+        )
+
+        self._residues = self._residues * bin_average_factor
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based
         # state semantics; see poles.cpp for details).
@@ -1363,6 +1423,14 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage_threaded=self._voltage_threaded,
             update_on_bin=self._update_on_bin,
             factor=self._charge_per_macroparticle,
+        )
+        # Causal self-bin correction (see _finalize_solver): the recursion
+        # evaluates the self-bin with the symmetric bin-average; add the term
+        # that turns it into the causal one, consistent with get_wake_binned.
+        self._voltage += (
+            hist_x_profile
+            * self._charge_per_macroparticle
+            * self._self_bin_correction
         )
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

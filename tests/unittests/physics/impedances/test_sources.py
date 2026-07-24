@@ -134,6 +134,33 @@ class TestImpedanceTableTime(unittest.TestCase):
             )
         )
 
+    def test_get_wake_binned_default_is_piecewise_linear_bin_average(self):
+        """The generic TimeDomain.get_wake_binned default bin-averages.
+
+        A table wake is piecewise-linear (interp), so the centered bin-average
+        over each bin is exactly the (w[n-1] + 6 w[n] + w[n+1]) / 8 stencil on
+        the interior samples. This is the general fix shared by every
+        time-domain source that does not have an analytic closed form.
+        """
+        dt = 1e-11
+        t = np.arange(64) * dt
+        w = np.sin(2 * np.pi * 3e9 * t)
+        table = ImpedanceTableTime(
+            wake_x=backend.array(t), wake_y=backend.array(w)
+        )
+        time = backend.array(t)
+
+        binned = table.get_wake_binned(time)
+        expected = (np.roll(w, 1) + 6 * w + np.roll(w, -1)) / 8
+
+        np.testing.assert_allclose(
+            copy_to_cpu(binned)[1:-1], expected[1:-1], rtol=1e-12
+        )
+        # and it genuinely differs from point-sampling get_wake
+        assert not np.allclose(
+            copy_to_cpu(binned), copy_to_cpu(table.get_wake(time))
+        )
+
     def test_get_impedance_from_wake_within_bounds_no_warning(self):
         impedance_table = ImpedanceTableTime.from_file(
             filepath=callers_relative_path(
@@ -697,6 +724,95 @@ class TestResonators(unittest.TestCase):
                 plt.tight_layout()
                 # plt.savefig("")
                 plt.show()
+
+    def test_get_wake_binned_is_exact_bin_average(self):
+        """get_wake_binned returns the exact bin-average of the point wake.
+
+        This is the shared building block used by every time-domain resonator
+        solver so they stay mutually consistent. It must equal a fine numerical
+        bin-average and must differ from point-sampling when the wake is
+        undersampled.
+        """
+        local_res = Resonators(
+            shunt_impedances=np.array([100.0]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([1.0]),
+        )
+        dt = 0.18e-9  # f_res * dt = 0.18 -> heavily undersampled wake
+        time = backend.array(np.arange(256) * dt)
+
+        n_sub = 4000
+        shifts = (np.arange(n_sub) + 0.5) / n_sub * dt - dt / 2
+        wake_avg = backend.zeros(len(time), dtype=backend.float)
+        for s in shifts:
+            wake_avg = wake_avg + local_res.get_wake(time + s)
+        wake_avg = wake_avg / n_sub
+
+        binned = local_res.get_wake_binned(time)
+        peak = np.max(np.abs(copy_to_cpu(wake_avg)))
+        # matches the fine numerical bin-average ...
+        np.testing.assert_allclose(
+            copy_to_cpu(binned),
+            copy_to_cpu(wake_avg),
+            rtol=2e-3,
+            atol=2e-3 * peak,
+        )
+        # ... and is genuinely different from point-sampling here
+        assert (
+            np.max(
+                np.abs(
+                    copy_to_cpu(binned) - copy_to_cpu(local_res.get_wake(time))
+                )
+            )
+            > 0.1 * peak
+        )
+
+    def test_get_impedance_from_wake_is_exact_bin_average(self):
+        """The impedance-from-wake must be the exact bin-average of the wake.
+
+        For a resonator that is undersampled on the profile grid (its wake
+        oscillates several times within a few bins), point-sampling the wake
+        aliases badly. The correct representation of a histogram beam is the
+        wake integrated over each bin. This asserts the closed-form result
+        equals a fine numerical bin-average (the supersampling -> infinity
+        limit), with no supersampling knob.
+        """
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        local_res = Resonators(
+            shunt_impedances=np.array([100.0]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([1.0]),
+        )
+        dt = 0.18e-9  # f_res * dt = 0.18 -> heavily undersampled wake
+        time = backend.array(np.arange(256) * dt)
+        n_fft = 512
+
+        # reference: fine midpoint-rule average of the point wake over each bin
+        n_sub = 4000
+        shifts = (np.arange(n_sub) + 0.5) / n_sub * dt - dt / 2
+        wake_avg = backend.zeros(len(time), dtype=backend.float)
+        for s in shifts:
+            wake_avg = wake_avg + local_res.get_wake(time + s)
+        wake_avg = wake_avg / n_sub
+        expected = backend.fft.rfft(wake_avg, n=n_fft)
+
+        actual = local_res.get_impedance_from_wake(
+            time=time, simulation=simulation, beam=beam, n_fft=n_fft
+        )
+
+        # Agreement to < 0.2 % of full scale everywhere. The atol is relative
+        # to the peak because the near-DC bins are ~0 (a resonator has
+        # Z(0) = 0): there the closed form is exact while the numerical
+        # reference carries a tiny residual from the heaviside snapping in
+        # get_wake, which must not dominate the comparison.
+        peak = np.max(np.abs(copy_to_cpu(expected)))
+        np.testing.assert_allclose(
+            copy_to_cpu(actual),
+            copy_to_cpu(expected),
+            rtol=2e-3,
+            atol=2e-3 * peak,
+        )
 
     def test_get_impedance_from_wake(self):
         if backend.float != np.float32:

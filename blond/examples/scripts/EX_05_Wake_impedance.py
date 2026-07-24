@@ -112,7 +112,7 @@ def main():
             / 4620,
         )
         wakefield = WakeField(
-            sources=(Resonators(R_shunt, f_res, Q_factor, supersampling=5),),
+            sources=(Resonators(R_shunt, f_res, Q_factor),),
             solver=wake_solver,
             profile=profile,
         )

@@ -1,4 +1,4 @@
-"""Shows the problem with the resonator."""
+"""Low-Q broadband resonator: time- and frequency-domain solvers agree."""
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -21,7 +21,13 @@ from blond import (
 
 
 def main():  # NOQA: PLR0915
-    """Shows the problem with the resonator."""
+    """Low-Q broadband resonator: time- and frequency-domain solvers agree.
+
+    Previously the time-domain solver point-sampled the resonator wake, which
+    aliased badly for this fast-oscillating low-Q resonance and disagreed with
+    the frequency-domain solver. The time-domain solver now bin-integrates the
+    wake (exact for a histogram beam), so both curves overlap.
+    """
     backend.set_specials("cpp")
     n_particles = int(3e11)
     n_macroparticles = int(5e6)
@@ -91,16 +97,15 @@ def main():  # NOQA: PLR0915
     Q = 1.0
     R_S = Z_over_n * Q * frequency_R / f_rev
 
-    Zres_low = Resonators(R_S, frequency_R, Q)
-    Zres_high = Resonators(R_S, frequency_R, Q)
-    Zres_high.supersampling = 10000
+    Zres_freq = Resonators(R_S, frequency_R, Q)
+    Zres_time = Resonators(R_S, frequency_R, Q)
 
     wake1 = WakeField(
-        sources=(Zres_low,), solver=PeriodicFreqSolver(), profile=beam_profile
+        sources=(Zres_freq,), solver=PeriodicFreqSolver(), profile=beam_profile
     )
     wake1.track_profile = True
     wake3 = WakeField(
-        sources=(Zres_high,),
+        sources=(Zres_time,),
         solver=TimeDomainFftSolver(),
         profile=beam_profile,
     )
@@ -128,7 +133,7 @@ def main():  # NOQA: PLR0915
         beam_profile.hist_x * 1e9,
         wake3.induced_voltage,
         "g",
-        label="induced_voltage_time (supersampling)",
+        label="induced_voltage_time (bin-integrated)",
     )
     plt.xlabel("Time (ns)")
     plt.ylabel("Induced voltage (V)")
