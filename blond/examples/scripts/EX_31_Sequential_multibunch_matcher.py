@@ -63,7 +63,7 @@ N_POINTS_GRID = 1000
 
 # The train: four bunches, individually parameterized.
 N_BUNCHES = 4
-BUNCH_SPACING_BUCKETS = 5
+BUNCH_SPACING_BUCKETS = 10
 BUNCH_LENGTHS = [1.2e-9, 1.1e-9, 1.3e-9, 1.2e-9]  # s, 4 sigma rms
 BUNCH_INTENSITIES = [2.0e11, 1.6e11, 2.4e11, 2.0e11]  # particles
 
@@ -72,8 +72,6 @@ BUNCH_INTENSITIES = [2.0e11, 1.6e11, 2.4e11, 2.0e11]  # particles
 RESONATOR_R_SHUNT = 1e5  # Ohm
 RESONATOR_FREQUENCY = 2e8  # Hz
 RESONATOR_QUALITY_FACTOR = 10.0
-
-RF_PERIOD = 2.4951e-9  # s, one RF bucket at 450 GeV
 
 
 def main():
@@ -86,11 +84,29 @@ def main():
             transition_gamma=55.759505
         ),
     )
+    magnetic_cycle = ConstantMagneticCycle(
+        value=450e9, reference_particle=proton
+    )
+    beam = Beam(intensity=sum(BUNCH_INTENSITIES), particle_type=proton)
+    # The RF period sets the profile span and the per-bunch analysis
+    # windows below: derive it from the machine objects (the design
+    # revolution frequency needs the reference energy).
+    beam.reference.total_energy = magnetic_cycle.get_total_energy_init(
+        particle_type=proton
+    )
+    rf_period = (
+        2.0
+        * np.pi
+        / rf_station.calc_main_harmonic_omega_rf_design(
+            beam_beta=beam.reference.beta,
+            ring_circumference=ring.circumference,
+        )
+    )
     # The tracked profile spans the whole train (plus one bucket for
     # the wake tail behind the last bunch).
     profile = StaticProfile(
         cut_left=0.0,
-        cut_right=(N_BUNCHES * BUNCH_SPACING_BUCKETS + 1) * RF_PERIOD,
+        cut_right=(N_BUNCHES * BUNCH_SPACING_BUCKETS + 1) * rf_period,
         n_bins=1024,
     )
     wakefield = WakeField(
@@ -105,10 +121,6 @@ def main():
         profile=profile,
     )
     ring.add_elements([rf_station, drift, wakefield, profile], reorder=True)
-    magnetic_cycle = ConstantMagneticCycle(
-        value=450e9, reference_particle=proton
-    )
-    beam = Beam(intensity=sum(BUNCH_INTENSITIES), particle_type=proton)
     simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
     # Matched train ---------------------------------------------------
@@ -140,7 +152,7 @@ def main():
 
     bucket_indices = matcher.bucket_indices
     bucket_edges = [
-        (bucket_index * RF_PERIOD, (bucket_index + 1) * RF_PERIOD)
+        (bucket_index * rf_period, (bucket_index + 1) * rf_period)
         for bucket_index in bucket_indices
     ]
 
@@ -223,7 +235,7 @@ def main():
     ax_train.hist(dt * 1e9, bins=800, color="C0", alpha=0.8)
     for bucket_index in bucket_indices:
         ax_train.axvline(
-            (bucket_index + 0.5) * RF_PERIOD * 1e9,
+            (bucket_index + 0.5) * rf_period * 1e9,
             color="k",
             ls=":",
             lw=0.8,
