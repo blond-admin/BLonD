@@ -166,17 +166,17 @@ class Music(BeamPhysicsRelevant):
             The per-turn sort (:meth:`~blond.core.beam.base.BeamBaseClass.sort_by_dt`)
             also rejects distributed beams as a low-level safeguard.
         """
-        if mpi_is_distributed():
+        if mpi_is_distributed():  # pragma: no cover
             raise NotImplementedError(
                 "MuSiC does not support MPI: the per-turn sort cannot order "
                 "a beam split across ranks."
             )
-        if backend.specials_mode == "numba":
+        if backend.specials_mode == "numba":  # pragma: no cover
             raise NotImplementedError(
                 "MuSiC does not support the `numba` backend; only `python` "
                 "and `cpp` are available (as in BLonD2)."
             )
-        if backend.specials_mode == "cuda":
+        if backend.specials_mode == "cuda":  # pragma: no cover
             raise NotImplementedError(
                 "MuSiC does not support the `cuda` backend."
             )
