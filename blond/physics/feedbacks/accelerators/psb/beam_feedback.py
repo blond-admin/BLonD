@@ -158,6 +158,8 @@ class PSBBeamControl(BeamFeedbackBase):
         self.domega_rl = 0.0
         self.dr_over_r = 0.0
 
+        self._add_intended_schedule("pl_gain", "rl_gain_a", "rl_gain_b")
+
     def on_run_simulation(
         self,
         simulation: Simulation,

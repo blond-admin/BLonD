@@ -88,8 +88,12 @@ class LHCBeamControl(BeamFeedbackBase):
         Beam current threshold for gating of the profiles.
     lhc_a
         The synchronization loop coefficient.
+        Use ``beam_control.schedule("lhc_a", ...)`` to influence
+        the parameter along the simulated cycle.
     lhc_t
         The synchronization loop time constant.
+        Use ``beam_control.schedule("lhc_t", ...)`` to influence
+        the parameter along the simulated cycle.
     **kwargs
         Variable keyword arguments for the `BeamFeedbackBase`.
 
@@ -122,6 +126,8 @@ class LHCBeamControl(BeamFeedbackBase):
 
         self.reference = 0.0
         self.current_thres = current_thres
+
+        self._add_intended_schedule("pl_gain", "sl_gain", "lhc_a", "lhc_t")
 
     @property
     def lhc_y(self):

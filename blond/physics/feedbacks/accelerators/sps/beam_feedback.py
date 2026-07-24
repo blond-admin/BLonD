@@ -144,6 +144,17 @@ class SPSBeamControl(BeamFeedbackBase):
 
         self.current_thres = current_thres
 
+        self._add_intended_schedule(
+            "k_phi_n",
+            "k_phi_nm1",
+            "k_eps_n",
+            "k_z_n",
+            "k_a_n",
+            "k_b_n",
+            "phi_sync",
+            "pl_gain",
+        )
+
     def on_run_simulation(
         self,
         simulation: Simulation,
