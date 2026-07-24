@@ -17,12 +17,12 @@ def main():
         dt = np.random.randn(n_particles)
         dE = np.random.randn(n_particles)
         acceleration_kick = 1.0
-        butils_wrap_cpp.kick(
+        build_wrap_cpp.kick(
             dt, dE, voltages, omega_rf, phi_rf, charge, n_rf, acceleration_kick
         )  # warmup
 
         t0 = time.time()
-        butils_wrap_cpp.kick(
+        build_wrap_cpp.kick(
             dt, dE, voltages, omega_rf, phi_rf, charge, n_rf, acceleration_kick
         )
         t1 = time.time()

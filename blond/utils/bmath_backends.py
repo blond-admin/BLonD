@@ -556,7 +556,7 @@ class __CupyBackend(MasterBackend):
 class CppBackend(__NumpyBackend):
     def __init__(self):
         """Mostly numpy backend, with some declarations from
-        blond.utils.butils_wrap_cpp"""
+        blond.utils.build_wrap_cpp"""
         super().__init__()
 
         self.device = "CPU_CPP"
@@ -629,7 +629,7 @@ class CppBackend(__NumpyBackend):
 class NumbaBackend(__NumpyBackend):
     def __init__(self):
         """Mostly numpy backend, with some declarations from
-        blond.utils.butils_wrap_numba"""
+        blond.utils.build_wrap_numba"""
         super().__init__()
 
         self.device = "CPU_NU"
@@ -665,7 +665,7 @@ class NumbaBackend(__NumpyBackend):
 
 class PyBackend(__NumpyBackend):
     """Mostly numpy backend, with some declarations from
-    blond.utils.butils_wrap_python"""
+    blond.utils.build_wrap_python"""
 
     def __init__(self):
         super().__init__()
@@ -720,28 +720,28 @@ class GpuBackend(__CupyBackend):
 
         self.device = "GPU"
 
-        from blond.gpu import butils_wrap_cupy
+        from blond.gpu import build_wrap_cupy
         from blond.utils import build_wrap_python as _py
 
         self.rfft = cp.fft.rfft
         self.irfft = cp.fft.irfft
         self.rfftfreq = cp.fft.rfftfreq
         self.convolve = cp.convolve
-        # 'convolve' = butils_wrap_cupy.convolve
-        self.beam_phase = butils_wrap_cupy.beam_phase
-        self.beam_phase_fast = butils_wrap_cupy.beam_phase_fast
-        self.kick = butils_wrap_cupy.kick
-        self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
-        self.drift = butils_wrap_cupy.drift
-        self.linear_interp_kick = butils_wrap_cupy.linear_interp_kick
-        # 'LIKick_n_drift' = butils_wrap_cupy.linear_interp_kick_drift
-        self.synchrotron_radiation = butils_wrap_cupy.synchrotron_radiation
+        # 'convolve' = build_wrap_cupy.convolve
+        self.beam_phase = build_wrap_cupy.beam_phase
+        self.beam_phase_fast = build_wrap_cupy.beam_phase_fast
+        self.kick = build_wrap_cupy.kick
+        self.rf_volt_comp = build_wrap_cupy.rf_volt_comp
+        self.drift = build_wrap_cupy.drift
+        self.linear_interp_kick = build_wrap_cupy.linear_interp_kick
+        # 'LIKick_n_drift' = build_wrap_cupy.linear_interp_kick_drift
+        self.synchrotron_radiation = build_wrap_cupy.synchrotron_radiation
         self.synchrotron_radiation_full = (
-            butils_wrap_cupy.synchrotron_radiation_full
+            build_wrap_cupy.synchrotron_radiation_full
         )
-        self.slice_beam = butils_wrap_cupy.slice_beam
-        # 'interp_const_space' = butils_wrap_cupy.interp
-        self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
+        self.slice_beam = build_wrap_cupy.slice_beam
+        # 'interp_const_space' = build_wrap_cupy.interp
+        self.rf_volt_comp = build_wrap_cupy.rf_volt_comp
         self.resonator_induced_voltage_1_turn = (
             _py.resonator_induced_voltage_1_turn
         )

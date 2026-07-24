@@ -19,4 +19,4 @@ omit =
     blond/_version.py
     blond/sanity_check.py
     blond/gpu/*
-    blond/utils/butils_wrap_numba.py
+    blond/utils/build_wrap_numba.py

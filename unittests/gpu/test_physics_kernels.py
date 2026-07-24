@@ -151,18 +151,18 @@ class TestSyntheticData:
         omega_rf = np.random.randn(10)
         phi_rf = np.random.randn(10)
         bin_centers = np.linspace(1e-5, 1e-6, n_slices)
-        res = butils_wrap_cpp.rf_volt_comp(
+        res = build_wrap_cpp.rf_volt_comp(
             voltages, omega_rf, phi_rf, bin_centers
         )
         import cupy as cp
-        from blond.gpu import butils_wrap_cupy
+        from blond.gpu import build_wrap_cupy
 
         bm.use_gpu()
         voltages = bm.array(voltages)
         omega_rf = bm.array(omega_rf)
         phi_rf = bm.array(phi_rf)
         bin_centers = bm.array(bin_centers)
-        res_gpu = butils_wrap_cupy.rf_volt_comp(
+        res_gpu = build_wrap_cupy.rf_volt_comp(
             voltages, omega_rf, phi_rf, bin_centers
         )
 
@@ -294,7 +294,7 @@ class TestSyntheticData:
         import numpy as np
         import cupy as cp
         from blond.utils.build_wrap_python import kick as kick_python
-        from blond.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond.gpu.build_wrap_cupy import kick as kick_cupy
         from blond.gpu import GPU_DEV
 
         GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
@@ -350,7 +350,7 @@ class TestSyntheticData:
         import numpy as np
         import cupy as cp
         from blond.utils.build_wrap_python import kick as kick_python
-        from blond.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond.gpu.build_wrap_cupy import kick as kick_cupy
         from blond.gpu import GPU_DEV
 
         GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
