@@ -36,7 +36,7 @@ dependencies = [
   "numpy>=2",          # array computing
   "scipy>=1.15,<1.18", # scientific computing algorithms
   "matplotlib>=3.9",   # plotting and visualization
-  "numba>=0.60",       # simple computing backend that compiles everywhere out of the box
+  "numba>=0.61",       # simple computing backend that compiles everywhere out of the box
   "tqdm>4",            # nice loading bar
   "mpi4py>=4",         # distributed computing
   "mpmath>=1",         # for numba fastmath replacement

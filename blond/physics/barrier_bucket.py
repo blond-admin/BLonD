@@ -71,7 +71,9 @@ class BarrierRF(RFManipulationBaseClass):
         self.peak_voltage: float = peak_voltage
         self.n_bins = n_bins
 
-        self._add_intended_schedule("t_center", "t_width", "peak_voltage")
+        self._register_schedulable_variables(
+            "t_center", "t_width", "peak_voltage"
+        )
 
     def waveform_at_turn_or_time(
         self, turn_i: int, reference_time: float, bin_centers: AnyArray
