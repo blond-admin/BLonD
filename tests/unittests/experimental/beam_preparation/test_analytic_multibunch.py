@@ -24,10 +24,14 @@ from blond.experimental.beam_preparation.analytic_matcher import (
     LineDensityMatcher,
 )
 from blond.experimental.beam_preparation.analytic_multibunch import (
+    SelfConsistentMultiBunchMatcher,
     SequentialMultiBunchMatcher,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
-from blond.physics.impedances.solvers import TimeDomainFftSolver
+from blond.physics.impedances.solvers import (
+    PeriodicFreqSolver,
+    TimeDomainFftSolver,
+)
 
 RF_PERIOD = 2.0 * np.pi / 2518229887.224505
 
@@ -38,6 +42,7 @@ def _build_simulation(
     n_buckets=16,
     resonator_frequency=8e8,
     resonator_quality=1.0,
+    solver=None,
 ):
     ring = Ring(26658.883)
     rf_station = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
@@ -60,7 +65,7 @@ def _build_simulation(
                     resonator_quality,
                 ),
             ),
-            solver=TimeDomainFftSolver(),
+            solver=solver if solver is not None else TimeDomainFftSolver(),
             profile=profile,
         )
         elements += [wakefield, profile]
@@ -372,3 +377,148 @@ def test_train_is_stationary_over_turns():
     np.testing.assert_allclose(
         final_positions, initial_positions, atol=0.05e-9
     )
+
+
+# ---------------------- SelfConsistentMultiBunchMatcher --------------------
+
+
+def _train_specs():
+    """EX_31-like per-bunch specs (reduced resolution)."""
+    lengths = [1.2e-9, 1.1e-9, 1.3e-9, 1.2e-9]
+    return [
+        _template(bunch_length=length, seed=bunch_i, relaxation_factor=0.5)
+        for bunch_i, length in enumerate(lengths)
+    ]
+
+
+TRAIN_INTENSITIES = [2.0e11, 1.6e11, 2.4e11, 2.0e11]
+
+
+def test_self_consistent_agrees_with_sequential():
+    # With causal (open-boundary) wakes the sequential method already
+    # sits at the self-consistent fixed point: both matchers must give
+    # the same train. Same seeds -> sampling noise cancels in the
+    # comparison.
+    results = {}
+    for label, matcher_class in (
+        ("sequential", SequentialMultiBunchMatcher),
+        ("self_consistent", SelfConsistentMultiBunchMatcher),
+    ):
+        simulation, beam = _build_simulation(
+            resonator_r_shunt=1e5,
+            intensity=sum(TRAIN_INTENSITIES),
+            n_buckets=41,
+            resonator_frequency=2e8,
+            resonator_quality=10.0,
+        )
+        kwargs = dict(
+            bunch_matchers=_train_specs(),
+            n_bunches=4,
+            bunch_spacing_buckets=10,
+            bunch_intensities=TRAIN_INTENSITIES,
+        )
+        if matcher_class is SelfConsistentMultiBunchMatcher:
+            kwargs["relaxation_factor"] = 0.5
+        matcher = matcher_class(**kwargs)
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        dt = copy_to_cpu(beam.read_partial_dt())
+        results[label] = _bunch_positions_and_lengths(
+            dt, matcher.bucket_indices
+        )
+        if matcher_class is SelfConsistentMultiBunchMatcher:
+            assert matcher.final_potential_well_error < 1e-6
+
+    np.testing.assert_allclose(
+        results["self_consistent"][0],
+        results["sequential"][0],
+        atol=0.5e-12,
+    )
+    np.testing.assert_allclose(
+        results["self_consistent"][1],
+        results["sequential"][1],
+        rtol=2e-3,
+    )
+
+
+def test_self_consistent_periodic_wraps_the_wake():
+    # With a periodic solver and train_periodicity, the wake of the
+    # trailing bunches wraps around onto the first bunch — a
+    # configuration the open-boundary methods cannot represent: the
+    # first bunch's position must differ measurably.
+    n_buckets_period = 40
+    train_periodicity = n_buckets_period * RF_PERIOD
+
+    positions = {}
+    for label, solver, periodicity in (
+        ("open", None, None),
+        (
+            "periodic",
+            PeriodicFreqSolver(t_periodicity=train_periodicity),
+            train_periodicity,
+        ),
+    ):
+        simulation, beam = _build_simulation(
+            resonator_r_shunt=1e5,
+            intensity=sum(TRAIN_INTENSITIES),
+            n_buckets=n_buckets_period if periodicity else 41,
+            resonator_frequency=2e8,
+            resonator_quality=10.0,
+            solver=solver,
+        )
+        matcher = SelfConsistentMultiBunchMatcher(
+            bunch_matchers=_train_specs(),
+            n_bunches=4,
+            bunch_spacing_buckets=10,
+            bunch_intensities=TRAIN_INTENSITIES,
+            relaxation_factor=0.5,
+            train_periodicity=periodicity,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        assert matcher.final_potential_well_error < 1e-6
+        dt = copy_to_cpu(beam.read_partial_dt())
+        positions[label], _ = _bunch_positions_and_lengths(
+            dt, matcher.bucket_indices
+        )
+
+    # The first bunch now feels the wrapped wake of the whole train.
+    assert abs(positions["periodic"][0] - positions["open"][0]) > 2e-12
+
+
+def test_self_consistent_without_wakefields():
+    simulation, beam = _build_simulation()
+    matcher = SelfConsistentMultiBunchMatcher(
+        bunch_matchers=_template(),
+        n_bunches=2,
+        bunch_spacing_buckets=5,
+    )
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+    assert matcher.n_intensity_iterations == 0
+    dt = copy_to_cpu(beam.read_partial_dt())
+    positions, lengths = _bunch_positions_and_lengths(
+        dt, matcher.bucket_indices
+    )
+    np.testing.assert_allclose(
+        positions, (matcher.bucket_indices + 0.5) * RF_PERIOD, atol=0.02e-9
+    )
+    np.testing.assert_allclose(lengths, 1.2e-9, rtol=3e-2)
+
+
+def test_self_consistent_validation():
+    template = _template()
+    with pytest.raises(ValueError, match="relaxation_factor"):
+        SelfConsistentMultiBunchMatcher(
+            bunch_matchers=template,
+            n_bunches=2,
+            bunch_spacing_buckets=5,
+            relaxation_factor=0.0,
+        )
+    # train_periodicity shorter than the occupied buckets.
+    simulation, beam = _build_simulation(resonator_r_shunt=1e4, intensity=2e11)
+    matcher = SelfConsistentMultiBunchMatcher(
+        bunch_matchers=template,
+        n_bunches=2,
+        bunch_spacing_buckets=5,
+        train_periodicity=3 * RF_PERIOD,
+    )
+    with pytest.raises(ValueError, match="train_periodicity"):
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)

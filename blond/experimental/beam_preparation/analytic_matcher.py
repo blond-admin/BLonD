@@ -205,6 +205,10 @@ class _AnalyticMatcherBase(MatchingRoutine):
 
     _constructor_kwargs: dict
     _extra_voltage: tuple[NumpyArray, NumpyArray] | None
+    # Set by the self-consistent multi-bunch driver: it supplies the
+    # full train wake via extra_voltage, so the matcher must not run
+    # its own self-wake iteration on top (double counting).
+    _ignore_ring_wakefields: bool = False
 
     def clone(self, **overrides):
         """
@@ -487,9 +491,15 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
         # wake tail behind the bunch) and its potential live on the
         # frame directly, with no cut-edge interpolation artefacts.
         induced_potential = np.zeros_like(time_array)
-        wakefield_clones, smooth_profile = clone_wakefields_on_smooth_profile(
-            simulation, time_array
-        )
+        if self._ignore_ring_wakefields:
+            # The self-consistent multi-bunch driver supplies the FULL
+            # train wake (own bunch included) via extra_voltage: the
+            # internal self-wake iteration would double count it.
+            wakefield_clones, smooth_profile = [], None
+        else:
+            wakefield_clones, smooth_profile = (
+                clone_wakefields_on_smooth_profile(simulation, time_array)
+            )
         rf_amplitude = None
         rf_well_cut_for_plot = None
         residual = None
@@ -701,10 +711,16 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
         with AllowPlotting():
             if with_wells:
                 fig, (ax, ax_well) = plt.subplots(
-                    2, 1, num="AnalyticDistributionMatcher", sharex=True
+                    2,
+                    1,
+                    num="AnalyticDistributionMatcher",
+                    sharex=True,
+                    clear=True,
                 )
             else:
-                fig, ax = plt.subplots(num="AnalyticDistributionMatcher")
+                fig, ax = plt.subplots(
+                    num="AnalyticDistributionMatcher", clear=True
+                )
             ax.hist(
                 copy_to_cpu(beam.read_partial_dt()),
                 bins=min(200, self._n_points_grid),
@@ -1111,9 +1127,14 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         # centering and induced potential iterate together (BLonD 2)
         # with the under-relaxation stabiliser.
         induced_potential = np.zeros_like(time_array)
-        wakefield_clones, smooth_profile = clone_wakefields_on_smooth_profile(
-            simulation, time_array
-        )
+        if self._ignore_ring_wakefields:
+            # See AnalyticDistributionMatcher: the self-consistent
+            # multi-bunch driver supplies the full wake externally.
+            wakefield_clones, smooth_profile = [], None
+        else:
+            wakefield_clones, smooth_profile = (
+                clone_wakefields_on_smooth_profile(simulation, time_array)
+            )
         rf_amplitude = None
         rf_well_cut_for_plot = None
         residual = None
@@ -1354,10 +1375,10 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         with AllowPlotting():
             if with_wells:
                 fig, (ax, ax_well) = plt.subplots(
-                    2, 1, num="LineDensityMatcher", sharex=True
+                    2, 1, num="LineDensityMatcher", sharex=True, clear=True
                 )
             else:
-                fig, ax = plt.subplots(num="LineDensityMatcher")
+                fig, ax = plt.subplots(num="LineDensityMatcher", clear=True)
             ax.hist(
                 copy_to_cpu(beam.read_partial_dt()),
                 bins=min(200, self._n_points_grid),
