@@ -29,10 +29,9 @@ from blond.generals.cupy import no_cupy_import
 from blond.generals.distributed import helpers as mpi_help
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import ArrayLike
-
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.typing import AnyArray
 
 
 class Coasting(base.BeamPreparationRoutine):
@@ -71,11 +70,11 @@ class Coasting(base.BeamPreparationRoutine):
     def __init__(
         self,
         n_macroparticles: int,
-        energy_bins: ArrayLike,
-        energy_profile: ArrayLike,
+        energy_bins: AnyArray,
+        energy_profile: AnyArray,
         start_time: float = 0,
         stop_time: float | None = None,
-        energy_offset: float | ArrayLike = 0,
+        energy_offset: float | AnyArray = 0,
         seed: int | None = None,
     ):
         super().__init__()
