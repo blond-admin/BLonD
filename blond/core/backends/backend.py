@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import warnings
@@ -19,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
-from blond.generals.exceptions_ import ArrayCastingError
+from blond.generals.exceptions_ import ArrayCastingError, UnknownBackendMode
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -582,17 +583,33 @@ class BackendBaseClass(ABC):
         new_backend
             One of the available backends.
         """
-        if self.__class__ == new_backend.__class__:
+        if not isinstance(new_backend, type):
+            raise TypeError(
+                f"`new_backend` must be a {BackendBaseClass.__name__} subclass "
+                f"(the class itself, not an instance), got {new_backend!r}."
+            )
+        if not issubclass(new_backend, BackendBaseClass):
+            raise TypeError(
+                f"`new_backend` must be a {BackendBaseClass.__name__} subclass, "
+                f"got {new_backend!r}."
+            )
+        if self.__class__ is new_backend:
+            # requesting the already active backend must be a no-op
             return
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
         _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
-
         _new_backend.verbose = self.verbose
+        specials_mode_org = self.specials_mode
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
-        self.set_specials(self.specials_mode)  # TODO test changing backends
+        # If the previous specials mode does not exist on the new backend
+        # family (e.g. "cuda" after changing to a CPU backend), keep the
+        # new backend's default mode instead. Suppress only that specific
+        # case so genuine failures from set_specials still propagate.
+        with contextlib.suppress(UnknownBackendMode):
+            self.set_specials(specials_mode_org)
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
@@ -967,7 +984,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
@@ -1090,7 +1109,9 @@ class CupyBackend(BackendBaseClass):
 
             self.specials = CudaSpecials()
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose:
             print(f"Set special to `{mode}`")
 
