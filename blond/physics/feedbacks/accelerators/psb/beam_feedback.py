@@ -101,7 +101,17 @@ class PSBBeamControl(BeamFeedbackBase):
         Second coefficient for the numerator of the beam-phase loop transfer function.
         See documentation above.
     **kwargs
-        Variable keyword arguments for the `BeamFeedbackBase`.
+        Variable keyword arguments for the `BeamFeedbackBase`. These are
+
+        * delay: Delay (in units of turns) of the initial correction of the feedback system.
+
+        * window_coefficient: Window coefficient for the calculation of the beam phase.
+          This parameter will reduce the weight of later samples of the beam profile.
+
+        * time_offset: Time offset [s] for the calculation of the beam phase.
+
+        * sample_de: Determines downsampling of macroparticles for mean energy calculation.
+          Every `sample_de` particle is sampled.
 
     Attributes
     ----------

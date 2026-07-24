@@ -12,6 +12,7 @@ Implementation of the PS beam control.
 Notes
 -----
 Authors:
+Alexandre Lasheen
 Oleksandr Naumenko
 Oliver Muller Smedt
 """
@@ -97,7 +98,14 @@ class PSBeamControl(BeamFeedbackBase):
     prev_out_radial
         Initial value for the radial output of the feedback.
     **kwargs
-        Variable keyword arguments for the `BeamFeedbackBase`.
+        Variable keyword arguments for the `BeamFeedbackBase`. These are
+
+        * delay: Delay (in units of turns) of the initial correction of the feedback system.
+
+        * window_coefficient: Window coefficient for the calculation of the beam phase.
+          This parameter will reduce the weight of later samples of the beam profile.
+
+        * time_offset: Time offset [s] for the calculation of the beam phase.
 
     Attributes
     ----------

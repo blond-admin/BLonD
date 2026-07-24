@@ -80,9 +80,20 @@ class SPSBeamControl(BeamFeedbackBase):
     delay_turns
         The delay [turns] between measurement at correction from the beam control.
     current_thres
-        Beam current threshold for gating of the profiles.
+        Beam current threshold for gating of the profiles. This is only used
+        for the cavity sum phase calculation when tracking with cavity feedbacks as well.
     **kwargs
-        Variable keyword arguments for the `BeamFeedbackBase`.
+        Variable keyword arguments for the `BeamFeedbackBase`. These are
+
+        * delay: Delay (in units of turns) of the initial correction of the feedback system.
+
+        * window_coefficient: Window coefficient for the calculation of the beam phase.
+          This parameter will reduce the weight of later samples of the beam profile.
+
+        * time_offset: Time offset [s] for the calculation of the beam phase.
+
+        * sample_de: Determines downsampling of macroparticles for mean energy calculation.
+          Every `sample_de` particle is sampled.
 
     Attributes
     ----------
@@ -187,7 +198,8 @@ class SPSBeamControl(BeamFeedbackBase):
             and self._main_cavities[0].any_feedback_not_none
         ):
             raise RuntimeError(
-                "The filled slots in the machine is needed to compute the cavity sum phase"
+                "The `current_thres` is needed to calculate the filled slots along the turn. "
+                "This is needed to compute the cavity sum phase from the cavity feedbacks."
             )
 
     def update_beam_attributes(self, beam: BeamBaseClass):
