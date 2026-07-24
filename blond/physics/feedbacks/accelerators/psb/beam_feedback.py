@@ -214,7 +214,7 @@ class PSBBeamControl(BeamFeedbackBase):
         else:
             self._on_time = np.arange(n_turns + 1)
 
-    def get_beam_attribute(self, beam: BeamBaseClass):
+    def update_beam_attributes(self, beam: BeamBaseClass):
         """
         Calculate the beam phase.
 
@@ -229,7 +229,7 @@ class PSBBeamControl(BeamFeedbackBase):
         """
         self.beam_phase()
 
-    def compute_correction(self, beam: BeamBaseClass):
+    def update_frequency_correction(self, beam: BeamBaseClass):
         """
         Calculate the frequency correction from the beam control.
 

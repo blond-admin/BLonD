@@ -184,7 +184,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         self.check_main_rf_stations_with_cavity_feedback()
 
     @abstractmethod  # pragma: no cover
-    def get_beam_attribute(self, beam: BeamBaseClass):
+    def update_beam_attributes(self, beam: BeamBaseClass):
         """
         Calculate the beam-based measurement.
 
@@ -202,7 +202,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         pass
 
     @abstractmethod  # pragma: no cover
-    def compute_correction(self, beam: BeamBaseClass):
+    def update_frequency_correction(self, beam: BeamBaseClass):
         """
         Calculate the frequency corrections from the feedback.
 
@@ -369,12 +369,15 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         ----------
         new_main_harmonic
             The new main harmonic number. If no number is passed then
-            the new main harmonic will be the lowest main harmonic of the
-            rf stations.
+            the new main harmonic will be the lowest main harmonic of all
+            rf stations in the ring.
         """
         harmonics = self.get_from_all_rf_stations(
             accessor=lambda rf: rf.get_main_harmonic()
         )
+
+        # If no new harmonic is passed by the user the method updates
+        # the new main harmonic to be the lowest one out of all the rf stations.
         self.main_harmonic = (
             np.min(harmonics)
             if new_main_harmonic is None
@@ -435,11 +438,11 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
                 reference_time=float(beam.reference.time),
             )
 
-        self.get_beam_attribute(
+        self.update_beam_attributes(
             beam=beam,
         )
         # TODO: maybe later such that delta_omega_rf is returned from this method
-        self.compute_correction(
+        self.update_frequency_correction(
             beam=beam,
         )
 

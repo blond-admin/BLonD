@@ -169,7 +169,7 @@ class PSBeamControl(BeamFeedbackBase):
         self.update_phase_error()
         self.radial_difference(beam=beam)
 
-    def get_beam_attribute(self, beam: BeamBaseClass):
+    def update_beam_attributes(self, beam: BeamBaseClass):
         """
         Calculate the beam phase.
 
@@ -185,7 +185,7 @@ class PSBeamControl(BeamFeedbackBase):
         self.beam_phase()
         self.calculate_offsets(beam=beam)
 
-    def compute_correction(self, beam: BeamBaseClass):
+    def update_frequency_correction(self, beam: BeamBaseClass):
         """
         Calculate the frequency correction from the beam control.
 

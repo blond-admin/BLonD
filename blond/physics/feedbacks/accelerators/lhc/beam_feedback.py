@@ -161,7 +161,7 @@ class LHCBeamControl(BeamFeedbackBase):
         if self.sl_gain != 0:
             self.calculate_synchro_coefficients(beam=beam)
 
-    def get_beam_attribute(self, beam: BeamBaseClass):
+    def update_beam_attributes(self, beam: BeamBaseClass):
         """
         Calculate the beam phase.
 
@@ -176,7 +176,7 @@ class LHCBeamControl(BeamFeedbackBase):
         """
         self.beam_phase()
 
-    def compute_correction(self, beam: BeamBaseClass):
+    def update_frequency_correction(self, beam: BeamBaseClass):
         """
         Calculate the frequency correction from the beam control.
 
