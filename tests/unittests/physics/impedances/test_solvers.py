@@ -3307,7 +3307,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         beam_mock.intensity = 1e-13
 
         class FaultyResonators:
-            def get_wake_binned(self):  # emulate wroing implementation
+            def get_wake_per_bin(self):  # emulate wroing implementation
                 return
 
         wf_mutli = WakeField.headless(
@@ -3324,7 +3324,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake_binned`"
+            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),

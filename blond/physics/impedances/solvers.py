@@ -671,7 +671,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             # bin-averaged wake so this solver agrees with the frequency-domain
             # solver (and TimeDomainFftSolver) for under-resolved resonators
-            self._wake_function_vals += source.get_wake_binned(
+            self._wake_function_vals += source.get_wake_per_bin(
                 self._wake_function_time
             )
 
@@ -947,17 +947,12 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
                 # bin-averaged wakes so this solver agrees with the other
                 # time-domain solvers on under-resolved resonators
-                self._wake_function_vals[prof_ind] += (
-                    source.get_wake_counter_rotation_binned(
-                        self._wake_function_time[prof_ind]
-                    )
-                    if (
+                self._wake_function_vals[prof_ind] += source.get_wake_per_bin(
+                    self._wake_function_time[prof_ind],
+                    counter_rotating=(
                         self._past_profiles_counter_rotation_flag[prof_ind]
                         ^ self._past_profiles_counter_rotation_flag[0]
-                    )
-                    else source.get_wake_binned(
-                        self._wake_function_time[prof_ind]
-                    )
+                    ),
                 )
                 # exclusive OR, only if directionality of current profile and past profile differ,
                 # its actually counter-rotating
@@ -1089,13 +1084,13 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ``get_wake_binned``."""
+        """Check that the sources implement ``get_wake_per_bin``."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
-            if not hasattr(source, "get_wake_binned"):
+            if not hasattr(source, "get_wake_per_bin"):
                 raise AttributeError(
                     f"The {source=} should implement"
-                    " `TimeDomain.get_wake_binned`."
+                    " `TimeDomain.get_wake_per_bin`."
                 )
 
     def on_wakefield_init_simulation(
@@ -1142,7 +1137,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             source: TimeDomain  # type hint what the we expect
             # bin-averaged wake for consistency with the other time-domain
             # solvers on under-resolved resonators
-            wake_kernel_tmp = source.get_wake_binned(time_axis)
+            wake_kernel_tmp = source.get_wake_per_bin(time_axis)
 
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
@@ -1313,7 +1308,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # under-resolved resonators. Averaging exp(p*t) over a centred bin
         # [t - dt/2, t + dt/2] scales each residue by
         # sinh(p*dt/2) / (p*dt/2); the p -> 0 limit is 1. See
-        # TimeDomain.get_wake_binned for the same correction in the other
+        # TimeDomain.get_wake_per_bin for the same correction in the other
         # solvers.
         half_p_dt = self._poles * (bin_dt / 2.0)
         half_p_dt_safe = backend.where(
@@ -1426,7 +1421,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         # Causal self-bin correction (see _finalize_solver): the recursion
         # evaluates the self-bin with the symmetric bin-average; add the term
-        # that turns it into the causal one, consistent with get_wake_binned.
+        # that turns it into the causal one, consistent with get_wake_per_bin.
         self._voltage += (
             hist_x_profile
             * self._charge_per_macroparticle

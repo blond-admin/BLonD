@@ -148,8 +148,8 @@ class TimeDomain(ABC):
             f"{type(self).__name__} does not provide a point-charge wake."
         )
 
-    def get_wake_binned(
-        self, time: NumpyArray | CupyArray
+    def get_wake_per_bin(
+        self, time: NumpyArray | CupyArray, counter_rotating: bool = False
     ) -> NumpyArray | CupyArray:
         """
         Wake averaged over each sample bin ``[t - dt/2, t + dt/2]``.
@@ -176,16 +176,19 @@ class TimeDomain(ABC):
         ----------
         time
             Time array (bin centres) at which the wake is evaluated, in [s].
+        counter_rotating
+            If ``True``, use the counter-rotating wake instead of the
+            co-rotating one.
 
         Returns
         -------
         wake
             Bin-averaged wake, in [V].
         """
-        wake = self.get_wake_per_particle(time)
-        wake_prev = backend.concatenate((wake[:1], wake[:-1]))
-        wake_next = backend.concatenate((wake[1:], wake[-1:]))
-        return (wake_prev + 6.0 * wake + wake_next) / 8.0
+        w = self.get_wake_per_particle(time, counter_rotating)
+        wake_prev = backend.concatenate((w[:1], w[:-1]))
+        wake_next = backend.concatenate((w[1:], w[-1:]))
+        return (wake_prev + 6.0 * w + wake_next) / 8.0
 
     @abstractmethod  # pragma: no cover
     def get_impedance_from_wake(
@@ -219,29 +222,6 @@ class TimeDomain(ABC):
 
 class TimeDomainCounterRotation(ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
-
-    def get_wake_counter_rotation_binned(
-        self, time: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Bin-averaged counter-rotating wake (see :func:`TimeDomain.get_wake_binned`).
-
-        The default falls back to point-sampling
-        (:func:`TimeDomain.get_wake_per_particle` with
-        ``counter_rotating=True``); sources with an analytic wake override it
-        with the exact closed-form bin-average.
-
-        Parameters
-        ----------
-        time
-            Time array (bin centres) at which the wake is evaluated, in [s].
-
-        Returns
-        -------
-        wake
-            Bin-averaged counter-rotating wake, in [V].
-        """
-        return self.get_wake_per_particle(time, counter_rotating=True)
 
     @abstractmethod  # pragma: no cover
     def get_impedance_from_wake_counter_rotation(

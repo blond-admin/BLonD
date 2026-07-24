@@ -474,7 +474,7 @@ class Resonators(
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
 
-        wake = self.get_wake_binned(time)
+        wake = self.get_wake_per_bin(time)
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
 
         self._cache_impedance_from_wake_hash = hash_
@@ -515,7 +515,9 @@ class Resonators(
         if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
             return self._cache_impedance_from_wake_counter_rotation
 
-        wake_counter_rotation = self.get_wake_counter_rotation_binned(time)
+        wake_counter_rotation = self.get_wake_per_bin(
+            time, counter_rotating=True
+        )
         impedance_from_wake_counter_rotation = backend.fft.rfft(
             wake_counter_rotation, n=n_fft
         )
@@ -544,13 +546,13 @@ class Resonators(
             len(self._cache_impedance_from_wake), time[1] - time[0]
         )
 
-    def get_wake_binned(
-        self, time: NumpyArray | CupyArray
+    def get_wake_per_bin(
+        self, time: NumpyArray | CupyArray, counter_rotating: bool = False
     ) -> NumpyArray | CupyArray:
         """
-        Exact closed-form bin-average of the co-rotating resonator wake.
+        Exact closed-form bin-average of the resonator wake.
 
-        Overrides :func:`TimeDomain.get_wake_binned` with the analytic result
+        Overrides :func:`TimeDomain.get_wake_per_bin` with the analytic result
         (see :func:`_wake_bin_average`). This is the representation shared by
         all time-domain resonator solvers.
 
@@ -558,41 +560,26 @@ class Resonators(
         ----------
         time
             Time array (bin centres) at which the wake is evaluated, in [s].
+        counter_rotating
+            If ``True``, use the counter-rotating shunt impedances instead of
+            the co-rotating ones.
 
         Returns
         -------
         wake
             Bin-averaged wake, in [V].
         """
-        return self._wake_bin_average(time, self._shunt_impedances)
-
-    def get_wake_counter_rotation_binned(
-        self, time: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Exact closed-form bin-average of the counter-rotating resonator wake.
-
-        Overrides :func:`TimeDomainCounterRotation.get_wake_counter_rotation_binned`
-        with the analytic result (see :func:`_wake_bin_average`).
-
-        Parameters
-        ----------
-        time
-            Time array (bin centres) at which the wake is evaluated, in [s].
-
-        Returns
-        -------
-        wake
-            Bin-averaged counter-rotating wake, in [V].
-        """
-        if self._shunt_impedances_counter_rotating is None:
+        shunt = (
+            self._shunt_impedances_counter_rotating
+            if counter_rotating
+            else self._shunt_impedances
+        )
+        if counter_rotating and shunt is None:
             raise RuntimeError(
                 "_shunt_impedances_counter_rotating needs to be set before"
                 " calling this function."
             )
-        return self._wake_bin_average(
-            time, self._shunt_impedances_counter_rotating
-        )
+        return self._wake_bin_average(time, shunt)
 
     def _wake_bin_average(
         self,
@@ -1106,7 +1093,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         hash_ = get_hash(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
-        wake = self.get_wake_binned(time)
+        wake = self.get_wake_per_bin(time)
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         self._cache_impedance_from_wake_hash = hash_
         self._cache_impedance_from_wake = impedance_from_wake
@@ -1121,7 +1108,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         Point-sampled tabulated wake, interpolated onto ``time``.
 
         The bin-averaged version used by the solvers is obtained through the
-        generic :func:`TimeDomain.get_wake_binned` default (exact here, as the
+        generic :func:`TimeDomain.get_wake_per_bin` default (exact here, as the
         table is piecewise-linear).
 
         Parameters
@@ -1294,7 +1281,7 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance_from_wake
             Wake impedance in frequency domain.
         """
-        wake = self.get_wake_binned(time)
+        wake = self.get_wake_per_bin(time)
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         return impedance_from_wake
 
@@ -1307,7 +1294,7 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         Point-sampled travelling-wave-cavity wake (alias of :func:`wake_calc`).
 
         The bin-averaged version used by the solvers is obtained through the
-        generic :func:`TimeDomain.get_wake_binned` default.
+        generic :func:`TimeDomain.get_wake_per_bin` default.
 
         Parameters
         ----------

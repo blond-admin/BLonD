@@ -287,7 +287,7 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
             for trn_ind in range(self.n_turns * 2):
                 # Both solvers bin-average the resonator wake and agree to
                 # round-off: the convolution solver via
-                # TimeDomain.get_wake_binned, the pole-residue solver by scaling
+                # TimeDomain.get_wake_per_bin, the pole-residue solver by scaling
                 # each residue with sinh(p*dt/2)/(p*dt/2) for lag >= 1 plus the
                 # causal self-bin correction in MultiPoleSparseSolve. The atol
                 # (scaled to the peak) only rescues the near-zero bins where

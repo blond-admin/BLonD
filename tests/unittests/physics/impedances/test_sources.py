@@ -146,8 +146,8 @@ class TestImpedanceTableTime(unittest.TestCase):
                 backend.array(np.linspace(1, 5, 8)), counter_rotating=True
             )
 
-    def test_get_wake_binned_default_is_piecewise_linear_bin_average(self):
-        """The generic TimeDomain.get_wake_binned default bin-averages.
+    def test_get_wake_per_bin_default_is_piecewise_linear_bin_average(self):
+        """The generic TimeDomain.get_wake_per_bin default bin-averages.
 
         A table wake is piecewise-linear (interp), so the centered bin-average
         over each bin is exactly the (w[n-1] + 6 w[n] + w[n+1]) / 8 stencil on
@@ -162,7 +162,7 @@ class TestImpedanceTableTime(unittest.TestCase):
         )
         time = backend.array(t)
 
-        binned = table.get_wake_binned(time)
+        binned = table.get_wake_per_bin(time)
         expected = (np.roll(w, 1) + 6 * w + np.roll(w, -1)) / 8
 
         np.testing.assert_allclose(
@@ -764,8 +764,26 @@ class TestResonators(unittest.TestCase):
                 backend.array(np.linspace(0, 1e-9, 8)), counter_rotating=True
             )
 
-    def test_get_wake_binned_is_exact_bin_average(self):
-        """get_wake_binned returns the exact bin-average of the point wake.
+    def test_get_wake_per_bin_counter_rotating_matches_negated(self):
+        """get_wake_per_bin threads counter_rotating to the CR shunt.
+
+        For a resonator whose counter-rotating shunt is the negation of the
+        co-rotating one, the bin-averaged wakes must also be exact negatives
+        of each other.
+        """
+        res = Resonators(
+            np.array([1.0]),
+            np.array([1e9]),
+            np.array([5.0]),
+            shunt_impedances_counter_rotating=np.array([-1.0]),
+        )
+        time = backend.array(np.arange(64) * 0.05e-9)
+        co = copy_to_cpu(res.get_wake_per_bin(time, counter_rotating=False))
+        cr = copy_to_cpu(res.get_wake_per_bin(time, counter_rotating=True))
+        np.testing.assert_allclose(co, -cr, atol=1e-12 * np.max(np.abs(co)))
+
+    def test_get_wake_per_bin_is_exact_bin_average(self):
+        """get_wake_per_bin returns the exact bin-average of the point wake.
 
         This is the shared building block used by every time-domain resonator
         solver so they stay mutually consistent. It must equal a fine numerical
@@ -787,7 +805,7 @@ class TestResonators(unittest.TestCase):
             wake_avg = wake_avg + local_res.get_wake_per_particle(time + s)
         wake_avg = wake_avg / n_sub
 
-        binned = local_res.get_wake_binned(time)
+        binned = local_res.get_wake_per_bin(time)
         peak = np.max(np.abs(copy_to_cpu(wake_avg)))
         # matches the fine numerical bin-average ...
         np.testing.assert_allclose(
