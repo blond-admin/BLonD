@@ -37,3 +37,16 @@ class ArrayPrecisionError(BLonDException, TypeError):
     """Exception raised when array dtype is invalid."""
 
     pass
+
+
+class UnknownBackendMode(BLonDException, ValueError):
+    """
+    Exception raised when an unknown specials mode is requested for a backend.
+
+    Also subclasses ``ValueError`` so existing ``except ValueError`` callers keep
+    working; the BLonDException base lets callers suppress only this case (e.g.
+    ``change_backend`` carrying over a mode the new backend family lacks) without
+    swallowing unrelated ``ValueError``s.
+    """
+
+    pass
