@@ -13,6 +13,7 @@ logs
 /__BENCHMARKS/fig/
 /__BENCHMARKS/animations/
 blond/_version.py
+blond/core/backends/*/compiled/*/meta.json
 
 *.kdev4
 *.cubin
