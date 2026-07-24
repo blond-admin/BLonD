@@ -21,10 +21,10 @@ from blond.physics.cavities import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.typing import AnyArray
 
 
 class BarrierRF(RFManipulationBaseClass):
@@ -76,7 +76,7 @@ class BarrierRF(RFManipulationBaseClass):
         )
 
     def waveform_at_turn_or_time(
-        self, turn_i: int, reference_time: float, bin_centers: ArrayLike
+        self, turn_i: int, reference_time: float, bin_centers: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Create the barrier waveform at the specified time.
@@ -375,7 +375,7 @@ def harmonics_to_waveform(
 
 
 def waveform_to_harmonics(
-    waveform: ArrayLike, harmonics: Iterable[int] | None = None
+    waveform: AnyArray, harmonics: Iterable[int] | None = None
 ) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """
     Convert a waveform to a Fourier series.

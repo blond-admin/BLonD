@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 import time
 from typing import TYPE_CHECKING
@@ -18,7 +19,8 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond.core.backends.backend import Specials
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
+from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -30,12 +32,8 @@ FLOAT = np.float64
 
 folder = os.path.dirname(os.path.abspath(__file__))
 
-hash_ = hash_in_folder(
-    folder=folder,
-    extensions=(".py", ".cu"),
-    recursive=False,
-)
-_basepath = str(os.path.join(folder, "compiled", hash_))
+# Same toolchain-aware directory the compiler writes to.
+_basepath = str(cuda_compiled_dir(folder))
 
 
 path = os.path.join(
@@ -58,6 +56,8 @@ if not os.path.isfile(path):
 gpu_module = cp.RawModule(
     path=path,
 )
+# Refresh the LRU stamp on the cache dir we loaded from.
+mark_used(_basepath)
 
 _drift_simple = gpu_module.get_function("drift_simple")
 _drift_exact = gpu_module.get_function("drift_exact")
@@ -87,6 +87,7 @@ blocks = int(os.environ.get("GPU_BLOCKS", default_blocks))
 threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
+_quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -556,11 +557,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                 / float(np.sqrt(longitudinal_damping_time))
                 * total_energy
             )
-            # Per-call seed: monotonic-clock nanoseconds give a fresh
-            # uncorrelated stream every invocation without keeping any
-            # global state. Each thread uses its tid as the cuRAND
-            # subsequence to stay decorrelated from the others.
-            base_seed = np.uint64(time.monotonic_ns())
+            # The counter guarantees a distinct seed per launch even on
+            # platforms where consecutive clock reads return the same value.
+            # Each thread uses its tid as the cuRAND subsequence.
+            base_seed = np.uint64(next(_quantum_excitation_seed_counter))
             _apply_sr_with_quantum_excitation(
                 args=(
                     beam_dE,
