@@ -1109,7 +1109,6 @@ class MagneticCycleByTime(MagneticCycleBase):
         """
         super().configure(n_turns_max=n_turns_max, **kwargs)
 
-
     def _calc_n_turns_max(self, simulation: Simulation):
         """
         Derive the maximum number of turns.
