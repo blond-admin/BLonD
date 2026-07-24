@@ -15,10 +15,11 @@ from blond import (
 
 
 class TestGPUDev(unittest.TestCase):
-"""
-Test to verify the functionality of the fix/bug, originating from scipy
-deepcopy errors in new scipy version.
-"""
+    """
+    Test to verify the functionality of the fix/bug, originating from scipy
+    deepcopy errors in new scipy version.
+    """
+
     def test_interp_nan(self):
         C = 2 * np.pi * 100.0  # CERN PS
         ring = Ring(circumference=C)
