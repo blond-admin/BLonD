@@ -173,7 +173,81 @@ def _total_rf_voltage(
     return total_voltage
 
 
-class AnalyticDistributionMatcher(MatchingRoutine):
+def _validate_extra_voltage(
+    extra_voltage: tuple[NumpyArray, NumpyArray] | None,
+) -> tuple[NumpyArray, NumpyArray] | None:
+    """Validate and copy an ``(time_array, voltage_array)`` input."""
+    if extra_voltage is None:
+        return None
+    if len(extra_voltage) != 2:
+        raise ValueError(
+            "extra_voltage must be a (time_array, voltage_array) pair."
+        )
+    extra_time = np.asarray(extra_voltage[0], dtype=float).copy()
+    extra_values = np.asarray(extra_voltage[1], dtype=float).copy()
+    assert extra_time.shape == extra_values.shape, (
+        f"{extra_time.shape=} must match {extra_values.shape=}"
+    )
+    assert np.all(np.diff(extra_time) > 0.0), (
+        "extra_voltage time_array must be strictly increasing."
+    )
+    return (extra_time, extra_values)
+
+
+class _AnalyticMatcherBase(MatchingRoutine):
+    """
+    Shared behaviour of the analytic single-bunch matchers.
+
+    Subclasses capture their constructor arguments in
+    ``self._constructor_kwargs`` (first statement of ``__init__``) to
+    support :meth:`clone`.
+    """
+
+    _constructor_kwargs: dict
+    _extra_voltage: tuple[NumpyArray, NumpyArray] | None
+
+    def clone(self, **overrides):
+        """
+        Return a new instance with selected constructor args replaced.
+
+        Convenient to derive per-bunch variations from a common
+        template, e.g.
+        ``[template.clone(bunch_length=length, seed=i) for ...]``.
+
+        Parameters
+        ----------
+        **overrides
+            Constructor arguments to replace; all others keep the
+            values this instance was built with.
+
+        Returns
+        -------
+        matcher
+            A fresh, independent instance of the same class.
+        """
+        unknown = set(overrides) - set(self._constructor_kwargs)
+        if unknown:
+            raise TypeError(
+                f"Unknown constructor argument(s) for "
+                f"{type(self).__name__}: {sorted(unknown)}"
+            )
+        return type(self)(**{**self._constructor_kwargs, **overrides})
+
+    def _total_input_voltage(
+        self, simulation: Simulation, time_array: NumpyArray
+    ) -> NumpyArray:
+        """RF-station voltage plus the optional extra voltage, in [V]."""
+        total_voltage = _total_rf_voltage(simulation, time_array)
+        if self._extra_voltage is not None:
+            extra_time, extra_values = self._extra_voltage
+            # np.interp holds the edge values outside the given range.
+            total_voltage = total_voltage + np.interp(
+                time_array, extra_time, extra_values
+            )
+        return total_voltage
+
+
+class AnalyticDistributionMatcher(_AnalyticMatcherBase):
     r"""
     Matched single-bunch generation from an analytic distribution.
 
@@ -240,6 +314,13 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         If True, wells split by the induced potential (inner buckets)
         are accepted with a warning instead of raising — see
         :func:`~blond.experimental.beam_preparation.analytic_potential_well.check_single_bucket_well`.
+    extra_voltage
+        Optional ``(time_array, voltage_array)`` pair, in [s]/[V],
+        added to the RF waveform before the potential-well integration
+        (the BLonD 2 ``extra_voltage_dict``): static distortions,
+        programmed offsets, or — as used by the sequential multi-bunch
+        matcher — the induced voltage of preceding bunches. Values
+        outside the given time range are held at the edge values.
     verbose
         If True, print matching diagnostics.
     plot
@@ -301,10 +382,17 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         tolerance_potential_well: float = 1e-6,
         relaxation_factor: float = 1.0,
         allow_inner_buckets: bool = False,
+        extra_voltage: tuple[NumpyArray, NumpyArray] | None = None,
         verbose: bool = False,
         plot: bool = False,
     ) -> None:
+        constructor_kwargs = {
+            key: value
+            for key, value in locals().items()
+            if key not in ("self", "__class__")
+        }
         super().__init__()
+        self._constructor_kwargs = constructor_kwargs
         if (bunch_length is None) == (emittance is None):
             raise ValueError(
                 "Specify exactly one of `bunch_length` or `emittance`."
@@ -329,6 +417,7 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         self._tolerance_potential_well = tolerance_potential_well
         self._relaxation_factor = relaxation_factor
         self._allow_inner_buckets = allow_inner_buckets
+        self._extra_voltage = _validate_extra_voltage(extra_voltage)
         self._verbose = verbose
         self._plot = plot
 
@@ -338,6 +427,10 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         self.matched_bunch_length: float | None = None
         #: Emittance of the matched H = X0 contour, 2*pi*J(X0) [eV.s].
         self.matched_emittance: float | None = None
+        #: Time coordinates of the matched line density, in [s].
+        self.matched_time_array: NumpyArray | None = None
+        #: Matched smooth line density at ``matched_time_array``.
+        self.matched_line_density: NumpyArray | None = None
         #: Number of induced-potential updates performed.
         self.n_intensity_iterations: int = 0
         #: Last fixed-point residual of the induced potential.
@@ -380,7 +473,7 @@ class AnalyticDistributionMatcher(MatchingRoutine):
         )
         rf_potential_raw = rf_potential_well(
             time_array,
-            _total_rf_voltage(simulation, time_array),
+            self._total_input_voltage(simulation, time_array),
             charge=charge,
             t_rev=t_rev,
             eta_0=eta_0,
@@ -547,6 +640,8 @@ class AnalyticDistributionMatcher(MatchingRoutine):
                 / total
             )
         )
+        self.matched_time_array = time_cut.copy()
+        self.matched_line_density = line_density_values.copy()
         self.fitted_x_0 = float(x_0)
         if self._verbose:
             target = (
@@ -703,7 +798,7 @@ def _well_minimum_time(time_cut: NumpyArray, well_cut: NumpyArray) -> float:
     return float(time_cut[minimum_index]) + offset * local_step
 
 
-class LineDensityMatcher(MatchingRoutine):
+class LineDensityMatcher(_AnalyticMatcherBase):
     r"""
     Matched single-bunch generation from a line density (Abel route).
 
@@ -783,6 +878,11 @@ class LineDensityMatcher(MatchingRoutine):
     allow_inner_buckets
         If True, wells split by the induced potential are accepted with
         a warning instead of raising.
+    extra_voltage
+        Optional ``(time_array, voltage_array)`` pair, in [s]/[V],
+        added to the RF waveform before the potential-well integration
+        (the BLonD 2 ``extra_voltage_dict``) — see
+        :class:`AnalyticDistributionMatcher`.
     verbose
         If True, print matching diagnostics.
     plot
@@ -850,10 +950,17 @@ class LineDensityMatcher(MatchingRoutine):
         tolerance_potential_well: float = 1e-6,
         relaxation_factor: float = 1.0,
         allow_inner_buckets: bool = False,
+        extra_voltage: tuple[NumpyArray, NumpyArray] | None = None,
         verbose: bool = False,
         plot: bool = False,
     ) -> None:
+        constructor_kwargs = {
+            key: value
+            for key, value in locals().items()
+            if key not in ("self", "__class__")
+        }
         super().__init__()
+        self._constructor_kwargs = constructor_kwargs
         measured_mode = (time_array is not None) and (
             line_density_values is not None
         )
@@ -911,6 +1018,7 @@ class LineDensityMatcher(MatchingRoutine):
         self._tolerance_potential_well = tolerance_potential_well
         self._relaxation_factor = relaxation_factor
         self._allow_inner_buckets = allow_inner_buckets
+        self._extra_voltage = _validate_extra_voltage(extra_voltage)
         self._verbose = verbose
         self._plot = plot
 
@@ -922,6 +1030,10 @@ class LineDensityMatcher(MatchingRoutine):
         self.matched_bunch_length: float | None = None
         #: Mean position of the reconstructed density, in [s].
         self.matched_bunch_position: float | None = None
+        #: Time coordinates of the matched line density, in [s].
+        self.matched_time_array: NumpyArray | None = None
+        #: Matched (reconstructed) line density at ``matched_time_array``.
+        self.matched_line_density: NumpyArray | None = None
         #: Max input-vs-reconstructed deviation, rel. to input peak.
         self.profile_reconstruction_error: float | None = None
         #: Number of induced-potential updates performed.
@@ -961,7 +1073,7 @@ class LineDensityMatcher(MatchingRoutine):
         )
         rf_potential_raw = rf_potential_well(
             time_array,
-            _total_rf_voltage(simulation, time_array),
+            self._total_input_voltage(simulation, time_array),
             charge=params["charge"],
             t_rev=params["t_rev"],
             eta_0=params["eta_0"],
@@ -1152,6 +1264,8 @@ class LineDensityMatcher(MatchingRoutine):
                 / total
             )
         )
+        self.matched_time_array = time_cut.copy()
+        self.matched_line_density = reconstructed_line_density.copy()
         input_on_cut = np.interp(
             time_cut,
             time_line_den,

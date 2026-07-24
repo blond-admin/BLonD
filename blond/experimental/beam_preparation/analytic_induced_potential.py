@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import backend
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import StaticProfile
@@ -160,7 +161,13 @@ def induced_voltage_from_line_density(
     induced_voltage
         Total induced voltage on the smooth-profile grid, in [V].
     """
-    smooth_profile._hist_y[:] = line_density_values
+    # The profile's histogram lives on the active backend (a CuPy
+    # device array under CUDA); convert the host line density at this
+    # boundary — CuPy rejects slice-assignment from a host array
+    # ("non-scalar numpy.ndarray cannot be used for fill").
+    smooth_profile._hist_y[:] = backend.array(
+        line_density_values, dtype=backend.float
+    )
     total = float(np.sum(line_density_values))
     assert total > 0.0, "The candidate line density is empty."
     # Same semantics as the framework: hist_y * factor = beam fraction
