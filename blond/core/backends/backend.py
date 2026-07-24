@@ -28,8 +28,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.typing import AnyArray
 
 logger = logging.getLogger(__name__)
 
@@ -721,7 +722,7 @@ class BackendBaseClass(ABC):
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
-    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+    def _asarray_if_needed(self, arr: AnyArray) -> NumpyArray | CupyArray:
         # Faster to check than cast, so only cast if needed
         if isinstance(arr, self.ndarray):
             return arr
@@ -769,7 +770,7 @@ class BackendBaseClass(ABC):
         return arr
 
     def _cast_arr_and_dtype(
-        self, arr: ArrayLike, dtype: type
+        self, arr: AnyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         # Catch likely errors and reraise with slightly friendlier
         # messages.  Raise from the original exception to aid
@@ -797,7 +798,7 @@ class BackendBaseClass(ABC):
         return new_arr
 
     def cast_arr_float_if_needed(
-        self, arr: ArrayLike
+        self, arr: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Convert input to backend.array with ``dtype=backend.float``.
@@ -820,7 +821,7 @@ class BackendBaseClass(ABC):
         return self._cast_arr_and_dtype(arr, self.float)
 
     def cast_arr_complex_if_needed(
-        self, arr: ArrayLike
+        self, arr: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Convert input to backend.array with ``dtype=backend.complex``.
