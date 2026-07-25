@@ -1828,7 +1828,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ``dV/dt = lambda V + (R/Q) omega (I_gen - I_beam/2)`` with
         ``lambda = -omega/(2 Q_L) + i delta_omega`` over one coarse step,
         using either the default forward-Euler discretisation or (when
-        ``exponential_coarse_solver`` is set) the exact exponential
+        ``exponential_coarse_solver_enable`` is set) the exact exponential
         propagator for the piecewise-constant drive:
 
         .. math::

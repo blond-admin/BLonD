@@ -167,7 +167,7 @@ used by the other IQ cavity feedbacks).
 **Class** ``TestExponentialCoarseSolver`` -- the optional exact exponential
 coarse-grid propagator. ``_advance_coarse_voltage`` integrates one coarse step
 of the cavity-envelope ODE with either forward-Euler (the default,
-bit-unchanged) or, with ``exponential_coarse_solver=True``, the exact
+bit-unchanged) or, with ``exponential_coarse_solver_enable=True``, the exact
 ``V_{n+1} = e^L V_n + src (e^L - 1)/L`` (``L = -omega dt / (2 Q_L) +
 1j delta_omega dt``). The exponential form is the accurate alternative to
 sub-stepping when the per-step decay/detuning phase is not small.

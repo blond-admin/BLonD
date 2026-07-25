@@ -335,6 +335,20 @@ class TestResonators(unittest.TestCase):
             shunt_impedances_counter_witness=float(1),
         )
 
+    def test___init__counter_witness_magnitude_mismatch(self):
+        # Energy conservation requires |R_CR| == |R| per resonator. A
+        # counter-witness whose magnitude differs (here 99 vs 3) must be
+        # rejected with a real ValueError -- not a bare assert, which
+        # ``python -O`` would strip, silently building wrong cross-beam
+        # physics.
+        with self.assertRaises(ValueError):
+            Resonators(
+                shunt_impedances=np.array([1, 2, 3]),
+                center_frequencies=np.array([500e6, 750e6, 2.0e9]),
+                quality_factors=np.array([5, 5, 5]),
+                shunt_impedances_counter_witness=np.array([1, 2, 99]),
+            )
+
     def test___init__legacy_counter_rotating_kwarg_raises(self):
         # The rename came with a sign-convention change, so the old kwarg
         # must fail loudly instead of being accepted or auto-converted.

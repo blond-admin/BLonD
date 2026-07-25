@@ -228,7 +228,7 @@ Each turn the timing class performs, in order:
    ``_check_step_sizes`` warns above a per-step decay/rotation of 0.1 and
    raises above 2.0, and an analogous check warns/raises when the per-step
    beam kick is large relative to the antenna voltage. With
-   ``exponential_coarse_solver=True`` the exact exponential propagator
+   ``exponential_coarse_solver_enable=True`` the exact exponential propagator
    ``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces the Euler step: it is
    exact in decay and detuning rotation (a pure detuning becomes a pure
    rotation instead of growing ``|V|`` by ``sqrt(1 + (delta_omega dt)^2)``

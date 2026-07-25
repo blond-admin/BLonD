@@ -435,11 +435,12 @@ class Resonators(
                 self._shunt_impedances_counter_witness,
                 strict=False,
             ):
-                assert backend.isclose(
-                    backend.abs(imp), backend.abs(imp_cr)
-                ), (
-                    "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
-                )
+                if not backend.isclose(backend.abs(imp), backend.abs(imp_cr)):
+                    raise ValueError(
+                        "Magnitude of the co- and counter-rotating shunt "
+                        "impedances must match (|R_CR| == |R| per "
+                        "resonator), 'no energy conservation' otherwise."
+                    )
 
         # secondary quantities for wake calculation
         # self._omega =

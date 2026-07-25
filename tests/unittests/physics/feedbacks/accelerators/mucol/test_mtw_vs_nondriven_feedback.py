@@ -1,7 +1,7 @@
 """
 Compare the multi-pass resonator solver with non-driven cavity feedback.
 
-Two test classes, by driver and integration depth (the applied-*energy*
+Three test classes, by driver and integration depth (the applied-*energy*
 comparison lives in
 ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``):
 
@@ -10,6 +10,10 @@ comparison lives in
 * :class:`TestMultiTurnFeedbackVsConvolution` -- full ``Simulation``, a dummy
   particle-less beam, turn-over-turn coarse-grid propagation, multiple
   sections and acceleration.
+* :class:`TestExponentialSolverEndToEnd` -- the same multi-turn harness with
+  the feedback's exact exponential coarse-grid propagator enabled
+  (``exponential_coarse_solver_enable=True``), including the low-``Q_L`` and
+  large-detuning regimes the option exists for.
 
 Both compare the *same* single cavity
 (``R_shunt = R_over_Q * Q_L``, ``f_res = 1 / t_rf``):
@@ -539,6 +543,8 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         harmonic_override: int | None = None,
         collect_antenna_voltage: bool = False,
         counter_rotating_mu_minus: bool = False,
+        exponential_coarse_solver_enable: bool = False,
+        q_l_override: float | None = None,
     ) -> list:
         """
         Run a full multi-turn Simulation and collect a voltage per turn.
@@ -601,6 +607,19 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             of the co-rotating ``mu_plus`` one. In the symmetric ring the
             direction-signed gap current is identical, so every collected
             voltage must reproduce the co-rotating run.
+        exponential_coarse_solver_enable
+            If True (feedback modes only), build the feedback with the exact
+            exponential coarse-grid propagator
+            (``exponential_coarse_solver_enable=True``) instead of the
+            default forward-Euler step. Like ``counter_rotating_mu_minus``,
+            deliberately *not* part of the ``_feedback_vs_convolution``
+            cache key: the exponential end-to-end tests call this method
+            directly.
+        q_l_override
+            If given, use this loaded quality factor instead of
+            ``MULTITURN_Q_L`` for both the feedback cavity and the
+            convolution-reference resonator (whose shunt impedance follows
+            as ``R_over_Q * Q_L``). Also kept out of the cache key.
 
         Returns
         -------
@@ -616,6 +635,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             fast_ramp=fast_ramp,
             harmonic_override=harmonic_override,
         )
+        Q_L = cls.MULTITURN_Q_L if q_l_override is None else q_l_override
         energy, n_turns = cls._regime(fast_ramp)
         if n_turns_override is not None:
             n_turns = n_turns_override
@@ -656,9 +676,9 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                 local_wf = WakeField(
                     sources=(
                         Resonators(
-                            cls.MULTITURN_R_OVER_Q * cls.MULTITURN_Q_L,
+                            cls.MULTITURN_R_OVER_Q * Q_L,
                             f_res,
-                            cls.MULTITURN_Q_L,
+                            Q_L,
                         ),
                     ),
                     solver=MultiPassResonatorSolver(**solver_kwargs),
@@ -680,12 +700,15 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                 feedback = IQCavityFeedbackTimingClass(
                     profile=profile,
                     R_over_Q=cls.MULTITURN_R_OVER_Q,
-                    Q_L=cls.MULTITURN_Q_L,
+                    Q_L=Q_L,
                     generator_current_bias=generator_current_bias,
                     n_cavities=1,
                     initial_voltage=cls.MULTITURN_V_DESIGN,
                     n_rf_periods_per_coarse_grid=n_rf_periods,
                     delta_omega=delta_omega,
+                    exponential_coarse_solver_enable=(
+                        exponential_coarse_solver_enable
+                    ),
                 )
                 rf_station = SingleHarmonicRFStation(
                     voltage=cls.MULTITURN_V_DESIGN,
@@ -1659,6 +1682,299 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         fig.tight_layout()
         # plt.savefig(os.path.join(os.path.dirname(__file__), "multiturn_induced_voltage.png"), dpi=400)
         plt.show()
+
+
+class TestExponentialSolverEndToEnd(unittest.TestCase):
+    """
+    End-to-end validation of the exact exponential coarse-grid propagator.
+
+    Reuses the full-``Simulation`` harness of
+    :class:`TestMultiTurnFeedbackVsConvolution` (three runs per config:
+    convolution reference, beam feedback, no-beam feedback reference) but
+    builds the feedback with ``exponential_coarse_solver_enable=True``.
+    Three regimes:
+
+    * the standard operating point (``Q_L = 1.29e6``, harmonic 25900),
+      where the exponential and forward-Euler propagators are numerically
+      near-identical -- this pins that the exponential branch composes
+      correctly with the full multi-turn tracking machinery (grids,
+      demodulation, carried deposits) rather than its accuracy edge;
+    * a low-``Q_L`` / low-harmonic configuration with a per-step Euler
+      decay of ~0.1 -- the largest any end-to-end test exercises -- as an
+      absolute accuracy pin of the exponential path against the
+      discretisation-free multi-pass convolution;
+    * a large static detuning at the standard operating point -- the
+      regime where forward Euler silently (below its own step-size
+      warning) accumulates a large magnitude error on the carried wake
+      while the exponential propagator, exact in the detuning rotation,
+      stays at the discretisation floor. This is the genuinely
+      discriminating accuracy test.
+
+    Like the counter-rotating tests, the extra feedback runs go through
+    ``_run_multiturn_case`` directly: the ``exponential_coarse_solver_enable``
+    flag and the ``q_l_override`` are deliberately *not* part of the
+    ``_feedback_vs_convolution`` cache key.
+    """
+
+    #: The multi-turn harness whose classmethod machinery is reused.
+    harness = TestMultiTurnFeedbackVsConvolution
+
+    # Low-Q_L regime (single section, static cycle, default 3 turns).
+    # The harmonic is lowered so the coarse grid has few cells per turn:
+    # per-turn wake survival exp(-pi * harmonic / Q_L) ~= 0.14 keeps the
+    # carried (multi-turn) wake alive in the observable, while the Euler
+    # per-step decay pi / Q_L ~= 0.098 sits just below the 0.1
+    # soft-warning threshold of ``_check_step_sizes``.
+    LOW_QL_HARMONIC = 20
+    LOW_QL = 32.0
+
+    # Large-detuning regime (single section, static cycle, standard Q_L
+    # and harmonic): ~1100 cavity half-bandwidths (half-bandwidth
+    # ``omega / (2 Q_L) ~= 3.2e3`` rad/s), i.e. a per-step envelope
+    # rotation ``theta = delta_omega * t_rf ~= 2.7e-3`` rad. Euler's
+    # per-step factor ``|1 + i theta| = sqrt(1 + theta^2)`` grows the
+    # magnitude by ``theta^2 / 2`` per step -- ``exp(N theta^2 / 2) - 1
+    # ~= 10 %`` per turn over the ``N = 25900`` coarse cells -- while
+    # staying far below the 0.1 per-step warning threshold, so the error
+    # is silent for the Euler solver. The exponential propagator rotates
+    # at magnitude 1 (exact).
+    DETUNING_LARGE = 3.5e6  # [rad/s]
+
+    @staticmethod
+    def _beam_induced(gap_beam: list, gap_reference: list) -> list:
+        """
+        Beam-induced voltage: beam run minus no-beam reference run.
+
+        Parameters
+        ----------
+        gap_beam
+            ``[turn][section]`` gap voltage of the beam-driven run.
+        gap_reference
+            ``[turn][section]`` gap voltage of the zero-intensity run.
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` beam-induced voltage (isolated by
+            linearity of the cavity equation).
+        """
+        return [
+            [
+                beam_section - reference_section
+                for beam_section, reference_section in zip(
+                    gap_beam_turn, gap_reference_turn, strict=True
+                )
+            ]
+            for gap_beam_turn, gap_reference_turn in zip(
+                gap_beam, gap_reference, strict=True
+            )
+        ]
+
+    def _run_feedback_beam_induced(
+        self,
+        exponential_coarse_solver_enable: bool,
+        harmonic_override: int | None = None,
+        q_l_override: float | None = None,
+        delta_omega: float = 0.0,
+    ) -> list:
+        """
+        Beam-induced feedback voltage for the single-section static config.
+
+        Parameters
+        ----------
+        exponential_coarse_solver_enable
+            Coarse-grid propagator of the feedback: exact exponential
+            (True) or forward Euler (False).
+        harmonic_override
+            Optional harmonic override (low-Q_L regime).
+        q_l_override
+            Optional loaded-quality-factor override (low-Q_L regime).
+        delta_omega
+            Static cavity detuning [rad/s] (large-detuning regime).
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` beam-induced voltage of the feedback.
+        """
+        common = {
+            "harmonic_override": harmonic_override,
+            "q_l_override": q_l_override,
+            "exponential_coarse_solver_enable": exponential_coarse_solver_enable,
+            "delta_omega": delta_omega,
+        }
+        gap_beam = self.harness._run_multiturn_case(
+            "fb", n_sections=1, acceleration=False, **common
+        )
+        gap_reference = self.harness._run_multiturn_case(
+            "fb_reference", n_sections=1, acceleration=False, **common
+        )
+        return self._beam_induced(gap_beam, gap_reference)
+
+    def test_exponential_solver_matches_convolution_standard_q_l(self):
+        """
+        Exponential solver vs convolution at the standard operating point.
+
+        Same single-section static configuration as
+        ``test_multiturn_feedback_propagation_matches_convolution`` but
+        with the feedback switched to the exact exponential coarse
+        propagator. At ``Q_L = 1.29e6`` the per-step decay is
+        ``pi / Q_L ~= 2.4e-6``, so Euler and exponential are numerically
+        near-identical and the established 2 % convolution gate must hold
+        identically; additionally the exponential beam-induced voltage
+        must reproduce the cached Euler one almost exactly, pinning that
+        the exponential branch composes with the full tracking machinery
+        (grids, demodulation, carried deposits) without touching anything
+        else. Measured: ``rel_err(exp, conv)`` per turn 2.9e-3, 1.3e-3,
+        8.3e-4 (equal to the Euler path to display precision) and
+        ``rel_err(exp, euler)`` 2.6e-14, 7.1e-7, 8.5e-7 -- the 1e-5 gate
+        carries a > 10x margin.
+        """
+        convolution, feedback_euler = self.harness._feedback_vs_convolution(
+            n_sections=1, acceleration=False
+        )
+        feedback_exp = self._run_feedback_beam_induced(
+            exponential_coarse_solver_enable=True
+        )
+
+        for turn_i, (convolution_turn, exp_turn, euler_turn) in enumerate(
+            zip(convolution, feedback_exp, feedback_euler, strict=True)
+        ):
+            for section_i, (v_conv, v_exp, v_euler) in enumerate(
+                zip(convolution_turn, exp_turn, euler_turn, strict=True)
+            ):
+                self.assertLess(
+                    rel_err(v_exp, v_conv),
+                    0.02,
+                    f"turn {turn_i} section {section_i}",
+                )
+                self.assertLess(
+                    rel_err(v_exp, v_euler),
+                    1e-5,
+                    f"turn {turn_i} section {section_i}",
+                )
+
+    def test_exponential_solver_low_q_l_agreement(self):
+        """
+        Low-Q_L absolute accuracy pin of the exponential coarse solver.
+
+        Harmonic 20 (t_rf ~ 1 us) and ``Q_L = 32``: the Euler per-step
+        decay ``pi / Q_L ~= 0.098`` is the largest any end-to-end test
+        exercises, the per-turn wake survival ``exp(-pi * 20 / 32) ~=
+        0.14`` keeps the carried wake alive in the observable, and the
+        exponential propagator integrates the ~10 % per-step decay
+        exactly. Measured ``rel_err(exp, conv)`` per turn: 1.62e-2,
+        1.77e-2, 1.76e-2 (gate 0.03); on the carried-wake increment
+        ``v(k) - v(0)`` (the fresh part is identical each turn in this
+        static config): 3.33e-2, 3.22e-2 (gate 0.05).
+
+        Honest empirical caveat: at ``n = 1`` this observable does *not*
+        discriminate the two propagators' accuracy -- the forward-Euler
+        run measures 1.62e-2, 1.68e-2, 1.72e-2 against the same
+        convolution, statistically indistinguishable from the exponential
+        run (the ordering even flips between turns). Both are limited by
+        common O(1/Q_L) floors: the IQ-envelope truncation of the cavity
+        model (~``1/(2 Q_L)`` = 1.6 %, exactly the measured turn-0 floor)
+        and the within-cell charge-placement ambiguity of the coarse-grid
+        beam-current downsampling (~``pi/(2 Q_L)`` on the carried wake) --
+        the same order as the Euler-vs-exponential propagator difference
+        itself. The discriminating accuracy test is therefore the
+        large-detuning one below; here the teeth are the non-triviality
+        guard: the two propagators genuinely diverge in this regime
+        (measured ``rel_err(exp, euler)`` = 8.7e-3 / 1.21e-2 on turns
+        1/2), so a regression that ignored the
+        ``exponential_coarse_solver_enable`` flag would collapse that
+        difference to 0 and fail.
+        """
+        harmonic = self.LOW_QL_HARMONIC
+        q_l = self.LOW_QL
+        convolution = self.harness._run_multiturn_case(
+            "mtw",
+            n_sections=1,
+            acceleration=False,
+            harmonic_override=harmonic,
+            q_l_override=q_l,
+        )
+        feedback_exp = self._run_feedback_beam_induced(
+            exponential_coarse_solver_enable=True,
+            harmonic_override=harmonic,
+            q_l_override=q_l,
+        )
+        feedback_euler = self._run_feedback_beam_induced(
+            exponential_coarse_solver_enable=False,
+            harmonic_override=harmonic,
+            q_l_override=q_l,
+        )
+
+        for turn_i in range(len(convolution)):
+            self.assertLess(
+                rel_err(feedback_exp[turn_i][0], convolution[turn_i][0]),
+                0.03,
+                f"turn {turn_i}",
+            )
+        # Carried-wake increment: the fresh part is identical each turn
+        # (static profile/cycle), so v(k) - v(0) isolates the carried wake.
+        for turn_i in range(1, len(convolution)):
+            d_conv = convolution[turn_i][0] - convolution[0][0]
+            d_exp = feedback_exp[turn_i][0] - feedback_exp[0][0]
+            self.assertLess(
+                rel_err(d_exp, d_conv), 0.05, f"carried turn {turn_i}"
+            )
+        # Teeth: the propagators genuinely differ in this regime, so a
+        # regression that ignored the flag (exp run silently Euler) fails.
+        self.assertGreater(
+            rel_err(feedback_exp[-1][0], feedback_euler[-1][0]), 5e-3
+        )
+
+    def test_exponential_solver_large_detuning_beats_euler(self):
+        """
+        Large detuning: exponential stays accurate where Euler drifts.
+
+        Standard operating point (``Q_L = 1.29e6``, harmonic 25900) with a
+        static cavity detuning of 3.5e6 rad/s (~1100 half-bandwidths): the
+        per-step envelope rotation is ``theta = delta_omega * t_rf ~=
+        2.7e-3`` rad -- far below the 0.1 per-step warning threshold of
+        ``_check_step_sizes``, so forward Euler runs without complaint --
+        yet Euler's per-step magnitude growth ``sqrt(1 + theta^2)``
+        compounds to ``exp(N theta^2 / 2) - 1 ~= 10 %`` per turn over the
+        ``N = 25900`` coarse cells. The exponential propagator is exact in
+        the detuning rotation (magnitude 1). Against the detuned
+        convolution reference (resonator centred at ``1/t_rf +
+        delta_omega / 2 pi``), measured ``rel_err(v, conv)`` per turn:
+
+        * exponential: 3.06e-3, 1.75e-3, 1.36e-3 (gate 0.01) -- at the
+          same discretisation floor as the undetuned baseline;
+        * forward Euler: 3.06e-3, 6.66e-2, 1.34e-1 -- the silent carried-
+          wake magnitude error, 38x / 98x the exponential error on turns
+          1 / 2 (comparative gate 5x, and > 0.02 on the last turn, i.e.
+          Euler fails even the standard 2 % gate here).
+
+        Flipping the flag to False therefore fails the 0.01 gate by ~13x
+        on the last turn: this is the mutation-sensitivity anchor for the
+        whole exponential end-to-end suite.
+        """
+        delta_omega = self.DETUNING_LARGE
+        convolution, feedback_euler = self.harness._feedback_vs_convolution(
+            n_sections=1, acceleration=False, delta_omega=delta_omega
+        )
+        feedback_exp = self._run_feedback_beam_induced(
+            exponential_coarse_solver_enable=True, delta_omega=delta_omega
+        )
+        for turn_i in range(len(convolution)):
+            v_conv = convolution[turn_i][0]
+            err_exp = rel_err(feedback_exp[turn_i][0], v_conv)
+            err_euler = rel_err(feedback_euler[turn_i][0], v_conv)
+            self.assertLess(err_exp, 0.01, f"turn {turn_i}")
+            if turn_i >= 1:
+                # Comparative: the exact propagator tracks the detuned
+                # convolution far better than forward Euler once the
+                # carried wake dominates (measured 38x / 98x).
+                self.assertGreater(err_euler, 5.0 * err_exp, f"turn {turn_i}")
+        # Euler's accumulated error exceeds even the standard 2 % gate on
+        # the last turn, so a flag-flip mutation fails loudly.
+        self.assertGreater(
+            rel_err(feedback_euler[-1][0], convolution[-1][0]), 0.02
+        )
 
 
 if __name__ == "__main__":

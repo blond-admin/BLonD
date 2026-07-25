@@ -960,7 +960,15 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
         profile = self._profile(active=True)
         with self.assertRaises(ValueError) as ctx:
             self._check([self._consumer(profile)])
-        self.assertIn("never tracked", str(ctx.exception))
+        message = str(ctx.exception)
+        self.assertIn("never tracked", message)
+        # The rejection reason must stay accurate: real consumers
+        # (wakefield / feedback) self-histogram their profile in place,
+        # so the guard must NOT claim it is "never histogrammed". The
+        # true reason is that this conservative, element-list-only check
+        # cannot verify the shared live profile is read by the right beam.
+        self.assertNotIn("never histogrammed", message)
+        self.assertIn("conservative guard", message)
 
     def test_one_sided_live_profile_raises(self):
         """

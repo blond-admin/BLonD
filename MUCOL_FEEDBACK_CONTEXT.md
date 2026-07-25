@@ -115,7 +115,7 @@ Closed form for two counter-rotating passages offset by Δ on the ringing tail:
   bistable demod residual.
 
 ### 2.2 P1 — exact exponential coarse propagator (option)
-`exponential_coarse_solver: bool = False` on `IQCavityFeedbackTimingClass`.
+`exponential_coarse_solver_enable: bool = False` on `IQCavityFeedbackTimingClass`.
 `cavity_response` routes through `_advance_coarse_voltage`, which does either
 forward-Euler (default, **bit-unchanged**) or the exact
 `V_{n+1} = e^L V_n + src·(e^L−1)/L`. Under pure detuning the exponential step
@@ -393,9 +393,41 @@ zero regressions — full mucol battery 156 passed):
   `test_sources.py::test_get_impedance` (origin's `−R` construction ×
   our negating `get_impedance` kept by the merge ⇒ sign flip); fixed by
   restoring the `+R` construction matching the surviving convention.
-- **`barrier_bucket.py` CR kick** (spawned task, still pending): line ~245 uses
-  raw `particle_type.charge` instead of `signed_charge_with_direction()` —
-  wrong-sign barrier kick for a CR beam. Out of feedback scope.
+- **`barrier_bucket.py` CR kick** — **user decision (2026-07-24): IGNORE.**
+  (line ~245 raw charge; wrong-sign barrier kick for a CR beam; out of
+  feedback scope, deliberately not pursued.)
+- **2026-07-24 follow-up fixes (3 parallel agents, all green — 73 passed
+  combined):**
+  - **Guard message accuracy (#2 review finding)** — both
+    `_check_two_beam_profile_placement` raise messages corrected: no more
+    false "never histogrammed" claim; they now state the conservative
+    rationale truthfully (replay verifies over ring-element writes only;
+    self-histogramming consumers write atomically but invisibly to the
+    check; feedbacks additionally entangle cross-turn state). Logic
+    untouched; `test_untracked_live_profile_raises` now pins the accuracy
+    fix (`assertNotIn("never histogrammed")`).
+  - **`|R_CR| == |R|` validation (review gap)** — converted from a bare
+    `assert` (stripped under `python -O`) to `raise ValueError` in
+    `Resonators.__init__`; new mismatch test
+    `test___init__counter_witness_magnitude_mismatch` (TDD RED captured:
+    AssertionError vs ValueError). NOTE: constructor now mixes
+    assert/RuntimeError/ValueError styles — future cleanup, would break
+    existing assertRaises expectations.
+  - **Exponential solver end-to-end (review gap)** —
+    `TestExponentialSolverEndToEnd` in test_mtw: (1) standard-Q_L
+    composition pin vs convolution (2.9e-3, gate 0.02; exp-vs-Euler-fb
+    ≤8.5e-7); (2) low-Q_L=32 absolute pin (1.8e-2, gate 0.03) — NOTE the
+    empirical finding: at n=1 low-Q_L the propagators do NOT differ on this
+    observable (both floored by the O(1/(2Q_L)) IQ-envelope truncation ≈
+    1.6% — an inherent model limitation, not a solver defect); (3) the
+    REAL discriminator: large detuning (δω=3.5e6 rad/s, θ=2.7e-3/step,
+    below Euler's own warn threshold) — exp stays at 1.4e-3-3e-3 vs Euler
+    compounding to 6.7e-2/1.3e-1 (38×/98×), mutation-verified (flag off →
+    6.7× over gate). Harness kwargs kept OUT of the comparison cache key
+    (counter_rotating precedent).
+  - **Public kwarg is now `exponential_coarse_solver_enable`** (user's
+    second rename); all docs/RSTs/context/test-harness names aligned — the
+    documented call constructs.
 - ~~`print_one_turn_execution_order` crash on empty `rf_centers`~~ **RESOLVED**
   (committed `0936668f`, with regression tests in
   `tests/unittests/core/ring/test_beam_physics_relevant_elements.py`).

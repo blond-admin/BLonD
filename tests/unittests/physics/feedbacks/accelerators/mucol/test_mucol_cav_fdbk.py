@@ -958,7 +958,7 @@ class TestExponentialCoarseSolver(unittest.TestCase):
 
     ``_advance_coarse_voltage`` integrates one coarse step of the cavity
     envelope ODE with either forward-Euler (default) or, with
-    ``exponential_coarse_solver=True``, the exact exponential propagator
+    ``exponential_coarse_solver_enable=True``, the exact exponential propagator
     ``V_{n+1} = e^L V_n + src (e^L - 1)/L``. The exponential form is exact
     in decay and detuning rotation and unconditionally stable.
     """
@@ -973,7 +973,7 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         Parameters
         ----------
         exponential : bool
-            Value passed as ``exponential_coarse_solver``.
+            Value passed as ``exponential_coarse_solver_enable``.
 
         Returns
         -------

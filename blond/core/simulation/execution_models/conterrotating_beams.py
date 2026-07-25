@@ -91,8 +91,12 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         if not consumed:
             return
 
-        # A consumed live profile that never appears as a ring element is
-        # never histogrammed for either beam -- clear, specific error.
+        # A consumed live profile that never appears as a ring element
+        # cannot be verified by the interleave replay below, which only
+        # tracks histogram writes made by profile *elements*. A
+        # self-histogramming consumer does write its own profile, but
+        # that write is invisible to this element-list check, so this
+        # conservative guard rejects the layout with a specific error.
         for index, profiles in consumed.items():
             element = elements[index]
             for profile in profiles:
@@ -100,12 +104,21 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                     raise ValueError(
                         f"{type(element).__name__} (element {index}) "
                         "consumes a live profile that is never tracked as "
-                        "a ring element, so it is never histogrammed for "
-                        "either counter-rotating beam. Add the profile as "
-                        "a ring element on a safe placement, give each "
-                        "beam its own profile instance, or freeze it with "
-                        "``profile.active = False`` for a static line "
-                        "density."
+                        "a ring element. This conservative guard verifies "
+                        "safety by replaying the two-beam interleave over "
+                        "the ring-element list; a profile that never "
+                        "appears there cannot be verified, so it cannot "
+                        "confirm that each counter-rotating beam reads its "
+                        "own histogram. A self-histogramming consumer does "
+                        "write its own profile once per beam, but that "
+                        "write is invisible to this element-list check, so "
+                        "a single shared live profile still cannot be "
+                        "confirmed safe here -- and for a feedback it also "
+                        "entangles cross-turn state. Add the profile as a "
+                        "ring element in a placement this check can "
+                        "verify, give each beam its own profile instance, "
+                        "or freeze it with ``profile.active = False`` for "
+                        "a static line density."
                     )
 
         MainloopCounterRotatingBeams._reject_clobbering_layout(
@@ -195,10 +208,14 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             "density. Note the minimal (profile, consumer, profile) "
             "sandwich is NOT safe -- the counter beam's interleaved "
             "histogram falls between the co-rotating beam's write and its "
-            "read (and symmetrically for the counter beam). Freeze the "
-            "histogram with ``profile.active = False`` for a static line "
-            "density, or give each beam its own profile instance, or use "
-            "a placement verified safe by this exact interleave replay."
+            "read (and symmetrically for the counter beam). For a "
+            "feedback, a single shared live profile also entangles "
+            "cross-turn state (the coarse grid / last-beam-current "
+            "carry), so per-beam profile instances are the robust fix. "
+            "Otherwise freeze the histogram with "
+            "``profile.active = False`` for a static line density, give "
+            "each beam its own profile instance, or use a placement "
+            "verified safe by this exact interleave replay."
         )
 
     @staticmethod
