@@ -12,6 +12,11 @@ RF beam-current demodulation for the cavity feedbacks.
 ``rf_beam_current`` and ``rf_beam_current_partial`` turn a beam profile into the
 complex IQ beam-current envelope at the carrier frequency, plus the low-pass
 filter they use.
+
+Maintainer note: ``rf_beam_current`` is shared with the LHC comparison path
+and must stay byte-identical for co-rotating beams (see the LHC comparison
+suite). It was split out of ``helpers.py`` for a clear module boundary and is
+re-exported from ``helpers`` for backward compatibility.
 """
 
 from __future__ import annotations
@@ -78,12 +83,20 @@ def rf_beam_current(  # noqa: PLR0912
     coarse_center_offset: float | None = None,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
-    Calculate the beam charge at the carrier frequency slice by slice.
+    Turn the beam profile into the complex IQ beam-current envelope.
 
-    Function calculating the beam charge at the carrier frequency, slice by
-    slice. The charge distribution [C] of the beam is determined from the beam
-    profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
-    macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
+    The beam oscillates at the RF carrier angular frequency
+    :math:`\omega_c` (the carrier is the fast RF frequency every signal
+    rides on). This routine *demodulates* the beam's charge onto that
+    carrier -- it recovers the slowly-varying complex amplitude of the
+    beam's RF-frequency current, the **IQ envelope** (in-phase
+    :math:`+ i` quadrature) -- and optionally re-bins it onto the coarse
+    grid. See the "Concepts and notation" section of
+    :ref:`mucol_cavity_feedback_overview` for the IQ/demodulation picture.
+
+    The charge distribution [C] of the beam is determined from the beam
+    profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real
+    vs. macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
 
     .. math::
         Q_i = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \lambda_i
@@ -106,8 +119,11 @@ def rf_beam_current(  # noqa: PLR0912
         = 2 Q_i \left( \begin{matrix} \cos(\omega_c t_i) \\
         \sin(\omega_c t_i)\end{matrix} \right) \, ,
 
-    where :math:`t_i` are the time coordinates of the beam profile.
-    After demodulation, a low-pass filter at 20 MHz is applied.
+    where :math:`t_i` are the time coordinates of the beam profile. The
+    factor 2 is the single-sideband demodulation convention: it recovers
+    the fundamental amplitude from the projection onto
+    :math:`\cos(\omega_c t)` and :math:`\sin(\omega_c t)`. After
+    demodulation, a low-pass filter at 20 MHz is applied.
 
     For multi-bunch cases, make sure that the real beam intensity is the total
     number of charges in the ring.
@@ -130,6 +146,10 @@ def rf_beam_current(  # noqa: PLR0912
         grid with 'Ts' sampling time and 'points' points.
     external_reference : bool
         Option to include the changing external reference of the time-grid.
+        When True, applies the reference-frame phase correction that rotates
+        the demodulated beam current into the antenna-voltage IQ frame (a
+        ``dT``-derived clock slip plus a fixed ``+pi/2`` axis alignment).
+        Default is True.
     dT : float
         The shift in time due to shifting reference frames.
     forbid_charge_in_first_coarse_cell : bool
@@ -154,10 +174,10 @@ def rf_beam_current(  # noqa: PLR0912
     Returns
     -------
     complex array
-        RF beam charge array [C] at 'frequency' omega_c, with the sampling time
-        of the Profile object. To obtain current, divide by the sampling time (complex array)
-        If time_coarse is specified, returns also the RF beam charge array [C]
-        on the coarse time grid.
+        RF beam charge array [C] at the carrier ``omega_c``, on the
+        sampling-time grid of the Profile object. Divide by the sampling
+        time to obtain the current. If ``downsample`` is given, the RF beam
+        charge array [C] on the coarse time grid is returned as well.
     """
     # The cavity-feedback signal processing runs on the host (the cavity
     # response solvers downstream use scipy, which is host-only). Bring the
@@ -325,23 +345,30 @@ def rf_beam_current_partial(
     carrier_phase_offset: float = 0.0,
 ) -> tuple[NumpyArray, NumpyArray]:
     r"""
-    RF beam current on the sub-stepped coarse grid (mucol timing class only).
+    Turn the beam profile into the coarse-grid IQ beam-current envelope.
 
-    Dedicated, fully-separated counterpart of :func:`rf_beam_current` for the
-    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
-    forward pass. It hard-codes the conventions that path always uses -- the
-    external reference frame is on, the fine-to-coarse index sign is ``+1``, the
-    mapping is centred on half a *coarse cell* (``sampling_time / 2``, not the
-    half-carrier-period ``pi / omega_c`` of the LHC path), and the first coarse
-    cell must stay charge-free -- so those no longer leak into the LHC-shared
-    :func:`rf_beam_current` as optional flags. It is kept a separate function
-    (not a thin wrapper) so the two paths can evolve independently:
-    :func:`rf_beam_current` must stay bit-identical for the LHC comparison
-    tests, which drive it through the (experimental) LHC feedback with
-    ``dT_index_sign = -1``.
-
-    See :func:`rf_beam_current` for the physics of the demodulation, the
+    Demodulate the beam's charge at the RF carrier ``omega_c`` to its
+    slowly-varying complex amplitude -- the IQ envelope (in-phase ``+ i``
+    quadrature) -- and re-bin it onto the sub-stepped coarse grid. This is
+    the forward-pass variant used only by the muon-collider timing class.
+    See the "Concepts and notation" section of
+    :ref:`mucol_cavity_feedback_overview` for the IQ/demodulation picture,
+    and :func:`rf_beam_current` for the physics of the demodulation, the
     ``+pi/2`` rotation and the downsampling.
+
+    This is a dedicated, fully-separated counterpart of
+    :func:`rf_beam_current` for the
+    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+    forward pass. It hard-codes the conventions that path always uses: the
+    external reference frame is on, the fine-to-coarse index sign is ``+1``,
+    the mapping is centred on half a *coarse cell* (``sampling_time / 2``,
+    not the half-carrier-period ``pi / omega_c`` of the LHC path), and the
+    first coarse cell must stay charge-free. Keeping them here means they no
+    longer leak into the LHC-shared :func:`rf_beam_current` as optional
+    flags. It is kept a separate function (not a thin wrapper) so the two
+    paths can evolve independently: :func:`rf_beam_current` must stay
+    bit-identical for the LHC comparison tests, which drive it through the
+    (experimental) LHC feedback with ``dT_index_sign = -1``.
 
     Parameters
     ----------
@@ -365,7 +392,7 @@ def rf_beam_current_partial(
         ``dT``-derived rotation. Used by the timing class to anchor the
         carrier to the accumulated actual RF phase
         (``- int delta_omega_rf dt`` since simulation start) when the
-        parent station runs with an RF-frequency offset; without one it is
+        parent station runs with an RF-frequency offset. Without one it is
         exactly ``0.0`` (bit-identical demodulation). A pure phase: it
         must not (and does not) move the fine-to-coarse binning, which
         follows the physical sample times.

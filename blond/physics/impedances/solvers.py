@@ -771,9 +771,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     Notes
     -----
-    Tracking a counter-rotating beam requires every source to define its
-    counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_witness``);
-    :meth:`calc_induced_voltage` raises otherwise.
+    A cross-direction wake interaction -- a counter-rotating pass crossing an
+    opposite-direction pass in the stored history -- requires every source to
+    define its counter-rotating shunt ``R_CR``
+    (``shunt_impedances_counter_witness``); :meth:`calc_induced_voltage`
+    raises otherwise. A *lone* counter-rotating beam's own wake is
+    ``R_CR``-independent (the XOR direction test selects the ordinary
+    same-direction wake), so it needs no ``R_CR`` and does not raise. Note
+    that :class:`MultiPoleSparseSolve` differs: it fails fast for *any*
+    counter-rotating beam with ``R_CR`` unset (it bakes the cross-sign array
+    up front and cannot cheaply single out the lone-beam case).
     """
 
     def __init__(
@@ -1362,9 +1369,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
     Notes
     -----
-    Tracking a counter-rotating beam requires every source to define its
+    Tracking *any* counter-rotating beam requires every source to define its
     counter-rotating shunt ``R_CR`` (``shunt_impedances_counter_witness``);
-    :meth:`calc_induced_voltage` raises otherwise.
+    :meth:`calc_induced_voltage` raises otherwise. Unlike
+    :class:`MultiPassResonatorSolver`, this fail-fast is eager even for a lone
+    counter-rotating beam (whose own wake is in fact ``R_CR``-independent):
+    the pole-residue sign array is baked up front, so any sign resolves it and
+    is bit-identical for a lone beam.
     """
 
     def __init__(

@@ -1566,6 +1566,71 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                         float(np.max(np.abs(per_turn_plus[-1][0]))), 0.0
                     )
 
+    def test_multiturn_counter_rotating_mu_minus_matches_mu_plus_with_delta_omega_rf(
+        self,
+    ):
+        """
+        A counter-rotating mu- beam matches the mu+ run under an RF offset.
+
+        Extends ``test_multiturn_counter_rotating_mu_minus_matches_mu_plus``
+        to a nonzero ``delta_omega_rf``. The symmetric-ring invariant is that
+        the direction-signed gap current of the counter-rotating mu-minus beam
+        equals the co-rotating mu-plus beam's, so every collected voltage must
+        reproduce the co-rotating run bit-for-bit -- *including* the whole
+        demodulation-anchoring slip chain. That anchoring (a design-clock
+        coarse grid plus the accumulated constant phase
+        ``-(delta_phi_rf + live gap)``, see the class docstring in
+        ``cavity_feedback.py``) was validated only for the co-rotating forward
+        stream, so a direction-dependent sign or value in the slip anchor would
+        surface here as a mismatch under the offset while the
+        ``delta_omega_rf == 0`` invariant stayed green.
+
+        Runs the feedback (beam and no-beam reference runs) and the retuning
+        convolution (``delta_f = delta_omega_rf / 2 pi``) once per beam and
+        compares the collected voltages per turn bit-for-bit:
+
+        * feedback station gap voltage (beam run and no-beam reference run),
+        * multi-pass convolution induced voltage.
+
+        Static cycle, single section (the single-stream geometry where the
+        counter-rotating reference walk is the mirror identity). Two
+        substantial offsets are swept -- 2e3 rad/s (past half the ~3.2e3 rad/s
+        cavity half-bandwidth, where an unanchored demodulation slip would
+        dominate the discretization floor within two turns) and 8e2 rad/s.
+        """
+        for delta_omega_rf in (2.0e3, 8.0e2):
+            for mode in ("fb", "fb_reference", "mtw"):
+                with self.subTest(delta_omega_rf=delta_omega_rf, mode=mode):
+                    per_turn_plus = self._run_multiturn_case(
+                        mode,
+                        n_sections=1,
+                        acceleration=False,
+                        delta_omega_rf=delta_omega_rf,
+                    )
+                    per_turn_minus_cr = self._run_multiturn_case(
+                        mode,
+                        n_sections=1,
+                        acceleration=False,
+                        delta_omega_rf=delta_omega_rf,
+                        counter_rotating_mu_minus=True,
+                    )
+                    for turn_i, (turn_plus, turn_minus) in enumerate(
+                        zip(per_turn_plus, per_turn_minus_cr, strict=True)
+                    ):
+                        np.testing.assert_array_equal(
+                            turn_minus[0],
+                            turn_plus[0],
+                            err_msg=(
+                                f"offset {delta_omega_rf} mode {mode} "
+                                f"turn {turn_i}"
+                            ),
+                        )
+                    # Non-degenerate: the beam-driven runs carry voltage.
+                    if mode != "fb_reference":
+                        self.assertGreater(
+                            float(np.max(np.abs(per_turn_plus[-1][0]))), 0.0
+                        )
+
     def _plot_multiturn(self, v_convolution_turns, v_feedback_turns):
         """
         Debug plot: per-turn convolution vs feedback induced voltage.

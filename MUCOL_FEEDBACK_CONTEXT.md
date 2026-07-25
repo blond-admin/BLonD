@@ -123,7 +123,7 @@ preserves `|V|` (a rotation) where Euler grows it by `√(1+(δω·dt)²)`. Test
 `TestExponentialCoarseSolver`.
 
 **Review fix**: `_check_step_sizes` now early-returns when
-`exponential_coarse_solver` is set — the forward-Euler stability cap and its
+`exponential_coarse_solver_enable` is set — the forward-Euler stability cap and its
 warnings no longer gate the exact solver (it was previously unreachable in the
 low-Q_L / large-detuning regime it exists for).
 
@@ -354,8 +354,37 @@ zero regressions — full mucol battery 156 passed):
     at 2.0 = pure divergence guard).
   - **#2** — the sandwich guard was REPLACED, and a prior belief CORRECTED (see
     the per-beam-profiles bullet below).
-  Coverage gaps flagged (still open): closed-loop Robinson stability,
-  accel×two-beam-CR, δω_rf×CR, generator↔beam power/energy conservation.
+  Coverage gaps — **all 4 now CLOSED by tests (2026-07-23, 4 parallel agents,
+  all GREEN, ZERO production bugs — the feedback was sound, only tests missing):**
+  - **δω_rf × CR** — `..._matches_mu_plus_with_delta_omega_rf` (test_mtw): lone CR
+    µ⁻ + offset reproduces co µ⁺ bit-for-bit (single beam tracks forward; slip
+    anchor is direction-agnostic, only signed charge differs = +1 for both).
+  - **accel × two-beam CR** — `TestTwoBeamAcceleratingOffsetPassages`
+    (test_two_beam): fast-ramp two-beam vs retuning convolution, 0.13%→0.025%
+    (error shrinks = non-ramping = healthy composition of frame-slip × reverse
+    traversal).
+  - **δω_rf × two-beam CR (the reverse-traversal case, added 2026-07-24)** —
+    `TestTwoBeamDeltaOmegaRfOffsetPassages` (test_two_beam): static cycle,
+    δω_rf=2000, feedback vs retuning convolution (delta_f=δω_rf/2π),
+    0.13%→0.02% (shrinks). Reverse-stream slip anchor is direction-correct;
+    a crossed probe (offset dropped for the reverse stream) grows to 9%/turn,
+    18× over gate — so the test is strongly discriminating. Closes the last
+    residual (δω_rf × two-beam, which neither gap 3 lone-beam nor gap 2 accel
+    covered).
+  - **generator↔beam power** — `test_generator_power_conservation.py` (new):
+    phasor balance closes to 1 WITH the SSB factor-2, 0.5 with raw I_beam (both
+    pinned); current_limit_from_power ⇄ generator_power round-trips 1e-12.
+    Doc-clarity note: beam_current.py:209 "factor 2 recovers the fundamental"
+    should state the units bridge (physical fundamental = I_beam/2 in
+    generator-current units) — not a bug.
+  - **closed-loop Robinson** — `test_closed_loop_stability.py` (new, test-only,
+    300 turns ≈30 Q_s periods): nominal net-DAMPS (−9e-4/turn, genuinely
+    stable), perturbed (flipped detuning) grows (+1.65e-3/turn). 3 new
+    characterizations: (a) loop gain/delay dynamically inert on the dipole
+    (loop ≫ synchrotron rate → only detuning-sign destabilizes); (b) feedback
+    fully suppresses *linear* Robinson (needs a filamenting bunch); (c) slow
+    secular drift common to both signs beyond ~350 turns (matches the known
+    bounded-secular-drift limitation).
 
 - ~~MultiPole vs MultiPass on missing R_CR~~ **RESOLVED**: the follow-up
   session's guard landed via `origin/blonder` (commit `2235e519`, merged in
@@ -388,8 +417,18 @@ zero regressions — full mucol battery 156 passed):
   REPLACED: `_check_two_beam_profile_placement` now **replays the exact mainloop
   interleave** (forward tracks `elements[k]`, then counter `elements[N-1-k]`;
   two turns for steady state) and raises if any consumer reads the other beam's
-  histogram — provably correct (0 too-lax / 0 too-strict over 1792 layouts).
-  Frozen (`active=False`) profiles remain exempt. Tests in
+  histogram — 0 too-lax / 0 too-strict over 1792 layouts **under the
+  pure-reader model** the replay assumes. CAVEAT (review 2026-07-24, #1): the
+  real mucol consumers (WakeField with `track_profile=True`, and the feedback's
+  `calculate_rf_beam_current_partial`) SELF-histogram their profile in place
+  before consuming it, so the write+read is atomic per beam and no interleave
+  corrupts it. The replay models consumers as pure readers and does NOT see
+  those self-writes, so it is *conservative*: it rejects the natural
+  attached-live-profile layout with the (inaccurate) message "never tracked as
+  a ring element … never histogrammed". No supported config is wrong (the
+  shipped two-beam path uses frozen profiles), but the guard message + the
+  "provably correct" framing overstate; the real long-term fix remains per-beam
+  profile instances. Frozen (`active=False`) profiles remain exempt. Tests in
   `test_simulation.py::TestTwoBeamProfilePlacementCheck` (the old
   `test_sandwiched_live_profile_passes` was corrected to
   `test_minimal_sandwich_rejected`). The real long-term fix remains per-beam

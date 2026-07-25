@@ -77,7 +77,9 @@ def cavity_response_sparse_matrix_second_order(
     I_gen_init : complex float
         Initial condition for the generator current.
     samples_per_rf : float
-        Number of samples per RF period == sampling time * actual rf frequency.
+        RF phase advanced per sample [rad], i.e. ``omega_rf * sampling_time``
+        (= 2*pi / samples-per-period). The solver coefficients use it directly
+        as ``omega * dt``; callers pass ``omega_input * profile.hist_step``.
     R_over_Q : float
         The R over Q of the cavity.
     Q_L : float

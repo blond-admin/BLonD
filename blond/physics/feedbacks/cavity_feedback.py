@@ -65,6 +65,13 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
     """
     Base class to design cavity feedbacks.
 
+    Abstract IQ-envelope cavity feedback: it owns the beam profile, the
+    coarse/fine grid arrays, the beam-current demodulation and the accessors
+    onto the parent RF station. Concrete feedbacks (the muon-collider
+    :class:`IQCavityFeedbackTimingClass`, and the experimental LHC/SPS loops)
+    subclass it. The vocabulary is defined in the "Concepts and notation"
+    section of :ref:`mucol_cavity_feedback_overview`.
+
     Parameters
     ----------
     profile
@@ -603,6 +610,11 @@ class IQCavityFeedbackTimingClass(
     r"""
     Cavity feedback that tracks the antenna voltage on a coarse time grid.
 
+    New to cavity feedback? The vocabulary used throughout (antenna voltage,
+    IQ envelope, coarse vs fine grid, ``R/Q``, ``Q_L``, beam loading, kick,
+    the reference clocks) is defined in the "Concepts and notation" section
+    of :ref:`mucol_cavity_feedback_overview`.
+
     The antenna voltage is advanced on a coarse grid (the ``rf_centers``) with
     a forward-Euler discretisation of the cavity ODE; see ``cavity_response``
     and ``_check_step_sizes``.
@@ -650,7 +662,7 @@ class IQCavityFeedbackTimingClass(
         first-order forward-Euler one. The second-order solver is much more
         accurate at coarse profile binning (its error scales as the bin size
         squared rather than linearly). Default is False.
-    exponential_coarse_solver_flag
+    exponential_coarse_solver_enable
         If True, advance the *coarse* grid with the exact exponential
         propagator ``V_{n+1} = e^{L} V_n + src (e^{L}-1)/L`` (exact in decay
         and detuning rotation, unconditionally stable) instead of the default
@@ -752,7 +764,7 @@ class IQCavityFeedbackTimingClass(
         delta_omega: float = 0.0,
         debug: bool = False,
         second_order_fine_grid_solver_enable: bool = False,
-        exponential_coarse_solver_flag: bool = False,
+        exponential_coarse_solver_enable: bool = False,
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
         n_pretrack: int | None = None,
@@ -822,7 +834,9 @@ class IQCavityFeedbackTimingClass(
         self._second_order_fine_grid_solver_enable = (
             second_order_fine_grid_solver_enable
         )
-        self._exponential_coarse_solver_flag = exponential_coarse_solver_flag
+        self._exponential_coarse_solver_enable = (
+            exponential_coarse_solver_enable
+        )
 
         self._generator_current_bias = generator_current_bias
 
@@ -914,7 +928,7 @@ class IQCavityFeedbackTimingClass(
         # propagator integrates the piecewise-constant drive -- beam included
         # -- exactly, so a large per-step beam kick is not a discretisation
         # error there either.)
-        if self._exponential_coarse_solver_flag:
+        if self._exponential_coarse_solver_enable:
             return
 
         max_step_angle = 0.1  # rad, heuristic threshold for Euler validity
@@ -1499,7 +1513,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             -0.5 * omega_times_dt / self.Q_L
             + 1j * relative_detuning * omega_times_dt
         )
-        if self._exponential_coarse_solver_flag:
+        if self._exponential_coarse_solver_enable:
             voltage_multiplier = np.exp(step_exponent)
             # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
             # well defined.
@@ -1676,7 +1690,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # (beam included) exactly, so a large per-step beam kick is not a
         # discretisation error -- the forward-Euler beam-kick tripwire does
         # not apply and must be skipped, mirroring _check_step_sizes.
-        if self._exponential_coarse_solver_flag:
+        if self._exponential_coarse_solver_enable:
             return
         previous_voltage = np.empty_like(voltage_out)
         previous_voltage[0] = voltage_init
@@ -1749,7 +1763,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # integrates the piecewise-constant drive (beam included) exactly, so
         # a large per-step beam kick is not a discretisation error there. Skip
         # it for the exact solver, mirroring _check_step_sizes' early return.
-        if self._exponential_coarse_solver_flag:
+        if self._exponential_coarse_solver_enable:
             return
         if beam_current == 0:
             return
@@ -1859,7 +1873,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             -0.5 * omega_times_T_s / self.Q_L
             + 1j * relative_detuning * omega_times_T_s
         )
-        if not self._exponential_coarse_solver_flag:
+        if not self._exponential_coarse_solver_enable:
             return v_prev * (1.0 + step_exponent) + drive
         # Exact exponential propagator. np.expm1 keeps the drive weight
         # (e^L - 1) / L accurate (-> 1) as L -> 0; guard the exact zero.

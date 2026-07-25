@@ -104,8 +104,10 @@ feedback instance with RCS1 four-station parameters on a mocked
 ``test_cavity_response_no_warning_for_small_beam_kick``
     No warning when the relative beam kick is negligible.
 ``test_step_size_check_raises_for_unphysical_decay_per_step``
-    Raises ``ValueError`` when the per-step decay exceeds the hard limit
-    (the Euler decay factor would go negative).
+    Raises ``ValueError`` when the per-step decay exceeds the hard limit of
+    2.0 (the magnitude of the Euler decay factor ``1 - decay_per_step``
+    then exceeds 1, so the discretisation diverges; it merely turns negative,
+    still contracting, already above 1.0).
 ``test_step_size_check_raises_for_unphysical_detuning_phase_per_step``
     Raises when the per-step detuning phase exceeds the hard limit.
 ``test_step_size_check_fires_on_run_simulation``
@@ -838,14 +840,20 @@ turn), so the feedback detects the coincident opposite-direction passage
 (within half a coarse cell) and refuses it.
 
 ``test_single_section_two_beam_raises``
-    The coincident second passage raises ``NotImplementedError`` with the
-    workaround in the message (move the station off the meeting azimuth, or
-    model that station's loading with the ``MultiPassResonatorSolver``
-    wakefield, ``allow_delta_t_zero=True``).
+    The coincident second passage raises ``NotImplementedError``. The message
+    points to the supported fix -- move the station off the meeting azimuth.
+    It also mentions the ``MultiPassResonatorSolver`` wakefield
+    (``allow_delta_t_zero=True``), but note the caveat in the design doc's
+    *Counter-rotating beams* warning: that path deposits each coincident
+    beam's kick before the other beam's profile is registered, so it gives an
+    order-asymmetric kick and is *not* a correct model for a meeting-azimuth
+    station.
 ``test_single_section_convolution_reference_needs_delta_t_zero``
-    Pins that the recommended escape hatch exists: the solver's
-    monotonic-clock assertion rejects the coincident passage unless
-    ``allow_delta_t_zero=True``.
+    Pins that the solver *can* be made to accept a coincident passage: its
+    monotonic-clock assertion rejects ``delta_t = 0`` unless
+    ``allow_delta_t_zero=True``. This is used to build the single-beam
+    convolution reference; it does not make the two-beam coincident kick
+    correct (see the warning above).
 
 .. note::
 
@@ -853,6 +861,57 @@ turn), so the feedback detects the coincident opposite-direction passage
    into the same forward segment plus an envelope rewind/re-advance) is a
    known open extension; the offset-passage regime above is the physically
    relevant one for even section counts.
+
+
+``test_envelope_kernel.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Class** ``TestEnvelopeKernelBitIdentity`` -- the numba coarse-envelope
+kernel (``envelope_pi_scan``) must reproduce the pure-Python coarse recursion
+bit-for-bit. Each test drives both paths with identical inputs and asserts
+equality across the regimes the kernel must cover: no beam / constant
+current, a forward pass, the inline PI controller (no delay, with delay,
+saturating), the exponential-propagator branch, detuning, and the
+carried-state / multi-section reverse-then-forward cases.
+
+
+``test_closed_loop_stability.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Class** ``TestClosedLoopRobinsonStability`` -- closed-loop (Robinson-style)
+certification that the *driven* feedback is stable over many synchrotron
+periods, not merely that two induced-voltage models agree.
+
+``test_setup_spans_many_synchrotron_periods``
+    Guards that the run is long enough for a dipole oscillation to develop.
+``test_bunch_stays_captured_and_loop_is_driven``
+    The bunch stays captured and the PI loop actually acts on the voltage.
+``test_initial_dipole_is_excited`` / ``test_nominal_dipole_stays_bounded``
+    An initial dipole is excited and, under nominal gains, stays bounded.
+``test_perturbed_dipole_grows`` / ``test_perturbed_grows_measurably_more_than_nominal``
+    A destabilising perturbation makes the dipole grow measurably more than
+    the nominal case -- the certification is sensitive to loop stability, not
+    vacuous.
+
+
+``test_generator_power_conservation.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Energy/power self-consistency of the generator drive and the beam-loading
+compensation.
+
+**Class** ``TestBeamLoadingCompensationSustainsSetpoint``
+    The compensation ``I_gen = I_ff + I_beam / 2`` is a fixed point of the
+    coarse step for every detuning; dropping the factor 2 breaks the fixed
+    point (mutation guard).
+**Class** ``TestGeneratorPowerBeamPowerBalance``
+    Generator power versus beam power balances to one on resonance; the raw
+    (missing-half) beam current gives the factor-2 shortfall; with detuning
+    only the reactive term is carried.
+**Class** ``TestPowerCurrentRoundTrip``
+    ``current_limit_from_power`` and its inverse round-trip
+    (power -> current -> power and current -> power -> current are
+    identities).
 
 
 Support modules

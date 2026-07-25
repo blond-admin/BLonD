@@ -986,7 +986,7 @@ class TestExponentialCoarseSolver(unittest.TestCase):
             Q_L=self.Q_L,
             generator_current_bias=0.0,
             n_cavities=1,
-            exponential_coarse_solver_flag=exponential,
+            exponential_coarse_solver_enable=exponential,
         )
 
     def test_euler_branch_matches_the_forward_euler_formula(self):

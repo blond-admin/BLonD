@@ -15,6 +15,122 @@ by the test suite documented in :ref:`mucol_cavity_feedback_tests`.
    :depth: 2
 
 
+Concepts and notation
+---------------------
+
+This is a *low-level RF* (LLRF) feedback: it keeps a cavity's accelerating
+voltage on target while the beam itself perturbs that voltage. The terms
+below recur throughout the page -- a reader new to cavity feedback should
+skim them first; the later sections assume them.
+
+**Physical quantities**
+
+RF cavity
+    A resonant metal structure whose oscillating electromagnetic field gives
+    each passing bunch an energy kick.
+antenna voltage (``V_ant``)
+    The complex envelope of the cavity's accelerating voltage -- the quantity
+    the feedback tracks and the controller regulates. It is *distinct* from
+    the voltage an individual bunch sees (resolved separately on the fine
+    grid): the bunch samples the field only during its short passage.
+generator current (``I_gen``)
+    The RF drive the amplifier (klystron) feeds into the cavity -- the
+    actuator the feedback commands.
+beam current (``I_beam``) / gap current
+    The RF-frequency component of the beam's charge as it crosses the cavity
+    gap. A passing bunch acts as a current source that *removes* energy from
+    the cavity field.
+beam loading
+    The change in cavity voltage caused by that beam current. Left
+    uncompensated it shifts the voltage every bunch sees; cancelling it is
+    the feedback's main job.
+kick
+    The energy (and phase) change the cavity imparts to the beam on one
+    passage -- the model's ultimate output, applied by the parent RF station.
+``R/Q``, ``Q_L``
+    Cavity figures of merit. ``R/Q`` (shunt-impedance-over-Q, [Ohm]) sets how
+    strongly a current drives the voltage; ``Q_L`` is the *loaded* quality
+    factor, setting how slowly the field decays (time constant
+    ``~ 2 Q_L / omega``).
+detuning (``delta_omega``)
+    An offset of the cavity's *resonant* frequency from the RF frequency;
+    it makes the complex voltage *rotate* as it decays.
+(beam) profile
+    The histogram of a bunch's charge versus time -- the feedback's input,
+    and the grid on which the bunch-seen voltage is resolved.
+wake / convolution reference
+    An independent way to compute beam-induced voltage: convolve the beam
+    profile with the cavity's impulse response (its *wake*). The tests check
+    the feedback against this and other independent models.
+
+**The complex-envelope (IQ) picture.** Everything oscillates at the RF
+carrier ``omega_rf``. Instead of tracking the fast oscillation, the model
+*demodulates* every signal down to its slowly-varying complex amplitude --
+the **IQ envelope** (in-phase ``+ i`` quadrature). "Demodulating the beam
+current onto the carrier" means projecting the profile onto
+``cos(omega_rf t)`` and ``sin(omega_rf t)`` to recover that complex
+amplitude. Every voltage and current on this page is such an envelope.
+
+**Two grids.** The cavity field evolves over a whole turn, so it is stepped
+on a sparse **coarse grid** (one point per RF period, or a fraction of one)
+that spans the turn cheaply -- this is where the feedback loop lives. The
+bunch, by contrast, samples the field over picoseconds, so the voltage it
+actually receives is resolved on the dense **fine grid** (the profile grid),
+onto which the coarse-grid result is interpolated.
+
+**The generator control loop**
+
+PI controller
+    Proportional-Integral controller: commands ``I_gen`` from the voltage
+    error ``V_set - V_ant`` (a term proportional to the error plus a term
+    integrating it).
+anti-windup
+    Freezes the integrator while the actuator is saturated, so the integral
+    does not "wind up" to an unrecoverable value.
+klystron limit
+    The largest generator current (or power) the amplifier can deliver; the
+    command is clamped to it, keeping its phase.
+feedforward fill (pre-fill)
+    Charging the cavity to its operating voltage *before* the beam arrives,
+    with a fixed generator current and no feedback.
+
+**Reference frames / clocks.** Several distinct time-and-phase references
+appear:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Name
+     - What it is
+   * - design clock
+     - RF phase at the *design* frequency; the coarse-grid geometry is built
+       on it.
+   * - actual RF clock
+     - Design frequency *plus* any station offset ``delta_omega_rf``.
+   * - kick clock (``delta_phi_rf``)
+     - The station's accumulated RF phase slip from ``delta_omega_rf``,
+       applied to the kick.
+   * - segment frame
+     - The phase reference of one reconstructed coarse-grid segment (below).
+
+**Coarse-grid construction primitives**
+
+beam reference
+    A synchronous-particle clock (time + energy); a copy of the beam's
+    reference coordinates the feedback advances to place its grid points.
+forward / reverse tracking
+    To build the grid the feedback advances the reference *forward* to the
+    next RF station; on later turns it re-derives the stretch of grid that
+    has *elapsed* since its previous update by walking it in *reverse*.
+segment
+    One contiguous piece of coarse grid produced by one such walk, at a
+    single tracked frequency.
+carried deposit
+    Beam-induced voltage laid onto the grid on one turn that must then be
+    propagated ("carried") consistently across later turns and segments.
+
+
 Classes at a glance
 -------------------
 
@@ -26,10 +142,11 @@ Classes at a glance
 
 :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
     The muon-collider cavity model. Tracks the antenna voltage of one RF
-    station's cavities on a coarse time grid that follows the *actual* RF
-    clock turn by turn (including acceleration and multiple stations per
-    ring), and resolves the voltage seen by the bunch on the fine (profile)
-    grid.
+    station's cavities on a coarse time grid whose geometry follows the
+    *design* RF clock turn by turn (including acceleration and multiple
+    stations per ring; a station RF-frequency offset ``delta_omega_rf``
+    enters only as a phase, not the grid), and resolves the voltage seen by
+    the bunch on the fine (profile) grid.
 
 :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController`
     Standalone, saturating PI controller mapping an antenna-voltage error to a
@@ -88,15 +205,18 @@ Each turn the timing class performs, in order:
    with (at the local reference energy), so the coarse-step spacing follows
    the design RF period even under acceleration and with several stations
    per ring. A station RF-frequency offset ``delta_omega_rf`` never moves
-   the grid: it enters only as explicit phases (the demodulation carrier
-   and the accumulated kick-clock slip, see below).
+   the grid, and does not shift the demodulation carrier either (which stays
+   on the design clock): it enters only as one explicit constant phase, the
+   accumulated kick-clock slip (see below).
 
-2. **Beam-current demodulation.**
-   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` converts the beam
-   profile into the complex IQ beam-current envelope at the carrier frequency
-   (factor-2 single-sideband demodulation), applies the reference-frame phase
-   correction, and re-bins the fine-grid charge onto the coarse cells
-   charge-conservingly. A guard forbids charge in the first coarse cell,
+2. **Beam-current demodulation.** The timing class calls
+   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial`
+   (its dedicated forward-pass variant of the shared
+   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current`) to convert
+   the beam profile into the complex IQ beam-current envelope at the carrier
+   frequency (factor-2 single-sideband demodulation), apply the
+   reference-frame phase correction, and re-bin the fine-grid charge onto the
+   coarse cells charge-conservingly. A guard forbids charge in the first coarse cell,
    whose value seeds the fine-grid initial condition (double counting), and a
    warning fires if the profile window does not capture the whole beam.
 
@@ -161,19 +281,28 @@ Two distinct frequency knobs exist and must not be confused:
     per-step phase rotation; it does not move the coarse grid.
 
 ``delta_omega_rf`` (RF station attribute)
-    The station's *RF frequency* offset added on top of the design frequency.
-    The station integrates the resulting RF phase slip exactly from the
-    elapsed reference time (``delta_omega_rf * dt``, accumulated at the end
-    of each station track). The timing class demodulates the beam current
-    onto the actual RF carrier -- the offset carrier within the profile
-    window plus the accumulated slip (the station's kick clock
-    ``delta_phi_rf`` and its live end-of-track tail) -- and the readout
-    applies the identical total (the clock via ``phi_rf``, the tail via
-    ``phase_correction``), so the demodulation/readout chain closes exactly
-    for every carried deposit; the coarse grid itself stays on the design
-    clock. Validated against the retuning convolution at the discretization
-    floor (``test_multiturn_delta_omega_rf_*``: large offset, differential,
-    sub-stepped, multi-section).
+    The station's *RF frequency* offset, added on top of the design
+    frequency. Only its *phase* enters the feedback -- both the coarse-grid
+    geometry and the demodulation carrier stay on the design clock.
+    Concretely:
+
+    * the station accumulates the RF phase slip exactly from the elapsed
+      reference time (``delta_omega_rf * dt``, summed at the end of each
+      station track) into its kick clock ``delta_phi_rf``;
+    * the beam current is demodulated at the *design* carrier and then
+      rotated by that accumulated slip (the kick clock plus its live
+      end-of-track tail), carried as one constant phase;
+    * the readout applies the identical total (the clock via ``phi_rf``, the
+      tail via ``phase_correction``), so the slip cancels and the
+      demodulation/readout chain closes for every carried deposit.
+
+    The only approximation is the intra-window mismatch
+    ``delta_omega_rf * hist_x`` between the design carrier and the actual RF;
+    because ``hist_x`` is the bunch-local profile time (about one RF period,
+    reset every turn) this term is bounded to ~1e-6 rad and does not
+    accumulate. Validated against the retuning convolution at the
+    discretization floor (``test_multiturn_delta_omega_rf_*``: large offset,
+    differential, sub-stepped, multi-section).
     Guards on the station enforce the supported use: in a ring with more than
     one RF station the offset cannot be changed during the run, and the
     slip bookkeeping only runs when a beam feedback (phase loop) exists in
@@ -191,21 +320,26 @@ Counter-rotating beams
 The collider ring accelerates a co-rotating mu+ and a counter-rotating mu-
 beam through the same cavities. The whole beam-loading chain (RF beam
 current, wake-solver sources, and every kick) uses the *direction-signed
-charge* ``beam.signed_charge_with_direction()`` (charge negated for a
-counter-rotating beam): the collider pair then carries same-sign gap
-currents, so for an asymmetric fundamental mode the loading of both beams
-adds constructively and both receive the same kick. A counter-rotating mu- beam alone reproduces the
-co-rotating mu+ run bit-for-bit, through the feedback and through the
-convolution reference alike.
+charge* ``beam.signed_charge_with_direction()`` -- the particle charge with
+its sign flipped for a counter-rotating beam. The collider pair has
+*opposite* charges but travels in *opposite* directions, and the two sign
+flips cancel: both beams present the **same-sign gap current** to the cavity.
+(This is why the two statements below are consistent -- opposite *charges*,
+same-sign *currents*.) For an asymmetric fundamental mode their loading then
+adds constructively and both receive the same kick. A counter-rotating mu-
+beam alone reproduces the co-rotating mu+ run bit-for-bit, through the
+feedback and through the convolution reference alike.
 
 With two simultaneous beams (``MainloopCounterRotatingBeams``: each station
 is tracked once per beam per turn, the counter-rotating beam traversing the
 elements in reverse order), the supported regime is *offset passages* --
-stations away from the beams' meeting azimuths, e.g. any even section count
-with the half-drift / station / half-drift layout, where the two arrivals
-are ``T_rev / 2`` apart. There the per-passage grid machinery handles the
-alternating arrivals natively and matches the two-beam convolution at
-reference accuracy. A station *at* a meeting azimuth (both beams at the
+stations away from the beams' meeting azimuths. The validated case is the
+**two-section** half-drift / station / half-drift layout, where the two
+arrivals at a station are ``T_rev / 2`` apart; there the per-passage grid
+machinery handles the alternating arrivals natively and matches the two-beam
+convolution at reference accuracy. Layouts with more sections (``N >= 4``)
+can also keep stations off the meeting azimuths, but the arrival spacing is
+then not ``T_rev / 2`` and this regime is currently untested. A station *at* a meeting azimuth (both beams at the
 same reference time, e.g. the single mid-ring station of a one-section
 layout) is refused with ``NotImplementedError``: the machinery would
 silently serialize the coincident arrivals one projection window apart.
@@ -226,12 +360,16 @@ silently serialize the coincident arrivals one projection window apart.
    (deposit both beams' coincident profiles before evaluating either kick).
    Keep stations off the meeting azimuths (offset passages) instead.
 
-For the wake-solver references, ``shunt_impedances_counter_witness`` is the
-shunt a counter-rotating witness *experiences* (its reversed integration
-direction included). The sign is a property of the mode's field symmetry,
-not of fundamental modes in general: an *asymmetric* fundamental mode has
-``R_CR = -R`` (opposite charges add up and receive the same kick), while
-``R_CR = +R`` makes same-charge counter-rotating beams add up.
+For the wake-solver references, ``shunt_impedances_counter_witness``
+(``R_CR``) is the shunt impedance a counter-rotating *witness* -- a test
+charge integrating the wake in the reverse direction -- actually
+*experiences* (its reversed integration direction is baked into the value).
+Its sign is a property of the mode's field symmetry, not of fundamental
+modes in general:
+
+* ``R_CR = -R`` -- an *asymmetric* fundamental mode: two beams of *opposite*
+  charge (the collider pair) add up and receive the same kick;
+* ``R_CR = +R`` -- two *same-charge* counter-rotating beams add up.
 
 
 Validation

@@ -61,6 +61,10 @@ def clamp_magnitude(
     """
     Clamp the magnitude of a complex value or array, preserving its phase.
 
+    This is a saturating clamp (it limits how large the output can get):
+    entries whose magnitude exceeds ``max_magnitude`` are scaled down to
+    it, while their phase (their direction in the IQ plane) is left alone.
+
     Parameters
     ----------
     value
@@ -91,12 +95,12 @@ class GeneratorCurrentController(ABC):
     """
     Interface between a cavity feedback and its generator-current controller.
 
-    A controller converts, at each coarse-grid sample, the antenna-voltage
-    error into a generator-current command (:meth:`update_generator_current`)
-    and can clamp a current to the actuator limit on the fine grid
-    (:meth:`limit`). It carries
-    all of its own tuning and state, so the feedback holds only an instance of
-    this interface and does not know the control law.
+    A controller does two jobs. On each coarse-grid sample it turns the
+    antenna-voltage error into a generator-current command
+    (:meth:`update_generator_current`). It can also clamp a current to the
+    actuator (klystron) limit on the fine grid (:meth:`limit`). It carries
+    all of its own tuning and state, so the feedback holds only an instance
+    of this interface and does not need to know the control law.
     """
 
     @abstractmethod
@@ -147,6 +151,16 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
     r"""
     Saturating PI controller mapping a voltage error to a generator current.
 
+    In plain terms: this controller reads how far the cavity's antenna
+    voltage is from its target -- the error ``V_set - V_ant`` -- and
+    commands a generator current that pushes that error towards zero. It
+    adds a proportional term and an integral (running sum of past error)
+    term, acts on the error from a few samples ago (a loop delay), and
+    clamps its output so it never exceeds the klystron current limit.
+
+    See the "Concepts and notation" section of
+    :ref:`mucol_cavity_feedback_overview` for the vocabulary.
+
     Each :meth:`update_generator_current` converts one (complex)
     antenna-voltage error sample into the generator-current command
 
@@ -154,12 +168,14 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         I_\mathsf{gen} = \mathrm{clamp}\big(I_0
             + K_p\,e_\mathsf{d} + K_i \textstyle\sum e_\mathsf{d}\,\Delta t\big)
 
-    where :math:`e_\mathsf{d}` is the error delayed by ``n_delay`` samples,
-    :math:`I_0` the generator current bias and the clamp enforces the
-    klystron current limit. The integrator uses conditional (anti-windup)
-    integration: it is frozen while the output is saturated. All state (the
-    delay line and the integral) lives on the controller, so it can be driven
-    and inspected in isolation.
+    where :math:`e_\mathsf{d}` is the error delayed by ``n_delay`` samples
+    and :math:`I_0` is the generator-current bias. The clamp enforces the
+    klystron current limit. The integrator uses conditional, anti-windup
+    integration: it is frozen while the output is saturated (clamped at the
+    limit), so a persistent error cannot keep inflating the stored integral.
+    All state lives on the controller -- the delay line (the buffer of
+    recent errors) and the running integral -- so it can be driven and
+    inspected in isolation.
 
     Parameters
     ----------

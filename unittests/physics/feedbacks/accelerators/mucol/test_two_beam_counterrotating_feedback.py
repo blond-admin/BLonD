@@ -80,7 +80,13 @@ def _base():
 
 
 def _build_two_beam_simulation(
-    n_sections: int, mode: str, allow_delta_t_zero: bool = False
+    n_sections: int,
+    mode: str,
+    allow_delta_t_zero: bool = False,
+    acceleration: bool = False,
+    fast_ramp: bool = False,
+    n_turns: int = N_TURNS,
+    delta_omega_rf: float = 0.0,
 ):
     """
     Build the two-beam ring: half-drift / station / half-drift per section.
@@ -98,6 +104,27 @@ def _build_two_beam_simulation(
         ``"mtw"`` only: passed to the ``MultiPassResonatorSolver``, allowing
         two beams to deposit at the same reference time (needed for a
         meeting-azimuth station where both arrive simultaneously).
+    acceleration
+        If True, use the reference module's accelerating magnetic cycle
+        (the reference energy is raised at every RF station each turn) so
+        t_rev and the RF carrier slip turn over turn. Default False keeps
+        the static cycle of the offset-passage baseline.
+    fast_ramp
+        If True, use the transition-adjacent fast frame-slip regime
+        (implies acceleration): the injection energy and per-turn gain of
+        ``TestMultiTurnFeedbackVsConvolution``. The ``"mtw"`` convolution
+        then retunes on resonance each pass (``delta_f = 0``), the two-beam
+        counterpart of the single-beam retuning convolution.
+    n_turns
+        Number of turns the accelerating cycle is built for (must match the
+        run length). Ignored for the static cycle.
+    delta_omega_rf
+        Static RF-frequency offset [rad/s] applied to the feedback stations
+        (``station.delta_omega_rf``) from turn 0. The ``"mtw"`` convolution
+        follows the actual RF through a static resonator retuning
+        ``delta_f = delta_omega_rf / (2 pi)`` (the mapping the single-beam
+        ``delta_omega_rf`` tests validate). Mutually exclusive with
+        ``fast_ramp`` here. Default 0.0 leaves the baseline unchanged.
 
     Returns
     -------
@@ -108,9 +135,29 @@ def _build_two_beam_simulation(
     collected
         Per section, the RF station (feedback modes) or the WakeField.
     """
-    harmonic, t_rf = _base()._calc_multiturn_harmonic_and_t_rf(n_sections)
-    energy, _ = _base()._regime(False)
+    harmonic, t_rf = _base()._calc_multiturn_harmonic_and_t_rf(
+        n_sections, fast_ramp=fast_ramp
+    )
+    energy, _ = _base()._regime(fast_ramp)
     half_drift = _base().MULTITURN_CIRCUMFERENCE / n_sections / 2
+
+    # ``mtw`` solver options: on the fast ramp retune on resonance each pass
+    # (delta_f = 0), mirroring the single-beam fast-ramp convolution
+    # reference and the feedback's always-on-resonance cavity. On the static
+    # cycle no retuning (delta_f absent) reproduces the baseline exactly.
+    solver_kwargs = {
+        "decay_fraction_threshold": 1e-12,
+        "allow_delta_t_zero": allow_delta_t_zero,
+    }
+    if fast_ramp:
+        solver_kwargs["delta_f"] = 0.0
+    # A static RF-frequency offset enters the convolution reference as a
+    # resonator retuning delta_f = delta_omega_rf / (2 pi) (the same mapping
+    # the single-beam delta_omega_rf tests validate against this solver), and
+    # the feedback side as ``station.delta_omega_rf`` below. Not combined with
+    # fast_ramp here (the two frequency mechanisms are tested separately).
+    if delta_omega_rf != 0.0:
+        solver_kwargs["delta_f"] = delta_omega_rf / (2 * np.pi)
 
     ring = Ring(
         circumference=_base().MULTITURN_CIRCUMFERENCE,
@@ -142,10 +189,7 @@ def _build_two_beam_simulation(
                         ),
                     ),
                 ),
-                solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12,
-                    allow_delta_t_zero=allow_delta_t_zero,
-                ),
+                solver=MultiPassResonatorSolver(**solver_kwargs),
                 profile=profile,
             )
             station = SingleHarmonicRFStation(
@@ -176,6 +220,15 @@ def _build_two_beam_simulation(
                 profile=profile,
                 section_index=sec,
             )
+            # RF-frequency offset on every feedback station, before the run so
+            # it is active from turn 0 (matches the mtw resonator's static
+            # delta_f). Set pre-run, while the station count is not yet known,
+            # so the multi-station setter guard does not fire; suppress its
+            # once-per-turn advisory warning.
+            if delta_omega_rf != 0.0:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    station.delta_omega_rf = delta_omega_rf
             collected.append(station)
 
         elements += [
@@ -194,7 +247,10 @@ def _build_two_beam_simulation(
 
     ring.add_elements(elements, reorder=False)
     sim = Simulation(
-        ring=ring, magnetic_cycle=_base()._multiturn_cycle(n_sections, False)
+        ring=ring,
+        magnetic_cycle=_base()._multiturn_cycle(
+            n_sections, acceleration, fast_ramp=fast_ramp, n_turns=n_turns
+        ),
     )
 
     intensity = 0.0 if mode == "fb_reference" else _base().MULTITURN_INTENSITY
@@ -213,7 +269,13 @@ def _build_two_beam_simulation(
 
 
 def _run_two_beam_case(
-    n_sections: int, mode: str, allow_delta_t_zero: bool = False
+    n_sections: int,
+    mode: str,
+    allow_delta_t_zero: bool = False,
+    acceleration: bool = False,
+    fast_ramp: bool = False,
+    n_turns: int = N_TURNS,
+    delta_omega_rf: float = 0.0,
 ) -> list:
     """
     Run a two-beam Simulation and collect a voltage per turn per section.
@@ -226,6 +288,15 @@ def _run_two_beam_case(
         See :func:`_build_two_beam_simulation`.
     allow_delta_t_zero
         See :func:`_build_two_beam_simulation`.
+    acceleration
+        See :func:`_build_two_beam_simulation`.
+    fast_ramp
+        See :func:`_build_two_beam_simulation`.
+    n_turns
+        Number of turns to simulate (and to build the accelerating cycle
+        for). Default is the module-level ``N_TURNS``.
+    delta_omega_rf
+        See :func:`_build_two_beam_simulation`.
 
     Returns
     -------
@@ -235,7 +306,13 @@ def _run_two_beam_case(
         state after the LAST beam passage of that turn at that station.
     """
     sim, beams, collected = _build_two_beam_simulation(
-        n_sections, mode, allow_delta_t_zero=allow_delta_t_zero
+        n_sections,
+        mode,
+        allow_delta_t_zero=allow_delta_t_zero,
+        acceleration=acceleration,
+        fast_ramp=fast_ramp,
+        n_turns=n_turns,
+        delta_omega_rf=delta_omega_rf,
     )
     per_turn = []
 
@@ -262,7 +339,7 @@ def _run_two_beam_case(
         # about callbacks receiving only the first beam; both are expected.
         warnings.simplefilter("ignore")
         sim.run_simulation(
-            beams, n_turns=N_TURNS, callbacks=collect, show_progressbar=False
+            beams, n_turns=n_turns, callbacks=collect, show_progressbar=False
         )
     return per_turn
 
@@ -353,6 +430,372 @@ class TestTwoBeamOffsetPassages(unittest.TestCase):
         peak_1 = float(np.max(np.abs(convolution[-1][1])))
         self.assertGreater(peak_0, 0.0)
         self.assertLess(abs(peak_1 - peak_0) / peak_0, 0.05)
+
+
+# Turns for the accelerating two-beam runs: five (matching the reference
+# module's ``FAST_N_TURNS``) gives the per-turn drift check real teeth --
+# on the fast frame-slip ramp a sign/ordering error in the accel frame-slip
+# correction composed with the reverse traversal would grow several
+# percentage points per turn, so five turns make it unmistakable.
+ACCEL_N_TURNS = 5
+
+# Static RF-frequency offset for the two-beam delta_omega_rf coverage (the
+# same 2000 rad/s the single-beam multi-section delta_omega_rf test uses), run
+# over five turns so any per-turn slip-anchor error accumulates visibly.
+DELTA_OMEGA_RF = 2.0e3
+DELTA_OMEGA_RF_N_TURNS = 5
+
+
+class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
+    """
+    Offset two-beam passages under acceleration: feedback vs convolution.
+
+    Coverage for the composition never exercised by
+    :class:`TestTwoBeamOffsetPassages` (static cycle only): the single-beam
+    accelerating multi-section frame-slip correction (which removes, before
+    seeding the forward segment, the carried-envelope phase error the *other*
+    stations' mid-turn grid re-seeding accrues under the slipping RF carrier)
+    composed with the per-beam **reverse** traversal of the two-beam
+    counter-rotating mainloop.
+
+    Two sections on the transition-adjacent fast ramp (~4 GeV, gamma_t ~ 31:
+    the RF frame slips ~0.09 t_rf per turn, orders of magnitude more than at
+    the 63 GeV operating point) -- an even section count so the stations sit
+    off the beams' meeting azimuths and each station still sees the two
+    arrivals ``T_rev / 2`` apart. The feedback's beam-induced part (two-beam
+    gap voltage minus the two-beam zero-intensity reference, by linearity of
+    the cavity equation, which also cancels the common acceleration kick)
+    must track the two-beam multi-pass **retuning** convolution
+    (``delta_f = 0``, the accelerating counterpart of the static reference)
+    with no per-turn-growing error.
+
+    Measured (deterministic, both sections identical): 0.13 % on turn 0
+    falling to 0.025 % on turn 4 -- the relative error *shrinks* as the
+    carried wake accumulates (the discretization floor stays roughly
+    constant while the beam loading builds up), the opposite of the ramping
+    signature a mis-composed frame-slip correction would show. A sign or
+    ordering error in that composition produced multi-percent-per-turn
+    growth in the single-beam multi-section case (turn 4 reached ~29 % /
+    ~57 % for 2 / 4 sections without the correction).
+    """
+
+    _cache: dict = {}
+
+    @classmethod
+    def _accel_two_beam(cls, mode: str) -> list:
+        """
+        Run (once per mode) and cache the accelerating two-section case.
+
+        Parameters
+        ----------
+        mode
+            See :func:`_build_two_beam_simulation`.
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` collected voltage arrays.
+        """
+        if mode not in cls._cache:
+            cls._cache[mode] = _run_two_beam_case(
+                2,
+                mode,
+                acceleration=True,
+                fast_ramp=True,
+                n_turns=ACCEL_N_TURNS,
+            )
+        return cls._cache[mode]
+
+    @classmethod
+    def _beam_induced_per_turn(cls) -> list:
+        """
+        Feedback beam-induced voltage ``[turn][section]`` under the ramp.
+
+        The two-beam beam run's gap voltage minus the two-beam
+        zero-intensity reference, isolating the beam-induced part by
+        linearity (and cancelling the common acceleration kick).
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` beam-induced voltage arrays.
+        """
+        gap_beam = cls._accel_two_beam("fb")
+        gap_reference = cls._accel_two_beam("fb_reference")
+        return [
+            [
+                beam_section - reference_section
+                for beam_section, reference_section in zip(
+                    gap_beam_turn, gap_reference_turn, strict=True
+                )
+            ]
+            for gap_beam_turn, gap_reference_turn in zip(
+                gap_beam, gap_reference, strict=True
+            )
+        ]
+
+    def test_accel_feedback_matches_two_beam_convolution(self):
+        """
+        The accelerating two-beam feedback matches the two-beam convolution.
+
+        Pins the accel frame-slip x reverse-traversal composition: on the
+        fast ramp the coarse grid is rebuilt each turn from reverse segments
+        across the other station (each re-seeded at its own past-station RF
+        frequency), and the two counter-rotating beams traverse the ring in
+        opposite element orders. The beam-induced gap voltage must still
+        match the retuning convolution at every station and turn, to the
+        same order of tolerance as the static offset-passage test (0.5 %;
+        measured max ~0.13 %).
+        """
+        convolution = self._accel_two_beam("mtw")
+        induced_per_turn = self._beam_induced_per_turn()
+
+        # Non-degenerate: the carried wake carries real voltage by the last
+        # turn (guards against a silently-zeroed comparison).
+        self.assertGreater(float(np.max(np.abs(convolution[-1][0]))), 0.0)
+
+        for turn_i in range(ACCEL_N_TURNS):
+            for sec_i in range(2):
+                self.assertLess(
+                    rel_err(
+                        induced_per_turn[turn_i][sec_i],
+                        convolution[turn_i][sec_i],
+                    ),
+                    0.005,
+                    f"turn {turn_i} section {sec_i}",
+                )
+
+    def test_accel_error_does_not_grow_per_turn(self):
+        """
+        The carried two-beam wake error stays bounded, not ramping per turn.
+
+        The structural failure the static offset-passage test cannot catch:
+        a sign or ordering error in the accel frame-slip correction composed
+        with the reverse traversal would leave a per-turn-growing phase error
+        in the carried two-beam wake. This fits the worst-section relative
+        error against the turn number (skipping the turn-0 single-pass
+        transient) and requires a non-positive-trending slope, plus a
+        last-turn error no larger than turn 0 -- i.e. the error does not grow
+        as the wake is carried turn over turn.
+
+        Measured slope over turns 1..4 is ~-0.011 pp/turn (the error
+        *shrinks*); a mis-composed correction would instead ramp at several
+        percentage points per turn.
+        """
+        convolution = self._accel_two_beam("mtw")
+        induced_per_turn = self._beam_induced_per_turn()
+
+        worst_per_turn = np.array(
+            [
+                max(
+                    rel_err(
+                        induced_per_turn[turn_i][sec_i],
+                        convolution[turn_i][sec_i],
+                    )
+                    for sec_i in range(2)
+                )
+                for turn_i in range(ACCEL_N_TURNS)
+            ]
+        )
+
+        # Bounded: every turn stays within the static-order gate.
+        self.assertLess(
+            float(worst_per_turn.max()),
+            0.005,
+            f"unbounded error {worst_per_turn}",
+        )
+
+        # Non-growing: fit the post-transient trend (turns 1..end). A real
+        # frame-slip x reverse-traversal composition error ramps positively;
+        # the healthy behaviour is flat-to-decreasing.
+        turns = np.arange(ACCEL_N_TURNS)
+        slope_pp_per_turn = np.polyfit(
+            turns[1:], 100.0 * worst_per_turn[1:], 1
+        )[0]
+        self.assertLess(
+            slope_pp_per_turn,
+            0.05,
+            f"per-turn error ramps {slope_pp_per_turn:.4g} pp/turn "
+            f"(worst_per_turn={worst_per_turn})",
+        )
+
+        # Explicitly non-ramping: the carried-wake error at the last turn is
+        # no larger than the turn-0 single-pass floor.
+        self.assertLessEqual(
+            float(worst_per_turn[-1]),
+            float(worst_per_turn[0]),
+            f"error grew across the run {worst_per_turn}",
+        )
+
+
+class TestTwoBeamDeltaOmegaRfOffsetPassages(unittest.TestCase):
+    """
+    Offset two-beam passages with an RF-frequency offset: feedback vs conv.
+
+    The last untested corner of the demodulation slip anchor. The
+    ``delta_omega_rf`` demod-anchoring (design-clock coarse grid plus the
+    accumulated slip ``-(delta_phi_rf + live gap)`` carried as a constant
+    demodulation phase) is validated for the *forward* stream both alone
+    (``test_multiturn_delta_omega_rf_*``) and, here, its lone counter-rotating
+    equivalent -- but a lone beam is tracked *forward* by ``MainloopSingleBeam``
+    regardless of direction. Only the *two-beam*
+    ``MainloopCounterRotatingBeams`` walks the counter-rotating beam through the
+    ring in **reverse** element order, so whether the slip anchor carries the
+    right sign/value for the reverse stream is exercised for the first time
+    here.
+
+    Two sections on the **static** cycle (no acceleration -- the frame slip is
+    purely the RF-frequency offset, isolating it from the ramp frame-slip that
+    :class:`TestTwoBeamAcceleratingOffsetPassages` covers) with
+    ``delta_omega_rf = 2000`` rad/s. Even section count keeps the stations off
+    the meeting azimuths (arrivals ``T_rev / 2`` apart). The feedback's
+    beam-induced part (two-beam gap voltage minus the two-beam zero-intensity
+    reference, both with the offset, so the offset's rotation of the empty-
+    cavity voltage cancels by linearity) must track the two-beam multi-pass
+    **retuning** convolution (``delta_f = delta_omega_rf / (2 pi)``) with no
+    per-turn-growing error. A reverse-stream slip-anchor sign/value error would
+    leave a per-turn-growing phase error in the carried two-beam wake that the
+    lone-beam and zero-offset tests structurally cannot catch.
+    """
+
+    _cache: dict = {}
+
+    @classmethod
+    def _dw_two_beam(cls, mode: str) -> list:
+        """
+        Run (once per mode) and cache the offset two-section case.
+
+        Parameters
+        ----------
+        mode
+            See :func:`_build_two_beam_simulation`.
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` collected voltage arrays.
+        """
+        if mode not in cls._cache:
+            cls._cache[mode] = _run_two_beam_case(
+                2,
+                mode,
+                delta_omega_rf=DELTA_OMEGA_RF,
+                n_turns=DELTA_OMEGA_RF_N_TURNS,
+            )
+        return cls._cache[mode]
+
+    @classmethod
+    def _beam_induced_per_turn(cls) -> list:
+        """
+        Feedback beam-induced voltage ``[turn][section]`` with the offset.
+
+        The two-beam beam run's gap voltage minus the two-beam zero-intensity
+        reference, isolating the beam-induced part by linearity (and
+        cancelling the offset's common rotation of the empty-cavity voltage).
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` beam-induced voltage arrays.
+        """
+        gap_beam = cls._dw_two_beam("fb")
+        gap_reference = cls._dw_two_beam("fb_reference")
+        return [
+            [
+                beam_section - reference_section
+                for beam_section, reference_section in zip(
+                    gap_beam_turn, gap_reference_turn, strict=True
+                )
+            ]
+            for gap_beam_turn, gap_reference_turn in zip(
+                gap_beam, gap_reference, strict=True
+            )
+        ]
+
+    def test_delta_omega_rf_feedback_matches_two_beam_convolution(self):
+        """
+        The offset two-beam feedback matches the two-beam retuning conv.
+
+        Pins the reverse-stream slip anchor: both counter-rotating beams
+        traverse the ring in opposite element orders while the demodulation is
+        anchored to the station's accumulated ``delta_omega_rf`` slip. The
+        beam-induced gap voltage must still match the retuning convolution at
+        every station and turn, to the same order of tolerance as the static
+        offset-passage test (0.5 %).
+        """
+        convolution = self._dw_two_beam("mtw")
+        induced_per_turn = self._beam_induced_per_turn()
+
+        # Non-degenerate: the carried wake carries real voltage by the last
+        # turn (guards against a silently-zeroed comparison).
+        self.assertGreater(float(np.max(np.abs(convolution[-1][0]))), 0.0)
+
+        for turn_i in range(DELTA_OMEGA_RF_N_TURNS):
+            for sec_i in range(2):
+                self.assertLess(
+                    rel_err(
+                        induced_per_turn[turn_i][sec_i],
+                        convolution[turn_i][sec_i],
+                    ),
+                    0.005,
+                    f"turn {turn_i} section {sec_i}",
+                )
+
+    def test_delta_omega_rf_error_does_not_grow_per_turn(self):
+        """
+        The offset two-beam wake error stays bounded, not ramping per turn.
+
+        The structural failure the lone-beam and zero-offset tests cannot
+        catch: a sign or value error in the reverse-stream slip anchor would
+        leave a per-turn-growing phase error in the carried two-beam wake as
+        the accumulated ``delta_omega_rf`` slip builds up. Fits the
+        worst-section relative error against the turn number (skipping the
+        turn-0 single-pass transient) and requires a non-positive-trending
+        slope, plus a last-turn error no larger than turn 0.
+        """
+        convolution = self._dw_two_beam("mtw")
+        induced_per_turn = self._beam_induced_per_turn()
+
+        worst_per_turn = np.array(
+            [
+                max(
+                    rel_err(
+                        induced_per_turn[turn_i][sec_i],
+                        convolution[turn_i][sec_i],
+                    )
+                    for sec_i in range(2)
+                )
+                for turn_i in range(DELTA_OMEGA_RF_N_TURNS)
+            ]
+        )
+
+        # Bounded: every turn stays within the static-order gate.
+        self.assertLess(
+            float(worst_per_turn.max()),
+            0.005,
+            f"unbounded error {worst_per_turn}",
+        )
+
+        # Non-growing: a reverse-stream slip-anchor error ramps positively as
+        # the accumulated offset slip builds; the healthy behaviour is
+        # flat-to-decreasing over the post-transient turns.
+        turns = np.arange(DELTA_OMEGA_RF_N_TURNS)
+        slope_pp_per_turn = np.polyfit(
+            turns[1:], 100.0 * worst_per_turn[1:], 1
+        )[0]
+        self.assertLess(
+            slope_pp_per_turn,
+            0.05,
+            f"per-turn error ramps {slope_pp_per_turn:.4g} pp/turn "
+            f"(worst_per_turn={worst_per_turn})",
+        )
+
+        # Explicitly non-ramping: last-turn error no larger than turn 0.
+        self.assertLessEqual(
+            float(worst_per_turn[-1]),
+            float(worst_per_turn[0]),
+            f"error grew across the run {worst_per_turn}",
+        )
 
 
 class TestSimultaneousPassageGuard(unittest.TestCase):

@@ -72,7 +72,7 @@ def _make_feedback(
         generator_current_bias=BIAS,
         n_cavities=1,
         delta_omega=delta_omega,
-        exponential_coarse_solver_flag=exponential,
+        exponential_coarse_solver_enable=exponential,
         controller=controller,
         voltage_setpoint=voltage_setpoint,
     )
