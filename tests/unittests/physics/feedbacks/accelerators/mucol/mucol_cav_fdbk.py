@@ -1,5 +1,7 @@
 """Muon collider RCS cavity-feedback simulation driver."""
 
+import os
+
 import numpy as np
 from scipy.constants import elementary_charge, speed_of_light
 from scipy.interpolate import interp1d
@@ -422,20 +424,29 @@ def setup_and_run(  # noqa: PLR0915
 
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-    if MTW and force_rematch:
+    cache_path = (
+        f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz"
+    )
+    # Regenerate the matched-beam cache when explicitly forced OR when it is
+    # missing. The ``fdbk_testing/`` directory is gitignored, so a fresh
+    # checkout (and every CI run) has no cache; regenerating on absence keeps
+    # the tests self-sufficient instead of raising ``FileNotFoundError``. The
+    # file is only a speed-up, mirroring the LHC ``blond2_reference`` pattern.
+    if MTW and (force_rematch or not os.path.exists(cache_path)):
         match_beam(
             sim,
             t_rf,
             beam,
         )
+        os.makedirs("./fdbk_testing", exist_ok=True)
         np.savez(
-            f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz",
+            cache_path,
             dE=beam.dE.array_local,
             dt=beam.dt.array_local,
         )
     else:
         load_beam_coordinates_from_file(
-            f"./fdbk_testing/init_distr_convol_{rcs}_n_stations_{n_stations}.npz",
+            cache_path,
             beam,
         )
 

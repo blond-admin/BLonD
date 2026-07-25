@@ -6,7 +6,7 @@ Muon Collider Cavity-Feedback Test Suite
 This page documents the test suite for the muon-collider RF cavity feedbacks.
 The files live in the source tree under::
 
-    unittests/physics/feedbacks/accelerators/mucol/
+    tests/unittests/physics/feedbacks/accelerators/mucol/
 
 and exercise the longitudinal-beam-loading models used for the muon-collider
 Rapid-Cycling Synchrotrons (RCS):
@@ -25,10 +25,10 @@ Rapid-Cycling Synchrotrons (RCS):
 
 The tests are written for the ``unittest`` framework but are collected and
 run with ``pytest``. They share a small set of mock objects and numeric helpers
-(see `Support modules`_), so the directory is an importable package and the
-test modules use **package-relative imports** (``from .stubs import StubBeam``).
-The directories above ``mucol`` carry no ``__init__.py``, so these helpers are
-not importable by an absolute path.
+(see `Support modules`_), so the ``mucol`` directory is a package (it and every
+directory above it carry an ``__init__.py``) and the test modules use
+**package-relative imports** (``from .stubs import StubBeam``) for those shared
+helpers.
 
 .. contents:: Contents
    :local:
@@ -982,14 +982,14 @@ From the ``BLonD`` project root, run the whole suite with ``pytest``:
 
 .. code-block:: bash
 
-   pytest unittests/physics/feedbacks/accelerators/mucol/
+   pytest tests/unittests/physics/feedbacks/accelerators/mucol/
 
 or a single module / test, for example:
 
 .. code-block:: bash
 
-   pytest unittests/physics/feedbacks/accelerators/mucol/test_helpers.py
-   pytest "unittests/physics/feedbacks/accelerators/mucol/test_mucol_cav_fdbk.py::TestFineGridResonatorBenchmark"
+   pytest tests/unittests/physics/feedbacks/accelerators/mucol/test_helpers.py
+   pytest "tests/unittests/physics/feedbacks/accelerators/mucol/test_mucol_cav_fdbk.py::TestFineGridResonatorBenchmark"
 
 The debug plots are opt-in via the ``DEBUG_PLOT`` module constant (and
 ``PLOT_DIAGNOSTICS`` in ``test_generator_current_pi_feedback.py``); both default

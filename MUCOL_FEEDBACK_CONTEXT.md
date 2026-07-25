@@ -277,7 +277,7 @@ See §4. `cavity_feedback.py` 2462 → 1672 lines.
 
 ### 2.10 LHC blond2-comparison suite — speed refactor (pinned references)
 
-`unittests/physics/feedbacks/accelerators/lhc/comparison_with_blond2/`
+`tests/unittests/physics/feedbacks/accelerators/lhc/comparison_with_blond2/`
 (reviewed physics + structure + speed; suite was 806.5 s / 13.4 min):
 
 - **All 5 test classes now load pinned blond2 references** via
@@ -327,7 +327,7 @@ zero regressions — full mucol battery 156 passed):
   ~1e-6 rad and simpler — both fine; the dead attribute is gone.
 - **#4 (medium) FIXED** — the forward-Euler beam-kick guards
   (`_check_beam_kick_magnitude`, `_check_beam_kicks`) now early-return when
-  `_exponential_coarse_solver_flag` is set, mirroring `_check_step_sizes`. The
+  `_exponential_coarse_solver_enable` is set, mirroring `_check_step_sizes`. The
   exact exponential propagator integrates the piecewise-constant drive (beam
   included) exactly, so a large per-step beam kick is not a discretisation error
   there; the guards could spuriously abort a valid exact large-step run. Tests:
@@ -517,7 +517,7 @@ the new canonical modules.
 `test_rf_center_segment.py` (was `TestRFCenterSegment`); `test_cavity_feedback.py`
 reduced to the empty `TestIQCavityFeedbackObservationClass` stub. The unused
 debug method `plot_antenna_voltage` moved to
-`unittests/physics/feedbacks/accelerators/mucol/plotting.py` as a function.
+`tests/unittests/physics/feedbacks/accelerators/mucol/plotting.py` as a function.
 
 ---
 
