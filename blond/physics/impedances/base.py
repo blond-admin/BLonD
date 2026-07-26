@@ -34,6 +34,65 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import ProfileBaseClass
 
 
+def get_hash(array1d: NumpyArray | CupyArray) -> int:
+    """
+    Compute a lightweight, approximate hash value for a 1D NumPy array.
+
+    The function samples a few representative elements of the input array
+    (first, second, middle, and last), along with the array length, and computes
+    a Python built-in hash from this tuple. The result is intended for quick,
+    approximate identification of arrays rather than exact equality or integrity
+    verification.
+
+    Parameters
+    ----------
+    array1d : numpy.ndarray
+        One-dimensional NumPy array of numeric values.
+
+    Returns
+    -------
+    int
+        An integer hash value derived from selected elements of the array.
+
+    Warnings
+    --------
+    - This function is **not collision-resistant**. Different arrays may yield
+      identical hash values, especially if they share similar boundary values or
+      lengths.
+    - Not suitable for **data integrity**, **deduplication**, or **security**
+      purposes. Use `hashlib` (e.g., SHA-256) for robust, deterministic hashing.
+    - Assumes a 1D numeric array; no validation is performed. Multi-dimensional
+      or non-numeric inputs may cause unexpected behavior or errors.
+    - Python’s built-in hash is **not stable across sessions** due to hash
+      randomization (unless `PYTHONHASHSEED` is fixed).
+
+    Notes
+    -----
+    - **Time complexity:** O(1) — the function samples only four elements
+      regardless of array size.
+    - **Memory usage:** O(1) — constant space overhead.
+    - Designed for fast, approximate fingerprinting in performance-sensitive
+      contexts where occasional collisions are acceptable.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    >>> get_hash(arr)
+    2398472938472938  # Example output (varies by session)
+    """
+    len_ = len(array1d)
+    return hash(
+        (
+            float(array1d[0]),
+            float(array1d[1]),
+            float(array1d[int(len_ // 2)]),
+            float(array1d[-1]),
+            len_,
+        )
+    )
+
+
 class WakeFieldSolver:
     """Abstract class for a solver that generates wake fields based on beam profiles."""
 
@@ -190,16 +249,36 @@ class TimeDomain(ABC):
         wake_next = backend.concatenate((w[1:], w[-1:]))
         return (wake_prev + 6.0 * w + wake_next) / 8.0
 
-    @abstractmethod  # pragma: no cover
+    def _assert_wake_time_resolves_resonances(  # noqa: B027
+        self, time: NumpyArray | CupyArray
+    ) -> None:
+        """
+        No-op hook consulted by :func:`get_impedance_from_wake` before FFT-ing the wake.
+
+        Sources whose bin-averaged wake can alias if the sampling grid is too
+        coarse (e.g. :class:`~blond.physics.impedances.sources.Resonators`)
+        override this to raise instead.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s].
+        """
+        pass
+
     def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
+        counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:
         """
-        Get impedance equivalent to the partial wake in time domain.
+        Impedance from the bin-averaged wake: ``rfft(get_wake_per_bin(...))``.
+
+        Cached per (time, counter_rotating). Sources whose impedance is not a
+        wake FFT (e.g. InductiveImpedance) override this.
 
         Parameters
         ----------
@@ -211,46 +290,30 @@ class TimeDomain(ABC):
             Simulation `Beam` object.
         n_fft
             Number of points to be used in the fft.
+        counter_rotating
+            If ``True``, use the counter-rotating wake instead of the
+            co-rotating one.
 
         Returns
         -------
         impedance_from_wake
             Impedance array.
         """
-        pass
+        cache = getattr(self, "_impedance_from_wake_cache", None)
+        if cache is None:
+            cache = self._impedance_from_wake_cache = {}
+        key = (get_hash(time), bool(counter_rotating))
+        if key in cache:
+            return cache[key]
+        self._assert_wake_time_resolves_resonances(time)
+        wake = self.get_wake_per_bin(time, counter_rotating)
+        impedance = backend.fft.rfft(wake, n=n_fft)
+        cache[key] = impedance
+        return impedance
 
 
 class TimeDomainCounterRotation(ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
-
-    @abstractmethod  # pragma: no cover
-    def get_impedance_from_wake_counter_rotation(
-        self,
-        time: NumpyArray | CupyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray | CupyArray:
-        """
-        Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of points used in the fft.
-
-        Returns
-        -------
-        impedance_from_wake
-            Impedance array.
-        """
-        pass
 
 
 class FreqDomain(ABC):

@@ -206,17 +206,26 @@ class TestImpedanceTableTime(unittest.TestCase):
         )
 
         t_arr = backend.linspace(0, 1e-9, 30)
-        hash_before = impedance_table._cache_impedance_from_wake_hash
+        n_cached_before = len(
+            getattr(impedance_table, "_impedance_from_wake_cache", {})
+        )
         _ = impedance_table.get_impedance_from_wake(
             time=t_arr, n_fft=30, simulation=simulation, beam=beam
         )
-        assert hash_before != impedance_table._cache_impedance_from_wake_hash
+        # cache miss: a new entry was added
+        assert (
+            len(impedance_table._impedance_from_wake_cache)
+            == n_cached_before + 1
+        )
 
-        hash_before = impedance_table._cache_impedance_from_wake_hash
+        n_cached_before = len(impedance_table._impedance_from_wake_cache)
         _ = impedance_table.get_impedance_from_wake(
             time=t_arr, n_fft=30, simulation=simulation, beam=beam
         )
-        assert hash_before == impedance_table._cache_impedance_from_wake_hash
+        # cache hit: no new entry was added
+        assert (
+            len(impedance_table._impedance_from_wake_cache) == n_cached_before
+        )
 
 
 class TestInductiveImpedance(unittest.TestCase):
@@ -538,49 +547,47 @@ class TestResonators(unittest.TestCase):
             quality_factors=np.array([1, 2, 3]),
             shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
         )
-        hash_before = local_res._cache_impedance_from_wake_hash
+        n_cached_before = len(
+            getattr(local_res, "_impedance_from_wake_cache", {})
+        )
         _ = local_res.get_impedance_from_wake(
             time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
         )
-        assert hash_before != local_res._cache_impedance_from_wake_hash
-        hash_before = local_res._cache_impedance_from_wake_hash
+        # cache miss: a new entry was added
+        assert len(local_res._impedance_from_wake_cache) == n_cached_before + 1
+        n_cached_before = len(local_res._impedance_from_wake_cache)
         _ = local_res.get_impedance_from_wake(
             time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
         )
-        assert hash_before == local_res._cache_impedance_from_wake_hash
+        # cache hit: no new entry was added
+        assert len(local_res._impedance_from_wake_cache) == n_cached_before
 
-        hash_before = (
-            local_res._cache_impedance_from_wake_counter_rotation_hash
-        )
-        _ = local_res.get_impedance_from_wake_counter_rotation(
+        n_cached_before = len(local_res._impedance_from_wake_cache)
+        _ = local_res.get_impedance_from_wake(
             time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
+            counter_rotating=True,
         )
-        assert (
-            hash_before
-            != local_res._cache_impedance_from_wake_counter_rotation_hash
-        )
-        hash_before = (
-            local_res._cache_impedance_from_wake_counter_rotation_hash
-        )
-        _ = local_res.get_impedance_from_wake_counter_rotation(
+        # cache miss (different counter_rotating key): a new entry was added
+        assert len(local_res._impedance_from_wake_cache) == n_cached_before + 1
+        n_cached_before = len(local_res._impedance_from_wake_cache)
+        _ = local_res.get_impedance_from_wake(
             time=backend.array([0.5e-12, 1.5e-12]),
             n_fft=6,
             simulation=simulation,
             beam=beam,
+            counter_rotating=True,
         )
-        assert (
-            hash_before
-            == local_res._cache_impedance_from_wake_counter_rotation_hash
-        )
+        # cache hit: no new entry was added
+        assert len(local_res._impedance_from_wake_cache) == n_cached_before
 
         freq_x = backend.linspace(0, 1e9, 30)
 
@@ -880,20 +887,22 @@ class TestResonators(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         time = backend.linspace(-1e-9, 1e-9, int(1e3))
 
-        before_hashes = (
-            self.resonators._cache_impedance_from_wake_hash
-        )  # check when hashed get changed and when not
+        n_cached_before = len(
+            getattr(self.resonators, "_impedance_from_wake_cache", {})
+        )  # check when the cache gets a new entry and when not
         _ = self.resonators.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
-        assert before_hashes != self.resonators._cache_impedance_from_wake_hash
-        in_between_hashes = self.resonators._cache_impedance_from_wake_hash
+        assert (
+            len(self.resonators._impedance_from_wake_cache)
+            == n_cached_before + 1
+        )
+        n_cached_before = len(self.resonators._impedance_from_wake_cache)
         wake_imp = self.resonators.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )  # should not be recalculated as time did not change
         assert (
-            in_between_hashes
-            == self.resonators._cache_impedance_from_wake_hash
+            len(self.resonators._impedance_from_wake_cache) == n_cached_before
         )
 
         wake_freq = self.resonators.get_impedance_from_wake_freq(time=time)
@@ -924,10 +933,12 @@ class TestResonators(unittest.TestCase):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         time = backend.linspace(-1e-9, 1e-9, int(1e3))
-        wake_imp_counter_rotation = (
-            self.resonators.get_impedance_from_wake_counter_rotation(
-                time=time, simulation=simulation, beam=beam, n_fft=len(time)
-            )
+        wake_imp_counter_rotation = self.resonators.get_impedance_from_wake(
+            time=time,
+            simulation=simulation,
+            beam=beam,
+            n_fft=len(time),
+            counter_rotating=True,
         )
         wake_imp = self.resonators.get_impedance_from_wake(
             time=time,

@@ -40,6 +40,7 @@ from blond.physics.impedances.base import (
     TimeDomain,
     TimeDomainCounterRotation,
     WakeFieldSource,
+    get_hash,
 )
 from blond.physics.impedances.readers import ImpedanceReader
 
@@ -108,65 +109,6 @@ def fit_poles(
     rms_error = vf.get_rms_error()
 
     return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
-
-
-def get_hash(array1d: NumpyArray | CupyArray) -> int:
-    """
-    Compute a lightweight, approximate hash value for a 1D NumPy array.
-
-    The function samples a few representative elements of the input array
-    (first, second, middle, and last), along with the array length, and computes
-    a Python built-in hash from this tuple. The result is intended for quick,
-    approximate identification of arrays rather than exact equality or integrity
-    verification.
-
-    Parameters
-    ----------
-    array1d : numpy.ndarray
-        One-dimensional NumPy array of numeric values.
-
-    Returns
-    -------
-    int
-        An integer hash value derived from selected elements of the array.
-
-    Warnings
-    --------
-    - This function is **not collision-resistant**. Different arrays may yield
-      identical hash values, especially if they share similar boundary values or
-      lengths.
-    - Not suitable for **data integrity**, **deduplication**, or **security**
-      purposes. Use `hashlib` (e.g., SHA-256) for robust, deterministic hashing.
-    - Assumes a 1D numeric array; no validation is performed. Multi-dimensional
-      or non-numeric inputs may cause unexpected behavior or errors.
-    - Python’s built-in hash is **not stable across sessions** due to hash
-      randomization (unless `PYTHONHASHSEED` is fixed).
-
-    Notes
-    -----
-    - **Time complexity:** O(1) — the function samples only four elements
-      regardless of array size.
-    - **Memory usage:** O(1) — constant space overhead.
-    - Designed for fast, approximate fingerprinting in performance-sensitive
-      contexts where occasional collisions are acceptable.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    >>> get_hash(arr)
-    2398472938472938  # Example output (varies by session)
-    """
-    len_ = len(array1d)
-    return hash(
-        (
-            float(array1d[0]),
-            float(array1d[1]),
-            float(array1d[int(len_ // 2)]),
-            float(array1d[-1]),
-            len_,
-        )
-    )
 
 
 class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
@@ -420,47 +362,23 @@ class Resonators(
                 "All center frequencies must be greater or equal 0"
             )
 
-        self._cache_impedance_from_wake: NumpyArray | CupyArray | None = None
-        self._cache_impedance_from_wake_hash: int | None = None
-
-        self._cache_impedance_from_wake_counter_rotation: (
-            NumpyArray | CupyArray | None
-        ) = None
-        self._cache_impedance_from_wake_counter_rotation_hash: int | None = (
-            None
-        )
-
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
 
-    def get_impedance_from_wake(
-        self,
-        time: NumpyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
+    def _assert_wake_time_resolves_resonances(
+        self, time: NumpyArray | CupyArray
+    ) -> None:
         """
-        Get the wake function, but converted to frequency domain.
+        Raise if ``time`` is too coarse to resolve the fastest resonance.
 
-        Get impedance  computed via ``fft(...)`` from time domain
-        analytical formula equivalent to the partial single-particle-wake.
+        Overrides the no-op :func:`TimeDomain._assert_wake_time_resolves_resonances`
+        hook. Called by :func:`TimeDomain.get_impedance_from_wake` before the
+        wake is FFT-ed.
 
         Parameters
         ----------
         time
             Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of fft bins to use.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain.
         """
         f_max = np.max(self._omega) / (2 * np.pi)
         T_max = 1 / f_max
@@ -469,66 +387,7 @@ class Resonators(
             f" maximum frequency of {si_format(f_max)}Hz."
         )
 
-        # Recalculate only if `time` has changed
-        hash_ = get_hash(time)
-        if hash_ == self._cache_impedance_from_wake_hash:
-            return self._cache_impedance_from_wake
-
-        wake = self.get_wake_per_bin(time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
-
-        self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = impedance_from_wake
-        return impedance_from_wake
-
-    def get_impedance_from_wake_counter_rotation(
-        self,
-        time: NumpyArray | CupyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
-        """
-        Get the wake function, but converted to frequency domain.
-
-        Get impedance  computed via ``fft(...)`` from time domain
-        analytical formula equivalent to the partial single-particle-wake.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of fft bins to use.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain for counter-rotating mode.
-        """
-        # Recalculate only if `time` has changed
-        hash_ = get_hash(time + 1)  # to distinguish between counterrotation
-        if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
-            return self._cache_impedance_from_wake_counter_rotation
-
-        wake_counter_rotation = self.get_wake_per_bin(
-            time, counter_rotating=True
-        )
-        impedance_from_wake_counter_rotation = backend.fft.rfft(
-            wake_counter_rotation, n=n_fft
-        )
-
-        self._cache_impedance_from_wake_counter_rotation_hash = hash_
-        self._cache_impedance_from_wake_counter_rotation = (
-            impedance_from_wake_counter_rotation
-        )
-        return impedance_from_wake_counter_rotation
-
-    def get_impedance_from_wake_freq(self, time):
+    def get_impedance_from_wake_freq(self, time: NumpyArray | CupyArray):
         """
         Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
 
@@ -542,9 +401,9 @@ class Resonators(
         frequency_array
             Frequency array corresponding to the wake impedance.
         """
-        return backend.fft.rfftfreq(
-            len(self._cache_impedance_from_wake), time[1] - time[0]
-        )
+        key = (get_hash(time), False)
+        impedance = self._impedance_from_wake_cache[key]
+        return backend.fft.rfftfreq(len(impedance), time[1] - time[0])
 
     def get_wake_per_bin(
         self, time: NumpyArray | CupyArray, counter_rotating: bool = False
@@ -1039,9 +898,6 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         self._wake_x = backend.array(wake_x)
         self._wake_y = backend.array(wake_y)
 
-        self._cache_impedance_from_wake: NumpyArray | CupyArray | None = None
-        self._cache_impedance_from_wake_hash: int | None = None
-
     @staticmethod
     def from_file(
         filepath: PathLike | str, reader: ImpedanceReader
@@ -1063,41 +919,6 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         """
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
-
-    def get_impedance_from_wake(
-        self,
-        time: NumpyArray | CupyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray:
-        """
-        Get impedance equivalent to the partial single-particle-wake in time domain.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of FFT points.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain.
-        """
-        hash_ = get_hash(time)
-        if hash_ == self._cache_impedance_from_wake_hash:
-            return self._cache_impedance_from_wake
-        wake = self.get_wake_per_bin(time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
-        self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = impedance_from_wake
-        return impedance_from_wake
 
     def get_wake_per_particle(
         self,
@@ -1254,36 +1075,6 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
                 * backend.cos(2 * np.pi * self.frequency_R[i] * time[indexes])
             )
         return wake
-
-    def get_impedance_from_wake(
-        self,
-        time: NumpyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray:
-        """
-        Get impedance equivalent to the partial single-particle-wake in time domain.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of FFT points.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain.
-        """
-        wake = self.get_wake_per_bin(time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
-        return impedance_from_wake
 
     def get_wake_per_particle(
         self,
