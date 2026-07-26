@@ -38,7 +38,6 @@ from blond.generals.formatting_ import si_format
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
-    TimeDomainCounterRotation,
     WakeFieldSource,
     get_hash,
 )
@@ -254,9 +253,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         return impedance_from_wake
 
 
-class Resonators(
-    WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
-):
+class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
     r"""
     Multiple resonances of RLC circuits for impedance calculations.
 

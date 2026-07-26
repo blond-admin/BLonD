@@ -312,10 +312,6 @@ class TimeDomain(ABC):
         return impedance
 
 
-class TimeDomainCounterRotation(ABC):
-    """Indication of a source, which has a defined wakefield for the counterrotating case."""
-
-
 class FreqDomain(ABC):
     """Indication of a source is defined in frequency domain."""
 
