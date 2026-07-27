@@ -157,8 +157,13 @@ class SparseProfileBaseClass:
         self._generate_profile_list()
 
         # Track at initialisation
-        if self.do_track_on_init:
+        # if python is enabled, tracking should be done at initialisation to
+        # reinit the n_macroparticles aray per profile.
+        if tracker_mode == "onebyone":
             self.track()
+        else:
+            if self.do_track_on_init:
+                self.track()
 
     @property
     def n_macroparticles_array(self):
@@ -305,11 +310,11 @@ class SparseProfileBaseClass:
         """
 
         for profile in self.profiles_list:
-            hist_sparse, _ = np.histogram(self.beam.dt,
-                                                   bins=len(
-                                                       profile.n_macroparticles),
-                                                   range=(profile.cut_left,
-                                                          profile.cut_right))
+            hist_sparse, _ = np.histogram(
+                self.beam.dt,
+                bins=len(profile.n_macroparticles),
+                range=(profile.cut_left, profile.cut_right),
+            )
             profile.n_macroparticles = hist_sparse
 
     def _set_additional_cuts(
