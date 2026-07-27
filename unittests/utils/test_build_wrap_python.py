@@ -20,7 +20,7 @@ import pytest
 from scipy.constants import c
 
 # from blond import get_libblond()
-from blond.utils.build_wrap_cpp import get_libblond
+from blond.utils.butils_wrap_cpp import get_libblond
 from blond.beam.beam import Beam, Proton
 from blond.beam.sparse_profiles import SparseBucket
 from blond.impedances.music import Music
@@ -30,7 +30,7 @@ from blond.utils import bmath as bm
 from blond.impedances.impedance import InducedVoltageResonator
 from blond.impedances.impedance_sources import Resonators
 from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.utils.build_wrap_python import (
+from blond.utils.butils_wrap_python import (
     distribution_from_tomoscope,
     sparse_histogram,
 )

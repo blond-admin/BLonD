@@ -33,7 +33,7 @@ else:
     _numba_available = True
 
 try:
-    from .build_wrap_cpp import get_libblond
+    from .butils_wrap_cpp import get_libblond
 
     if get_libblond() is None:
         raise ImportError("`libblond` not found")
@@ -59,7 +59,7 @@ class MasterBackend:
     """
 
     def __init__(self):
-        from blond.utils.build_wrap_cpp import precision
+        from blond.utils.butils_wrap_cpp import precision
 
         self.precision = precision
 
@@ -287,7 +287,7 @@ class MasterBackend:
 
     def use_fftw(self):
         """Overwrites rfft, irfft, and rfftfreq by C++ functions"""
-        from blond.utils import build_wrap_cpp as _cpp
+        from blond.utils import butils_wrap_cpp as _cpp
 
         if isinstance(self, GpuBackend):
             raise RuntimeError("Attempting to use fftw on GPU")
@@ -561,8 +561,8 @@ class CppBackend(__NumpyBackend):
 
         self.device = "CPU_CPP"
 
-        from blond.utils import build_wrap_cpp as _cpp
-        from blond.utils import build_wrap_python as _py
+        from blond.utils import butils_wrap_cpp as _cpp
+        from blond.utils import butils_wrap_python as _py
 
         self.kick = _cpp.kick
         self.rf_volt_comp = _cpp.rf_volt_comp
@@ -621,7 +621,7 @@ class CppBackend(__NumpyBackend):
         """
 
         MasterBackend.use_precision(self, _precision)
-        from blond.utils import build_wrap_cpp as _cpp
+        from blond.utils import butils_wrap_cpp as _cpp
 
         _cpp.load_libblond(_precision)
 
@@ -634,7 +634,7 @@ class NumbaBackend(__NumpyBackend):
 
         self.device = "CPU_NU"
 
-        from blond.utils import build_wrap_numba as _nu
+        from blond.utils import butils_wrap_numba as _nu
 
         self.rfft = np.fft.rfft
         self.irfft = np.fft.irfft
@@ -672,7 +672,7 @@ class PyBackend(__NumpyBackend):
 
         self.device = "CPU_PY"
 
-        from blond.utils import build_wrap_python as _py
+        from blond.utils import butils_wrap_python as _py
 
         self.kick = _py.kick
         self.rf_volt_comp = _py.rf_volt_comp
@@ -721,7 +721,7 @@ class GpuBackend(__CupyBackend):
         self.device = "GPU"
 
         from blond.gpu import build_wrap_cupy
-        from blond.utils import build_wrap_python as _py
+        from blond.utils import butils_wrap_python as _py
 
         self.rfft = cp.fft.rfft
         self.irfft = cp.fft.irfft

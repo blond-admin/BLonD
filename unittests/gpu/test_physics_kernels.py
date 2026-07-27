@@ -26,7 +26,7 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath as bm
-from blond.utils import build_wrap_cpp
+from blond.utils import butils_wrap_cpp
 
 
 class TestSyntheticData:
@@ -293,7 +293,7 @@ class TestSyntheticData:
     def test_kick_bug_with_slices(self):
         import numpy as np
         import cupy as cp
-        from blond.utils.build_wrap_python import kick as kick_python
+        from blond.utils.butils_wrap_python import kick as kick_python
         from blond.gpu.build_wrap_cupy import kick as kick_cupy
         from blond.gpu import GPU_DEV
 
@@ -349,7 +349,7 @@ class TestSyntheticData:
     def test_kick_bug_with_slices_Fcontigous(self):
         import numpy as np
         import cupy as cp
-        from blond.utils.build_wrap_python import kick as kick_python
+        from blond.utils.butils_wrap_python import kick as kick_python
         from blond.gpu.build_wrap_cupy import kick as kick_cupy
         from blond.gpu import GPU_DEV
 
