@@ -396,6 +396,38 @@ zero regressions — full mucol battery 156 passed):
 - **`barrier_bucket.py` CR kick** — **user decision (2026-07-24): IGNORE.**
   (line ~245 raw charge; wrong-sign barrier kick for a CR beam; out of
   feedback scope, deliberately not pursued.)
+- **DRIVEN MULTI-SECTION FAST-RAMP FRAME SLIP — FIXED (2026-07-24, root
+  cause).** Was: `|V_ant|` drifted ~3% over 5 turns (2 sections, fast ramp,
+  driven); superlinear, diverging. **Root cause (measured, NOT the assumed
+  geometry bug — seed mis-registration is 1e-6 t_rf/seam, four orders too
+  small):** a multi-section passage builds its grid piecewise, accumulating
+  RF phase `Σ_k ω_k·T_k`, while the demodulation (`omega_c =
+  _forward_tracking_omega_rf`) and the readout both reference the single
+  carrier `ω_0` — a *carrier-phase bookkeeping* mismatch
+  `Ψ = Σ_k (ω_k − ω_0)·T_k`, identically 0 for one section (which is why
+  single-section never needed a correction). The old code applied `Ψ` as a
+  ROTATION OF THE ANTENNA-VOLTAGE STATE (cavity_feedback.py:2161-2177),
+  which also hit the generator-driven field; that field carries no
+  registration error (re-injected on the current grid every cell), so the
+  constant drive fought the rotating state and a phase error became an
+  AMPLITUDE drift. **Fix:** `Ψ` accumulates into `_grid_carrier_phase`,
+  folded into `_carrier_slip_gap` → subtracted at demodulation
+  (`carrier_phase_offset`), added back at readout (`phase_correction`) —
+  the same phase idiom the RF-frequency offset uses, and what the
+  design-clock invariant prescribes. State (hence driven steady state) left
+  untouched; the state rotation is DELETED. `rf_center_grid.py`,
+  `envelope_kernel.py`, `rf_center_segment.py` untouched — no geometry or
+  kernel change needed. **Proof it is a real fix, not a compensation:** the
+  5 mtw tests that failed when the rotation was merely removed now pass
+  WITHOUT it. Bit-identity (SHA-256 over full V_ant grids) for
+  single-section and no-ramp. `TestPIFullTrackingMultiSectionSlowRamp` PIN
+  regenerated (it encoded the old rotated state; behavioural assertions
+  unchanged). **Stretch achieved:** the fast-ramp exclusion is LIFTED —
+  new `TestPIFullTrackingMultiSectionFastRamp` (setpoint restored to 1e-16
+  relative per turn). **Residual caveat:** `Ψ` still reaches the beam via
+  `phase_correction`, so a driven multi-section fast ramp keeps a readout-
+  PHASE offset (the beam-induced part needs `Ψ` at readout, the driven part
+  does not; one readout phase cannot separate them). Amplitude is exact.
 - **2026-07-24 follow-up fixes (3 parallel agents, all green — 73 passed
   combined):**
   - **Guard message accuracy (#2 review finding)** — both

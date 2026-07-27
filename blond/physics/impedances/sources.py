@@ -347,6 +347,19 @@ class Resonators(
         sign-convention change, so old values must be re-derived rather
         than silently reinterpreted.
 
+    Raises
+    ------
+    ValueError
+        If the input arrays do not all have the same length (one entry
+        per resonance), if a quality factor is below 0.5 (the wake
+        formula requires an underdamped resonator), if a center
+        frequency is negative, or if a counter-witness shunt impedance
+        does not match its co-rotating counterpart in magnitude
+        (``|R_CR| == |R|``).
+    TypeError
+        If the removed legacy argument
+        ``shunt_impedances_counter_rotating`` is passed.
+
     Notes
     -----
     All values must be float, if one is given as float.
@@ -390,15 +403,18 @@ class Resonators(
         if isinstance(quality_factors, numbers.Number):
             quality_factors = [quality_factors]
 
-        assert (
+        if not (
             len(shunt_impedances)
             == len(center_frequencies)
             == len(quality_factors)
-        ), (
-            "The number of input shunt impedances, center frequencies and"
-            f" quality factors must match, got {len(shunt_impedances)=}, "
-            f"{len(center_frequencies)=}, {len(quality_factors)=}"
-        )
+        ):
+            raise ValueError(
+                "All input arrays must have the same length, one entry per"
+                " resonance: the number of input shunt impedances, center"
+                " frequencies and quality factors must match, got "
+                f"{len(shunt_impedances)=}, {len(center_frequencies)=}, "
+                f"{len(quality_factors)=}"
+            )
 
         self._shunt_impedances = backend.cast_arr_float_if_needed(
             shunt_impedances
@@ -424,11 +440,13 @@ class Resonators(
                 shunt_impedances_counter_witness
             )
 
-            assert len(self._shunt_impedances_counter_witness) == len(
+            if len(self._shunt_impedances_counter_witness) != len(
                 self._shunt_impedances
-            ), (
-                "Array lengths between co- and counterrotating impedances need to match."
-            )
+            ):
+                raise ValueError(
+                    "Array lengths between co- and counterrotating "
+                    "impedances need to match."
+                )
 
             for imp, imp_cr in zip(
                 self._shunt_impedances,
@@ -449,11 +467,11 @@ class Resonators(
 
         # Test if one or more quality factors is smaller than 0.5.
         if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
-            raise RuntimeError(
+            raise ValueError(
                 "All quality factors Q must be greater or equal 0.5"
             )
         if backend.sum(self._center_frequencies < 0) > 0:
-            raise RuntimeError(
+            raise ValueError(
                 "All center frequencies must be greater or equal 0"
             )
 

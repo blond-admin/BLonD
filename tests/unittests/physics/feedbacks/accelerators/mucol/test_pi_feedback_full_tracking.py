@@ -7,8 +7,8 @@ runs in anger: a matched ``BiGaussian`` ``mu_plus`` bunch with strong beam
 loading is tracked through a real ring with the reverse/forward reference
 tracking, under strong acceleration, with the
 :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController`
-regulating the generator current -- single-section on the fast
-(transition-adjacent) ramp and multi-section on the validated slow ramp.
+regulating the generator current -- single- and multi-section, on both the
+operating-point (slow) ramp and the transition-adjacent fast ramp.
 
 Each configuration asserts physical behaviour (the loop acts, the voltage
 is held near the setpoint, the reference follows the energy program) and
@@ -68,6 +68,7 @@ def _run_config(
     n_turns: int,
     intensity: float = INTENSITY,
     controller_call_counter: dict | None = None,
+    use_controller: bool = True,
 ) -> dict:
     """
     Track a matched bunch with PI-regulated feedbacks on every station.
@@ -89,6 +90,10 @@ def _run_config(
         If given, a ``{"count": 0}`` dict; every controller update increments
         ``"count"`` so tests can compare controller steps against the
         recorded forward/total coarse-cell counts.
+    use_controller
+        If False, attach no PI controller, so the generator current stays at
+        the constant ``generator_current_bias``. Used by the driven
+        steady-state tests, which need the open-loop cavity response.
 
     Returns
     -------
@@ -136,6 +141,8 @@ def _run_config(
                 return _o(error, delta_t)
 
             controller.update_generator_current = _counting_update
+        if not use_controller:
+            controller = None
         feedback = IQCavityFeedbackTimingClass(
             profile=profile,
             R_over_Q=R_OVER_Q,
@@ -355,6 +362,78 @@ class TestPIReverseSpanFrameConsistency(unittest.TestCase):
         self.assertEqual(counter["count"], int(np.sum(rec["n_forward"])))
 
 
+class TestDrivenSteadyStateFastRamp(unittest.TestCase):
+    """
+    A driven, beam-free cavity holds its steady state on the fast ramp.
+
+    With the matched generator bias and no beam the coarse recursion has the
+    exact fixed point ``V_ss = 2 (R/Q) Q_L I_gen == V_DESIGN``: the per-step
+    decay and the per-step drive both scale with ``omega * dt``, so the fixed
+    point is independent of the RF frequency *and* of the step size. An
+    on-resonance cavity (``delta_omega = 0``) driven by a constant generator
+    must therefore sit at ``V_ss`` turn after turn, however fast the ramp
+    moves and however many RF stations the ring has. Single section does, to
+    ~2e-12.
+
+    Multi-section used to rotate the carried antenna voltage by the per-turn
+    grid-vs-carrier phase ``sum_k (omega_k - omega_0) T_seg,k``, which is a
+    registration phase of the *piecewise* coarse grid against the single
+    forward demodulation carrier. Applying it to the state also hit the
+    generator-driven field -- which carries no such error, being re-injected
+    on the current grid every cell -- and the constant drive then pulled the
+    rotating state back toward the real axis, so ``|V_ant|`` drifted ~3 %
+    over 5 turns (~0.6 %/turn, diverging). The phase is now carried on the
+    demodulation/readout carrier, where it belongs, leaving the state and
+    hence the driven steady state exact.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 5
+    # The single-section control holds V_ss to ~2e-12; gate far above that
+    # floor and far below the ~3e-2 the state rotation produced.
+    GATE = 1e-8
+
+    def _assert_holds_steady_state(self, n_sections: int) -> None:
+        """
+        Track a driven, beam-free ring and assert ``|V_ant| == V_ss``.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations in the ring.
+        """
+        rec = _run_config(
+            n_sections,
+            self.ENERGY,
+            self.DELTA_E_TURN,
+            self.N_TURNS,
+            intensity=0.0,
+            use_controller=False,
+        )
+        deviation = np.abs(rec["v_last"] / V_DESIGN - 1.0)
+        self.assertLess(
+            float(deviation.max()),
+            self.GATE,
+            f"{n_sections} section(s): |V_ant| left the driven steady state "
+            f"by {float(deviation.max()):.3e} (relative) over "
+            f"{self.N_TURNS} turns; per-turn "
+            f"{deviation.max(axis=1) if deviation.ndim > 1 else deviation}",
+        )
+
+    def test_single_section_holds_steady_state(self):
+        """Control: one station is exact on the fast ramp."""
+        self._assert_holds_steady_state(1)
+
+    def test_multi_section_holds_steady_state(self):
+        """Two stations must be exact too -- the regression under test."""
+        self._assert_holds_steady_state(2)
+
+    def test_four_sections_hold_steady_state(self):
+        """Four stations: three reverse segments per passage."""
+        self._assert_holds_steady_state(4)
+
+
 class TestPIFullTrackingSingleSectionFastRamp(unittest.TestCase):
     """Single section, strong beam loading, fast (transition-adjacent) ramp."""
 
@@ -443,34 +522,43 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
     Two sections, strong beam loading, operating-point (slow) ramp.
 
     Uses the operating-point ramp so the pinned trajectories characterize a
-    representative production regime; the multi-section frame correction in
-    the timing class handles the fast ramp too (see
-    ``test_multiturn_fast_ramp_multisection``), it is just not needed to make
-    this characterization meaningful.
+    representative production regime; the transition-adjacent fast ramp is
+    covered by ``TestPIFullTrackingMultiSectionFastRamp``.
     """
 
     ENERGY = 63.0e9
     DELTA_E_TURN = 4.0e6
     N_TURNS = 6
 
+    # Regenerated when the multi-section grid-vs-carrier registration phase
+    # moved from a rotation of the antenna-voltage STATE onto the
+    # demodulation/readout carrier (see ``_track`` and
+    # ``TestDrivenSteadyStateFastRamp``). The PI loop regulates the raw
+    # coarse antenna voltage, so it used to see a state carrying that
+    # rotation and now sees the true antenna voltage: |V_ant| itself moves
+    # by <1e-6 relative here (the slow ramp's phase is tiny), while the
+    # generator-current response -- a small difference of large numbers --
+    # shifts by ~2.4e-4. Both stations still hold the setpoint and respond
+    # to the loading, which the behavioural tests above assert
+    # independently.
     PIN_V_MIN = np.array(
         [
-            [29720238.603471544, 29718279.461305067],
-            [29714426.67089729, 29708826.90995844],
-            [29701438.90212061, 29692066.813471388],
-            [29681334.23090612, 29669543.93249241],
-            [29657379.276949894, 29645252.965956792],
-            [29633606.974730425, 29622620.549507413],
+            [29720238.60345596, 29718279.461241655],
+            [29714423.366358045, 29708813.574096315],
+            [29701429.028963964, 29692046.72468031],
+            [29681320.80143154, 29669519.48808996],
+            [29657362.949341103, 29645226.38311076],
+            [29633591.32297692, 29622598.279163722],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.616838163679994, 56.60653630576703],
-            [56.61617122941309, 56.61623073099019],
-            [56.620592519533005, 56.62230626917159],
-            [56.63020684148947, 56.637435182939264],
-            [56.64962620143712, 56.66103878175048],
-            [56.68469130159842, 56.7100732336399],
+            [56.62027262356374, 56.620271839144614],
+            [56.623036747979334, 56.62309322895194],
+            [56.62744895816398, 56.62916165129061],
+            [56.63706159810912, 56.64423272762598],
+            [56.6564447799741, 56.667824214982446],
+            [56.69140189912312, 56.716810402245585],
         ]
     )
 
@@ -510,6 +598,99 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
         """The loops restore |V_ant| to the setpoint by the turn end."""
         v_dev = np.abs(self.rec["v_last"] - V_DESIGN) / V_DESIGN
         self.assertLess(float(v_dev.max()), 1e-3)
+
+    def test_pinned_trajectories(self):
+        """Characterization: the exact recorded trajectories."""
+        if PRINT_PINS or self.PIN_V_MIN is None:
+            self.skipTest("pins not recorded yet")
+        np.testing.assert_allclose(
+            self.rec["v_min"], self.PIN_V_MIN, rtol=1e-6
+        )
+        np.testing.assert_allclose(
+            self.rec["i_max_dev"], self.PIN_I_MAX_DEV, rtol=1e-6
+        )
+
+
+class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
+    """
+    Two sections, strong beam loading, transition-adjacent fast ramp.
+
+    This configuration used to be excluded: the multi-section grid-vs-carrier
+    registration phase was applied as a rotation of the antenna-voltage
+    state, which on the fast ramp dragged the driven field off its steady
+    state (see ``TestDrivenSteadyStateFastRamp``) and made a PI
+    characterization here meaningless. With that phase carried on the
+    demodulation/readout carrier instead, the fast ramp behaves like the
+    slow one: both loops restore the setpoint by the end of every turn (to
+    ~1e-16 relative here) while the ramp is 5x steeper at 1/16 the energy.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 6
+
+    PIN_V_MIN = np.array(
+        [
+            [29510809.734342266, 29257583.346666165],
+            [29313937.061649576, 29025938.910384115],
+            [29180931.487604056, 28969679.411779363],
+            [29224924.59541966, 29102380.528750226],
+            [29452874.896333005, 29360901.638597563],
+            [29733785.496557347, 29579358.6584041],
+        ]
+    )
+    PIN_I_MAX_DEV = np.array(
+        [
+            [56.682189929466844, 56.71161284327756],
+            [56.54583554032278, 56.32585826652903],
+            [55.91086834159208, 55.60132240962575],
+            [55.246952051712114, 55.1607570630149],
+            [55.65299112097477, 56.34506291118168],
+            [56.753367631546965, 56.896968910363576],
+        ]
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        """Run the tracked simulation once."""
+        cls.rec = _run_config(2, cls.ENERGY, cls.DELTA_E_TURN, cls.N_TURNS)
+        if PRINT_PINS:
+            np.set_printoptions(precision=17)
+            print("V_MIN_MS_FAST:", repr(cls.rec["v_min"]))
+            print("I_MAX_DEV_MS_FAST:", repr(cls.rec["i_max_dev"]))
+
+    def test_reference_follows_energy_program(self):
+        """The reference energy gains exactly DELTA_E_TURN per turn."""
+        np.testing.assert_allclose(
+            self.rec["ref_energy"],
+            self.ENERGY + self.DELTA_E_TURN * np.arange(1, self.N_TURNS + 1),
+            rtol=1e-12,
+        )
+
+    def test_beam_loading_sags_both_stations(self):
+        """The bunch passage sags |V_ant| at both stations."""
+        for section in range(2):
+            sag = 1.0 - self.rec["v_min"][:, section] / V_DESIGN
+            self.assertGreater(float(sag.max()), 0.005, f"section {section}")
+            self.assertLess(float(sag.max()), 0.2, f"section {section}")
+
+    def test_loop_acts_on_both_stations(self):
+        """Both stations' PI loops respond to the loading."""
+        for section in range(2):
+            i_response = self.rec["i_max_dev"][:, section] / I_GEN_BIAS
+            self.assertGreater(
+                float(i_response.max()), 0.1, f"section {section}"
+            )
+
+    def test_voltage_recovers_on_both_stations(self):
+        """The loops restore |V_ant| to the setpoint by the turn end."""
+        v_dev = np.abs(self.rec["v_last"] - V_DESIGN) / V_DESIGN
+        self.assertLess(float(v_dev.max()), 1e-3)
+
+    def test_bunch_stays_bounded(self):
+        """The bunch length stays finite and bounded (no blow-up)."""
+        sigma = self.rec["sigma_dt"]
+        self.assertLess(float(sigma[-1]), 3.0 * float(sigma[0]))
 
     def test_pinned_trajectories(self):
         """Characterization: the exact recorded trajectories."""

@@ -2352,6 +2352,34 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 ),
             )
 
+    def test_allow_delta_t_zero_warns_about_order_dependent_kicks(self):
+        """
+        Enabling coincident deposits warns at construction time.
+
+        ``allow_delta_t_zero=True`` permits two beams to deposit at the
+        same reference time, which makes the mutual kick depend on the
+        tracking order -- the user must be told.
+        """
+        with self.assertWarnsRegex(UserWarning, "order-dependent"):
+            MultiPassResonatorSolver(allow_delta_t_zero=True)
+
+    def test_default_construction_does_not_warn_about_delta_t_zero(self):
+        """
+        The default solver construction stays silent.
+
+        Without ``allow_delta_t_zero`` coincident deposits are rejected
+        by an assertion, so there is nothing to warn about.
+        """
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            MultiPassResonatorSolver()
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "order-dependent" in str(entry.message)
+        ]
+        self.assertEqual(offending, [])
+
 
 beam_spectrum = np.array(
     [

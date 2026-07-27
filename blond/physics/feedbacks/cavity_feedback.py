@@ -709,12 +709,17 @@ class IQCavityFeedbackTimingClass(
         decay_per_step = 0.5 * omega_rf * dt / Q_L
                        = n_rf_periods_per_coarse_grid * pi / Q_L .
 
-    This must stay below the hard cap of 2.0 (the Euler decay factor
-    ``1 - decay_per_step`` turns negative -- an unphysical per-step sign
-    flip -- already at ``decay_per_step > 1``, and its magnitude exceeds 1,
-    diverging, at ``decay_per_step > 2``, which the cap guards) and ideally
-    ``<< 1`` for accuracy; ``_check_step_sizes`` enforces this. For a low
-    ``Q_L`` even a
+    This must stay below the hard cap of 1.0 -- the sign-flip boundary, where
+    the Euler decay factor ``1 - decay_per_step`` turns negative and the
+    discretized voltage inverts every step, which the exact factor
+    ``exp(-omega_rf * dt / (2 * Q_L))``, positive for any step, never does.
+    (Beyond ``decay_per_step > 2`` the factor magnitude also exceeds 1 and the
+    response diverges outright; in between it inverts yet still contracts,
+    which is unphysical all the same.) Ideally the decay is ``<< 1`` for
+    accuracy; ``_check_step_sizes`` enforces the cap and warns above 0.1.
+    Steps that must stay larger belong on the exact propagator
+    (``exponential_coarse_solver_enable=True``), which integrates the decay
+    exactly and is exempt from the check. For a low ``Q_L`` even a
     single RF period per step (``n = 1``) can be unstable (``decay = pi/Q_L``),
     so ``n`` is lowered below 1 to sub-divide the RF period and shrink the step
     proportionally. In this mode the coarse grid no longer re-aligns to an RF
@@ -898,6 +903,10 @@ class IQCavityFeedbackTimingClass(
         self._last_track_is_counter_rotating: bool | None = None
         self._last_forward_cell_width: float | None = None
         self._carrier_slip_gap: float = 0.0
+        # Running total of the multi-section grid-vs-carrier registration
+        # phase ``sum_k (omega_k - omega_0) T_seg,k`` (see ``_track``).
+        # Stays exactly 0.0 for a single section and without acceleration.
+        self._grid_carrier_phase: float = 0.0
 
     @requires(["RFStationBaseClass"])
     def _check_step_sizes(self) -> None:
@@ -941,9 +950,14 @@ class IQCavityFeedbackTimingClass(
         #                 still contracts (oscillatory decay).
         #   * d > 2:      |factor| > 1      -- the magnitude grows every
         #                 step: a genuinely divergent discretization.
-        # The cap guards divergence, so it sits at d = 2 (the |factor| = 1
-        # boundary), not at the sign-flip boundary d = 1.
-        max_step_angle_hard = 2.0
+        # The exact factor ``exp(-omega dt / (2 Q_L))`` is positive for every
+        # step size, so the whole band d > 1 misrepresents the physics -- the
+        # cap deliberately sits at the sign-flip boundary d = 1, not at the
+        # divergence boundary d = 2: contracting while inverting every step
+        # is still wrong, just not explosively so. Steps that genuinely need
+        # d > 1 belong on the exact propagator
+        # (``exponential_coarse_solver_enable=True``), which skips this check.
+        max_step_angle_hard = 1.0
 
         # NB: use omega_rf, not omega_carrier. cavity_response() advances the
         # antenna voltage by ``omega_input * delta_t`` with
@@ -959,14 +973,18 @@ class IQCavityFeedbackTimingClass(
         if decay_per_step > max_step_angle_hard:
             raise ValueError(
                 f"{decay_per_step=:.3g} > {max_step_angle_hard}: the "
-                "magnitude of the forward-Euler decay factor "
-                "(1 - 0.5 * omega * dt / Q_L) used in cavity_response() "
-                "exceeds 1, so the discretized cavity response grows every "
-                "step instead of decaying -- a divergent discretization. "
-                "(The factor already turns negative for decay_per_step > 1, "
-                "flipping sign each step, but stays contracting until "
-                "decay_per_step exceeds 2.) "
-                "Increase Q_L or decrease n_rf_periods_per_coarse_grid."
+                "forward-Euler decay factor (1 - decay_per_step) used in "
+                "cavity_response() is negative, so the discretized cavity "
+                "voltage inverts its sign every step -- an unphysical "
+                "per-step sign inversion, since the exact decay factor "
+                "exp(-omega * dt / (2 * Q_L)) is always positive. (It stays "
+                "contracting, |factor| < 1, until decay_per_step exceeds 2, "
+                "beyond which the response also diverges.) "
+                "Increase Q_L or decrease n_rf_periods_per_coarse_grid; for "
+                "steps that must stay this large, set "
+                "exponential_coarse_solver_enable=True to use the exact "
+                "propagator, which integrates the decay exactly and is not "
+                "subject to this check."
             )
         if decay_per_step > max_step_angle:
             warnings.warn(
@@ -2125,31 +2143,51 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         len_frwrd = len(self._rf_centers) - len_rev
 
-        # Multi-section frame correction. Each reverse segment k reconstructs
-        # the previous turn on a coarse grid re-seeded to phase 0 at its own
-        # (past-station) frequency omega_k, while the physical cavity field
-        # rings at the current passage frequency omega_0 == the forward
-        # frequency. The carried envelope therefore accumulates a frame phase
-        # error sum_k (omega_k - omega_0) * T_seg,k over the reverse segments.
-        # This is purely a per-segment carrier-frame re-seeding effect and is
-        # SEPARATE from the cavity's resonance detuning: circuit_track still
-        # passes relative_detuning = delta_omega / omega_input on the reverse
-        # segments, so the physical cavity precession from delta_omega != 0 is
-        # already applied by the recursion and must NOT be removed here (the
-        # detuned multi-turn comparison confirms no double-counting). Only the
-        # frame re-seed is corrected: remove it from the carried envelope that
-        # seeds the forward
-        # segment and the fine grid, i.e. the last reverse coarse sample. With
-        # no reverse segments (single section) len_rev == 0 -> exact no-op,
-        # so single-section behaviour is unchanged. This is the discrete
-        # analogue of the MultiPassResonatorSolver carried-wake phase-clock
-        # rotation under acceleration.
+        # Multi-section grid-vs-carrier registration phase. A multi-section
+        # passage builds its coarse grid piecewise: each reverse segment k
+        # spans T_seg,k on its own (past-station) design frequency omega_k,
+        # then the forward segment runs at omega_0. Over the passage the grid
+        # therefore accumulates RF phase sum_k omega_k * T_seg,k, whereas the
+        # beam-current demodulation and the readout both reference the single
+        # forward carrier omega_0 (i.e. omega_0 * T_total). The two differ by
+        #
+        #     Psi = sum_k (omega_k - omega_0) * T_seg,k ,
+        #
+        # a pure bookkeeping mismatch between the piecewise grid clock and the
+        # single readout carrier. A single section builds the whole passage
+        # from one segment at omega_0, so Psi is identically zero there -- and
+        # that is exactly why single-section runs need no correction at all.
+        #
+        # This is SEPARATE from the cavity's resonance detuning: circuit_track
+        # passes relative_detuning = delta_omega / omega_input on every
+        # segment, so the physical precession from delta_omega != 0 is already
+        # applied by the recursion and must not be duplicated here (the
+        # detuned multi-turn comparison confirms no double-counting).
+        #
+        # Psi is carried as an explicit *carrier* phase -- accumulated into
+        # ``_grid_carrier_phase`` and folded into ``_carrier_slip_gap``, which
+        # the demodulation subtracts (carrier_phase_offset) and the readout
+        # adds back (phase_correction) -- exactly the idiom the RF-frequency
+        # offset already uses, and the same one the design-clock invariant
+        # prescribes: frequency mismatches enter as phases, never as grid
+        # geometry. A deposit made at turn m is then read out at turn N with
+        # the relative phase Phi_N - Phi_m, which is what the carried wake
+        # needs to match the retuning convolution.
+        #
+        # It must NOT be applied as a rotation of the antenna-voltage state.
+        # Doing that (the former behaviour) also rotated the generator-driven
+        # field, which carries no registration error at all -- it is
+        # re-injected on the current grid every coarse cell. The constant
+        # drive then pulled the rotating state back toward the real axis and
+        # the driven |V_ant| drifted ~3 % over 5 turns on the fast ramp
+        # (~0.6 %/turn, diverging), while a single section held its steady
+        # state to ~2e-12. See TestDrivenSteadyStateFastRamp.
         if (
             self._n_rf_stations_in_ring > 1
             and len_rev > 0
             and self._reverse_tracking_omega_list is not None
         ):
-            frame_phase = float(
+            self._grid_carrier_phase += float(
                 np.sum(
                     (
                         np.asarray(self._reverse_tracking_omega_list)
@@ -2158,9 +2196,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                     * np.asarray(self._reverse_tracking_time_array)
                 )
             )
-            self.antenna_voltage_coarse_grid[len_rev - 1] *= np.exp(
-                1j * frame_phase
-            )
+        # Exactly +0.0 for a single section and for an unaccelerated ring, so
+        # both stay bit-identical.
+        self._carrier_slip_gap += self._grid_carrier_phase
 
         if self._debug:
             self.relative_voltage_correction = np.ones_like(

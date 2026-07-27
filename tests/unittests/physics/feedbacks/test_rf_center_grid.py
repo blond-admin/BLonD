@@ -111,19 +111,24 @@ _phase_shifts = [0, -1, 1]
 # design period regardless of the offset.
 _delta_omega_factors = [0.0, 0.13, -0.13]
 # Each entry is (n_rf_periods_per_coarse_grid, Q_L). The per-step decay is
-# n * pi / Q_L and must stay below the hard stability cap of 2.0:
+# n * pi / Q_L and must stay below the hard cap of 1.0, above which the
+# forward-Euler decay factor (1 - decay) turns negative (an unphysical
+# per-step sign inversion) and _check_step_sizes raises:
 #   - integer n >= 1 places one coarse point every n RF periods; even n = 1
 #     gives decay = pi / Q_L, so a large Q_L is needed to stay stable;
 #   - n < 1 is the sub-stepping mode (several coarse points per RF period);
 #     0.4 and 0.6 deliberately do not divide the harmonic evenly, exercising
-#     the inter-turn carry-over, and stay stable even at Q_L = 1.
+#     the inter-turn carry-over. Their Q_L only has to keep the per-step
+#     decay under the cap (0.6 * pi / 4 ~ 0.47); these are pure grid-geometry
+#     cases (R_over_Q = 0, no generator bias), so Q_L does not affect what
+#     they measure.
 _n_ql_settings = [
     (1, 100),
     (2, 100),
     (3, 100),
     (0.25, 1),
-    (0.4, 1),
-    (0.6, 1),
+    (0.4, 4),
+    (0.6, 4),
 ]
 test_data_discontinuity = [
     (phase_shift, delta_omega_factor, n_rf_points, q_l)
@@ -196,9 +201,12 @@ class TestIQCavityFeedbackTimingClass:
         # sanity check must reflect that actual step, not collapse to the
         # n-independent omega_carrier * sampling_time_coarse == 2*pi.
         #
-        # With Q_L = 2.0 a single-period step (n=1, decay = pi/2 ~ 1.57) is
-        # below the hard cap of 2.0, but a two-period step (n=2, decay = pi ~
-        # 3.14) is above it and must be rejected.
+        # With Q_L = 2.0 a two-period step (n=2) gives decay = pi ~ 3.14,
+        # far above the hard cap of 1.0, and must be rejected. (A
+        # single-period step, n=1, would give pi/2 ~ 1.57 -- also above the
+        # cap since it was tightened to the sign-flip boundary, so this
+        # check is not sensitive to which of the two is used; n=2 keeps the
+        # margin large.)
         backend.change_backend(Numpy64Bit)
         self.harmonic = 5
         self.setup_simulation()
@@ -240,6 +248,13 @@ class TestIQCavityFeedbackTimingClass:
             Q_L=Q_L,
             generator_current_bias=0,
             n_cavities=1,
+            # The low-Q_L sub-stepped parametrizations put the Euler decay
+            # n * pi / Q_L into the forbidden sign-flip band (> 1.0), which
+            # the step-size check now rejects. Grid geometry is independent
+            # of the coarse propagator, so use the exact exponential solver
+            # there (the check's own sanctioned escape) and keep plain
+            # Euler coverage for the legal parametrizations.
+            exponential_coarse_solver_enable=(n_rf_points * np.pi / Q_L > 1.0),
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -392,6 +407,12 @@ class TestIQCavityFeedbackTimingClass:
             generator_current_bias=i_gen,
             n_cavities=1,
             initial_voltage=v_ss,
+            # See the discontinuity test above: the low-Q_L sub-stepped
+            # parametrizations exceed the Euler sign-flip cap (> 1.0), so
+            # they run on the exact exponential solver. Note V_ss is the
+            # exact fixed point of BOTH coarse propagators, so the matched
+            # steady state below is propagator-independent.
+            exponential_coarse_solver_enable=(n_rf_points * np.pi / Q_L > 1.0),
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -457,6 +478,13 @@ class TestIQCavityFeedbackTimingClass:
             Q_L=Q_L,
             generator_current_bias=0,
             n_cavities=1,
+            # The low-Q_L sub-stepped parametrizations put the Euler decay
+            # n * pi / Q_L into the forbidden sign-flip band (> 1.0), which
+            # the step-size check now rejects. Grid geometry is independent
+            # of the coarse propagator, so use the exact exponential solver
+            # there (the check's own sanctioned escape) and keep plain
+            # Euler coverage for the legal parametrizations.
+            exponential_coarse_solver_enable=(n_rf_points * np.pi / Q_L > 1.0),
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift

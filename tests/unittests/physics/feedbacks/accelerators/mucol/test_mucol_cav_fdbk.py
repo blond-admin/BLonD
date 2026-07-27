@@ -159,7 +159,7 @@ class TestCavityFeedback(unittest.TestCase):
     def test_step_size_check_warns_for_large_decay_per_step(self):
         """Warn when the per-step decay is between the soft and hard limits."""
         # 0.5 * omega * dt / Q_L should be between the soft (0.1) and hard
-        # (2.0) thresholds: large enough to warn, small enough not to raise
+        # (1.0) thresholds: large enough to warn, small enough not to raise
         omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-9
         self.cav_fdbk.Q_L = 10.0
@@ -262,14 +262,22 @@ class TestCavityFeedback(unittest.TestCase):
 
     def test_step_size_check_raises_for_unphysical_decay_per_step(self):
         """Raise when the per-step decay exceeds the hard limit."""
-        # 0.5 * omega * dt / Q_L > 2.0 makes the Euler decay factor negative
-        omega_rf = 2 * np.pi * 1e9
-        sampling_time_coarse = 1e-3
+        # 0.5 * omega * dt / Q_L > 1.0 makes the Euler decay factor
+        # 1 - decay_per_step negative, i.e. the discretised voltage flips
+        # sign every step -- something the exact (always positive) decay
+        # factor exp(-omega dt / (2 Q_L)) never does.
         self.cav_fdbk.Q_L = 1.0
         self.cav_fdbk.delta_omega = 0.0  # avoid the other (hard) error first
 
+        # Just above the cap: 0.5 * 2.2 * 1.0 / 1.0 = 1.1.
+        patch_omega, patch_dt = self._patched_step_size_props(2.2, 1.0)
+        with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
+            self.cav_fdbk._check_step_sizes()
+        self.assertIn("decay_per_step", str(cm.exception))
+
+        # Far above the cap: 0.5 * 2 pi * 1e9 * 1e-3 / 1.0 ~ 3.1e6.
         patch_omega, patch_dt = self._patched_step_size_props(
-            omega_rf, sampling_time_coarse
+            2 * np.pi * 1e9, 1e-3
         )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
             self.cav_fdbk._check_step_sizes()
@@ -279,7 +287,7 @@ class TestCavityFeedback(unittest.TestCase):
         self,
     ):
         """Raise when the per-step detuning phase exceeds the hard limit."""
-        # delta_omega * dt > 2.0 makes the per-step rotation exceed one
+        # delta_omega * dt > 1.0 makes the per-step rotation exceed one
         # step's worth of phase -- the discretization can no longer track
         # the cavity phase
         omega_rf = 2 * np.pi * 1e9
@@ -316,7 +324,7 @@ class TestCavityFeedback(unittest.TestCase):
             initial_voltage=0.0,
             n_rf_periods_per_coarse_grid=1,
             # detuning_phase_per_step = delta_omega * sampling_time_coarse
-            # ~ 1e12 * 1e-9 ~ 1000, far beyond the hard limit of 2.0.
+            # ~ 1e12 * 1e-9 ~ 1000, far beyond the hard limit of 1.0.
             delta_omega=1e12,
         )
         # Voltage/harmonic are placeholders; only omega_rf enters the check.
@@ -369,25 +377,40 @@ class TestCavityFeedback(unittest.TestCase):
             )
         self.assertIn("relative_kick", str(cm.exception))
 
-    def test_decay_hard_cap_bounds_divergence_not_sign_flip(self):
+    def test_decay_hard_cap_forbids_sign_flip(self):
         """
-        Pin that the decay hard cap guards divergence, not the sign flip.
+        Pin that the decay hard cap sits at the sign-flip boundary.
 
-        The forward-Euler decay factor is ``1 - decay_per_step``. Just
-        above ``decay_per_step == 1`` the factor is negative but its
-        magnitude is still < 1 (the sign flips every step yet the voltage
-        keeps contracting -- oscillatory decay), so ``_check_step_sizes``
-        must NOT raise. Only above ``decay_per_step == 2`` does the factor
-        magnitude exceed 1 -- a genuinely divergent step -- which the hard
-        cap must reject with a message naming divergence/magnitude, the
-        numeric behaviour the corrected wording describes.
+        The forward-Euler decay factor is ``1 - decay_per_step``, whereas
+        the exact factor ``exp(-omega dt / (2 Q_L))`` is positive for every
+        step size. Below ``decay_per_step == 1`` the Euler factor is
+        positive too and a large step is merely inaccurate, so
+        ``_check_step_sizes`` only warns. Above 1 the factor turns negative
+        -- the discretised voltage inverts every step, which no physical
+        cavity does, even though ``|factor| < 1`` keeps it contracting
+        until 2 -- so the hard cap must reject it, and the message must
+        name the sign flip and the exponential-propagator escape.
         """
         sampling_time_coarse = 1.0
         Q_L = 1.0
         self.cav_fdbk.Q_L = Q_L
         self.cav_fdbk.delta_omega = 0.0  # isolate the decay branch
 
-        # Case 1: decay_per_step just above 1 -> factor negative, |factor|<1.
+        # Case 1: decay_per_step just below 1 -> factor positive, warn only.
+        omega_rf = 1.8  # 0.5 * omega * dt / Q_L = 0.9
+        decay_per_step = 0.5 * omega_rf * sampling_time_coarse / Q_L
+        self.assertAlmostEqual(decay_per_step, 0.9)
+        self.assertGreater(1.0 - decay_per_step, 0.0)  # no sign flip
+
+        patch_omega, patch_dt = self._patched_step_size_props(
+            omega_rf, sampling_time_coarse
+        )
+        with patch_omega, patch_dt, self.assertWarns(UserWarning) as warn_cm:
+            self.cav_fdbk._check_step_sizes()
+        self.assertIn("decay_per_step", str(warn_cm.warning))
+
+        # Case 2: decay_per_step just above 1 -> factor negative, i.e. an
+        # unphysical per-step sign inversion (still contracting).
         omega_rf = 2.2  # 0.5 * omega * dt / Q_L = 1.1
         decay_per_step = 0.5 * omega_rf * sampling_time_coarse / Q_L
         self.assertAlmostEqual(decay_per_step, 1.1)
@@ -398,27 +421,13 @@ class TestCavityFeedback(unittest.TestCase):
         patch_omega, patch_dt = self._patched_step_size_props(
             omega_rf, sampling_time_coarse
         )
-        with patch_omega, patch_dt, warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # 1 < decay_per_step < 2 is contracting, so it must not raise.
-            self.cav_fdbk._check_step_sizes()
-
-        # Case 2: decay_per_step just above 2 -> |factor| > 1, divergent.
-        omega_rf = 4.2  # 0.5 * omega * dt / Q_L = 2.1
-        decay_per_step = 0.5 * omega_rf * sampling_time_coarse / Q_L
-        self.assertAlmostEqual(decay_per_step, 2.1)
-        euler_multiplier = 1.0 - decay_per_step
-        self.assertLess(euler_multiplier, -1.0)  # magnitude exceeds 1
-
-        patch_omega, patch_dt = self._patched_step_size_props(
-            omega_rf, sampling_time_coarse
-        )
         with patch_omega, patch_dt, self.assertRaises(ValueError) as cm:
             self.cav_fdbk._check_step_sizes()
         message = str(cm.exception).lower()
         self.assertIn("decay_per_step", message)
-        self.assertIn("magnitude", message)
-        self.assertIn("diverg", message)
+        self.assertIn("negative", message)
+        self.assertIn("sign", message)
+        self.assertIn("exponential_coarse_solver_enable", message)
 
 
 class TestFineGridResonatorBenchmark(unittest.TestCase):

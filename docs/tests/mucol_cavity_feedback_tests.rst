@@ -92,7 +92,7 @@ feedback instance with RCS1 four-station parameters on a mocked
     complex multiplier ``1 - 0.5 omega dt / Q_L + 1j delta_omega dt``.
 ``test_step_size_check_warns_for_large_decay_per_step``
     ``_check_step_sizes`` warns when the per-step decay sits between the soft
-    (0.1) and hard (2.0) limits.
+    (0.1) and hard (1.0) limits.
 ``test_step_size_check_warns_for_large_detuning_phase_per_step``
     Warns when the per-step detuning phase ``delta_omega * dt`` exceeds the
     soft limit.
@@ -105,9 +105,10 @@ feedback instance with RCS1 four-station parameters on a mocked
     No warning when the relative beam kick is negligible.
 ``test_step_size_check_raises_for_unphysical_decay_per_step``
     Raises ``ValueError`` when the per-step decay exceeds the hard limit of
-    2.0 (the magnitude of the Euler decay factor ``1 - decay_per_step``
-    then exceeds 1, so the discretisation diverges; it merely turns negative,
-    still contracting, already above 1.0).
+    1.0 (the Euler decay factor ``1 - decay_per_step`` then turns negative,
+    so the discretised voltage inverts every step -- unphysical, since the
+    exact factor ``exp(-omega dt / (2 Q_L))`` is always positive). Checked
+    just above the cap and far beyond it.
 ``test_step_size_check_raises_for_unphysical_detuning_phase_per_step``
     Raises when the per-step detuning phase exceeds the hard limit.
 ``test_step_size_check_fires_on_run_simulation``
@@ -116,6 +117,12 @@ feedback instance with RCS1 four-station parameters on a mocked
     stubbed beam/simulation.
 ``test_cavity_response_raises_for_unphysical_beam_kick``
     Raises when the beam-induced kick exceeds the previous antenna voltage.
+``test_decay_hard_cap_forbids_sign_flip``
+    Pins the hard cap at the sign-flip boundary: a per-step decay of 0.9
+    (Euler factor still positive) only warns, while 1.1 -- negative factor,
+    yet ``|factor| < 1`` and hence still contracting -- raises, with a message
+    naming the sign inversion and ``exponential_coarse_solver_enable=True``
+    as the sanctioned option for such steps.
 
 **Class** ``TestFineGridResonatorBenchmark`` -- benchmarks the single-turn
 (fine-grid) beam-loading response, with the generator current zeroed, against

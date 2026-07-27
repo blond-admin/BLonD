@@ -226,7 +226,11 @@ Each turn the timing class performs, in order:
    ``1 - 0.5 omega dt / Q_L + i delta_omega dt`` and beam loading
    ``-0.5 I_beam (R/Q) omega dt``. Discretisation validity is enforced:
    ``_check_step_sizes`` warns above a per-step decay/rotation of 0.1 and
-   raises above 2.0, and an analogous check warns/raises when the per-step
+   raises above 1.0 -- there the Euler decay factor ``1 - 0.5 omega dt / Q_L``
+   turns negative and the discretised voltage flips sign every step, which the
+   exact (always positive) decay never does; use
+   ``exponential_coarse_solver_enable=True`` for larger steps. An analogous
+   check warns/raises when the per-step
    beam kick is large relative to the antenna voltage. With
    ``exponential_coarse_solver_enable=True`` the exact exponential propagator
    ``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces the Euler step: it is
@@ -418,11 +422,24 @@ Known limitations
   to the accumulated actual RF phase and validated at the discretization
   floor for offsets beyond the cavity half-bandwidth
   (``test_multiturn_delta_omega_rf_*``).
-* Driven (generator-bias) multi-section fast-ramp operation carries a
-  bounded frame slip between the constant-phase bias and the slipping
-  segment frame (percent-level ``|V_ant|`` drift over a few turns); it
-  cancels in the linear beam-induced part but is visible in absolute
-  antenna-voltage trajectories.
+* Driven (generator-bias) multi-section fast-ramp operation used to drift in
+  ``|V_ant|`` (percent-level over a few turns). **Fixed**: a multi-section
+  passage builds its grid piecewise, so the grid accumulates the RF phase
+  ``sum_k omega_k T_k`` while the demodulation and readout reference the
+  single carrier ``omega_0`` -- a mismatch
+  ``Psi = sum_k (omega_k - omega_0) T_k`` that vanishes identically for one
+  section. ``Psi`` is now carried as an explicit *phase* (folded into the
+  demodulation offset and undone at readout, the same idiom the
+  RF-frequency offset uses) instead of rotating the antenna-voltage state;
+  the generator-driven field, which carries no registration error, is left
+  untouched, and the driven steady state is now exact. Pinned by
+  ``TestDrivenMultiSectionFastRamp`` and
+  ``TestPIFullTrackingMultiSectionFastRamp``.
+  *Residual*: ``Psi`` still reaches the beam through ``phase_correction``,
+  so a driven multi-section fast ramp keeps a readout-*phase* offset -- the
+  beam-induced part needs ``Psi`` at readout while the generator-driven part
+  does not, and a single readout phase cannot separate the two. The
+  amplitude drift (the original limitation) is gone.
 * The undriven two-section fast-ramp carried wake shows a slow bounded
   secular drift (~0.03 percentage points per turn over 20 turns) against
   the convolution.

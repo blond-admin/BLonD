@@ -314,17 +314,30 @@ class TestResonators(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test___init__wrong_lengths(self):
-        with self.assertRaises(AssertionError):
+        # Argument-value validation raises ValueError, not a bare assert
+        # (``python -O`` would strip the latter).
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1, 2, 3]),
                 center_frequencies=np.array([400e6, 600e6, 1.2e9]),
                 quality_factors=np.array([1, 2]),
             )
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1, 2, 3]),
                 center_frequencies=np.array([400e6, 600e6]),
                 quality_factors=np.array([1, 2, 3]),
+            )
+
+    def test___init__counter_witness_wrong_length(self):
+        # One counter-witness shunt per resonator; a mismatched length is
+        # an argument-value error.
+        with self.assertRaises(ValueError):
+            Resonators(
+                shunt_impedances=np.array([1, 2, 3]),
+                center_frequencies=np.array([500e6, 750e6, 2.0e9]),
+                quality_factors=np.array([5, 5, 5]),
+                shunt_impedances_counter_witness=np.array([1, 2]),
             )
 
     def test___init__floats_counter_rotating(self):
@@ -363,7 +376,7 @@ class TestResonators(unittest.TestCase):
             )
 
     def test___init__neg_freq(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([-400e6]),
@@ -371,7 +384,7 @@ class TestResonators(unittest.TestCase):
             )
 
     def test___init__small_Q(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([400e6]),
@@ -379,7 +392,7 @@ class TestResonators(unittest.TestCase):
             )
 
     def test___init__float_values(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
                 center_frequencies=400e6,

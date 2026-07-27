@@ -747,7 +747,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         still be considered for multi-pass wake calculation.
     allow_delta_t_zero
         Debugging flag to allow two beams to calculate the induced
-        voltage at the same time. Should not be used in production.
+        voltage at the same time, i.e. to deposit at the same reference
+        time (``delta_t = 0``). Coincident passages of two
+        counter-rotating beams receive *order-dependent* kicks: the
+        first-tracked beam misses the other's simultaneous cross-wake
+        (it sees ``W(0)/2`` where the second-tracked beam sees ``W(0)``).
+        The flag therefore suits single-beam use, or serves as a
+        numerical-tolerance escape for equal arrival times, but it is not
+        a meeting-azimuth two-beam model; see the *Counter-rotating
+        beams* warning in ``docs/feedbacks/mucol_cavity_feedback.rst``.
+        Constructing with ``True`` emits a ``UserWarning``.
         Default is False.
     delta_f
         Static frequency offset [Hz] applied on top of the parent RF
@@ -825,6 +834,24 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._active_omega: float | None = None
 
         self._allow_delta_t_zero = allow_delta_t_zero
+
+        if allow_delta_t_zero:
+            warnings.warn(
+                "allow_delta_t_zero=True permits coincident (delta_t = 0)"
+                " passages, and two coincident counter-rotating beams then"
+                " receive order-dependent kicks: each beam is kicked inside"
+                " its own track call, so the first-tracked beam misses the"
+                " other's simultaneous cross-wake -- it sees W(0)/2 where"
+                " the second-tracked beam sees W(0) -- and swapping the"
+                " track order swaps which beam is under-kicked by the whole"
+                " mutual term. The flag is meant for single-beam use, or as"
+                " a numerical-tolerance escape for equal arrival times; it"
+                " is not a meeting-azimuth two-beam model. See the"
+                " 'Counter-rotating beams' warning in"
+                " docs/feedbacks/mucol_cavity_feedback.rst.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def _determine_storage_time(self):
         """
