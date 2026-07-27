@@ -8,7 +8,17 @@
 
 """Module to manage and describe rf feedback systems for the Super Proton Synchrotron."""
 
-__all__ = ["SPSBeamControl"]
+__all__ = [
+    "SPSBeamControl",
+    "SPSCavityFeedback",
+    "SPSOneTurnFeedback",
+    "SPSCavityFeedbackCommissioning",
+]
 from blond.physics.feedbacks.accelerators.sps.beam_feedback import (
     SPSBeamControl,
+)
+from blond.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSCavityFeedback,
+    SPSCavityFeedbackCommissioning,
+    SPSOneTurnFeedback,
 )

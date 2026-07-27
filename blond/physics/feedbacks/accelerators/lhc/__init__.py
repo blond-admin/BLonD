@@ -8,7 +8,15 @@
 
 """Module to manage and describe rf feedback systems for the Large Hadron Collider."""
 
-__all__ = ["LHCBeamControl"]
+__all__ = [
+    "LHCBeamControl",
+    "LHCCavityFeedback",
+    "LHCCavityFeedbackCommissioning",
+]
 from blond.physics.feedbacks.accelerators.lhc.beam_feedback import (
     LHCBeamControl,
+)
+from blond.physics.feedbacks.accelerators.lhc.cavity_feedback import (
+    LHCCavityFeedback,
+    LHCCavityFeedbackCommissioning,
 )
