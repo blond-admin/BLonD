@@ -13,12 +13,12 @@ def main():
         phi_rf = np.random.randn(n_rf)
         bin_centers = np.linspace(1e-5, 1e-6, n_slices)
 
-        build_wrap_cpp.rf_volt_comp(
+        butils_wrap_cpp.rf_volt_comp(
             voltages, omega_rf, phi_rf, bin_centers
         )  # warmup
 
         t0 = time.time()
-        build_wrap_cpp.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
+        butils_wrap_cpp.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
         t1 = time.time()
         print(t1 - t0, f"s ({n_rf=})")  # will be used in `compare.py`
 

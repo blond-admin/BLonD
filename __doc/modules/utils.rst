@@ -9,18 +9,18 @@ utils Package
     :undoc-members:
     :show-inheritance:
 
-:mod:`build_wrap_cpp` Module
+:mod:`butils_wrap_cpp` Module
 -----------------------------
 
-.. automodule:: blond.utils.build_wrap_cpp
+.. automodule:: blond.utils.butils_wrap_cpp
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`build_wrap_python` Module
+:mod:`butils_wrap_python` Module
 --------------------------------
 
-.. automodule:: blond.utils.build_wrap_python
+.. automodule:: blond.utils.butils_wrap_python
     :members:
     :undoc-members:
     :show-inheritance:
