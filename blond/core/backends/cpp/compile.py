@@ -17,8 +17,7 @@ import platform
 import subprocess
 import sys
 
-from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
-from blond.generals.compiled_cache import mark_used, prune_siblings
+from blond.generals.hashing_ import hash_in_folder
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -85,7 +84,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     flags: str = "",
     optimize: bool = True,
     libname: str | None = None,
-    limit_cachesize: bool = False,
 ) -> None:
     """
     Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
@@ -115,10 +113,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         CPU-specific vectorization flags (AVX/SSE/FMA).
     libname : str
         Path and name of the output library (without file extension).
-    limit_cachesize : bool
-        If True, evict least-recently-used sibling builds after compiling so
-        the ``compiled/`` tree stays bounded (intended for CI). If False
-        (default), every build is kept and nothing is removed.
 
     Returns
     -------
@@ -130,7 +124,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    compiled_dir: str | None = None
     for parallel in (False, True):
         if parallel:
             print("\nTrying to compile parallel C++ backend.")
@@ -140,23 +133,14 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         if libname is None:
             folder = os.path.dirname(os.path.abspath(__file__))
 
-            # Toolchain/CPU/flags-aware directory, computed identically by the
-            # loader (callables.py) so it finds exactly what we build here.
-            compiled_dir = cpp_compiled_dir(
-                folder,
-                compiler=compiler,
-                optimize=optimize,
-                flags=flags,
-                libs=libs,
-                with_fftw=with_fftw,
-                with_fftw_threads=with_fftw_threads,
-                with_fftw_omp=with_fftw_omp,
-                with_fftw_lib=with_fftw_lib,
-                with_fftw_header=with_fftw_header,
-                boost=boost,
+            hash_ = hash_in_folder(
+                folder=folder,
+                extensions=(".py", ".h", ".cpp"),
+                recursive=False,
             )
-            os.makedirs(compiled_dir, exist_ok=True)
-            libname = os.path.join(compiled_dir, default_libname)
+            target = os.path.join(folder, "compiled", hash_)
+            os.makedirs(target, exist_ok=True)
+            libname = os.path.join(target, default_libname)
         # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
         #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
@@ -249,15 +233,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         print("Compiler flags: ", " ".join(cflags))
         print("Extra libraries: ", " ".join(libs_))
 
-        # Reuse a previously built library when present. This is only safe
-        # because `libname_double` lives in a `compiled/<hash>/` dir whose
-        # hash encodes the toolchain and host CPU (see `cpp_compiled_dir`):
-        # an existing binary here was built for an identical environment, so
-        # it cannot be an incompatible-CPU artifact.
-        if os.path.isfile(libname_double):
-            print(f"Reusing cached C++ library: {libname_double}")
-            continue
-
         command = (
             [compiler]
             + cflags
@@ -285,15 +260,6 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
                 print("Compilation failed.")
                 print(exception)
 
-    # Record use of this build's directory. Skipped when a custom libname
-    # bypassed the hashed directory layout. Eviction of least-recently-used
-    # sibling builds is opt-in (--limit-cachesize, e.g. in CI); by default
-    # every build is kept.
-    if compiled_dir is not None:
-        mark_used(compiled_dir)
-        if limit_cachesize:
-            prune_siblings(compiled_dir)  # evict old siblings; keep this one
-
 
 def _prepare_cflags(
     cflags: list[str],
@@ -301,7 +267,7 @@ def _prepare_cflags(
     libname: str,
     optimize: bool,
     parallel: bool,
-) -> tuple[list[str], str]:
+) -> tuple[list[str], str, str]:
     """
     Prepare compiler flags and library names.
 
@@ -485,6 +451,16 @@ def main_cli() -> None:
         description="Script used to compile the C++ libraries needed by BLonD.",
     )
 
+    parser.add_argument(  # todo remove everywhere
+        "-p",
+        "--parallel",
+        action="store_true",
+        help="Produce Multi-threaded code. Use the environment"
+        " variable OMP_NUM_THREADS=xx to control the number of"
+        " threads that will be used."
+        " Default: Serial code",
+    )
+
     parser.add_argument(
         "-b",
         "--boost",
@@ -566,14 +542,6 @@ def main_cli() -> None:
         " (disable with --no-optimize).",
     )
 
-    parser.add_argument(
-        "--limit-cachesize",
-        action="store_true",
-        help="Evict least-recently-used sibling builds after compiling so the"
-        " compiled/ tree stays bounded (intended for CI). Off by default:"
-        " all builds are kept.",
-    )
-
     # Parse command line options
     args = vars(parser.parse_args())
     compile_cpp_library(
@@ -588,7 +556,6 @@ def main_cli() -> None:
         flags=args["flags"],
         optimize=args["optimize"],
         libname=args["libname"],
-        limit_cachesize=args["limit_cachesize"],
     )
 
 

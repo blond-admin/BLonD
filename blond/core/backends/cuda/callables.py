@@ -19,8 +19,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond.core.backends.backend import Specials
-from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
-from blond.generals.compiled_cache import mark_used
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -32,8 +31,12 @@ FLOAT = np.float64
 
 folder = os.path.dirname(os.path.abspath(__file__))
 
-# Same toolchain-aware directory the compiler writes to.
-_basepath = str(cuda_compiled_dir(folder))
+hash_ = hash_in_folder(
+    folder=folder,
+    extensions=(".py", ".cu"),
+    recursive=False,
+)
+_basepath = str(os.path.join(folder, "compiled", hash_))
 
 
 path = os.path.join(
@@ -56,8 +59,6 @@ if not os.path.isfile(path):
 gpu_module = cp.RawModule(
     path=path,
 )
-# Refresh the LRU stamp on the cache dir we loaded from.
-mark_used(_basepath)
 
 _drift_simple = gpu_module.get_function("drift_simple")
 _drift_exact = gpu_module.get_function("drift_exact")
