@@ -242,26 +242,34 @@ def rf_beam_current(
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
     if isinstance(profile, SparseProfileBaseClass):
-        charges = profile.beam.ratio * profile.beam.particle.charge * e \
-                  * np.copy(profile.n_macroparticles)
+        charges = (
+            profile.beam.ratio
+            * profile.beam.particle.charge
+            * e
+            * np.copy(profile.n_macroparticles)
+        )
     else:
-        charges = \
-            profile.beam.ratio * \
-            profile.beam.particle.charge *\
-            e \
-         * np.copy(profile.n_macroparticles)
-    logger.debug("Sum of particles: %d, total charge: %.4e C",
-                 np.sum(profile.n_macroparticles), np.sum(charges))
+        charges = (
+            profile.beam.ratio
+            * profile.beam.particle.charge
+            * e
+            * np.copy(profile.n_macroparticles)
+        )
+    logger.debug(
+        "Sum of particles: %d, total charge: %.4e C",
+        np.sum(profile.n_macroparticles),
+        np.sum(charges),
+    )
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2. * charges * np.cos(omega_c * profile.bin_centers)
-    Q_f = -2. * charges * np.sin(omega_c * profile.bin_centers)
+    I_f = 2.0 * charges * np.cos(omega_c * profile.bin_centers)
+    Q_f = -2.0 * charges * np.sin(omega_c * profile.bin_centers)
 
     # Pass through a low-pass filter
     if lpf is True:
         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
-        cutoff = 20.e6 * 2. * profile.bin_size
+        cutoff = 20.0e6 * 2.0 * profile.bin_size
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
@@ -275,43 +283,76 @@ def rf_beam_current(
 
     if downsample:
         try:
-            T_s = float(downsample['Ts'])
-            n_points = int(downsample['points'])
+            T_s = float(downsample["Ts"])
+            n_points = int(downsample["points"])
         except Exception:
-            raise RuntimeError('Downsampling input erroneous in rf_beam_current')
+            raise RuntimeError(
+                "Downsampling input erroneous in rf_beam_current"
+            )
         if isinstance(profile, SparseBatch):
+            # find the profile covering the latest bunches
+            distances = np.array(
+                [
+                    profile_.bin_centers[-1]
+                    for profile_ in profile.profiles_list
+                ]
+            )
+            maximum = max(distances[distances > 0])
+            index_profile_to_use = int(np.where(distances == maximum)[0][0])
             ind_fine = np.round(
-                (profile.profiles_list[-1].bin_centers - dT - np.pi /
-                 omega_c) /
-                T_s)
+                (
+                    profile.profiles_list[index_profile_to_use].bin_centers
+                    - dT
+                    - np.pi / omega_c
+                )
+                / T_s
+            )
             ind_fine = np.array(ind_fine, dtype=int)
             indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
             if len(indices) == 0:
-                extra_bins = np.arange(profile.bin_centers[-1], profile.bin_centers[-1] +
-                          1 * profile.rf_station.t_rf[0,0], step=profile.bin_size)
-                profile_bin_centers = np.concatenate((profile.bin_centers,extra_bins))
-                profile_n_macroparticles = np.concatenate((profile.n_macroparticles,
-                                                           np.zeros(len(extra_bins))))
+                extra_bins = np.arange(
+                    profile.profiles_list[index_profile_to_use].bin_centers[
+                        -1
+                    ],
+                    profile.profiles_list[index_profile_to_use].bin_centers[-1]
+                    + T_s
+                    + dT
+                    + np.pi / omega_c,
+                    step=profile.bin_size,
+                )
+                profile_bin_centers = np.concatenate(
+                    (profile.bin_centers, extra_bins)
+                )
+                profile_n_macroparticles = np.concatenate(
+                    (profile.n_macroparticles, np.zeros(len(extra_bins)))
+                )
                 charges = (
-                        profile.beam.ratio
-                        * profile.beam.particle.charge
-                        * e
-                        * np.copy(profile_n_macroparticles)
+                    profile.beam.ratio
+                    * profile.beam.particle.charge
+                    * e
+                    * np.copy(profile_n_macroparticles)
                 )
                 I_f = 2.0 * charges * np.cos(omega_c * profile_bin_centers)
                 Q_f = -2.0 * charges * np.sin(omega_c * profile_bin_centers)
                 charges_fine = I_f + 1j * Q_f
-                warnings.warn('The length of the sparse profile is too '
-                                 'short to properly convert the charges from the fine to the coarse grid.'
-                                 'Profile has been extented.')
+                warnings.warn(
+                    "The length of the sparse profile is too "
+                    "short to properly convert the charges from the fine to the coarse grid."
+                    "Profile has been extented."
+                )
             else:
                 profile_bin_centers = profile.bin_centers
         else:
             profile_bin_centers = profile.bin_centers
         charges_coarse = charges_from_fine_to_coarse(
-                T_s, charges_fine, dT, n_points, omega_c, profile_bin_centers,
-            )
-      
+            T_s,
+            charges_fine,
+            dT,
+            n_points,
+            omega_c,
+            profile_bin_centers,
+        )
+
         return charges_fine, charges_coarse
 
     else:
@@ -339,15 +380,16 @@ def charges_from_fine_to_coarse(
         )  # TODO: modulo might not be physical
     return charges_coarse
 
+
 def comb_filter(y: NumpyArray, x: NumpyArray, a: float) -> NumpyArray:
     """Feedback comb filter."""
 
     return a * y + (1 - a) * x
 
-def fir_filter_coefficients(
-            n_taps: int, sampling_freq: float, cutoff_freq: float
-    ) -> NumpyArray:
 
+def fir_filter_coefficients(
+    n_taps: int, sampling_freq: float, cutoff_freq: float
+) -> NumpyArray:
     """Band-stop type FIR filter from scipy
     http://docs.scipy.org
 
@@ -480,6 +522,7 @@ def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:
         )
 
     return coeff
+
 
 def fir_filter(coeff: NumpyArray, signal: NumpyArray):
     """Apply FIR filter on discrete time signal.

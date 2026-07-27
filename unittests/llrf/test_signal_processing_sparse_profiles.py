@@ -346,7 +346,7 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                     self.profile_sparse.bin_centers)
         charges_fine_sparse = I_f_sparse + 1j * Q_f_sparse
 
-        charges_coast_std = charges_from_fine_to_coarse(T_s = self.T_s,
+        charges_coarse_std = charges_from_fine_to_coarse(T_s = self.T_s,
                                                         charges_fine =
                                                         charges_fine_std,
                                                         dT = 0,
@@ -354,7 +354,7 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                         omega_c=self.omega,
                                                         profile_bin_centers=self.profile_std.bin_centers,
                                                         )
-        charges_coast_sparse = charges_from_fine_to_coarse(T_s = self.T_s,
+        charges_coarse_sparse = charges_from_fine_to_coarse(T_s = self.T_s,
                                                             charges_fine =
                                                             charges_fine_sparse,
                                                             dT = 0,
@@ -363,8 +363,8 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                             profile_bin_centers=self.profile_sparse.bin_centers,
                                                             )
         with self.assertRaises(expected_exception=AssertionError):
-            np.testing.assert_allclose(charges_coast_std,
-                                       charges_coast_sparse,
+            np.testing.assert_allclose(charges_coarse_std,
+                                       charges_coarse_sparse,
                                        rtol = self.rtol,
                                        atol = self.atol,
                                        )
@@ -398,7 +398,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         I_f = 2.0 * charges_sparse * np.cos(self.omega * profile_bin_centers)
         Q_f = -2.0 * charges_sparse * np.sin(self.omega * profile_bin_centers)
         charges_fine_sparse = I_f + 1j * Q_f
-        charges_coast_sparse = charges_from_fine_to_coarse(T_s=self.T_s,
+        charges_coarse_sparse = charges_from_fine_to_coarse(T_s=self.T_s,
                                                            charges_fine=
                                                            charges_fine_sparse,
                                                            dT=0,
@@ -406,8 +406,8 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                            omega_c=self.omega,
                                                            profile_bin_centers=profile_bin_centers,
                                                            )
-        np.testing.assert_allclose(charges_coast_std,
-                                   charges_coast_sparse,
+        np.testing.assert_allclose(charges_coarse_std,
+                                   charges_coarse_sparse,
                                    rtol=self.rtol,
                                    atol=self.atol,
                                    )
