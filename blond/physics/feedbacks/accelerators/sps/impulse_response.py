@@ -69,7 +69,7 @@ def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
             "ERROR in impulse_response.rectangle(): time"
             + " array has multiple falling edges!"
         )
-    logger.debug(f"In rectangle(), index of rising edge is {llimit[0]:.d}")
+    logger.debug(f"In rectangle(), index of rising edge is {llimit[0]}")
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     if len(ulimit) == 1:
@@ -106,7 +106,7 @@ def triangle(t: NumpyArray, tau: float) -> NumpyArray:
     """
     dt = t[1] - t[0]
     llimit = np.where(np.fabs(t) < dt / 2)[0]
-    logger.debug(f"In triangle(), index of rising edge is {llimit[0]:.d}")
+    logger.debug(f"In triangle(), index of rising edge is {llimit[0]}")
     if len(llimit) != 1:
         # ImpulseError
         raise RuntimeError(

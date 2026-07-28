@@ -76,6 +76,8 @@ class LocalFeedback(FeedbackBaseClass):
     ----------
     profile
         Profile the feedback should act on.
+    section_index
+        Section index of the feedback.
     name
         Name of the feedback.
     """
@@ -83,9 +85,11 @@ class LocalFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
+        section_index: int = 0,
         name: str | None = None,
     ):
         super().__init__(
+            section_index=section_index,
             name=name,
         )
         self._parent_rf_station: (

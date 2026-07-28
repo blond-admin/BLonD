@@ -26,13 +26,12 @@ import numpy as np
 
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.base import LocalFeedback
-from blond.experimental.physics.feedbacks.helpers import (
+from blond.physics.feedbacks.base import LocalFeedback
+from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
     polar_to_cartesian,
     rf_beam_current,
 )
-from blond.physics.cavities import SingleHarmonicRFStation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -151,7 +150,7 @@ class IQCavityFeedback(LocalFeedback):
 
         self.dT: float | None = None
 
-    @requires(["RfStationBaseClass", "BeamBaseClass"])
+    @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -173,6 +172,9 @@ class IQCavityFeedback(LocalFeedback):
         **kwargs
             Additional keyword arguments.
         """
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns, **kwargs
+        )
         harmonic, omega_rf, phi_rf = self.get_harmonic_and_omega_rf_phi_rf()
 
         self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
@@ -272,16 +274,10 @@ class IQCavityFeedback(LocalFeedback):
         phi_rf
             Phi_rf for the harmonic index/only one.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
-            harmonic = self._parent_rf_station.harmonic
-            omega_rf = self._parent_rf_station.omega_rf_actual
-            phi_rf = self._parent_rf_station.phi_rf_actual
-        else:
-            harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
-            omega_rf = self._parent_rf_station.omega_rf_actual[
-                self.harmonic_index
-            ]
-            phi_rf = self._parent_rf_station.phi_rf_actual[self.harmonic_index]
+        harmonic = self._parent_rf_station.get_main_harmonic()
+        omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf()
+        phi_rf = self._parent_rf_station.get_main_harmonic_phi_rf()
+
         return harmonic, omega_rf, phi_rf
 
     def get_harmonic_and_omega_rf_phi_rf_design(
@@ -302,18 +298,14 @@ class IQCavityFeedback(LocalFeedback):
         phi_rf_design
             Phi_rf_design for the harmonic index/only one.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
-            harmonic = self._parent_rf_station.harmonic
-            omega_rf_design = self._parent_rf_station.omega_rf_design
-            phi_rf_design = self._parent_rf_station.phi_rf_design
-        else:
-            harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
-            omega_rf_design = self._parent_rf_station.omega_rf_design[
-                self.harmonic_index
-            ]
-            phi_rf_design = self._parent_rf_station.phi_rf_design[
-                self.harmonic_index
-            ]
+        harmonic = self._parent_rf_station.get_main_harmonic()
+        omega_rf_design = (
+            self._parent_rf_station.get_main_harmonic_omega_rf_design()
+        )
+        phi_rf_design = (
+            self._parent_rf_station.get_main_harmonic_phi_rf_design()
+        )
+
         return harmonic, omega_rf_design, phi_rf_design
 
     def get_voltage_from_parent_rf_station(self) -> float:
@@ -325,10 +317,7 @@ class IQCavityFeedback(LocalFeedback):
         voltage
             Voltage from the parent RF station, either at harmonic_index or the only one.
         """
-        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
-            return self._parent_rf_station.voltage
-        else:
-            return self._parent_rf_station.voltage[self.harmonic_index]
+        return self._parent_rf_station.get_main_harmonic_voltage()
 
     def update_rf_variables(
         self, omega_rf: float | None = None, harmonic: float | None = None
@@ -415,7 +404,7 @@ class IQCavityFeedback(LocalFeedback):
         for _i in range(n_pretrack):
             self.circuit_track(no_beam=True)
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def _track(self, beam: BeamBaseClass) -> None:
         """
         Tracking method of the cavity feedback.
 

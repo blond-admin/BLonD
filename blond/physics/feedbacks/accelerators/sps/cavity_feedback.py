@@ -28,10 +28,6 @@ from scipy.signal import fftconvolve
 
 from blond import Simulation
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
-)
-from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.feedbacks.accelerators.sps.helpers import (
     comb_filter,
     get_power_gen_i,
@@ -43,6 +39,10 @@ from blond.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
 )
+from blond.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
+)
+from blond.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -278,7 +278,9 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         **kwargs
             Additional keyword arguments.
         """
-        super().on_run_simulation(simulation, beam, n_turns, **kwargs)
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns, **kwargs
+        )
 
         # 200 MHz travelling wave cavity (TWC) model
         if self.open_ff == 1:
@@ -293,7 +295,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             )
 
             self.logger.debug(
-                f"Feed-forward delay in samples {self.n_ff_delay:.d}"
+                f"Feed-forward delay in samples {self.n_ff_delay}"
             )
 
             # Multiply gain by normalisation factors from filter and
@@ -303,7 +305,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             )
 
         self.logger.debug(
-            f"SPS OTFB cavities: {self.n_cavities:.d}, sections: {self.n_sections:.d}, "
+            f"SPS OTFB cavities: {self.n_cavities}, sections: {self.n_sections}, "
             f"voltage partition {self.V_part:.2f}, gain: {self.G_tx:.2e}",
         )
 
@@ -315,7 +317,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         if self.set_point_modulation:
             if self.V_SET.shape[0] != 2 * self.n_coarse:
                 raise RuntimeError(
-                    f"V_SET length should be {(2 * self.n_coarse):.d}"
+                    f"V_SET length should be {(2 * self.n_coarse)}"
                 )
             self.set_point = self.set_point_mod
         else:
@@ -325,7 +327,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # Array to hold the bucket-by-bucket voltage with length LLRF
         self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug(
-            f"Length of arrays on coarse grid 2x {self.n_coarse:.d}"
+            f"Length of arrays on coarse grid 2x {self.n_coarse}"
         )
 
         # Array if noise is being injected
@@ -346,7 +348,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.logger.debug(f"Moving average over {self.n_mov_av:.d} points")
+        self.logger.debug(f"Moving average over {self.n_mov_av} points")
 
         n_mov_av_thres = 2
         if self.n_mov_av < n_mov_av_thres:
@@ -422,7 +424,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             )
 
             self.logger.debug(
-                f"Feed-forward delay in samples {self.n_ff_delay:.d}",
+                f"Feed-forward delay in samples {self.n_ff_delay}",
             )
 
             # Multiply gain by normalisation factors from filter and
@@ -432,7 +434,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             )
 
         self.logger.debug(
-            f"SPS OTFB cavities: {self.n_cavities:.d}, sections: {self.n_sections:.d}, "
+            f"SPS OTFB cavities: {self.n_cavities}, sections: {self.n_sections}, "
             f"voltage partition {self.V_part:.2f}, gain: {self.G_tx:.2e}",
         )
 
@@ -444,7 +446,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         if self.set_point_modulation:
             if self.V_SET.shape[0] != 2 * self.n_coarse:
                 raise RuntimeError(
-                    f"V_SET length should be {(2 * self.n_coarse):.d}"
+                    f"V_SET length should be {(2 * self.n_coarse)}"
                 )
             self.set_point = self.set_point_mod
         else:
@@ -454,7 +456,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # Array to hold the bucket-by-bucket voltage with length LLRF
         self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug(
-            f"Length of arrays on coarse grid 2x {self.n_coarse:.d}"
+            f"Length of arrays on coarse grid 2x {self.n_coarse}"
         )
 
         # Array if noise is being injected
@@ -473,7 +475,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # Initialize moving average
         self.n_mov_av = round(self.TWC.tau / self.T_s)
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.logger.debug(f"Moving average over {self.n_mov_av:.d} points")
+        self.logger.debug(f"Moving average over {self.n_mov_av} points")
 
         n_mov_av_thres = 2
         if self.n_mov_av < n_mov_av_thres:
@@ -642,7 +644,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 self.I_BEAM_COARSE_FF[-self.n_coarse_ff :],
                 omega_i=self.omega_carrier,
                 omega_f=self.omega_c,
-                T_sampling=5 * self.T_s,
+                t_sampling=5 * self.T_s,
                 phi_0=self.dphi_mod,
                 dt=self.dT,
             )
@@ -673,7 +675,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 self.I_FF_CORR[-self.n_coarse_ff :],
                 omega_i=self.omega_c,
                 omega_f=self.omega_carrier,
-                T_sampling=5 * self.T_s,
+                t_sampling=5 * self.T_s,
                 phi_0=-(self.dphi_mod + phi_delay),
                 dt=self.dT,
             )
@@ -1042,7 +1044,7 @@ class SPSCavityFeedback:
         profile: StaticProfile,
         g_ff: float | list = 1,
         g_llrf: float | list = 10,
-        g_tx: list[float, list] = 0.5,
+        g_tx: float | list = 0.5,
         a_comb: float | None = None,
         turns: int = 1000,
         post_LS2: bool = True,
@@ -1090,15 +1092,15 @@ class SPSCavityFeedback:
                 a_comb = 63 / 64
 
             if v_part is None:
-                V_part = 6 / 10
+                v_part = 6 / 10
             self.OTFB_1 = SPSOneTurnFeedback(
                 profile=profile,
                 n_sections=3,
                 n_cavities=4,
-                V_part=V_part,
-                G_ff=float(G_ff_1),
-                G_llrf=float(G_llrf_1),
-                G_tx=float(G_tx_1),
+                v_part=v_part,
+                g_ff=float(G_ff_1),
+                g_llrf=float(G_llrf_1),
+                g_tx=float(G_tx_1),
                 a_comb=float(a_comb),
                 df=float(df_1),
                 commissioning=commissioning_1,
@@ -1108,7 +1110,7 @@ class SPSCavityFeedback:
                 profile=profile,
                 n_sections=4,
                 n_cavities=2,
-                v_part=1 - V_part,
+                v_part=1 - v_part,
                 g_ff=float(G_ff_2),
                 g_llrf=float(G_llrf_2),
                 g_tx=float(G_tx_2),
@@ -1122,12 +1124,12 @@ class SPSCavityFeedback:
                 a_comb = 15 / 16
 
             if v_part is None:
-                V_part = 4 / 9
+                v_part = 4 / 9
             self.OTFB_1 = SPSOneTurnFeedback(
                 profile=profile,
                 n_sections=4,
                 n_cavities=2,
-                v_part=V_part,
+                v_part=v_part,
                 g_ff=float(G_ff_1),
                 g_llrf=float(G_llrf_1),
                 g_tx=float(G_tx_1),
@@ -1140,7 +1142,7 @@ class SPSCavityFeedback:
                 profile=profile,
                 n_sections=5,
                 n_cavities=2,
-                v_part=1 - V_part,
+                v_part=1 - v_part,
                 g_ff=float(G_ff_2),
                 g_llrf=float(G_llrf_2),
                 g_tx=float(G_tx_2),
@@ -1155,8 +1157,6 @@ class SPSCavityFeedback:
 
         # Initialise OTFB without beam
         self.turns = int(turns)
-
-        self.gap_voltage_phase = np.zeros(self.OTFB_1.n_coarse)
 
         self.logger.info("Class initialized")
 
@@ -1173,7 +1173,7 @@ class SPSCavityFeedback:
         """
         pass
 
-    @requires(["RFStationBaseClass"])
+    @requires(["RFStationBaseClass", "IQCavityFeedback"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -1197,6 +1197,8 @@ class SPSCavityFeedback:
         """
         self.OTFB_1.on_run_simulation(simulation, beam, n_turns, **kwargs)
         self.OTFB_2.on_run_simulation(simulation, beam, n_turns, **kwargs)
+
+        self.gap_voltage_phase = np.zeros(self.OTFB_1.n_coarse)
 
         if self.turns < 1:
             # FeedbackError
