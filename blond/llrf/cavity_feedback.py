@@ -194,6 +194,20 @@ class CavityFeedback:
 
     def track(self):
         r"""Tracking method of the cavity feedback"""
+        if isinstance(self.profile, SparseBatch):
+            # lengthening necessary in case of multi-turn injection
+            if len(self.I_BEAM_FINE) != self.profile.n_slices:
+                difference = self.profile.n_slices - len(self.I_BEAM_FINE)
+                self.I_BEAM_FINE = np.concatenate(
+                    (self.I_BEAM_FINE, np.zeros(difference, dtype=complex))
+                )
+                difference = self.profile.n_slices + 1 - len(self.V_ANT_FINE)
+                self.I_GEN_FINE = np.concatenate(
+                    (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
+                )
+                self.V_ANT_FINE = np.concatenate(
+                    (self.V_ANT_FINE, np.zeros(difference, dtype=complex))
+                )
         # Update parameters from rest of BLonD classes
         self.update_rf_variables()
         self.update_fb_variables()
@@ -1725,16 +1739,15 @@ class LHCCavityLoop(CavityFeedback):
         self.samples_fine = self.omega_rf * self.profile.bin_size
         if isinstance(self.profile, SparseBatch):
             # lengthening necessary in case of multi-turn injection
-            if len(self.V_ANT_FINE) != self.profile.n_slices + 1:
-                difference = self.profile.n_slices + 1 - len(self.V_ANT_FINE)
-                self.V_ANT_FINE = np.concatenate(
-                    (self.V_ANT_FINE, np.zeros(difference, dtype=complex))
-                )
+            # if len(self.V_ANT_FINE) != self.profile.n_slices + 1:
+            #     difference = self.profile.n_slices + 1 - len(self.V_ANT_FINE)
+            #     self.V_ANT_FINE = np.concatenate(
+            #         (self.V_ANT_FINE, np.zeros(difference, dtype=complex))
+            #     )
             for p, profile in enumerate(self.profile.profiles_list):
                 if p == 0:
                     self.V_ANT_FINE[0 : profile.n_slices + 1] = (
-                        self.n_cavities
-                        * cavity_response_sparse_matrix(
+                        cavity_response_sparse_matrix(
                             I_beam=self.I_BEAM_FINE[
                                 p * profile.n_slices : (p + 1)
                                 * profile.n_slices
@@ -1753,7 +1766,6 @@ class LHCCavityLoop(CavityFeedback):
                             detuning=self.detuning,
                         )
                     )
-
                 else:
                     # find the closest previous profile
                     distances = np.array(
@@ -1771,7 +1783,9 @@ class LHCCavityLoop(CavityFeedback):
                     first_half = np.arange(
                         start=profile.bin_centers[0],
                         stop=(
-                            self.profile.profiles_list[index_profile_to_use].bin_centers[0]
+                            self.profile.profiles_list[
+                                index_profile_to_use
+                            ].bin_centers[0]
                         ),
                         step=-profile.bin_size,
                     )
@@ -1792,8 +1806,10 @@ class LHCCavityLoop(CavityFeedback):
                         self.rf_centers,
                         self.I_GEN_COARSE[-self.n_coarse :],
                     )
-                    difference = (len(I_GEN_FINE_previous_profile_extended)
-                                  - profile.n_slices)
+                    difference = (
+                        len(I_GEN_FINE_previous_profile_extended)
+                        - profile.n_slices
+                    )
                     I_BEAM_FINE_previous_profile_extended = np.concatenate(
                         (
                             self.I_BEAM_FINE[
@@ -1831,26 +1847,21 @@ class LHCCavityLoop(CavityFeedback):
                     self.V_ANT_FINE[
                         p * profile.n_slices + 1 : (p + 1) * profile.n_slices
                         + 1
-                    ] = (
-                        self.n_cavities
-                        * cavity_response_sparse_matrix(
-                            I_beam=self.I_BEAM_FINE[
-                                p * profile.n_slices : (p + 1)
-                                * profile.n_slices
-                            ],
-                            I_gen=self.I_GEN_FINE[
-                                p * profile.n_slices : (p + 1)
-                                * profile.n_slices
-                            ],
-                            n_samples=profile.n_slices,
-                            V_ant_init=V_A_init,
-                            I_gen_init=I_gen_init,
-                            samples_per_rf=self.samples_fine,
-                            R_over_Q=self.R_over_Q,
-                            Q_L=self.Q_L,
-                            detuning=self.detuning,
-                        )[-profile.n_slices :]
-                    )
+                    ] = cavity_response_sparse_matrix(
+                        I_beam=self.I_BEAM_FINE[
+                            p * profile.n_slices : (p + 1) * profile.n_slices
+                        ],
+                        I_gen=self.I_GEN_FINE[
+                            p * profile.n_slices : (p + 1) * profile.n_slices
+                        ],
+                        n_samples=profile.n_slices,
+                        V_ant_init=V_A_init,
+                        I_gen_init=I_gen_init,
+                        samples_per_rf=self.samples_fine,
+                        R_over_Q=self.R_over_Q,
+                        Q_L=self.Q_L,
+                        detuning=self.detuning,
+                    )[-profile.n_slices :]
 
         else:
             self.V_ANT_FINE = cavity_response_sparse_matrix(
@@ -1865,9 +1876,9 @@ class LHCCavityLoop(CavityFeedback):
                 detuning=self.detuning,
             )
 
-            self.V_ANT_FINE[-self.profile.n_slices :] = (
-                self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
-            )
+        self.V_ANT_FINE[-self.profile.n_slices :] = (
+            self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
+        )
 
     def generator_current(self):
         r"""Generator response

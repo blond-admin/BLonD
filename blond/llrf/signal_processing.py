@@ -289,6 +289,7 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
+        charges_coarse = np.zeros(n_points, dtype=complex)
         if isinstance(profile, SparseBatch):
             # find the profile covering the latest bunches
             distances = np.array(
@@ -309,13 +310,14 @@ def rf_beam_current(
             )
             ind_fine = np.array(ind_fine, dtype=int)
             indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-            if len(indices) == 0:
+            if len(indices) <= 1:
                 extra_bins = np.arange(
                     profile.profiles_list[index_profile_to_use].bin_centers[
                         -1
                     ],
                     profile.profiles_list[index_profile_to_use].bin_centers[-1]
-                    + T_s
+                    + (2 - len(indices))
+                    * T_s  # ensure at least 2 contiguous coarse-grid points for interpolation
                     + dT
                     + np.pi / omega_c,
                     step=profile.bin_size,
@@ -326,15 +328,23 @@ def rf_beam_current(
                 profile_n_macroparticles = np.concatenate(
                     (profile.n_macroparticles, np.zeros(len(extra_bins)))
                 )
-                charges = (
+                charges_extended = (
                     profile.beam.ratio
                     * profile.beam.particle.charge
                     * e
                     * np.copy(profile_n_macroparticles)
                 )
-                I_f = 2.0 * charges * np.cos(omega_c * profile_bin_centers)
-                Q_f = -2.0 * charges * np.sin(omega_c * profile_bin_centers)
-                charges_fine = I_f + 1j * Q_f
+                I_f = (
+                    2.0
+                    * charges_extended
+                    * np.cos(omega_c * profile_bin_centers)
+                )
+                Q_f = (
+                    -2.0
+                    * charges_extended
+                    * np.sin(omega_c * profile_bin_centers)
+                )
+                charges_fine_for_coarse_grid = I_f + 1j * Q_f
                 warnings.warn(
                     "The length of the sparse profile is too "
                     "short to properly convert the charges from the fine to the coarse grid."
@@ -342,11 +352,13 @@ def rf_beam_current(
                 )
             else:
                 profile_bin_centers = profile.bin_centers
+                charges_fine_for_coarse_grid = charges_fine
         else:
             profile_bin_centers = profile.bin_centers
-        charges_coarse = charges_from_fine_to_coarse(
+            charges_fine_for_coarse_grid = charges_fine
+        charges_coarse += charges_from_fine_to_coarse(
             T_s,
-            charges_fine,
+            charges_fine_for_coarse_grid,
             dT,
             n_points,
             omega_c,
