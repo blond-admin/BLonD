@@ -11,14 +11,20 @@
 from __future__ import annotations
 
 import ctypes as ct
+import inspect
 import os
 import sys
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
-from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
+from blond.core.backends.cpp.compiled_dir_handler import (
+    build_options_valid,
+    cpp_compiled_dir,
+    load_build_options,
+)
 from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -49,6 +55,139 @@ def c_real_t(
         return ct.c_double
     else:
         raise ValueError(floattype)
+
+
+def _resolve_cpp_basepath(folder: str) -> str:
+    """
+    Resolve the ``compiled/<hash>`` directory to load the backend from.
+
+    Prefers the directory built for the last compile's saved options, if
+    those are still usable on this machine; otherwise recompiles with the
+    default options and returns the default directory.
+
+    Parameters
+    ----------
+    folder
+        The backend source folder (the directory of this module).
+
+    Returns
+    -------
+    basepath
+        The ``compiled/<hash>`` directory to load ``libblond_*`` from.
+    """
+    # TODO: decide whether a corrupt/invalid file should
+    # automatically recompile or raise an exception.
+    build_options = load_build_options(folder)
+
+    valid = False
+    if build_options is not None:
+        # Use kwargs of cpp_compiled_dir (minus "folder") to check
+        # cache validity
+        expected_keys = [
+            name
+            for name in inspect.signature(cpp_compiled_dir).parameters
+            if name != "folder"
+        ]
+        valid = build_options_valid(build_options, expected_keys)
+
+    if valid:
+        # The last compile's options are still usable on this machine:
+        # rendezvous with the directory built for them.
+        return cpp_compiled_dir(folder, **build_options)
+
+    if build_options is not None:
+        warnings.warn(
+            "Saved C++ build options are missing expected fields, or "
+            "reference a compiler/library path that is no longer "
+            "available on this machine; recompiling with the default "
+            "build options.",
+            UserWarning,
+            stacklevel=2,
+        )
+        from blond.core.backends.cpp.compile import compile_cpp_library
+
+        compile_cpp_library()
+    # No usable saved options: same toolchain/CPU-aware directory the
+    # compiler writes to by default.
+    return cpp_compiled_dir(folder)
+
+
+def _get_platform() -> str:
+    """
+    Identify the running OS family for library-loading purposes.
+
+    Returns
+    -------
+    platform
+        ``"posix"`` or ``"win"``.
+
+    Raises
+    ------
+    ValueError
+        If neither ``posix`` nor ``win`` is detected.
+    """
+    if "posix" in os.name:
+        platform = "posix"
+    elif "win" in sys.platform:
+        platform = "win"
+    else:
+        raise ValueError(f"Supporting 'win' and 'posix', not {sys.platform}.")
+    return platform
+
+
+def _make_libblond_path(folder: str, path_suffix: str) -> tuple[str, str]:
+    """
+    Build the default (non-``LIBBLOND``-override) path to the compiled lib.
+
+    Parameters
+    ----------
+    folder
+        The backend source folder (the directory of this module).
+    path_suffix
+        ``f"{precision}{parallel_suffix}"``, e.g. ``"double"``.
+
+    Returns
+    -------
+    basepath
+        The ``compiled/<hash>`` directory the library was resolved to.
+    libblond_path
+        Full path to the ``libblond_*`` shared library/DLL.
+    """
+    basepath = _resolve_cpp_basepath(folder)
+    platform = _get_platform()
+    if platform == "posix":
+        libblond_path = os.path.join(basepath, f"libblond_{path_suffix}.so")
+    elif platform == "win":
+        libblond_path = os.path.join(basepath, f"libblond_{path_suffix}.dll")
+
+    return basepath, libblond_path
+
+
+def _get_libblond(libblond_path: str) -> CDLL:
+    """
+    Load the compiled library at ``libblond_path`` via ``ctypes``.
+
+    Parameters
+    ----------
+    libblond_path
+        Path to the ``libblond_*`` shared library/DLL to load.
+
+    Returns
+    -------
+    libblond
+        The loaded ``ctypes.CDLL`` handle.
+    """
+    platform = _get_platform()
+    if platform == "posix":
+        _LIBBLOND = ct.CDLL(str(libblond_path))
+    elif platform == "win":
+        if hasattr(os, "add_dll_directory"):
+            os.add_dll_directory(os.path.dirname(libblond_path))
+            _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
+        else:
+            _LIBBLOND = ct.CDLL(str(libblond_path))
+
+    return _LIBBLOND
 
 
 def reload_cpp_backend(  # NOQA: PLR0915
@@ -90,42 +229,21 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 f"available, requested precision is {precision}"
             )
 
-        libblond_path_ = os.environ.get("LIBBLOND", None)
-        if libblond_path_ is not None and not libblond_path_.strip():
-            raise ValueError(
-                "LIBBLOND is set but empty; unset it to use the default "
-                "library or set it to a valid path."
-            )
-
         folder = os.path.dirname(os.path.abspath(__file__))
 
-        # Same toolchain/CPU-aware directory the compiler writes to.
-        basepath = cpp_compiled_dir(folder)
-        if "posix" in os.name:
-            if libblond_path_ is not None:
-                libblond_path = os.path.abspath(libblond_path_)
-            else:
-                libblond_path = os.path.join(
-                    basepath, f"libblond_{precision}{parallel_suffix}.so"
-                )
-            _LIBBLOND = ct.CDLL(str(libblond_path))
-        elif "win" in sys.platform:
-            if libblond_path_ is not None:
-                libblond_path = os.path.abspath(libblond_path_)
-            else:
-                libblond_path = os.path.join(
-                    basepath, f"libblond_{precision}{parallel_suffix}.dll"
-                )
-
-            if hasattr(os, "add_dll_directory"):
-                os.add_dll_directory(os.path.dirname(libblond_path))
-                _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
-            else:
-                _LIBBLOND = ct.CDLL(str(libblond_path))
+        libblond_path_ = os.environ.get("LIBBLOND", None)
+        if libblond_path_ is None:
+            path_suffix = precision + parallel_suffix
+            basepath, libblond_path = _make_libblond_path(folder, path_suffix)
         else:
-            raise ValueError(
-                f"Supporting 'win' and 'posix', not {sys.platform}."
-            )
+            if libblond_path_.strip() == "":
+                raise ValueError(
+                    "LIBBLOND is set but empty; unset it to use the default "
+                    "library or set it to a valid path."
+                )
+            libblond_path = os.path.abspath(libblond_path_)
+
+        _LIBBLOND = _get_libblond(libblond_path)
 
         if libblond_path_ is None:
             # Refresh the LRU stamp on the hashed cache dir we loaded from
