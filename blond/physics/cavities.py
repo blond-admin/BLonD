@@ -504,6 +504,18 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
+    def get_main_harmonic_phi_rf_design(self) -> float:
+        """
+        Return the phi_rf_design of the main harmonic, in [rad].
+
+        Returns
+        -------
+        main_harmonic_phi_rf_design
+            The phi_rf_design of the main harmonic, in [rad].
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
     def calc_main_harmonic_omega_rf_design(
         self,
         beam_beta: float,
@@ -686,24 +698,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             LocalFeedback as LocalFeedbackExp,  # warning on BLonD startup; prevent Experimental
         )
 
-        if isinstance(cavity_feedback, LocalFeedback | LocalFeedbackExp):
-            if harmonic_index is None:
-                if self._n_rf == 1:
-                    harmonic_index = 0
-                else:
-                    raise ValueError(
-                        "If a single feedback is provided, the harmonic_index needs to be provided as well."
-                    )
-
-            if harmonic_index > self._n_rf - 1:
-                raise ValueError(
-                    "Harmonic index must be less than the number of RF stations."
-                )
-
-            cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
-            self.cavity_feedback_list[harmonic_index] = cavity_feedback
-
-        elif isinstance(cavity_feedback, list):
+        if isinstance(cavity_feedback, list):
             if len(cavity_feedback) != self._n_rf:
                 raise ValueError(
                     f"Provided list has incorrect length, must be {self._n_rf=} but was {len(cavity_feedback)=}."
@@ -730,6 +725,23 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                     stacklevel=1,
                 )
             self.cavity_feedback_list = list(cavity_feedback)
+
+        elif hasattr(cavity_feedback, "V_corr"):
+            if harmonic_index is None:
+                if self._n_rf == 1:
+                    harmonic_index = 0
+                else:
+                    raise ValueError(
+                        "If a single feedback is provided, the harmonic_index needs to be provided as well."
+                    )
+
+            if harmonic_index > self._n_rf - 1:
+                raise ValueError(
+                    "Harmonic index must be less than the number of RF stations."
+                )
+
+            cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
+            self.cavity_feedback_list[harmonic_index] = cavity_feedback
         else:
             raise TypeError(f"Invalid input type {type(cavity_feedback)=}")
 
@@ -1195,6 +1207,17 @@ class SingleHarmonicRFStation(
             The phi_rf of the main harmonic, in [rad].
         """
         return self.phi_rf
+
+    def get_main_harmonic_phi_rf_design(self) -> float:
+        """
+        Return the phi_rf_design of the main harmonic, in [rad].
+
+        Returns
+        -------
+        main_harmonic_phi_rf_design
+            The phi_rf_design of the main harmonic, in [rad].
+        """
+        return self.phi_rf_design
 
     def calc_main_harmonic_omega_rf_design(
         self,
@@ -1717,6 +1740,17 @@ class MultiHarmonicRFStation(
         """
         return self.phi_rf[self.main_harmonic_idx]  # type: ignore
 
+    def get_main_harmonic_phi_rf_design(self) -> float:
+        """
+        Return the phi_rf_design of the main harmonic, in [rad].
+
+        Returns
+        -------
+        main_harmonic_phi_rf_design
+            The phi_rf_design of the main harmonic, in [rad].
+        """
+        return self.phi_rf_design[self.main_harmonic_idx]
+
     def calc_main_harmonic_omega_rf_design(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
@@ -1823,8 +1857,8 @@ class MultiHarmonicRFStation(
                 gap_voltage += self._get_gap_voltage_per_harmonic(
                     ts=self.cavity_feedback_list[0].profile.hist_x,
                     harmonic_index=ind,
-                    voltage_correction_factors=feedback.relative_voltage_correction,
-                    phase_offsets=feedback.phase_correction,
+                    voltage_correction_factors=feedback.V_corr,
+                    phase_offsets=feedback.phi_corr,
                 )
             else:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
