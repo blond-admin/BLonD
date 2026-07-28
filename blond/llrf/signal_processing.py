@@ -289,7 +289,6 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
-        charges_coarse = np.zeros(n_points, dtype=complex)
         if isinstance(profile, SparseBatch):
             # find the profile covering the latest bunches
             distances = np.array(
@@ -356,7 +355,7 @@ def rf_beam_current(
         else:
             profile_bin_centers = profile.bin_centers
             charges_fine_for_coarse_grid = charges_fine
-        charges_coarse += charges_from_fine_to_coarse(
+        charges_coarse = charges_from_fine_to_coarse(
             T_s,
             charges_fine_for_coarse_grid,
             dT,
