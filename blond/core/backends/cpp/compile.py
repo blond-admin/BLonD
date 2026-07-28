@@ -17,7 +17,10 @@ import platform
 import subprocess
 import sys
 
-from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
+from blond.core.backends.cpp.compiled_dir_handler import (
+    cpp_compiled_dir,
+    save_build_options,
+)
 from blond.generals.compiled_cache import mark_used, prune_siblings
 
 _filepath = os.path.realpath(__file__)
@@ -130,81 +133,78 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    compiled_dir: str | None = None
-    for parallel in (False, True):
-        if parallel:
-            print("\nTrying to compile parallel C++ backend.")
-        else:
-            print("\nTrying to compile single core C++ backend.")
+    compiled_ok = True
 
-        if libname is None:
-            folder = os.path.dirname(os.path.abspath(__file__))
+    build_options = {
+        "compiler": compiler,
+        "optimize": optimize,
+        "flags": flags,
+        "libs": libs,
+        "with_fftw": with_fftw,
+        "with_fftw_threads": with_fftw_threads,
+        "with_fftw_omp": with_fftw_omp,
+        "with_fftw_lib": with_fftw_lib,
+        "with_fftw_header": with_fftw_header,
+        "boost": boost,
+    }
+    # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
+    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
-            # Toolchain/CPU/flags-aware directory, computed identically by the
-            # loader (callables.py) so it finds exactly what we build here.
-            compiled_dir = cpp_compiled_dir(
-                folder,
-                compiler=compiler,
-                optimize=optimize,
-                flags=flags,
-                libs=libs,
-                with_fftw=with_fftw,
-                with_fftw_threads=with_fftw_threads,
-                with_fftw_omp=with_fftw_omp,
-                with_fftw_lib=with_fftw_lib,
-                with_fftw_header=with_fftw_header,
-                boost=boost,
-            )
-            os.makedirs(compiled_dir, exist_ok=True)
-            libname = os.path.join(compiled_dir, default_libname)
-        # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-        #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
+    libname, compiled_dir, folder = _get_libname(libname, build_options)
 
-        cflags = [
-            "-O3",
-            "-std=c++11",
-            "-shared",
-            "-funroll-loops",  # Aggressive loop unrolling
-            "-ftree-vectorize",
+    source_cflags = [
+        "-O3",
+        "-std=c++11",
+        "-shared",
+        "-funroll-loops",  # Aggressive loop unrolling
+        "-ftree-vectorize",
+    ]
+    if optimize:
+        # CPU-specific; --no-optimize keeps the binary portable
+        source_cflags += ["-march=native"]
+    # Some additional warning reporting related flags
+    source_cflags += [
+        "-Wall",
+        "-Wno-unknown-pragmas",
+        # Necessary on windows, as here the M_PI etc.
+        # are not defined by mingw without the flag.
+        "-D_USE_MATH_DEFINES",
+    ]
+
+    # Get boost path
+    boost_path = None
+    if boost is not None:
+        boost_path = os.path.abspath(boost) if boost else ""
+        source_cflags += ["-I", boost_path, "-DBOOST"]
+
+    with_fftw = any(
+        [
+            with_fftw,
+            with_fftw_threads,
+            with_fftw_omp,
+            with_fftw_lib,
+            with_fftw_header,
         ]
-        if optimize:
-            # CPU-specific; --no-optimize keeps the binary portable
-            cflags += ["-march=native"]
-        # Some additional warning reporting related flags
-        cflags += [
-            "-Wall",
-            "-Wno-unknown-pragmas",
-            # Necessary on windows, as here the M_PI etc.
-            # are not defined by mingw without the flag.
-            "-D_USE_MATH_DEFINES",
-        ]
+    )
+
+    libs_ = libs.split() if libs else []
+
+    split_flags = flags.split() if flags else []
+
+    loop_flags = {
+        "parallel": source_cflags
+        + ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
+        + split_flags,
+        "single core": source_cflags + split_flags,
+    }
+
+    for parallel, style in zip(
+        (False, True), ("single core", "parallel"), strict=True
+    ):
+        print(f"\nTrying to compile {style} C++ backend.")
 
         for file in cpp_files:
             assert os.path.isfile(file), f"{file=}"
-
-        with_fftw = any(
-            [
-                with_fftw,
-                with_fftw_threads,
-                with_fftw_omp,
-                with_fftw_lib,
-                with_fftw_header,
-            ]
-        )
-
-        # Get boost path
-        boost_path = None
-        if boost is not None:
-            boost_path = os.path.abspath(boost) if boost else ""
-            cflags += ["-I", boost_path, "-DBOOST"]
-
-        libs_ = libs.split() if libs else []
-
-        if parallel:
-            cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
-
-        if flags:
-            cflags += flags.split()
 
         fftw_cflags, fftw_libs = _prepare_fftw(
             with_fftw=with_fftw,
@@ -215,7 +215,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         )
 
         cflags, libname_double = _prepare_cflags(
-            cflags=cflags,
+            cflags=loop_flags[style],
             compiler=compiler,
             libname=libname,
             optimize=optimize,
@@ -271,6 +271,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         ret = run_compile(command, libname_double)
         if ret != 0:
             print("There was a compilation error.")
+            compiled_ok = False
         else:
             # Verify that the libraries have been compiled
             try:
@@ -284,6 +285,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             except Exception as exception:
                 print("Compilation failed.")
                 print(exception)
+                compiled_ok = False
 
     # Record use of this build's directory. Skipped when a custom libname
     # bypassed the hashed directory layout. Eviction of least-recently-used
@@ -293,6 +295,26 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         mark_used(compiled_dir)
         if limit_cachesize:
             prune_siblings(compiled_dir)  # evict old siblings; keep this one
+        if compiled_ok:
+            save_build_options(folder, **build_options)
+
+
+def _get_libname(
+    libname: str, build_options: dict[str, bool | str]
+) -> tuple[str, str | None, str | None]:
+
+    compiled_dir = None
+    folder = None
+    if libname is None:
+        folder = os.path.dirname(os.path.abspath(__file__))
+
+        # Toolchain/CPU/flags-aware directory, computed identically by the
+        # loader (callables.py) so it finds exactly what we build here.
+        compiled_dir = cpp_compiled_dir(folder, **build_options)
+        os.makedirs(compiled_dir, exist_ok=True)
+        libname = os.path.join(compiled_dir, default_libname)
+
+    return libname, compiled_dir, folder
 
 
 def _prepare_cflags(
