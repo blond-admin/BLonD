@@ -11,6 +11,7 @@ Lina Valle
 import unittest
 
 import numpy as np
+from numpy.random import shuffle
 import warnings
 from scipy.constants import e
 
@@ -48,8 +49,10 @@ BUNCH_SIGMA_DT = 0.25e-9
 number_of_batches = 10  # Length of the batch [number of batches]
 batch_spacing = 5  # Number of empty buckets between each batch [number of rf
 # buckets]
-
-number_of_bunches_per_batch = 3  # number of bunches per batch i.e. per profile
+batch_list = np.arange(0, 5 * number_of_batches, batch_spacing)
+batch_list = [0, 45, 20, 35, 10, 30, 20, 40, 5, 15]
+number_of_bunches_per_batch = 3  # number of bunches per batch i.e.
+# per profile
 bunch_spacing = 1  # Number of empty buckets between each bunch
 
 total_length_batch = (
@@ -125,14 +128,14 @@ def build_beam(ring, rf_station, injected_batches, seed=1234):
             beam.dt[
                 i * N_MACROPARTICLES_PER_BATCH : (i + 1)
                 * N_MACROPARTICLES_PER_BATCH
-            ] = single_batch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
+            ] = single_batch.dt + batch_list[0] * rf_station.t_rf[0, 0]
     else:
         for i in range(injected_batches):
             beam.dE[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
                 single_bunch.dE
             )
             beam.dt[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
-                single_bunch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
+                single_bunch.dt + batch_list[0] * rf_station.t_rf[0, 0]
             )
     return beam, injected_batches
 
@@ -179,8 +182,8 @@ def update_beam(
         injected_batches += 1
         updated_batch_list = np.zeros(HARMONIC_NUMBER)
         for k in range(injected_batches):
-            updated_batch_list[k * batch_spacing] = 1
-        index = np.where(updated_batch_list == 1)[0][-1]
+            updated_batch_list[batch_list[k]] = 1
+        index = batch_list[injected_batches - 1]
         beam.add_particles(
             [single_batch.dt + index * rf_station.t_rf[0, 0], single_batch.dE]
         )
@@ -210,14 +213,14 @@ def build_standard_profile(beam, rf_station, n_slices):
 
 def build_sparse_profile(beam, rf_station, n_slices, injected_batches):
     """A SparseBatch profile with a profile per number of bunches."""
-    batch_list = np.zeros(HARMONIC_NUMBER)
+    input_batch_list = np.zeros(HARMONIC_NUMBER)
     for k in range(injected_batches):
-        batch_list[k * batch_spacing] = 1
+        input_batch_list[batch_list[k]] = 1
     sparse_profile = SparseBatch(
         rf_station=rf_station,
         beam=beam,
         number_of_slices_per_profile=(int(batch_spacing / 2) + 1) * n_slices,
-        batch_list=batch_list,
+        batch_list=input_batch_list,
         batch_length=int(batch_spacing / 2) + 1,
         tracker_mode="onebyone",
     )
@@ -436,33 +439,68 @@ class TestRFBeamCurrent(unittest.TestCase):
         order = np.argsort(self.profile_sparse.bin_centers)
         profile_bin_centers = self.profile_sparse.bin_centers[order]
         profile_n_macroparticles = self.profile_sparse.n_macroparticles[order]
-        extra_bins = np.arange(
-            profile_bin_centers[-1],
-            profile_bin_centers[-1] + 2 * self.T_s + 0 + np.pi / self.omega,
-            step=self.profile_sparse.bin_size,
-        )
-        profile_bin_centers_for_coarse = np.concatenate(
-            (profile_bin_centers, extra_bins)
-        )
-        profile_n_macroparticles_for_coarse = np.concatenate(
-            (profile_n_macroparticles, np.zeros(len(extra_bins)))
-        )
-        charges = (
-            self.profile_sparse.beam.ratio
-            * self.profile_sparse.beam.particle.charge
-            * e
-            * np.copy(profile_n_macroparticles_for_coarse)
-        )
-        I_f = (
-            2.0 * charges * np.cos(self.omega * profile_bin_centers_for_coarse)
-        )
-        Q_f = (
-            -2.0
-            * charges
-            * np.sin(self.omega * profile_bin_centers_for_coarse)
-        )
-        charges_fine_for_coarse_grid = I_f + 1j * Q_f
 
+        ind_fine = np.round(
+            (profile_bin_centers - 0 - np.pi / self.omega) / self.T_s
+        )
+        ind_fine = np.array(ind_fine, dtype=int)
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) >= 1)[0]
+        if len(indices) == 0:
+            extra_bins = np.arange(
+                profile_bin_centers[-1],
+                profile_bin_centers[-1] + self.T_s + 0 + np.pi / self.omega,
+                step=self.profile_sparse.bin_size,
+            )
+            profile_bin_centers_for_coarse = np.concatenate(
+                (self.profile_sparse.bin_centers, extra_bins)
+            )
+            profile_n_macroparticles = np.concatenate(
+                (
+                    self.profile_sparse.n_macroparticles,
+                    np.zeros(len(extra_bins)),
+                )
+            )
+            charges = (
+                self.profile_sparse.beam.ratio
+                * self.profile_sparse.beam.particle.charge
+                * e
+                * np.copy(profile_n_macroparticles)
+            )
+            I_f = (
+                2.0
+                * charges
+                * np.cos(self.omega * profile_bin_centers_for_coarse)
+            )
+            Q_f = (
+                -2.0
+                * charges
+                * np.sin(self.omega * profile_bin_centers_for_coarse)
+            )
+            charges_fine_for_coarse_grid = I_f + 1j * Q_f
+            warnings.warn(
+                "The length of the sparse profile is too "
+                "short to properly convert the charges from the fine to the coarse grid."
+                "Profile has been extented."
+            )
+        else:
+            profile_bin_centers_for_coarse = profile_bin_centers
+            charges_extended = (
+                self.profile_sparse.beam.ratio
+                * self.profile_sparse.beam.particle.charge
+                * e
+                * np.copy(profile_n_macroparticles)
+            )
+            I_f = (
+                2.0
+                * charges_extended
+                * np.cos(self.omega * profile_bin_centers)
+            )
+            Q_f = (
+                -2.0
+                * charges_extended
+                * np.sin(self.omega * profile_bin_centers)
+            )
+            charges_fine_for_coarse_grid = I_f + 1j * Q_f
         charges_coarse_sparse = charges_from_fine_to_coarse(
             T_s=self.T_s,
             charges_fine=charges_fine_for_coarse_grid,
@@ -603,6 +641,7 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.assertEqual(injected_batches, k + 2)
 
             self.profile_std.track()
+            self.profile_sparse.track()
             for p, profile in enumerate(self.profile_sparse.profiles_list):
                 index = np.argmin(
                     np.abs(
@@ -648,6 +687,7 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.assertEqual(injected_batches, k + 2)
 
             self.profile_std.track()
+            self.profile_sparse.track()
 
             charges_std = (
                 self.profile_std.beam.ratio
@@ -744,6 +784,16 @@ class TestRFBeamCurrent(unittest.TestCase):
                     rtol=self.rtol,
                     atol=self.atol,
                 )
+                np.testing.assert_allclose(
+                    np.sum(charges_fine_std[index : index + profile.n_slices]),
+                    np.sum(
+                        charges_fine_sparse[
+                            p * profile.n_slices : (p + 1) * profile.n_slices
+                        ]
+                    ),
+                    rtol=self.rtol,
+                    atol=self.atol,
+                )
 
     def test_muliturn_injection_from_fine_to_coarse(self):
         injected_batches = 1
@@ -816,7 +866,6 @@ class TestRFBeamCurrent(unittest.TestCase):
             profile_n_macroparticles = self.profile_sparse.n_macroparticles[
                 order
             ]
-
             extra_bins = np.arange(
                 profile_bin_centers[-1],
                 profile_bin_centers[-1]
@@ -921,6 +970,7 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.assertEqual(injected_batches, k + 2)
 
             self.profile_std.track()
+            self.profile_sparse.track()
 
             rf_current_std = rf_beam_current(
                 self.profile_std,
@@ -970,7 +1020,8 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.assertEqual(injected_batches, k + 2)
 
             self.profile_std.track()
-            # self.profile_sparse.track()
+            self.profile_sparse.track()
+
             downsample_dict = {
                 "Ts": self.T_s,
                 "points": self.n_points,

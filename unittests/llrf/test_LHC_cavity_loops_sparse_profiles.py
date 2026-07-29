@@ -23,7 +23,7 @@ import unittest
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate.interpolate import interp1d
+from scipy.interpolate import interp1d
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
@@ -144,12 +144,12 @@ def build_standard_profile(beam, rf_station, n_slices):
         beam,
         CutOptions(
             cut_left=0.0,
-            cut_right=(batch_spacing * number_of_batches + 1)
+            cut_right=(batch_spacing * number_of_batches + 10)
             * rf_station.t_rf[
                 0,
                 0,
             ],
-            n_slices=n_slices * (batch_spacing * number_of_batches + 1),
+            n_slices=n_slices * (batch_spacing * number_of_batches + 10),
         ),
     )
     profile.track()
