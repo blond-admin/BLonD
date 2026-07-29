@@ -62,8 +62,8 @@ def _resolve_cpp_basepath(folder: str) -> str:
     Resolve the ``compiled/<hash>`` directory to load the backend from.
 
     Prefers the directory built for the last compile's saved options, if
-    those are still usable on this machine; otherwise recompiles with the
-    default options and returns the default directory.
+    those are still usable and the directory exists.  Otherwise, falls
+    back to the default-options directory with a warning.
 
     Parameters
     ----------
@@ -93,23 +93,31 @@ def _resolve_cpp_basepath(folder: str) -> str:
     if valid:
         # The last compile's options are still usable on this machine:
         # rendezvous with the directory built for them.
-        return cpp_compiled_dir(folder, **build_options)
+        basepath = cpp_compiled_dir(folder, **build_options)
 
-    if build_options is not None:
-        warnings.warn(
-            "Saved C++ build options are missing expected fields, or "
-            "reference a compiler/library path that is no longer "
-            "available on this machine; recompiling with the default "
-            "build options.",
-            UserWarning,
-            stacklevel=2,
-        )
-        from blond.core.backends.cpp.compile import compile_cpp_library
+        if not os.path.isdir(basepath):
+            warnings.warn(
+                "The directory for the previously compiled C++ backend "
+                f"(built with options: {build_options}) is missing; "
+                "falling back to the default build options.",
+                UserWarning,
+                stacklevel=2,
+            )
+            basepath = cpp_compiled_dir(folder)
 
-        compile_cpp_library()
-    # No usable saved options: same toolchain/CPU-aware directory the
-    # compiler writes to by default.
-    return cpp_compiled_dir(folder)
+    else:
+        if build_options is not None:
+            warnings.warn(
+                "Saved C++ build options are missing expected fields, or "
+                "reference a compiler/library path that is no longer "
+                "available on this machine; falling back to the default "
+                "build options.",
+                UserWarning,
+                stacklevel=2,
+            )
+        basepath = cpp_compiled_dir(folder)
+
+    return basepath
 
 
 def _get_platform() -> str:
@@ -211,46 +219,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
     """
     parallel_suffix = "" if parallel else "_noOMP"
-
-    def load_libblond(precision: str = "double") -> CDLL:
-        """
-        Locates and initializes the blond compiled library.
-
-        Parameters
-        ----------
-        precision
-            The floating point precision of the calculations.
-            Can only be 'double'.
-            Default is  "double".
-        """
-        if precision != "double":
-            raise TypeError(
-                "Only double precision (64 Bit) callables are "
-                f"available, requested precision is {precision}"
-            )
-
-        folder = os.path.dirname(os.path.abspath(__file__))
-
-        libblond_path_ = os.environ.get("LIBBLOND", None)
-        if libblond_path_ is None:
-            path_suffix = precision + parallel_suffix
-            basepath, libblond_path = _make_libblond_path(folder, path_suffix)
-        else:
-            if libblond_path_.strip() == "":
-                raise ValueError(
-                    "LIBBLOND is set but empty; unset it to use the default "
-                    "library or set it to a valid path."
-                )
-            libblond_path = os.path.abspath(libblond_path_)
-
-        _LIBBLOND = _get_libblond(libblond_path)
-
-        if libblond_path_ is None:
-            # Refresh the LRU stamp on the hashed cache dir we loaded from
-            # (skipped when an explicit LIBBLOND path bypassed it).
-            mark_used(basepath)
-
-        return _LIBBLOND
+    precision = "double"
 
     # Validate up front; only ``double``/float64 is supported. These raise
     # TypeError, which is unrelated to the load failures handled below.
@@ -258,10 +227,48 @@ def reload_cpp_backend(  # NOQA: PLR0915
         raise TypeError("32-bit float and 64-bit complex have been removed.")
     elif floattype != np.float64:
         raise TypeError(floattype)
+    elif precision != "double":
+        raise TypeError(
+            "Only double precision (64 Bit) callables are "
+            f"available, requested precision is {precision}"
+        )
+
+    # Resolved once, up front, so a failed load doesn't need to leak state
+    # out of an exception -- `load_libblond` below only reads these.
+    folder = os.path.dirname(os.path.abspath(__file__))
+    libblond_path_ = os.environ.get("LIBBLOND", None)
+    if libblond_path_ is not None and libblond_path_.strip() == "":
+        raise ValueError(
+            "LIBBLOND is set but empty; unset it to use the default "
+            "library or set it to a valid path."
+        )
+
+    if libblond_path_ is None:
+        path_suffix = precision + parallel_suffix
+        basepath, libblond_path = _make_libblond_path(folder, path_suffix)
+    else:
+        basepath = None
+        libblond_path = os.path.abspath(libblond_path_)
+
+    def load_libblond() -> CDLL:
+        """
+        Loads the resolved ``libblond_path``, refreshing its LRU stamp.
+
+        Returns
+        -------
+        CDLL
+            The loaded compiled library.
+        """
+        _LIBBLOND = _get_libblond(libblond_path)
+        if basepath is not None:
+            # Refresh the LRU stamp on the hashed cache dir we loaded from
+            # (skipped when an explicit LIBBLOND path bypassed it).
+            mark_used(basepath)
+        return _LIBBLOND
 
     # FileNotFoundError is an OSError subclass; catching OSError covers both.
     try:
-        _LIBBLOND = load_libblond(precision="double")
+        _LIBBLOND = load_libblond()
     except OSError:
         from blond.core.backends.cpp.compile import compile_cpp_library
 
@@ -270,7 +277,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         )
         compile_cpp_library()
         try:
-            _LIBBLOND = load_libblond(precision="double")
+            _LIBBLOND = load_libblond()
         except OSError as exc:
             raise OSError(
                 "`load_libblond` failed. Has the backend been compiled?\n"

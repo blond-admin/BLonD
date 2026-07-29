@@ -16,6 +16,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import numpy as np
+
 from blond.core.backends.cpp import callables
 from blond.core.backends.cpp import compiled_dir_handler as lc
 
@@ -77,6 +79,13 @@ class TestCallables(unittest.TestCase):
             self.skipTest("needs g++")
         custom_options = _default_options(flags="-DFOO")
         lc.save_build_options(self.folder, **custom_options)
+        # The directory built for these options must exist on disk for
+        # them to be used -- otherwise `_resolve_cpp_basepath` falls back
+        # to the default, see `test_cpp_basepath_valid_options_missing_dir`.
+        os.makedirs(
+            lc.cpp_compiled_dir(self.folder, **custom_options),
+            exist_ok=True,
+        )
 
         with mock.patch(
             "blond.core.backends.cpp.compile.compile_cpp_library"
@@ -86,6 +95,26 @@ class TestCallables(unittest.TestCase):
         self.assertEqual(
             basepath, lc.cpp_compiled_dir(self.folder, **custom_options)
         )
+        mocked_compile.assert_not_called()
+
+    def test_cpp_basepath_valid_options_missing_dir(self):
+        if not _HAS_GPP:
+            self.skipTest("needs g++")
+        custom_options = _default_options(flags="-DFOO")
+        lc.save_build_options(self.folder, **custom_options)
+        # Deliberately do not create the directory these options hash to
+        # (e.g. it was evicted from the compiled-directory LRU cache).
+
+        with mock.patch(
+            "blond.core.backends.cpp.compile.compile_cpp_library"
+        ) as mocked_compile:
+            with self.assertWarns(UserWarning) as ctx:
+                basepath = callables._resolve_cpp_basepath(self.folder)
+
+        # Falls back to the default directory rather than recompiling
+        # with, or reusing, the stale custom options.
+        self.assertEqual(basepath, lc.cpp_compiled_dir(self.folder))
+        self.assertIn("-DFOO", str(ctx.warning))
         mocked_compile.assert_not_called()
 
     def test_cpp_basepath_invalid_options(self):
@@ -102,7 +131,7 @@ class TestCallables(unittest.TestCase):
                 basepath = callables._resolve_cpp_basepath(self.folder)
 
         self.assertEqual(basepath, lc.cpp_compiled_dir(self.folder))
-        mocked_compile.assert_called_once()
+        mocked_compile.assert_not_called()
 
     def test_make_libblond_path(self):
         with (
