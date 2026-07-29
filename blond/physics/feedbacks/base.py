@@ -95,8 +95,7 @@ class LocalFeedback(FeedbackBaseClass):
         self._parent_rf_station: (
             SingleHarmonicRFStation | MultiHarmonicRFStation | None
         ) = None
-
-        self.relative_voltage_correction: NumpyArray | None = None
+        self.relative_amplitude_correction: NumpyArray | None = None
         """Relative correction to the setpoint voltage stemming from the feedback, has to be defined on the profile time grid."""
         self.phase_correction: NumpyArray | None = None
         """Correction to the rf phase, has to be defined on the profile time grid."""

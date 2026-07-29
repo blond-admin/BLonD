@@ -311,7 +311,7 @@ class LHCCavityFeedback(IQCavityFeedback):
         """
         pass
 
-    @requires(["RfStationBaseClass"])
+    @requires(["RFStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -335,7 +335,7 @@ class LHCCavityFeedback(IQCavityFeedback):
         """
         super().on_run_simulation(simulation, beam, n_turns, **kwargs)
         self.logger.debug(
-            f"Length of arrays in generator path {self.n_coarse:.d}"
+            f"Length of arrays in generator path {self.n_coarse}"
         )
 
         # Initialise FIR filter for OTFB
@@ -379,7 +379,7 @@ class LHCCavityFeedback(IQCavityFeedback):
         )
 
         # Pre-track without beam
-        self.logger.debug(f"Track without beam for {self.n_pretrack:.d} turns")
+        self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
         if self.excitation:
             self.excitation_otfb = False
             self.logger.debug("Injecting noise in voltage set point")
@@ -417,7 +417,7 @@ class LHCCavityFeedback(IQCavityFeedback):
             omega_rf=omega_rf, harmonic=harmonic
         )
         self.logger.debug(
-            f"Length of arrays in generator path {self.n_coarse:.d}"
+            f"Length of arrays in generator path {self.n_coarse}"
         )
 
         # Initialise FIR filter for OTFB
@@ -464,7 +464,7 @@ class LHCCavityFeedback(IQCavityFeedback):
         self.V_EXC_OUT: LateInit = None
 
         # Pre-track without beam
-        self.logger.debug(f"Track without beam for {self.n_pretrack:.d} turns")
+        self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
         if self.excitation:
             self.excitation_otfb = False
             self.logger.debug("Injecting noise in voltage set point")
@@ -563,14 +563,14 @@ class LHCCavityFeedback(IQCavityFeedback):
         )(t_at_init)
 
         self.V_ANT_FINE = cavity_response_sparse_matrix(
-            I_beam=self.I_BEAM_FINE,
-            I_gen=self.I_GEN_FINE,
+            i_beam=self.I_BEAM_FINE,
+            i_gen=self.I_GEN_FINE,
             n_samples=self.profile.n_bins,
-            V_ant_init=V_A_init,
-            I_gen_init=I_gen_init,
+            v_ant_init=V_A_init,
+            i_gen_init=I_gen_init,
             samples_per_rf=self.samples_fine,
-            R_over_Q=self.R_over_Q,
-            Q_L=self.Q_L,
+            r_over_q=self.R_over_Q,
+            q_l=self.Q_L,
             detuning=self.detuning,
         )
 
@@ -738,17 +738,14 @@ class LHCCavityFeedback(IQCavityFeedback):
     def tuner(self):
         """Model of the tuner algorithm."""
         # Compute the detuning factor for the current turn
+        volt = self.get_voltage_from_parent_rf_station()
         dtune = (
             -(self.mu / 2)
             * (
                 np.min(self.TUNER_INTEGRATED[-self.n_coarse :].imag)
                 + np.max(self.TUNER_INTEGRATED[-self.n_coarse :].imag)
             )
-            / (
-                self._parent_rf_station.voltage[self.harmonic_index]
-                / self.n_cavities
-            )
-            ** 2
+            / (volt / self.n_cavities) ** 2
         )
 
         # Propagate the corrections to the detuning two the global parameters
@@ -781,7 +778,7 @@ class LHCCavityFeedback(IQCavityFeedback):
             T_s = self.T_s
             self.ind = i + self.n_coarse
             self.cavity_response(samples=T_s * self.omega_rf)
-            self.rf_feedback(T_s=T_s)
+            self.rf_feedback(t_s=T_s)
             self.swap()
             self.generator_current()
             self.tuner_input()

@@ -1056,7 +1056,8 @@ class SPSCavityFeedback:
         # Options for commissioning the feedback
         self.alpha_sum: NumpyArray | None = None
         self.V_sum: NumpyArray | None = None
-        self.V_corr: NumpyArray | None = None
+        self.relative_amplitude_correction: NumpyArray | None = None
+        self.phase_correction: NumpyArray | None = None
         self.profile = profile
 
         if commissioning is None:
@@ -1243,13 +1244,15 @@ class SPSCavityFeedback:
         )
 
         # Convert to amplitude and phase modulation
-        self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
+        self.relative_amplitude_correction, self.alpha_sum = (
+            cartesian_to_polar(self.V_sum)
+        )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
-            self.OTFB_1.harmonic_index
-        ]
-        self.phi_corr = self.alpha_sum - np.angle(
+        self.relative_amplitude_correction /= (
+            self.OTFB_1._parent_rf_station.voltage[self.OTFB_1.harmonic_index]
+        )
+        self.phase_correction = self.alpha_sum - np.angle(
             np.mean(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :])
         )
 
@@ -1317,13 +1320,15 @@ class SPSCavityFeedback:
         )
 
         # Convert to amplitude and phase
-        self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
+        self.relative_amplitude_correction, self.alpha_sum = (
+            cartesian_to_polar(self.V_sum)
+        )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
-            self.OTFB_1.harmonic_index
-        ]
-        self.phi_corr = self.alpha_sum - np.angle(
+        self.relative_amplitude_correction /= (
+            self.OTFB_1._parent_rf_station.voltage[self.OTFB_1.harmonic_index]
+        )
+        self.phase_correction = self.alpha_sum - np.angle(
             np.interp(
                 self.OTFB_1.profile.hist_x,
                 self.OTFB_1.rf_centers,

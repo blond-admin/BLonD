@@ -726,7 +726,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 )
             self.cavity_feedback_list = list(cavity_feedback)
 
-        elif hasattr(cavity_feedback, "V_corr"):
+        elif hasattr(cavity_feedback, "relative_amplitude_correction"):
             if harmonic_index is None:
                 if self._n_rf == 1:
                     harmonic_index = 0
@@ -1401,7 +1401,7 @@ class SingleHarmonicRFStation(
             phase_offsets=self.cavity_feedback_list[0].phase_correction,
             voltage_correction_factors=self.cavity_feedback_list[
                 0
-            ].relative_voltage_correction,
+            ].relative_amplitude_correction,
         )
 
         return gap_voltage
@@ -1857,8 +1857,8 @@ class MultiHarmonicRFStation(
                 gap_voltage += self._get_gap_voltage_per_harmonic(
                     ts=self.cavity_feedback_list[0].profile.hist_x,
                     harmonic_index=ind,
-                    voltage_correction_factors=feedback.V_corr,
-                    phase_offsets=feedback.phi_corr,
+                    voltage_correction_factors=feedback.relative_amplitude_correction,
+                    phase_offsets=feedback.phase_correction,
                 )
             else:
                 gap_voltage += self._get_gap_voltage_per_harmonic(

@@ -131,9 +131,7 @@ class IQCavityFeedback(LocalFeedback):
 
         self.rf_centers: NumpyArray | None = None
 
-        self.V_corr: NumpyArray | None = None
         self.alpha_sum: NumpyArray | None = None
-        self.phi_corr: NumpyArray | None = None
         self.omega_carrier_prev: float | None = None
         self.T_s_prev: float | None = None
         self.rf_centers_prev: NumpyArray | None = None
@@ -427,13 +425,17 @@ class IQCavityFeedback(LocalFeedback):
         self.circuit_track()
 
         # Convert to amplitude and phase
-        self.V_corr, self.alpha_sum = cartesian_to_polar(
-            IQ_vector=self.V_ANT_FINE[-self.profile.n_bins :],
+        self.relative_amplitude_correction, self.alpha_sum = (
+            cartesian_to_polar(
+                IQ_vector=self.V_ANT_FINE[-self.profile.n_bins :],
+            )
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.get_voltage_from_parent_rf_station()
-        self.phi_corr = self.alpha_sum - np.mean(
+        self.relative_amplitude_correction /= (
+            self.get_voltage_from_parent_rf_station()
+        )
+        self.phase_correction = self.alpha_sum - np.mean(
             np.angle(self.V_SET[-self.n_coarse :])
         )
 
