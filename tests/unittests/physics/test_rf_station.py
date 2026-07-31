@@ -1820,6 +1820,19 @@ class TestArbitraryRFWaveform(BLonDTestCase):
             copy_to_cpu(beam.dE.array_local), copy_to_cpu(expected)
         )
 
+    def test_discontinuous_time(self):
+
+        time = backend.as_backend_array(
+            np.linspace(0, 1e-6, 1024).tolist()
+            + np.linspace(3e-6, 4e-6, 1024).tolist()
+        )
+        waveform = backend.as_backend_array(
+            backend.linspace(-5e3, 5e3, 1024).tolist() * 2
+        )
+        gain = 0.5
+        with self.assertRaises(ValueError):
+            _ = ArbitraryRFWaveform(time, waveform, gain)
+
 
 if __name__ == "__main__":
     unittest.main()

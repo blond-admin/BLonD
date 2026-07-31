@@ -295,6 +295,15 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
         super().__init__(section_index=section_index, name=name, **kwargs)
 
         self.time = backend.as_backend_array(time)
+        time_delta = self.time[1:] - self.time[:-1]
+
+        if np.max(time_delta) / np.min(time_delta) - 1 > 1e-10:  # noqa: PLR2004
+            raise ValueError(
+                "Continuous time is required, but the bin spacing varies too "
+                f"much.  Maximum delta {np.max(time_delta)}, minimum delta "
+                f"{np.min(time_delta)}."
+            )
+
         self.waveform = backend.as_backend_array(waveform)
 
         self.waveform_gain: float = waveform_gain
