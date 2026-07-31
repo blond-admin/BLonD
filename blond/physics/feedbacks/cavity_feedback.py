@@ -18,9 +18,11 @@ Helga Timko
 
 from __future__ import annotations
 
+import dataclasses
 import warnings
-from abc import abstractmethod
-from typing import TYPE_CHECKING
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 import numpy as np
 
@@ -42,7 +44,333 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
 
 
-class IQCavityFeedback(LocalFeedback):
+class TwoTurnArray:
+    """
+    Wrapper for a NumPy Array of dimension (2, N) array representing [previous turn, current turn].
+
+    The class is intended to be used with local feedback systems.
+    Indexing with a non-negative int/slice reads from CURR, as normal.
+    Indexing with a negative int/slice transparently reaches back into
+    PREV, as if CURR were conceptually preceded by PREV — no full
+    concatenation needed for single-sample access.
+
+    Parameters
+    ----------
+    n_samples
+        Number of samples per turn.
+    dtype
+        The data-type stored in the array.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, n_samples: int, dtype=np.float64):
+        self._data = np.zeros((2, n_samples), dtype=dtype)
+
+    @property
+    def n_samples(self) -> int:
+        """
+        Number of samples per turn.
+
+        Returns
+        -------
+        n_samples
+            Number of samples of each turn.
+        """
+        return self._data.shape[1]
+
+    @property
+    def prev(self) -> NumpyArray:
+        """
+        The array of the previous turn.
+
+        Returns
+        -------
+        prev
+            The array of values from the previous turn.
+        """
+        return self._data[0]
+
+    @prev.setter
+    def prev(self, array: NumpyArray):
+        """
+        Set the values of the previous-turn array.
+
+        Parameters
+        ----------
+        array
+            Array of values to set the previous-turn array with.
+        """
+        self._data[0] = array
+
+    @property
+    def curr(self) -> NumpyArray:
+        """
+        The array of the current turn.
+
+        Returns
+        -------
+        prev
+            The array of values from the current turn.
+        """
+        return self._data[1]
+
+    @curr.setter
+    def curr(self, array: NumpyArray):
+        """
+        Set the values of the current-turn array.
+
+        Parameters
+        ----------
+        array
+            Array of values to set the current-turn array with.
+        """
+        self._data[1] = array
+
+    def shift(self) -> None:
+        """Shift the current turn into the previous."""
+        self._data[0] = self._data[1]
+
+    @property
+    def full(self) -> NumpyArray:
+        """
+        Flat array spanning the previous and current turn.
+
+        Returns
+        -------
+        full
+            Array spanning the previous and current turn.
+        """
+        return np.concatenate(self._data)
+
+    def __getitem__(self, key: int | np.integer | slice):
+        """
+        Get elements from the current turn.
+
+        Negative values for the key correspond to values
+        indices in the previous turn.
+
+        Parameters
+        ----------
+        key
+            The key for obtaining the values on the array.
+
+        Returns
+        -------
+        values
+            The values corresponding to the key.
+        """
+        n = self.n_samples
+        if isinstance(key, (int, np.integer)):
+            if key >= 0:
+                return self.curr[key]
+            idx = n + key
+            if idx < 0:
+                raise IndexError(
+                    f"index {key} reaches back further than one turn of history"
+                )
+            return self.prev[idx]
+
+        if isinstance(key, slice):
+            start = 0 if key.start is None else key.start
+            stop = n if key.stop is None else key.stop
+            step = 1 if key.step is None else key.step
+            if start >= 0 and stop >= 0:
+                return self.curr[start:stop:step]
+            # boundary-crossing or fully negative slice: only concatenate
+            # the (small) region actually needed
+            concat = np.concatenate(self._data)
+            lo = n + start if start < 0 else start
+            hi = n + stop if stop < 0 else stop
+            return concat[lo:hi:step]
+
+        raise TypeError(f"unsupported index type: {type(key)}")
+
+    def __setitem__(self, key, value) -> None:
+        """
+        Set elements in the two-turn array.
+
+        Parameters
+        ----------
+        key
+            The kay of the elements you want to change.
+        value
+            The new values of the elements corresponding to the key.
+        """
+        if isinstance(key, (int, np.integer)) and key < 0:
+            raise IndexError("cannot write into previous-turn history")
+        self.curr[key] = value
+
+    def __len__(self) -> int:
+        """
+        The length of the turns.
+
+        Returns
+        -------
+        n_samples
+            The length of each turn in number of samples.
+        """
+        return self.n_samples
+
+    def __repr__(self) -> str:
+        """
+        Printable representation of the TwoTurnArray.
+
+        Returns
+        -------
+        info_string
+            String showing previous and current turn elements.
+        """
+        return f"TwoTurnArray(prev={self.prev!r}, curr={self.curr!r})"
+
+
+@dataclass
+class BufferBase(ABC):
+    """
+    Base class for the buffer container used for the LocalFeedbacks.
+
+    This class is intended to be used to store the buffers of a certain
+    time-resolution inside the local feedbacks.
+
+    Attributes
+    ----------
+    v_setpoint
+        The setpoint voltage [V] buffer of the feedback system.
+    v_ant
+        Buffer containing the RF voltage measured by the antenna [V].
+    i_beam
+        Buffer containing the RF component of the beam current [A].
+    i_gen
+        Buffer containing the forward current [A] of the generator.
+    """
+
+    # Base parameters
+    samples_per_turn: int
+
+    # Base buffers needed for any CavityFeedback class
+    v_setpoint: NumpyArray | TwoTurnArray = field(init=False)
+    v_ant: NumpyArray | TwoTurnArray = field(init=False)
+    i_beam: NumpyArray | TwoTurnArray = field(init=False)
+    i_gen: NumpyArray | TwoTurnArray = field(init=False)
+
+    def __post_init__(self):
+        """Initialize the buffers."""
+        self.v_setpoint = self._make_array(dtype=complex)
+        self.v_ant = self._make_array(dtype=complex)
+        self.i_beam = self._make_array(dtype=complex)
+        self.i_gen = self._make_array(dtype=complex)
+
+    @abstractmethod  # pragma: no cover
+    def _make_array(self, dtype) -> NumpyArray | TwoTurnArray:
+        """
+        Return the array for a buffer with a certain data-type.
+
+        Parameters
+        ----------
+        dtype
+            The data-type the buffer should store.
+        """
+        raise NotImplementedError
+
+    def shift(self):
+        """Roll every two-turn array: curr -> prev, ready for a new curr."""
+        for f in dataclasses.fields(self):
+            val = getattr(self, f.name)
+            if isinstance(val, TwoTurnArray):
+                val.shift()
+
+
+@dataclass
+class OneTurnBufferBase(BufferBase):
+    """
+    Base class for buffers spanning a single turn used for the LocalFeedbacks.
+
+    This class is intended to be used to store the buffers of a certain
+    time-resolution inside the local feedbacks.
+
+    Attributes
+    ----------
+    v_setpoint
+        The setpoint voltage [V] buffer of the feedback system.
+    v_ant
+        Buffer containing the RF voltage measured by the antenna [V].
+    i_beam
+        Buffer containing the RF component of the beam current [A].
+    i_gen
+        Buffer containing the forward current [A] of the generator.
+    """
+
+    def _make_array(self, dtype) -> NumpyArray:
+        """
+        Return the array for a buffer with a certain data-type.
+
+        Parameters
+        ----------
+        dtype
+            The data-type the buffer should store.
+
+        Returns
+        -------
+        array
+            An array object initialized with the correct number of samples
+            and data type.
+
+        Notes
+        -----
+        These arrays will span a single turn only.
+        """
+        return np.zeros(self.samples_per_turn, dtype=dtype)
+
+
+@dataclass
+class TwoTurnBufferBase(BufferBase):
+    """
+    Base class for buffers spanning two turns used for the LocalFeedbacks.
+
+    This class is intended to be used to store the buffers of a certain
+    time-resolution inside the local feedbacks.
+
+    Attributes
+    ----------
+    v_setpoint
+        The setpoint voltage [V] buffer of the feedback system.
+    v_ant
+        Buffer containing the RF voltage measured by the antenna [V].
+    i_beam
+        Buffer containing the RF component of the beam current [A].
+    i_gen
+        Buffer containing the forward current [A] of the generator.
+    """
+
+    def _make_array(self, dtype) -> TwoTurnArray:
+        """
+        Return the array for a buffer with a certain data-type.
+
+        Parameters
+        ----------
+        dtype
+            The data-type the buffer should store.
+
+        Returns
+        -------
+        array
+            An array object initialized with the correct number of samples
+            and data type.
+
+        Notes
+        -----
+        These arrays will span two turns.
+        """
+        return TwoTurnArray(self.samples_per_turn, dtype=dtype)
+
+
+BufferCoarse = TypeVar(
+    "BufferCoarse", bound=TwoTurnBufferBase | OneTurnBufferBase
+)
+BufferFine = TypeVar("BufferFine", bound=OneTurnBufferBase)
+
+
+class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
     """
     Base class for local rf feedback systems with IQ signal processing.
 
@@ -67,6 +395,9 @@ class IQCavityFeedback(LocalFeedback):
     name
         Name of the feedback.
     """
+
+    buffer_cls_coarse: ClassVar[type[BufferCoarse]]
+    buffer_cls_fine: ClassVar[type[BufferFine]]
 
     def __init__(
         self,
@@ -136,13 +467,8 @@ class IQCavityFeedback(LocalFeedback):
         self.T_s_prev: float | None = None
         self.rf_centers_prev: NumpyArray | None = None
 
-        self.V_SET: NumpyArray | None = None
-        self.I_BEAM_COARSE: NumpyArray | None = None
-        self.I_BEAM_FINE: NumpyArray | None = None
-        self.V_ANT_COARSE: NumpyArray | None = None
-        self.V_ANT_FINE: NumpyArray | None = None
-        self.I_GEN_COARSE: NumpyArray | None = None
-        self.I_GEN_FINE: NumpyArray | None = None
+        self.buffers_coarse: BufferCoarse | None = None
+        self.buffers_fine: BufferFine | None = None
 
         self.gap_voltage_phase: NumpyArray | None = None
 
@@ -197,13 +523,12 @@ class IQCavityFeedback(LocalFeedback):
         else:
             self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
 
-        self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_BEAM_FINE = np.zeros(self.profile.n_bins, dtype=complex)
-        self.V_ANT_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
-        self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+        self.buffers_coarse = self.buffer_cls_coarse(
+            samples_per_turn=self.n_coarse
+        )
+        self.buffers_fine = self.buffer_cls_fine(
+            samples_per_turn=self.profile.n_bins
+        )
 
         self.gap_voltage_phase = np.zeros(self.n_coarse)
 
@@ -237,13 +562,12 @@ class IQCavityFeedback(LocalFeedback):
         # The least amount of arrays needed to feedback to the tracker object
         self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
 
-        self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_BEAM_FINE = np.zeros(self.profile.n_bins, dtype=complex)
-        self.V_ANT_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
-        self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+        self.buffers_coarse = self.buffer_cls_coarse(
+            samples_per_turn=self.n_coarse
+        )
+        self.buffers_fine = self.buffer_cls_fine(
+            samples_per_turn=self.profile.n_bins
+        )
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
@@ -386,7 +710,7 @@ class IQCavityFeedback(LocalFeedback):
         """
         pass
 
-    def track_no_beam(self, n_pretrack: int | None = 1) -> None:
+    def track_no_beam(self, n_pretrack: int = 1) -> None:
         """
         Track the cavity feedback without beam in the accelerator.
 
@@ -400,6 +724,7 @@ class IQCavityFeedback(LocalFeedback):
         """
         self.update_fb_variables()
         for _i in range(n_pretrack):
+            self.buffers_coarse.shift()
             self.circuit_track(no_beam=True)
 
     def _track(self, beam: BeamBaseClass) -> None:
@@ -414,6 +739,7 @@ class IQCavityFeedback(LocalFeedback):
         # Update parameters from rest of BLonD classes
         self.update_rf_variables()
         self.update_fb_variables()
+        self.buffers_coarse.shift()
 
         # Get rf beam current
         self.rf_beam_current(
@@ -427,7 +753,7 @@ class IQCavityFeedback(LocalFeedback):
         # Convert to amplitude and phase
         self.relative_amplitude_correction, self.alpha_sum = (
             cartesian_to_polar(
-                IQ_vector=self.V_ANT_FINE[-self.profile.n_bins :],
+                IQ_vector=self.buffers_fine.v_ant,
             )
         )
 
@@ -436,11 +762,12 @@ class IQCavityFeedback(LocalFeedback):
             self.get_voltage_from_parent_rf_station()
         )
         self.phase_correction = self.alpha_sum - np.mean(
-            np.angle(self.V_SET[-self.n_coarse :])
+            np.angle(self.buffers_coarse.v_setpoint.curr)
         )
 
         self.gap_voltage_phase = np.angle(
-            self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]
+            self.buffers_coarse.v_ant.curr
+            / self.buffers_coarse.v_setpoint.curr
         )
 
     def rf_beam_current(
@@ -465,26 +792,26 @@ class IQCavityFeedback(LocalFeedback):
             (2 * np.pi * harmonic) / omega_rf_design
         )
         # Beam current from profile
-        self.I_BEAM_COARSE[: self.n_coarse] = self.I_BEAM_COARSE[
-            -self.n_coarse :
-        ]
-        self.I_BEAM_FINE, self.I_BEAM_COARSE[-self.n_coarse :] = (
-            rf_beam_current(
-                beam=beam,
-                profile=self.profile,
-                omega_c=self.omega_carrier,
-                T_rev=t_rev,
-                use_lowpass_filter=use_lowpass_filter,
-                downsample={"Ts": self.T_s, "points": self.n_coarse},
-                external_reference=True,
-                dT=self.dT,
-            )
+        (
+            self.buffers_fine.i_beam,
+            self.buffers_coarse.i_beam.curr,
+        ) = rf_beam_current(
+            beam=beam,
+            profile=self.profile,
+            omega_c=self.omega_carrier,
+            T_rev=t_rev,
+            use_lowpass_filter=use_lowpass_filter,
+            downsample={"Ts": self.T_s, "points": self.n_coarse},
+            external_reference=True,
+            dT=self.dT,
         )
 
         # Convert RF beam currents to be in units of Amperes
-        self.I_BEAM_FINE = self.I_BEAM_FINE / self.profile.hist_step
-        self.I_BEAM_COARSE[-self.n_coarse :] = (
-            self.I_BEAM_COARSE[-self.n_coarse :] / self.T_s
+        self.buffers_fine.i_beam = (
+            self.buffers_fine.i_beam / self.profile.hist_step
+        )
+        self.buffers_coarse.i_beam.curr = (
+            self.buffers_coarse.i_beam.curr / self.T_s
         )
 
     def set_point_from_rfstation(self) -> NumpyArray:

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -30,6 +31,7 @@ from blond import Simulation
 from blond.core.ring.helpers import requires
 from blond.physics.feedbacks.accelerators.sps.helpers import (
     comb_filter,
+    feedforward_filter_generator,
     get_power_gen_i,
     modulator,
     moving_average,
@@ -41,8 +43,13 @@ from blond.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
 )
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
+    OneTurnBufferBase,
+    TwoTurnArray,
+    TwoTurnBufferBase,
 )
-from blond.physics.feedbacks.helpers import cartesian_to_polar
+from blond.physics.feedbacks.helpers import (
+    cartesian_to_polar,
+)
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -53,6 +60,150 @@ if TYPE_CHECKING:  # pragma: no cover
         MultiHarmonicRFStation,
         SingleHarmonicRFStation,
     )
+
+
+@dataclass
+class SPSOneTurnFeedbackCoarseBuffers(TwoTurnBufferBase):
+    """
+    Container class for the coarse-grid signal buffers for the SPS one-turn feedback.
+
+    Attributes
+    ----------
+    v_setpoint
+        The setpoint voltage [V] buffer of the feedback system.
+    v_ant
+        Buffer containing the RF voltage measured by the antenna [V].
+    i_beam
+        Buffer containing the RF component of the beam current [A].
+    i_gen
+        Buffer containing the forward current [A] of the generator.
+    dv_llrf
+        Buffer containing the difference between the antenna voltage and setpoint.
+    noise
+        Array with white noise, if it being injected.
+    dv_comb_out
+        Comb-filter output signal.
+    dv_delayed
+        Signal after the one-turn delay.
+    dv_mod_fr
+        LLRF signal after the modulation to the TWS central frequency.
+    dv_mod_averaged
+        The signal after the TWS FIR response.
+    dv_mod_frf
+        Signal modulated back to the RF frequency.
+    v_generator_induced
+        The voltage induced by the generator inside the TWS.
+    v_beam_induced
+        The beam-induced voltage inside the TWS.
+    v_ant_start
+        Buffer containing the total antenna voltage at the start of the turn.
+    """
+
+    dv_llrf: TwoTurnArray = field(init=False)
+    noise: TwoTurnArray = field(init=False)
+
+    # LLRF MODEL ARRAYS
+    dv_comb_out: TwoTurnArray = field(init=False)
+    dv_delayed: TwoTurnArray = field(init=False)
+    dv_mod_fr: TwoTurnArray = field(init=False)
+    dv_mod_averaged: TwoTurnArray = field(init=False)
+
+    # GENERATOR MODEL ARRAYS
+    dv_mod_frf: TwoTurnArray = field(init=False)
+    v_generator_induced: TwoTurnArray = field(init=False)
+
+    # BEAM MODEL ARRAYS
+    # Initialize induced beam voltage coarse and fine
+    v_beam_induced: TwoTurnArray = field(init=False)
+    v_ant_start: TwoTurnArray = field(init=False)
+
+    def __post_init__(self):
+        """Initialize the buffers."""
+        super().__post_init__()
+        self.dv_llrf = self._make_array(dtype=complex)
+        self.noise = self._make_array(dtype=complex)
+
+        self.dv_comb_out = self._make_array(dtype=complex)
+        self.dv_delayed = self._make_array(dtype=complex)
+        self.dv_mod_fr = self._make_array(dtype=complex)
+        self.dv_mod_averaged = self._make_array(dtype=complex)
+        self.dv_mod_frf = self._make_array(dtype=complex)
+
+        self.v_generator_induced = self._make_array(dtype=complex)
+        self.v_beam_induced = self._make_array(dtype=complex)
+
+        self.v_ant_start = self._make_array(dtype=complex)
+
+
+@dataclass
+class SPSOneTurnFeedbackFineBuffers(OneTurnBufferBase):
+    """
+    Container class for the fine-grid signal buffers for the SPS one-turn feedback.
+
+    Attributes
+    ----------
+    v_setpoint
+        The setpoint voltage [V] buffer of the feedback system.
+    v_ant
+        Buffer containing the RF voltage measured by the antenna [V].
+    i_beam
+        Buffer containing the RF component of the beam current [A].
+    i_gen
+        Buffer containing the forward current [A] of the generator.
+    v_beam_induced
+        The beam-induced voltage inside the TWS.
+    v_ant_start
+        Buffer containing the total antenna voltage at the start of the turn.
+    """
+
+    v_beam_induced: np.ndarray = field(init=False)
+    v_ant_start: np.ndarray = field(init=False)
+
+    def __post_init__(self):
+        """Initialize the buffers."""
+        super().__post_init__()
+        self.v_beam_induced = self._make_array(dtype=complex)
+        self.v_ant_start = self._make_array(dtype=complex)
+
+
+@dataclass
+class SPSFeedForwardCoarseBuffers(TwoTurnBufferBase):
+    """
+    Container class for the coarse-grid signal buffers for the SPS feedforward.
+
+    Attributes
+    ----------
+    v_setpoint
+        The setpoint voltage [V] buffer of the feedback system.
+    v_ant
+        Buffer containing the RF voltage measured by the antenna [V].
+    i_beam
+        Buffer containing the RF component of the beam current [A].
+    i_gen
+        Buffer containing the forward current [A] of the generator.
+    i_beam_modulated
+        Bla.
+    i_ffwd_modulated
+        Bla.
+    i_ffwd_delayed
+        Bla.
+    i_ffwd_correction
+        Bla.
+    """
+
+    i_beam_modulated: TwoTurnArray = field(init=False)
+    i_ffwd_modulated: TwoTurnArray = field(init=False)
+    i_ffwd_delayed: TwoTurnArray = field(init=False)
+    i_ffwd_correction: TwoTurnArray = field(init=False)
+
+    def __post_init__(self):
+        """Initialize the buffers."""
+        super().__post_init__()
+
+        self.i_beam_modulated = self._make_array(dtype=complex)
+        self.i_ffwd_modulated = self._make_array(dtype=complex)
+        self.i_ffwd_delayed = self._make_array(dtype=complex)
+        self.i_ffwd_correction = self._make_array(dtype=complex)
 
 
 class SPSCavityFeedbackCommissioning:
@@ -104,11 +255,15 @@ class SPSCavityFeedbackCommissioning:
         self.V_SET = v_set
         self.cpp_conv = cpp_conv
         self.pwr_clamp = pwr_clamp
-        self.rot_iq = rot_iq
+        self.rot_iq: complex = rot_iq
         self.excitation: int = int(excitation)
 
 
-class SPSOneTurnFeedback(IQCavityFeedback):
+class SPSOneTurnFeedback(
+    IQCavityFeedback[
+        SPSOneTurnFeedbackCoarseBuffers, SPSOneTurnFeedbackFineBuffers
+    ]
+):
     """
     The SPS one-turn delay feedback and feedforward model in BLonD for a single cavity type.
 
@@ -138,6 +293,9 @@ class SPSOneTurnFeedback(IQCavityFeedback):
     harmonic_index
         Index of the harmonic the feedback should be working on.
     """
+
+    buffer_cls_coarse = SPSOneTurnFeedbackCoarseBuffers
+    buffer_cls_fine = SPSOneTurnFeedbackFineBuffers
 
     def __init__(
         self,
@@ -175,13 +333,13 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.open_drive = commissioning.open_drive
         self.open_ff = commissioning.open_ff
 
-        self.V_SET = commissioning.V_SET
+        self.custom_setpoint = commissioning.V_SET
         self.set_point_modulation = True
-        if self.V_SET is None:  # Vset as array or not
+        if self.custom_setpoint is None:  # Vset as array or not
             self.set_point_modulation = False
 
         self.cpp_conv = commissioning.cpp_conv
-        self.rot_iq = commissioning.rot_iq
+        self.rot_iq: complex = commissioning.rot_iq
         self.excitation = commissioning.excitation
         self.debug = commissioning.debug
 
@@ -224,6 +382,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             self.conv = self.call_conv
         else:
             self.conv = self.matr_conv
+
+        self.buffers_ffwd: SPSFeedForwardCoarseBuffers | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -285,10 +445,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # 200 MHz travelling wave cavity (TWC) model
         if self.open_ff == 1:
             # Feed-forward filter
-            self.coeff_ff = getattr(
-                sys.modules[__name__],
-                "feedforward_filter_TWC" + str(self.n_sections),
-            )
+            self.coeff_ff = feedforward_filter_generator(self.n_sections)
             self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
             self.n_ff_delay = round(
                 0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
@@ -315,39 +472,29 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
         # Check array length for set point modulation
         if self.set_point_modulation:
-            if self.V_SET.shape[0] != 2 * self.n_coarse:
+            if self.custom_setpoint.shape[0] != 2 * self.n_coarse:
                 raise RuntimeError(
                     f"V_SET length should be {(2 * self.n_coarse)}"
                 )
             self.set_point = self.set_point_mod
+            self.buffers_coarse.v_setpoint.prev = self.custom_setpoint[
+                : self.n_coarse
+            ]
+            self.buffers_coarse.v_setpoint.curr = self.custom_setpoint[
+                -self.n_coarse :
+            ]
         else:
             self.set_point = self.set_point_std
-            self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Array to hold the bucket-by-bucket voltage with length LLRF
-        self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug(
             f"Length of arrays on coarse grid 2x {self.n_coarse}"
         )
-
-        # Array if noise is being injected
-        self.NOISE = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # LLRF MODEL ARRAYS
-        # Initialize comb filter
-        self.DV_COMB_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # Initialize the delayed signal
-        self.DV_DELAYED = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # Initialize modulated signal (to fr)
-        self.DV_MOD_FR = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Initialize moving average
         self.n_mov_av = round(
             self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf()
         )
-        self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug(f"Moving average over {self.n_mov_av} points")
 
         n_mov_av_thres = 2
@@ -357,41 +504,18 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 " have at least 12.5 ns resolution!"
             )
 
-        # GENERATOR MODEL ARRAYS
-        # Initialize modulated signal (to frf)
-        self.DV_MOD_FRF = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # Initialize induced voltage on coarse grid
-        self.V_IND_COARSE_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.CONV_RES = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.CONV_PREV = np.zeros(self.n_coarse, dtype=complex)
-
-        # BEAM MODEL ARRAYS
-        # Initialize induced beam voltage coarse and fine
-        self.V_IND_FINE_BEAM = np.zeros(self.profile.n_bins, dtype=complex)
-        self.V_IND_COARSE_BEAM = np.zeros(2 * self.n_coarse, dtype=complex)
-
         # Initialise feed-forward; sampled every fifth bucket
         if self.open_ff == 1:
             self.logger.debug("Feed-forward active")
-            self.I_BEAM_COARSE_FF = np.zeros(
-                2 * self.n_coarse_ff, dtype=complex
+            self.buffers_ffwd = SPSFeedForwardCoarseBuffers(
+                samples_per_turn=self.n_coarse_ff
             )
-            self.I_BEAM_COARSE_FF_MOD = np.zeros(
-                2 * self.n_coarse_ff, dtype=complex
-            )
-            self.I_FF_CORR_MOD = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.I_FF_CORR_DEL = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.I_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.V_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
 
         # Update global cavity loop variables before tracking
         self.update_rf_variables()
         self.update_fb_variables()
         self.logger.info("Class initialized")
 
-        self.V_ANT_START: NumpyArray | None = None
-        self.V_ANT_FINE_START: NumpyArray | None = None
         self.phi_mod_0: Any | None = None
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
@@ -424,7 +548,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             )
 
             self.logger.debug(
-                f"Feed-forward delay in samples {self.n_ff_delay}",
+                f"Feed-forward delay in samples {self.n_ff_delay}"
             )
 
             # Multiply gain by normalisation factors from filter and
@@ -444,37 +568,29 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
         # Check array length for set point modulation
         if self.set_point_modulation:
-            if self.V_SET.shape[0] != 2 * self.n_coarse:
+            if self.custom_setpoint.shape[0] != 2 * self.n_coarse:
                 raise RuntimeError(
                     f"V_SET length should be {(2 * self.n_coarse)}"
                 )
             self.set_point = self.set_point_mod
+            self.buffers_coarse.v_setpoint.prev = self.custom_setpoint[
+                : self.n_coarse
+            ]
+            self.buffers_coarse.v_setpoint.curr = self.custom_setpoint[
+                -self.n_coarse :
+            ]
         else:
             self.set_point = self.set_point_std
-            self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Array to hold the bucket-by-bucket voltage with length LLRF
-        self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug(
             f"Length of arrays on coarse grid 2x {self.n_coarse}"
         )
 
-        # Array if noise is being injected
-        self.NOISE = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # LLRF MODEL ARRAYS
-        # Initialize comb filter
-        self.DV_COMB_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # Initialize the delayed signal
-        self.DV_DELAYED = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # Initialize modulated signal (to fr)
-        self.DV_MOD_FR = np.zeros(2 * self.n_coarse, dtype=complex)
-
         # Initialize moving average
-        self.n_mov_av = round(self.TWC.tau / self.T_s)
-        self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.n_mov_av = round(
+            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf()
+        )
         self.logger.debug(f"Moving average over {self.n_mov_av} points")
 
         n_mov_av_thres = 2
@@ -484,41 +600,18 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 " have at least 12.5 ns resolution!"
             )
 
-        # GENERATOR MODEL ARRAYS
-        # Initialize modulated signal (to frf)
-        self.DV_MOD_FRF = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        # Initialize induced voltage on coarse grid
-        self.V_IND_COARSE_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.CONV_RES = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.CONV_PREV = np.zeros(self.n_coarse, dtype=complex)
-
-        # BEAM MODEL ARRAYS
-        # Initialize induced beam voltage coarse and fine
-        self.V_IND_FINE_BEAM = np.zeros(self.profile.n_bins, dtype=complex)
-        self.V_IND_COARSE_BEAM = np.zeros(2 * self.n_coarse, dtype=complex)
-
         # Initialise feed-forward; sampled every fifth bucket
         if self.open_ff == 1:
             self.logger.debug("Feed-forward active")
-            self.I_BEAM_COARSE_FF = np.zeros(
-                2 * self.n_coarse_ff, dtype=complex
+            self.buffers_ffwd = SPSFeedForwardCoarseBuffers(
+                samples_per_turn=self.n_coarse_ff
             )
-            self.I_BEAM_COARSE_FF_MOD = np.zeros(
-                2 * self.n_coarse_ff, dtype=complex
-            )
-            self.I_FF_CORR_MOD = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.I_FF_CORR_DEL = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.I_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.V_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
 
         # Update global cavity loop variables before tracking
-        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
+        self.update_rf_variables()
         self.update_fb_variables()
         self.logger.info("Class initialized")
 
-        self.V_ANT_START: NumpyArray | None = None
-        self.V_ANT_FINE_START: NumpyArray | None = None
         self.phi_mod_0: Any | None = None
 
     def circuit_track(self, no_beam: bool = False):
@@ -548,30 +641,25 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.gen_model()
 
         # Sum generator- and beam-induced voltages for coarse grid
-        self.V_ANT_START = np.copy(self.V_ANT_COARSE)
-        self.V_ANT_COARSE[: self.n_coarse] = self.V_ANT_COARSE[
-            -self.n_coarse :
-        ]
-        self.V_ANT_COARSE[-self.n_coarse :] = (
-            self.V_IND_COARSE_GEN[-self.n_coarse :]
-            + self.V_IND_COARSE_BEAM[-self.n_coarse :]
+        self.buffers_coarse.v_ant_start.prev = np.copy(
+            self.buffers_coarse.v_ant.prev
+        )
+        self.buffers_coarse.v_ant_start.curr = np.copy(
+            self.buffers_coarse.v_ant.curr
+        )
+        self.buffers_coarse.v_ant.curr = (
+            self.buffers_coarse.v_generator_induced.curr
+            + self.buffers_coarse.v_beam_induced.curr
         )
 
         # Obtain generator-induced voltage on the fine grid by interpolation
-        self.V_ANT_FINE_START = np.copy(self.V_ANT_FINE)
-        self.V_ANT_FINE[: self.profile.n_bins] = self.V_ANT_FINE[
-            -self.profile.n_bins :
-        ]
-        self.V_ANT_FINE[-self.profile.n_bins :] = self.V_IND_FINE_BEAM[
-            -self.profile.n_bins :
-        ] + np.interp(
+        self.buffers_fine.v_ant_start = np.copy(self.buffers_fine.v_ant)
+        self.buffers_fine.v_ant = self.buffers_fine.v_beam_induced + np.interp(
             self.profile.hist_x,
             self.rf_centers,
-            self.V_IND_COARSE_GEN[-self.n_coarse :],
+            self.buffers_coarse.v_generator_induced.curr,
         )
-        self.V_ANT_FINE[-self.profile.n_bins :] = (
-            self.n_cavities * self.V_ANT_FINE[-self.profile.n_bins :]
-        )
+        self.buffers_fine.v_ant = self.n_cavities * self.buffers_fine.v_ant
 
     def llrf_model(self):
         """
@@ -609,9 +697,9 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         correction if engaged.
         """
         # Rotate the RF beam current
-        self.I_BEAM_FINE = self.rot_iq * self.I_BEAM_FINE
-        self.I_BEAM_COARSE[-self.n_coarse :] = (
-            self.rot_iq * self.I_BEAM_COARSE[-self.n_coarse :]
+        self.buffers_fine.i_beam = self.rot_iq * self.buffers_fine.i_beam
+        self.buffers_coarse.i_beam.curr = (
+            self.rot_iq * self.buffers_coarse.i_beam.curr
         )
 
         # Beam-induced voltage
@@ -621,27 +709,20 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # Feed-forward
         if self.open_ff == 1:
             # Calculate correction based on previous turn on coarse grid
+            self.buffers_ffwd.shift()
 
             # Resample RF beam current to FF sampling frequency
-            self.I_BEAM_COARSE_FF[: self.n_coarse_ff] = self.I_BEAM_COARSE_FF[
-                -self.n_coarse_ff :
-            ]
-            I_COARSE_BEAM_RESHAPED = np.copy(
-                self.I_BEAM_COARSE[-self.n_coarse :]
-            )
-            I_COARSE_BEAM_RESHAPED = I_COARSE_BEAM_RESHAPED.reshape(
+            i_beam_coarse_reshaped = np.copy(self.buffers_coarse.i_beam.curr)
+            i_beam_coarse_reshaped = i_beam_coarse_reshaped.reshape(
                 (self.n_coarse_ff, self.n_coarse // self.n_coarse_ff)
             )
-            self.I_BEAM_COARSE_FF[-self.n_coarse_ff :] = (
-                np.sum(I_COARSE_BEAM_RESHAPED, axis=1) / 5
+            self.buffers_ffwd.i_beam.curr = (
+                np.sum(i_beam_coarse_reshaped, axis=1) / 5
             )
 
             # Do a down-modulation to the resonant frequency of the TWC
-            self.I_BEAM_COARSE_FF_MOD[: self.n_coarse_ff] = (
-                self.I_BEAM_COARSE_FF_MOD[-self.n_coarse_ff :]
-            )
-            self.I_BEAM_COARSE_FF_MOD[-self.n_coarse_ff :] = modulator(
-                self.I_BEAM_COARSE_FF[-self.n_coarse_ff :],
+            self.buffers_ffwd.i_beam_modulated.curr = modulator(
+                self.buffers_ffwd.i_beam.curr,
                 omega_i=self.omega_carrier,
                 omega_f=self.omega_c,
                 t_sampling=5 * self.T_s,
@@ -649,16 +730,14 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 dt=self.dT,
             )
 
-            self.I_FF_CORR[: self.n_coarse_ff] = self.I_FF_CORR[
-                -self.n_coarse_ff :
-            ]
-            self.I_FF_CORR[-self.n_coarse_ff :] = np.zeros(
+            self.buffers_ffwd.i_ffwd_correction.curr = np.zeros(
                 self.n_coarse_ff, dtype=complex
             )
-            for ind in range(self.n_coarse_ff, 2 * self.n_coarse_ff):
+            for ind in range(self.n_coarse_ff):
                 for k in range(self.n_ff):
-                    self.I_FF_CORR[ind] += (
-                        self.coeff_ff[k] * self.I_BEAM_COARSE_FF_MOD[ind - k]
+                    self.buffers_ffwd.i_ffwd_correction.curr[ind] += (
+                        self.coeff_ff[k]
+                        * self.buffers_ffwd.i_beam_modulated[ind - k]
                     )
 
             # Do a down-modulation to the resonant frequency of the TWC
@@ -668,11 +747,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 * 5
                 * (self.omega_c - self.omega_carrier)
             )
-            self.I_FF_CORR_MOD[: self.n_coarse_ff] = self.I_FF_CORR_MOD[
-                -self.n_coarse_ff :
-            ]
-            self.I_FF_CORR_MOD[-self.n_coarse_ff :] = modulator(
-                self.I_FF_CORR[-self.n_coarse_ff :],
+            self.buffers_ffwd.i_ffwd_modulated.curr = modulator(
+                self.buffers_ffwd.i_ffwd_correction.curr,
                 omega_i=self.omega_c,
                 omega_f=self.omega_carrier,
                 t_sampling=5 * self.T_s,
@@ -681,12 +757,11 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             )
 
             # Compensate for FIR filter delay
-            self.I_FF_CORR_DEL[: self.n_coarse_ff] = self.I_FF_CORR_DEL[
-                -self.n_coarse_ff :
-            ]
-            self.I_FF_CORR_DEL[-self.n_coarse_ff :] = self.I_FF_CORR_MOD[
-                self.n_ff_delay : self.n_ff_delay - self.n_coarse_ff
-            ]
+            self.buffers_ffwd.i_ffwd_delayed.curr = (
+                self.buffers_ffwd.i_ffwd_modulated.full[
+                    self.n_ff_delay : self.n_ff_delay - self.n_coarse_ff
+                ]
+            )
 
     # BEAM MODEL
     def beam_response(self, coarse: bool = False):
@@ -704,21 +779,20 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.logger.debug("Matrix convolution for V_ind")
 
         if coarse:
-            self.V_IND_COARSE_BEAM[: self.n_coarse] = self.V_IND_COARSE_BEAM[
-                -self.n_coarse :
-            ]
-            self.V_IND_COARSE_BEAM[-self.n_coarse :] = (
-                self.matr_conv(self.I_BEAM_COARSE, self.TWC.h_beam_coarse)[
-                    -self.n_coarse :
-                ]
+            self.buffers_coarse.v_beam_induced.curr = (
+                self.matr_conv(
+                    current=self.buffers_coarse.i_beam.full,
+                    transfer_function=self.TWC.h_beam_coarse,
+                )[-self.n_coarse :]
                 * self.T_s
             )
         else:
             # Only convolve the slices for the current turn because the fine grid points can be less
             # than one turn in length
-            self.V_IND_FINE_BEAM[-self.profile.n_bins :] = (
+            self.buffers_fine.v_beam_induced = (
                 self.matr_conv(
-                    self.I_BEAM_FINE[-self.profile.n_bins :], self.TWC.h_beam
+                    current=self.buffers_fine.i_beam,
+                    transfer_function=self.TWC.h_beam,
                 )[-self.profile.n_bins :]
                 * self.profile.hist_step
             )
@@ -740,8 +814,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         )
 
         # Convert to array
-        self.V_SET[: self.n_coarse] = self.V_SET[-self.n_coarse :]
-        self.V_SET[-self.n_coarse :] = self.V_set
+        self.buffers_coarse.v_setpoint.curr = self.V_set
 
     def set_point_mod(self):
         """
@@ -763,40 +836,37 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         and amplifies it with the LLRF gain.
         """
         # Store last turn error signal and update for current turn
-        self.DV_GEN[: self.n_coarse] = self.DV_GEN[-self.n_coarse :]
-        self.DV_GEN[-self.n_coarse :] = self.G_llrf * (
-            self.V_SET[-self.n_coarse :]
+        self.buffers_coarse.dv_llrf.curr = self.G_llrf * (
+            self.buffers_coarse.v_setpoint.curr
             - self.open_loop
             * (
-                self.V_IND_COARSE_GEN[-self.n_coarse :]
-                + self.V_IND_COARSE_BEAM[-self.n_coarse :]
+                self.buffers_coarse.v_generator_induced.curr
+                + self.buffers_coarse.v_beam_induced.curr
             )
-            + self.excitation * self.NOISE[-self.n_coarse :]
+            + self.excitation * self.buffers_coarse.noise.curr
         )
         self.logger.debug(
             "In %s, average set point voltage %.6f MV",
             sys._getframe(0).f_code.co_name,
-            1e-6 * np.mean(np.absolute(self.V_SET)),
+            1e-6 * np.mean(np.absolute(self.buffers_coarse.v_setpoint.curr)),
         )
         self.logger.debug(
             "In %s, average antenna voltage %.6f MV",
             sys._getframe(0).f_code.co_name,
-            1e-6 * np.mean(np.absolute(self.V_ANT_COARSE)),
+            1e-6 * np.mean(np.absolute(self.buffers_coarse.v_ant.curr)),
         )
         self.logger.debug(
             "In %s, average voltage error %.6f MV",
             sys._getframe(0).f_code.co_name,
-            1e-6 * np.mean(np.absolute(self.DV_GEN)),
+            1e-6 * np.mean(np.absolute(self.buffers_coarse.dv_llrf.curr)),
         )
 
     def comb(self):
         """Apply the comb filter to the error signal."""
-        # Shuffle present data to previous data
-        self.DV_COMB_OUT[: self.n_coarse] = self.DV_COMB_OUT[-self.n_coarse :]
         # Update present data
-        self.DV_COMB_OUT[-self.n_coarse :] = comb_filter(
-            self.DV_COMB_OUT[: self.n_coarse],
-            self.DV_GEN[-self.n_coarse :],
+        self.buffers_coarse.dv_comb_out.curr = comb_filter(
+            self.buffers_coarse.dv_comb_out.prev,
+            self.buffers_coarse.dv_llrf.curr,
             self.a_comb,
         )
 
@@ -808,18 +878,17 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         with exactly the delay of one turn.
         """
         # Store last turn delayed signal and compute current turn error signal
-        self.DV_DELAYED[: self.n_coarse] = self.DV_DELAYED[-self.n_coarse :]
-        self.DV_DELAYED[-self.n_coarse :] = self.DV_COMB_OUT[
-            self.n_coarse - self.n_delay : -self.n_delay
-        ]
+        self.buffers_coarse.dv_delayed.curr = (
+            self.buffers_coarse.dv_comb_out.full[
+                self.n_coarse - self.n_delay : -self.n_delay
+            ]
+        )
 
     def mod_to_fr(self):
         """Modulate the error signal to the resonant frequency of the cavity."""
-        # Store last turn modulated signal
-        self.DV_MOD_FR[: self.n_coarse] = self.DV_MOD_FR[-self.n_coarse :]
         # Note here that dphi_rf is already accumulated somewhere else (i.e. in the tracker).
-        self.DV_MOD_FR[-self.n_coarse :] = modulator(
-            self.DV_DELAYED[-self.n_coarse :],
+        self.buffers_coarse.dv_mod_fr.curr = modulator(
+            self.buffers_coarse.dv_delayed.curr,
             self.omega_carrier,
             self.omega_c,
             self.T_s,
@@ -829,11 +898,11 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
     def mov_avg(self):
         """Apply the cavity filter, modelled as a moving average, to the modulated error signal."""
-        # Store last turn moving average signal
-        self.DV_MOV_AVG[: self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse :]
         # Apply moving average filter for current turn
-        self.DV_MOV_AVG[-self.n_coarse :] = moving_average(
-            self.DV_MOD_FR[-self.n_mov_av - self.n_coarse + 1 :],
+        self.buffers_coarse.dv_mod_averaged.curr = moving_average(
+            self.buffers_coarse.dv_mod_fr.full[
+                -self.n_mov_av - self.n_coarse + 1 :
+            ],
             self.n_mov_av,
         )
 
@@ -841,12 +910,10 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
     def mod_to_frf(self):
         """Modulate the error signal from the resonant frequency of the cavity to the original carrier frequency."""
-        # Store last turn modulated signal
-        self.DV_MOD_FRF[: self.n_coarse] = self.DV_MOD_FRF[-self.n_coarse :]
         # Note here that dphi_rf is already accumulated somewhere else (i.e. in the tracker).
         dphi_demod = (self.omega_c - self.omega_carrier) * self.TWC.tau
-        self.DV_MOD_FRF[-self.n_coarse :] = self.open_fb * modulator(
-            self.DV_MOV_AVG[-self.n_coarse :],
+        self.buffers_coarse.dv_mod_frf.curr = self.open_fb * modulator(
+            self.buffers_coarse.dv_mod_averaged.curr,
             self.omega_c,
             self.omega_carrier,
             self.T_s,
@@ -862,24 +929,22 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         The generator current is then found by multiplying by the transmitter gain and R_gen. The feed-forward
         current will also be added to the generator current if enabled.
         """
-        # Store generator current signal from the last turn
-        self.I_GEN_COARSE[: self.n_coarse] = self.I_GEN_COARSE[
-            -self.n_coarse :
-        ]
         # Compute current turn generator current
-        self.I_GEN_COARSE[-self.n_coarse :] = (
-            self.DV_MOD_FRF[-self.n_coarse :]
-            + self.open_drive * self.V_SET[-self.n_coarse :]
+        self.buffers_coarse.i_gen.curr = (
+            self.buffers_coarse.dv_mod_frf.curr
+            + self.open_drive * self.buffers_coarse.v_setpoint.curr
         )
         # Apply amplifier gain
-        self.I_GEN_COARSE[-self.n_coarse :] *= self.G_tx / self.TWC.R_gen
+        self.buffers_coarse.i_gen.curr *= self.G_tx / self.TWC.R_gen
         if self.open_ff == 1:
-            self.I_GEN_COARSE[-self.n_coarse :] = self.I_GEN_COARSE[
-                -self.n_coarse :
-            ] + self.G_ff * np.interp(
-                self.rf_centers,
-                self.rf_centers[::5],
-                self.I_FF_CORR_DEL[-self.n_coarse_ff :],
+            self.buffers_coarse.i_gen.curr = (
+                self.buffers_coarse.i_gen.curr
+                + self.G_ff
+                * np.interp(
+                    self.rf_centers,
+                    self.rf_centers[::5],
+                    self.buffers_ffwd.i_ffwd_delayed.curr,
+                )
             )
 
     def gen_response(self):
@@ -890,13 +955,11 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         generator-induced voltage. Multiplied by the number of cavities to find the total generator-
         induced voltage.
         """
-        # Store generator-induced from last turn
-        self.V_IND_COARSE_GEN[: self.n_coarse] = self.V_IND_COARSE_GEN[
-            -self.n_coarse :
-        ]
         # Compute current turn generator-induced voltage
-        self.V_IND_COARSE_GEN[-self.n_coarse :] = (
-            self.matr_conv(self.I_GEN_COARSE, self.TWC.h_gen)[-self.n_coarse :]
+        self.buffers_coarse.v_generator_induced.curr = (
+            self.matr_conv(self.buffers_coarse.i_gen.full, self.TWC.h_gen)[
+                -self.n_coarse :
+            ]
             * self.T_s
         )
 
@@ -981,7 +1044,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         rf_power
             Calculated RF power [W].
         """
-        return get_power_gen_i(np.copy(self.I_GEN_COARSE), 50)
+        return get_power_gen_i(self.buffers_coarse.i_gen.full, 50)
 
     def wo_clamping(self):
         """Bypass the generator power clamping."""
@@ -1196,9 +1259,6 @@ class SPSCavityFeedback:
         **kwargs
             Additional keyword arguments.
         """
-        self.OTFB_1.on_run_simulation(simulation, beam, n_turns, **kwargs)
-        self.OTFB_2.on_run_simulation(simulation, beam, n_turns, **kwargs)
-
         self.gap_voltage_phase = np.zeros(self.OTFB_1.n_coarse)
 
         if self.turns < 1:
@@ -1239,8 +1299,7 @@ class SPSCavityFeedback:
 
         # Sum the fine-grid antenna voltage from the TWC types
         self.V_sum = (
-            self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_bins :]
-            + self.OTFB_2.V_ANT_FINE[-self.OTFB_2.profile.n_bins :]
+            self.OTFB_1.buffers_fine.v_ant + self.OTFB_2.buffers_fine.v_ant
         )
 
         # Convert to amplitude and phase modulation
@@ -1253,16 +1312,16 @@ class SPSCavityFeedback:
             self.OTFB_1._parent_rf_station.voltage[self.OTFB_1.harmonic_index]
         )
         self.phase_correction = self.alpha_sum - np.angle(
-            np.mean(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :])
+            np.mean(self.OTFB_1.buffers_coarse.v_setpoint.curr)
         )
 
         cav_sum = (
-            self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]
-            + self.OTFB_2.V_ANT_COARSE[-self.OTFB_2.n_coarse :]
+            self.OTFB_1.buffers_coarse.v_ant.curr
+            + self.OTFB_2.buffers_coarse.v_ant.curr
         )
         cav_sum_ref = (
-            self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :]
-            + self.OTFB_2.V_SET[-self.OTFB_2.n_coarse :]
+            self.OTFB_1.buffers_coarse.v_setpoint.curr
+            + self.OTFB_2.buffers_coarse.v_setpoint.curr
         )
 
         self.gap_voltage_phase = np.angle(cav_sum / cav_sum_ref)
@@ -1290,17 +1349,13 @@ class SPSCavityFeedback:
             if debug:
                 ax.plot(
                     self.OTFB_1.profile.hist_x * 1e6,
-                    np.abs(
-                        self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_bins :]
-                    ),
+                    np.abs(self.OTFB_1.buffers_fine.v_ant),
                     color=colors[i],
                 )
                 ax.plot(
                     self.OTFB_1.rf_centers * 1e6,
                     self.OTFB_1.n_cavities
-                    * np.abs(
-                        self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]
-                    ),
+                    * np.abs(self.OTFB_1.buffers_coarse.v_ant.curr),
                     color=colors[i],
                     linestyle="",
                     marker=".",
@@ -1314,9 +1369,9 @@ class SPSCavityFeedback:
             self.OTFB_1.profile.hist_x,
             self.OTFB_1.rf_centers,
             self.OTFB_1.n_cavities
-            * self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse :]
+            * self.OTFB_1.buffers_coarse.v_generator_induced.curr
             + self.OTFB_2.n_cavities
-            * self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse :],
+            * self.OTFB_2.buffers_coarse.v_generator_induced.curr,
         )
 
         # Convert to amplitude and phase
@@ -1332,6 +1387,6 @@ class SPSCavityFeedback:
             np.interp(
                 self.OTFB_1.profile.hist_x,
                 self.OTFB_1.rf_centers,
-                self.OTFB_1.V_SET[-self.OTFB_1.n_coarse :],
+                self.OTFB_1.buffers_coarse.v_setpoint.curr,
             )
         )

@@ -144,7 +144,7 @@ def cavity_response_sparse_matrix(
     b[0] = v_ant_init
 
     # Solve the sparse linear system of equations and return
-    return spsolve(B_matrix, b)
+    return spsolve(B_matrix, b)[-n_samples:]
 
 
 def fir_filter_lhc_otfb_coeff(

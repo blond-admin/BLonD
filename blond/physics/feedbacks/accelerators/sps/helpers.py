@@ -162,6 +162,35 @@ def modulator(
     return I_new + 1j * Q_new
 
 
+def feedforward_filter_generator(number_of_sections: int) -> NumpyArray:
+    """
+    Get the pre-calculated FIR filters for the feedforward.
+
+    Parameters
+    ----------
+    number_of_sections
+        Number of sections of the travelling wave structure.
+        This can either be 3, 4, or 5.
+
+    Returns
+    -------
+    feedforward_filter
+        The FIR filter in the form of a numpy array.
+    """
+    valid_sections = [3, 4, 5]
+
+    if number_of_sections == valid_sections[0]:
+        return feedforward_filter_TWC3
+    elif number_of_sections == valid_sections[1]:
+        return feedforward_filter_TWC4
+    elif number_of_sections == valid_sections[2]:
+        return feedforward_filter_TWC5
+    else:
+        raise ValueError(
+            f"Travelling wave structures with {number_of_sections} do not exist."
+        )
+
+
 feedforward_filter_TWC3 = np.array(
     [
         -0.00760838,
