@@ -26,7 +26,9 @@ from blond.generals.warnings_ import PrecisionWarning
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
-    from typing import TYPE_CHECKING, Any, Literal
+    from typing import TYPE_CHECKING, Any, Literal, TypeVar
+
+    BackendType = TypeVar("BackendType", bound="type[BackendBaseClass]")
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -43,7 +45,7 @@ ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
 # `__getattr__` below; see `_probe_available_backends`.
 
 
-def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+def _register_backend(bd: BackendType) -> BackendType:
     ALL_BACKENDS[bd.__name__] = bd
     return bd
 
