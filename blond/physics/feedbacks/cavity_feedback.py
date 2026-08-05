@@ -10,9 +10,12 @@
 
 from __future__ import annotations
 
+# Import the module, not the name: a bare ``deque`` in the module namespace is
+# documented by automodule, and on Python 3.14 (the CI doc image) autodoc fails
+# to format its C-level signature, which breaks the ``-W`` doc build.
+import collections
 import warnings
 from abc import abstractmethod
-from collections import deque
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -1663,7 +1666,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             The committed error integral after the scan.
         """
         buffer_len = delay_buffer.shape[0]
-        self._controller._delay_line = deque(
+        self._controller._delay_line = collections.deque(
             (
                 delay_buffer[(delay_head + offset) % buffer_len]
                 for offset in range(buffer_len)

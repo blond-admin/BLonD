@@ -18,8 +18,11 @@ the error-to-current conversion instead of implementing it inline.
 
 from __future__ import annotations
 
+# Import the module, not the name: a bare ``deque`` in the module namespace is
+# documented by automodule, and on Python 3.14 (the CI doc image) autodoc fails
+# to format its C-level signature, which breaks the ``-W`` doc build.
+import collections
 from abc import ABC, abstractmethod
-from collections import deque
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -215,7 +218,7 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
 
         self._integral: complex = 0.0 + 0.0j
         # Zero-prefilled so the first n_delay updates act on a null error.
-        self._delay_line: deque[complex] = deque(
+        self._delay_line: collections.deque[complex] = collections.deque(
             [0.0 + 0.0j] * (self.n_delay + 1), maxlen=self.n_delay + 1
         )
 
