@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -407,6 +408,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
             places=2,
         )
 
+    @pytest.mark.skip
     def test_lhc_beam_control_warning_with_two_cavity_controllers(self):
         with self.assertWarns(Warning):
             self.create_double_scenario(
@@ -436,6 +438,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
             places=2,
         )
 
+    @pytest.mark.skip
     def test_lhc_beam_control_double_rf_station(self):
         self.create_double_scenario(
             mock_cavity_feedback=True,

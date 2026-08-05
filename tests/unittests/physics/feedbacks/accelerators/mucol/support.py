@@ -7,6 +7,8 @@ shared across the test modules in this package.
 
 import numpy as np
 
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
+
 
 def rel_err(a, b) -> float:
     """
@@ -24,6 +26,8 @@ def rel_err(a, b) -> float:
     float
         Relative L2 error of ``a`` against ``b``.
     """
+    a = copy_to_cpu(np.asarray(a) if np.isscalar(a) else a)
+    b = copy_to_cpu(np.asarray(b) if np.isscalar(b) else b)
     return float(np.linalg.norm(a - b) / np.linalg.norm(b))
 
 
@@ -52,5 +56,7 @@ def lab_frame_voltage(v_ant, omega_rf, time, *, use_real: bool = False):
     numpy.ndarray
         Real lab-frame voltage.
     """
+    v_ant = copy_to_cpu(v_ant) if not np.isscalar(v_ant) else v_ant
+    time = copy_to_cpu(time) if not np.isscalar(time) else time
     rotated = v_ant * np.exp(1j * omega_rf * time)
     return -(np.real(rotated) if use_real else np.imag(rotated))

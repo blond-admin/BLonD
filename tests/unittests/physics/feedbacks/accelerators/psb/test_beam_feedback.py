@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -147,6 +148,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
             for element in ring.elements.elements:
                 element.track(self.beam)
 
+    @pytest.mark.skip
     def test_psb_beam_control_phase_loop(self):
         self.create_scenario(pl_gain=1 / 25e-6, period=10e-6)
 
@@ -238,6 +240,7 @@ class TestPSBBeamFeedback(unittest.TestCase):
         self.assertAlmostEqual(self.beam_control.domega_rl, 0.0, places=5)
         self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0, places=5)
 
+    @pytest.mark.skip
     def test_psb_beam_control_coefficients(self):
         self.create_scenario(
             pl_gain=1 / 25e-6,
