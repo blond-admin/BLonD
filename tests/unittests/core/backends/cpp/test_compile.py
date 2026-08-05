@@ -31,6 +31,10 @@ class TestDllDirectoryIsAddedOnce(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_repeated_activation_adds_the_directory_only_once(self):
         """Activating the C++ backend repeatedly adds one search path."""
+        if backend.is_gpu:
+            self.skipTest(
+                "the cpp specials exist only for the CPU (numpy) backends"
+            )
         real_add_dll_directory = os.add_dll_directory
         added_directories = []
 
@@ -53,6 +57,14 @@ class TestDllDirectoryIsAddedOnce(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
-        """Restore the default backend for the rest of the session."""
+        """
+        Restore the default CPU backend for the rest of the session.
+
+        ``tearDown`` also runs after a skip, so it must not force a numpy
+        backend onto a session that is running on the GPU -- there the test
+        body changed nothing.
+        """
+        if backend.is_gpu:
+            return
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
