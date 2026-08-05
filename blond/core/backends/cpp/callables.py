@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
+from blond.core.backends.cpp.compile import add_dll_directory_once
 from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -116,7 +117,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 )
 
             if hasattr(os, "add_dll_directory"):
-                os.add_dll_directory(os.path.dirname(libblond_path))
+                # Cached: repeated backend loads must not keep appending
+                # to the DLL search path (see add_dll_directory_once).
+                add_dll_directory_once(os.path.dirname(libblond_path))
                 _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
             else:
                 _LIBBLOND = ct.CDLL(str(libblond_path))
