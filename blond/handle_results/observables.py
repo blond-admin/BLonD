@@ -21,7 +21,6 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.gridspec import GridSpec
 from matplotlib.image import AxesImage
-from numpy.typing import ArrayLike
 from numpy.typing import NDArray as NumpyArray
 
 from blond import backend
@@ -45,6 +44,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
+    from blond.typing import AnyArray
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +311,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         each_turn_i: int,
         folder: str = "",
         bins: int | tuple[int, int] = 32,
-        range: ArrayLike | None = None,
+        range: AnyArray | None = None,
     ):
         super().__init__(
             each_turn_i=each_turn_i,

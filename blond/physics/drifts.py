@@ -181,7 +181,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         self._turn_counter: DynamicParameter | None = None
 
-        self._add_intended_schedule("momentum_compaction_factor")
+        self._register_schedulable_variables("momentum_compaction_factor")
 
         self._simulation: Simulation | None = None
 
@@ -472,7 +472,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             **kwargs,
         )
 
-        self._add_intended_schedule("higher_order_alpha")
+        self._register_schedulable_variables("higher_order_alpha")
         self.higher_order_alpha = higher_order_alpha
 
     @staticmethod

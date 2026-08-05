@@ -32,16 +32,16 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-  "setuptools>=60",  # packaging utilities
-  "numpy>=2",        # array computing
-  "scipy>=1.15",     # scientific computing algorithms
-  "matplotlib>=3.9", # plotting and visualization
-  "numba>=0.60",     # simple computing backend that compiles everywhere out of the box
-  "tqdm>4",          # nice loading bar
-  "mpi4py>=4",       # distributed computing
-  "mpmath>=1",       # for numba fastmath replacement
-  "sympy>=1.9",      # symbolic math for separatrix calculations, etc.
-  "scikit-rf>1",     # pole fitting of impedances
+  "setuptools>=60",    # packaging utilities
+  "numpy>=2",          # array computing
+  "scipy>=1.15,<1.18", # scientific computing algorithms
+  "matplotlib>=3.9",   # plotting and visualization
+  "numba>=0.61",       # simple computing backend that compiles everywhere out of the box
+  "tqdm>4",            # nice loading bar
+  "mpi4py>=4",         # distributed computing
+  "mpmath>=1",         # for numba fastmath replacement
+  "sympy>=1.9",        # symbolic math for separatrix calculations, etc.
+  "scikit-rf>1",       # pole fitting of impedances
 ]
 
 [project.optional-dependencies]

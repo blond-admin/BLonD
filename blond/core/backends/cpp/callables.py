@@ -19,7 +19,8 @@ import numpy as np
 
 from blond.core.backends.backend import Specials, backend
 from blond.core.backends.cpp.compile import add_dll_directory_once
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
+from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -91,17 +92,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         libblond_path_ = os.environ.get("LIBBLOND", None)
+        if libblond_path_ is not None and not libblond_path_.strip():
+            raise ValueError(
+                "LIBBLOND is set but empty; unset it to use the default "
+                "library or set it to a valid path."
+            )
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
-        hash_ = hash_in_folder(
-            folder=folder,
-            extensions=(".py", ".h", ".cpp"),
-            recursive=False,
-        )
-        basepath = os.path.join(folder, "compiled", hash_[-5:])
+        # Same toolchain/CPU-aware directory the compiler writes to.
+        basepath = cpp_compiled_dir(folder)
         if "posix" in os.name:
-            if libblond_path_:
+            if libblond_path_ is not None:
                 libblond_path = os.path.abspath(libblond_path_)
             else:
                 libblond_path = os.path.join(
@@ -109,7 +111,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 )
             _LIBBLOND = ct.CDLL(str(libblond_path))
         elif "win" in sys.platform:
-            if libblond_path_:
+            if libblond_path_ is not None:
                 libblond_path = os.path.abspath(libblond_path_)
             else:
                 libblond_path = os.path.join(
@@ -128,18 +130,24 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 f"Supporting 'win' and 'posix', not {sys.platform}."
             )
 
+        if libblond_path_ is None:
+            # Refresh the LRU stamp on the hashed cache dir we loaded from
+            # (skipped when an explicit LIBBLOND path bypassed it).
+            mark_used(basepath)
+
         return _LIBBLOND
 
+    # Validate up front; only ``double``/float64 is supported. These raise
+    # TypeError, which is unrelated to the load failures handled below.
+    if floattype == np.float32:
+        raise TypeError("32-bit float and 64-bit complex have been removed.")
+    elif floattype != np.float64:
+        raise TypeError(floattype)
+
+    # FileNotFoundError is an OSError subclass; catching OSError covers both.
     try:
-        if floattype == np.float32:
-            raise TypeError(
-                "32-bit float and 64-bit complex have been removed."
-            )
-        elif floattype == np.float64:
-            _LIBBLOND = load_libblond(precision="double")
-        else:
-            raise TypeError(floattype)
-    except (OSError, FileNotFoundError):
+        _LIBBLOND = load_libblond(precision="double")
+    except OSError:
         from blond.core.backends.cpp.compile import compile_cpp_library
 
         print(
@@ -147,15 +155,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
         )
         compile_cpp_library()
         try:
-            if floattype == np.float32:
-                raise TypeError(
-                    "32-bit float and 64-bit complex have been removed."
-                )
-            elif floattype == np.float64:
-                _LIBBLOND = load_libblond(precision="double")
-            else:
-                raise TypeError(floattype)
-        except (OSError, FileNotFoundError) as exc:
+            _LIBBLOND = load_libblond(precision="double")
+        except OSError as exc:
             raise OSError(
                 "`load_libblond` failed. Has the backend been compiled?\n"
                 f"{__file__.replace('callables.py', 'compile.py')}:1"  # :1 to

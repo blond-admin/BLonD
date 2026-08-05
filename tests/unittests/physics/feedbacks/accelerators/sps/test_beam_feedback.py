@@ -1,305 +1,367 @@
-"""
-Created on Fri Apr 13 18:27:10 2018
-
-@author: schwarz
-"""
-
 import unittest
+from unittest.mock import Mock
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 
 from blond import (
     Beam,
-    BeamObservationOncePerTurn,
     BiGaussian,
     ConstantMagneticCycle,
+    DriftSimple,
     MultiHarmonicRFStation,
-    RFStationPhaseObservation,
     Ring,
     Simulation,
     StaticProfile,
+    backend,
     proton,
 )
-from blond.core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit
+from blond.experimental.physics.feedbacks.base import (
+    LocalFeedback,
+)
+from blond.physics.feedbacks.accelerators.sps import (
+    SPSBeamControl,
+)
 
-# from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
-#     SpsRlBeamFeedback,
-# )
+circumference = 2 * np.pi * 1100.009  # [m]
+momentum = 25.92e9
+intensity = 1.6e11
+n_turns = 2_000
+h = 4620
+gamma_t = 17.95
+alpha = 1 / gamma_t / gamma_t
+
+n_macroparticles = 100_000
+tau_bunch = 1.2e-9
+injection_offset_phase = 20
+reference = -20
+
+voltage_200 = 4.4788e6
+voltage_800 = 0.1 * voltage_200
+phase_200 = 0.0
+phase_800 = np.pi
+
+k_phi_n = 8810.900275164733
+k_phi_nm1 = 70.59968917093718
+k_eps_n = 278.1481404221182
+k_z_n = 0.8881084849451452
+k_a_n = 70.59968917093718
+k_b_n = 0.0
+action_delay = 0
 
 
-@pytest.mark.skip("not sure if this is working?")
-class TestBeamFeedback(unittest.TestCase):
-    def setUpBlond2(self):
-        from blond.legacy.blond2.beam.beam import Beam, Proton
-        from blond.legacy.blond2.beam.distributions import bigaussian
-        from blond.legacy.blond2.beam.profile import CutOptions, Profile
-        from blond.legacy.blond2.input_parameters.rf_parameters import (
-            RFStation,
-        )
-        from blond.legacy.blond2.input_parameters.ring import Ring
-        from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
-        from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
+class TestSPSBeamFeedback(unittest.TestCase):
+    def create_scenario(
+        self,
+        k_phi_n,
+        k_phi_nm1,
+        k_eps_n,
+        k_z_n,
+        k_a_n,
+        k_b_n,
+        phi_sync,
+        pl_gain,
+        mock_cavity_feedback: bool = False,
+        invert_main_harmonic: bool = False,
+        current_thres: float | None = None,
+    ):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
 
-        n_turns = 200
-        intensity_pb = 1.2e6  # protons per bunch
-        n_macroparticles = int(1e6)  # macropartilces per bunch
-        sigma = 0.05e-9  # sigma for gaussian bunch [s]
-        self.time_offset = 0.1e-9  # time by which to offset the bunch
+        energy = np.sqrt(momentum**2 + proton.mass**2)
+        rel_gamma = energy / proton.mass
+        rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
 
-        # Ring parameters SPS
-        C = 6911.5038  # Machine circumference [m]
-        sync_momentum = 25.92e9  # SPS momentum at injection [eV/c]
-        gamma_transition = 17.95142852  # Q20 Transition gamma
-        momentum_compaction = (
-            1.0 / gamma_transition**2
-        )  # Momentum compaction array
-
-        self.ring_blond2 = Ring(
-            C, momentum_compaction, sync_momentum, Proton(), n_turns=n_turns
-        )
-
-        # RF parameters SPS
-        harmonic = 4620.0  # Harmonic numbers
-        voltage = 4.5e6  # [V]
-        phi_offsets = 0.0
-
-        self.rf_station_blond2 = RFStation(
-            self.ring_blond2, harmonic, voltage, phi_offsets
-        )
-        t_rf = self.rf_station_blond2.t_rf[0, 0]
-
-        # Beam setup
-        self.beam_blond2 = Beam(
-            self.ring_blond2, n_macroparticles, intensity_pb
-        )
-
-        bigaussian(
-            self.ring_blond2,
-            self.rf_station_blond2,
-            self.beam_blond2,
-            sigma,
-            seed=1234,
-            reinsertion=True,
-        )
-
-        # displace beam to see effect of phase error and phase loop
-        self.beam_blond2.dt += self.time_offset
-
-        # Profile setup
-
-        self.profile_blond2 = Profile(
-            self.beam_blond2,
-            cut_options=CutOptions(
-                cut_left=0,
-                cut_right=t_rf,
-                n_slices=1024,
-            ),
-        )
-        PL_gain = 1000  # gain of phase loop
-        self.phase_loop_blond2 = BeamFeedback(
-            self.ring_blond2,
-            self.rf_station_blond2,
-            self.profile_blond2,
-            {
-                "machine": "SPS_RL",
-                "PL_gain": PL_gain,
-            },
+        beam = Beam(
+            intensity,
+            proton,
         )
 
-        # Tracker setup
-        self.section_tracker_blond2 = RingAndRFTracker(
-            self.rf_station_blond2,
-            self.beam_blond2,
-            profile=self.profile_blond2,
-            beam_feedback=self.phase_loop_blond2,
-            interpolation=False,
+        cycle = ConstantMagneticCycle(proton, momentum, in_unit="momentum")
+
+        lattice = DriftSimple(
+            orbit_length=circumference, momentum_compaction_factor=alpha
         )
 
-    def setUpBlond3(self):
-        intensity_pb = 1.2e6  # protons per bunch
-        n_macroparticles = int(1e6)  # macropartilces per bunch
-        sigma = 0.05e-9  # sigma for gaussian bunch [s]
-        self.time_offset = 0.1e-9  # time by which to offset the bunch
-        gamma_transition = 17.95142852  # Q20 Transition gamma
+        if mock_cavity_feedback:
+            self.cavity_feedback = Mock(spec=LocalFeedback)
+            n_coarse = h
+            self.cavity_feedback.n_coarse = n_coarse
+            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse[0] = 1.5 + 0 * 1j
+            self.cavity_feedback.I_BEAM_COARSE = _i_coarse
+            _v_ant = np.zeros(n_coarse, dtype=complex)
+            _v_ant[:] = voltage_200 * np.exp(1j * 10 / 180 * np.pi)
+            self.cavity_feedback.V_ANT_COARSE = _v_ant
+        else:
+            self.cavity_feedback = None
 
-        C = 6911.5038  # Machine circumference [m]
-        sync_momentum = 25.92e9  # SPS momentum at injection [eV/c]
-
-        self.ring = Ring(circumference=C)
-
-        self.magnetic_cycle = ConstantMagneticCycle(
-            reference_particle=proton,
-            value=sync_momentum,
-            in_unit="momentum",
-        )
-        t_rf = (
-            self.magnetic_cycle.get_t_rev_init(
-                circumference=self.ring.circumference,
-                particle_type=self.magnetic_cycle._reference_particle,
+        if not invert_main_harmonic:
+            self.cavity = MultiHarmonicRFStation(
+                voltage=np.array([voltage_200, voltage_800]),
+                phi_rf=np.array([phase_200, phase_800]),
+                harmonic=np.array([h, 4 * h]),
+                n_harmonics=2,
+                main_harmonic_idx=0,
+                cavity_feedback=self.cavity_feedback,
             )
-            / 4620
-        )
+        else:
+            self.cavity = MultiHarmonicRFStation(
+                voltage=np.array([voltage_800, voltage_200]),
+                phi_rf=np.array([phase_800, phase_200]),
+                harmonic=np.array([4 * h, h]),
+                n_harmonics=2,
+                main_harmonic_idx=1,
+                cavity_feedback=self.cavity_feedback,
+            )
+
+        f_rf = self.cavity.calc_main_harmonic_omega_rf_design(
+            rel_beta, lattice.orbit_length
+        ) / (2 * np.pi)
+        f_rev = f_rf / h
+        t_rf = 1 / f_rf
+        t_rev = 1 / f_rev
 
         self.profile = StaticProfile(
-            cut_left=0,
-            cut_right=t_rf,
-            n_bins=1024,
+            cut_left=-1.5 * t_rf,
+            cut_right=2.5 * t_rf,
+            n_bins=4 * 2**6,
         )
 
-        self.sps_beam_feedback = SpsRlBeamFeedback(
-            profile=self.profile,
-            PL_gain=1000,  # gain of phase loop
+        bigaussian = BiGaussian(
+            n_macroparticles, sigma_dt=tau_bunch / 4, seed=1234
         )
-        self.cavity = MultiHarmonicRFStation(
-            harmonic=np.array([4620.0]),
-            voltage=np.array([4.5e6]),
-            phi_rf=np.array([0.0]),
-            n_harmonics=1,
-            main_harmonic_idx=0,
-            beam_feedback=self.sps_beam_feedback,
-        )
-
-        # RF parameters SPS
-        self.ring.add_element(self.cavity)
-        self.ring.add_drifts(
-            n_sections=1,
-            n_drifts_per_section=1,
-            transition_gamma=gamma_transition,
-        )
-        self.ring.add_element(self.profile)
-
-        # Beam setup
-        self.beam = Beam(
-            intensity=intensity_pb,
-            particle_type=proton,
-        )
-        self.simulation = Simulation(
-            ring=self.ring,
-            magnetic_cycle=self.magnetic_cycle,
-        )
-        self.simulation.prepare_beam(
-            beam=self.beam,
-            preparation_routine=BiGaussian(
-                n_macroparticles=n_macroparticles,
-                sigma_dt=sigma,
-                seed=1234,
-                reinsertion=True,
-            ),
-        )
-        self.simulation.print_one_turn_execution_order()
-
-        # displace beam to see effect of phase error and phase loop
-        self.beam._dt += self.time_offset
-        self.profile.track(self.beam)
-
-    def setUp(self):
-        backend.change_backend(Numpy64Bit)
-        self.setUpBlond2()
-        self.setUpBlond3()
-
-    # activate again when the feedbacks are working
-    @unittest.skip("too slow and beam feedback is anyway not working for now")
-    def test_setup(self):
-        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1)
-        cav_obs = RFStationPhaseObservation(
-            each_turn_i=1,
-            rf_station=self.cavity,
-        )
-
-        def callback(simulation: Simulation):
-            plt.figure(3)
-            plt.subplot(4, 1, 1)
-            plt.title("phi_beam")
-            plt.plot(
-                simulation.turn_i.value,
-                self.sps_beam_feedback.phi_beam,
-                "o",
-                c="C0",
+        if isinstance(k_phi_n, float):
+            self.beam_control = SPSBeamControl(
+                profile=self.profile,
+                k_phi_n=k_phi_n,
+                k_phi_nm1=k_phi_nm1,
+                k_eps_n=k_eps_n,
+                k_z_n=k_z_n,
+                k_a_n=k_a_n,
+                k_b_n=k_b_n,
+                phi_sync=phi_sync,
+                pl_gain=pl_gain,
+                action_delay=action_delay,
+                current_thres=current_thres,
             )
-            plt.subplot(4, 1, 2)
-            plt.title("phi_s")
-
-            plt.plot(
-                simulation.turn_i.value,
-                self.sps_beam_feedback._parent_rf_station.phi_s,
-                "o",
-                c="C0",
+        else:
+            self.beam_control = SPSBeamControl(
+                profile=self.profile,
+                k_phi_n=k_phi_n[0],
+                k_phi_nm1=k_phi_nm1[0],
+                k_eps_n=k_eps_n[0],
+                k_z_n=k_z_n[0],
+                k_a_n=k_a_n[0],
+                k_b_n=k_b_n[0],
+                phi_sync=phi_sync[0],
+                pl_gain=pl_gain[0],
+                action_delay=action_delay,
+                current_thres=current_thres,
             )
+            self.beam_control.schedule("k_phi_n", k_phi_n)
+            self.beam_control.schedule("k_phi_nm1", k_phi_nm1)
+            self.beam_control.schedule("k_eps_n", k_eps_n)
+            self.beam_control.schedule("k_z_n", k_z_n)
+            self.beam_control.schedule("k_a_n", k_a_n)
+            self.beam_control.schedule("k_b_n", k_b_n)
+            self.beam_control.schedule("phi_sync", phi_sync)
+            self.beam_control.schedule("pl_gain", pl_gain)
 
-        self.simulation.run_simulation(
-            (self.beam,),
-            n_turns=200,
-            observe=(obs_bunch, cav_obs),
-            # callback=callback,
-        )
-        for i in range(200):
-            # animation if helpful for debugging
-            # plt.cla()
-            # plt.scatter(self.beam_blond2.dt[:], self.beam_blond2.dE[:])
-            # plt.scatter(obs_bunch.dts[i,:], obs_bunch.dEs[i,:],marker="x")
-            # plt.draw()
-            # plt.pause(.1)
-            self.section_tracker_blond2.track()
-            self.profile_blond2.track()
-            """plt.figure(3)
+        self.cavity.attach_beam_feedback(self.beam_control)
 
-            plt.subplot(4, 1, 1)
-
-            plt.plot(i, self.phase_loop_blond2.phi_beam, "x", c="C1")"""
-        DEV_DEBUG = False
-        if DEV_DEBUG:
-            plt.figure(3)
-            plt.subplot(4, 1, 2)
-
-            plt.plot(
-                self.rf_station_blond2.phi_s,
-                "^",
-                c="C1",
-                label="phi_s",
-            )
-            plt.legend()
-            plt.figure(2)
-            plt.subplot(3, 1, 1)
-            plt.title("phases")
-            plt.plot(cav_obs.phases[1:])
-            plt.plot(
-                self.rf_station_blond2.phi_rf[0, :-1],
-                "--",
-            )
-            plt.subplot(3, 1, 2)
-            plt.title("omegas")
-            plt.plot(cav_obs.omegas[1:])
-            plt.plot(
-                self.rf_station_blond2.omega_rf[0, :],
-                "--",
-            )
-            plt.subplot(3, 1, 3)
-            plt.title("voltages")
-            plt.plot(cav_obs.voltages[1:])
-            plt.plot(
-                self.rf_station_blond2.voltage[0, :],
-                "--",
-            )
-            plt.show()
-
-        np.testing.assert_allclose(
-            cav_obs.phases[1:, 0] + 1,
-            self.rf_station_blond2.phi_rf[0, :-1] + 1,
-            rtol=1e-6,
-        )
-        np.testing.assert_allclose(
-            cav_obs.omegas[1:, 0] + 1,
-            self.rf_station_blond2.omega_rf[0, :-1] + 1,
-            rtol=1e-6,
-        )
-        np.testing.assert_allclose(
-            cav_obs.voltages[1:, 0] + 1,
-            self.rf_station_blond2.voltage[0, :-1] + 1,
-            rtol=1e-6,
+        ring = Ring(
+            circumference,
         )
 
+        ring.add_elements(
+            [self.profile, self.cavity, self.beam_control, lattice],
+        )
 
-if __name__ == "__main__":
-    unittest.main()
+        simulation = Simulation(
+            ring,
+            cycle,
+        )
+
+        simulation.prepare_beam(beam, bigaussian)
+
+        beam._dt.array_local += injection_offset_phase * t_rf / 360
+
+        self.profile.track(beam)
+
+        simulation.finalize(
+            (beam,),
+            n_turns,
+        )
+        self.beam_control.reference = reference * np.pi / 180
+
+        self.beam_control.track(beam)
+
+    def test_sps_beam_control_with_single_values(self):
+        self.create_scenario(
+            k_phi_n=k_phi_n,
+            k_phi_nm1=k_phi_nm1,
+            k_eps_n=k_eps_n,
+            k_z_n=k_z_n,
+            k_a_n=k_a_n,
+            k_b_n=k_b_n,
+            phi_sync=reference * np.pi / 180,
+            pl_gain=1.0,
+        )
+
+        # Checks the correction calculation of the recursion parameters for the synchronization loop
+        np.testing.assert_array_equal(
+            self.beam_control.k_phi_n, k_phi_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_phi_nm1, k_phi_nm1 * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_eps_n, k_eps_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_z_n, k_z_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_a_n, k_a_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_b_n, k_b_n * np.ones(n_turns + 1)
+        )
+
+        # Beam-phase loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_phi, -3073.547859760765
+        )
+
+        # Synchro loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_sync, -97.09201717330986
+        )
+
+        # Frequency loop output
+        self.assertAlmostEqual(self.beam_control.domega_freq, -0.0)
+
+        # Total correction from beam control
+        self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0)
+
+        np.testing.assert_almost_equal(
+            self.beam_control._domega_rf_corr,
+            [-3170.639876934075, 0.0],
+            decimal=10,
+        )
+
+    def test_sps_beam_control_with_arrays(self):
+        self.create_scenario(
+            k_phi_n=k_phi_n * np.ones(n_turns + 1),
+            k_phi_nm1=k_phi_nm1 * np.ones(n_turns + 1),
+            k_eps_n=k_eps_n * np.ones(n_turns + 1),
+            k_z_n=k_z_n * np.ones(n_turns + 1),
+            k_a_n=k_a_n * np.ones(n_turns + 1),
+            k_b_n=k_b_n * np.ones(n_turns + 1),
+            phi_sync=reference * np.pi / 180 * np.ones(n_turns + 1),
+            pl_gain=1.0 * np.ones(n_turns + 1),
+        )
+
+        # Checks the correction calculation of the recursion parameters for the synchronization loop
+        np.testing.assert_array_equal(
+            self.beam_control.k_phi_n, k_phi_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_phi_nm1, k_phi_nm1 * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_eps_n, k_eps_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_z_n, k_z_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_a_n, k_a_n * np.ones(n_turns + 1)
+        )
+
+        np.testing.assert_array_equal(
+            self.beam_control.k_b_n, k_b_n * np.ones(n_turns + 1)
+        )
+
+        # Beam-phase loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_phi, -3073.547859760765
+        )
+
+        # Synchro loop output
+        self.assertAlmostEqual(
+            self.beam_control.domega_sync, -97.09201717330986
+        )
+
+        # Frequency loop output
+        self.assertAlmostEqual(self.beam_control.domega_freq, -0.0)
+
+        # Total correction from beam control
+        self.assertAlmostEqual(self.beam_control.delta_omega_rf, 0.0)
+
+        np.testing.assert_almost_equal(
+            self.beam_control._domega_rf_corr,
+            [-3170.639876934075, 0.0],
+            decimal=10,
+        )
+
+    def test_sps_beam_control_current_threshold(self):
+        with self.assertRaises(RuntimeError):
+            self.create_scenario(
+                k_phi_n=k_phi_n,
+                k_phi_nm1=k_phi_nm1,
+                k_eps_n=k_eps_n,
+                k_z_n=k_z_n,
+                k_a_n=k_a_n,
+                k_b_n=k_b_n,
+                phi_sync=reference * np.pi / 180,
+                pl_gain=1.0,
+                mock_cavity_feedback=True,
+            )
+
+    def test_sps_beam_control_changing_main_harmonic(self):
+        self.create_scenario(
+            k_phi_n=k_phi_n,
+            k_phi_nm1=k_phi_nm1,
+            k_eps_n=k_eps_n,
+            k_z_n=k_z_n,
+            k_a_n=k_a_n,
+            k_b_n=k_b_n,
+            phi_sync=reference * np.pi / 180,
+            pl_gain=1.0,
+            mock_cavity_feedback=True,
+            invert_main_harmonic=False,
+            current_thres=0.2,
+        )
+
+        self.assertEqual(
+            self.cavity.cavity_feedback_list[0], self.cavity_feedback
+        )
+
+        self.create_scenario(
+            k_phi_n=k_phi_n,
+            k_phi_nm1=k_phi_nm1,
+            k_eps_n=k_eps_n,
+            k_z_n=k_z_n,
+            k_a_n=k_a_n,
+            k_b_n=k_b_n,
+            phi_sync=reference * np.pi / 180,
+            pl_gain=1.0,
+            mock_cavity_feedback=True,
+            invert_main_harmonic=True,
+            current_thres=0.2,
+        )
+
+        self.assertEqual(
+            self.cavity.cavity_feedback_list[1], self.cavity_feedback
+        )

@@ -103,7 +103,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
         super().__init__()
 
-        self._add_intended_schedule("radiation_integrals")
+        self._register_schedulable_variables("radiation_integrals")
 
         if track_before_element_type is not None:
             self.track_before_element_type = track_before_element_type

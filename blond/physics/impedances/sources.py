@@ -45,10 +45,10 @@ from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.typing import AnyArray
 
 
 def fit_poles(
@@ -370,12 +370,12 @@ class Resonators(
 
     def __init__(
         self,
-        shunt_impedances: ArrayLike | float | int,
-        center_frequencies: ArrayLike | float | int,
-        quality_factors: ArrayLike | float | int,
+        shunt_impedances: AnyArray | float | int,
+        center_frequencies: AnyArray | float | int,
+        quality_factors: AnyArray | float | int,
         shunt_impedances_counter_witness: NumpyArray
         | float
-        | ArrayLike
+        | AnyArray
         | None = None,
         shunt_impedances_counter_rotating: None = None,
     ):
@@ -1263,9 +1263,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        R_S: float | ArrayLike,
-        frequency_R: float | ArrayLike,
-        a_factor: float | ArrayLike,
+        R_S: float | AnyArray,
+        frequency_R: float | AnyArray,
+        a_factor: float | AnyArray,
     ):
         if hasattr(R_S, "__len__"):
             assert len(R_S) == len(frequency_R), (

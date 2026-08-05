@@ -6,6 +6,8 @@ logs
 /docs/build/
 /docs/examples/
 /docs/modules/*.rst
+/blond/core/backends/cpp/compiled/*
+/blond/core/backends/cuda/compiled/*
 /__EXAMPLES/*output_files/
 /__BENCHMARKS/debug.log
 /__BENCHMARKS/OTFB.png
