@@ -25,7 +25,6 @@ import numpy as np
 import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
-from scipy.signal import firwin
 
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -39,7 +38,6 @@ from .impulse_response import (  # noqa
     SPS5Section200MHzTWC,
     cavity_response_sparse_matrix,
 )
-from .longitudinal_damper import LHCLongitudinalDamper  # file missing
 from .signal_processing import (  # noqa
     cartesian_to_polar,
     comb_filter,
@@ -126,6 +124,7 @@ class CavityFeedback:
         self.n_coarse = round(self.rf_station.t_rev[0] / self.T_s)
         self.omega_carrier = (
             self.rf_station.omega_rf[self.n_h, self.rf_station.counter[0]]
+            / self.n_s
         )
         self.omega_rf = self.rf_station.omega_rf[
             self.n_h, self.rf_station.counter[0]
@@ -136,7 +135,7 @@ class CavityFeedback:
         self.rf_centers = (
             np.arange(self.n_coarse) * self.T_s
             + 0.5 * self.rf_station.t_rf[self.n_h, self.rf_station.counter[0]]
-        )  # TODO: dT missing
+        )
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_FINE = np.zeros(self.profile.n_slices, dtype=complex)
@@ -223,7 +222,6 @@ class CavityFeedback:
             self.V_ANT_COARSE[-self.n_coarse :] / self.V_SET[-self.n_coarse :]
         )
 
-
     def rf_beam_current(self, lpf: bool = False):
         r"""Calculate RF beam current from beam profile"""
 
@@ -282,7 +280,7 @@ class CavityFeedback:
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
-        self.omega_carrier = self.omega_rf
+        self.omega_carrier = self.omega_rf / self.n_s
 
         # Present sampling time
         self.T_s_prev = self.T_s
@@ -306,7 +304,7 @@ class CavityFeedback:
         )
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_s
-        ) * self.T_s + self.dT  # TODO: again different from
+        ) * self.T_s + self.dT
 
 
 class SPSCavityLoopCommissioning:
@@ -1177,7 +1175,7 @@ class SPSCavityFeedback:
         profile: Profile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
-        G_tx: list[float, list] = 0.5,  # TODO: default was 1?
+        G_tx: list[float, list] = 0.5,
         a_comb: Optional[float] = None,
         turns: int = 1000,
         post_LS2: bool = True,
@@ -1491,7 +1489,6 @@ class LHCCavityLoop(CavityFeedback):
         tau_loop: float = 650e-9,
         tau_otfb: float = 1472e-9,
         RFFB: Optional[LHCCavityLoopCommissioning] = None,
-        damper: LHCLongitudinalDamper = None,
         n_h: int = 0,
     ):
         super().__init__(
@@ -1504,7 +1501,6 @@ class LHCCavityLoop(CavityFeedback):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
-        self.damper = damper
 
         # Options for commissioning the feedback
         if RFFB is None:
@@ -1634,12 +1630,6 @@ class LHCCavityLoop(CavityFeedback):
         # Track the different parts of the model
         self.update_arrays()
         self.update_set_point()
-        if self.damper is not None and not no_beam:
-            self.damper.track(self.I_BEAM_COARSE[-self.n_coarse:], self.V_ANT_COARSE[-self.n_coarse:])
-            n_correction_delay = self.n_delay + round((self.Q_L / self.omega_rf) / self.T_s / 2)
-            self.V_SET[-self.n_coarse:] = self.V_SET[-self.n_coarse:] \
-                                          * np.roll(self.damper.I_SET_CORR, -n_correction_delay)
-
         self.track_one_turn()
 
         if not no_beam:
@@ -1793,8 +1783,8 @@ class LHCCavityLoop(CavityFeedback):
         # Calculate voltage difference to act on
         if self.enable_klystron:
             self.V_FB_IN[self.ind] = (
-                    self.V_SET[self.ind]
-                    - self.open_loop * self.V_ANT_COARSE[self.ind]
+                self.V_SET[self.ind]
+                - self.open_loop * self.V_ANT_COARSE[self.ind]
             )
         else:
             self.V_FB_IN[self.ind] = (
