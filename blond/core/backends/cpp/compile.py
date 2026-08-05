@@ -25,6 +25,43 @@ _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
 default_libname = "libblond"
 
+#: Handles of the directories already put on the Windows DLL search path,
+#: keyed by normalised absolute path. Kept alive for the process lifetime
+#: (see `add_dll_directory_once`); never closed on purpose, because the
+#: loaded library must stay resolvable for as long as the process runs.
+_added_dll_directories: dict[str, object] = {}
+
+
+def add_dll_directory_once(directory: str) -> None:
+    """
+    Put a directory on the Windows DLL search path at most once.
+
+    ``os.add_dll_directory`` *appends* an entry to the process-wide DLL
+    search path and returns a handle that keeps it alive. Adding the same
+    directory again on every C++ backend (re)load makes that internal path
+    grow without bound until Windows rejects further additions with
+    ``OSError`` (``WinError 206``, "The filename or extension is too
+    long") -- naming the directory just offered, so a perfectly short path
+    appears to be at fault. Callers re-load the backend often (every
+    ``backend.set_specials("cpp")``), so the addition is cached here: the
+    directory stays searchable for the process lifetime and repeat calls
+    are no-ops.
+
+    Does nothing on platforms without ``os.add_dll_directory`` (POSIX).
+
+    Parameters
+    ----------
+    directory
+        Directory holding the compiled library.
+    """
+    if not hasattr(os, "add_dll_directory"):
+        return
+    key = os.path.normcase(os.path.abspath(directory))
+    if key in _added_dll_directories:
+        return
+    _added_dll_directories[key] = os.add_dll_directory(directory)
+
+
 cpp_files = [
     "kick.cpp",
     "drift.cpp",
@@ -363,7 +400,7 @@ def _prepare_cflags(
 
         if hasattr(os, "add_dll_directory"):
             directory, _ = os.path.split(libname_double)
-            os.add_dll_directory(directory)
+            add_dll_directory_once(directory)
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
