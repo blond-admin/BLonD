@@ -72,8 +72,10 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    copy_to_cpu,
     mu_plus,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
@@ -299,21 +301,20 @@ class TestWakeVsFeedbackDynamics(unittest.TestCase):
             "v_peak": [],
         }
 
+        # StaticProfile: the grid never moves, so transfer it once.
+        hist_x_host = copy_to_cpu(profile.hist_x)
+
         def callback(_sim, b):
-            dt = np.asarray(b.dt.array_local)
-            dE = np.asarray(b.dE.array_local)
+            dt = copy_to_cpu(b.dt.array_local)
+            dE = copy_to_cpu(b.dE.array_local)
             moments = _bunch_moments(dt, dE)
             for key, value in moments.items():
                 rec[key].append(value)
             rec["in_window"].append(
-                float(
-                    np.mean(
-                        (dt > profile.hist_x[0]) & (dt < profile.hist_x[-1])
-                    )
-                )
+                float(np.mean((dt > hist_x_host[0]) & (dt < hist_x_host[-1])))
             )
             rec["v_peak"].append(
-                float(np.max(np.abs(np.asarray(wakefield.induced_voltage))))
+                float(np.max(np.abs(copy_to_cpu(wakefield.induced_voltage))))
                 if mode == "wake"
                 else np.nan
             )
