@@ -203,7 +203,10 @@ def run_multi_turn_fine_grid(
     middle = n_coarse // 2
     t_center = rf_centers[middle]
     sigma_t = sigma_t_frac * T_RF
-    bunch_shape = np.exp(-0.5 * ((profile.hist_x - t_center) / sigma_t) ** 2)
+    # Host grid: this hand-built fine-grid beam current is fed straight to the
+    # scipy sparse-matrix cavity solver, which cannot take device arrays.
+    hist_x = copy_to_cpu(profile.hist_x)
+    bunch_shape = np.exp(-0.5 * ((hist_x - t_center) / sigma_t) ** 2)
     # Coarse RF current of the bunch == its average over the RF period.
     coarse_bunch = peak_beam_current * np.sqrt(2 * np.pi) * sigma_t / T_RF
 

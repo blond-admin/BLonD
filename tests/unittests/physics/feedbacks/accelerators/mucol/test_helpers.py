@@ -16,6 +16,7 @@ The solvers are driven directly on a static profile -- no ``Beam`` tracking and
 no full ``Simulation`` -- with small mock objects.
 """
 
+import os
 import unittest
 import warnings
 from typing import Literal
@@ -587,7 +588,9 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         only half of the macroparticles being inside the window.
         """
         profile = self._profile_with_bunch_at(0.5)
-        profile.hist_y_to_density_factor = 0.5 / np.sum(profile.hist_y)
+        profile.hist_y_to_density_factor = 0.5 / float(
+            np.sum(copy_to_cpu(profile.hist_y))
+        )
         with self.assertWarns(UserWarning) as cm:
             self._downsampled(profile)
         self.assertIn("not be treated correctly", str(cm.warning))
@@ -761,6 +764,11 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
         )
 
 
+@unittest.skipIf(
+    os.environ.get("BLOND_BACKEND_MODE", "").lower() == "cuda",
+    "byte-identity pin: the reference values were recorded on the host "
+    "backend, and CuPy's linspace/reductions differ from NumPy's by 1-2 ULP",
+)
 class TestUnifiedRfBeamCurrentMigrationPin(unittest.TestCase):
     """
     Migration pin: the unified ``rf_beam_current`` coarse path.
@@ -773,6 +781,15 @@ class TestUnifiedRfBeamCurrentMigrationPin(unittest.TestCase):
     this pins the merged coarse path (bin-centre offset
     ``sampling_time / 2``, carrier-phase rotation, downsampling loop,
     remainder handling) to the pre-merge behaviour.
+
+    The pin is host-only by construction: the recorded values came from the
+    NumPy backend, and the profile's bin centres are built with
+    ``backend.linspace``, whose CuPy result differs from NumPy's in ~16 % of
+    the bins by up to 2.2e-16 relative. That propagates through
+    ``cos``/``sin(omega_c t)`` into 1-2 ULP differences (measured max 6.3e-15
+    relative over the whole fine grid) -- benign rounding, but fatal to an
+    exact-equality pin, so the GPU validation run skips it rather than
+    reporting a failure that is not a defect.
     """
 
     def setUp(self):
