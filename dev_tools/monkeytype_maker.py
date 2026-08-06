@@ -54,16 +54,21 @@ blond.physics.impedances.sources
 blond.physics.impedances.solvers
 blond.physics.impedances.readers
 blond.physics.impedances.base
-blond.physics.feedbacks.helpers
+blond.physics.feedbacks.rf_center_segment
+blond.physics.feedbacks.rf_center_grid
+blond.physics.feedbacks.iq
+blond.physics.feedbacks.generator_regulation
+blond.physics.feedbacks.generator_current_controller
+blond.physics.feedbacks.envelope_kernel
+blond.physics.feedbacks.cavity_solvers
 blond.physics.feedbacks.cavity_feedback
 blond.physics.feedbacks.beam_feedback
+blond.physics.feedbacks.beam_current
 blond.physics.feedbacks.base
-blond.physics.feedbacks.accelerators.sps.impulse_response
-blond.physics.feedbacks.accelerators.sps.helpers
-blond.physics.feedbacks.accelerators.sps.cavity_feedback
 blond.physics.feedbacks.accelerators.sps.beam_feedback
-blond.physics.feedbacks.accelerators.lhc.helpers
-blond.physics.feedbacks.accelerators.lhc.cavity_feedback
+blond.physics.feedbacks.accelerators.psb.beam_feedback
+blond.physics.feedbacks.accelerators.ps.beam_feedback
+blond.physics.feedbacks.accelerators.lhc.beam_feedback
 blond.physics.drifts
 blond.physics.cavities
 blond.legacy.blond2.utils.legacy_support
@@ -89,7 +94,7 @@ blond.legacy.blond2.beam.beam
 blond.handle_results.observables
 blond.handle_results.helpers
 blond.handle_results.array_recorders
-blond.examples.EX_MuonCollider
+blond.examples.scripts.EX_16_MuonCollider_asynchronous_ramp
 blond.cycles.noise_generators.vari_noise
 blond.cycles.noise_generators.base
 blond.cycles.magnetic_cycle
@@ -98,7 +103,7 @@ blond.beam_preparation.bigaussian
 blond.beam_preparation.base
 blond.acc_math.analytic.simple_math
 blond.acc_math.analytic.hamilton
-blond.generals.iterables
+blond.generals.iterables_
 blond.core.simulation.simulation
 blond.core.simulation.intensity_effect_manager
 blond.core.ring.ring
@@ -110,17 +115,17 @@ blond.core.beam.beams
 blond.core.beam.base
 blond.core.base
 blond.core.backends.python.callables
+blond.core.backends.numba.fastmath
+blond.core.backends.numba.callables
+blond.core.backends.cuda.compiled_dir_handler
+blond.core.backends.cuda.compile
+blond.core.backends.cuda.callables
 blond.core.backends.cpp.callables
 blond.core.backends.backend
 """
 # add type hints from database to files
 for target in targets.split("\n"):
     target_ = target.strip()
-    if (
-        len(target_) == 0
-        or target_.startswith("unittests")
-        or "legacy" in target_
-    ):
+    if len(target_) == 0:
         continue
-    else:
-        subprocess.run(f"monkeytype apply {target}".split(" "), check=False)
+    subprocess.run(f"monkeytype apply {target_}".split(" "), check=False)

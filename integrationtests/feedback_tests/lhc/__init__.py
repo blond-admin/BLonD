@@ -1,1 +1,0 @@
-"""LHC related comparison tests."""

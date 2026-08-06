@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import AltersReference, HasPropertyCache
+from blond.core.base import AltersReference
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
@@ -31,11 +31,9 @@ from blond.physics.cavities import (
     SingleHarmonicRFStation,
 )
 from blond.physics.feedbacks.base import LocalFeedback
-from blond.physics.feedbacks.beam_current import (
-    rf_beam_current,
-    rf_beam_current_partial,
-)
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_solvers import (
+    cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
     pretrack_fill_voltage,
 )
@@ -43,18 +41,12 @@ from blond.physics.feedbacks.envelope_kernel import envelope_pi_scan
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
 )
-from blond.physics.feedbacks.helpers import cavity_response_sparse_matrix
-from blond.physics.feedbacks.iq import (
-    cartesian_to_polar,
-    polar_to_cartesian,
-)
+from blond.physics.feedbacks.iq import cartesian_to_polar
 from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
 from blond.physics.feedbacks.rf_center_segment import RFCenterSegment
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
@@ -64,38 +56,38 @@ if TYPE_CHECKING:
     )
 
 
-class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
+class IQCavityFeedbackBase(LocalFeedback):
     """
     Base class to design cavity feedbacks.
 
     Abstract IQ-envelope cavity feedback: it owns the beam profile, the
-    coarse/fine grid arrays, the beam-current demodulation and the accessors
-    onto the parent RF station. Concrete feedbacks (the muon-collider
-    :class:`IQCavityFeedbackTimingClass`, and the experimental LHC/SPS loops)
-    subclass it. The vocabulary is defined in the "Concepts and notation"
-    section of :ref:`mucol_cavity_feedback_overview`.
+    coarse/fine grid arrays and the RF-parameter accessors onto the
+    parent RF station. The muon-collider
+    :class:`IQCavityFeedbackTimingClass` is its concrete subclass. The
+    vocabulary is defined in the "Concepts and notation" section of
+    :ref:`mucol_cavity_feedback_overview`.
 
     Parameters
     ----------
     profile
         Beam profile the feedback acts on.
     n_cavities
-        Number of cavities the feedback controls.
+        Number of cavities the feedback controls. May be fractional: an
+        effective-voltage scale (the summed fine-grid antenna voltage is
+        the per-cavity voltage multiplied by ``n_cavities``) rather than
+        a physical cavity count.
     n_rf_periods_per_coarse_grid
         Number of periods for the coarse grid.
     harmonic_index
         Index of the RF harmonic that should be controlled by the feedback.
-    use_lowpass_filter
-        Whether to apply a lowpass filter when calculating the beam current.
     name
         Name of the object.
 
     Attributes
     ----------
     n_cavities
-        Number of cavities the feedback is working on.
-    use_lowpass_filter
-        Apply a low-pass filter to the RF beam current.
+        Number of cavities the feedback is working on (may be fractional,
+        see above).
     harmonic_index
         The harmonic index the cavity feedback is working on.
     n_rf_periods_per_coarse_grid
@@ -106,10 +98,9 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
     def __init__(
         self,
         profile: StaticProfile,
-        n_cavities: int,
+        n_cavities: int | float,
         n_rf_periods_per_coarse_grid: int | float,
         harmonic_index: int,
-        use_lowpass_filter: bool = False,
         name: str | None = None,
     ):
         assert isinstance(profile, StaticProfile), (
@@ -120,15 +111,10 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
             name=name,
         )
 
-        # Number of cavities the feedback is working on
+        # Number of cavities the feedback is working on. Deliberately not
+        # coerced to int: a fractional value is an effective-voltage scale.
         assert n_cavities > 0, f"{n_cavities=}, but must be bigger 0."
-        self.n_cavities = int_from_float_with_warning(
-            n_cavities,
-            warning_stacklevel=2,
-        )
-
-        # Apply a low-pass filter to the RF beam current
-        self.use_lowpass_filter = use_lowpass_filter
+        self.n_cavities = n_cavities
 
         # The harmonic index the cavity feedback is working on
         self.harmonic_index = int_from_float_with_warning(
@@ -157,10 +143,6 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
                 stacklevel=2,
             )
         self.n_rf_periods_per_coarse_grid = n_rf_periods_per_coarse_grid
-        # TODO: what is the difference to the next one?
-
-        # Update the coarse grid sampling
-        self._n_samples_coarse: int | None = None
 
         self.beam_current_forward_coarse_grid: NumpyArray | None = None
         self.beam_current_fine_grid: NumpyArray | None = None
@@ -168,73 +150,6 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         self.antenna_voltage_fine_grid: NumpyArray | None = None
         self.generator_current_coarse_grid: NumpyArray | None = None
         self.generator_current_fine_grid: NumpyArray | None = None
-
-    @requires(["RFStationBaseClass", "BeamBaseClass"])
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Initialisation function at the start of the simulation.
-
-        All array elements are defined based on the parameters of
-        the parent rf station, which at this point in time is
-        already fully initialised.
-
-        Parameters
-        ----------
-        simulation
-            Simulation object to initialise on.
-        beam
-            Beam object to initialise on.
-        n_turns
-            Number of turns in the simulation.
-        **kwargs
-            Unused in this function.
-        """
-        self.invalidate_cache()
-
-        # Number of *complete* coarse cells (each sampling_time_coarse wide)
-        # that fit in one revolution; a partial trailing cell is dropped
-        # (floor), consistent with the arange-based rf_centers of the timing
-        # subclass. int() is required because np.zeros() below rejects a float
-        # length on numpy >= 2.
-        self._n_samples_coarse = int(
-            np.floor(self.t_rev / self.sampling_time_coarse)
-        )
-
-        self.beam_current_forward_coarse_grid = np.zeros(
-            self._n_samples_coarse, dtype=complex
-        )
-        self.beam_current_fine_grid = np.zeros(
-            self.profile.n_bins, dtype=complex
-        )
-        self.antenna_voltage_coarse_grid = np.zeros(
-            self._n_samples_coarse, dtype=complex
-        )
-        self.antenna_voltage_fine_grid = np.zeros(
-            self.profile.n_bins, dtype=complex
-        )
-        self.generator_current_coarse_grid = np.zeros(
-            self._n_samples_coarse, dtype=complex
-        )
-        self.generator_current_fine_grid = np.zeros(
-            self.profile.n_bins, dtype=complex
-        )
-
-        self.invalidate_cache()
-
-    @abstractmethod  # pragma: no cover
-    def update_feedback_variables(self) -> None:
-        r"""
-        Method to update the variables specific to the feedback.
-
-        This is meant to be implemented in the child class by the user.
-        """
-        pass
 
     def _resolve_main_harmonic(self, value):
         """
@@ -276,145 +191,32 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
     # NOTE: the debug helper ``plot_antenna_voltage`` moved to the test
     # plotting module
     # ``unittests/physics/feedbacks/accelerators/mucol/plotting.py``.
-    def circuit_track(self, no_beam: bool = False) -> None:
+    def circuit_track(
+        self,
+        omega_input: float,
+        no_beam: bool = False,
+        start_index: int = 0,
+        end_index: int = -1,
+    ) -> None:
         r"""
-        Method to track circuit of the feedback.
+        Advance the feedback circuit over a coarse-grid segment.
 
         Parameters
         ----------
+        omega_input
+            Frequency in the tracked segment.
         no_beam
             Beam dependant parts of the feedback can be skipped if this is True.
+        start_index
+            Index of the coarse grid at which to start computing the response.
+        end_index
+            Index of the coarse grid until which to compute the response.
 
         Notes
         -----
         This is meant to be implemented in the child class by the user.
-        The only requirement for this method is that it has to update the
-        V_ANT_FINE and V_SET arrays turn-by-turn.
         """
         pass
-
-    def track_no_beam(self, n_pretrack: int = 1) -> None:
-        r"""
-        Tracking method of the cavity feedback without beam in the accelerator.
-
-        Parameters
-        ----------
-        n_pretrack
-            Number of turns to pretrack the feedback.
-        """
-        self.update_feedback_variables()
-        for _ in range(n_pretrack):
-            self.circuit_track(no_beam=True)
-
-    def _track(self, beam: BeamBaseClass) -> None:
-        r"""
-        Tracking method of the cavity feedback.
-
-        Parameters
-        ----------
-        beam
-            Simulation `Beam` object.
-        """
-        self.invalidate_cache()
-        # Update parameters from rest of BLonD classes
-        self.update_feedback_variables()
-
-        # Get rf beam current
-        self.calculate_rf_beam_current(
-            beam=beam,
-            use_lowpass_filter=self.use_lowpass_filter,
-        )
-
-        # Tracking circuit model of feedback
-        self.circuit_track()
-
-        # Convert to amplitude and phase
-        self.relative_voltage_correction, alpha_sum = cartesian_to_polar(
-            IQ_vector=self.antenna_voltage_fine_grid,
-        )
-
-        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.relative_voltage_correction /= (
-            self.get_voltage_from_parent_rf_station()
-        )
-        self.phase_correction = alpha_sum - np.mean(
-            np.angle(self.voltage_setpoint)
-        )
-
-    def calculate_rf_beam_current(
-        self,
-        beam: BeamBaseClass,
-        use_lowpass_filter: bool = False,
-    ) -> None:
-        r"""
-        Calculate the IQ beam current for the coarse and fine grid.
-
-        Parameters
-        ----------
-        beam
-            Simulation `Beam` object.
-        use_lowpass_filter
-            Usage of low-pass filter in the calculation of the beam current.
-        """
-        # Beam current from profile
-        (
-            self.beam_current_fine_grid,
-            self.beam_current_forward_coarse_grid[-self.n_samples_coarse :],
-        ) = rf_beam_current(
-            beam=beam,
-            profile=self.profile,
-            omega_c=self.omega_carrier,
-            T_rev=self.t_rev,
-            use_lowpass_filter=use_lowpass_filter,
-            downsample={
-                "Ts": self.sampling_time_coarse,
-                "points": self.n_samples_coarse,
-            },
-            external_reference=True,
-            dT=self.residual_time_shift_from_last_turn,
-        )
-
-        # Convert RF beam currents to be in units of Amperes
-        self.beam_current_fine_grid = (
-            self.beam_current_fine_grid / self.profile.hist_step
-        )
-        self.beam_current_forward_coarse_grid = (
-            self.beam_current_forward_coarse_grid / self.sampling_time_coarse
-        )
-
-    def set_point_from_rfstation(self) -> NumpyArray:
-        r"""
-        Compute the setpoint in I/Q based on the RF voltage in the RFStation.
-
-        Returns
-        -------
-        V_set
-            Voltage setpoint in I/Q frame [V].
-        """
-        V_set = polar_to_cartesian(
-            self.get_voltage_from_parent_rf_station() / self.n_cavities,
-            0,
-        )
-
-        return V_set * np.ones(self._n_samples_coarse)
-
-    @property
-    def n_samples_coarse(self) -> int | None:
-        """
-        Number of complete coarse-grid cells per revolution.
-
-        Read-only view of the private ``_n_samples_coarse`` set in
-        :meth:`on_run_simulation`; ``None`` before the simulation starts.
-        Exposed for observers such as
-        :class:`~blond.handle_results.observables.IQCavityFeedbackObservation`.
-
-        Returns
-        -------
-        n_samples_coarse
-            Number of coarse-grid samples per turn, or ``None`` if the
-            feedback has not been initialised yet.
-        """
-        return self._n_samples_coarse
 
     @property
     def harmonic(self) -> float:
@@ -504,42 +306,6 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         """
         return self._resolve_main_harmonic(self._parent_rf_station.phi_rf)
 
-    # Names invalidated by invalidate_cache(). The listed members are plain
-    # (uncached) properties today, so invalidation is a no-op for them; the
-    # list documents which derived values would need invalidation if they
-    # were ever converted to functools.cached_property.
-    cached_props = (
-        "t_rf",
-        "omega_carrier",
-        "sampling_time_coarse",
-        "residual_time_shift_from_last_turn",
-        "voltage_setpoint",
-    )
-
-    @property
-    def t_rf(self) -> float:
-        """
-        Actual RF period of the parent cavity at harmonic_index.
-
-        Returns
-        -------
-        t_rf
-            Actual RF period of the parent cavity at harmonic_index.
-        """
-        return 1 / (self.omega_rf / (2 * np.pi))
-
-    @property
-    def omega_carrier(self) -> float:
-        """
-        Feedback carrier frequency.
-
-        Returns
-        -------
-        omega_carrier
-            Feedback carrier frequency.
-        """
-        return self.omega_rf / self.n_rf_periods_per_coarse_grid
-
     @property
     def t_rev(self) -> float:
         """
@@ -565,26 +331,6 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
         return self.n_rf_periods_per_coarse_grid * 2 * np.pi / self.omega_rf
 
     @property
-    def residual_time_shift_from_last_turn(self) -> float:
-        """
-        Residual time shift of the RF clock against the turn start [s].
-
-        The parent station's actual RF phase ``phi_rf`` converted to a time,
-        ``-phi_rf / omega_rf``. It is passed as the reference-frame shift
-        ``dT`` to the beam-current demodulation (see
-        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current`), which
-        applies the phase correction ``dT * omega_c``. The sign follows the
-        reworked (mucol) convention; the LHC comparison path bridges to the
-        blond2 convention via ``dT_index_sign`` in ``rf_beam_current``.
-
-        Returns
-        -------
-        residual_time_shift_from_last_turn
-            Residual time shift from the last turn to the current turn [s].
-        """
-        return -self.phi_rf / self.omega_rf
-
-    @property
     def voltage_setpoint(self) -> NumpyArray:
         """
         Voltage setpoint on the coarse grid [V].
@@ -601,10 +347,6 @@ class IQCavityFeedbackBase(LocalFeedback, HasPropertyCache):
             np.ones_like(self.antenna_voltage_coarse_grid)
             * self.get_voltage_from_parent_rf_station()
         )
-
-    def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @property."""
-        self._invalidate_cache(IQCavityFeedbackBase.cached_props)
 
 
 class IQCavityFeedbackTimingClass(
@@ -753,11 +495,11 @@ class IQCavityFeedbackTimingClass(
     as a per-step phase rotation and does not move the grid.
     """
 
-    #: Compile the per-cell coarse-envelope recursion to a numba host kernel
-    #: (see :mod:`~blond.physics.feedbacks.envelope_kernel`). The pure-Python
-    #: path is kept as the byte-identical reference and the fallback for
-    #: degenerate (coincident) coarse steps and klystron-limit saturation. Set
-    #: ``False`` on an instance to force the reference path.
+    # Compile the per-cell coarse-envelope recursion to a numba host kernel
+    # (see :mod:`~blond.physics.feedbacks.envelope_kernel`). The pure-Python
+    # path is kept as the byte-identical reference and the fallback for
+    # degenerate (coincident) coarse steps and klystron-limit saturation. Set
+    # ``False`` on an instance to force the reference path.
     use_numba_envelope_kernel: bool = True
 
     def __init__(
@@ -780,8 +522,8 @@ class IQCavityFeedbackTimingClass(
     ):
         super().__init__(
             profile=profile,
-            n_cavities=1,
-            harmonic_index=1,
+            n_cavities=n_cavities,
+            harmonic_index=0,
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
         )
 
@@ -834,8 +576,6 @@ class IQCavityFeedbackTimingClass(
         self._last_rf_centers_entry: float | None = None
 
         self._init_voltage = initial_voltage
-
-        self.n_cavities = n_cavities
 
         self._debug = debug
 
@@ -925,9 +665,9 @@ class IQCavityFeedbackTimingClass(
         when ``omega * dt / Q_L`` and ``delta_omega * dt`` are << 1.
 
         Called from ``on_run_simulation`` (not ``on_init_simulation``),
-        because ``omega_carrier`` reads the parent RF station's
-        ``omega_rf_design``, which is only set once the station is fully
-        initialised at the start of the run.
+        because the check reads the parent RF station's ``omega_rf``,
+        which is only set once the station is fully initialised at the
+        start of the run.
         """
         # The exponential coarse solver integrates the decay and detuning
         # terms exactly (an unconditional, exact propagator), so the
@@ -962,13 +702,14 @@ class IQCavityFeedbackTimingClass(
         # (``exponential_coarse_solver_enable=True``), which skips this check.
         max_step_angle_hard = 1.0
 
-        # NB: use omega_rf, not omega_carrier. cavity_response() advances the
-        # antenna voltage by ``omega_input * delta_t`` with
-        # ``omega_input == omega_rf`` and ``delta_t == sampling_time_coarse``,
-        # so the actual per-step decay is ``0.5 * omega_rf * dt / Q_L`` and
-        # scales with n_rf_periods_per_coarse_grid. Using omega_carrier
-        # (== omega_rf / n) would cancel that n-dependence to a constant 2*pi
-        # and misjudge the stability of the discretization.
+        # NB: use omega_rf, not the carrier frequency (omega_rf / n).
+        # cavity_response() advances the antenna voltage by
+        # ``omega_input * delta_t`` with ``omega_input == omega_rf`` and
+        # ``delta_t == sampling_time_coarse``, so the actual per-step decay
+        # is ``0.5 * omega_rf * dt / Q_L`` and scales with
+        # n_rf_periods_per_coarse_grid. Using the carrier frequency would
+        # cancel that n-dependence to a constant 2*pi and misjudge the
+        # stability of the discretization.
         omega_dt = self.omega_rf * self.sampling_time_coarse
         decay_per_step = 0.5 * omega_dt / self.Q_L
         detuning_phase_per_step = self.delta_omega * self.sampling_time_coarse
@@ -1019,6 +760,7 @@ class IQCavityFeedbackTimingClass(
                 stacklevel=2,
             )
 
+    @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -1982,10 +1724,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 coarse_grid_index_to_update=coarse_grid_index_to_update,
             )
 
-    def update_feedback_variables(self) -> None:
-        """No-op: this feedback has no per-turn variables to refresh."""
-        pass
-
     def reset_arrays(self):
         """Reset coarse grid arrays to match rf_centers length and save last values."""
         if self.antenna_voltage_coarse_grid is None:
@@ -2057,7 +1795,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         # Live tail of the RF-frequency-offset phase slip: the station's
         # kick clock (delta_phi_rf) is accumulated only at the END of each
-        # station track (the blond2 convention the LHC comparisons pin), so
+        # station track (a blond2-era convention this code builds on), so
         # during this passage it lags the true integral
         # ``int delta_omega_rf dt`` by the slip since its last tick. The
         # station clock plus this gap is the exact, continuous slip at the
@@ -2232,7 +1970,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.relative_voltage_correction /= (
             self.get_voltage_from_parent_rf_station()
-        )
+        )  # TODO: why does this state OTFB?
         # The station applies its (end-of-track-lagged) kick clock via
         # phi_rf; adding the live slip gap here completes the readout to
         # the exact accumulated actual-RF phase at this passage -- the
@@ -2245,12 +1983,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             + self._carrier_slip_gap
         )
 
-        # dummy values
-
     def cavity_response_fine(
         self,
         initial_voltage_fine_grid: float,
-        initial_voltage_gradient_fine_grid: float,
         initial_generator_current_fine_grid: float,
         samples_per_rf_fine_grid: float,
         relative_detuning: float,
@@ -2262,8 +1997,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ----------
         initial_voltage_fine_grid : float
             Initial condition of the voltage on the fine grid.
-        initial_voltage_gradient_fine_grid : float
-            Initial condition of the voltage gradient on the fine grid.
         initial_generator_current_fine_grid : float
             Initial condition of the generator current on the fine grid.
         samples_per_rf_fine_grid
@@ -2363,10 +2096,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             )
         else:
             dT_demodulation = remaining_delta_t_from_reverse_tracking
+
         (
             self.beam_current_fine_grid,
             self.beam_current_forward_coarse_grid,
-        ) = rf_beam_current_partial(
+        ) = rf_beam_current(
             beam=beam,
             profile=self.profile,
             # The demodulation carrier is the *design* RF frequency; the grid
@@ -2376,7 +2110,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # mismatch delta_omega_rf * hist_x is bunch-local and negligible;
             # see the class docstring).
             omega_c=self._forward_tracking_omega_rf,
-            T_rev=self._forward_tracking_time,
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
             dT=dT_demodulation,
@@ -2389,6 +2122,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # carried. Exactly 0.0 without an RF-frequency offset
             # (bit-identical demodulation).
             carrier_phase_offset=-(self.delta_phi_rf + self._carrier_slip_gap),
+            # The fine-grid initial antenna voltage is taken from the first
+            # coarse cell (see circuit_track), so that cell must stay
+            # charge-free or its beam kick would be double-counted.
+            forbid_charge_in_first_coarse_cell=True,
         )
 
         # Convert RF beam currents to be in units of Amperes

@@ -10,10 +10,12 @@
 """
 Muon-collider cavity-response solvers.
 
-Split out of ``helpers.py``: these are used only by the muon-collider
-timing-class feedback (:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`).
-The first-order ``cavity_response_sparse_matrix`` stays in ``helpers.py``
-because the (experimental) LHC cavity feedback uses it.
+These are used only by the muon-collider timing-class feedback
+(:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`).
+:func:`cavity_response_sparse_matrix` is the first-order (forward-Euler)
+fine-grid solver the timing class uses by default;
+:func:`cavity_response_sparse_matrix_second_order` is its second-order
+(trapezoidal / Crank-Nicolson) twin.
 """
 
 from __future__ import annotations
@@ -26,6 +28,89 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
+
+
+def cavity_response_sparse_matrix(
+    I_beam: NumpyArray,
+    I_gen: NumpyArray,
+    V_ant_init: float,
+    I_gen_init: float,
+    samples_per_rf: float,
+    R_over_Q: float,
+    Q_L: float,
+    relative_detuning: float,
+):
+    """
+    Solver for the ACS cavity response model as a sparse matrix problem.
+
+    Solving the ACS cavity response model as a sparse matrix problem
+    for a given set of initial conditions, resonator parameters and
+    generator and RF beam currents. The input arrays are extended by
+    one entry (I_gen_init and V_ant_init respectively) to take
+    respect the fact that the first matrix entry is not part of the solution
+    domain.
+
+    Parameters
+    ----------
+    I_beam : complex array
+        RF beam current.
+    I_gen : complex array
+        Generator current.
+    V_ant_init : complex float
+        Initial condition for the antenna voltage.
+    I_gen_init : complex float
+        Initial condition for the generator current.
+    samples_per_rf : float
+        RF phase advanced per sample [rad], i.e. ``omega_rf * sampling_time``
+        (= 2*pi / samples-per-period). The solver coefficients use it directly
+        as ``omega * dt``; callers pass ``omega_input * profile.hist_step``.
+    R_over_Q : float
+        The R over Q of the cavity.
+    Q_L : float
+        The loaded quality factor of the cavity.
+    relative_detuning : float
+        The detuning of the cavity in frequency divided by the rf frequency.
+
+    Returns
+    -------
+    complex array
+        The antenna voltage evaluated for the same period as I_beam and I_gen of length len(I_gen).
+    """
+    assert len(I_beam) == len(I_gen), (
+        "length of beam and generator currents need to match"
+    )
+
+    # Extend arrays to take initial values into account
+    internal_I_gen = np.concatenate(([I_gen_init], I_gen))
+    internal_I_beam = np.concatenate(([0j], I_beam))
+
+    n_samples = len(internal_I_gen)
+
+    # Compute matrix elements
+    A = 0.5 * R_over_Q * samples_per_rf
+    B = (
+        1
+        - 0.5 * samples_per_rf / Q_L
+        + 1j * relative_detuning * samples_per_rf
+    )
+
+    # Initialize the two sparse matrices needed to find antenna voltage
+    B_matrix = diags(
+        [-B, 1],
+        [-1, 0],
+        (n_samples, n_samples),
+        dtype=complex,
+        format="csc",
+    )
+    I_matrix = diags([A], [-1], (n_samples, n_samples), dtype=complex)
+
+    # Find vector on the "current" side of the equation
+    b = I_matrix.dot(2 * internal_I_gen - internal_I_beam)
+    b[0] = V_ant_init
+
+    # Solve the sparse linear system of equations and return
+    return spsolve(B_matrix, b)[1:]
+    # first value is intial condition
 
 
 def cavity_response_sparse_matrix_second_order(
@@ -42,7 +127,7 @@ def cavity_response_sparse_matrix_second_order(
     Second-order (trapezoidal / Crank-Nicolson) ACS cavity response solver.
 
     Drop-in alternative to
-    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`.
+    :func:`cavity_response_sparse_matrix`.
     It solves the same cavity-envelope ODE
 
     .. math::
@@ -53,7 +138,7 @@ def cavity_response_sparse_matrix_second_order(
     but integrates it with the trapezoidal rule (averaging the homogeneous
     term *and* the current drive over each step) instead of the forward-Euler
     (left-endpoint) step used by
-    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`.
+    :func:`cavity_response_sparse_matrix`.
     The truncation error is therefore :math:`O(\Delta t^2)` rather than
     :math:`O(\Delta t)`, which matters most at coarse binning (large
     ``samples_per_rf``).
