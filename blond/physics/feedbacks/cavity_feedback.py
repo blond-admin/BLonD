@@ -910,10 +910,9 @@ class IQCavityFeedbackTimingClass(
 
             relative_detuning = self.delta_omega / omega_input
             self.cavity_response_fine(
-                antenna_voltage_init,
-                0,
-                generator_current_init,
-                samples_per_rf_fine_grid,
+                initial_voltage_fine_grid=antenna_voltage_init,
+                initial_generator_current_fine_grid=generator_current_init,
+                samples_per_rf_fine_grid=samples_per_rf_fine_grid,
                 relative_detuning=relative_detuning,
             )
 
@@ -1985,7 +1984,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
     def cavity_response_fine(
         self,
-        initial_voltage_fine_grid: float,
+        initial_voltage_fine_grid: float,  # TODO: these should all also be complex
         initial_generator_current_fine_grid: float,
         samples_per_rf_fine_grid: float,
         relative_detuning: float,

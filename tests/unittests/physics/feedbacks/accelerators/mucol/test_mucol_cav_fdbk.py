@@ -501,7 +501,6 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
         cav.generator_current_fine_grid = np.zeros(self.n_bins, dtype=complex)
         cav.cavity_response_fine(
             initial_voltage_fine_grid=0.0,
-            initial_voltage_gradient_fine_grid=0.0,
             initial_generator_current_fine_grid=0.0,
             samples_per_rf_fine_grid=omega_rf * profile.hist_step,
             relative_detuning=delta_omega / omega_rf,

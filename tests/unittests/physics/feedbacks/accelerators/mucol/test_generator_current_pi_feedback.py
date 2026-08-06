@@ -944,7 +944,6 @@ class TestResponseMatrixClamping(unittest.TestCase):
         i_gen_init = 2.0 * i_max + 0.0j
         cav.cavity_response_fine(
             initial_voltage_fine_grid=0.0,
-            initial_voltage_gradient_fine_grid=0.0,
             initial_generator_current_fine_grid=i_gen_init,
             samples_per_rf_fine_grid=samples_per_rf,
             relative_detuning=0.0,

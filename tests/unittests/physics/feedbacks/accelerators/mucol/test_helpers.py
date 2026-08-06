@@ -366,7 +366,6 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             feedback.generator_current_fine_grid = np.zeros(n, dtype=complex)
             feedback.cavity_response_fine(
                 initial_voltage_fine_grid=0.0,
-                initial_voltage_gradient_fine_grid=0.0,
                 initial_generator_current_fine_grid=0.0,
                 samples_per_rf_fine_grid=samples_per_rf,
                 relative_detuning=0.0,

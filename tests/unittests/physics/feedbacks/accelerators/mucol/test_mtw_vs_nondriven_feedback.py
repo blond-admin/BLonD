@@ -234,7 +234,6 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
         # conditions and no generator current.
         feedback.cavity_response_fine(
             initial_voltage_fine_grid=0.0,
-            initial_voltage_gradient_fine_grid=0.0,
             initial_generator_current_fine_grid=0.0,
             samples_per_rf_fine_grid=(
                 self.omega_rf * self.noisy_profile.hist_step
@@ -333,7 +332,6 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
         )
         feedback.cavity_response_fine(
             initial_voltage_fine_grid=0.0,
-            initial_voltage_gradient_fine_grid=0.0,
             initial_generator_current_fine_grid=0.0,
             samples_per_rf_fine_grid=(
                 self.omega_rf * self.noisy_profile.hist_step
