@@ -26,6 +26,7 @@ from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
 from blond.physics.feedbacks.generator_current_controller import (
+    GeneratorCurrentController,
     GeneratorCurrentPIController,
 )
 
@@ -492,6 +493,110 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             last_val_beam_current=8.0e-3 + 2.0e-3j,
         )
         _assert_bit_identical(self, kernel_snap, python_snap)
+
+
+class _ProportionalOnlyController(GeneratorCurrentController):
+    """
+    Minimal non-PI controller implementing only the abstract interface.
+
+    Carries no gains, delay line or error integral, so a feedback that reaches
+    for :class:`GeneratorCurrentPIController` internals cannot drive it.
+    """
+
+    def __init__(self, gain: float, bias: complex):
+        self.gain = gain
+        self.bias = bias
+        self.n_updates = 0
+
+    def update_generator_current(
+        self, error: complex, delta_t: float
+    ) -> complex:
+        """
+        Map the error to a current with a pure proportional law.
+
+        Parameters
+        ----------
+        error
+            Antenna-voltage error of this sample [V].
+        delta_t
+            Time step of this sample [s]; unused by this law.
+
+        Returns
+        -------
+        generator_current
+            The generator-current command for this sample [A].
+        """
+        self.n_updates += 1
+        return self.bias + self.gain * error
+
+
+class TestControllerAbstractionContract(unittest.TestCase):
+    """Any ``GeneratorCurrentController`` drives the default (kernel) path."""
+
+    N_CELLS = 32
+
+    def _run(self, use_kernel):
+        """
+        Drive one forward segment with a non-PI controller attached.
+
+        Parameters
+        ----------
+        use_kernel
+            Which path to select.
+
+        Returns
+        -------
+        voltage, current, n_updates
+            The coarse grids and the controller's own update count.
+        """
+        n = self.N_CELLS
+        controller = _ProportionalOnlyController(1.0e-9, BIAS)
+        feedback = _make_feedback(
+            use_kernel, controller=controller, voltage_setpoint=3.0e7 + 0.0j
+        )
+        rng = np.random.default_rng(5)
+        beam = (rng.standard_normal(n) + 1j * rng.standard_normal(n)) * 1e-4
+        _seed_single_segment(
+            feedback, n, v_init=3.0e7 + 1.0e6j, i_init=BIAS, beam=beam
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            feedback._circuit_track_cells(
+                omega_input=OMEGA_RF,
+                no_beam=False,
+                start_index=0,
+                end_index=n,
+            )
+        return (
+            feedback.antenna_voltage_coarse_grid.copy(),
+            feedback.generator_current_coarse_grid.copy(),
+            controller.n_updates,
+        )
+
+    def test_non_pi_controller_runs_on_the_default_path(self):
+        """The default path honours the interface, not a concrete PI class.
+
+        The abstract controller promises the feedback 'does not need to know
+        the control law'. Reaching for PI-only attributes on the compiled path
+        broke every other implementation of the interface.
+        """
+        voltage, current, n_updates = self._run(True)
+        self.assertEqual(n_updates, self.N_CELLS)
+        self.assertTrue(np.all(np.isfinite(voltage)))
+        self.assertTrue(np.all(np.isfinite(current)))
+
+    def test_non_pi_controller_matches_the_python_path(self):
+        """A controller without a compiled scan still matches the reference."""
+        kernel_voltage, kernel_current, _ = self._run(True)
+        python_voltage, python_current, _ = self._run(False)
+        self.assertTrue(
+            np.array_equal(kernel_voltage, python_voltage),
+            msg="antenna voltage differs between kernel and python paths",
+        )
+        self.assertTrue(
+            np.array_equal(kernel_current, python_current),
+            msg="generator current differs between kernel and python paths",
+        )
 
 
 if __name__ == "__main__":

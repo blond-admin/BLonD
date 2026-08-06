@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
+
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -104,7 +106,22 @@ class GeneratorCurrentController(ABC):
     actuator (klystron) limit on the fine grid (:meth:`limit`). It carries
     all of its own tuning and state, so the feedback holds only an instance
     of this interface and does not need to know the control law.
+
+    Optionally a controller can also supply a *compiled* form of its law, so
+    the feedback's coarse-grid recursion runs as a single compiled scan
+    instead of a per-cell Python call. That is an opt-in capability: a
+    controller advertises it with :attr:`supports_envelope_scan` and then owns
+    the scan kernel (:meth:`envelope_scan_kernel`), the marshalling of its own
+    tuning and state into the kernel's arguments
+    (:meth:`envelope_scan_state`) and the write-back of the state the kernel
+    returns (:meth:`absorb_envelope_scan_state`). Controllers that do not
+    advertise it are driven cell-by-cell through
+    :meth:`update_generator_current` instead, so implementing this interface
+    never requires knowing anything about the compiled path.
     """
+
+    #: Whether this controller supplies a compiled scan (see class docstring).
+    supports_envelope_scan: bool = False
 
     @abstractmethod
     def update_generator_current(
@@ -148,6 +165,76 @@ class GeneratorCurrentController(ABC):
             The input, limited to the actuator range.
         """
         return generator_current
+
+    def envelope_scan_kernel(self) -> Callable:
+        """
+        Compiled kernel running this control law over a coarse-grid span.
+
+        Only called when :attr:`supports_envelope_scan` is set. The kernel
+        receives the cavity/grid arguments followed by whatever
+        :meth:`envelope_scan_state` returned, and returns the state to hand
+        back to :meth:`absorb_envelope_scan_state`.
+
+        Returns
+        -------
+        kernel
+            The compiled scan callable.
+
+        Raises
+        ------
+        NotImplementedError
+            When the controller advertises no compiled scan.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} supplies no compiled envelope scan; the "
+            "feedback drives it through update_generator_current instead."
+        )
+
+    def envelope_scan_state(self) -> tuple:
+        """
+        Own tuning and live state, in the kernel's argument order.
+
+        Only called when :attr:`supports_envelope_scan` is set. The feedback
+        passes the result straight through to the kernel without inspecting
+        it, so the layout is private to the controller.
+
+        Returns
+        -------
+        state
+            Positional arguments appended to the kernel's cavity arguments.
+
+        Raises
+        ------
+        NotImplementedError
+            When the controller advertises no compiled scan.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} supplies no compiled envelope scan; the "
+            "feedback drives it through update_generator_current instead."
+        )
+
+    def absorb_envelope_scan_state(self, state: tuple) -> None:
+        """
+        Take back the live state the compiled scan advanced.
+
+        Only called when :attr:`supports_envelope_scan` is set, and only for
+        a span the feedback actually commits, so the controller resumes
+        exactly where the scan left off.
+
+        Parameters
+        ----------
+        state
+            The state returned by :meth:`envelope_scan_kernel`'s callable.
+
+        Raises
+        ------
+        NotImplementedError
+            When the controller advertises no compiled scan.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} supplies no compiled envelope scan; the "
+            "feedback drives it through update_generator_current instead."
+        )
 
 
 class GeneratorCurrentPIController(GeneratorCurrentController):
@@ -222,6 +309,9 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             [0.0 + 0.0j] * (self.n_delay + 1), maxlen=self.n_delay + 1
         )
 
+    #: The PI law has a compiled counterpart (see :meth:`envelope_scan_kernel`).
+    supports_envelope_scan: bool = True
+
     @property
     def integral(self) -> complex:
         """
@@ -233,6 +323,71 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             The error integral currently held by the controller [V s].
         """
         return self._integral
+
+    def envelope_scan_kernel(self) -> Callable:
+        """
+        Compiled counterpart of this PI law.
+
+        Returns
+        -------
+        kernel
+            :func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`,
+            which reproduces :meth:`update_generator_current` byte-for-byte.
+        """
+        # Imported lazily: this keeps importing a controller free of numba,
+        # which only the compiled path needs.
+        from blond.physics.feedbacks.envelope_kernel import envelope_pi_scan
+
+        return envelope_pi_scan
+
+    def envelope_scan_state(self) -> tuple:
+        """
+        Gains, bias, limit and live state, in the kernel's argument order.
+
+        The delay line travels as a plain array; the kernel treats it as a
+        circular buffer whose head starts at zero, which reproduces
+        :class:`~collections.deque` ``append``/``[0]`` semantics exactly.
+
+        Returns
+        -------
+        state
+            ``(gain_proportional, gain_integral, generator_current_bias,
+            delay_buffer, delay_head, integral, max_output)``.
+        """
+        return (
+            float(self.gain_proportional),
+            float(self.gain_integral),
+            complex(self.generator_current_bias),
+            np.array(self._delay_line, dtype=np.complex128),
+            0,
+            complex(self._integral),
+            np.inf if self.max_output is None else float(self.max_output),
+        )
+
+    def absorb_envelope_scan_state(self, state: tuple) -> None:
+        """
+        Restore the delay line and integral the compiled scan advanced.
+
+        Rebuilds the deque from the circular buffer oldest-first starting at
+        the returned head, so a following span or turn resumes exactly where
+        the scan stopped.
+
+        Parameters
+        ----------
+        state
+            ``(delay_buffer, delay_head, integral)`` as returned by the
+            kernel.
+        """
+        delay_buffer, delay_head, integral = state
+        buffer_len = delay_buffer.shape[0]
+        self._delay_line = collections.deque(
+            (
+                delay_buffer[(delay_head + offset) % buffer_len]
+                for offset in range(buffer_len)
+            ),
+            maxlen=buffer_len,
+        )
+        self._integral = integral
 
     def update_generator_current(
         self, error: complex, delta_t: float

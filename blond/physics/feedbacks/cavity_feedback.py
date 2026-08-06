@@ -13,7 +13,6 @@ from __future__ import annotations
 # Import the module, not the name: a bare ``deque`` in the module namespace is
 # documented by automodule, and on Python 3.14 (the CI doc image) autodoc fails
 # to format its C-level signature, which breaks the ``-W`` doc build.
-import collections
 import warnings
 from abc import abstractmethod
 from copy import deepcopy
@@ -37,7 +36,10 @@ from blond.physics.feedbacks.cavity_solvers import (
     cavity_response_sparse_matrix_second_order,
     pretrack_fill_voltage,
 )
-from blond.physics.feedbacks.envelope_kernel import envelope_pi_scan
+from blond.physics.feedbacks.envelope_kernel import (
+    envelope_pi_scan,
+    inactive_controller_scan_state,
+)
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
 )
@@ -151,6 +153,12 @@ class IQCavityFeedbackBase(LocalFeedback):
         self.generator_current_coarse_grid: NumpyArray | None = None
         self.generator_current_fine_grid: NumpyArray | None = None
 
+        # Number of RF stations in the ring, filled in on_run_simulation once
+        # the ring is known. The default of one station is the conservative
+        # choice for consumers that size buffers from it (see
+        # n_rf_stations_in_ring): fewer stations means a wider grid margin.
+        self._n_rf_stations_in_ring: int = 1
+
     def _resolve_main_harmonic(self, value):
         """
         Reduce a parent RF-station value to the tracked main harmonic.
@@ -217,6 +225,24 @@ class IQCavityFeedbackBase(LocalFeedback):
         This is meant to be implemented in the child class by the user.
         """
         pass
+
+    @property
+    def n_rf_stations_in_ring(self) -> int:
+        """
+        Number of RF stations in the ring this feedback belongs to.
+
+        Counted against ``RFStationBaseClass``, so single- and multi-harmonic
+        stations count alike. Consumers that size a per-turn buffer need it
+        because one turn of coarse grid can overshoot by up to one section
+        (see
+        :class:`~blond.handle_results.observables.IQCavityFeedbackObservation`).
+
+        Returns
+        -------
+        n_rf_stations_in_ring
+            Number of RF stations; one until the simulation is initialised.
+        """
+        return self._n_rf_stations_in_ring
 
     @property
     def harmonic(self) -> float:
@@ -943,10 +969,19 @@ class IQCavityFeedbackTimingClass(
         end_index
             One past the last ``rf_centers`` index of the segment.
         """
-        # The optional PI update recovers the per-step sampling time from
-        # ``omega_times_T_s / omega_input``; expose omega_input for it.
+        # The optional controller update recovers the per-step sampling time
+        # from ``omega_times_T_s / omega_input``; expose omega_input for it.
         self._omega_input_for_pi = omega_input
-        if self.use_numba_envelope_kernel:
+        # The compiled scan runs the control law inside the loop, so it needs
+        # the controller to supply a compiled form of itself. A controller
+        # that does not (and any custom implementation of the interface) is
+        # driven cell-by-cell on the reference path instead. A span the
+        # controller sits out (a no-beam reverse segment) never consults it,
+        # so it can still take the compiled path.
+        controller_runs = self._controller_active and not no_beam
+        if self.use_numba_envelope_kernel and (
+            not controller_runs or self._controller.supports_envelope_scan
+        ):
             self._circuit_track_cells_kernel(
                 omega_input, no_beam, start_index, end_index
             )
@@ -1170,15 +1205,20 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             ]
 
         controller_active = self._controller_active and not no_beam
-        (
-            gain_proportional,
-            gain_integral,
-            generator_current_bias,
-            max_output,
-            pi_setpoint,
-            delay_buffer,
-            integral,
-        ) = self._kernel_controller_params(controller_active)
+        # The controller owns its compiled law and marshals its own tuning and
+        # state; this class passes the result straight through without
+        # inspecting it. On a span the controller sits out, the neutral state
+        # keeps the generator current constant.
+        if controller_active:
+            envelope_scan = self._controller.envelope_scan_kernel()
+            controller_state = self._controller.envelope_scan_state()
+            voltage_setpoint = complex(self.pi_setpoint)
+        else:
+            envelope_scan = envelope_pi_scan
+            controller_state = inactive_controller_scan_state()
+            # No regulation on this span, so the error is never formed and the
+            # setpoint stays unevaluated (it may need the parent RF station).
+            voltage_setpoint = 0.0 + 0.0j
 
         voltage_out = np.empty(n_cells, dtype=np.complex128)
         # Pre-fill with the current generator grid: the inactive (no-beam /
@@ -1190,26 +1230,22 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             start_index:end_index
         ].astype(np.complex128)
 
-        delay_head, integral, saturation_possible = envelope_pi_scan(
-            voltage_multiplier,
-            drive_weight,
-            omega_times_dt,
-            beam_current,
-            voltage_out,
-            generator_current_out,
-            voltage_init,
-            generator_current_init,
-            float(self.R_over_Q),
-            controller_active,
-            pi_setpoint,
-            float(omega_input),
-            gain_proportional,
-            gain_integral,
-            generator_current_bias,
-            delay_buffer,
-            0,
-            integral,
-            max_output,
+        delay_buffer, delay_head, integral, saturation_possible = (
+            envelope_scan(
+                voltage_multiplier,
+                drive_weight,
+                omega_times_dt,
+                beam_current,
+                voltage_out,
+                generator_current_out,
+                voltage_init,
+                generator_current_init,
+                float(self.R_over_Q),
+                controller_active,
+                voltage_setpoint,
+                float(omega_input),
+                *controller_state,
+            )
         )
 
         if saturation_possible:
@@ -1231,7 +1267,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             generator_current_out
         )
         if controller_active:
-            self._store_controller_state(delay_buffer, delay_head, integral)
+            self._controller.absorb_envelope_scan_state(
+                (delay_buffer, delay_head, integral)
+            )
 
         if not no_beam:
             self._check_beam_kicks(
@@ -1333,88 +1371,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             global_indices[local_start:] - forward_offset
         ]
         return beam_current
-
-    def _kernel_controller_params(
-        self, controller_active: bool
-    ) -> tuple[float, float, complex, float, complex, NumpyArray, complex]:
-        """
-        PI controller parameters and marshalled state for the kernel.
-
-        Extracts the controller gains, bias, klystron limit (``inf`` when
-        unlimited), IQ setpoint, delay-line buffer and error integral. When the
-        controller is inactive, returns neutral values so the kernel simply
-        holds the generator current.
-
-        Parameters
-        ----------
-        controller_active
-            Whether the PI controller runs on this segment.
-
-        Returns
-        -------
-        gain_proportional, gain_integral, generator_current_bias, max_output,\
- pi_setpoint, delay_buffer, integral
-            The controller parameters and marshalled state passed to
-            :func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`.
-        """
-        if not controller_active:
-            return (
-                0.0,
-                0.0,
-                0.0 + 0.0j,
-                np.inf,
-                0.0 + 0.0j,
-                np.zeros(1, dtype=np.complex128),
-                0.0 + 0.0j,
-            )
-        controller = self._controller
-        max_output = (
-            np.inf
-            if controller.max_output is None
-            else float(controller.max_output)
-        )
-        return (
-            float(controller.gain_proportional),
-            float(controller.gain_integral),
-            complex(controller.generator_current_bias),
-            max_output,
-            complex(self.pi_setpoint),
-            np.array(controller._delay_line, dtype=np.complex128),
-            complex(controller._integral),
-        )
-
-    def _store_controller_state(
-        self,
-        delay_buffer: NumpyArray,
-        delay_head: int,
-        integral: complex,
-    ) -> None:
-        """
-        Write the kernel's PI state back into the controller.
-
-        Rebuilds the controller's delay-line :class:`~collections.deque` from
-        the circular buffer (oldest-first from ``delay_head``) and stores the
-        error integral, so a subsequent segment or turn resumes exactly where
-        the kernel left off.
-
-        Parameters
-        ----------
-        delay_buffer
-            The circular delay buffer after the kernel scan.
-        delay_head
-            The buffer head index after the scan.
-        integral
-            The committed error integral after the scan.
-        """
-        buffer_len = delay_buffer.shape[0]
-        self._controller._delay_line = collections.deque(
-            (
-                delay_buffer[(delay_head + offset) % buffer_len]
-                for offset in range(buffer_len)
-            ),
-            maxlen=buffer_len,
-        )
-        self._controller._integral = integral
 
     def _check_beam_kicks(
         self,

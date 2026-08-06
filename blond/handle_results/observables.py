@@ -1201,28 +1201,21 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._n_samples_fine = self._feedback.profile.n_bins
         n_entries = n_turns // self.each_turn_i + 2
 
-        # overshoot on last element, which also tracks a half drift from the next turn
+        # One turn of coarse grid plus one section of overshoot: in the first
+        # turn the last station's grid also covers a partial span from the
+        # next turn. The station count comes from the feedback, which counts
+        # RFStationBaseClass -- deriving it here by filtering the ring for
+        # SingleHarmonicRFStation divided by zero on a ring whose stations are
+        # all multi-harmonic (the two are siblings, not parent and child).
         self.len_coarse_max = int(
             np.ceil(
-                (
-                    1
-                    + 1
-                    / len(
-                        simulation.ring.elements.get_elements(
-                            SingleHarmonicRFStation
-                        )
-                    )
-                    # / 2
-                )
+                (1 + 1 / self._feedback.n_rf_stations_in_ring)
                 * self._feedback.harmonic
                 / self._feedback.n_rf_periods_per_coarse_grid
             )
         )
 
-        shape_coarse = (
-            n_entries,
-            self.len_coarse_max,
-        )  # TODO: how to get number of RF stations? this is required for this setting in the first turn for last station
+        shape_coarse = (n_entries, self.len_coarse_max)
         shape_fine = (n_entries, self._n_samples_fine)
 
         self._v_ant_fine = DenseArrayRecorder(

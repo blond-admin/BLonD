@@ -41,6 +41,31 @@ import numba as nb  # type: ignore
 import numpy as np
 
 
+def inactive_controller_scan_state() -> tuple:
+    """
+    Neutral control arguments for a span with no regulation.
+
+    A span the controller sits out (no controller attached, or a no-beam
+    reverse segment) still runs the same scan, with ``controller_active``
+    False. These placeholders satisfy the kernel's signature and are never
+    read, so the generator current simply stays constant.
+
+    Returns
+    -------
+    state
+        Control arguments in the order :func:`envelope_pi_scan` expects them.
+    """
+    return (
+        0.0,
+        0.0,
+        0.0 + 0.0j,
+        np.zeros(1, dtype=np.complex128),
+        0,
+        0.0 + 0.0j,
+        np.inf,
+    )
+
+
 @nb.njit(cache=True)  # pragma: no cover
 def envelope_pi_scan(
     voltage_multiplier,
@@ -129,6 +154,9 @@ def envelope_pi_scan(
 
     Returns
     -------
+    delay_buffer
+        The delay buffer after the span, returned so the caller can hand the
+        controller its state back without knowing the buffer's layout.
     delay_head
         The head index after the span.
     integral
@@ -198,4 +226,4 @@ def envelope_pi_scan(
         # Inactive: leave generator_current_out[cell] at its pre-filled static
         # grid value -- the constant-current / no-beam path never rewrites it.
         voltage_prev = voltage
-    return delay_head, integral, saturation_possible
+    return delay_buffer, delay_head, integral, saturation_possible
