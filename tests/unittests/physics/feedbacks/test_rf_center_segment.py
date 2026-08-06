@@ -29,7 +29,6 @@ from blond import (
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackBase,
     IQCavityFeedbackTimingClass,
 )
 from blond.physics.feedbacks.rf_center_segment import RFCenterSegment

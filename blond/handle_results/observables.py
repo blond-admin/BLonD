@@ -1169,7 +1169,6 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._v_corr: DenseArrayRecorder | None = None
         self._phi_corr: DenseArrayRecorder | None = None
 
-        self._n_samples_coarse: float | None = None
         self._n_samples_fine: float | None = None
 
     @requires(["IQCavityFeedbackBase"])
@@ -1199,9 +1198,6 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        self._n_samples_coarse = (
-            self._feedback.n_samples_coarse
-        )  # TODO: can these change during execution?
         self._n_samples_fine = self._feedback.profile.n_bins
         n_entries = n_turns // self.each_turn_i + 2
 
@@ -1248,10 +1244,14 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
         )
         self._i_beam_coarse = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
+            f"{self.common_filepath}_i_beam_coarse",
+            shape_coarse,
+            dtype=complex,
         )
         self._i_gen_coarse = DenseArrayRecorder(
-            f"{self.common_filepath}_v_ant_coarse", shape_coarse, dtype=complex
+            f"{self.common_filepath}_i_gen_coarse",
+            shape_coarse,
+            dtype=complex,
         )
 
         self._v_corr = DenseArrayRecorder(
@@ -1805,7 +1805,7 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+        Lateinit method when :meth:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -1909,7 +1909,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+        Lateinit method when :meth:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -2010,7 +2010,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+        Lateinit method when :meth:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------

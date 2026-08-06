@@ -39,18 +39,13 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
-from blond.experimental.physics.feedbacks.base import (
-    LocalFeedback,
-)
-from blond.experimental.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackOld,
-)
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
 from blond.physics.drifts import DriftSimple
+from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.testing.backend_testing import multi_backend_testcase
@@ -228,10 +223,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
     def test_beam_feedback_presence_detection(self):
-        from blond.experimental.physics.feedbacks.beam_feedback import (
+        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.feedbacks.beam_feedback import (
             BeamFeedbackBase,
         )
-        from blond.physics.cavities import RFStationBaseClass
 
         shc = SingleHarmonicRFStation(
             section_index=1,
@@ -597,58 +592,8 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         self.assertTrue(self.track_called)
 
-    def test_track_with_feedbacks(self):
-        SingleHarmonicRFStation(
-            section_index=1,
-            local_wakefield=None,
-            beam_feedback=None,
-            cavity_feedback=None,
-        )
-        # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        beam_feedback_good = Mock(spec=BeamFeedbackBase)
-        cavity_feedback_good = Mock(spec=IQCavityFeedbackOld)
-        cavity_feedback_good.info_string.return_value = (
-            "Unnamed-LocalFeedback-000"
-        )
-
-        # TODO: remove this, once cavity feedback setup is fixed
-        mhc_feedbacks = MultiHarmonicRFStation(
-            section_index=1,
-            local_wakefield=None,
-            main_harmonic_idx=0,
-            n_harmonics=1,
-            voltage=np.array([1]),
-            phi_rf=np.array([1]),
-            harmonic=np.array([1]),
-            cavity_feedback=[
-                cavity_feedback_good,
-            ],
-            beam_feedback=beam_feedback_good,
-        )
-
-        simulation = Mock(Simulation)
-        simulation.turn_counter = DynamicParameter(1)
-        simulation.ring.circumference = 456
-        simulation.ring.section_lengths = np.array(
-            [simulation.ring.circumference]
-        )
-        simulation.ring.elements.get_elements.return_value = (mhc_feedbacks,)
-
-        mhc_feedbacks.on_init_simulation(simulation=simulation)
-        mhc_feedbacks.on_run_simulation(
-            simulation=simulation,
-            beam=self.beam,
-            n_turns=100,
-        )
-
-        with self.assertRaises(TypeError):
-            mhc_feedbacks.track(beam=self.beam)
-
-            cavity_feedback_good.track.assert_called_once()
-
-        info_str = mhc_feedbacks.info_string()
-        assert "Feedback" in info_str
-        # TODO: here a test should be added which checks for the correct ordering of the calls with Mocks
+    # ``test_track_with_feedbacks`` was removed: it exercised the purged
+    # experimental ``IQCavityFeedbackOld`` cavity feedback.
 
     def test_with_wakefields(self):
         wf = Mock(WakeField)

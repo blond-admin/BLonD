@@ -9,8 +9,8 @@
 """
 IQ / polar conversion helpers for the cavity feedbacks.
 
-Small pure-numpy utilities split out of ``helpers.py``; re-exported from
-``helpers`` for backward compatibility.
+Small pure-numpy utilities (``cartesian_to_polar``,
+``polar_to_cartesian``).
 """
 
 from __future__ import annotations

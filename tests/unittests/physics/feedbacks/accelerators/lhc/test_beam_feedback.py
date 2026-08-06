@@ -17,11 +17,11 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit
-from blond.experimental.physics.feedbacks.base import (
-    LocalFeedback,
-)
 from blond.physics.feedbacks.accelerators.lhc import (
     LHCBeamControl,
+)
+from blond.physics.feedbacks.base import (
+    LocalFeedback,
 )
 
 circumference = 26658.8832  # [m]

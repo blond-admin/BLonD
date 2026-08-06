@@ -32,6 +32,7 @@ from blond.handle_results.observables import (
     BeamStatisticsOncePerTurn,
     DriftObservation,
     DynamicProfileConstNBinsObservation,
+    IQCavityFeedbackObservation,
     ObservablesOncePerTurnBase,
     RFStationPhaseObservation,
     SimulationObservation,
@@ -900,6 +901,32 @@ class TestSimulationObservation(unittest.TestCase):
         self.obs._update()
         self.assertEqual(self.obs.t_revs[0], 123)
         self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
+
+
+class TestIQCavityFeedbackObservation(unittest.TestCase):
+    def test_coarse_recorder_filepaths_are_pairwise_distinct(self):
+        # Regression: _v_ant_coarse, _i_beam_coarse and _i_gen_coarse were
+        # all constructed with the "_v_ant_coarse" suffix, so the three
+        # recorders silently overwrote each other's file on disk.
+        feedback = Mock()
+        feedback.profile.n_bins = 16
+        feedback.harmonic = 8.0
+        feedback.n_rf_periods_per_coarse_grid = 1
+
+        sim = Mock(Simulation)
+        sim.ring.elements.get_elements.return_value = [Mock()]
+
+        observation = IQCavityFeedbackObservation(
+            each_turn_i=1, feedback=feedback
+        )
+        observation.on_run_simulation(simulation=sim, beam=Mock(), n_turns=4)
+
+        filepaths = [
+            observation._v_ant_coarse.filepath,
+            observation._i_beam_coarse.filepath,
+            observation._i_gen_coarse.filepath,
+        ]
+        self.assertEqual(len(set(filepaths)), len(filepaths), filepaths)
 
 
 class TestDriftObservation(unittest.TestCase):

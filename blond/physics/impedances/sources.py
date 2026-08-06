@@ -592,7 +592,7 @@ class Resonators(
 
     def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
-        Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
+        Get frequency array corresponding to time used in :meth:`get_impedance_from_wake`.
 
         Parameters
         ----------

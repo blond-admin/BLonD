@@ -9,10 +9,12 @@ from blond import StaticProfile
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
+from blond.physics.feedbacks.cavity_solvers import (
+    cavity_response_sparse_matrix,
+)
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
-from blond.physics.feedbacks.helpers import cavity_response_sparse_matrix
 
 # RCS1-like cavity parameters (see mucol_cav_fdbk.py)
 R_OVER_Q = 518.0

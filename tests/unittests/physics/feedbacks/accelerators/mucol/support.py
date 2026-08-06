@@ -31,14 +31,12 @@ def rel_err(a, b) -> float:
     return float(np.linalg.norm(a - b) / np.linalg.norm(b))
 
 
-def lab_frame_voltage(v_ant, omega_rf, time, *, use_real: bool = False):
+def lab_frame_voltage(v_ant, omega_rf, time):
     """
     Project the complex antenna-voltage envelope back to the real lab frame.
 
-    By default this is the ``external_reference=True`` / ``+pi/2`` demodulation
-    convention used by
-    :func:`blond.physics.feedbacks.beam_current.rf_beam_current`; with
-    ``use_real=True`` it is the ``external_reference=False`` convention.
+    This is the ``+pi/2`` demodulation convention used by
+    :func:`blond.physics.feedbacks.beam_current.rf_beam_current`.
 
     Parameters
     ----------
@@ -48,8 +46,6 @@ def lab_frame_voltage(v_ant, omega_rf, time, *, use_real: bool = False):
         RF angular frequency used for the demodulation rotation.
     time
         Time base at which to evaluate the projection.
-    use_real
-        If True, return ``-Re[...]``; otherwise return ``-Im[...]``.
 
     Returns
     -------
@@ -59,4 +55,4 @@ def lab_frame_voltage(v_ant, omega_rf, time, *, use_real: bool = False):
     v_ant = copy_to_cpu(v_ant) if not np.isscalar(v_ant) else v_ant
     time = copy_to_cpu(time) if not np.isscalar(time) else time
     rotated = v_ant * np.exp(1j * omega_rf * time)
-    return -(np.real(rotated) if use_real else np.imag(rotated))
+    return -np.imag(rotated)

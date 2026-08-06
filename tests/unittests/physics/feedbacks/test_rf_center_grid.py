@@ -30,7 +30,6 @@ from blond import (
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackBase,
     IQCavityFeedbackTimingClass,
     RFCenterSegment,
 )
@@ -56,17 +55,6 @@ def test_rf_center_grid_mixin_self_is_typed_as_timing_class() -> None:
             f"{method.__name__}.self is not typed as "
             "IQCavityFeedbackTimingClass"
         )
-
-
-class IQFDBKTester(IQCavityFeedbackBase):
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
-
-    def circuit_track(self, no_beam: bool = False) -> None:
-        pass
-
-    def update_fb_variables(self) -> None:
-        pass
 
 
 def check_allclose_turn_printing_nested(
@@ -199,7 +187,8 @@ class TestIQCavityFeedbackTimingClass:
         #   0.5 * omega_rf * dt / Q_L = n_rf_periods_per_coarse_grid * pi / Q_L,
         # i.e. it scales with the number of RF periods per coarse step. The
         # sanity check must reflect that actual step, not collapse to the
-        # n-independent omega_carrier * sampling_time_coarse == 2*pi.
+        # n-independent carrier-frequency product
+        # (omega_rf / n) * sampling_time_coarse == 2*pi.
         #
         # With Q_L = 2.0 a two-period step (n=2) gives decay = pi ~ 3.14,
         # far above the hard cap of 1.0, and must be rejected. (A

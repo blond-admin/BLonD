@@ -371,7 +371,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
     main turn-by-turn loop. They can be:
 
       * :class:`BeamPhysicsRelevant` — modify the beam state (e.g., drifts, rf stations, kicks)
-      * :class:`BeamObservationElement — record or analyze beam information without modifying it
+      * :class:`BeamObservationElement` — record or analyze beam information without modifying it
 
     Subclasses must implement:
       - ``on_init_simulation(simulation)``: called once before the simulation loop starts.

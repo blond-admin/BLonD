@@ -17,7 +17,6 @@ from blond import (
 )
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackBase,
     IQCavityFeedbackTimingClass,
 )
 from blond.physics.impedances.solvers import (
@@ -487,9 +486,7 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
             beam=beam,
             profile=profile,
             omega_c=omega_rf,
-            T_rev=1.0 / self.f_rf,
             use_lowpass_filter=False,
-            external_reference=False,
         )
         cav = IQCavityFeedbackTimingClass(
             profile=profile,
@@ -513,7 +510,6 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
             cav.antenna_voltage_fine_grid,
             omega_rf,
             profile.hist_x,
-            use_real=True,
         )
 
     def _resonator_induced_voltage(self, beam, profile, delta_omega):
@@ -896,69 +892,6 @@ class TestCavityPrefill(unittest.TestCase):
                 injection_voltage=20.0e6,  # no n_pretrack
             )
         self.assertIn("n_pretrack", str(cm.exception))
-
-
-class TestBaseCoarseGridSizing(unittest.TestCase):
-    """
-    ``IQCavityFeedbackBase.on_run_simulation`` sizes its coarse grid as an int.
-
-    The base ``on_run_simulation`` computes ``n_samples_coarse`` (the number of
-    complete coarse cells per turn) and allocates the coarse arrays with it. It
-    must be a Python ``int``, since ``np.zeros`` rejects a float length on
-    numpy >= 2. The timing subclass overrides ``on_run_simulation`` (without
-    ``super()``), so this base method is not reached in production; the test
-    guards its allocation logic directly via a minimal concrete subclass.
-    """
-
-    class _MinimalFeedback(IQCavityFeedbackBase):
-        """Concrete base subclass with no-op abstract methods."""
-
-        def update_feedback_variables(self) -> None:
-            """No-op."""
-
-        def circuit_track(self, no_beam: bool = False) -> None:
-            """
-            No-op.
-
-            Parameters
-            ----------
-            no_beam
-                Beam dependant parts of the feedback can be skipped if this is True.
-            """
-
-    def test_on_run_simulation_sizes_coarse_grid_as_int(self):
-        """N_samples_coarse is an int (floor of turns/cell) sizing the arrays."""
-        profile = Mock(StaticProfile)
-        profile.n_bins = 64
-        feedback = self._MinimalFeedback(
-            profile=profile,
-            n_cavities=1,
-            n_rf_periods_per_coarse_grid=1,
-            harmonic_index=1,
-        )
-        # t_rev / sampling_time_coarse = 200.7 -> floor -> 200 coarse cells.
-        with (
-            patch.object(
-                IQCavityFeedbackBase,
-                "t_rev",
-                new_callable=PropertyMock,
-                return_value=200.7e-9,
-            ),
-            patch.object(
-                IQCavityFeedbackBase,
-                "sampling_time_coarse",
-                new_callable=PropertyMock,
-                return_value=1.0e-9,
-            ),
-        ):
-            feedback.on_run_simulation(
-                simulation=Mock(), beam=Mock(), n_turns=1
-            )
-
-        self.assertIsInstance(feedback._n_samples_coarse, int)
-        self.assertEqual(feedback._n_samples_coarse, 200)
-        self.assertEqual(len(feedback.antenna_voltage_coarse_grid), 200)
-        self.assertEqual(len(feedback.generator_current_coarse_grid), 200)
 
 
 class TestExponentialCoarseSolver(unittest.TestCase):

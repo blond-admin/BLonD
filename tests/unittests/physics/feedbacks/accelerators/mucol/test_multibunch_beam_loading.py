@@ -41,7 +41,7 @@ loose 2 %, so a sub-percent error in the carried inter-cell wake fails.
 
 To keep the first coarse cell charge-free (the
 ``forbid_charge_in_first_coarse_cell`` guard in
-:func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial`, which the
+:func:`~blond.physics.feedbacks.beam_current.rf_beam_current`, which the
 timing class enforces because it seeds the fine-grid initial antenna voltage from
 that cell), the profile is zeroed below :data:`ZERO_BELOW_TRF` ``t_rf`` -- well
 below the leading bunch's left tail (>6 sigma), so no physical charge is lost.
@@ -63,10 +63,7 @@ from blond import (
     WakeField,
     mu_plus,
 )
-from blond.physics.feedbacks.beam_current import (
-    rf_beam_current,
-    rf_beam_current_partial,
-)
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
@@ -276,9 +273,7 @@ class TestSinglePassMultiBunch(unittest.TestCase):
             beam=self.stub_beam,
             profile=profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             use_lowpass_filter=False,
-            external_reference=True,
             dT=0.0,
         )
         feedback.beam_current_fine_grid = charges_fine / profile.hist_step
@@ -402,9 +397,11 @@ class TestSinglePassMultiBunch(unittest.TestCase):
 
         Exercises the real invariant the timing class relies on by driving the
         *actual* mucol coarse-grid downsampling,
-        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial` (the
-        function the forward pass calls -- it seeds the fine-grid initial antenna
-        voltage from the first coarse cell and hard-enforces that it stay
+        the coarse path of
+        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` with the
+        first-coarse-cell guard on (as the forward pass calls it -- it seeds the
+        fine-grid initial antenna voltage from the first coarse cell and
+        hard-enforces that it stay
         charge-free), rather than re-reading the profile builder's hard-zeroed
         *fine* region. It returns normally and the first *coarse* cell carries
         negligible charge; a coarse-alignment regression that spilled charge into
@@ -417,14 +414,14 @@ class TestSinglePassMultiBunch(unittest.TestCase):
         # = 1 -> sampling_time = t_rf); n_points comfortably exceeds the ~8
         # coarse indices the ~8 t_rf window spans. Returning without raising
         # *is* the load-bearing check.
-        charges_fine, charges_coarse = rf_beam_current_partial(
+        charges_fine, charges_coarse = rf_beam_current(
             beam=self.stub_beam,
             profile=self.profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             sampling_time=self.t_rf,
             n_points=int(np.ceil(WINDOW_TRF[1])) + 4,
             dT=0.0,
+            forbid_charge_in_first_coarse_cell=True,
         )
         # Explicit companion check, normalised exactly as the guard is
         # (against the total *fine* charge): the first coarse cell -- whose beam

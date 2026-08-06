@@ -220,9 +220,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
             beam=self.stub_beam,
             profile=self.noisy_profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             use_lowpass_filter=False,
-            external_reference=True,
             dT=0.0,
         )
         feedback.beam_current_fine_grid = (

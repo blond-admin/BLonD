@@ -18,14 +18,34 @@ change behaviour. Shared code (impedance solvers, `rf_beam_current`) was touched
 only where explicitly authorised (the counter-rotating work).
 
 **Hard invariants (must always hold):**
-- **LHC path frozen**: `rf_beam_current` (now in `beam_current.py`) must stay
-  byte-identical for co-rotating beams. The LHC comparison suite must stay green
-  at its original tolerances.
+- ~~LHC path frozen~~ **OBSOLETE (2026-07-25)**: the LHC/SPS cavity feedbacks
+  and the blond2 comparison suite were REMOVED from the codebase (the phase
+  loop survived — moved to `blond/physics/feedbacks/beam_feedback.py`). The
+  byte-identical obligation and its bridge machinery (`dT_index_sign`,
+  `coarse_center_offset`, the helpers re-export shims) were stripped in the
+  same cleanup. `blond/legacy/blond2/` keeps its own self-contained copies.
 - **n = 1 / single-beam path bit-identical**: a single co-rotating beam must
   produce bit-identical results before/after any change; a single
   counter-rotating µ⁻ beam must reproduce the co-rotating µ⁺ run bit-for-bit.
-- Feedback classes / traversals are deliberately separate (base vs timing class;
-  `rf_beam_current` vs `rf_beam_current_partial`) — do not merge them.
+- ~~Feedback splits~~ **MERGED (2026-07-25, user-approved unification)**:
+  `rf_beam_current_partial` was folded into the single `rf_beam_current`
+  (keyword-only coarse args `sampling_time`/`n_points`; offset always
+  `sampling_time/2`; `external_reference`/`downsample`/`T_rev` removed;
+  byte-exact migration pin `TestUnifiedRfBeamCurrentMigrationPin`).
+  `IQCavityFeedbackBase` was SLIMMED, not dissolved (name kept so
+  `@requires(["IQCavityFeedbackBase"])` in observables keeps string-matching
+  the MRO): dead members deleted (base on_run_simulation/_track/
+  track_no_beam/calculate_rf_beam_current/set_point_from_rfstation/
+  update_feedback_variables/omega_carrier/residual_time_shift/t_rf/
+  HasPropertyCache machinery/n_samples_coarse/use_lowpass_filter); the
+  timing override now carries its OWN `@requires` decorator (regression
+  test `test_cavity_feedback_requires.py` — previously it inherited the
+  constraint from the decorated dead base method); `n_cavities` legalized
+  as `int | float` (fractional effective-voltage scale — do NOT
+  int-coerce); `harmonic_index=1` hardcode preserved + flagged
+  (suspicious, unreachable with SingleHarmonicRFStation).
+  `helpers.py` was DELETED — `cavity_response_sparse_matrix` now lives in
+  `cavity_solvers.py` beside its second-order twin.
 
 **Environment / gotchas:**
 - Run pytest from `BLonD/` with `.venv/Scripts/python.exe` and `MPLBACKEND=Agg`.
@@ -52,7 +72,7 @@ kick.
 The whole beam-loading chain uses `beam.signed_charge_with_direction()`
 (`blond/core/beam/base.py`, returns `particle_type.charge * -1` for a
 counter-rotating beam), on **every source-current site and every kick**:
-- `rf_beam_current` / `rf_beam_current_partial` (`beam_current.py`)
+- `rf_beam_current` (`beam_current.py`; unified fine+coarse, 2026-07-25)
 - all four wake-solver source-charge sites (`impedances/base.py`,
   `impedances/solvers.py`: SingleTurnResonatorConvolution, MultiPassResonator,
   MultiPoleSparse)
@@ -565,13 +585,13 @@ zero regressions — full mucol battery 156 passed):
 | `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` grid construction (forward/reverse reference walks, segment generation, derived arrays) |
 | `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `generator_power`, `_update_generator_current` |
 | `cavity_solvers.py` | **mucol-only** `cavity_response_sparse_matrix_second_order` (Crank-Nicolson) + `pretrack_fill_voltage` |
-| `helpers.py` | first-order `cavity_response_sparse_matrix` (**shared with LHC**) + re-export shims |
-| `beam_current.py` | `low_pass_filter`, `rf_beam_current` (**LHC-frozen**), `rf_beam_current_partial` |
+| ~~`helpers.py`~~ | DELETED (2026-07-25): `cavity_response_sparse_matrix` moved into `cavity_solvers.py`; re-export shims already gone |
+| `beam_current.py` | `low_pass_filter`, `rf_beam_current` (unified 2026-07-25: single function, keyword-only coarse args) |
 | `iq.py` | `cartesian_to_polar`, `polar_to_cartesian` |
 | `generator_current_controller.py` | `GeneratorCurrentPIController` (unchanged) |
 | `base.py` | `FeedbackBaseClass` / `LocalFeedback` / `GlobalFeedback` (unchanged) |
 
-**Re-exports**: `helpers.py` re-exports the beam_current + iq symbols
+**Re-exports**: none (helpers.py deleted 2026-07-25)
 (`# noqa: F401`) so experimental/LHC/SPS/legacy imports (`from ...helpers import
 rf_beam_current`) keep working untouched. Mucol production + tests import from
 the new canonical modules.

@@ -16,11 +16,11 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit
-from blond.experimental.physics.feedbacks.base import (
-    LocalFeedback,
-)
 from blond.physics.feedbacks.accelerators.sps import (
     SPSBeamControl,
+)
+from blond.physics.feedbacks.base import (
+    LocalFeedback,
 )
 
 circumference = 2 * np.pi * 1100.009  # [m]

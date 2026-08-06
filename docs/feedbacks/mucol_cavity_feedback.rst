@@ -135,10 +135,11 @@ Classes at a glance
 -------------------
 
 :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackBase`
-    Abstract base for IQ-envelope cavity feedbacks. Owns the profile, the
-    coarse/fine grid arrays, the beam-current demodulation and the parent-RF-
-    station accessors (``omega_rf``, ``phi_rf``, ``delta_omega_rf``, ...). The
-    LHC/SPS loops under ``blond.experimental`` subclass it as well.
+    Slim abstract base for IQ-envelope cavity feedbacks: constructor
+    validation, the coarse/fine grid arrays, and the parent-RF-station
+    accessors (``omega_rf``, ``phi_rf``, ``delta_omega_rf``, ...). Its
+    concrete subclass is the muon-collider timing class below, which owns
+    the beam-current demodulation and all tracking.
 
 :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
     The muon-collider cavity model. Tracks the antenna voltage of one RF
@@ -170,24 +171,19 @@ Classes at a glance
     update).
 
 :mod:`blond.physics.feedbacks.beam_current`
-    The beam-current demodulation
-    (:func:`~blond.physics.feedbacks.beam_current.rf_beam_current` -- shared
-    with the LHC comparison path and kept byte-identical for co-rotating
-    beams -- and
-    :func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial`,
-    the forward-pass variant the timing class uses).
+    The beam-current demodulation: the single function
+    :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` (fine-grid
+    demodulation, optionally re-binned onto the coarse grid when
+    ``sampling_time``/``n_points`` are given).
 
 :mod:`blond.physics.feedbacks.cavity_solvers`
-    The muon-collider-only numerics:
+    The muon-collider-only numerics: the first-order (forward-Euler)
+    fine-grid solver
+    :func:`~blond.physics.feedbacks.cavity_solvers.cavity_response_sparse_matrix`,
+    its second-order twin
     :func:`~blond.physics.feedbacks.cavity_solvers.cavity_response_sparse_matrix_second_order`
     (trapezoidal / Crank-Nicolson) and the feedforward fill seed
     :func:`~blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`.
-
-:mod:`blond.physics.feedbacks.helpers`
-    The first-order (forward-Euler) fine-grid solver
-    :func:`~blond.physics.feedbacks.helpers.cavity_response_sparse_matrix`,
-    shared with the (experimental) LHC feedback, plus backward-compatible
-    re-exports of the beam-current and IQ helpers.
 
 :mod:`blond.physics.feedbacks.iq`
     IQ / polar conversions (``cartesian_to_polar``, ``polar_to_cartesian``).
@@ -210,9 +206,7 @@ Each turn the timing class performs, in order:
    accumulated kick-clock slip (see below).
 
 2. **Beam-current demodulation.** The timing class calls
-   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current_partial`
-   (its dedicated forward-pass variant of the shared
-   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current`) to convert
+   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` to convert
    the beam profile into the complex IQ beam-current envelope at the carrier
    frequency (factor-2 single-sideband demodulation), apply the
    reference-frame phase correction, and re-bin the fine-grid charge onto the
@@ -253,8 +247,9 @@ Each turn the timing class performs, in order:
 5. **Fine-grid solve.** The generator current is interpolated onto the
    profile grid and the cavity response is solved as a sparse bidiagonal
    system -- first order by default, or the second-order (Crank-Nicolson)
-   solver with ``second_order=True``, whose truncation error scales with the
-   bin size squared. The result, scaled by ``n_cavities``, yields the
+   solver with ``second_order_fine_grid_solver_enable=True``, whose
+   truncation error scales with the bin size squared. The result, scaled by
+   ``n_cavities``, yields the
    voltage correction and phase correction the parent RF station applies to
    its kick.
 
@@ -402,9 +397,7 @@ itself (see :ref:`mucol_cavity_feedback_tests` for the full inventory):
   pole-residue solver, which agree cell by cell to ~1e-13 -- this one lives
   in the impedance-solver suite
   (``tests/unittests/physics/impedances/test_solvers.py``), not the mucol
-  inventory below;
-* the shared helpers against the blond2 reference implementations (LHC
-  comparison suite).
+  inventory below.
 
 
 Known limitations
@@ -433,7 +426,7 @@ Known limitations
   RF-frequency offset uses) instead of rotating the antenna-voltage state;
   the generator-driven field, which carries no registration error, is left
   untouched, and the driven steady state is now exact. Pinned by
-  ``TestDrivenMultiSectionFastRamp`` and
+  ``TestDrivenSteadyStateFastRamp`` and
   ``TestPIFullTrackingMultiSectionFastRamp``.
   *Residual*: ``Psi`` still reaches the beam through ``phase_correction``,
   so a driven multi-section fast ramp keeps a readout-*phase* offset -- the

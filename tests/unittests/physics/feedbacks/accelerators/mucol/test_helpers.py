@@ -1,10 +1,9 @@
 """
 Tests for the cavity-response solvers.
 
-``cavity_response_sparse_matrix`` lives in
-``blond.physics.feedbacks.helpers`` (shared with the LHC feedback);
-``cavity_response_sparse_matrix_second_order`` lives in
-``blond.physics.feedbacks.cavity_solvers`` (muon-collider only).
+Both ``cavity_response_sparse_matrix`` and
+``cavity_response_sparse_matrix_second_order`` live in
+``blond.physics.feedbacks.cavity_solvers``.
 
 Both :func:`cavity_response_sparse_matrix` (forward Euler, left-endpoint drive)
 and :func:`cavity_response_sparse_matrix_second_order` (trapezoidal /
@@ -25,15 +24,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField, mu_minus
-from blond.physics.feedbacks.beam_current import (
-    rf_beam_current,
-    rf_beam_current_partial,
-)
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.cavity_solvers import (
+    cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
 )
-from blond.physics.feedbacks.helpers import cavity_response_sparse_matrix
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
@@ -139,9 +135,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             beam=stub_beam,
             profile=profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             use_lowpass_filter=False,
-            external_reference=True,
             dT=0.0,
         )
         solver_fn = {
@@ -336,7 +330,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
 
     def test_second_order_flag_routes_through_the_class(self):
         """
-        ``IQCavityFeedbackTimingClass(second_order=...)`` selects the solver.
+        The ``second_order_fine_grid_solver_enable`` flag selects the solver.
 
         With the flag off the class reproduces the first-order solver, with it
         on it reproduces the second-order one (bit-for-bit, ``n_cavities=1``),
@@ -350,9 +344,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             beam=stub_beam,
             profile=smooth_profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             use_lowpass_filter=False,
-            external_reference=True,
             dT=0.0,
         )
         i_beam = charges / smooth_profile.hist_step
@@ -424,7 +416,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
     """
     Charge conservation of the coarse-grid downsampling in rf_beam_current.
 
-    Regression test for a dropped remainder in the ``downsample`` branch of
+    Regression test for a dropped remainder in the coarse-grid branch of
     :func:`blond.physics.feedbacks.beam_current.rf_beam_current`: all demodulated
     charge after the last coarse-cell boundary used to be silently discarded
     -- up to the *whole* bunch, depending on how the bunch sits relative to
@@ -495,14 +487,10 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                     beam=StubBeam(self.intensity),
                     profile=profile,
                     omega_c=self.omega_rf,
-                    T_rev=self.t_rf,
                     use_lowpass_filter=False,
-                    external_reference=True,
                     dT=0.0,
-                    downsample={
-                        "Ts": self.t_rf,
-                        "points": self.n_points_coarse,
-                    },
+                    sampling_time=self.t_rf,
+                    n_points=self.n_points_coarse,
                 )
                 sum_fine = np.sum(charges_fine)
                 sum_coarse = np.sum(charges_coarse)
@@ -521,14 +509,10 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                 beam=StubBeam(self.intensity),
                 profile=profile,
                 omega_c=self.omega_rf,
-                T_rev=self.t_rf,
                 use_lowpass_filter=False,
-                external_reference=True,
                 dT=-2.0 * self.t_rf,
-                downsample={
-                    "Ts": self.t_rf,
-                    "points": self.n_points_coarse,
-                },
+                sampling_time=self.t_rf,
+                n_points=self.n_points_coarse,
             )
 
     def _downsampled(self, profile, **kwargs):
@@ -553,11 +537,10 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             beam=StubBeam(self.intensity),
             profile=profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             use_lowpass_filter=False,
-            external_reference=True,
             dT=0.0,
-            downsample={"Ts": self.t_rf, "points": self.n_points_coarse},
+            sampling_time=self.t_rf,
+            n_points=self.n_points_coarse,
             **kwargs,
         )
 
@@ -625,11 +608,11 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
     In the symmetric muon-collider ring the counter-rotating mu-minus beam has
     *opposite charge and opposite direction*, so its gap (RF beam) current has
     the **same sign** as the co-rotating mu-plus beam and both beams see the
-    same beam loading. ``rf_beam_current`` and ``rf_beam_current_partial``
-    therefore use ``beam.signed_charge_with_direction()`` (charge negated for a
+    same beam loading. ``rf_beam_current``
+    therefore uses ``beam.signed_charge_with_direction()`` (charge negated for a
     counter-rotating beam) on the source side, matching the RF-kick and
     wake-kick conventions. For co-rotating beams the signed charge equals the
-    plain particle charge, so the shared (LHC) path is bit-unchanged.
+    plain particle charge, so co-rotating behaviour is bit-unchanged.
 
     The full sign matrix is pinned: flipping *either* charge *or* direction
     alone flips the current; flipping both restores it.
@@ -656,7 +639,7 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
 
     def _fine_current(self, beam) -> np.ndarray:
         """
-        Fine-grid RF beam charge from the shared ``rf_beam_current``.
+        Fine-grid RF beam charge from the base-class ``rf_beam_current``.
 
         Parameters
         ----------
@@ -672,9 +655,7 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
             beam=beam,
             profile=self.profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             use_lowpass_filter=False,
-            external_reference=True,
             dT=0.0,
         )
 
@@ -694,14 +675,14 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
         charges_coarse
             Complex coarse-grid RF beam charge.
         """
-        return rf_beam_current_partial(
+        return rf_beam_current(
             beam=beam,
             profile=self.profile,
             omega_c=self.omega_rf,
-            T_rev=self.t_rf,
             sampling_time=self.t_rf,
             n_points=8,
             dT=0.0,
+            forbid_charge_in_first_coarse_cell=True,
         )
 
     def test_counter_rotating_mu_minus_matches_co_rotating_mu_plus(self):
@@ -711,8 +692,8 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
         Opposite charge x opposite direction = same gap current: the
         symmetric-ring requirement. Before the direction-signed charge this
         was exactly sign-flipped, so this test pins the fix on both the
-        shared (``rf_beam_current``) and the mucol
-        (``rf_beam_current_partial``) paths.
+        fine-only and the coarse (forward-pass) ``rf_beam_current``
+        paths.
         """
         beam_plus = StubBeam(self.intensity)
         beam_minus_cr = StubBeam(
@@ -764,7 +745,7 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
         """
         For a co-rotating beam the signed charge is the plain charge.
 
-        This is the bit-identity guarantee for the shared LHC path: the
+        This is the bit-identity guarantee for co-rotating beams: the
         source-side switch to ``signed_charge_with_direction()`` changes
         nothing for any co-rotating beam.
         """
@@ -778,6 +759,80 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
             beam_minus.signed_charge_with_direction(),
             beam_minus.particle_type.charge,
         )
+
+
+class TestUnifiedRfBeamCurrentMigrationPin(unittest.TestCase):
+    """
+    Migration pin: the unified ``rf_beam_current`` coarse path.
+
+    The values below were recorded by driving the pre-merge
+    ``rf_beam_current_partial`` (the timing-class forward-pass variant that
+    was folded into ``rf_beam_current``) on this exact fixture, with ``dT``
+    and ``carrier_phase_offset`` both nonzero and the first-coarse-cell
+    guard active. The unified function must reproduce them byte-exactly:
+    this pins the merged coarse path (bin-centre offset
+    ``sampling_time / 2``, carrier-phase rotation, downsampling loop,
+    remainder handling) to the pre-merge behaviour.
+    """
+
+    def setUp(self):
+        """Set up the recorded fixture: mid-window Gaussian, 1024 bins."""
+        self.t_rf = 1.0e-9
+        self.omega_rf = 2.0 * np.pi / self.t_rf
+        self.intensity = 2.7e12
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, 1024, self.t_rf
+        )
+        t = profile.hist_x
+        t0 = t[0] + 0.5 * (t[-1] - t[0])
+        hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = hist_y
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        self.profile = profile
+
+    def test_unified_coarse_path_matches_recorded_partial_output(self):
+        """The unified function reproduces the recorded outputs exactly."""
+        charges_fine, charges_coarse = rf_beam_current(
+            beam=StubBeam(self.intensity),
+            profile=self.profile,
+            omega_c=self.omega_rf,
+            sampling_time=self.t_rf,
+            n_points=8,
+            dT=0.1 * self.t_rf,
+            carrier_phase_offset=0.123,
+            forbid_charge_in_first_coarse_cell=True,
+        )
+
+        # Fine-grid checksums, recorded from the pre-merge partial path.
+        self.assertEqual(
+            complex(np.sum(charges_fine)),
+            complex(-5.859266402363611e-07, 6.272885835455287e-07),
+        )
+        self.assertEqual(
+            float(np.sum(np.abs(charges_fine))),
+            8.651753823599999e-07,
+        )
+        self.assertEqual(
+            complex(charges_fine[512]),
+            complex(-1.71594303215507e-08, 1.8541071115626816e-08),
+        )
+
+        # Full recorded coarse grid (8 cells).
+        recorded_coarse = np.array(
+            [
+                complex(1.5735508303327867e-205, -2.7422660451546783e-206),
+                complex(-5.859266402363609e-07, 6.272885835455287e-07),
+                complex(1.0237497371457826e-94, -1.9550762315465037e-95),
+                0.0 + 0.0j,
+                0.0 + 0.0j,
+                0.0 + 0.0j,
+                0.0 + 0.0j,
+                0.0 + 0.0j,
+            ]
+        )
+        np.testing.assert_array_equal(charges_coarse, recorded_coarse)
 
 
 if __name__ == "__main__":

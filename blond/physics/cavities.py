@@ -52,9 +52,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.experimental.physics.feedbacks.base import (
-        LocalFeedback as LocalFeedbackExp,
-    )
     from blond.physics.feedbacks.beam_feedback import (
         BeamFeedbackBase,
     )
@@ -250,8 +247,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         section_index: int,
         local_wakefield: WakeField | None,
         cavity_feedback: LocalFeedback
-        | LocalFeedbackExp
-        | list[LocalFeedback | LocalFeedbackExp | None]
+        | list[LocalFeedback | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
@@ -274,9 +270,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         )
         self._n_rf = n_rf
 
-        self.cavity_feedback_list: list[
-            LocalFeedback | LocalFeedbackExp | None
-        ] = [None for _ in range(self._n_rf)]
+        self.cavity_feedback_list: list[LocalFeedback | None] = [
+            None for _ in range(self._n_rf)
+        ]
 
         if not isinstance(cavity_feedback, list | None):
             self.attach_cavity_feedback(
@@ -563,7 +559,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         # Runtime import, mirroring attach_beam_feedback (avoids the cyclic
         # import of the experimental feedback module at class-definition time).
-        from blond.experimental.physics.feedbacks.beam_feedback import (
+        from blond.physics.feedbacks.beam_feedback import (
             BeamFeedbackBase,
         )
 
@@ -817,9 +813,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
     def attach_cavity_feedback(  # noqa: PLR0912
         self,
-        cavity_feedback: LocalFeedback
-        | LocalFeedbackExp
-        | list[LocalFeedbackExp | LocalFeedback | None],
+        cavity_feedback: LocalFeedback | list[LocalFeedback | None],
         harmonic_index: int | None = None,
     ):
         """
@@ -837,11 +831,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             This needs to be provided for multiharmonic cavities,
             where a single LocalFeedback is provided.
         """
-        from blond.experimental.physics.feedbacks.base import (
-            LocalFeedback as LocalFeedbackExp,  # warning on BLonD startup; prevent Experimental
-        )
-
-        if isinstance(cavity_feedback, LocalFeedback | LocalFeedbackExp):
+        if isinstance(cavity_feedback, LocalFeedback):
             if harmonic_index is None:
                 if self._n_rf == 1:
                     harmonic_index = 0
@@ -872,7 +862,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 )
 
             for feedback in cavity_feedback:
-                if isinstance(feedback, LocalFeedback | LocalFeedbackExp):
+                if isinstance(feedback, LocalFeedback):
                     feedback.set_parent_rf_station(rf_station=self)  # type: ignore
                 elif feedback is None:
                     pass
@@ -1073,8 +1063,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # completed. This must stay *here* (end of the station track, before
         # any beam-feedback ring element behind the station updates
         # delta_omega_rf for the next revolution), so the currently active
-        # offset is paired with the revolution it acted on -- the blond2
-        # convention the LHC comparisons rely on.
+        # offset is paired with the revolution it acted on -- a blond2-era
+        # convention the mucol carrier-slip machinery is built on.
         # With a beam feedback in the simulation the clock must follow every
         # passage even while the offset is still zero -- otherwise the first
         # revolution after the loop switches the offset on would be lost (or
@@ -1130,8 +1120,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         former lump was added, and deliberately so: a beam-feedback (phase
         loop) placed behind the station in the ring writes ``delta_omega_rf``
         *after* the station tracks, so sampling the offset here pairs the
-        currently active value with the revolution it actually acted on (the
-        blond2 convention the LHC comparisons rely on). The accumulated offset
+        currently active value with the revolution it actually acted on (a
+        blond2-era convention the mucol carrier-slip machinery is built
+        on). The accumulated offset
         is copied into ``delta_phi_rf`` at the start of the *next* turn's
         ``_track``. The first passage only initialises the clock: no
         revolution has elapsed yet, so there is no slip to add (matching the
