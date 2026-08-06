@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 
 from blond import StaticProfile
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
@@ -232,7 +233,7 @@ def run_multi_turn_fine_grid(
         )
         fine_voltage_per_turn.append(cav.antenna_voltage_fine_grid.copy())
 
-    return profile.hist_x, np.array(fine_voltage_per_turn)
+    return copy_to_cpu(profile.hist_x), np.array(fine_voltage_per_turn)
 
 
 def _open_diagnostic_plot():

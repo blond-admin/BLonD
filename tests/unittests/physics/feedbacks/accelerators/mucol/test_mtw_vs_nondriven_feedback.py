@@ -64,10 +64,12 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    backend,
     mu_minus,
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
@@ -116,7 +118,7 @@ def make_noisy_profile(
         t_rf,
         section_index=section_index,
     )
-    t = profile.hist_x
+    t = copy_to_cpu(profile.hist_x)
     t0 = 0.5 * (t[0] + t[-1])
     sigma = 0.08 * t_rf
 
@@ -129,7 +131,7 @@ def make_noisy_profile(
     hist_y[:5] = 0.0
     hist_y[-5:] = 0.0
 
-    profile._hist_y = hist_y
+    profile._hist_y = backend.array(hist_y, dtype=backend.float)
     profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
     return profile
 
@@ -192,7 +194,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
         solver._maximum_storage_time = 1.0  # >> t_rf, keeps the single pass
         solver._last_reference_time = -np.finfo(float).eps
 
-        return np.asarray(solver.calc_induced_voltage(self.stub_beam))
+        return copy_to_cpu(solver.calc_induced_voltage(self.stub_beam))
 
     def _non_driven_feedback_induced_voltage(self) -> np.ndarray:
         """
@@ -766,18 +768,14 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             if mode == "mtw":
                 per_turn.append(
                     [
-                        np.copy(np.asarray(element.induced_voltage))
+                        copy_to_cpu(element.induced_voltage)
                         for element in ind_volt_elements
                     ]
                 )
             else:
                 per_turn.append(
                     [
-                        np.copy(
-                            np.asarray(
-                                station.calc_gap_voltage_with_feedbacks()
-                            )
-                        )
+                        copy_to_cpu(station.calc_gap_voltage_with_feedbacks())
                         for station in ind_volt_elements
                     ]
                 )

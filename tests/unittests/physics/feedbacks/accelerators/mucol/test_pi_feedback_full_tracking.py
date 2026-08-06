@@ -33,6 +33,7 @@ from blond import (
     mu_plus,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
@@ -274,7 +275,7 @@ def _run_config(
             ]
         )
         rec["ref_energy"].append(float(b.reference.total_energy))
-        rec["sigma_dt"].append(float(np.std(b.dt.array_local)))
+        rec["sigma_dt"].append(float(np.std(copy_to_cpu(b.dt.array_local))))
 
     sim.run_simulation(
         (beam,), n_turns=n_turns, callbacks=callback, show_progressbar=False

@@ -61,8 +61,10 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    backend,
     mu_plus,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
@@ -141,7 +143,7 @@ def make_multibunch_profile(
         t_rf,
         section_index=section_index,
     )
-    t = profile.hist_x
+    t = copy_to_cpu(profile.hist_x)
     sigma = SIGMA_TRF * t_rf
 
     rng = np.random.default_rng(seed + section_index)
@@ -154,7 +156,7 @@ def make_multibunch_profile(
     hist_y[t < ZERO_BELOW_TRF * t_rf] = 0.0
     hist_y[-5:] = 0.0
 
-    profile._hist_y = hist_y
+    profile._hist_y = backend.array(hist_y, dtype=backend.float)
     profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
     return profile
 
@@ -184,7 +186,10 @@ def bunch_window_mask(
     numpy.ndarray
         Boolean mask, ``True`` inside ``center +- half_width`` RF periods.
     """
-    return np.abs(hist_x - center_trf * t_rf) <= half_width_trf * t_rf
+    return (
+        np.abs(copy_to_cpu(hist_x) - center_trf * t_rf)
+        <= half_width_trf * t_rf
+    )
 
 
 class TestSinglePassMultiBunch(unittest.TestCase):
@@ -243,7 +248,7 @@ class TestSinglePassMultiBunch(unittest.TestCase):
         solver.circumference = self.circumference
         solver._maximum_storage_time = 1.0  # >> t_rf, keeps the single pass
         solver._last_reference_time = -np.finfo(float).eps
-        return np.asarray(solver.calc_induced_voltage(self.stub_beam))
+        return copy_to_cpu(solver.calc_induced_voltage(self.stub_beam))
 
     def _feedback_induced_voltage(self, profile) -> np.ndarray:
         """
@@ -583,18 +588,10 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
 
         def collect(simulation, beam_in_callback):
             if mode == "mtw":
-                per_turn.append(
-                    [np.copy(np.asarray(collected.induced_voltage))]
-                )
+                per_turn.append([copy_to_cpu(collected.induced_voltage)])
             else:
                 per_turn.append(
-                    [
-                        np.copy(
-                            np.asarray(
-                                collected.calc_gap_voltage_with_feedbacks()
-                            )
-                        )
-                    ]
+                    [copy_to_cpu(collected.calc_gap_voltage_with_feedbacks())]
                 )
 
         sim.run_simulation(

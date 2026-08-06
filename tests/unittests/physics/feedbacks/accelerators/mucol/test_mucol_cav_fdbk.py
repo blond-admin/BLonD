@@ -15,6 +15,7 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
@@ -523,7 +524,7 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
             profile=profile,
         )
         wf.solver.on_wakefield_init_simulation(Mock(), wf)
-        return np.asarray(wf.solver.calc_induced_voltage(beam=beam))
+        return copy_to_cpu(wf.solver.calc_induced_voltage(beam=beam))
 
     def _assert_matches(self, delta_omega):
         beam, profile = self._build_beam_and_profile()

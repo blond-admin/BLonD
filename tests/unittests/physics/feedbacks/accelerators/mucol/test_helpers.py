@@ -23,7 +23,8 @@ from typing import Literal
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Resonators, StaticProfile, WakeField, mu_minus
+from blond import Resonators, StaticProfile, WakeField, backend, mu_minus
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.cavity_solvers import (
@@ -73,14 +74,14 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         profile = StaticProfile.from_rad(
             np.pi * 1.5, np.pi * 4.5, n_slices, self.t_rf
         )
-        t = profile.hist_x
+        t = copy_to_cpu(profile.hist_x)
         t0 = 0.5 * (t[0] + t[-1])
         hist_y = np.exp(-0.5 * ((t - t0) / (0.08 * self.t_rf)) ** 2)
 
         # zero edges
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -112,7 +113,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             Bin-center time base of the profile.
         """
         profile = self._smooth_profile(n_slices)
-        t = profile.hist_x
+        t = copy_to_cpu(profile.hist_x)
         stub_beam = StubBeam(self.intensity)
 
         if method == "convolution":
@@ -129,7 +130,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             solver.circumference = self.circumference
             solver._maximum_storage_time = 1.0
             solver._last_reference_time = -np.finfo(float).eps
-            return np.asarray(solver.calc_induced_voltage(stub_beam)), t
+            return copy_to_cpu(solver.calc_induced_voltage(stub_beam)), t
 
         charges = rf_beam_current(
             beam=stub_beam,
@@ -457,12 +458,12 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         profile = StaticProfile.from_rad(
             np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
         )
-        t = profile.hist_x
+        t = copy_to_cpu(profile.hist_x)
         t0 = t[0] + window_fraction * (t[-1] - t[0])
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -627,12 +628,12 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
         profile = StaticProfile.from_rad(
             np.pi * 1.5, np.pi * 4.5, 1024, self.t_rf
         )
-        t = profile.hist_x
+        t = copy_to_cpu(profile.hist_x)
         t0 = t[0] + 0.5 * (t[-1] - t[0])
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         self.profile = profile
 
@@ -782,12 +783,12 @@ class TestUnifiedRfBeamCurrentMigrationPin(unittest.TestCase):
         profile = StaticProfile.from_rad(
             np.pi * 1.5, np.pi * 4.5, 1024, self.t_rf
         )
-        t = profile.hist_x
+        t = copy_to_cpu(profile.hist_x)
         t0 = t[0] + 0.5 * (t[-1] - t[0])
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         self.profile = profile
 

@@ -441,8 +441,8 @@ def setup_and_run(  # noqa: PLR0915
         os.makedirs("./fdbk_testing", exist_ok=True)
         np.savez(
             cache_path,
-            dE=beam.dE.array_local,
-            dt=beam.dt.array_local,
+            dE=copy_to_cpu(beam.dE.array_local),
+            dt=copy_to_cpu(beam.dt.array_local),
         )
     else:
         load_beam_coordinates_from_file(

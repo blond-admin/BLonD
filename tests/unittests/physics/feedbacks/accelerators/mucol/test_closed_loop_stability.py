@@ -78,6 +78,7 @@ from blond import (
     StaticProfile,
     mu_plus,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
@@ -276,11 +277,14 @@ def _run_closed_loop(delta_omega: float) -> dict:
     beam._dt.array_local += t_rf + DIPOLE_KICK_FRAC * t_rf
 
     rec: dict[str, list] = {"centroid": [], "in_window": [], "i_max_dev": []}
-    window_left = profile.hist_x[0]
-    window_right = profile.hist_x[-1]
+    # StaticProfile: transfer the window bounds once, so the per-turn
+    # comparison below stays host-side.
+    _window = copy_to_cpu(profile.hist_x)
+    window_left = float(_window[0])
+    window_right = float(_window[-1])
 
     def callback(_sim, b):
-        dt = np.asarray(b.dt.array_local)
+        dt = copy_to_cpu(b.dt.array_local)
         rec["centroid"].append(float(np.mean(dt)))
         rec["in_window"].append(
             float(np.mean((dt > window_left) & (dt < window_right)))

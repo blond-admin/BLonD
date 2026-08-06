@@ -912,6 +912,7 @@ class TestIQCavityFeedbackObservation(unittest.TestCase):
         feedback.profile.n_bins = 16
         feedback.harmonic = 8.0
         feedback.n_rf_periods_per_coarse_grid = 1
+        feedback.n_rf_stations_in_ring = 1
 
         sim = Mock(Simulation)
         sim.ring.elements.get_elements.return_value = [Mock()]
@@ -927,6 +928,36 @@ class TestIQCavityFeedbackObservation(unittest.TestCase):
             observation._i_gen_coarse.filepath,
         ]
         self.assertEqual(len(set(filepaths)), len(filepaths), filepaths)
+
+    def test_coarse_width_uses_the_feedbacks_station_count(self):
+        """The overshoot divisor comes from the feedback, not a ring lookup.
+
+        The coarse buffer is one turn plus one section of overshoot, so the
+        divisor is the number of RF stations in the ring. Re-deriving it here
+        by filtering for ``SingleHarmonicRFStation`` divided by zero on a ring
+        whose stations are all ``MultiHarmonicRFStation`` (the two are
+        siblings, not parent and child) -- a supported configuration, since a
+        feedback may regulate one harmonic slot of a multi-harmonic station.
+        The feedback already counts stations against ``RFStationBaseClass``,
+        so the observation asks it instead of guessing.
+        """
+        feedback = Mock()
+        feedback.profile.n_bins = 16
+        feedback.harmonic = 8.0
+        feedback.n_rf_periods_per_coarse_grid = 1
+        feedback.n_rf_stations_in_ring = 2
+
+        sim = Mock(Simulation)
+        # A ring whose RF stations are all multi-harmonic: the old
+        # SingleHarmonicRFStation filter yields an empty list here.
+        sim.ring.elements.get_elements.return_value = []
+
+        observation = IQCavityFeedbackObservation(
+            each_turn_i=1, feedback=feedback
+        )
+        observation.on_run_simulation(simulation=sim, beam=Mock(), n_turns=4)
+
+        self.assertEqual(observation.len_coarse_max, int(np.ceil(1.5 * 8.0)))
 
 
 class TestDriftObservation(unittest.TestCase):

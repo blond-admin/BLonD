@@ -58,6 +58,7 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
@@ -104,8 +105,8 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         # shift it by one RF period into the profile window.
         sim, _ = self._build(mtw=False, profile=self._make_profile())
         beam = self._prepare(sim)
-        self.dt_template = np.array(beam.dt.array_local, copy=True) + self.t_rf
-        self.dE_template = np.array(beam.dE.array_local, copy=True)
+        self.dt_template = copy_to_cpu(beam.dt.array_local) + self.t_rf
+        self.dE_template = copy_to_cpu(beam.dE.array_local)
 
     def _make_profile(self) -> StaticProfile:
         return StaticProfile.from_rad(
@@ -266,12 +267,12 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         beam = self._prepare(sim, intensity=intensity)
         beam.setup_beam(dt=self.dt_template, dE=self.dE_template)
         energy_reference_before = float(beam.reference.total_energy)
-        dE_before = np.array(beam.dE.array_local, copy=True)
+        dE_before = copy_to_cpu(beam.dE.array_local)
         if mtw:
             rf.voltage = 0.0  # suppress the design RF kick; keep only the wake
         sim.run_simulation((beam,), n_turns=1, show_progressbar=False)
-        applied = np.array(beam.dE.array_local, copy=True) - dE_before
-        dt_after = np.array(beam.dt.array_local, copy=True)
+        applied = copy_to_cpu(beam.dE.array_local) - dE_before
+        dt_after = copy_to_cpu(beam.dt.array_local)
         delta_E_reference = (
             float(beam.reference.total_energy) - energy_reference_before
         )
@@ -403,9 +404,8 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             0.0,
             "profile histogram is empty -- bunch outside the window?",
         )
-        in_window = np.mean(
-            (dt_after > profile.hist_x[0]) & (dt_after < profile.hist_x[-1])
-        )
+        hist_x = copy_to_cpu(profile.hist_x)
+        in_window = np.mean((dt_after > hist_x[0]) & (dt_after < hist_x[-1]))
         self.assertGreater(in_window, 0.99, "bunch is not inside the window")
 
     def test_feedback_runs_in_full_simulation(self):
@@ -429,9 +429,9 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
         applied, dt_after, profile, rf, _ = self._run_case(mtw=True)
         self._assert_profile_populated(profile, dt_after)
 
-        induced = np.asarray(rf._local_wakefield.induced_voltage)
+        induced = copy_to_cpu(rf._local_wakefield.induced_voltage)
         expected = mu_plus.charge * np.interp(
-            dt_after, profile.hist_x, induced
+            dt_after, copy_to_cpu(profile.hist_x), induced
         )
         peak = np.max(np.abs(applied))
         self.assertGreater(peak, 0.0)
@@ -452,7 +452,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                 applied_mtw,
                 applied_fb,
                 profile_mtw,
-                np.asarray(rf_mtw._local_wakefield.induced_voltage),
+                copy_to_cpu(rf_mtw._local_wakefield.induced_voltage),
             )
 
         self._assert_profile_populated(profile_mtw, dt_mtw)
@@ -509,7 +509,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                 induced_part_mtw,
                 induced_part_fb,
                 profile_mtw,
-                np.asarray(rf_mtw._local_wakefield.induced_voltage),
+                copy_to_cpu(rf_mtw._local_wakefield.induced_voltage),
             )
 
         self._assert_profile_populated(profile_mtw, dt_mtw)
@@ -519,9 +519,10 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
 
         # MTW exactness under acceleration:
         # applied = q * V_induced(dt) - delta_E_reference.
-        induced = np.asarray(rf_mtw._local_wakefield.induced_voltage)
+        induced = copy_to_cpu(rf_mtw._local_wakefield.induced_voltage)
         expected_mtw = (
-            mu_plus.charge * np.interp(dt_mtw, profile_mtw.hist_x, induced)
+            mu_plus.charge
+            * np.interp(dt_mtw, copy_to_cpu(profile_mtw.hist_x), induced)
             - dE_ref_mtw
         )
         peak = np.max(np.abs(induced_part_mtw))

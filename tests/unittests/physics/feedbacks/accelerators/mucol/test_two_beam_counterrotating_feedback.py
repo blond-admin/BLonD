@@ -52,6 +52,7 @@ from blond import (
     mu_minus,
     mu_plus,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
@@ -320,16 +321,14 @@ def _run_two_beam_case(
         if mode == "mtw":
             per_turn.append(
                 [
-                    np.copy(np.asarray(wakefield.induced_voltage))
+                    copy_to_cpu(wakefield.induced_voltage)
                     for wakefield in collected
                 ]
             )
         else:
             per_turn.append(
                 [
-                    np.copy(
-                        np.asarray(station.calc_gap_voltage_with_feedbacks())
-                    )
+                    copy_to_cpu(station.calc_gap_voltage_with_feedbacks())
                     for station in collected
                 ]
             )

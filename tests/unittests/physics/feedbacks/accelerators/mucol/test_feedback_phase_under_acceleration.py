@@ -59,10 +59,12 @@ from blond import (
     SingleHarmonicRFStation,
     StaticProfile,
     WakeField,
+    backend,
     mu_plus,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftSubstepped
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
@@ -268,8 +270,8 @@ class TestFeedbackPhaseUnderAcceleration(unittest.TestCase):
                 reinsertion=True,
             ),
         )
-        dt = np.array(beam.dt.array_local, copy=True)
-        dE = np.array(beam.dE.array_local, copy=True)
+        dt = copy_to_cpu(beam.dt.array_local)
+        dE = copy_to_cpu(beam.dE.array_local)
         center = float(np.mean(dt)) + t_rf  # shift one period into the window
         cut_left_rad = (center - 0.75 * t_rf) / t_rf * 2 * np.pi
         cut_right_rad = (center + 0.75 * t_rf) / t_rf * 2 * np.pi
@@ -361,20 +363,18 @@ class TestFeedbackPhaseUnderAcceleration(unittest.TestCase):
         }
 
         def callback(_sim, b):
-            rec["V"].append(
-                np.copy(np.asarray(rf.calc_gap_voltage_with_feedbacks()))
-            )
+            rec["V"].append(copy_to_cpu(rf.calc_gap_voltage_with_feedbacks()))
             if with_beam:
-                rec["hy"].append(np.copy(np.asarray(profile.hist_y)))
-                rec["hx"].append(np.copy(np.asarray(profile.hist_x)))
+                hist_x = copy_to_cpu(profile.hist_x)
+                rec["hy"].append(copy_to_cpu(profile.hist_y))
+                rec["hx"].append(hist_x)
                 rec["T"].append(float(b.reference.time))
                 rec["beta"].append(float(b.reference.beta))
-                dt_local = b.dt.array_local
+                dt_local = copy_to_cpu(b.dt.array_local)
                 rec["inwin"].append(
                     float(
                         np.mean(
-                            (dt_local > profile.hist_x[0])
-                            & (dt_local < profile.hist_x[-1])
+                            (dt_local > hist_x[0]) & (dt_local < hist_x[-1])
                         )
                     )
                 )
@@ -644,9 +644,9 @@ class TestSolverPhaseUnderAcceleration(unittest.TestCase):
         rec: dict = {"V": [], "hy": [], "hx": [], "T": [], "beta": []}
 
         def callback(_sim, b):
-            rec["V"].append(np.copy(np.asarray(wakefield.induced_voltage)))
-            rec["hy"].append(np.copy(np.asarray(profile.hist_y)))
-            rec["hx"].append(np.copy(np.asarray(profile.hist_x)))
+            rec["V"].append(copy_to_cpu(wakefield.induced_voltage))
+            rec["hy"].append(copy_to_cpu(profile.hist_y))
+            rec["hx"].append(copy_to_cpu(profile.hist_x))
             rec["T"].append(float(b.reference.time))
             rec["beta"].append(float(b.reference.beta))
 
@@ -753,12 +753,12 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
         profile = StaticProfile.from_rad(
             np.pi * 1.5, np.pi * 4.5, self.n_slices, self.t_rf
         )
-        t = profile.hist_x
+        t = copy_to_cpu(profile.hist_x)
         t0 = 0.5 * (t[0] + t[-1])
         hist_y = np.exp(-0.5 * ((t - t0) / (0.08 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -830,9 +830,7 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
         times, voltages = [], []
         for _ in range(self.N_TURNS):
             drift.track_reference(beam.reference)
-            voltages.append(
-                copy(np.asarray(solver.calc_induced_voltage(beam)))
-            )
+            voltages.append(copy_to_cpu(solver.calc_induced_voltage(beam)))
             times.append(beam.reference.time)
         return times, voltages, profile
 
@@ -846,8 +844,8 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
 
         # analytic fixed-frequency reference from the true (fine) arrival times
         reference = analytic_multipass_induced_voltage(
-            [profile.hist_y] * self.N_TURNS,
-            [profile.hist_x] * self.N_TURNS,
+            [copy_to_cpu(profile.hist_y)] * self.N_TURNS,
+            [copy_to_cpu(profile.hist_x)] * self.N_TURNS,
             t_fine,
             [self.omega_0] * self.N_TURNS,
             self.Q_L,
