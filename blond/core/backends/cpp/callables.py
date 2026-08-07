@@ -118,13 +118,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     basepath, f"libblond_{precision}{parallel_suffix}.dll"
                 )
 
-            if hasattr(os, "add_dll_directory"):
-                # Cached: repeated backend loads must not keep appending
-                # to the DLL search path (see add_dll_directory_once).
-                add_dll_directory_once(os.path.dirname(libblond_path))
-                _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
-            else:
-                _LIBBLOND = ct.CDLL(str(libblond_path))
+            # Cached: repeated backend loads must not keep appending
+            # to the DLL search path (see add_dll_directory_once).
+            add_dll_directory_once(os.path.dirname(libblond_path))
+            _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
         else:
             raise ValueError(
                 f"Supporting 'win' and 'posix', not {sys.platform}."

@@ -398,9 +398,8 @@ def _prepare_cflags(
             root + "_double" + parallel_suffix + ext
         )
 
-        if hasattr(os, "add_dll_directory"):
-            directory, _ = os.path.split(libname_double)
-            add_dll_directory_once(directory)
+        directory, _ = os.path.split(libname_double)
+        add_dll_directory_once(directory)
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
