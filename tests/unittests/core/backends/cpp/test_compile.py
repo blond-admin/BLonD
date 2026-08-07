@@ -28,13 +28,13 @@ class TestDllDirectoryIsAddedOnce(unittest.TestCase):
     attempt on every subsequent load.
     """
 
+    def setUp(self) -> None:
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
+
     @pytest.mark.backend_mutation
     def test_repeated_activation_adds_the_directory_only_once(self):
         """Activating the C++ backend repeatedly adds one search path."""
-        if backend.is_gpu:
-            self.skipTest(
-                "the cpp specials exist only for the CPU (numpy) backends"
-            )
         real_add_dll_directory = os.add_dll_directory
         added_directories = []
 
