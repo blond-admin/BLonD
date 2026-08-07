@@ -45,6 +45,8 @@ class TestDllDirectoryIsAddedOnce(unittest.TestCase):
         with patch.object(os, "add_dll_directory", spy):
             for _ in range(500):
                 backend.set_specials("cpp")
+        # call once assertion not usable here, since with random testing order,
+        # another test might have already called the os add_dll_directory.
 
         self.assertLessEqual(
             len(added_directories),
