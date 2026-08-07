@@ -58,9 +58,9 @@ __all__ = [
     "BeamHist2dOncePerTurn",
     "BeamStatisticsOncePerTurn",
     "WakeFieldObservation",
-    "typing",
+    "blond_typing",
 ]
-from blond import typing
+from blond import blond_typing
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
 from blond.beam_preparation.helpers import make_multibunch_beam
