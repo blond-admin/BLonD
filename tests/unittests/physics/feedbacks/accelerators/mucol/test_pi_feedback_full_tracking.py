@@ -70,6 +70,7 @@ def _run_config(
     intensity: float = INTENSITY,
     controller_call_counter: dict | None = None,
     use_controller: bool = True,
+    detuning_half_bandwidths: float = 0.0,
 ) -> dict:
     """
     Track a matched bunch with PI-regulated feedbacks on every station.
@@ -95,6 +96,11 @@ def _run_config(
         If False, attach no PI controller, so the generator current stays at
         the constant ``generator_current_bias``. Used by the driven
         steady-state tests, which need the open-loop cavity response.
+    detuning_half_bandwidths
+        Cavity resonance detuning ``delta_omega`` in units of the cavity
+        half-bandwidth ``omega_rf / (2 Q_L)``, so that this number *is*
+        ``tan(psi)``. ``0`` (the default) keeps every existing call site on
+        resonance and bit-unchanged.
 
     Returns
     -------
@@ -103,8 +109,11 @@ def _run_config(
         voltage magnitude over the forward segment -- the beam-loading sag),
         ``v_last`` (last coarse sample -- the recovered voltage),
         ``i_max_dev`` (maximum generator-current deviation from the bias --
-        the loop response), ``n_forward``/``n_total`` (forward and total
-        coarse cells per turn); plus ``ref_energy`` and ``sigma_dt``.
+        the loop response), ``v_dev_grid`` (worst relative antenna-voltage
+        deviation from ``V_DESIGN`` over the *whole* coarse grid of the
+        turn, reverse reconstruction span included),
+        ``n_forward``/``n_total`` (forward and total coarse cells per turn);
+        plus ``ref_energy`` and ``sigma_dt``.
     """
     from blond import ConstantMagneticCycle
 
@@ -114,6 +123,11 @@ def _run_config(
     t_rev = cycle_probe.get_t_rev_init(CIRCUMFERENCE, particle_type=mu_plus)
     harmonic = int(HARMONIC - HARMONIC % (2 * n_sections))
     t_rf = t_rev / harmonic
+
+    # Cavity resonance detuning in units of the cavity half-bandwidth
+    # omega_rf / (2 Q_L), so tan(psi) == detuning_half_bandwidths.
+    omega_rf = 2.0 * np.pi / t_rf
+    delta_omega = detuning_half_bandwidths * omega_rf / (2.0 * Q_L)
 
     ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
     half_drift = CIRCUMFERENCE / n_sections / 2
@@ -152,7 +166,7 @@ def _run_config(
             n_cavities=1,
             initial_voltage=V_DESIGN,
             n_rf_periods_per_coarse_grid=1,
-            delta_omega=0.0,
+            delta_omega=delta_omega,
             controller=controller,
             voltage_setpoint=V_DESIGN + 0.0j,
         )
@@ -229,6 +243,7 @@ def _run_config(
         "v_min": [],
         "v_last": [],
         "i_max_dev": [],
+        "v_dev_grid": [],
         "ref_energy": [],
         "sigma_dt": [],
         "n_forward": [],
@@ -270,6 +285,18 @@ def _run_config(
                         ]
                         - I_GEN_BIAS
                     ).max()
+                )
+                for f in feedbacks
+            ]
+        )
+        # Worst antenna-voltage deviation over the WHOLE coarse grid of the
+        # turn -- reverse reconstruction span included. With no beam and a
+        # regulated loop the correct value is the setpoint on every sample.
+        rec["v_dev_grid"].append(
+            [
+                float(
+                    np.abs(f.antenna_voltage_coarse_grid - V_DESIGN).max()
+                    / V_DESIGN
                 )
                 for f in feedbacks
             ]
@@ -433,6 +460,124 @@ class TestDrivenSteadyStateFastRamp(unittest.TestCase):
     def test_four_sections_hold_steady_state(self):
         """Four stations: three reverse segments per passage."""
         self._assert_holds_steady_state(4)
+
+
+class TestDetunedLoopHoldsSetpointAcrossReverseSpan(unittest.TestCase):
+    r"""
+    A detuned, PI-regulated cavity must hold its setpoint all turn long.
+
+    With ``delta_omega != 0`` the matched no-beam drive is no longer the
+    feedforward bias but ``I_0 (1 - i tan psi)``,
+    ``tan psi = 2 Q_L delta_omega / omega_rf``: cancelling the detuning
+    precession needs a reactive standing current, which the PI finds on the
+    forward span. A multi-section ring then replays the remaining
+    ``(N - 1) / N`` of the turn as no-beam reverse segments, and it must
+    replay it with the current the loop actually held. Driving it with the
+    bias instead lets the antenna voltage precess for most of every turn.
+
+    The excursion is analytic: the discarded drive is purely reactive, so
+    over a reverse span of duration ``T``
+
+    .. math:: |\Delta V| / V_\mathsf{set} \simeq \Delta\omega\, T,
+
+    independent of ``Q_L`` and ``R/Q``. Here (one half-bandwidth of
+    detuning, two sections, ``T = t_rev / 2``) that is ``3.2e-2``: 3 % of
+    the setpoint every turn, on the very sample that seeds the fine grid
+    the bunch is solved on, so it is not self-correcting.
+
+    No beam is tracked on purpose -- without beam loading the correct answer
+    is exactly the setpoint on every coarse sample, so the assertion has no
+    tolerance budget to hide in.
+    """
+
+    N_SECTIONS = 2
+    N_TURNS = 5
+    ENERGY = 63.0e9  # constant energy: no ramp, no frame slip
+    # Skip turn 1: the loop is still converging from ``initial_voltage``.
+    SETTLED = slice(1, None)
+    TOLERANCE = 1e-6
+
+    def test_detuned_loop_holds_setpoint_over_the_whole_turn(self):
+        """The reverse span must not drive the detuned cavity off setpoint."""
+        rec = _run_config(
+            self.N_SECTIONS,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            intensity=0.0,
+            detuning_half_bandwidths=1.0,
+        )
+        worst = float(rec["v_dev_grid"][self.SETTLED].max())
+        self.assertLess(
+            worst,
+            self.TOLERANCE,
+            f"detuned PI loop leaves the setpoint by {worst:.3e} relative; "
+            "the no-beam reverse span is driven by the feedforward bias "
+            "instead of the current the loop held",
+        )
+
+    def test_four_sections_hold_setpoint_over_the_whole_turn(self):
+        """
+        Four sections: the reverse span is 3/4 of the turn, not 1/2.
+
+        The excursion scales with the reverse-span duration
+        ``T = (N - 1) / N * t_rev``, so this is the direct fingerprint of
+        the reverse reconstruction rather than of any forward-pass effect.
+        """
+        rec = _run_config(
+            4,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            intensity=0.0,
+            detuning_half_bandwidths=1.0,
+        )
+        worst = float(rec["v_dev_grid"][self.SETTLED].max())
+        self.assertLess(
+            worst,
+            self.TOLERANCE,
+            f"detuned PI loop leaves the setpoint by {worst:.3e} relative "
+            "over a three-quarter-turn reverse span",
+        )
+
+    def test_matched_bias_control_case_still_exact(self):
+        """
+        Control: on resonance the bias IS the held current.
+
+        This is what proves the detuned failure above comes from the
+        detuning and not from a broken fixture: same ring, same loop, same
+        assertion, only ``delta_omega = 0``.
+        """
+        rec = _run_config(
+            self.N_SECTIONS,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            intensity=0.0,
+            detuning_half_bandwidths=0.0,
+        )
+        self.assertLess(
+            float(rec["v_dev_grid"][self.SETTLED].max()), self.TOLERANCE
+        )
+
+    def test_undriven_detuned_cavity_is_left_free_running(self):
+        """
+        Control: with no controller the detuned cavity must still precess.
+
+        Guards against "fixing" the above by writing a matched current into
+        the grid unconditionally -- an unregulated detuned cavity has to be
+        left alone to precess away from the setpoint.
+        """
+        rec = _run_config(
+            self.N_SECTIONS,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            intensity=0.0,
+            use_controller=False,
+            detuning_half_bandwidths=1.0,
+        )
+        self.assertGreater(float(rec["v_dev_grid"][-1].max()), 0.2)
 
 
 class TestPIFullTrackingSingleSectionFastRamp(unittest.TestCase):

@@ -38,6 +38,7 @@ symmetry; the beam-current signs are carried by the signed charges).
 
 import unittest
 import warnings
+from unittest import mock
 
 import numpy as np
 
@@ -832,6 +833,216 @@ class TestSimultaneousPassageGuard(unittest.TestCase):
         peak = float(np.max(np.abs(per_turn[-1][0])))
         self.assertTrue(np.isfinite(peak))
         self.assertGreater(peak, 0.0)
+
+
+class TestReverseWalkDirectionConsistency(unittest.TestCase):
+    """
+    The reverse reference walk never runs with a mismatched beam direction.
+
+    ``get_time_omega_array_reverse_direction`` takes its element *order* from
+    the previously tracked beam (``_last_tracked_beam_state_frwrd``, used at
+    ``rf_center_grid.py:276-286`` and for the ``until_index`` at ``:342-344``)
+    but hands ``beam.is_counter_rotating`` -- the *current* beam -- to
+    ``track_reference``. In a single-beam run the two always agree, so the
+    distinction is invisible; only a two-beam run can make them differ.
+
+    They stay safe because the interval to back-fill is empty: the forward
+    projection stops at the next RF station in the tracked beam's traversal
+    order, which under ``MainloopCounterRotatingBeams`` is exactly where the
+    *other* beam next reaches this feedback. The reference times then match
+    to the bit and the early return at ``rf_center_grid.py:617`` fires before
+    the walk is entered.
+
+    That is a structural invariant of the projection endpoint, not something
+    the physics comparisons above can see -- they only check the grid the
+    walk produces, and the walk never runs. These tests pin the invariant
+    itself, so a future change to the projection endpoint or to the
+    mainloop's element order cannot silently start walking the elements of
+    one beam while tracking the reference of the other. Measured (static
+    case): 10 of 12 reverse-direction calls carry a direction mismatch and
+    none reaches the walk; with the early return removed all 10 do.
+
+    The invariant is pinned across all three two-beam regimes exercised in
+    this module (static, accelerating fast ramp, ``delta_omega_rf``),
+    because each moves the reference clock differently and the time
+    equality must hold bit-exactly in every one.
+
+    A note on why the *outcome* cannot be compared instead: forcing the
+    walk to run in the empty-interval situation produces identical arrays
+    for the matched and the mismatched element order, because the ring
+    layout is symmetric (half-drift / station / half-drift). Only the
+    "never entered" property and its exact-time-equality gate are
+    observable, so that is what is asserted.
+    """
+
+    #: config name -> extra kwargs for :func:`_run_two_beam_case`.
+    _configs: dict = {
+        "static": {},
+        "accelerating": {"acceleration": True, "fast_ramp": True},
+        "delta_omega_rf": {"delta_omega_rf": DELTA_OMEGA_RF},
+    }
+    _records_cache: dict = {}
+
+    @classmethod
+    def _recorded_two_beam_run(cls, config: str) -> dict:
+        """
+        Run (once per config) the two-beam case with the walk instrumented.
+
+        Parameters
+        ----------
+        config
+            Key into ``_configs``: which two-beam regime to run.
+
+        Returns
+        -------
+        dict
+            ``"calls"``: per reverse-direction call
+            ``(last_tracked_direction, current_direction, time_gap)`` with
+            ``time_gap = beam.reference.time - reference_state.time`` [s],
+            recorded *before* the early returns run; ``"walks"``: the same
+            pair for each call that actually entered the element walk.
+        """
+        if config in cls._records_cache:
+            return cls._records_cache[config]
+
+        calls: list[tuple[bool | None, bool, float]] = []
+        walks: list[tuple[bool | None, bool]] = []
+
+        original_call = IQCavityFeedbackTimingClass.calculate_rf_centers_for_reverse_direction
+        original_walk = (
+            IQCavityFeedbackTimingClass.get_time_omega_array_reverse_direction
+        )
+
+        def recording_call(self, beam):
+            calls.append(
+                (
+                    self._last_tracked_beam_state_frwrd,
+                    beam.is_counter_rotating,
+                    float(
+                        beam.reference.time
+                        - self._reference_state_until_tracked.time
+                    ),
+                )
+            )
+            return original_call(self, beam)
+
+        def recording_walk(self, beam):
+            walks.append(
+                (self._last_tracked_beam_state_frwrd, beam.is_counter_rotating)
+            )
+            return original_walk(self, beam)
+
+        with (
+            mock.patch.object(
+                IQCavityFeedbackTimingClass,
+                "calculate_rf_centers_for_reverse_direction",
+                recording_call,
+            ),
+            mock.patch.object(
+                IQCavityFeedbackTimingClass,
+                "get_time_omega_array_reverse_direction",
+                recording_walk,
+            ),
+        ):
+            _run_two_beam_case(2, "fb", **cls._configs[config])
+
+        cls._records_cache[config] = {"calls": calls, "walks": walks}
+        return cls._records_cache[config]
+
+    @staticmethod
+    def _mismatched(records):
+        """
+        Filter records where the stored and current directions differ.
+
+        Parameters
+        ----------
+        records
+            Tuples whose first two entries are
+            ``(last_tracked_direction, current_direction)``.
+
+        Returns
+        -------
+        list
+            The records with ``last is not None and last != current``.
+        """
+        return [
+            record
+            for record in records
+            if record[0] is not None and record[0] != record[1]
+        ]
+
+    def test_reverse_walk_never_entered_with_mismatched_direction(self):
+        """
+        Mismatched-direction calls occur, and none of them reaches the walk.
+
+        Both halves matter: the first assertion proves the two-beam run
+        actually exercises the dangerous configuration (it would fail if the
+        beams stopped alternating), the second proves the guard holds. All
+        three two-beam regimes are covered.
+        """
+        for config in self._configs:
+            with self.subTest(config=config):
+                records = self._recorded_two_beam_run(config)
+                self.assertGreater(
+                    len(self._mismatched(records["calls"])),
+                    0,
+                    "no reverse-direction call carried a direction "
+                    "mismatch, so this test no longer exercises the "
+                    "two-beam configuration it guards "
+                    f"(calls: {records['calls']})",
+                )
+                self.assertEqual(
+                    self._mismatched(records["walks"]),
+                    [],
+                    "the reverse walk ran with the element order of one "
+                    "beam and the reference direction of another; the "
+                    "empty-back-fill invariant no longer holds "
+                    f"(walk entries: {records['walks']})",
+                )
+
+    def test_mismatched_calls_are_gated_by_exact_time_equality(self):
+        """
+        Every mismatched-direction call carries a bit-exact zero time gap.
+
+        This pins the *mechanism* behind the previous test: the forward
+        projection has already advanced the reference to the other beam's
+        arrival time exactly, so ``beam.reference.time ==
+        _reference_state_until_tracked.time`` and the early return fires
+        before the walk. A merely-approximate equality (a nonzero gap below
+        some tolerance) would NOT be safe -- the ``==`` in the production
+        early return is exact -- so the assertion is ``gap == 0.0``, not
+        ``assertAlmostEqual``.
+
+        The companion assertion shows the gap is a live measurement, not a
+        quantity that is trivially always zero: the first passage of each
+        station (``last is None``, nothing projected yet) has a genuinely
+        nonzero gap and legitimately walks.
+        """
+        for config in self._configs:
+            with self.subTest(config=config):
+                records = self._recorded_two_beam_run(config)
+                mismatched_gaps = [
+                    gap for _, _, gap in self._mismatched(records["calls"])
+                ]
+                self.assertGreater(len(mismatched_gaps), 0)
+                self.assertEqual(
+                    [gap for gap in mismatched_gaps if gap != 0.0],
+                    [],
+                    "a mismatched-direction call reached the reverse "
+                    "machinery with a nonzero back-fill interval; the "
+                    "exact-time-equality gate no longer protects the "
+                    "mixed-direction walk "
+                    f"(all mismatched gaps: {mismatched_gaps})",
+                )
+                first_passage_gaps = [
+                    gap for last, _, gap in records["calls"] if last is None
+                ]
+                self.assertTrue(
+                    any(gap != 0.0 for gap in first_passage_gaps),
+                    "expected the first passages (nothing projected yet) "
+                    "to show a nonzero gap; the gap recording appears "
+                    f"inert (first-passage gaps: {first_passage_gaps})",
+                )
 
 
 if __name__ == "__main__":
