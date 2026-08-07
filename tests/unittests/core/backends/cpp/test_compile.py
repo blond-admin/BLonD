@@ -2,17 +2,15 @@
 
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.cpp import compile as cpp_compile
+from blond.core.backends.cpp.compile import add_dll_directory_once
 
 
-@unittest.skipUnless(
-    hasattr(os, "add_dll_directory"),
-    "os.add_dll_directory only exists on Windows",
-)
 class TestDllDirectoryIsAddedOnce(unittest.TestCase):
     """
     The Windows DLL search path must not grow on repeated backend loads.
@@ -35,28 +33,22 @@ class TestDllDirectoryIsAddedOnce(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_repeated_activation_adds_the_directory_only_once(self):
         """Activating the C++ backend repeatedly adds one search path."""
-        real_add_dll_directory = os.add_dll_directory
-        added_directories = []
+        directory = os.path.normcase(os.path.abspath("/path/to/be/tested"))
+        mock_add_dll_directory = MagicMock()
 
-        def spy(path):
-            added_directories.append(path)
-            return real_add_dll_directory(path)
-
-        with patch.object(os, "add_dll_directory", spy):
+        with (
+            patch.object(cpp_compile, "_added_dll_directory_keys", set()),
+            patch.object(
+                os, "add_dll_directory", mock_add_dll_directory, create=True
+            ),
+        ):
             for _ in range(500):
-                backend.set_specials("cpp")
-        # call once assertion not usable here, since with random testing order,
-        # another test might have already called the os add_dll_directory.
+                add_dll_directory_once(directory)
 
-        self.assertLessEqual(
-            len(added_directories),
-            1,
-            "os.add_dll_directory was called "
-            f"{len(added_directories)} times for "
-            f"{set(added_directories)}; each call appends to the "
-            "process-wide DLL search path, which eventually overflows "
-            "with WinError 206.",
-        )
+            self.assertSetEqual(
+                cpp_compile._added_dll_directory_keys, {directory}
+            )
+            mock_add_dll_directory.assert_called_once_with(directory)
 
     def tearDown(self) -> None:
         """
