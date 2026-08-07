@@ -11,10 +11,6 @@ from blond.core.backends.cpp import compile as cpp_compile
 from blond.core.backends.cpp.compile import add_dll_directory_once
 
 
-@unittest.skipUnless(
-    hasattr(os, "add_dll_directory"),
-    "os.add_dll_directory only exists on Windows",
-)
 class TestDllDirectoryIsAddedOnce(unittest.TestCase):
     """
     The Windows DLL search path must not grow on repeated backend loads.
@@ -42,7 +38,9 @@ class TestDllDirectoryIsAddedOnce(unittest.TestCase):
 
         with (
             patch.object(cpp_compile, "_added_dll_directory_keys", set()),
-            patch.object(os, "add_dll_directory", mock_add_dll_directory),
+            patch.object(
+                os, "add_dll_directory", mock_add_dll_directory, create=True
+            ),
         ):
             for _ in range(500):
                 add_dll_directory_once(directory)
