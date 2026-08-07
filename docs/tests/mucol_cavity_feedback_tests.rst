@@ -192,7 +192,7 @@ sub-stepping when the per-step decay/detuning phase is not small.
 
 **Class** ``TestVoltageSetpointValidation`` -- constructor validation of the
 explicit ``voltage_setpoint``. The RF station's phase correction is formed
-against the parent-derived ``voltage_setpoint`` property, whose phase is 0 by
+against the parent-derived ``station_voltage_coarse_grid``, whose phase is 0 by
 construction, so an explicit setpoint with a non-zero phase would be regulated
 by the PI controller but never reflected in the applied kick. The constructor
 therefore accepts only real, positive setpoints (phase 0; rotate ``phi_rf``

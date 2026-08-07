@@ -175,7 +175,9 @@ def rf_beam_current(
         If ``sampling_time`` is given without ``n_points``.
     ValueError
         If ``forbid_charge_in_first_coarse_cell`` is True and the
-        downsampling assigns beam charge to the first coarse-grid cell.
+        downsampling assigns beam charge to the first coarse-grid cell;
+        or if the profile window is longer than the coarse grid it is
+        downsampled onto, or maps past the last coarse cell.
     """
     # The cavity-feedback signal processing runs on the host (the cavity
     # response solvers downstream use scipy, which is host-only). Bring the
@@ -264,6 +266,25 @@ def rf_beam_current(
             "is given."
         )  # TODO: attribute Error
 
+    # General invariant, owned by the Profile (see
+    # ProfileBaseClass.check_fits_in_span), not by the feedback: a window
+    # longer than the span the coarse grid covers cannot be re-binned onto
+    # it. The grid here covers only the FORWARD segment (the drift to the
+    # next RF station, 1 / n_sections of a turn) -- it is NOT a full turn
+    # and NOT periodic, so a wrapped group would overwrite an earlier cell
+    # instead of accumulating into it. That forward span IS the interval
+    # between two consecutive passages of this station, so it is the same
+    # quantity the per-passage wake solvers pass to the same guard.
+    # Independent of the particle-loss warning above: the fold destroys
+    # charge even when the window captures the whole beam.
+    profile.check_fits_in_span(
+        n_points * sampling_time,
+        span_description=(
+            f"the coarse grid it is downsampled onto (n_points="
+            f"{n_points} x sampling_time={sampling_time} s)"
+        ),
+    )
+
     # Downsample onto the coarse grid. The mapping is centred on half a
     # coarse cell (the coarse bin centre) and shifted by dT.
     coarse_center_offset = sampling_time / 2
@@ -276,6 +297,14 @@ def rf_beam_current(
             "this will cause problems, please shift the beam",
             stacklevel=2,
         )
+    if len(ind_fine) and ind_fine[-1] >= n_points:
+        raise ValueError(
+            f"The profile maps onto coarse-grid index {int(ind_fine[-1])}, "
+            f"past the last cell ({n_points - 1}): the profile window lies "
+            "(partly) after the end of the coarse grid. Shift the profile "
+            "window (cut_left), or the beam, so that it lies inside the "
+            "grid."
+        )
 
     charges_coarse = np.zeros(n_points, dtype=complex)
     if len(indices) == 0:
@@ -285,16 +314,18 @@ def rf_beam_current(
         # Pick total current within one coarse grid
         charges_coarse[ind_fine[0]] = np.sum(charges_fine[: indices[0]])
         for i in range(1, len(indices)):
-            # The write index is kept in range by the % n_points wrap
-            # (periodic coarse grid), so no bounds guard is needed.
-            charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
+            # Every write index is inside the grid: check_fits_in_span and
+            # the ind_fine[-1] bound above reject the only inputs that
+            # could leave it -- the coarse grid is not periodic, so a wrap
+            # would overwrite, not accumulate.
+            charges_coarse[i + ind_fine[0]] = np.sum(
                 charges_fine[indices[i - 1] : indices[i]]
             )
         # Remainder after the last cell boundary. Dropping it would lose
         # all charge of the profile past that boundary (up to ~half the
         # bunch), which corrupts the coarse-grid beam loading and
         # everything propagated from it across turns.
-        charges_coarse[(len(indices) + ind_fine[0]) % n_points] = np.sum(
+        charges_coarse[len(indices) + ind_fine[0]] = np.sum(
             charges_fine[indices[-1] :]
         )
 

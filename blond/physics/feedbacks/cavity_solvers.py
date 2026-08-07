@@ -16,10 +16,17 @@ These are used only by the muon-collider timing-class feedback
 fine-grid solver the timing class uses by default;
 :func:`cavity_response_sparse_matrix_second_order` is its second-order
 (trapezoidal / Crank-Nicolson) twin.
+
+:class:`ForwardEulerValidityGuard` collects the tripwires that decide whether
+the forward-Euler discretisation is admissible at all -- the per-step decay,
+detuning phase and beam kick. It lives here, beside the solvers it certifies,
+because it is pure numerics: the feedback owns one instance and passes the
+cavity parameters per call.
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -312,3 +319,302 @@ def pretrack_fill_voltage(
     )
     t_cross = t[idx - 1] + frac * (t[idx] - t[idx - 1])
     return v_ss * (1.0 - np.exp(lam * t_cross))
+
+
+class ForwardEulerValidityGuard:
+    """
+    Validity tripwires for the forward-Euler cavity discretisation.
+
+    The coarse recursion advances the antenna voltage by the forward-Euler
+    factor ``(1 - 0.5 * omega * dt / Q_L + 1j * delta_omega * dt)`` plus the
+    beam-loading increment ``-I_beam * 0.5 * R_over_Q * omega * dt``. Each is
+    only an accurate discretisation of the underlying ODE while it represents
+    a small change per step, so this guard tests exactly those three
+    magnitudes: the per-step decay, the per-step detuning phase, and the
+    per-step beam kick relative to the voltage it acts on.
+
+    It lives beside the solvers it certifies rather than on the feedback,
+    because it is pure numerics: it reads no grid, no RF station and no beam,
+    and the only state it owns is the once-only beam-kick warning flag. All
+    cavity parameters are passed per call, so a caller that mutates them
+    between calls is measured against their current values.
+
+    Set ``enabled=False`` for the exact exponential propagator
+    (``exponential_coarse_solver_enable=True``): it integrates the decay,
+    the detuning and the piecewise-constant drive -- beam included --
+    exactly, so none of these are discretisation errors there. That is also
+    precisely the low-``Q_L`` / large-detuning regime the option exists to
+    enable, so applying the caps would defeat its documented purpose.
+
+    Parameters
+    ----------
+    enabled
+        Whether the tripwires apply. ``False`` makes every check a no-op.
+
+    Attributes
+    ----------
+    max_step_angle
+        Soft (warning) threshold for the per-step decay and detuning phase.
+    max_step_angle_hard
+        Hard (raising) threshold for the same two quantities.
+    max_relative_kick
+        Soft (warning) threshold for the relative per-step beam kick.
+    max_relative_kick_hard
+        Hard (raising) threshold for the relative per-step beam kick.
+    """
+
+    # Heuristic thresholds for forward-Euler validity [rad, and relative].
+    max_step_angle = 0.1
+    # Hard cap on the per-step decay ``d = decay_per_step``. The forward-Euler
+    # decay factor (real part, ignoring detuning) is ``1 - d``:
+    #   * d < 1:      factor in (0, 1)  -- ordinary contraction.
+    #   * 1 < d < 2:  factor in (-1, 0) -- the sign flips every step
+    #                 (unphysical), but |factor| < 1 so the voltage still
+    #                 contracts (oscillatory decay).
+    #   * d > 2:      |factor| > 1      -- the magnitude grows every step: a
+    #                 genuinely divergent discretization.
+    # The exact factor ``exp(-omega dt / (2 Q_L))`` is positive for every step
+    # size, so the whole band d > 1 misrepresents the physics -- the cap
+    # deliberately sits at the sign-flip boundary d = 1, not at the divergence
+    # boundary d = 2: contracting while inverting every step is still wrong,
+    # just not explosively so.
+    max_step_angle_hard = 1.0
+    max_relative_kick = 0.1
+    # Beyond this, the single-step beam kick exceeds the antenna voltage it is
+    # being subtracted from/added to: the discretized update can flip the sign
+    # of the antenna voltage within one coarse-grid step purely due to the
+    # beam, which the underlying continuous cavity equation cannot do -- a
+    # divergent/unphysical discretization rather than just an inaccurate one.
+    max_relative_kick_hard = 1.0
+
+    def __init__(self, enabled: bool = True) -> None:
+        self.enabled = enabled
+        self._beam_kick_warning_issued = False
+
+    def check_step_sizes(
+        self,
+        omega_rf: float,
+        sampling_time: float,
+        Q_L: float,
+        delta_omega: float,
+    ) -> None:
+        """
+        Check that the per-step decay and detuning phase are not too large.
+
+        Parameters
+        ----------
+        omega_rf
+            Angular RF frequency the coarse step is advanced with [rad/s].
+            NB: this is the frequency ``cavity_response`` uses as
+            ``omega_input``, not the carrier frequency ``omega_rf / n``.
+            Using the carrier would cancel the
+            ``n_rf_periods_per_coarse_grid`` dependence to a constant
+            ``2 * pi`` and misjudge the stability of the discretization.
+        sampling_time
+            Coarse-grid sampling time (the per-step ``dt``) [s].
+        Q_L
+            Loaded quality factor of the cavity.
+        delta_omega
+            Cavity detuning (resonance minus RF) [rad/s].
+
+        Raises
+        ------
+        ValueError
+            If the per-step decay or detuning phase exceeds the hard cap.
+        """
+        if not self.enabled:
+            return
+
+        omega_dt = omega_rf * sampling_time
+        decay_per_step = 0.5 * omega_dt / Q_L
+        detuning_phase_per_step = delta_omega * sampling_time
+
+        if decay_per_step > self.max_step_angle_hard:
+            raise ValueError(
+                f"{decay_per_step=:.3g} > {self.max_step_angle_hard}: the "
+                "forward-Euler decay factor (1 - decay_per_step) used in "
+                "cavity_response() is negative, so the discretized cavity "
+                "voltage inverts its sign every step -- an unphysical "
+                "per-step sign inversion, since the exact decay factor "
+                "exp(-omega * dt / (2 * Q_L)) is always positive. (It stays "
+                "contracting, |factor| < 1, until decay_per_step exceeds 2, "
+                "beyond which the response also diverges.) "
+                "Increase Q_L or decrease n_rf_periods_per_coarse_grid; for "
+                "steps that must stay this large, set "
+                "exponential_coarse_solver_enable=True to use the exact "
+                "propagator, which integrates the decay exactly and is not "
+                "subject to this check."
+            )
+        if decay_per_step > self.max_step_angle:
+            warnings.warn(
+                f"{decay_per_step=:.3g} is not << 1: the forward-Euler "
+                "approximation of the cavity decay "
+                "(1 - 0.5 * omega * dt / Q_L) used in cavity_response() "
+                "may be inaccurate; consider increasing Q_L or decreasing "
+                "n_rf_periods_per_coarse_grid.",
+                stacklevel=3,
+            )
+        if abs(detuning_phase_per_step) > self.max_step_angle_hard:
+            raise ValueError(
+                f"{detuning_phase_per_step=:.3g} > "
+                f"{self.max_step_angle_hard}: "
+                "the forward-Euler approximation of the detuning-induced "
+                "phase rotation (1 + 1j * delta_omega * dt) used in "
+                "cavity_response() rotates the antenna voltage by more "
+                "than one step's worth of angle per coarse-grid sample, "
+                "i.e. the discretization can no longer track the cavity "
+                "phase. Decrease delta_omega or "
+                "n_rf_periods_per_coarse_grid."
+            )
+        if abs(detuning_phase_per_step) > self.max_step_angle:
+            warnings.warn(
+                f"{detuning_phase_per_step=:.3g} is not << 1: the "
+                "forward-Euler approximation of the detuning-induced phase "
+                "rotation (1 + 1j * delta_omega * dt) used in "
+                "cavity_response() may be inaccurate; consider decreasing "
+                "delta_omega or n_rf_periods_per_coarse_grid.",
+                stacklevel=3,
+            )
+
+    def check_beam_kick_magnitude(
+        self,
+        beam_current: complex | float | int,
+        omega_times_T_s: float | int,
+        previous_voltage: complex | float | int,
+        R_over_Q: float,
+    ) -> None:
+        """
+        Warn (once) if the beam-induced voltage kick is too large.
+
+        Warns if the beam-induced voltage kick within a single coarse-grid
+        step is not small compared to the antenna voltage it is added to.
+
+        Parameters
+        ----------
+        beam_current
+            Beam current sample used for this step [A].
+        omega_times_T_s
+            Angular frequency times sampling time for this step.
+        previous_voltage
+            Antenna voltage of the previous coarse-grid step, which the
+            kick is added to/subtracted from.
+        R_over_Q
+            The R over Q of the cavity [Ohm].
+
+        Raises
+        ------
+        ValueError
+            If the relative beam kick exceeds the hard cap.
+        """
+        if not self.enabled:
+            return
+        if beam_current == 0:
+            return
+
+        beam_kick = beam_current * 0.5 * R_over_Q * omega_times_T_s
+        previous_voltage_abs = np.abs(previous_voltage)
+        if previous_voltage_abs == 0:
+            return
+
+        relative_kick = np.abs(beam_kick) / previous_voltage_abs
+        if relative_kick > self.max_relative_kick_hard:
+            raise ValueError(
+                f"{relative_kick=:.3g} > {self.max_relative_kick_hard}: the "
+                "beam-induced voltage kick per coarse-grid step "
+                "(beam_current * 0.5 * R_over_Q * omega * dt) exceeds the "
+                "antenna voltage it acts on, i.e. the forward-Euler update "
+                "in cavity_response() can flip the sign of the antenna "
+                "voltage within a single step -- unphysical for the "
+                "underlying cavity ODE. Decrease "
+                "n_rf_periods_per_coarse_grid or check whether the beam "
+                "current/intensity is physically reasonable for this "
+                "cavity."
+            )
+        if self._beam_kick_warning_issued:
+            return
+        if relative_kick > self.max_relative_kick:
+            self._beam_kick_warning_issued = True
+            warnings.warn(
+                f"{relative_kick=:.3g} is not << 1: the beam-induced "
+                "voltage kick per coarse-grid step "
+                "(beam_current * 0.5 * R_over_Q * omega * dt) is large "
+                "compared to the antenna voltage. The forward-Euler update "
+                "in cavity_response() may be inaccurate; consider "
+                "decreasing n_rf_periods_per_coarse_grid or checking "
+                "whether the beam current/intensity is physically "
+                "reasonable for this cavity.",
+                stacklevel=3,
+            )
+
+    def check_beam_kicks(
+        self,
+        beam_current: NumpyArray,
+        omega_times_dt: NumpyArray,
+        voltage_init: complex,
+        voltage_out: NumpyArray,
+        skip_first: bool,
+        R_over_Q: float,
+    ) -> None:
+        """
+        Vectorised beam-kick tripwire for a forward kernel segment.
+
+        Reproduces the per-cell :meth:`check_beam_kick_magnitude` sweep of the
+        reference path: it locates the offending cells with vectorised numpy
+        and then delegates to :meth:`check_beam_kick_magnitude` for the actual
+        raise/warn, so the exception and warning messages (and the once-only
+        warning flag) are identical. A merely-large kick that precedes any
+        hard violation warns first, matching the reference ordering.
+
+        Parameters
+        ----------
+        beam_current
+            Per-cell beam current of the segment.
+        omega_times_dt
+            Per-cell ``omega * dt`` of the segment.
+        voltage_init
+            Antenna voltage preceding the first cell.
+        voltage_out
+            Per-cell antenna voltage just computed for the segment.
+        skip_first
+            Whether to skip the first cell (the carried ``rf_centers`` index 0,
+            which the reference never checks).
+        R_over_Q
+            The R over Q of the cavity [Ohm].
+        """
+        if not self.enabled:
+            return
+        previous_voltage = np.empty_like(voltage_out)
+        previous_voltage[0] = voltage_init
+        previous_voltage[1:] = voltage_out[:-1]
+        beam_kick = beam_current * 0.5 * R_over_Q * omega_times_dt
+        previous_voltage_abs = np.abs(previous_voltage)
+        valid = (beam_current != 0) & (previous_voltage_abs != 0)
+        if skip_first:
+            valid[0] = False
+        if not valid.any():
+            return
+        relative_kick = np.zeros(beam_current.shape[0], dtype=np.float64)
+        relative_kick[valid] = (
+            np.abs(beam_kick[valid]) / previous_voltage_abs[valid]
+        )
+        hard = valid & (relative_kick > self.max_relative_kick_hard)
+        soft = valid & (relative_kick > self.max_relative_kick)
+        first_hard = int(np.argmax(hard)) if hard.any() else -1
+        first_soft = int(np.argmax(soft)) if soft.any() else -1
+
+        # Warn once if a merely-large kick precedes any hard violation, so the
+        # observable warn-then-raise ordering matches the per-cell loop.
+        if first_soft >= 0 and (first_hard < 0 or first_soft < first_hard):
+            self.check_beam_kick_magnitude(
+                beam_current[first_soft],
+                omega_times_dt[first_soft],
+                previous_voltage[first_soft],
+                R_over_Q,
+            )
+        if first_hard >= 0:
+            self.check_beam_kick_magnitude(
+                beam_current[first_hard],
+                omega_times_dt[first_hard],
+                previous_voltage[first_hard],
+                R_over_Q,
+            )

@@ -184,6 +184,14 @@ Classes at a glance
     :func:`~blond.physics.feedbacks.cavity_solvers.cavity_response_sparse_matrix_second_order`
     (trapezoidal / Crank-Nicolson) and the feedforward fill seed
     :func:`~blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`.
+    It also holds
+    :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`,
+    the tripwires that decide whether the forward-Euler discretisation is
+    admissible at all (per-step decay, detuning phase and beam kick) -- pure
+    numerics kept beside the solvers they certify. The feedback owns one
+    instance and passes the cavity parameters per call; it is constructed
+    disabled for the exact exponential propagator, which is subject to none
+    of these caps.
 
 :mod:`blond.physics.feedbacks.iq`
     IQ / polar conversions (``cartesian_to_polar``, ``polar_to_cartesian``).
