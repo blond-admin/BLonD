@@ -16,14 +16,44 @@ the forward/reverse reference walks that decide which RF frequency each grid
 segment is generated at, the segment generation itself, and the derived flat
 ``rf_centers`` / ``rf_centers_lengths`` arrays the tracking loop indexes.
 
-It is a *mixin*: the methods read and write grid state
-(``_segments``, ``rf_centers``, ``reference_state_until_tracked``,
-``residual_time_last_rf_centers_calculation``, the
-``last_tracked_*`` / ``reference_*`` bookkeeping, ...) that the host feedback
-class initialises in ``__init__`` / ``on_run_simulation``, and the RF-parameter
-accessors (``omega_rf``, ``harmonic``, ``t_rf``, ``sampling_time_coarse``, ...)
-it exposes. Extracted verbatim from ``cavity_feedback.py`` for readability; the
-behaviour is unchanged.
+It is a *mixin*: its methods read and write state that the host feedback class
+owns and initialises in ``__init__`` / ``on_run_simulation``.
+
+- Grid state: ``_segments`` (the single source of truth) and the derived
+  ``_rf_centers`` / ``_rf_centers_lengths``.
+- Tiling carry-over from one segment to the next:
+  ``_residual_time_last_rf_centers_calculation``,
+  ``_residual_taps_last_rf_centers_calculation`` and
+  ``_last_forward_tracking_freq``; plus the host-written
+  ``_residual_time_carried_into_turn``, which
+  :meth:`RFCenterGridMixin._preceding_segment_residual` uses at a turn
+  boundary.
+- Walk results the tracking loop then consumes:
+  ``_reverse_tracking_time_array`` / ``_reverse_tracking_omega_list``,
+  ``_forward_tracking_time`` / ``_forward_tracking_omega_rf`` and
+  ``_tracked_forward_until_element``.
+- Reference bookkeeping: ``_reference_state_until_tracked``,
+  ``_reference_index_until_tracked``,
+  ``reference_index_until_tracked_reverse``, ``_reference_turn_offset``,
+  ``_reference_altering_elements`` / ``..._reverse``,
+  ``_own_index_in_reference_list`` / ``..._reverse``,
+  ``_last_tracked_turn_frwrd`` and ``_last_tracked_beam_state_frwrd``.
+- Plain host configuration: ``n_rf_periods_per_coarse_grid``,
+  ``section_index``, ``_parent_rf_station``, ``_ring_circumference`` and
+  ``_debug`` -- the last of which additionally gates the inspection-only
+  ``current_slice_elements_forward`` / ``reference_time_after_reverse`` /
+  ``reference_energy_after_reverse`` / ``current_beam_reference_time`` /
+  ``current_beam_reference_energy`` diagnostics written here (nothing reads
+  them back).
+
+Note which frequency the grid runs on: every segment frequency comes from the
+parent station's ``calc_omega_rf_design``. The mixin reads none of the host's
+RF properties -- not ``omega_rf``, ``omega_rf_design``, ``harmonic``,
+``delta_omega_rf`` or ``sampling_time_coarse``, and the host has no ``t_rf``
+accessor at all. The grid geometry is design-clock only; the RF-frequency
+offset enters solely as a demodulation/readout phase. The traversals and the
+segment generation were extracted verbatim from ``cavity_feedback.py`` for
+readability.
 """
 
 from __future__ import annotations
@@ -459,12 +489,107 @@ class RFCenterGridMixin:
             f"lengths {sum(segment_lengths)}"
         )
 
+    def _preceding_segment_residual(
+        self: IQCavityFeedbackTimingClass, start_index: int
+    ) -> float:
+        """
+        Residual [s] of the segment preceding the one at ``start_index``.
+
+        ``rf_centers`` are segment-LOCAL times, so the coarse step into the
+        first cell of a segment is that cell's local time plus the
+        *preceding* segment's residual -- the unfilled tail between the
+        preceding segment's last centre and its end. The whole per-turn grid
+        is generated before any of it is walked, so the live
+        ``_residual_time_last_rf_centers_calculation`` holds the
+        last-generated (forward) segment's value by consumption time, not
+        the preceding one's; read :attr:`_segments` instead.
+
+        The first segment of a turn steps across the turn boundary and takes
+        the residual the previous turn ended on
+        (``_residual_time_carried_into_turn``, snapshotted before this
+        turn's generation). Hand-built grids (tests, direct
+        ``circuit_track`` callers) carry no segment list and fall back to the
+        live scalar, reproducing the historical value bit-for-bit.
+
+        Parameters
+        ----------
+        start_index : int
+            First ``rf_centers`` index of the segment about to be walked.
+
+        Returns
+        -------
+        float
+            Unfilled tail [s] of the preceding segment.
+        """
+        offset = 0
+        for segment_index, segment in enumerate(self._segments):
+            # A run of empty segments shares one offset; the first match wins
+            # and gives the same number, because an empty segment carries the
+            # previous residual through unchanged.
+            if offset == start_index:
+                if segment_index == 0:
+                    return (
+                        self._residual_time_last_rf_centers_calculation
+                        if self._residual_time_carried_into_turn is None
+                        else self._residual_time_carried_into_turn
+                    )
+                return self._segments[segment_index - 1].residual
+            offset += len(segment)
+        return self._residual_time_last_rf_centers_calculation
+
     def _generate_rf_centers(
         self: IQCavityFeedbackTimingClass,
         t_rf,
         omega_rf,
         until_time: float,
     ):
+        """
+        Generate the coarse-grid centre times of one segment.
+
+        The returned times are segment-local (they start near 0, not at an
+        absolute simulation time) and are laid out on the **design** RF
+        clock: both ``t_rf`` and ``omega_rf`` below carry the design
+        frequency (``calc_omega_rf_design``), never the actual/offset one.
+        The RF-frequency offset reaches the feedback only as a demodulation
+        and readout phase, which keeps the grid geometry a pure function of
+        the design frequency and the reference times.
+
+        The first centre normally sits half an RF period into the segment
+        (the falling-edge zero of ``sin(omega t)``). When the coarse grid
+        sub-divides the RF period (``n_rf_periods_per_coarse_grid < 1``) the
+        centres instead continue the previous segment's tiling -- one full
+        *previous* step after its last centre -- so the tiling stays
+        continuous across segment and turn boundaries.
+
+        Parameters
+        ----------
+        t_rf
+            RF period of this segment on the design clock [s].
+        omega_rf
+            Design RF frequency of this segment [rad/s]. Despite the name,
+            this is *not* the host's ``omega_rf`` property (the actual
+            frequency); it is stored as ``_last_forward_tracking_freq`` for
+            the next segment's sub-stepping continuation.
+        until_time
+            Duration of the segment [s]. Centres are generated up to, and
+            excluding, this local time.
+
+        Returns
+        -------
+        rf_centers
+            Segment-local coarse-grid centre times [s]. Empty (with a
+            warning) when the segment is shorter than one coarse step, which
+            is legitimate for a short reverse segment: callers append a
+            zero-length segment and the tracking loop no-ops over it.
+
+        Notes
+        -----
+        Side effects on the host, all carrying the tiling to the next
+        segment: ``_residual_time_last_rf_centers_calculation`` (the unfilled
+        tail between the last centre and ``until_time``),
+        ``_residual_taps_last_rf_centers_calculation`` (that tail in RF
+        periods) and ``_last_forward_tracking_freq``.
+        """
         # Segments always seed at the design bucket phase: the first centre
         # sits on the falling-edge zero half an RF period into the segment
         # (sin(omega * t) crosses zero falling at t = t_rf / 2). Station

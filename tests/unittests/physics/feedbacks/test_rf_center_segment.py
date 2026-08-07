@@ -225,3 +225,177 @@ class TestRFCenterSegment:
         )
         # Raw values coincide across segments, but absolute times must not.
         assert np.all(np.diff(absolute_centers) > 0)
+
+
+T_RF_BOUNDARY = 1e-9
+OMEGA_BOUNDARY = 2 * np.pi / T_RF_BOUNDARY
+# Three deliberately different residuals: what the PREVIOUS turn ended on,
+# what the reverse segment of this turn ended on, and what the forward
+# segment (generated last, hence the value left on the live host scalar)
+# ended on. On an accelerating multi-section ring they differ by
+# delta(t_rf) / 2; here they are pulled apart so the difference is visible.
+RESIDUAL_PREVIOUS_TURN = 0.30 * T_RF_BOUNDARY
+RESIDUAL_REVERSE_SEGMENT = 0.40 * T_RF_BOUNDARY
+RESIDUAL_FORWARD_SEGMENT = 0.50 * T_RF_BOUNDARY
+CENTERS_PER_SEGMENT = 4
+
+
+class TestSegmentBoundaryStep:
+    """
+    The coarse step across a segment boundary is a PER-SEGMENT quantity.
+
+    ``rf_centers`` are segment-LOCAL times, so the step into the first cell
+    of segment ``j`` is that cell's local time plus the *preceding* segment's
+    residual (the unfilled tail between the preceding segment's last centre
+    and its end). ``_track`` generates the whole per-turn grid before walking
+    any of it, so the live
+    ``_residual_time_last_rf_centers_calculation`` scalar holds the
+    LAST-GENERATED (forward) segment's residual by the time the loop reads
+    it -- a value from the *future* of the walk. These tests pin the correct
+    source for both the scalar reference loop and its vectorised twin.
+    """
+
+    @staticmethod
+    def _two_segment_feedback():
+        """
+        Reverse+forward grid whose residuals deliberately all differ.
+
+        Returns
+        -------
+        fdbk
+            A feedback whose ``_segments`` hold two 4-centre segments with
+            different residuals, with the host state set exactly as
+            ``_track`` leaves it before the grid is walked.
+        """
+        fdbk = TestRFCenterSegment._bare_feedback()
+        centers = (
+            np.arange(CENTERS_PER_SEGMENT) * T_RF_BOUNDARY
+            + 0.5 * T_RF_BOUNDARY
+        )
+        fdbk._clear_segments()
+        fdbk._append_segment(
+            RFCenterSegment(
+                omega=OMEGA_BOUNDARY,
+                duration=CENTERS_PER_SEGMENT * T_RF_BOUNDARY,
+                residual=RESIDUAL_REVERSE_SEGMENT,
+                centers=centers.copy(),
+            )
+        )
+        fdbk._append_segment(
+            RFCenterSegment(
+                omega=OMEGA_BOUNDARY,
+                duration=CENTERS_PER_SEGMENT * T_RF_BOUNDARY,
+                residual=RESIDUAL_FORWARD_SEGMENT,
+                centers=centers.copy(),
+            )
+        )
+        # What _track leaves behind: the LAST generated (forward) residual on
+        # the live scalar, and the previous turn's tail as the carry.
+        fdbk._residual_time_last_rf_centers_calculation = (
+            RESIDUAL_FORWARD_SEGMENT
+        )
+        fdbk._residual_time_carried_into_turn = RESIDUAL_PREVIOUS_TURN
+        # Not the first centre ever tracked, so the residual branch is taken.
+        fdbk._last_rf_centers_entry = 0.0
+        return fdbk
+
+    @staticmethod
+    def _tracked_phases(fdbk, start_index, end_index):
+        """
+        Per-cell ``omega * delta_t`` the reference loop actually stepped with.
+
+        Compared in the loop's own units (the product it passes to
+        ``cavity_response``) rather than dividing ``omega`` back out, which
+        would cost a ULP and blunt the bit-exact comparison.
+
+        Parameters
+        ----------
+        fdbk
+            Feedback whose grid should be walked.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+
+        Returns
+        -------
+        list
+            ``omega_input * delta_t`` [rad] of every cell the loop advanced.
+        """
+        seen = []
+        fdbk.cavity_response = lambda omega_times_T_s, **kwargs: seen.append(
+            omega_times_T_s
+        )
+        fdbk._circuit_track_cells_python(
+            OMEGA_BOUNDARY, True, start_index, end_index
+        )
+        return seen
+
+    def test_segment_boundary_step_vectorised(self):
+        # Into the forward segment: its local first centre plus the REVERSE
+        # segment's tail -- not the forward segment's own (live-scalar) tail.
+        fdbk = self._two_segment_feedback()
+        delta_t = fdbk._coarse_step_sizes(
+            OMEGA_BOUNDARY, CENTERS_PER_SEGMENT, 2 * CENTERS_PER_SEGMENT
+        )
+        assert delta_t[0] == (
+            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_REVERSE_SEGMENT
+        )
+
+    def test_segment_boundary_step_reference_loop(self):
+        fdbk = self._two_segment_feedback()
+        phases = self._tracked_phases(
+            fdbk, CENTERS_PER_SEGMENT, 2 * CENTERS_PER_SEGMENT
+        )
+        assert phases[0] == OMEGA_BOUNDARY * (
+            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_REVERSE_SEGMENT
+        )
+
+    def test_turn_boundary_step_vectorised(self):
+        # Into the FIRST segment of the turn: the step crosses the turn
+        # boundary, so it must use the residual the PREVIOUS turn ended on.
+        fdbk = self._two_segment_feedback()
+        delta_t = fdbk._coarse_step_sizes(
+            OMEGA_BOUNDARY, 0, CENTERS_PER_SEGMENT
+        )
+        assert delta_t[0] == (fdbk._rf_centers[0] + RESIDUAL_PREVIOUS_TURN)
+
+    def test_turn_boundary_step_reference_loop(self):
+        fdbk = self._two_segment_feedback()
+        phases = self._tracked_phases(fdbk, 0, CENTERS_PER_SEGMENT)
+        assert phases[0] == OMEGA_BOUNDARY * (
+            fdbk._rf_centers[0] + RESIDUAL_PREVIOUS_TURN
+        )
+
+    def test_scalar_and_vectorised_paths_agree(self):
+        # The kernel-vs-python byte-identity pin depends on both paths
+        # deriving the boundary step the same way.
+        fdbk = self._two_segment_feedback()
+        for start_index in (0, CENTERS_PER_SEGMENT):
+            end_index = start_index + CENTERS_PER_SEGMENT
+            np.testing.assert_array_equal(
+                OMEGA_BOUNDARY
+                * fdbk._coarse_step_sizes(
+                    OMEGA_BOUNDARY, start_index, end_index
+                ),
+                np.array(self._tracked_phases(fdbk, start_index, end_index)),
+            )
+
+    def test_hand_built_grid_without_segments_keeps_live_scalar(self):
+        # Byte-compat guard for the direct-call tests: a grid built by hand
+        # (no segments at all) must keep reading the live host scalar, which
+        # is what those tests set up and what they were pinned against.
+        fdbk = self._two_segment_feedback()
+        fdbk._clear_segments()
+        fdbk._rf_centers = (
+            np.arange(1, 2 * CENTERS_PER_SEGMENT + 1) * T_RF_BOUNDARY
+        )
+        fdbk._rf_centers_lengths = np.array(
+            [CENTERS_PER_SEGMENT, CENTERS_PER_SEGMENT], dtype=int
+        )
+        delta_t = fdbk._coarse_step_sizes(
+            OMEGA_BOUNDARY, CENTERS_PER_SEGMENT, 2 * CENTERS_PER_SEGMENT
+        )
+        assert delta_t[0] == (
+            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_FORWARD_SEGMENT
+        )
