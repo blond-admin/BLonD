@@ -968,6 +968,24 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         assert (delta_t > 0) or self._allow_delta_t_zero, (
             f"delta t was not > 0({delta_t})"
         )  # TODO: performance = ?
+        # The stored past profiles are shifted by delta_t on every passage,
+        # so a profile wider than delta_t overlaps its own previous deposit.
+        # Nothing else here detects that: the assert above only rejects a
+        # non-positive clock. This is the same invariant the re-binning
+        # consumers check, so it goes through the profile's own guard
+        # rather than a second span spelled differently here: the window is
+        # `window_duration` (the outer-edge span, cut_right - cut_left), not
+        # the first-to-last-bin-centre distance this used to compute, which
+        # understated it by one hist_step. Cost on a GPU backend is two
+        # extra scalar device reads per passage (cut_left/cut_right are
+        # cached_property, as hist_step already was), negligible against the
+        # per-passage wake convolution below.
+        profile = self._parent_wakefield.profile
+        profile.check_fits_in_span(
+            float(delta_t),
+            span_description="the time between two consecutive passages",
+            consumer=type(self).__name__,
+        )
         for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t  # NOQA # TODO test PLW2901 `for` loop variable `profile_time` overwritten by assignment target
             self._wake_function_time[prof_ind] += delta_t
@@ -1327,13 +1345,16 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             )
         profile = self._parent_wakefield.profile
 
-        profile_width = profile.cut_right - profile.cut_left
         # todo check that the time of n_revolutions matches n * length_profile
         t_rev = self._simulation.get_t_rev_init()
         if isinstance(t_rev, float):
-            assert abs(profile_width - t_rev) < profile.hist_step, (
+            # This solver needs the window to equal one turn, so it checks
+            # both directions itself; `window_duration` is the shared
+            # spelling of the window length that `check_fits_in_span` also
+            # compares, so the two cannot drift apart.
+            assert abs(profile.profile_duration - t_rev) < profile.hist_step, (
                 f"Expected profile length of {t_rev} s, but got "
-                f"{profile_width} s.",
+                f"{profile.profile_duration} s."
             )
 
     def calc_induced_voltage(

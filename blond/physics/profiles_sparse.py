@@ -443,7 +443,7 @@ class EquidistantMultiProfile(MultiProfile):
             bins_per_profile=self.profiles[
                 0
             ].n_bins,  # assume all are the same
-            cut_width=(self.profiles[0].cut_right - self.profiles[0].cut_left),
+            cut_width=self.profiles[0].profile_duration,
             n_active_profiles=len(self.profiles),
             filling_pattern=self._filling_pattern,
             bucket_index_to_memory_index=self._bucket_index_to_memory_index,

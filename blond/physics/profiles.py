@@ -262,6 +262,104 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             backend.float,  # type: ignore
         )
 
+    @property
+    def profile_duration(self) -> float:
+        """
+        Total time span covered by the profile window, in [s].
+
+        This is the *outer-edge* span: `cut_left` and `cut_right` lie
+        half a bin beyond the first and last bin centre, so it equals
+        `n_bins * hist_step` -- exactly one `hist_step` more than the
+        first-to-last-centre distance `(len(hist_x) - 1) * hist_step`.
+        It is the only spelling of "how long is this profile" used for
+        the span check; measuring between bin centres instead would
+        understate the window by one bin and move the threshold.
+
+        Returns
+        -------
+        window_duration
+            Time span between `cut_left` and `cut_right`, in [s].
+        """
+        return self.cut_right - self.cut_left
+
+    def check_fits_in_span(
+        self,
+        span: float,
+        *,
+        span_description: str = "the segment it is mapped onto",
+        tolerance: float | None = None,
+        consumer: str = "",
+    ) -> None:
+        """
+        Check the profile window is not longer than a given time span.
+
+        The single span guard for every consumer that has to place the
+        profile window inside a time span it does not control. In each
+        case `span` is the same physical quantity: the interval between
+        two consecutive passages of the consuming element -- the section
+        transit time for a per-section element, which is the full
+        revolution period when the element is passed once per turn.
+
+        A longer window destroys charge, by one of two mechanisms:
+
+        * A consumer that *re-bins* the window onto a fixed grid covering
+          `span` (the cavity feedback's coarse grid) folds two parts of
+          the beam more than `span` apart onto the same cell, and the
+          charge of one silently replaces the other -- reproduced at
+          exactly 50 % loss.
+        * A consumer that *stores* the profile per passage
+          (`MultiPassResonatorSolver`) shifts its past deposits by `span`
+          each time. A window longer than that overlaps its own previous
+          deposit: the same charge is deposited twice, and the part the
+          overlap pushes to negative time is dropped instead of being
+          reported.
+
+        Physically a bunch -- or bunch train -- longer than the distance
+        to the next RF station cannot be represented there at all, since
+        it would be upstream and downstream of the station at the same
+        time. Both mechanisms lose charge outright, so both raise.
+
+        Parameters
+        ----------
+        span
+            Time span the profile is mapped onto, in [s]. A span that
+            does not exceed `tolerance` -- including zero and the epsilon
+            sentinel used to satisfy a strictly-positive clock assertion
+            on a first deposit -- is not judged at all: it carries no
+            resolvable passage, and a degenerate or coincident clock is a
+            separate failure that its own guard reports.
+        span_description
+            Human-readable name of `span`, used in the error message.
+        tolerance
+            Allowed overshoot, in [s]; also the floor below which `span`
+            is treated as no passage at all. Defaults to one histogram
+            bin (`hist_step`), so a window built to match `span` exactly
+            -- e.g. the full-turn profile a multi-turn wake requires --
+            is accepted despite floating-point noise.
+        consumer
+            Name of the calling element, quoted in the message so the
+            user can tell which consumer is affected.
+
+        Raises
+        ------
+        ValueError
+            If the profile window is longer than `span` + `tolerance`.
+        """
+        if tolerance is None:
+            tolerance = self.hist_step
+        if span <= tolerance:
+            return
+        if self.profile_duration <= span + tolerance:
+            return
+
+        consumer_note = f" in {consumer}" if consumer else ""
+        raise ValueError(
+            f"The profile window{consumer_note} "
+            f"({self.profile_duration:.3g} s, cut_left={self.cut_left} s, "
+            f"cut_right={self.cut_right} s) is longer than "
+            f"{span_description} ({span:.3g} s)."
+        )
+
     def weighted_avg_dt(self) -> float:
         """
         Bunch center of weight, in [s].

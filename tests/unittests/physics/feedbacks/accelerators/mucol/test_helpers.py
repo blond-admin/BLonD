@@ -603,6 +603,138 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             self._downsampled(profile)
         self.assertEqual(caught, [])
 
+    def _profile_over(self, cut_left_trf, cut_right_trf, centers_trf):
+        """
+        Static profile with narrow Gaussian bunches at given t_rf offsets.
+
+        Parameters
+        ----------
+        cut_left_trf
+            Left window edge, in units of ``t_rf``.
+        cut_right_trf
+            Right window edge, in units of ``t_rf``.
+        centers_trf
+            Bunch centres, in units of ``t_rf``.
+
+        Returns
+        -------
+        StaticProfile
+            The populated profile.
+        """
+        profile = StaticProfile(
+            cut_left=cut_left_trf * self.t_rf,
+            cut_right=cut_right_trf * self.t_rf,
+            n_bins=self.n_slices,
+        )
+        t = copy_to_cpu(profile.hist_x)
+        hist_y = np.zeros_like(t)
+        for center in centers_trf:
+            hist_y += np.exp(
+                -0.5 * ((t - center * self.t_rf) / (0.02 * self.t_rf)) ** 2
+            )
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile
+
+    def test_raises_when_profile_longer_than_coarse_grid(self):
+        """
+        A window longer than the coarse grid raises instead of wrapping.
+
+        Two bunches 3 t_rf apart in a 5 t_rf window onto a 3-cell grid: the
+        trailing bunch's coarse index wrapped onto the leading bunch's cell
+        and *overwrote* it, silently losing 50 % of the demodulated charge
+        (measured sum_coarse/sum_fine relative error 0.5).
+        """
+        profile = self._profile_over(0.0, 5.0, (1.5, 4.5))
+        with self.assertRaises(ValueError) as cm:
+            rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                use_lowpass_filter=False,
+                dT=0.0,
+                sampling_time=self.t_rf,
+                n_points=3,
+            )
+        self.assertIn("longer than", str(cm.exception))
+
+    def test_particle_loss_warning_is_not_shadowed_by_the_span_guard(self):
+        """
+        The span guard must not pre-empt the particle-loss warning.
+
+        The two answer different questions -- "is the beam inside the
+        profile?" versus "does the profile fit the span it is re-binned
+        onto?" -- and the fold destroys charge even when the whole beam
+        is captured. So the loss warning has to stay reachable: it is
+        emitted before the span check, and raising there must not stop it
+        being seen.
+        """
+        profile = self._profile_over(0.0, 5.0, (1.5, 4.5))
+        profile.hist_y_to_density_factor = 0.5 / float(
+            np.sum(copy_to_cpu(profile.hist_y))
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with self.assertRaises(ValueError):
+                rf_beam_current(
+                    beam=StubBeam(self.intensity),
+                    profile=profile,
+                    omega_c=self.omega_rf,
+                    use_lowpass_filter=False,
+                    dT=0.0,
+                    sampling_time=self.t_rf,
+                    n_points=3,
+                )
+        loss_warnings = [
+            str(entry.message)
+            for entry in caught
+            if "inside the profile window" in str(entry.message)
+        ]
+        self.assertEqual(len(loss_warnings), 1)
+
+    def test_raises_when_profile_starts_after_coarse_grid(self):
+        """A window past the grid raises ValueError, not a bare IndexError."""
+        profile = self._profile_over(10.0, 12.0, (11.0,))
+        with self.assertRaises(ValueError) as cm:
+            rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                use_lowpass_filter=False,
+                dT=0.0,
+                sampling_time=self.t_rf,
+                n_points=3,
+            )
+        self.assertIn("coarse-grid index", str(cm.exception))
+
+    def test_long_window_that_fits_still_conserves_charge(self):
+        """
+        The guard must not fire on a long-but-fitting window.
+
+        Anti-false-positive pin: the same 5 t_rf two-bunch window that the
+        3-cell grid rejects is perfectly valid on an 8-cell grid, and must
+        keep conserving charge. This is the geometry
+        ``test_multibunch_beam_loading`` relies on -- an ~8 t_rf window on a
+        13-cell grid, the widest legitimate window/span ratio in the suite
+        (0.62) -- so the threshold may not creep below it.
+        """
+        profile = self._profile_over(0.0, 5.0, (1.5, 4.5))
+        charges_fine, charges_coarse = rf_beam_current(
+            beam=StubBeam(self.intensity),
+            profile=profile,
+            omega_c=self.omega_rf,
+            use_lowpass_filter=False,
+            dT=0.0,
+            sampling_time=self.t_rf,
+            n_points=8,
+        )
+        self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
+        np.testing.assert_allclose(
+            np.sum(charges_coarse), np.sum(charges_fine), rtol=1e-9
+        )
+
 
 class TestRfBeamCurrentCounterRotating(unittest.TestCase):
     """

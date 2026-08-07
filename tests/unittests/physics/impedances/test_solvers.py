@@ -2380,6 +2380,109 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         ]
         self.assertEqual(offending, [])
 
+    def _solver_with_real_profile(self):
+        """
+        The solver, with a real profile matching the mocked geometry.
+
+        The span guard is now
+        :meth:`ProfileBaseClass.check_fits_in_span`, so it needs a real
+        profile: on the ``Mock(StaticProfile)`` the shared ``setUp``
+        installs, the guard is itself a mock and never runs. The window
+        reproduces the mocked ``hist_x`` exactly -- 21 bins of 1e-10 s
+        centred on zero, so ``window_duration == 2.1e-9`` s.
+
+        Returns
+        -------
+        solver
+            The solver under test, wired to a real ``StaticProfile``.
+        profile
+            That profile, so the test can read its window.
+        """
+        solver = self.multi_pass_resonator_solver
+        profile = StaticProfile(
+            cut_left=-1e-9 - 0.5 * self.hist_step,
+            cut_right=1e-9 + 0.5 * self.hist_step,
+            n_bins=len(self.hist_x),
+        )
+        solver._parent_wakefield.profile = profile
+        return solver, profile
+
+    def test_profile_wider_than_the_passage_interval_raises(self):
+        """
+        A profile spanning more than one passage is rejected.
+
+        The stored past profiles are shifted by ``delta_t`` on every
+        passage. If the profile covers more time than that, the freshly
+        deposited window overlaps the previous one, so the same charge is
+        counted twice and the overlapping part of the past-pass wake is
+        silently zeroed at negative time. Nothing detected this before:
+        the only clock check here is ``delta_t > 0``.
+
+        Raises rather than warns: this destroys charge exactly as the
+        re-binning path does, and the false-positive sweep over
+        ``tests/unittests/physics/`` found no legitimate caller anywhere
+        near the threshold (worst real window/span ratio 0.963).
+        """
+        solver, profile = self._solver_with_real_profile()
+        solver._last_reference_time = 0.0
+        with self.assertRaisesRegex(ValueError, "longer"):
+            solver._update_past_profile_times_wake_times(
+                current_time=0.5 * profile.profile_duration
+            )
+
+    def test_profile_shorter_than_the_passage_interval_stays_silent(self):
+        """The ordinary case -- a bunch far shorter than a passage."""
+        solver, profile = self._solver_with_real_profile()
+        solver._last_reference_time = 0.0
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solver._update_past_profile_times_wake_times(
+                current_time=10 * profile.profile_duration
+            )
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "longer" in str(entry.message)
+        ]
+        self.assertEqual(offending, [])
+
+    def test_passage_equal_to_the_window_is_accepted(self):
+        """
+        A passage exactly as long as the window is legal, not an overlap.
+
+        Pins the threshold against the one-bin ambiguity the unified
+        guard removed: the window is the outer-edge span
+        (``cut_right - cut_left``), so a ``delta_t`` equal to it places
+        the new deposit exactly after the previous one with no overlap.
+        """
+        solver, profile = self._solver_with_real_profile()
+        solver._last_reference_time = 0.0
+        solver._update_past_profile_times_wake_times(
+            current_time=profile.profile_duration
+        )
+
+    def test_coincident_passage_does_not_add_a_span_failure(self):
+        """
+        The degenerate-clock escape hatch is not double-reported.
+
+        ``allow_delta_t_zero=True`` already warns at construction that
+        the kicks become order-dependent; a ``delta_t`` of zero must not
+        additionally produce a span failure, which would break a case the
+        user has explicitly opted into.
+        """
+        solver, _ = self._solver_with_real_profile()
+        solver._allow_delta_t_zero = True
+        solver._last_reference_time = 0.0
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solver._update_past_profile_times_wake_times(current_time=0.0)
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "longer" in str(entry.message)
+        ]
+        self.assertEqual(offending, [])
+
 
 beam_spectrum = np.array(
     [
