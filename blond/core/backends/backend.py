@@ -363,6 +363,60 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def wake_from_twc_fir(
+        # read
+        profile: NumpyArray | CupyArray,
+        r_shunt: NumpyArray | CupyArray,
+        a_tilde: NumpyArray | CupyArray,
+        omega_r: NumpyArray | CupyArray,
+        bin_dt: float,
+        factor: float,
+        # write
+        voltage: NumpyArray | CupyArray,
+        voltage_threaded: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Travelling-wave-cavity wake via a phasor FIR recursion.
+
+        Convolves `profile` with the finite-support TWC wake
+        ``W(t) = (4 R / a_tilde) (1 - t / a_tilde) cos(omega_r t)`` for
+        ``0 < t < a_tilde`` (half amplitude at ``t = 0``) of every mode and
+        accumulates the result into `voltage`. One rotating phasor per mode
+        carries the cosine; a sliding-window subtraction (FIR part) builds
+        the linear taper and terminates the wake after ``a_tilde``.
+
+        The recursion assumes an *equidistant* profile grid with spacing
+        `bin_dt`. There is no state across calls: the wake has finite
+        support, so this is exact as long as consecutive profiles are more
+        than ``max(a_tilde)`` apart in time (e.g. single-turn use with
+        ``a_tilde`` shorter than one revolution period).
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram on an equidistant grid.
+        r_shunt
+            Shunt impedance per TWC mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s]. This is the
+            ``TravelingWaveCavity`` ``a_factor / (2 pi)``.
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        bin_dt
+            Bin width of the equidistant profile grid, in [s].
+        factor
+            To convert `profile` to current per bin [A].
+        voltage
+            Output voltage, in [V]. Overwritten.
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        raise NotImplementedError(
+            "The backend for `wake_from_twc_fir` is missing."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
         beam_dE: NumpyArray | CupyArray,
         energy_lost: float,

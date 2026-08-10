@@ -674,6 +674,22 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         out[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
+    def wake_from_twc_fir(  # NOQA: D102
+        profile: NumpyArray,
+        r_shunt: NumpyArray,
+        a_tilde: NumpyArray,
+        omega_r: NumpyArray,
+        bin_dt: float,
+        factor: float,
+        voltage: NumpyArray,
+        voltage_threaded: NumpyArray,
+    ) -> None:
+        raise NotImplementedError(
+            "`wake_from_twc_fir` is not implemented for the numba backend "
+            "yet; use the cpp or python backend."
+        )
+
+    @staticmethod
     @enforce_precision(FLOAT)
     @njit(
         void(

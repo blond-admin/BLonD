@@ -615,3 +615,33 @@ class SupportsVectorFittedModel(ABC):
             in counterrotation. Default is ``1``.
         """
         pass
+
+
+class SupportsTWCFIRModel(ABC):
+    """
+    Mixin for sources with a finite-support (FIR) travelling-wave-cavity wake.
+
+    The wake ``W(t) = (4 R / a_tilde)(1 - t/a_tilde) cos(omega_r t)`` for
+    ``0 < t < a_tilde`` is handled by the ``wake_from_twc_fir`` backend
+    special instead of an IIR pole set.
+
+    See Also
+    --------
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    """
+
+    @abstractmethod  # pragma: no cover
+    def get_twc_fir(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+        """
+        Provide the FIR travelling-wave-cavity wake parameters per mode.
+
+        Returns
+        -------
+        r_shunt
+            Shunt impedance per mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s].
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        """
+        pass

@@ -37,6 +37,8 @@ from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsTWCFIRModel,
+    SupportsVectorFittedModel,
     TimeDomain,
     TimeDomainCounterRotation,
     WakeFieldSource,
@@ -313,7 +315,11 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
 
 class Resonators(
-    WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
+    WakeFieldSource,
+    TimeDomain,
+    FreqDomain,
+    TimeDomainCounterRotation,
+    SupportsVectorFittedModel,
 ):
     r"""
     Multiple resonances of RLC circuits for impedance calculations.
@@ -1030,7 +1036,9 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
 
 # TODO rework docstring
-class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
+class TravelingWaveCavity(
+    WakeFieldSource, TimeDomain, FreqDomain, SupportsTWCFIRModel
+):
     r"""
     Impedance of travelling wave cavities.
 
@@ -1112,6 +1120,31 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
         # Damping time a in s
         self.a_factor = backend.array(a_factor, dtype=float).flatten()
+
+    def get_twc_fir(
+        self,
+    ) -> tuple[
+        NumpyArray | CupyArray,
+        NumpyArray | CupyArray,
+        NumpyArray | CupyArray,
+    ]:
+        """
+        Provide the FIR travelling-wave-cavity wake parameters per mode.
+
+        Returns
+        -------
+        r_shunt
+            Shunt impedance per mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s].
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        """
+        return (
+            self.R_S,
+            self.a_factor / (2 * np.pi),
+            2 * np.pi * self.frequency_R,
+        )
 
     def wake_calc(
         self, time: NumpyArray | CupyArray

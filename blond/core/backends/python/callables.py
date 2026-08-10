@@ -684,3 +684,83 @@ class PythonSpecials(Specials):
             states[pole_i] = state
 
         states[-1] = profile_dts[-1]
+
+    @staticmethod
+    def wake_from_twc_fir(
+        # read
+        profile: NumpyArray,
+        r_shunt: NumpyArray,
+        a_tilde: NumpyArray,
+        omega_r: NumpyArray,
+        bin_dt: float,
+        factor: float,
+        # write
+        voltage: NumpyArray,
+        voltage_threaded: NumpyArray,
+    ) -> None:
+        """
+        Travelling-wave-cavity wake via a phasor FIR recursion.
+
+        Reference implementation; see the ``Specials`` ABC for the full
+        description of the algorithm and its equidistant-grid assumption.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram on an equidistant grid.
+        r_shunt
+            Shunt impedance per TWC mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s].
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        bin_dt
+            Bin width of the equidistant profile grid, in [s].
+        factor
+            To convert `profile` to current per bin [A].
+        voltage
+            Output voltage, in [V]. Overwritten.
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        n_bins = len(profile)
+        two_factor = 2 * factor
+
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+
+        for mode_i in range(len(r_shunt)):
+            # W(0) amplitude of the single-cosine kernel (no conjugate
+            # pair); the trapezoidal half/half injection below supplies
+            # the (sign(t) + 1) factor of the analytic wake
+            wake_amplitude = 2 * r_shunt[mode_i] / a_tilde[mode_i]
+            # taper length in bins; ceil quantizes the wake support to
+            # the grid (relative error ~ bin_dt / a_tilde)
+            n_taper = int(np.ceil(a_tilde[mode_i] / bin_dt))
+            rotation = np.exp(1j * omega_r[mode_i] * bin_dt)
+            # phase accumulated by a taper term over its full lifetime
+            rotation_removal = np.exp(1j * omega_r[mode_i] * bin_dt * n_taper)
+
+            state = 0.0 + 0.0j
+            taper = 0.0 + 0.0j
+            for bin_i in range(n_bins):
+                if bin_i > 0:
+                    taper += profile[bin_i - 1] * two_factor / n_taper
+                    oldest = bin_i - 1 - n_taper
+                    if oldest >= 0:
+                        # fully decayed: remove with its accumulated phase
+                        taper -= (
+                            profile[oldest]
+                            * two_factor
+                            / n_taper
+                            * rotation_removal
+                        )
+                    taper *= rotation
+                    state -= taper
+
+                profile_i_half = 0.5 * profile[bin_i] * two_factor
+                state += profile_i_half
+                voltage[bin_i] += wake_amplitude * np.real(state)
+                state += profile_i_half
+
+                state *= rotation

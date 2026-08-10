@@ -35,9 +35,11 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsTWCFIRModel,
     SupportsVectorFittedModel,
     TimeDomain,
     WakeField,
@@ -1245,9 +1247,17 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     """
     Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
 
+    Sources implementing ``SupportsTWCFIRModel`` (travelling wave cavities)
+    are handled by the finite-support FIR kernel ``wake_from_twc_fir``
+    instead of IIR poles; their wake is recomputed from scratch each call,
+    which is exact as long as consecutive profiles are further apart in time
+    than the longest cavity filling time (e.g. single-turn wakes shorter
+    than the revolution period).
+
     See Also
     --------
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
+    blond.physics.impedances.base.SupportsTWCFIRModel : Interface for travelling-wave-cavity sources with a finite-support wake.
     """
 
     def __init__(
@@ -1264,6 +1274,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+
+        # finite-support travelling-wave-cavity (FIR) sources
+        self._twc_r_shunt: NumpyArray | CupyArray | None = None
+        self._twc_a_tilde: NumpyArray | CupyArray | None = None
+        self._twc_omega_r: NumpyArray | CupyArray | None = None
+        self._twc_bin_dt: float | None = None
+        self._voltage_twc: NumpyArray | CupyArray | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1286,15 +1303,28 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         poles = []
         residues = []
         counter_rotation_pole_flip = []
+        twc_r_shunt = []
+        twc_a_tilde = []
+        twc_omega_r = []
         assert self._parent_wakefield is not None
         for source in self._parent_wakefield.sources:
-            vector_source: SupportsVectorFittedModel = source
+            if isinstance(source, SupportsVectorFittedModel):
+                poles_, residues_, cr_signs_ = source.get_vectorfit()
 
-            poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
-
-            poles.extend(poles_)
-            residues.extend(residues_)
-            counter_rotation_pole_flip.extend(cr_signs_)
+                poles.extend(poles_)
+                residues.extend(residues_)
+                counter_rotation_pole_flip.extend(cr_signs_)
+            elif isinstance(source, SupportsTWCFIRModel):
+                r_shunt_, a_tilde_, omega_r_ = source.get_twc_fir()
+                twc_r_shunt.extend(copy_to_cpu(r_shunt_))
+                twc_a_tilde.extend(copy_to_cpu(a_tilde_))
+                twc_omega_r.extend(copy_to_cpu(omega_r_))
+            else:
+                raise TypeError(
+                    f"{type(source).__name__} supports neither "
+                    "`SupportsVectorFittedModel` nor `SupportsTWCFIRModel` "
+                    "and can not be used with `MultiPoleSparseSolve`."
+                )
 
         self._poles = backend.array(poles, dtype=complex)
         self._residues = backend.array(residues, dtype=complex)
@@ -1331,6 +1361,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             if type(self._profile) is EquidistantMultiProfile
             else backend.array([0], dtype=np.int32)
         )
+
+        if len(twc_r_shunt) > 0:
+            # the FIR kernel requires an equidistant grid; the gapped
+            # continuous memory of a sparse multi-profile is not supported
+            hist_x_cpu = copy_to_cpu(profile_hist_x)
+            if not np.allclose(
+                np.diff(hist_x_cpu), bin_dt, rtol=1e-9, atol=0.0
+            ):
+                raise NotImplementedError(
+                    "TWC FIR sources require an equidistant profile grid; "
+                    f"{type(self._parent_wakefield.profile).__name__} does "
+                    "not provide one."
+                )
+            self._twc_bin_dt = bin_dt
+            self._twc_r_shunt = backend.array(twc_r_shunt, dtype=backend.float)
+            self._twc_a_tilde = backend.array(twc_a_tilde, dtype=backend.float)
+            self._twc_omega_r = backend.array(twc_omega_r, dtype=backend.float)
+            self._voltage_twc = backend.zeros_like(self._voltage)
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -1394,5 +1442,18 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             update_on_bin=self._update_on_bin,
             factor=self._charge_per_macroparticle,
         )
+        if self._twc_r_shunt is not None:
+            # finite-support wake, no state across calls (see class docs)
+            backend.specials.wake_from_twc_fir(
+                profile=profile_hist_y,
+                r_shunt=self._twc_r_shunt,
+                a_tilde=self._twc_a_tilde,
+                omega_r=self._twc_omega_r,
+                bin_dt=self._twc_bin_dt,
+                factor=self._charge_per_macroparticle,
+                voltage=self._voltage_twc,
+                voltage_threaded=self._voltage_threaded,
+            )
+            self._voltage += self._voltage_twc
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage
