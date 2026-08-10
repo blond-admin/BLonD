@@ -16,7 +16,6 @@ from __future__ import annotations
 import warnings
 from abc import abstractmethod
 from copy import deepcopy
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -36,6 +35,10 @@ from blond.physics.feedbacks.cavity_solvers import (
     ForwardEulerValidityGuard,
     cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
+    coarse_step_exponent,
+    euler_voltage_multiplier,
+    exponential_drive_weight,
+    exponential_voltage_multiplier,
     pretrack_fill_voltage,
 )
 from blond.physics.feedbacks.envelope_kernel import (
@@ -47,7 +50,10 @@ from blond.physics.feedbacks.generator_regulation import (
 )
 from blond.physics.feedbacks.iq import cartesian_to_polar
 from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
-from blond.physics.feedbacks.rf_center_segment import RFCenterSegment
+from blond.physics.feedbacks.rf_center_segment import (
+    PerTurnGridSpan,
+    RFCenterSegment,
+)
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:
@@ -148,12 +154,141 @@ class IQCavityFeedbackBase(LocalFeedback):
             )
         self.n_rf_periods_per_coarse_grid = n_rf_periods_per_coarse_grid
 
+        # --- The six IQ state arrays ---------------------------------
+        # All six are complex IQ envelopes (demodulated at the design RF
+        # carrier), all are host (numpy) arrays, and all are ``None``
+        # until the first passage fills them. They live on two different
+        # time grids, with two different index origins and two different
+        # voltage scalings; the docstrings below are the contract each
+        # reader must honour. Two of the conventions deliberately DIVERGE
+        # from their siblings and are called out where they occur:
+        # ``antenna_voltage_fine_grid`` is the only array scaled by
+        # ``n_cavities``, and ``beam_current_forward_coarse_grid`` is the
+        # only coarse array that is not whole-turn indexed.
         self.beam_current_forward_coarse_grid: NumpyArray | None = None
+        """Beam current on the coarse grid, in [A].
+
+        GRID: coarse, but only over this passage's FORWARD segment --
+        ``n_forward_centers`` entries, one per forward coarse centre
+        (``calculate_rf_beam_current_partial`` passes that count as
+        ``n_points`` to ``rf_beam_current``).
+
+        INDEX ORIGIN: FORWARD-SEGMENT-LOCAL, unlike the two whole-turn
+        coarse grids below. Entry ``0`` is the first coarse centre of the
+        forward segment, not of the turn, so a reader holding a whole-turn
+        ``rf_centers`` index must subtract the forward offset
+        ``len(rf_centers) - rf_centers_lengths[-1]`` -- which is exactly
+        what ``cavity_response`` and ``_kernel_beam_current`` do. The
+        reverse (already-elapsed) span at the head of the turn has no
+        entry here at all, because it is replayed with ``no_beam=True``.
+
+        SCALING: total beam current, NOT per cavity. It is never divided
+        by ``n_cavities``: every cavity of the station is passed by the
+        whole beam, so this is the current each single cavity sees, and it
+        enters the per-cavity envelope step of ``_advance_coarse_voltage``
+        directly.
+
+        UNITS: amperes -- the demodulated beam charge [C] of
+        ``rf_beam_current`` divided by the forward coarse sampling time.
+        The sign follows the direction-signed charge convention of
+        ``rf_beam_current`` (a counter-rotating beam gives the same gap
+        current as a co-rotating one).
+        """
         self.beam_current_fine_grid: NumpyArray | None = None
+        """Beam current on the fine grid, in [A].
+
+        GRID: fine -- the beam profile's own histogram grid, one entry per
+        profile bin (``profile.n_bins``, sampled at ``profile.hist_x``).
+
+        INDEX ORIGIN: profile-bin local, i.e. bunch-local time inside the
+        profile window ``[profile.cut_left, profile.cut_right]``, reset
+        every turn. It is not indexed against ``rf_centers`` at all.
+
+        SCALING: total beam current, NOT per cavity (see the coarse
+        sibling above).
+
+        UNITS: amperes -- the demodulated beam charge [C] of
+        ``rf_beam_current`` divided by ``profile.hist_step``.
+        """
         self.antenna_voltage_coarse_grid: NumpyArray | None = None
+        """Antenna voltage on the coarse grid, in [V].
+
+        GRID: coarse, spanning the WHOLE passage -- ``len(rf_centers)``
+        entries, i.e. this passage's reverse (already-elapsed) segments
+        followed by its forward segment. ``reset_arrays`` sizes it from
+        ``rf_centers`` every turn.
+
+        INDEX ORIGIN: whole-turn -- entry ``i`` belongs to
+        ``rf_centers[i]``, aligned one-to-one with the grid. (Beware when
+        comparing against ``beam_current_forward_coarse_grid``, which is
+        forward-segment-local.)
+
+        SCALING: PER CAVITY -- the voltage of one single cavity of the
+        station. The station total is this times ``n_cavities``; only the
+        fine-grid antenna voltage below carries that factor already.
+
+        UNITS: volts, as a complex IQ envelope in the antenna-voltage
+        frame (amplitude ``abs``, phase ``angle``); it is not the
+        instantaneous gap voltage.
+        """
         self.antenna_voltage_fine_grid: NumpyArray | None = None
+        """Antenna voltage on the fine grid, in [V], times ``n_cavities``.
+
+        GRID: fine -- the profile grid (``profile.n_bins`` entries at
+        ``profile.hist_x``), integrated by ``cavity_response_fine`` from
+        the first forward coarse cell's initial condition.
+
+        INDEX ORIGIN: profile-bin local (bunch-local time), like the fine
+        beam current above.
+
+        SCALING: TOTAL STATION -- and this is the one scaling divergence
+        among the arrays: ``cavity_response_fine`` ends with
+        ``antenna_voltage_fine_grid *= n_cavities``, while both coarse
+        grids stay per cavity. That is what makes the readout
+        ``relative_voltage_correction = abs(V_ant_fine) / station voltage``
+        come out around 1, since the parent station's ``voltage`` is the
+        total station voltage.
+
+        UNITS: volts, complex IQ envelope (same frame as the coarse
+        antenna voltage).
+        """
         self.generator_current_coarse_grid: NumpyArray | None = None
+        """Generator current on the coarse grid, in [A].
+
+        GRID: coarse, spanning the WHOLE passage -- ``len(rf_centers)``
+        entries, sized and seeded by ``reset_arrays`` (with the
+        feedforward ``generator_current_bias``, except over the leading
+        reverse cells, which hold the last commanded value).
+
+        INDEX ORIGIN: whole-turn, aligned one-to-one with ``rf_centers``,
+        exactly like ``antenna_voltage_coarse_grid``. Entry ``i`` is the
+        current that DRIVES the step to cell ``i + 1``
+        (``cavity_response`` reads index ``i - 1`` when updating ``i``).
+
+        SCALING: PER CAVITY -- the current fed to one single cavity, the
+        same convention as the coarse antenna voltage (the two are related
+        by the per-cavity ``R_over_Q``). With a controller attached it is
+        the controller's per-cavity output.
+
+        UNITS: amperes, complex IQ envelope.
+        """
         self.generator_current_fine_grid: NumpyArray | None = None
+        """Generator current on the fine grid, in [A].
+
+        GRID: fine -- the profile grid (``profile.n_bins`` entries at
+        ``profile.hist_x``), obtained in ``circuit_track`` by interpolating
+        the FORWARD segment of ``generator_current_coarse_grid`` onto
+        ``profile.hist_x``.
+
+        INDEX ORIGIN: profile-bin local (bunch-local time), like the other
+        two fine grids.
+
+        SCALING: PER CAVITY -- it is an interpolation of the per-cavity
+        coarse grid and is never multiplied by ``n_cavities`` (the factor
+        is applied to the resulting fine antenna voltage instead).
+
+        UNITS: amperes, complex IQ envelope.
+        """
 
         # Number of RF stations in the ring, filled in on_run_simulation once
         # the ring is known. The default of one station is the conservative
@@ -396,34 +531,6 @@ class IQCavityFeedbackBase(LocalFeedback):
         )
 
 
-@dataclass(frozen=True, eq=False)
-class PerTurnGridSpan:
-    """
-    The per-turn coarse-grid span produced by one grid rebuild.
-
-    Carries the three values the later phases of
-    ``IQCavityFeedbackTimingClass._track`` need from the grid rebuild.
-    They are *returned* rather than left on the feedback so that the
-    ordering is enforced by the data flow: in particular
-    ``residual_from_reverse_span`` can only be read from a span object, and
-    a span is only produced by a rebuild that snapshotted it before the
-    forward generation overwrote the host scalar.
-    """
-
-    n_reverse_centers: int
-    """Number of coarse centres generated by the reverse-tracking segments of
-    this passage (``0`` when this passage generated none)."""
-    n_forward_centers: int
-    """Number of coarse centres in the forward segment of this passage."""
-    residual_from_reverse_span: float
-    """``_residual_time_last_rf_centers_calculation`` [s] as it stood after the
-    reverse segments and BEFORE the forward generation overwrote it. This is
-    the demodulation frame
-    :meth:`IQCavityFeedbackTimingClass.calculate_rf_beam_current_partial`
-    needs; re-reading the host attribute later yields the forward value and
-    silently shifts the frame."""
-
-
 class IQCavityFeedbackTimingClass(
     IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin
 ):
@@ -475,7 +582,12 @@ class IQCavityFeedbackTimingClass(
         per-step phase rotation, but *not* to the coarse-grid spacing (see
         Notes). Default is 0.
     debug
-        Save debugging parameters during runtime.
+        Save inspection-only diagnostic parameters during runtime (the
+        element slices and reference time/energy snapshots written by
+        :class:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin`).
+        Pure observation: it does not change the physics and, since the
+        flag split described in Notes, it no longer disables the
+        correction either. Default is False.
     second_order_fine_grid_solver_enable
         If True, integrate the fine-grid cavity response with the second-order
         (trapezoidal / Crank-Nicolson) solver instead of the default
@@ -521,9 +633,36 @@ class IQCavityFeedbackTimingClass(
         the seed is the fill transient at the moment ``|V_ant|`` first reaches
         this value, i.e. the beam is injected part-way through the fill.
         Default None (seed from the fill after ``n_pretrack`` turns).
+    validate_grid_each_turn
+        Re-check every turn that the flat ``rf_centers`` arrays still
+        agree with the ``_segments`` they are derived from, and that the
+        forward segment's boundary residual equals its demodulation
+        frame. A pure integrity check with no effect on the result; it
+        walks the whole grid every turn, which is why it is opt-in.
+        Default is False.
+    grid_only_no_correction
+        Build the coarse grid and replay the elapsed reverse span, then
+        END THE TURN THERE: the beam current is never demodulated, the
+        forward segment is never tracked, and **the feedback applies NO
+        correction to the parent RF station**. It writes the neutral
+        readout instead -- unit relative voltage, zero phase -- so the
+        station kicks as if no feedback were attached. Only for
+        inspecting the grid geometry in isolation; it is not a physical
+        mode. Default is False.
 
     Notes
     -----
+    **The three diagnostic flags.** ``debug``,
+    ``validate_grid_each_turn`` and ``grid_only_no_correction`` were once
+    a single ``debug`` flag that did all three things at once, so asking
+    for diagnostics silently switched the physics off. They are now
+    independent: ``debug`` only records, ``validate_grid_each_turn`` only
+    checks, and ``grid_only_no_correction`` -- and nothing else -- stops
+    the turn before the correction is computed. The former
+    ``debug=True`` behaviour is all three set together. With all three at
+    their default (``False``) the tracked result is bit-for-bit what
+    ``debug=False`` produced before the split.
+
     **Sub-stepping (** ``n_rf_periods_per_coarse_grid`` **< 1).** The
     forward-Euler step in ``cavity_response`` advances the antenna voltage by a
     decay factor ``1 - 0.5 * omega_rf * dt / Q_L`` with
@@ -597,6 +736,8 @@ class IQCavityFeedbackTimingClass(
         voltage_setpoint: complex | None = None,
         n_pretrack: int | None = None,
         injection_voltage: float | None = None,
+        validate_grid_each_turn: bool = False,
+        grid_only_no_correction: bool = False,
     ):
         super().__init__(
             profile=profile,
@@ -661,7 +802,16 @@ class IQCavityFeedbackTimingClass(
 
         self._init_voltage = initial_voltage
 
+        # Three independent diagnostic switches (see the class Notes).
+        # ``_debug`` records the inspection-only snapshots of
+        # RFCenterGridMixin, ``_validate_grid_each_turn`` runs the
+        # per-turn grid integrity check, and ``_grid_only_no_correction``
+        # -- alone -- short-circuits _track before any correction is
+        # computed. All three default to False, which is the tracked
+        # (bit-unchanged) path.
         self._debug = debug
+        self._validate_grid_each_turn = validate_grid_each_turn
+        self._grid_only_no_correction = grid_only_no_correction
 
         self._second_order_fine_grid_solver_enable = (
             second_order_fine_grid_solver_enable
@@ -906,7 +1056,7 @@ class IQCavityFeedbackTimingClass(
                 -self._rf_centers_lengths[-1] :
             ][0]
 
-            samples_per_rf_fine_grid = omega_input * self.profile.hist_step
+            omega_times_dt_fine_grid = omega_input * self.profile.hist_step
             # copy_to_cpu: the feedback signal processing is host-side
             # (scipy), so a GPU-backend profile grid must be brought to host.
             self.generator_current_fine_grid = np.interp(
@@ -921,7 +1071,7 @@ class IQCavityFeedbackTimingClass(
             self.cavity_response_fine(
                 initial_voltage_fine_grid=antenna_voltage_init,
                 initial_generator_current_fine_grid=generator_current_init,
-                samples_per_rf_fine_grid=samples_per_rf_fine_grid,
+                omega_times_dt_fine_grid=omega_times_dt_fine_grid,
                 relative_detuning=relative_detuning,
             )
 
@@ -953,7 +1103,7 @@ class IQCavityFeedbackTimingClass(
             One past the last ``rf_centers`` index of the segment.
         """
         # The optional controller update recovers the per-step sampling time
-        # from ``omega_times_T_s / omega_input``; expose omega_input for it.
+        # from ``omega_times_dt / omega_input``; expose omega_input for it.
         self._omega_input_for_pi = omega_input
         # The compiled scan runs the control law inside the loop, so it needs
         # the controller to supply a compiled form of itself. A controller
@@ -1272,6 +1422,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         state), so they are precomputed here on the host: ``B = 1 + L`` /
         ``W = 1`` for forward Euler, ``B = e^L`` / ``W = (e^L - 1) / L`` for
         the exponential propagator, with ``L`` the per-cell growth exponent.
+        The arithmetic itself is the shared one of
+        :mod:`~blond.physics.feedbacks.cavity_solvers`
+        (:func:`~blond.physics.feedbacks.cavity_solvers.coarse_step_exponent`
+        and the propagator weights), so this vectorised path and the per-cell
+        :meth:`_advance_coarse_voltage` cannot drift apart.
 
         Parameters
         ----------
@@ -1289,17 +1444,16 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         drive_weight
             Per-cell drive weight ``W`` (complex128).
         """
-        step_exponent = (
-            -0.5 * omega_times_dt / self.Q_L
-            + 1j * relative_detuning * omega_times_dt
+        step_exponent = coarse_step_exponent(
+            omega_times_dt, self.Q_L, relative_detuning
         )
         if self._exponential_coarse_solver_enable:
-            voltage_multiplier = np.exp(step_exponent)
+            voltage_multiplier = exponential_voltage_multiplier(step_exponent)
             # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
-            # well defined.
-            drive_weight = np.expm1(step_exponent) / step_exponent
+            # well defined -- the weight's zero guard is never reached here.
+            drive_weight = exponential_drive_weight(step_exponent)
         else:
-            voltage_multiplier = 1.0 + step_exponent
+            voltage_multiplier = euler_voltage_multiplier(step_exponent)
             drive_weight = np.ones(
                 omega_times_dt.shape[0], dtype=np.complex128
             )
@@ -1379,7 +1533,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         beam_current
             Per-cell beam current of the segment.
         omega_times_dt
-            Per-cell ``omega * dt`` of the segment.
+            Per-cell RF phase advanced in one step [rad], i.e.
+            ``omega * dt``.
         voltage_init
             Antenna voltage preceding the first cell.
         voltage_out
@@ -1400,7 +1555,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
     def _check_beam_kick_magnitude(
         self,
         beam_current: complex | float | int,
-        omega_times_T_s: float | int,
+        omega_times_dt: float | int,
         previous_voltage: complex | float | int,
     ) -> None:
         """
@@ -1428,8 +1583,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ----------
         beam_current
             Beam current sample used for this step [A].
-        omega_times_T_s
-            Angular frequency times sampling time for this step.
+        omega_times_dt
+            RF phase advanced in this step [rad], i.e. ``omega * dt``.
         previous_voltage
             Antenna voltage of the previous coarse-grid step, which the
             kick is added to/subtracted from.
@@ -1442,7 +1597,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         self._euler_guard.check_beam_kick_magnitude(
             beam_current,
-            omega_times_T_s,
+            omega_times_dt,
             previous_voltage,
             self.R_over_Q,
         )
@@ -1452,7 +1607,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         v_prev: complex,
         generator_current: complex,
         beam_current: complex,
-        omega_times_T_s: float,
+        omega_times_dt: float,
         relative_detuning: float,
     ) -> complex:
         r"""
@@ -1477,6 +1632,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         it removes the forward-Euler step-size cap; as ``L -> 0`` it reduces
         to the Euler update. Default (Euler) behaviour is bit-unchanged.
 
+        The step exponent and the propagator weights come from
+        :mod:`~blond.physics.feedbacks.cavity_solvers`, beside the
+        ``ForwardEulerValidityGuard`` that caps them, so this per-cell path
+        and the vectorised :meth:`_kernel_step_multipliers` spell the
+        recursion once.
+
         Parameters
         ----------
         v_prev
@@ -1485,12 +1646,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Generator current driving this step [A].
         beam_current
             Beam current of this step [A].
-        omega_times_T_s
-            Angular frequency times the step time (``omega * dt``).
+        omega_times_dt
+            RF phase advanced in this step [rad], i.e. ``omega * dt``.
         relative_detuning
             Detuning normalised to the step frequency
             (``delta_omega / omega``), so ``delta_omega * dt =
-            relative_detuning * omega_times_T_s``.
+            relative_detuning * omega_times_dt``.
 
         Returns
         -------
@@ -1499,28 +1660,25 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         drive = (
             self.R_over_Q
-            * omega_times_T_s
+            * omega_times_dt
             * (generator_current - 0.5 * beam_current)
         )
         # L = lambda * dt (dimensionless growth exponent for this step).
-        step_exponent = (
-            -0.5 * omega_times_T_s / self.Q_L
-            + 1j * relative_detuning * omega_times_T_s
+        step_exponent = coarse_step_exponent(
+            omega_times_dt, self.Q_L, relative_detuning
         )
         if not self._exponential_coarse_solver_enable:
-            return v_prev * (1.0 + step_exponent) + drive
-        # Exact exponential propagator. np.expm1 keeps the drive weight
-        # (e^L - 1) / L accurate (-> 1) as L -> 0; guard the exact zero.
-        growth = np.exp(step_exponent)
-        if step_exponent == 0:
-            drive_weight = 1.0
-        else:
-            drive_weight = np.expm1(step_exponent) / step_exponent
+            return v_prev * euler_voltage_multiplier(step_exponent) + drive
+        # Exact exponential propagator; the drive weight (e^L - 1) / L stays
+        # accurate (-> 1) as L -> 0 and is guarded at the exact zero, which
+        # this scalar path -- unlike the vectorised one -- can be handed.
+        growth = exponential_voltage_multiplier(step_exponent)
+        drive_weight = exponential_drive_weight(step_exponent)
         return v_prev * growth + drive * drive_weight
 
     def cavity_response(
         self,
-        omega_times_T_s: float,
+        omega_times_dt: float,
         coarse_grid_index_to_update: int,
         relative_detuning: float,
         no_beam: bool = False,
@@ -1530,8 +1688,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         Parameters
         ----------
-        omega_times_T_s
-            Angular frequency times sampling time.
+        omega_times_dt
+            RF phase advanced in this step [rad], i.e. ``omega * dt``.
         coarse_grid_index_to_update
             Coarse grid index to update.
         relative_detuning
@@ -1551,7 +1709,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 ]
             self._check_beam_kick_magnitude(
                 beam_current=beam_current,
-                omega_times_T_s=omega_times_T_s,
+                omega_times_dt=omega_times_dt,
                 previous_voltage=self.antenna_voltage_coarse_grid[
                     coarse_grid_index_to_update - 1
                 ],
@@ -1565,7 +1723,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                         coarse_grid_index_to_update - 1
                     ],
                     beam_current=beam_current,
-                    omega_times_T_s=omega_times_T_s,
+                    omega_times_dt=omega_times_dt,
                     relative_detuning=relative_detuning,
                 )
             )
@@ -1575,7 +1733,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                     v_prev=self._last_val_ant_voltage,
                     generator_current=self._last_val_generator_current,
                     beam_current=self._last_val_beam_current,
-                    omega_times_T_s=omega_times_T_s,
+                    omega_times_dt=omega_times_dt,
                     relative_detuning=relative_detuning,
                 )
             )
@@ -1591,7 +1749,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # have no reverse segments, so this is a no-op there.
         if self._controller_active and not no_beam:
             self._update_generator_current(
-                omega_times_T_s=omega_times_T_s,
+                omega_times_dt=omega_times_dt,
                 coarse_grid_index_to_update=coarse_grid_index_to_update,
             )
 
@@ -1682,8 +1840,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             n_reverse_centers=span.n_reverse_centers
         )
 
-        if self._debug:
-            self._write_debug_readout()
+        if self._grid_only_no_correction:
+            self._write_no_correction_readout()
             return
 
         self._track_forward_span(beam=beam, span=span)
@@ -1790,34 +1948,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             * (beam.reference.time - station_clock_last)
         )
 
-    def _close_previous_turn_grid(self) -> None:
-        """
-        Carry the previous turn's tail over, then clear the segments.
-
-        Notes
-        -----
-        ORDERING: both carries must be captured while the previous turn's
-        grid is still standing. The centre sentinel needs ``_rf_centers``,
-        which :meth:`_clear_segments` empties; the residual needs
-        ``_residual_time_last_rf_centers_calculation``, which this turn's
-        first :meth:`_generate_rf_centers` overwrites. The sentinel is
-        consumed only as a ``None`` / not-``None`` first-turn flag by
-        :meth:`_circuit_track_cells_python` and :meth:`_coarse_step_sizes`;
-        losing it silently reverts every turn to the first-turn step proxy.
-        """
-        if len(self._rf_centers) != 0:
-            self._last_rf_centers_entry = self._rf_centers[-1]
-
-        # The first coarse cell of the new turn steps across the turn
-        # boundary, so it needs the tail the PREVIOUS turn ended on -- which
-        # is what the live scalar still holds at this exact point (see
-        # _preceding_segment_residual).
-        self._residual_time_carried_into_turn = (
-            self._residual_time_last_rf_centers_calculation
-        )
-
-        self._clear_segments()
-
     def _rebuild_per_turn_grid(self, beam: BeamBaseClass) -> PerTurnGridSpan:
         """
         Rebuild this passage's coarse grid and size the coarse state.
@@ -1843,15 +1973,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         self._close_previous_turn_grid()
 
-        if self._tracked_forward_until_element is not None:  # noqa: SIM102
-            if (
-                self._tracked_forward_until_element
-                is not self._parent_rf_station
-            ):  # otherwise, the full turn was already tracked
-                self.calculate_rf_centers_for_reverse_direction(beam=beam)
-        elif self._parent_rf_station._turn_counter.value == 0:
-            # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
-            self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        self._generate_reverse_segments_if_due(beam=beam)
 
         n_reverse_centers = len(self._rf_centers)
 
@@ -1868,9 +1990,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # The flat rf_centers / rf_centers_lengths arrays are derived from
         # _segments; assert they stayed consistent after this turn's
         # generation. This is a per-turn integrity check with no effect on the
-        # result, so it runs only under ``debug`` (it walks the whole grid
-        # every turn otherwise).
-        if self._debug:
+        # result, so it runs only under ``validate_grid_each_turn`` (it walks
+        # the whole grid every turn otherwise).
+        if self._validate_grid_each_turn:
             self._validate_grid()
             # The demodulation frame of the forward segment and the coarse
             # step into its first cell are the same physical quantity -- the
@@ -1888,6 +2010,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         # Coincidence tolerance for the simultaneous-passage guard above:
         # one coarse-cell width, taken from the last two grid centers.
+        # CORRECTNESS RELIES on the >=2-centres-per-segment invariant
+        # enforced in RFCenterSegment.__post_init__: rf_centers are
+        # segment-LOCAL times, so only that invariant guarantees both
+        # entries lie inside the forward segment -- a single-centre forward
+        # segment would make this difference cross the segment boundary,
+        # go negative and silently disarm the guard. Do not relax the
+        # invariant without revisiting this computation.
         min_centers_for_cell_width = 2
         if len(self._rf_centers) >= min_centers_for_cell_width:
             self._last_forward_cell_width = float(
@@ -1920,6 +2049,18 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         :meth:`_rebuild_per_turn_grid` guarantees by calling
         :meth:`reset_arrays` last, and what the ``assert`` below re-checks
         per turn (stripped by ``python -O``, the repo's validation idiom).
+
+        The walk iterates the :attr:`_segments` records themselves, taking
+        each segment's own frequency (``RFCenterSegment.omega``) and its own
+        length. The grid is rebuilt from scratch every passage
+        (``_close_previous_turn_grid`` clears it), the reverse generation
+        appends exactly one segment per entry of
+        ``_reverse_tracking_time_array`` -- whose companion
+        ``_reverse_tracking_omega_list`` is masked with it under the single
+        mask of ``_unify_same_frequency_time_points_reverse`` -- and the
+        forward generation then appends exactly one more. So the reverse
+        segments are ``_segments[:-1]``, and their frequencies and lengths
+        are the ones the flat parallel arrays used to be sliced for.
         """
         assert (
             self.antenna_voltage_coarse_grid is not None
@@ -1930,34 +2071,32 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ), "reset_arrays() must size the coarse state before circuit_track"
 
         # Only walk the reverse segments when this turn actually generated
-        # some (n_reverse_centers > 0). For a single section the reverse
-        # omega list from turn 0 is never refreshed, so without that gate
-        # this loop re-ran the ENTIRE forward grid every turn at the frozen
-        # turn-0 frequency (no_beam) before the demodulation and the real
-        # forward pass. The envelope overwrite was recomputed identically by
-        # the real pass, but under a ramp the spurious pass corrupted the
+        # centres for them (n_reverse_centers > 0). Historically this loop
+        # ran off a *stale* reverse omega list: for a single section the
+        # list from turn 0 is never refreshed, so without the gate the loop
+        # re-ran the ENTIRE forward grid every turn at the frozen turn-0
+        # frequency (no_beam) before the demodulation and the real forward
+        # pass. The envelope overwrite was recomputed identically by the
+        # real pass, but under a ramp the spurious pass corrupted the
         # sub-stepped demodulation frame by -(turn+1) * 2 pi S per turn and
         # stepped an attached controller once per turn on garbage errors.
-        if (
-            n_reverse_centers > 0
-            and self._reverse_tracking_omega_list is not None
-        ):
-            for omega_index, omega_track in enumerate(
-                self._reverse_tracking_omega_list
-            ):
-                start_index = np.sum(
-                    self._rf_centers_lengths[:omega_index], dtype=int
-                )
-                end_index = np.sum(
-                    self._rf_centers_lengths[: omega_index + 1], dtype=int
-                )
+        # Walking the segment list cannot go stale that way (it is rebuilt
+        # every passage), and with the >=2-centres-per-segment invariant
+        # (RFCenterSegment.__post_init__) n_reverse_centers == 0 means
+        # there are no reverse segments at all, so the gate merely skips
+        # an empty loop.
+        if n_reverse_centers > 0:
+            start_index = 0
+            for segment in self._segments[:-1]:
+                end_index = start_index + len(segment)
 
                 self.circuit_track(
-                    omega_input=omega_track,
+                    omega_input=segment.omega,
                     start_index=start_index,
                     end_index=end_index,
                     no_beam=True,
                 )
+                start_index = end_index
 
     def _accumulate_registration_phase(self, n_reverse_centers: int) -> float:
         """
@@ -1981,7 +2120,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ORDERING: must run after :meth:`_replay_reverse_span` (it reads the
         reverse segment list this passage generated) and before
         :meth:`_track_forward_span`, whose demodulation subtracts the total
-        via ``_carrier_slip_gap``.
+        via ``_carrier_slip_gap``. Like the replay it reads the segment
+        records themselves -- ``RFCenterSegment.omega`` is omega_k and
+        ``RFCenterSegment.duration`` is T_seg,k.
         """
         # Multi-section grid-vs-carrier registration phase. A multi-section
         # passage builds its coarse grid piecewise: each reverse segment k
@@ -2022,31 +2163,48 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # the driven |V_ant| drifted ~3 % over 5 turns on the fast ramp
         # (~0.6 %/turn, diverging), while a single section held its steady
         # state to ~2e-12. See TestDrivenSteadyStateFastRamp.
-        if (
-            self._n_rf_stations_in_ring > 1
-            and n_reverse_centers > 0
-            and self._reverse_tracking_omega_list is not None
-        ):
+        #
+        # The n_reverse_centers > 0 gate RELIES on the >=2-centres-per-
+        # segment invariant enforced in RFCenterSegment.__post_init__:
+        # only that invariant makes n_reverse_centers == 0 equivalent to
+        # "no reverse segments at all" (where skipping is correct) -- an
+        # all-empty reverse span would otherwise permanently drop its Psi
+        # from the running total. Do not relax the invariant without
+        # revisiting this gate.
+        if self._n_rf_stations_in_ring > 1 and n_reverse_centers > 0:
+            # Same records the replay walks: the reverse segments are
+            # ``_segments[:-1]``, each carrying its own omega_k and the
+            # T_seg,k it was generated over (see _replay_reverse_span).
+            reverse_segments = self._segments[:-1]
             self._grid_carrier_phase += float(
                 np.sum(
                     (
-                        np.asarray(self._reverse_tracking_omega_list)
+                        np.array(
+                            [segment.omega for segment in reverse_segments]
+                        )
                         - self._forward_tracking_omega_rf
                     )
-                    * np.asarray(self._reverse_tracking_time_array)
+                    * np.array(
+                        [segment.duration for segment in reverse_segments]
+                    )
                 )
             )
         # Exactly +0.0 for a single section and for an unaccelerated ring, so
         # both stay bit-identical.
         return self._grid_carrier_phase
 
-    def _write_debug_readout(self) -> None:
+    def _write_no_correction_readout(self) -> None:
         """
-        Write the neutral (debug) readout: unit gain, zero phase.
+        Write the neutral readout: unit gain, zero phase.
 
         Notes
         -----
-        The debug path stops the turn here: the caller returns from
+        This is the readout of the ``grid_only_no_correction`` mode, and
+        it means the feedback applies NO correction: unit relative
+        voltage and zero phase make the parent station's
+        ``calc_gap_voltage_with_feedbacks`` reduce to
+        ``voltage * sin(omega_rf * ts + phi_rf)``, i.e. the unperturbed
+        RF wave. The mode stops the turn here: the caller returns from
         :meth:`_track` right after this call, so neither the beam-current
         demodulation nor the forward pass runs.
         """
@@ -2137,7 +2295,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self,
         initial_voltage_fine_grid: float,  # TODO: these should all also be complex
         initial_generator_current_fine_grid: float,
-        samples_per_rf_fine_grid: float,
+        omega_times_dt_fine_grid: float,
         relative_detuning: float,
     ):
         r"""
@@ -2149,8 +2307,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Initial condition of the voltage on the fine grid.
         initial_generator_current_fine_grid : float
             Initial condition of the generator current on the fine grid.
-        samples_per_rf_fine_grid
-            Sample points per period on the fine grid.
+        omega_times_dt_fine_grid
+            RF phase advanced in one fine-grid step [rad], i.e.
+            ``omega * profile.hist_step``.
         relative_detuning
             Cavity detuning relative to the center frequency.
         """
@@ -2176,7 +2335,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             I_gen=self.generator_current_fine_grid,
             V_ant_init=initial_voltage_fine_grid,
             I_gen_init=initial_generator_current_fine_grid,
-            samples_per_rf=samples_per_rf_fine_grid,
+            omega_times_dt=omega_times_dt_fine_grid,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
             relative_detuning=relative_detuning,

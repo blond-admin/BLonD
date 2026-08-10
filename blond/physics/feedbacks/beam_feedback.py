@@ -38,8 +38,6 @@ from blond.physics.feedbacks.base import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
-
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import RFStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
@@ -285,54 +283,53 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         """
         Calculate the cavity sum phase when tracking with cavity feedbacks.
 
-        This method sums the cavity gap voltage over all rf stations having
-        the main harmonic and that have a cavity feedback model acting the
-        main harmonic. Cavity sum phase is then added to `dphi`.
+        This method would sum the complex cavity gap (antenna) voltage
+        over all rf stations on the main harmonic that carry a cavity
+        feedback model, gate the per-slot phases of that sum with
+        `current_thres` on the beam current, and add the mean phase over
+        the filled slots to `dphi`.
+
+        It is currently not implemented: the original body was ported
+        from the deleted blond2 coarse-array cavity-feedback API and was
+        never wired to the surviving ``IQCavityFeedbackTimingClass``.
+        Without a cavity feedback attached to a main-harmonic rf station
+        this method is a silent no-op; with one attached it raises
+        `NotImplementedError`.
 
         Parameters
         ----------
         current_thres
-            Beam current threshold for gating of the profiles.
+            Beam current threshold for gating of the profiles. Unused
+            until the method is implemented; the signature is kept
+            because the beam controls pass it unconditionally.
+
+        Raises
+        ------
+        NotImplementedError
+            If any rf station on the main harmonic has a cavity
+            feedback attached.
         """
-        filled_slots: NumpyArray | None = None
-        cavity_sum: NumpyArray | None = None
-
-        # TODO: Remove warning with cavity feedback MR
-        warnings.warn(
-            "Cavity feedbacks are not yet implemented.", stacklevel=1
-        )
-
-        # iterate over rf stations on the main harmonic
-        # TODO: Handling of simulations with some main rf stations without cavity FB and some with
+        # TODO: Couple the beam phase loop to the surviving cavity
+        #   feedback (``IQCavityFeedbackTimingClass``); see the
+        #   NotImplementedError message below for the two APIs involved.
+        # TODO: Handling of simulations with some main rf stations
+        #   without cavity FB and some with
         for cav in self._main_cavities:
-            # Get cavity feedback on main harmonic for every rf station
-            _cavity_feedback = cav.get_main_harmonic_cavity_feedback()
-
-            # If the cavity is not None then add its contribution to the cavity sum
-            if _cavity_feedback is not None and filled_slots is None:
-                filled_slots = (
-                    np.abs(
-                        _cavity_feedback.I_BEAM_COARSE[
-                            -_cavity_feedback.n_coarse :
-                        ]
-                    )
-                    > current_thres
-                )
-
-                cavity_sum = _cavity_feedback.V_ANT_COARSE[
-                    -_cavity_feedback.n_coarse :
-                ]
-
-            elif _cavity_feedback is not None and filled_slots is not None:
-                cavity_sum += _cavity_feedback.V_ANT_COARSE[
-                    -_cavity_feedback.n_coarse :
-                ]
-
-        if cavity_sum is not None:
-            cavity_sum_phase = np.angle(cavity_sum)
-            cavity_sum_phase = cavity_sum_phase[filled_slots]
-
-            self.dphi = self.dphi + np.mean(cavity_sum_phase)
+            if cav.get_main_harmonic_cavity_feedback() is None:
+                continue
+            raise NotImplementedError(
+                "cavity_sum_phase is not implemented for the surviving "
+                "cavity feedback: the original implementation read the "
+                "deleted LHC/SPS coarse-array API (I_BEAM_COARSE, "
+                "V_ANT_COARSE, sliced to a fixed n_coarse per turn), "
+                "which exists nowhere in the live tree. The surviving "
+                "mucol feedback (IQCavityFeedbackTimingClass) instead "
+                "exposes per-turn, variable-length grids as "
+                "beam_current_forward_coarse_grid and "
+                "antenna_voltage_coarse_grid and has no n_coarse. "
+                "Coupling the beam phase loop to that per-turn-grid "
+                "API is an open design task, not a rename."
+            )
 
     def radial_difference(self, beam: BeamBaseClass):
         """

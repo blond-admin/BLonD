@@ -17,11 +17,30 @@ fine-grid solver the timing class uses by default;
 :func:`cavity_response_sparse_matrix_second_order` is its second-order
 (trapezoidal / Crank-Nicolson) twin.
 
+The coarse-grid recursion the timing class runs on top of those solvers is
+built from :func:`coarse_step_exponent` and the propagator weights
+:func:`euler_voltage_multiplier`, :func:`exponential_voltage_multiplier` and
+:func:`exponential_drive_weight`. They live here so that the per-cell
+(reference) and vectorised (numba-kernel) coarse paths in
+:mod:`~blond.physics.feedbacks.cavity_feedback` spell the step arithmetic
+once, and so that :class:`ForwardEulerValidityGuard` sits beside the very
+formula it caps.
+
 :class:`ForwardEulerValidityGuard` collects the tripwires that decide whether
 the forward-Euler discretisation is admissible at all -- the per-step decay,
 detuning phase and beam kick. It lives here, beside the solvers it certifies,
 because it is pure numerics: the feedback owns one instance and passes the
 cavity parameters per call.
+
+On naming: the step size these solvers take is spelled ``omega_times_dt``
+everywhere in the muon-collider feedback -- the RF phase advanced in one step
+[rad], a literal transcription of the formula symbol ``omega * dt``. Two
+earlier spellings were retired in favour of it. ``samples_per_rf`` asserted
+the *reciprocal* of what it held (callers pass ``omega * dt``, ~0.06 rad, not
+a sample count), so a reader taking the name at face value inverted the
+quantity. ``omega_times_T_s`` collided with the domain convention that
+``T_s`` is the *synchrotron* period -- a bad ambiguity in files full of
+synchrotron motion. One quantity, one name; do not reintroduce a synonym.
 """
 
 from __future__ import annotations
@@ -321,30 +340,164 @@ def pretrack_fill_voltage(
     return v_ss * (1.0 - np.exp(lam * t_cross))
 
 
+def coarse_step_exponent(
+    omega_times_dt: NumpyArray | float,
+    Q_L: float,
+    relative_detuning: float,
+) -> NumpyArray | complex:
+    r"""
+    Dimensionless growth exponent of one coarse-grid step.
+
+    The coarse recursion advances the cavity envelope over a step of length
+    :math:`\Delta t` with :math:`L = \lambda\,\Delta t`, where
+    :math:`\lambda = -\omega / (2 Q_L) + i\,\Delta\omega` is the cavity pole.
+    Expressed through ``omega * dt`` and the detuning normalised to the step
+    frequency, that is ``L = -0.5 * omega_times_dt / Q_L + 1j *
+    relative_detuning * omega_times_dt``.
+
+    Scalar and array inputs are put through the identical expression, so the
+    per-cell reference recursion and its vectorised (kernel) twin agree
+    bit-for-bit.
+
+    Parameters
+    ----------
+    omega_times_dt
+        RF phase advanced in one step [rad], i.e. ``omega * dt``; a scalar
+        for the per-cell path, a per-cell array for the vectorised one.
+    Q_L
+        The loaded quality factor of the cavity.
+    relative_detuning
+        The detuning of the cavity normalised to the step frequency
+        (``delta_omega / omega``).
+
+    Returns
+    -------
+    complex or complex array
+        The growth exponent ``L``, shaped like ``omega_times_dt``.
+    """
+    return (
+        -0.5 * omega_times_dt / Q_L + 1j * relative_detuning * omega_times_dt
+    )
+
+
+def euler_voltage_multiplier(
+    step_exponent: NumpyArray | complex,
+) -> NumpyArray | complex:
+    """
+    Forward-Euler voltage multiplier ``B = 1 + L`` of one coarse step.
+
+    The left-endpoint (forward-Euler) discretisation of the cavity envelope
+    ODE multiplies the previous antenna voltage by ``1 + L``, the first two
+    terms of the exact propagator ``e^L`` -- which is why the step must stay
+    small, and what :class:`ForwardEulerValidityGuard` caps.
+
+    Parameters
+    ----------
+    step_exponent
+        Growth exponent ``L`` of the step, from
+        :func:`coarse_step_exponent`.
+
+    Returns
+    -------
+    complex or complex array
+        The voltage multiplier ``B``, shaped like ``step_exponent``.
+    """
+    return 1.0 + step_exponent
+
+
+def exponential_voltage_multiplier(
+    step_exponent: NumpyArray | complex,
+) -> NumpyArray | complex:
+    """
+    Exact voltage multiplier ``B = e^L`` of one coarse step.
+
+    The homogeneous part of the exponential propagator, which integrates the
+    cavity decay and the detuning rotation exactly and is unconditionally
+    stable. It replaces :func:`euler_voltage_multiplier` when
+    ``exponential_coarse_solver_enable`` is set, and is not subject to the
+    forward-Euler step-size caps.
+
+    Parameters
+    ----------
+    step_exponent
+        Growth exponent ``L`` of the step, from
+        :func:`coarse_step_exponent`.
+
+    Returns
+    -------
+    complex or complex array
+        The voltage multiplier ``B``, shaped like ``step_exponent``.
+    """
+    return np.exp(step_exponent)
+
+
+def exponential_drive_weight(
+    step_exponent: NumpyArray | complex,
+) -> NumpyArray | complex | float:
+    """
+    Drive weight ``W = (e^L - 1) / L`` of the exponential propagator.
+
+    Weight of the piecewise-constant per-step drive in the exact propagator
+    ``V_next = e^L V + src * W``. ``np.expm1`` keeps it accurate (``-> 1``)
+    as ``L -> 0``.
+
+    The removable singularity at ``L == 0`` is guarded for scalar input only.
+    The per-cell path can legitimately be handed a zero step (a caller may
+    advance the recursion by ``omega * dt == 0``), whereas the vectorised
+    path never sees one: its caller filters coincident coarse points out of
+    the whole segment and defers them to the per-cell reference loop, which
+    warns and skips them. Making the guard elementwise would therefore add a
+    full extra pass over every cell of the hot recursion for a branch that is
+    unreachable there, so the rank test is deliberate rather than an
+    oversight.
+
+    Parameters
+    ----------
+    step_exponent
+        Growth exponent ``L`` of the step, from
+        :func:`coarse_step_exponent`.
+
+    Returns
+    -------
+    complex or complex array or float
+        The drive weight ``W``, shaped like ``step_exponent``; ``1.0`` for a
+        scalar zero exponent.
+    """
+    if np.ndim(step_exponent) == 0 and step_exponent == 0:
+        return 1.0
+    return np.expm1(step_exponent) / step_exponent
+
+
 class ForwardEulerValidityGuard:
     """
     Validity tripwires for the forward-Euler cavity discretisation.
 
     The coarse recursion advances the antenna voltage by the forward-Euler
-    factor ``(1 - 0.5 * omega * dt / Q_L + 1j * delta_omega * dt)`` plus the
-    beam-loading increment ``-I_beam * 0.5 * R_over_Q * omega * dt``. Each is
-    only an accurate discretisation of the underlying ODE while it represents
-    a small change per step, so this guard tests exactly those three
-    magnitudes: the per-step decay, the per-step detuning phase, and the
-    per-step beam kick relative to the voltage it acts on.
+    factor :func:`euler_voltage_multiplier` of the step exponent
+    :func:`coarse_step_exponent`, i.e. ``(1 - 0.5 * omega * dt / Q_L + 1j *
+    delta_omega * dt)``, plus the beam-loading increment
+    ``-I_beam * 0.5 * R_over_Q * omega * dt``. Each is only an accurate
+    discretisation of the underlying ODE while it represents a small change
+    per step, so this guard tests exactly those three magnitudes: the
+    per-step decay, the per-step detuning phase, and the per-step beam kick
+    relative to the voltage it acts on.
 
-    It lives beside the solvers it certifies rather than on the feedback,
-    because it is pure numerics: it reads no grid, no RF station and no beam,
-    and the only state it owns is the once-only beam-kick warning flag. All
-    cavity parameters are passed per call, so a caller that mutates them
-    between calls is measured against their current values.
+    It lives beside the step arithmetic it caps -- and the solvers it
+    certifies -- rather than on the feedback, because it is pure numerics: it
+    reads no grid, no RF station and no beam, and the only state it owns is
+    the once-only beam-kick warning flag. All cavity parameters are passed
+    per call, so a caller that mutates them between calls is measured against
+    their current values.
 
     Set ``enabled=False`` for the exact exponential propagator
-    (``exponential_coarse_solver_enable=True``): it integrates the decay,
-    the detuning and the piecewise-constant drive -- beam included --
-    exactly, so none of these are discretisation errors there. That is also
-    precisely the low-``Q_L`` / large-detuning regime the option exists to
-    enable, so applying the caps would defeat its documented purpose.
+    (``exponential_coarse_solver_enable=True``, i.e.
+    :func:`exponential_voltage_multiplier` and
+    :func:`exponential_drive_weight` in place of the Euler factor): it
+    integrates the decay, the detuning and the piecewise-constant drive --
+    beam included -- exactly, so none of these are discretisation errors
+    there. That is also precisely the low-``Q_L`` / large-detuning regime the
+    option exists to enable, so applying the caps would defeat its documented
+    purpose.
 
     Parameters
     ----------

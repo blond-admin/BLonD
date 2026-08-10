@@ -957,7 +957,282 @@ class TestIQCavityFeedbackObservation(unittest.TestCase):
         )
         observation.on_run_simulation(simulation=sim, beam=Mock(), n_turns=4)
 
-        self.assertEqual(observation.len_coarse_max, int(np.ceil(1.5 * 8.0)))
+        # Analytic one-turn-plus-overshoot estimate with the feedback's
+        # station count (1 + 1/2), plus the safety margin of one cell per
+        # possible segment (n_stations + 1 segments).
+        self.assertEqual(
+            observation.len_coarse_max,
+            int(np.ceil(1.5 * 8.0)) + 2 + 1,
+        )
+
+    @staticmethod
+    def _feedback_stub(
+        rf_centers_lengths: tuple[int, ...],
+        harmonic: float = 8.0,
+        n_stations: int = 1,
+        i_beam_forward: np.ndarray | None = None,
+        v_ant: np.ndarray | None = None,
+    ) -> Mock:
+        """Stub feedback exposing exactly what ``_update`` consumes."""
+        n_bins = 4
+        total = int(sum(rf_centers_lengths))
+        feedback = Mock()
+        feedback.profile.n_bins = n_bins
+        feedback.harmonic = harmonic
+        feedback.n_rf_periods_per_coarse_grid = 1
+        feedback.n_rf_stations_in_ring = n_stations
+        feedback._rf_centers = np.zeros(total)
+        feedback._rf_centers_lengths = np.asarray(
+            rf_centers_lengths, dtype=int
+        )
+        if v_ant is None:
+            v_ant = np.ones(total, dtype=complex)
+        feedback.antenna_voltage_coarse_grid = v_ant
+        feedback.generator_current_coarse_grid = np.ones(total, dtype=complex)
+        if i_beam_forward is None:
+            i_beam_forward = np.zeros(
+                int(rf_centers_lengths[-1]), dtype=complex
+            )
+        feedback.beam_current_forward_coarse_grid = i_beam_forward
+        feedback.antenna_voltage_fine_grid = np.zeros(n_bins, dtype=complex)
+        feedback.beam_current_fine_grid = np.zeros(n_bins, dtype=complex)
+        feedback.generator_current_fine_grid = np.zeros(n_bins, dtype=complex)
+        feedback.relative_voltage_correction = np.zeros(n_bins)
+        feedback.phase_correction = np.zeros(n_bins)
+        gap = feedback._parent_rf_station.calc_gap_voltage_with_feedbacks
+        gap.return_value = np.zeros(n_bins)
+        return feedback
+
+    @staticmethod
+    def _observation_for(feedback: Mock) -> IQCavityFeedbackObservation:
+        sim = Mock(Simulation)
+        sim.turn_counter = DynamicParameter(None)
+        sim.turn_counter.value = 3
+        observation = IQCavityFeedbackObservation(
+            each_turn_i=1, feedback=feedback
+        )
+        observation.on_run_simulation(simulation=sim, beam=Mock(), n_turns=4)
+        return observation
+
+    def test_grid_slightly_beyond_analytic_prediction_is_recorded(self):
+        """A grid one cell over the analytic prediction must not crash.
+
+        The per-turn coarse grid is produced by ``np.arange`` walks; each
+        of the (up to ``n_stations + 1``) segments can yield one cell more
+        than the analytic ``(1 + 1/n_stations) * harmonic / n_periods``
+        prediction (measured: 51801 cells vs 51800 predicted, 2 sections,
+        sub-stepping, station at the section end). The allocation must
+        carry a per-segment margin instead of crashing with a raw numpy
+        shape error mid-run.
+        """
+        # harmonic=8, 1 station: analytic prediction = ceil(2 * 8) = 16,
+        # actual grid 17 cells -- inside the +-1-per-segment margin.
+        feedback = self._feedback_stub(rf_centers_lengths=(13, 4))
+        observation = self._observation_for(feedback)
+        observation._update()  # must not raise
+        row = observation.v_ant_coarse[0]
+        self.assertEqual(int(np.count_nonzero(~np.isnan(row))), 17)
+
+    def test_overflowing_grid_raises_descriptive_error(self):
+        """A grid beyond allocation + margin raises a descriptive error.
+
+        Not a raw numpy broadcast ``ValueError``: the message names the
+        observable, the turn, and the actual vs allocated lengths.
+        """
+        # harmonic=8, 1 station: allocation is prediction (16) + margin;
+        # 40 cells overflow any justified margin.
+        feedback = self._feedback_stub(rf_centers_lengths=(36, 4))
+        observation = self._observation_for(feedback)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"IQCavityFeedbackObservation.*turn 3.*40.*"
+            rf"{observation.len_coarse_max}",
+        ):
+            observation._update()
+
+    def test_beam_current_columns_align_with_voltage_columns(self):
+        """``i_beam_coarse`` columns mean the same cell as ``v_ant_coarse``.
+
+        ``beam_current_forward_coarse_grid`` is forward-segment-local while
+        the voltage/current spans the whole per-turn grid; the recorder
+        must translate by the forward offset
+        ``len(_rf_centers) - _rf_centers_lengths[-1]`` like every physics
+        consumer does.
+        """
+        i_beam = np.array([0.0, 5.0, 0.0, 0.0], dtype=complex)
+        v_ant = np.ones(12, dtype=complex)
+        v_ant[9] = 0.5  # sag where the bunch sits: global column 9
+        feedback = self._feedback_stub(
+            rf_centers_lengths=(8, 4), i_beam_forward=i_beam, v_ant=v_ant
+        )
+        observation = self._observation_for(feedback)
+        observation._update()
+        i_row = observation.i_beam_coarse[0]
+        v_row = observation.v_ant_coarse[0]
+        # Columns outside the forward segment [8, 12) are masked.
+        self.assertTrue(np.all(np.isnan(i_row[:8])))
+        # The bunch cell lands in the same column in both matrices.
+        self.assertEqual(int(np.nanargmax(np.abs(i_row))), 9)
+        self.assertEqual(int(np.nanargmin(np.abs(v_row))), 9)
+
+
+class TestIQCavityFeedbackObservationTracked(unittest.TestCase):
+    """Coarse-recorder column alignment in a real tracked simulation."""
+
+    def test_beam_and_voltage_columns_align_in_multi_section_run(self):
+        """The recorded bunch column matches the voltage-sag column.
+
+        Drives the real ``IQCavityFeedbackObservation._update`` path: a
+        matched bunch with strong beam loading is tracked through a
+        two-section ring with PI-regulated feedbacks, observing station 0
+        (whose per-turn grid starts with a reverse segment, so the
+        forward offset is non-zero).
+        """
+        from blond import ConstantMagneticCycle, mu_plus
+        from blond.cycles.magnetic_cycle import (
+            MagneticCyclePerTurnAllRFStations,
+        )
+        from blond.physics.feedbacks.cavity_feedback import (
+            IQCavityFeedbackTimingClass,
+        )
+        from blond.physics.feedbacks.generator_current_controller import (
+            GeneratorCurrentPIController,
+        )
+
+        n_sections = 2
+        n_turns = 4
+        energy = 4.0e9
+        delta_e_turn = 20.0e6
+        harmonic = 512
+        circumference = 5990.0
+        alpha_p = 10.395e-4
+        r_over_q = 518.0
+        q_l = 1.29e6
+        v_design = 30.0e6
+        intensity = 5.0e13
+        i_gen_bias = v_design / (2.0 * r_over_q * q_l)
+        gain_p = 0.1 / (r_over_q * 2.0 * np.pi)
+
+        cycle_probe = ConstantMagneticCycle(
+            reference_particle=mu_plus,
+            value=energy,
+            in_unit="total energy",
+        )
+        t_rev = cycle_probe.get_t_rev_init(
+            circumference, particle_type=mu_plus
+        )
+        t_rf = t_rev / harmonic
+
+        ring = Ring(circumference=circumference, check_section_indices=False)
+        half_drift = circumference / n_sections / 2
+        feedbacks = []
+        elements = []
+        for section_index in range(n_sections):
+            profile = StaticProfile.from_rad(
+                np.pi * 1.5,
+                np.pi * 4.5,
+                128,
+                t_rf,
+                section_index=section_index,
+            )
+            controller = GeneratorCurrentPIController(
+                gain_proportional=gain_p,
+                gain_integral=gain_p / (30.0 * t_rf),
+                generator_current_bias=i_gen_bias + 0.0j,
+                n_delay=2,
+            )
+            feedback = IQCavityFeedbackTimingClass(
+                profile=profile,
+                R_over_Q=r_over_q,
+                Q_L=q_l,
+                generator_current_bias=i_gen_bias + 0.0j,
+                n_cavities=1,
+                initial_voltage=v_design,
+                n_rf_periods_per_coarse_grid=1,
+                delta_omega=0.0,
+                controller=controller,
+                voltage_setpoint=v_design + 0.0j,
+            )
+            station = SingleHarmonicRFStation(
+                voltage=v_design,
+                phi_rf=0.0,
+                harmonic=harmonic,
+                cavity_feedback=feedback,
+                profile=profile,
+                section_index=section_index,
+            )
+            feedbacks.append(feedback)
+            elements += [
+                DriftSimple(
+                    orbit_length=half_drift,
+                    momentum_compaction_factor=alpha_p,
+                    section_index=section_index,
+                ),
+                station,
+                DriftSimple(
+                    orbit_length=half_drift,
+                    momentum_compaction_factor=alpha_p,
+                    section_index=section_index,
+                ),
+            ]
+        ring.add_elements(elements, reorder=False)
+
+        delta_e_section = delta_e_turn / n_sections
+        values = (
+            energy + delta_e_section * np.arange(1, n_sections * n_turns + 1)
+        ).reshape(n_sections, n_turns, order="F")
+        cycle = MagneticCyclePerTurnAllRFStations(
+            reference_particle=mu_plus,
+            value_init=energy,
+            values_after_rf_station_per_turn=values,
+            in_unit="total energy",
+        )
+        sim = Simulation(ring=ring, magnetic_cycle=cycle)
+
+        tracked_beam = Beam(intensity=intensity, particle_type=mu_plus)
+        tracked_beam.reference.total_energy = energy
+        sim.prepare_beam(
+            beam=tracked_beam,
+            preparation_routine=BiGaussian(
+                n_macroparticles=3000,
+                sigma_dt=0.06 * t_rf,
+                sigma_dE=None,
+                seed=7,
+                reinsertion=True,
+            ),
+        )
+        # Shift the bunch one RF period into the profile window (the
+        # window starts at 0.75 t_rf; the matched bunch sits around 0).
+        tracked_beam._dt.array_local += t_rf
+
+        observation = IQCavityFeedbackObservation(
+            each_turn_i=1, feedback=feedbacks[0]
+        )
+        sim.run_simulation(
+            (tracked_beam,),
+            n_turns=n_turns,
+            observe=(observation,),
+            show_progressbar=False,
+        )
+
+        i_row = observation.i_beam_coarse[-1]
+        v_row = observation.v_ant_coarse[-1]
+        valid_i = np.flatnonzero(~np.isnan(i_row))
+        valid_v = np.flatnonzero(~np.isnan(v_row))
+        n_grid = len(valid_v)
+
+        # The forward segment is the LAST rf_centers_lengths[-1] cells of
+        # the per-turn grid: the beam-current columns must be a contiguous
+        # block ending at the last grid column, NOT starting at column 0.
+        self.assertTrue(np.all(np.diff(valid_i) == 1))
+        self.assertEqual(int(valid_i[-1]), n_grid - 1)
+        self.assertGreater(int(valid_i[0]), 0)
+
+        # F2 argmax relation: the bunch's beam-current column and the
+        # beam-loading sag of the antenna voltage name the same cell.
+        beam_col = int(np.nanargmax(np.abs(i_row)))
+        sag_col = int(np.nanargmin(np.abs(v_row)))
+        self.assertLessEqual(abs(beam_col - sag_col), 2)
 
 
 class TestDriftObservation(unittest.TestCase):

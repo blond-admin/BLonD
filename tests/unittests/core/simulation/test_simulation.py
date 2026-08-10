@@ -1068,6 +1068,49 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
             "counter beam is corrupted by the forward bunch's histogram",
         )
 
+    def test_shared_profile_instance_collected_once(self):
+        """
+        One profile object consumed via several paths is collected once.
+
+        An element can reach the *same* profile instance through its own
+        ``profile``, its local wakefield, and an attached feedback; the
+        collection must deduplicate by identity so the placement check
+        validates one shared profile, not three. Two *distinct* profile
+        objects must both survive, even if they compare equal
+        (``SimpleNamespace`` instances with equal attributes do), so the
+        dedup has to be an ``is`` check, not ``in``/``==``.
+        """
+        from types import SimpleNamespace
+
+        from blond.core.simulation.execution_models.conterrotating_beams import (
+            MainloopCounterRotatingBeams,
+        )
+
+        profile = self._profile(active=True)
+        station = SimpleNamespace(
+            profile=profile,
+            _local_wakefield=SimpleNamespace(profile=profile),
+            cavity_feedback_list=[SimpleNamespace(profile=profile)],
+        )
+        collected = MainloopCounterRotatingBeams._live_consumed_profiles(
+            station
+        )
+        self.assertEqual(len(collected), 1)
+        self.assertIs(collected[0], profile)
+
+        # equal-but-distinct profiles are NOT merged
+        other = self._profile(active=True)
+        self.assertEqual(profile, other)  # equal ...
+        self.assertIsNot(profile, other)  # ... but distinct objects
+        station = SimpleNamespace(
+            profile=profile,
+            _local_wakefield=SimpleNamespace(profile=other),
+        )
+        collected = MainloopCounterRotatingBeams._live_consumed_profiles(
+            station
+        )
+        self.assertEqual(len(collected), 2)
+
     def test_padded_safe_live_layout_passes(self):
         """
         A genuinely-safe padded live layout is accepted.

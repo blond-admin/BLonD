@@ -476,6 +476,64 @@ class RFCenterGridMixin:
         self._segments = []
         self._rebuild_grid_arrays()
 
+    def _close_previous_turn_grid(
+        self: IQCavityFeedbackTimingClass,
+    ) -> None:
+        """
+        Carry the previous turn's tail over, then clear the segments.
+
+        Notes
+        -----
+        ORDERING: both carries must be captured while the previous turn's
+        grid is still standing. The centre sentinel needs ``_rf_centers``,
+        which :meth:`_clear_segments` empties; the residual needs
+        ``_residual_time_last_rf_centers_calculation``, which this turn's
+        first :meth:`_generate_rf_centers` overwrites. The sentinel is
+        consumed only as a ``None`` / not-``None`` first-turn flag by the
+        host's ``_circuit_track_cells_python`` and ``_coarse_step_sizes``;
+        losing it silently reverts every turn to the first-turn step proxy.
+        """
+        if len(self._rf_centers) != 0:
+            self._last_rf_centers_entry = self._rf_centers[-1]
+
+        # The first coarse cell of the new turn steps across the turn
+        # boundary, so it needs the tail the PREVIOUS turn ended on -- which
+        # is what the live scalar still holds at this exact point (see
+        # _preceding_segment_residual).
+        self._residual_time_carried_into_turn = (
+            self._residual_time_last_rf_centers_calculation
+        )
+
+        self._clear_segments()
+
+    def _generate_reverse_segments_if_due(
+        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+    ) -> None:
+        """
+        Back-fill the segments elapsed since the last passage, if any.
+
+        The reverse walk reconstructs the interval the previous forward
+        projection did not already cover. It is therefore skipped when that
+        projection stopped at this very station (the whole turn was tracked
+        forward), and -- when no projection has been made yet -- runs only
+        on the very first turn, whose interval reaches back to the start of
+        the simulation.
+
+        Parameters
+        ----------
+        beam
+            Beam object to receive the reference frame.
+        """
+        if self._tracked_forward_until_element is not None:  # noqa: SIM102
+            if (
+                self._tracked_forward_until_element
+                is not self._parent_rf_station
+            ):  # otherwise, the full turn was already tracked
+                self.calculate_rf_centers_for_reverse_direction(beam=beam)
+        elif self._parent_rf_station._turn_counter.value == 0:
+            # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
+            self.calculate_rf_centers_for_reverse_direction(beam=beam)
+
     def _validate_grid(self: IQCavityFeedbackTimingClass) -> None:
         """
         Assert the derived flat arrays are consistent with the segment list.

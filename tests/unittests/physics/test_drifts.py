@@ -566,6 +566,82 @@ class TestDriftSubstepped(unittest.TestCase):
             drift.track_reference(reference)
         return reference.time
 
+    def test_init_rejects_nonpositive_n_substeps(self):
+        """n_substeps below 1 is rejected with a speaking ValueError."""
+        from blond.physics.drifts import DriftSubstepped
+
+        with self.assertRaisesRegex(
+            ValueError, r"n_substeps must be >= 1, got 0"
+        ):
+            DriftSubstepped(
+                orbit_length=self.orbit_length,
+                n_substeps=0,
+                momentum_compaction_factor=self.alpha_0,
+            )
+
+    def test_on_init_simulation_rejects_non_time_cycle(self):
+        """A magnetic cycle that is not by-time is rejected with TypeError."""
+        from blond.physics.drifts import DriftSubstepped
+
+        simulation = Mock(Simulation)
+        simulation.turn_counter = SimpleNamespace(value=0)
+        simulation.ring.circumference = self.orbit_length
+        # A by-turn-style stand-in: not a MagneticCycleByTime, so the
+        # element cannot re-sample the energy as a function of time.
+        simulation.magnetic_cycle = SimpleNamespace()
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=4,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        with self.assertRaisesRegex(
+            TypeError,
+            r"DriftSubstepped requires a MagneticCycleByTime, "
+            r"got SimpleNamespace",
+        ):
+            drift.on_init_simulation(simulation=simulation)
+
+    def test_track_applies_schedule_at_live_turn(self):
+        """The schedule branch in _track retunes alpha_0 per live turn."""
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        alpha_per_turn = np.array([self.alpha_0, 3.0 * self.alpha_0])
+        turn_counter = SimpleNamespace(value=1)
+        flat_cycle = SimpleNamespace(
+            get_target_total_energy=(
+                lambda *, turn_i, section_i, reference_time, particle_type: (
+                    self.E0
+                )
+            )
+        )
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=1,
+        )
+        drift.configure(turn_counter=turn_counter, magnetic_cycle=flat_cycle)
+        drift.schedule(
+            attribute="momentum_compaction_factor", value=alpha_per_turn
+        )
+        # scheduling immediately applies the turn-0 value ...
+        self.assertEqual(drift.momentum_compaction_factor, alpha_per_turn[0])
+
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        gamma_in = beam.reference.gamma
+        drift.track(beam=beam)
+        # ... while tracking re-applies it at the live turn index ...
+        self.assertEqual(drift.momentum_compaction_factor, alpha_per_turn[1])
+        # ... and the drift's slippage used the turn-1 value
+        np.testing.assert_allclose(
+            drift._last_eta_0,
+            alpha_per_turn[1] - 1.0 / gamma_in**2,
+            rtol=1e-12,
+        )
+
     def test_reference_time_converges_with_substeps(self):
         """Reference time converges to the fine integral as n_substeps grows."""
         fine = self._accumulated_reference_time(8192)

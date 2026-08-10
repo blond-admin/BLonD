@@ -283,6 +283,8 @@ sweep, two-beam test rigor). Confirmed findings, all fixed or flagged:
 - exponential-solver step-size guard (fixed, §2.2)
 - `get_impedance` CR sign inconsistency (fixed, §2.6)
 - `samples_per_rf` docstring was 2π-wrong (it is `ω·dt`, not `dt·f`) — fixed
+  (the name itself has since been retired: the quantity is spelled
+  `omega_times_dt` everywhere, see the *Naming* note in `cavity_solvers.py`)
 - stale `TestPIReverseSpanFrameConsistency` class docstring — fixed
 - `test_single_section_convolution_reference_needs_delta_t_zero` now actually
   exercises `allow_delta_t_zero=True` (was assert-fail-only)

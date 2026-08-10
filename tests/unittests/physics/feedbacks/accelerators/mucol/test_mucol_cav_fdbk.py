@@ -1074,6 +1074,143 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         )  # must not raise
 
 
+class TestSharedCoarseStepArithmetic(unittest.TestCase):
+    """
+    The per-cell and vectorised coarse steps share one spelling.
+
+    The coarse recursion exists twice -- ``_advance_coarse_voltage`` (per cell,
+    the reference) and ``_kernel_step_multipliers`` (vectorised, feeding the
+    numba kernel). Both must be built from the same module-level arithmetic in
+    ``blond.physics.feedbacks.cavity_solvers``, beside the
+    ``ForwardEulerValidityGuard`` that caps it; two independent spellings are
+    exactly how the two paths drifted apart before (the vectorised one lacked
+    the scalar zero-step guard). These tests pin the two paths to the shared
+    functions *bit-for-bit*, not merely to within a tolerance.
+    """
+
+    R_over_Q = 518.0
+    Q_L = 1287601.7251526634
+
+    def _feedback(self, exponential: bool) -> IQCavityFeedbackTimingClass:
+        """
+        Build a minimal feedback exposing both coarse-step paths.
+
+        Parameters
+        ----------
+        exponential : bool
+            Value passed as ``exponential_coarse_solver_enable``.
+
+        Returns
+        -------
+        IQCavityFeedbackTimingClass
+            Feedback instance with the requested coarse-solver branch.
+        """
+        return IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current_bias=0.0,
+            n_cavities=1,
+            exponential_coarse_solver_enable=exponential,
+        )
+
+    def test_step_exponent_is_shape_agnostic(self):
+        """A scalar step and a one-cell array give the identical exponent."""
+        omega_times_dt, rel_det = 2.0 * np.pi, -1e-4
+        scalar = coarse_step_exponent(omega_times_dt, self.Q_L, rel_det)
+        vector = coarse_step_exponent(
+            np.array([omega_times_dt]), self.Q_L, rel_det
+        )
+        self.assertTrue(np.array_equal(np.array([scalar]), vector))
+
+    def test_euler_update_is_the_shared_multiplier(self):
+        """The per-cell Euler update is ``v * (1 + L) + drive``, bit-exact."""
+        cav = self._feedback(exponential=False)
+        v_prev, i_gen, i_beam = 30e6 + 1e6j, 0.02 + 0.01j, 0.005j
+        omega_times_dt, rel_det = 2.0 * np.pi, -1e-4
+        got = cav._advance_coarse_voltage(
+            v_prev, i_gen, i_beam, omega_times_dt, rel_det
+        )
+        step = coarse_step_exponent(omega_times_dt, self.Q_L, rel_det)
+        drive = self.R_over_Q * omega_times_dt * (i_gen - 0.5 * i_beam)
+        expected = v_prev * euler_voltage_multiplier(step) + drive
+        self.assertEqual(got, expected)
+
+    def test_exponential_update_is_the_shared_propagator(self):
+        """The per-cell exact update is ``e^L v + drive W``, bit-exact."""
+        cav = self._feedback(exponential=True)
+        v_prev, i_gen, i_beam = 30e6 + 1e6j, 0.02 + 0.01j, 0.005j
+        omega_times_dt, rel_det = 2.0 * np.pi, -1e-4
+        got = cav._advance_coarse_voltage(
+            v_prev, i_gen, i_beam, omega_times_dt, rel_det
+        )
+        step = coarse_step_exponent(omega_times_dt, self.Q_L, rel_det)
+        drive = self.R_over_Q * omega_times_dt * (i_gen - 0.5 * i_beam)
+        expected = v_prev * exponential_voltage_multiplier(
+            step
+        ) + drive * exponential_drive_weight(step)
+        self.assertEqual(got, expected)
+
+    def test_kernel_multipliers_match_the_per_cell_step(self):
+        """
+        Per-cell and vectorised multipliers agree bit-for-bit.
+
+        This is the invariant the numba-vs-python bit-identity pin rests on:
+        for the same step, whichever path computes the propagator, the same
+        bits come out -- for both the Euler and the exponential branch.
+        """
+        omega_times_dt = np.array([2.0 * np.pi, 0.5 * np.pi, 1e-6])
+        rel_det = -1e-4
+        for exponential in (False, True):
+            with self.subTest(exponential=exponential):
+                cav = self._feedback(exponential=exponential)
+                multiplier, weight = cav._kernel_step_multipliers(
+                    omega_times_dt, rel_det
+                )
+                for cell, step_size in enumerate(omega_times_dt):
+                    step = coarse_step_exponent(step_size, self.Q_L, rel_det)
+                    if exponential:
+                        self.assertEqual(
+                            multiplier[cell],
+                            exponential_voltage_multiplier(step),
+                        )
+                        self.assertEqual(
+                            weight[cell], exponential_drive_weight(step)
+                        )
+                    else:
+                        self.assertEqual(
+                            multiplier[cell], euler_voltage_multiplier(step)
+                        )
+                        self.assertEqual(weight[cell], 1.0 + 0.0j)
+
+    def test_drive_weight_guards_the_scalar_zero_step_only(self):
+        """
+        The removable singularity is guarded where it is reachable.
+
+        A scalar zero step reaches the per-cell recursion, so ``W`` must take
+        its limit ``1``. The vectorised path never sees one: the step-size
+        helper defers a segment containing a coincident coarse point to the
+        per-cell loop, which warns and skips it. The guard is therefore
+        deliberately not elementwise -- an array zero still yields ``nan``
+        rather than costing the hot recursion an extra pass.
+        """
+        self.assertEqual(exponential_drive_weight(0.0 + 0.0j), 1.0)
+        self.assertEqual(exponential_drive_weight(0), 1.0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            vector = exponential_drive_weight(np.array([0.0 + 0.0j]))
+        self.assertTrue(np.isnan(vector[0]))
+
+    def test_zero_step_leaves_the_voltage_untouched(self):
+        """Both branches advance a zero-length step to the same voltage."""
+        for exponential in (False, True):
+            with self.subTest(exponential=exponential):
+                cav = self._feedback(exponential=exponential)
+                got = cav._advance_coarse_voltage(
+                    30e6 + 1e6j, 0.02 + 0.01j, 0.005j, 0.0, -1e-4
+                )
+                self.assertEqual(got, 30e6 + 1e6j)
+
+
 class TestVoltageSetpointValidation(unittest.TestCase):
     """
     The explicit ``voltage_setpoint`` must be real and positive (phase 0).

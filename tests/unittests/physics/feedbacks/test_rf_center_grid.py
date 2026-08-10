@@ -228,7 +228,13 @@ class TestIQCavityFeedbackTimingClass:
         Q_L: float,
     ) -> None:
         backend.change_backend(Numpy64Bit)
-        self.harmonic = 5
+        # A single-section turn is ONE segment and every segment must hold
+        # at least two coarse centres (RFCenterSegment); the tiling
+        # carry-over places the first centre up to n coarse periods into
+        # the turn, so keep the turn at least two coarse steps long. At
+        # harmonic 5 the n = 3 parametrization (a 5/3-coarse-step turn)
+        # produced the now-rejected single-centre forward segments.
+        self.harmonic = max(5, 2 * int(np.ceil(n_rf_points)))
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
             profile=self.profile,
@@ -382,7 +388,10 @@ class TestIQCavityFeedbackTimingClass:
         ``V_ss``.
         """
         backend.change_backend(Numpy64Bit)
-        self.harmonic = 5
+        # Keep the single-segment turn at least two coarse steps long --
+        # see the discontinuity test above (the >=2-centres invariant of
+        # RFCenterSegment rejects the former n = 3 / harmonic 5 geometry).
+        self.harmonic = max(5, 2 * int(np.ceil(n_rf_points)))
         self.setup_simulation()
 
         r_over_q = 518.0
@@ -458,7 +467,11 @@ class TestIQCavityFeedbackTimingClass:
         Q_L: float,
     ) -> None:
         backend.change_backend(Numpy64Bit)
-        self.harmonic = 5
+        # Keep the single-segment turn at least two coarse steps long --
+        # see the no-acceleration discontinuity test above (the
+        # >=2-centres invariant of RFCenterSegment rejects the former
+        # n = 3 / harmonic 5 geometry).
+        self.harmonic = max(5, 2 * int(np.ceil(n_rf_points)))
         self.setup_simulation()
         cav_fdbk_timing = IQCavityFeedbackTimingClass(
             profile=self.profile,
@@ -633,7 +646,20 @@ class TestIQCavityFeedbackTimingClass:
                 IQCavityFeedbackTimingClass(
                     profile=self.profile,
                     n_rf_periods_per_coarse_grid=n_rf_points,
+                    # ``debug`` records the inspection-only grid
+                    # snapshots these tests read
+                    # (current_slice_elements_forward,
+                    # reference_time_after_reverse, ...).
                     debug=True,
+                    validate_grid_each_turn=True,
+                    # These are grid-geometry-only fixtures: the single
+                    # bucket-wide profile is reused by every one of the
+                    # n_sections stations, so with many sections it is
+                    # wider than one station's forward grid and the real
+                    # forward pass would (correctly) reject it. Ask for
+                    # the grid without the correction -- what the single
+                    # ``debug`` flag used to imply.
+                    grid_only_no_correction=True,
                     R_over_Q=0,
                     # Q_L only needs to keep the forward-Euler cavity step
                     # stable; these tests check rf-center timing/geometry, not
@@ -687,6 +713,33 @@ class TestIQCavityFeedbackTimingClass:
         ring.add_elements(element_list)
 
         return ring, element_list, timing_fdbk_list
+
+    @pytest.mark.backend_mutation
+    def test_fine_sectioning_below_two_coarse_cells_raises(self):
+        # A walked interval shorter than two coarse cells must surface the
+        # >=2-centres ValueError from the segment construction instead of
+        # silently building a degenerate grid (a single-centre forward
+        # segment used to disarm the counter-rotating coincidence guard).
+        # Here: 10 sections at harmonic 20 give 2 RF periods per section,
+        # so the turn-0 reverse back-fill before station 0 spans half a
+        # section = 1 RF period -- one coarse centre.
+        backend.change_backend(Numpy64Bit)
+        self.harmonic = 20
+        self.setup_simulation()
+
+        ring, element_list, timing_fdbk_list = (
+            self.setup_simulation_multisection(circumference=20, n_sections=10)
+        )
+        cnst_cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
+        )
+        sim = Simulation(ring, cnst_cycle)
+
+        with pytest.raises(ValueError, match="at least two") as excinfo:
+            sim.run_simulation(self.beam, n_turns=1)
+        message = str(excinfo.value)
+        assert "reduce n_rf_periods_per_coarse_grid" in message
+        assert "fewer/longer sections" in message
 
     @pytest.mark.backend_mutation
     @pytest.mark.parametrize("n_sections", [1, 4, 20])
@@ -787,7 +840,12 @@ class TestIQCavityFeedbackTimingClass:
         self, n_sections: int
     ):
         backend.change_backend(Numpy64Bit)
-        self.harmonic = 20
+        # Keep every section at >= 5 RF buckets: the turn-0 reverse
+        # back-fill spans only half a section, and every segment must hold
+        # at least two coarse centres (enforced in RFCenterSegment) -- at
+        # harmonic 20 the former 20-section variant deliberately produced
+        # the now-rejected degenerate (empty) turn-0 segment.
+        self.harmonic = max(20, 5 * n_sections)
         self.setup_simulation()
 
         circumference = 20
@@ -872,7 +930,10 @@ class TestIQCavityFeedbackTimingClass:
         self, n_sections: int
     ):
         backend.change_backend(Numpy64Bit)
-        self.harmonic = 20
+        # >= 5 RF buckets per section, see cnst_cycle_reverse above (at
+        # harmonic 20 the 10-section variant produced a single-centre
+        # turn-0 segment, now rejected by RFCenterSegment).
+        self.harmonic = max(20, 5 * n_sections)
         self.setup_simulation()
 
         # n_sections = 4
@@ -1056,7 +1117,10 @@ class TestIQCavityFeedbackTimingClass:
         backend.set_specials("cpp")
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
-        self.harmonic = 20
+        # >= 5 RF buckets per section, see cnst_cycle_reverse above (at
+        # harmonic 20 the 10- and 20-section variants produced the
+        # now-rejected sub-2-centre turn-0 segments).
+        self.harmonic = max(20, 5 * n_sections)
         self.setup_simulation()
 
         # n_sections = 4
@@ -1158,8 +1222,10 @@ class TestIQCavityFeedbackTimingClass:
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
                     check_fail_printing(
-                        len(fdbk._rf_centers) != 20,
-                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk._rf_centers)}",  # 15 from reverse and 5 from frwrd
+                        # one coarse centre per bucket: reverse span plus
+                        # forward segment cover exactly one turn
+                        len(fdbk._rf_centers) != self.harmonic,
+                        f"failed in {simulation.turn_i.value} {idx} {len(fdbk._rf_centers)}",
                     )
                     msk = fdbk._reverse_tracking_time_array != 0
                     used_time_array = np.array(
@@ -1322,7 +1388,10 @@ class TestIQCavityFeedbackTimingClass:
         backend.set_specials("cpp")
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
-        self.harmonic = 20
+        # >= 5 RF buckets per section, see cnst_cycle_reverse above (at
+        # harmonic 20 the 10-section variant produced the now-rejected
+        # sub-2-centre segments).
+        self.harmonic = max(20, 5 * n_sections)
         self.setup_simulation()
 
         # n_sections = 4

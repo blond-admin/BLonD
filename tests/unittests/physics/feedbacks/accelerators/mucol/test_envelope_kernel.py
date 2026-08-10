@@ -495,6 +495,195 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         _assert_bit_identical(self, kernel_snap, python_snap)
 
 
+class TestDegenerateCoarseSteps(unittest.TestCase):
+    """
+    First-cell seeding, coincident points and empty segments.
+
+    The per-cell reference loop (``_circuit_track_cells_python``) and its
+    vectorised twin (``_coarse_step_sizes``) share the first-cell special
+    cases; degenerate (coincident / zero-step) grids must defer the kernel
+    path to the reference loop so the skip-and-warn behaviour is preserved.
+    """
+
+    V_INIT = 3.0e7 + 1.0e6j
+
+    def _coincident_grid_feedback(self, use_kernel, step_offset=0.0):
+        """
+        Feedback seeded with a grid whose third centre repeats the second.
+
+        Parameters
+        ----------
+        use_kernel
+            Value for ``use_numba_envelope_kernel``.
+        step_offset
+            Offset [s] added to the repeated centre; a tiny negative value
+            makes the degenerate step a few-ULP negative one instead of an
+            exact zero.
+
+        Returns
+        -------
+        feedback
+            The seeded feedback (4 cells, no beam).
+        """
+        feedback = _make_feedback(use_kernel)
+        _seed_single_segment(
+            feedback, 4, v_init=self.V_INIT, i_init=BIAS, beam=None
+        )
+        feedback._rf_centers = np.array(
+            [1.0 * T_RF, 2.0 * T_RF, 2.0 * T_RF + step_offset, 3.0 * T_RF]
+        )
+        return feedback
+
+    def test_first_turn_single_cell_segment_uses_own_period_step(self):
+        """
+        A one-cell first-ever segment steps by its own coarse period.
+
+        With a single centre in the segment there is no next centre to take
+        the step proxy from, so the reference loop falls back to this
+        segment's own coarse step ``n * t_rf`` at ``omega_input`` -- not the
+        (meaningless) local time of the centre.
+        """
+        feedback = _make_feedback(False)
+        _seed_single_segment(
+            feedback, 1, v_init=self.V_INIT, i_init=BIAS, beam=None
+        )
+        # Park the only centre OFF the coarse period so a wrong local-time
+        # step would produce a distinguishable voltage.
+        feedback._rf_centers = np.array([0.3 * T_RF])
+        feedback._circuit_track_cells_python(
+            OMEGA_RF, no_beam=True, start_index=0, end_index=1
+        )
+        step = 2.0 * np.pi / OMEGA_RF  # n_rf_periods_per_coarse_grid == 1
+        expected = feedback._advance_coarse_voltage(
+            v_prev=self.V_INIT,
+            generator_current=BIAS,
+            beam_current=0.0,
+            omega_times_dt=OMEGA_RF * step,
+            relative_detuning=0.0,
+        )
+        wrong = feedback._advance_coarse_voltage(
+            v_prev=self.V_INIT,
+            generator_current=BIAS,
+            beam_current=0.0,
+            omega_times_dt=OMEGA_RF * 0.3 * T_RF,
+            relative_detuning=0.0,
+        )
+        self.assertEqual(feedback.antenna_voltage_coarse_grid[0], expected)
+        self.assertNotEqual(
+            feedback.antenna_voltage_coarse_grid[0],
+            wrong,
+            msg="the period proxy is indistinguishable from the local time",
+        )
+
+    def test_single_cell_segment_vectorised_step_matches_the_reference(self):
+        """The vectorised twin uses the same one-cell period proxy."""
+        feedback = _make_feedback(True)
+        _seed_single_segment(
+            feedback, 1, v_init=self.V_INIT, i_init=BIAS, beam=None
+        )
+        feedback._rf_centers = np.array([0.3 * T_RF])
+        delta_t = feedback._coarse_step_sizes(OMEGA_RF, 0, 1)
+        np.testing.assert_array_equal(delta_t, [2.0 * np.pi / OMEGA_RF])
+
+    def test_coincident_points_warn_and_skip_the_cell(self):
+        """
+        Two identical consecutive centres warn and skip the cell.
+
+        CHARACTERIZATION of a KNOWN, documented-as-deferred defect: the
+        skipped cell keeps the zeros prefill, so the following cell is
+        propagated from ``V = 0`` instead of the preceding voltage. This
+        test pins the current (warn, skip, keep tracking) behaviour; it is
+        not an endorsement of the zero-voltage propagation.
+        """
+        feedback = self._coincident_grid_feedback(False)
+        with self.assertWarnsRegex(
+            UserWarning, "double taking of rf_centers value, skipping"
+        ):
+            feedback._circuit_track_cells_python(
+                OMEGA_RF, no_beam=True, start_index=0, end_index=4
+            )
+        # The deferred defect: the skipped cell keeps the zeros prefill...
+        self.assertEqual(feedback.antenna_voltage_coarse_grid[2], 0.0)
+        # ...but tracking completes and the next cell is still advanced
+        # (from the zeroed predecessor, driven by the generator bias).
+        self.assertNotEqual(feedback.antenna_voltage_coarse_grid[3], 0.0)
+        self.assertTrue(
+            np.all(np.isfinite(feedback.antenna_voltage_coarse_grid))
+        )
+
+    def test_few_ulp_negative_step_is_clamped_not_asserted(self):
+        """
+        A few-ULP negative step is floating-point noise, not an error.
+
+        The reference loop clamps it to zero (then handled as a coincident
+        point) instead of tripping the hard ordering assertion.
+        """
+        # In (-1e-9 * rf_period, 0): well inside the clamp band.
+        feedback = self._coincident_grid_feedback(
+            False, step_offset=-1e-10 * T_RF
+        )
+        with self.assertWarnsRegex(
+            UserWarning, "double taking of rf_centers value, skipping"
+        ):
+            # Must NOT raise AssertionError on the negative step.
+            feedback._circuit_track_cells_python(
+                OMEGA_RF, no_beam=True, start_index=0, end_index=4
+            )
+        self.assertEqual(feedback.antenna_voltage_coarse_grid[2], 0.0)
+        self.assertNotEqual(feedback.antenna_voltage_coarse_grid[3], 0.0)
+
+    def test_degenerate_segment_defers_the_kernel_to_the_reference(self):
+        """
+        A zero coarse step makes the kernel take the reference path.
+
+        ``_coarse_step_sizes`` reports the degenerate segment with ``None``
+        and ``_circuit_track_cells_kernel`` then runs the pure-Python loop,
+        whose skip-and-warn behaviour (the warning below) and result must
+        appear bit-for-bit.
+        """
+        kernel_feedback = self._coincident_grid_feedback(True)
+        self.assertIsNone(kernel_feedback._coarse_step_sizes(OMEGA_RF, 0, 4))
+        with self.assertWarnsRegex(
+            UserWarning, "double taking of rf_centers value, skipping"
+        ):
+            kernel_feedback._circuit_track_cells_kernel(
+                OMEGA_RF, no_beam=True, start_index=0, end_index=4
+            )
+
+        python_feedback = self._coincident_grid_feedback(False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            python_feedback._circuit_track_cells_python(
+                OMEGA_RF, no_beam=True, start_index=0, end_index=4
+            )
+        self.assertTrue(
+            np.array_equal(
+                kernel_feedback.antenna_voltage_coarse_grid,
+                python_feedback.antenna_voltage_coarse_grid,
+            ),
+            msg="kernel fallback differs from the reference path",
+        )
+
+    def test_empty_segment_is_a_no_op_on_the_kernel_path(self):
+        """``start_index == end_index`` leaves the grids untouched."""
+        feedback = _make_feedback(True)
+        _seed_single_segment(
+            feedback, 4, v_init=self.V_INIT, i_init=BIAS, beam=None
+        )
+        feedback.antenna_voltage_coarse_grid[:] = 7.0 + 3.0j  # sentinel
+        voltage_before = feedback.antenna_voltage_coarse_grid.copy()
+        current_before = feedback.generator_current_coarse_grid.copy()
+        feedback._circuit_track_cells_kernel(
+            OMEGA_RF, no_beam=True, start_index=2, end_index=2
+        )
+        np.testing.assert_array_equal(
+            feedback.antenna_voltage_coarse_grid, voltage_before
+        )
+        np.testing.assert_array_equal(
+            feedback.generator_current_coarse_grid, current_before
+        )
+
+
 class _ProportionalOnlyController(GeneratorCurrentController):
     """
     Minimal non-PI controller implementing only the abstract interface.

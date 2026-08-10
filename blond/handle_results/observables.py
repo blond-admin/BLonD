@@ -1143,6 +1143,21 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         Path to the target folder used for
         saving or loading files.
 
+    Notes
+    -----
+    Layout of the coarse matrices (``v_ant_coarse``, ``i_gen_coarse``,
+    ``i_beam_coarse``): every column addresses the same per-turn
+    coarse-grid cell in all three matrices. Rows are padded to
+    ``len_coarse_max`` columns; cells the turn's grid does not reach are
+    ``NaN``. The antenna voltage and generator current span the whole
+    per-turn grid (reverse reconstruction segments followed by the
+    forward segment), so their valid columns are ``[0, n_grid)``. The
+    beam current exists only on the forward (real passage) segment --
+    the last ``rf_centers_lengths[-1]`` cells of the grid -- so its
+    valid columns are ``[n_grid - n_forward, n_grid)``; all other
+    columns are ``NaN``. Plotting the same column of the three matrices
+    therefore always refers to one and the same coarse-grid cell.
+
     Examples
     --------
     TODO:
@@ -1207,12 +1222,31 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         # RFStationBaseClass -- deriving it here by filtering the ring for
         # SingleHarmonicRFStation divided by zero on a ring whose stations are
         # all multi-harmonic (the two are siblings, not parent and child).
-        self.len_coarse_max = int(
-            np.ceil(
-                (1 + 1 / self._feedback.n_rf_stations_in_ring)
-                * self._feedback.harmonic
-                / self._feedback.n_rf_periods_per_coarse_grid
+        #
+        # The analytic term is only an estimate: the real grid is produced
+        # by np.arange walks over up to n_rf_stations_in_ring + 1 segments
+        # (one per station passage plus the overshoot segment), and each
+        # walk can yield one cell more than the analytic fraction whenever
+        # harmonic * segment_fraction / n_rf_periods_per_coarse_grid is not
+        # an integer (sub-stepping, non-divisor coarse steps, ramping
+        # design t_rf). Measured: 51801 cells against a 51800 prediction
+        # (2 stations, n_rf_periods_per_coarse_grid = 0.75, station at the
+        # section end, where the overshoot segment spans a full section and
+        # consumes the analytic 1/n_stations term exactly). Hence the
+        # margin of one extra cell per possible segment. Over-allocation is
+        # harmless -- unwritten columns stay NaN-masked -- while an
+        # under-allocation would abort the run in `_update`.
+        n_stations = self._feedback.n_rf_stations_in_ring
+        self.len_coarse_max = (
+            int(
+                np.ceil(
+                    (1 + 1 / n_stations)
+                    * self._feedback.harmonic
+                    / self._feedback.n_rf_periods_per_coarse_grid
+                )
             )
+            + n_stations
+            + 1
         )
 
         shape_coarse = (n_entries, self.len_coarse_max)
@@ -1267,8 +1301,30 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             self._feedback._parent_rf_station.calc_gap_voltage_with_feedbacks()
         )
 
+        n_grid = len(self._feedback.antenna_voltage_coarse_grid)
+        # The beam current is forward-segment-local (see the class Notes);
+        # its columns are shifted by the forward offset so that they line
+        # up with the whole-grid antenna voltage / generator current.
+        forward_offset = int(
+            len(self._feedback._rf_centers)
+            - self._feedback._rf_centers_lengths[-1]
+        )
+        n_forward = len(self._feedback.beam_current_forward_coarse_grid)
+        n_needed = max(n_grid, forward_offset + n_forward)
+        if n_needed > self.len_coarse_max:
+            raise RuntimeError(
+                f"IQCavityFeedbackObservation of {self._feedback}: the "
+                f"coarse grid of turn {self._simulation.turn_counter.value} "
+                f"has {n_needed} cells, but only {self.len_coarse_max} "
+                f"columns were allocated (analytic prediction plus one "
+                f"cell per segment). The np.arange grid walk produced "
+                f"more cells than that upper bound -- increase the "
+                f"per-segment margin added to `len_coarse_max` in "
+                f"`IQCavityFeedbackObservation.on_run_simulation`."
+            )
+
         coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
-        coarse_mask[: len(self._feedback.antenna_voltage_coarse_grid)] = True
+        coarse_mask[:n_grid] = True
 
         self._v_ant_coarse.write(
             self._feedback.antenna_voltage_coarse_grid,
@@ -1280,9 +1336,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         )
 
         coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
-        coarse_mask[: len(self._feedback.beam_current_forward_coarse_grid)] = (
-            True
-        )
+        coarse_mask[forward_offset : forward_offset + n_forward] = True
 
         self._i_beam_coarse.write(
             self._feedback.beam_current_forward_coarse_grid,
@@ -1368,6 +1422,10 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
     def i_beam_coarse(self) -> NumpyArray:
         """
         Beam current on the coarse grid as observed by the feedback ``(n_observations, n_coarse)``, in [A].
+
+        Columns are aligned with ``v_ant_coarse`` / ``i_gen_coarse``;
+        entries outside the forward segment are ``NaN`` (see the class
+        Notes for the layout).
 
         Returns
         -------

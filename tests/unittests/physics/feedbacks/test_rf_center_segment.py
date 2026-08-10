@@ -31,7 +31,10 @@ from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
-from blond.physics.feedbacks.rf_center_segment import RFCenterSegment
+from blond.physics.feedbacks.rf_center_segment import (
+    PerTurnGridSpan,
+    RFCenterSegment,
+)
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
@@ -72,8 +75,8 @@ class TestRFCenterSegment:
                 centers=np.zeros((2, 2)),
             )
 
-    def test_rejects_residual_outside_duration_for_nonempty(self):
-        # A populated segment's residual is the leftover after its last centre,
+    def test_rejects_residual_outside_duration(self):
+        # A segment's residual is the leftover after its last centre,
         # so it must lie within [0, duration].
         with pytest.raises(ValueError, match="residual"):
             RFCenterSegment(
@@ -83,14 +86,34 @@ class TestRFCenterSegment:
                 centers=np.array([0.25, 0.5, 0.75]),
             )
 
-    def test_allows_carried_residual_for_empty_segment(self):
-        # An empty segment legitimately carries the *previous* segment's
-        # residual, which may exceed its own (near-zero) duration; that must be
-        # accepted (no bound check when there are no centres).
-        seg = RFCenterSegment(
-            omega=1.0, duration=1e-6, residual=5.0, centers=np.zeros(0)
-        )
-        assert len(seg) == 0
+    def test_rejects_empty_centers(self):
+        # D2 retirement: an empty segment used to carry the previous
+        # segment's residual through without adding its own duration to
+        # the bridging coarse step. Such a segment is now unconstructible:
+        # every segment must hold at least two coarse centres.
+        with pytest.raises(ValueError, match="at least two") as excinfo:
+            RFCenterSegment(
+                omega=1.0, duration=1e-6, residual=5.0, centers=np.zeros(0)
+            )
+        message = str(excinfo.value)
+        assert "1e-06" in message  # the segment duration is named
+        assert "reduce n_rf_periods_per_coarse_grid" in message
+        assert "fewer/longer sections" in message
+
+    def test_rejects_single_center(self):
+        # A single-centre segment is as degenerate as an empty one: the
+        # coincidence-guard tolerance rf_centers[-1] - rf_centers[-2]
+        # would cross the segment boundary (D1), so it must raise too.
+        with pytest.raises(ValueError, match="at least two") as excinfo:
+            RFCenterSegment(
+                omega=1.0,
+                duration=1.2,
+                residual=0.7,
+                centers=np.array([0.5]),
+            )
+        message = str(excinfo.value)
+        assert "reduce n_rf_periods_per_coarse_grid" in message
+        assert "fewer/longer sections" in message
 
     def test_len_matches_centers(self):
         seg = RFCenterSegment(
@@ -151,29 +174,6 @@ class TestRFCenterSegment:
         fdbk._clear_segments()
         assert len(fdbk._rf_centers) == 0
         assert len(fdbk._rf_centers_lengths) == 0
-        fdbk._validate_grid()
-
-    def test_empty_segment_contributes_zero_length(self):
-        # A segment shorter than one coarse step holds no centre; it must still
-        # count as a (zero-length) entry in rf_centers_lengths so the segment
-        # count matches the reverse+forward bookkeeping.
-        fdbk = self._bare_feedback()
-        fdbk._clear_segments()
-        fdbk._append_segment(
-            RFCenterSegment(
-                omega=2.0, duration=1e-9, residual=1e-9, centers=np.zeros(0)
-            )
-        )
-        fdbk._append_segment(
-            RFCenterSegment(
-                omega=2.0,
-                duration=1.0,
-                residual=0.1,
-                centers=np.array([0.4, 0.9]),
-            )
-        )
-        assert list(fdbk._rf_centers_lengths) == [0, 2]
-        assert len(fdbk._rf_centers) == 2
         fdbk._validate_grid()
 
     def test_validate_grid_detects_direct_mutation(self):
@@ -323,8 +323,8 @@ class TestSegmentBoundaryStep:
             ``omega_input * delta_t`` [rad] of every cell the loop advanced.
         """
         seen = []
-        fdbk.cavity_response = lambda omega_times_T_s, **kwargs: seen.append(
-            omega_times_T_s
+        fdbk.cavity_response = lambda omega_times_dt, **kwargs: seen.append(
+            omega_times_dt
         )
         fdbk._circuit_track_cells_python(
             OMEGA_BOUNDARY, True, start_index, end_index
@@ -381,6 +381,18 @@ class TestSegmentBoundaryStep:
                 np.array(self._tracked_phases(fdbk, start_index, end_index)),
             )
 
+    def test_per_turn_grid_span_lives_with_the_value_types(self):
+        # PerTurnGridSpan is the per-turn coarse-grid value type, so it
+        # belongs beside RFCenterSegment rather than in the (much larger)
+        # feedback module, which only imports it.
+        from blond.physics.feedbacks import cavity_feedback
+
+        assert (
+            PerTurnGridSpan.__module__
+            == "blond.physics.feedbacks.rf_center_segment"
+        )
+        assert cavity_feedback.PerTurnGridSpan is PerTurnGridSpan
+
     def test_hand_built_grid_without_segments_keeps_live_scalar(self):
         # Byte-compat guard for the direct-call tests: a grid built by hand
         # (no segments at all) must keep reading the live host scalar, which
@@ -399,3 +411,207 @@ class TestSegmentBoundaryStep:
         assert delta_t[0] == (
             fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_FORWARD_SEGMENT
         )
+
+
+class TestGuardCellWidthInvariant:
+    """
+    D1: the coincidence-guard tolerance ``rf_centers[-1] - rf_centers[-2]``.
+
+    The simultaneous-passage guard of the timing class compares arrival
+    times against half a forward coarse-cell width, computed from the last
+    two entries of the flat ``rf_centers``. Because centre times are
+    segment-LOCAL, both entries must lie inside the forward (last) segment
+    for the difference to be a genuine cell width -- which the >=2-centres
+    invariant of :class:`RFCenterSegment` guarantees. Before the invariant,
+    a single-centre forward segment made the difference cross the segment
+    boundary and go negative, silently disarming the guard.
+    """
+
+    @staticmethod
+    def _feedback_with_reverse_segment():
+        """
+        A feedback holding one 3-centre reverse segment.
+
+        Returns
+        -------
+        fdbk
+            Feedback whose ``_segments`` hold a single reverse segment with
+            centres at ``(0.5, 1.5, 2.5) * T_RF_BOUNDARY``.
+        """
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._clear_segments()
+        fdbk._append_segment(
+            RFCenterSegment(
+                omega=OMEGA_BOUNDARY,
+                duration=3 * T_RF_BOUNDARY,
+                residual=0.5 * T_RF_BOUNDARY,
+                centers=np.array([0.5, 1.5, 2.5]) * T_RF_BOUNDARY,
+            )
+        )
+        return fdbk
+
+    def test_single_center_forward_segment_is_unconstructible(self):
+        # Pre-invariant, appending this single-centre forward segment gave
+        # rf_centers = [..., 2.5 T, 0.2 T], so the guard tolerance
+        # rf_centers[-1] - rf_centers[-2] = -2.3 T was negative and
+        # abs(arrival-time difference) < 0.5 * width could never fire.
+        fdbk = self._feedback_with_reverse_segment()
+        with pytest.raises(ValueError, match="at least two"):
+            fdbk._append_segment(
+                RFCenterSegment(
+                    omega=OMEGA_BOUNDARY,
+                    duration=0.4 * T_RF_BOUNDARY,
+                    residual=0.2 * T_RF_BOUNDARY,
+                    centers=np.array([0.2]) * T_RF_BOUNDARY,
+                )
+            )
+
+    def test_forward_cell_width_is_forward_segment_spacing(self):
+        # With the invariant holding, the last two flat entries both lie
+        # inside the forward segment: the guard tolerance is strictly
+        # positive and equals the forward segment's own cell spacing --
+        # even when that spacing differs from the reverse segment's.
+        forward_spacing = 0.8 * T_RF_BOUNDARY
+        fdbk = self._feedback_with_reverse_segment()
+        fdbk._append_segment(
+            RFCenterSegment(
+                omega=2 * np.pi / forward_spacing,
+                duration=2 * forward_spacing,
+                residual=0.5 * forward_spacing,
+                centers=np.array([0.5, 1.5]) * forward_spacing,
+            )
+        )
+        width = float(fdbk._rf_centers[-1] - fdbk._rf_centers[-2])
+        assert width > 0
+        np.testing.assert_allclose(width, forward_spacing, rtol=1e-12)
+
+
+# Three reverse segments at deliberately different frequencies, the middle
+# one at the two-centre minimum every segment must hold, plus the forward
+# segment every passage ends with.
+REVERSE_OMEGAS = (0.9 * OMEGA_BOUNDARY, 1.1 * OMEGA_BOUNDARY, OMEGA_BOUNDARY)
+REVERSE_LENGTHS = (3, 2, 2)
+FORWARD_OMEGA = 1.2 * OMEGA_BOUNDARY
+
+
+class TestReverseSpanWalksSegments:
+    """
+    The per-passage walks read the segment records, not parallel arrays.
+
+    ``RFCenterSegment`` carries the frequency and the time span its centres
+    were generated over, so the reverse-span replay and the multi-section
+    registration phase take omega_k and T_seg,k from the segments
+    themselves. The reverse segments of a passage are ``_segments[:-1]``:
+    the grid is cleared at the start of every passage, the reverse
+    generation appends exactly one segment per elapsed frequency span, and
+    the forward generation then appends exactly one more.
+    """
+
+    @staticmethod
+    def _passage_feedback():
+        """
+        A feedback holding one passage's reverse + forward segments.
+
+        Returns
+        -------
+        fdbk
+            Feedback whose ``_segments`` are three reverse segments (the
+            middle one at the two-centre minimum) followed by the forward
+            segment, with the coarse state sized to the derived flat grid.
+        """
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._clear_segments()
+        for omega, n_centers in zip(
+            REVERSE_OMEGAS, REVERSE_LENGTHS, strict=True
+        ):
+            duration = (n_centers + 1) * T_RF_BOUNDARY
+            fdbk._append_segment(
+                RFCenterSegment(
+                    omega=omega,
+                    duration=duration,
+                    residual=0.5 * T_RF_BOUNDARY,
+                    centers=np.arange(n_centers) * T_RF_BOUNDARY
+                    + 0.5 * T_RF_BOUNDARY,
+                )
+            )
+        fdbk._append_segment(
+            RFCenterSegment(
+                omega=FORWARD_OMEGA,
+                duration=4 * T_RF_BOUNDARY,
+                residual=0.5 * T_RF_BOUNDARY,
+                centers=np.arange(3) * T_RF_BOUNDARY + 0.5 * T_RF_BOUNDARY,
+            )
+        )
+        n_cells = len(fdbk._rf_centers)
+        fdbk.antenna_voltage_coarse_grid = np.zeros(n_cells, dtype=complex)
+        fdbk.generator_current_coarse_grid = np.zeros(n_cells, dtype=complex)
+        return fdbk
+
+    @staticmethod
+    def _recorded_replay(fdbk, n_reverse_centers):
+        """
+        Run the replay with ``circuit_track`` recorded instead of executed.
+
+        Parameters
+        ----------
+        fdbk
+            Feedback whose reverse span should be replayed.
+        n_reverse_centers
+            The passage's reverse centre count (the replay's gate).
+
+        Returns
+        -------
+        list
+            One ``(omega_input, start_index, end_index, no_beam)`` tuple per
+            ``circuit_track`` call the replay made.
+        """
+        calls = []
+        fdbk.circuit_track = (
+            lambda omega_input, start_index, end_index, no_beam: calls.append(
+                (omega_input, start_index, end_index, no_beam)
+            )
+        )
+        fdbk._replay_reverse_span(n_reverse_centers=n_reverse_centers)
+        return calls
+
+    def test_replay_walks_reverse_segments_only(self):
+        # One no-beam pass per reverse segment, at that segment's own omega
+        # and over exactly its own centres -- and the forward segment (the
+        # last one) is left to the real forward pass.
+        fdbk = self._passage_feedback()
+        calls = self._recorded_replay(fdbk, sum(REVERSE_LENGTHS))
+
+        assert calls == [
+            (REVERSE_OMEGAS[0], 0, 3, True),
+            (REVERSE_OMEGAS[1], 3, 5, True),
+            (REVERSE_OMEGAS[2], 5, 7, True),
+        ]
+
+    def test_replay_is_a_no_op_without_reverse_centers(self):
+        # The gate: a passage that generated no reverse centre must not walk
+        # anything (a stale frequency list used to re-run the whole grid).
+        fdbk = self._passage_feedback()
+        assert self._recorded_replay(fdbk, 0) == []
+
+    def test_registration_phase_sums_segment_omega_times_duration(self):
+        # Psi = sum_k (omega_k - omega_0) * T_seg,k over the REVERSE
+        # segments, both factors taken from the segment records.
+        fdbk = self._passage_feedback()
+        fdbk._n_rf_stations_in_ring = 2
+        fdbk._forward_tracking_omega_rf = FORWARD_OMEGA
+
+        phase = fdbk._accumulate_registration_phase(
+            n_reverse_centers=sum(REVERSE_LENGTHS)
+        )
+
+        expected = float(
+            np.sum(
+                (
+                    np.array([seg.omega for seg in fdbk._segments[:-1]])
+                    - FORWARD_OMEGA
+                )
+                * np.array([seg.duration for seg in fdbk._segments[:-1]])
+            )
+        )
+        assert phase == expected
+        assert phase != 0.0  # the segments really do differ from omega_0

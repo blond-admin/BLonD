@@ -951,6 +951,22 @@ class TestResonators(unittest.TestCase):
             self.resonators.get_wake_counter_rotation(time=time)
         self.resonators._shunt_impedances_counter_witness = save_cr_wake_imp
 
+    def test_get_wake_counter_rotation_quadrature_unset_raises(self):
+        # The counter-rotating quadrature wake is undefined without the
+        # counter-witness shunt impedances; reading it must fail loudly.
+        resonators = Resonators(
+            shunt_impedances=np.array([1, 2, 3]),
+            center_frequencies=np.array([500e6, 750e6, 2.0e9]),
+            quality_factors=np.array([5, 5, 5]),
+        )
+        time = backend.linspace(-1e-9, 1e-9, 16)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "shunt_impedances_counter_witness needs to be set on this "
+            "Resonators source before calling this function.",
+        ):
+            resonators.get_wake_counter_rotation_quadrature(time=time)
+
     def test_get_vectorfit(self):
         from blond.testing.helpers import allclose_tolerances
 
