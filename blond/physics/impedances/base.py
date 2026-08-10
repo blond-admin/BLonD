@@ -277,8 +277,13 @@ class TimeDomain(ABC):
         """
         Impedance from the bin-averaged wake: ``rfft(get_wake_per_bin(...))``.
 
-        Cached per (time, counter_rotating). Sources whose impedance is not a
-        wake FFT (e.g. InductiveImpedance) override this.
+        Keeps a single cached ``(hash, impedance)`` slot per rotation
+        direction (co- and counter-rotating), recomputing and overwriting
+        that slot whenever ``time`` changes. This bounds the cache to at
+        most two entries regardless of how many distinct ``time`` arrays are
+        seen over a simulation (e.g. one new array per turn with a dynamic
+        profile). Sources whose impedance is not a wake FFT (e.g.
+        InductiveImpedance) override this.
 
         Parameters
         ----------
@@ -302,13 +307,15 @@ class TimeDomain(ABC):
         cache = getattr(self, "_impedance_from_wake_cache", None)
         if cache is None:
             cache = self._impedance_from_wake_cache = {}
-        key = (get_hash(time), bool(counter_rotating))
-        if key in cache:
-            return cache[key]
+        key = bool(counter_rotating)
+        hash_ = get_hash(time)
+        cached = cache.get(key)
+        if cached is not None and cached[0] == hash_:
+            return cached[1]
         self._assert_wake_time_resolves_resonances(time)
         wake = self.get_wake_per_bin(time, counter_rotating)
         impedance = backend.fft.rfft(wake, n=n_fft)
-        cache[key] = impedance
+        cache[key] = (hash_, impedance)
         return impedance
 
 

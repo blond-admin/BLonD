@@ -1084,13 +1084,17 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ``get_wake_per_bin``."""
+        """Check that the sources provide a per-particle wake."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
-            if not hasattr(source, "get_wake_per_bin"):
+            provides_wake = isinstance(source, TimeDomain) and (
+                type(source).get_wake_per_particle
+                is not TimeDomain.get_wake_per_particle
+            )
+            if not provides_wake:
                 raise AttributeError(
-                    f"The {source=} should implement"
-                    " `TimeDomain.get_wake_per_bin`."
+                    f"The {source=} must be a `TimeDomain` source that"
+                    " overrides `TimeDomain.get_wake_per_particle`."
                 )
 
     def on_wakefield_init_simulation(

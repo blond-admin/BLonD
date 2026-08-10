@@ -3294,6 +3294,7 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_update_wake_kernel_fails(self):
+        from blond.physics.impedances.base import TimeDomain
         from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
@@ -3306,8 +3307,8 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
 
-        class FaultyResonators:
-            def get_wake_per_bin(self):  # emulate wroing implementation
+        class FaultyResonators(TimeDomain):
+            def get_wake_per_particle(self):  # emulate wrong signature
                 return
 
         wf_mutli = WakeField.headless(
@@ -3320,11 +3321,13 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             wf_mutli.solver._update_wake_kernel()
 
         class FaultyResonators2:
-            def get_cake(self):  # emulate wroing implementation
+            def get_cake(self):  # emulate no wake method at all
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
+            AttributeError,
+            "must be a `TimeDomain` source that overrides"
+            " `TimeDomain.get_wake_per_particle`",
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),

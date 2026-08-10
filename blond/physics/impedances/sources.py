@@ -388,6 +388,14 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         """
         Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
 
+        Uses the length of the co-rotating impedance cached by
+        :func:`TimeDomain.get_impedance_from_wake` when that cache entry
+        matches ``time`` (giving identical behaviour to before, including the
+        ``n_fft`` zero-padding). If no such entry is cached yet (e.g. this is
+        called before any co-rotating :func:`get_impedance_from_wake` call),
+        falls back to the un-padded rfft length of the bin-averaged wake so
+        this never raises a ``KeyError``.
+
         Parameters
         ----------
         time
@@ -398,9 +406,13 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         frequency_array
             Frequency array corresponding to the wake impedance.
         """
-        key = (get_hash(time), False)
-        impedance = self._impedance_from_wake_cache[key]
-        return backend.fft.rfftfreq(len(impedance), time[1] - time[0])
+        cache = getattr(self, "_impedance_from_wake_cache", None)
+        cached = cache.get(False) if cache is not None else None
+        if cached is not None and cached[0] == get_hash(time):
+            n_freq = len(cached[1])
+        else:
+            n_freq = len(backend.fft.rfft(self.get_wake_per_bin(time)))
+        return backend.fft.rfftfreq(n_freq, time[1] - time[0])
 
     def get_wake_per_bin(
         self, time: NumpyArray | CupyArray, counter_rotating: bool = False
