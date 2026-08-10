@@ -31,16 +31,9 @@ from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
 
-# Stop the intensity-effect iteration when the self-consistency error has not
-# reached a new minimum for this many iterations. The fixed-point iteration
-# does not always converge below ``tolerance_potential_well``: it can settle
-# into a limit cycle where the error oscillates around a few 1e-6 forever
-# (whether it happens to break out then depends on the tolerance landing on a
-# lucky low phase). Without this guard such a run would execute the full
-# ``maxiter_intensity_effects``, deep-copying the whole simulation every
-# iteration until it exhausts memory. The matched beam at the stalled point is
-# already correct (the residual only shifts it by << the matching tolerance);
-# see ``tests/unittests/experimental/beam_preparation/test_semi_empiric_matcher``.
+# Stop the iteration after this many steps without a new error minimum: the
+# fixed-point can settle into a limit cycle instead of converging, and the
+# matched beam at the stalled point is already correct.
 _STAGNATION_PATIENCE = 10
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -428,13 +421,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     if error < self.tolerance_potential_well and past_ramp:
                         break
 
-                    # Limit-cycle / stagnation guard: stop once the error has
-                    # not reached a new minimum for `_STAGNATION_PATIENCE`
-                    # iterations. This makes termination deterministic instead
-                    # of depending on the tolerance landing on a lucky low
-                    # phase of an oscillating error, and keeps the loop (and
-                    # its per-iteration deepcopy) from running until it
-                    # exhausts memory.
+                    # Limit-cycle guard: stop after `_STAGNATION_PATIENCE`
+                    # iterations without a new error minimum.
                     if error < best_error:
                         best_error = error
                         stall_count = 0
