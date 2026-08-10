@@ -366,3 +366,5 @@ tests/unittests/interfaces/rf_noise_cpp/rf-noise-cpp/
 
 # Observable outputs that default their save path to the cwd
 tests/last_*
+last_*.json
+last_*.npy
