@@ -56,16 +56,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-# Poles with |p*dt/2| below this are treated as the p -> 0 limit (the
-# bin-average factor and self-bin correction both tend to well-defined limits
-# there), avoiding a 0/0 division.
-_NEGLIGIBLE_POLE_DT = 1e-30
-
-# Tolerance (in units of the bin width) for validating that a profile's sample
-# spacings are positive integer multiples of the bin width in
-# MultiPoleSparseSolve (see _finalize_solver).
-_GRID_SPACING_RTOL = 1e-3
-
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
@@ -1356,8 +1346,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         spacings = copy_to_cpu(profile_hist_x[1:] - profile_hist_x[:-1])
         spacings = spacings / bin_dt
         n_bins_per_spacing = np.round(spacings)
-        assert np.all(n_bins_per_spacing >= 1) and np.all(
-            np.abs(spacings - n_bins_per_spacing) <= _GRID_SPACING_RTOL
+        assert np.all(n_bins_per_spacing >= 1) and np.allclose(
+            spacings, n_bins_per_spacing
         ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
 
         # Bin-average each pole's wake so this solver matches the others on
@@ -1365,13 +1355,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # scales its residue by sinh(p*dt/2)/(p*dt/2) (-> 1 as p -> 0). See
         # TimeDomain.get_wake_per_bin.
         half_p_dt = self._poles * (bin_dt / 2.0)
+        # Both factors have a removable singularity only at x = 0 (a pole at
+        # zero frequency, which resonators never have); use the analytic
+        # p -> 0 limit there to avoid a literal 0/0.
+        nonzero_pole = half_p_dt != 0
         half_p_dt_safe = backend.where(
-            backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
-            half_p_dt,
-            backend.ones_like(half_p_dt),
+            nonzero_pole, half_p_dt, backend.ones_like(half_p_dt)
         )
         bin_average_factor = backend.where(
-            backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
+            nonzero_pole,
             (backend.exp(half_p_dt) - backend.exp(-half_p_dt))
             / (2.0 * half_p_dt_safe),
             backend.ones_like(half_p_dt),
@@ -1385,7 +1377,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._self_bin_correction = float(
             backend.sum(
                 backend.where(
-                    backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
+                    nonzero_pole,
                     self._residues
                     * (backend.exp(half_p_dt) + backend.exp(-half_p_dt) - 2.0)
                     / (2.0 * half_p_dt_safe),
