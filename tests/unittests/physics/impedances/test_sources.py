@@ -1044,6 +1044,16 @@ class TestResonators(unittest.TestCase):
         independent cross-check of the wake's decay and shape -- a wrong
         decay rate changes the resonance linewidth (~ f_r / Q) and shows
         up here, unlike the short-window or wake-vs-wake tests.
+
+        ``get_impedance_from_wake`` returns the FFT of the *bin-averaged*
+        wake, i.e. the wake convolved with a normalised box of width ``dt``
+        (the histogram-beam model). The exact frequency response of that box
+        is ``sinc(f dt) = sin(pi f dt) / (pi f dt)``, so the analytic point
+        impedance is multiplied by that factor before comparison -- without
+        it the box roll-off alone is ``1 - sinc(f_r dt) ~ 1.6 %`` at
+        ``f_r dt = 0.1`` and would swamp the decay/shape check. Compensating
+        for it isolates the wake's decay and shape (residual ~ 3e-4, set by
+        DFT aliasing and window truncation).
         """
         freq_r, q_factor, shunt = 1e9, 100.0, 1e6
         res = Resonators(
@@ -1077,16 +1087,19 @@ class TestResonators(unittest.TestCase):
             res.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
         )
         self.assertEqual(len(freq), len(imp_from_wake))
+        # Analytic point impedance, folded with the exact frequency response
+        # of the width-dt bin-average box (sin(pi f dt) / (pi f dt)) so it
+        # describes the same bin-averaged wake as imp_from_wake.
         imp_analytic = copy_to_cpu(
             res.get_impedance(backend.array(freq), simulation, beam)
-        )
+        ) * np.sinc(freq * dt)
 
         # Compare in a band around the resonance where |Z| is significant.
         band = (freq > 0.5 * freq_r) & (freq < 1.5 * freq_r)
         max_rel_err = np.max(
             np.abs(imp_from_wake[band] - imp_analytic[band])
         ) / np.max(np.abs(imp_analytic[band]))
-        self.assertLess(max_rel_err, 5e-3)
+        self.assertLess(max_rel_err, 1e-3)
 
     def test_get_impedance_from_wake_freq_matches_impedance_array(self):
         """
