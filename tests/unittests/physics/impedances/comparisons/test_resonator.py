@@ -25,7 +25,7 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 
-DEV_PLOT = True
+DEV_PLOT = False
 
 
 def _under_resolved_low_q_resonator(t_rf, t_rev):

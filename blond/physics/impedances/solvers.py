@@ -35,6 +35,7 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -59,6 +60,11 @@ if TYPE_CHECKING:  # pragma: no cover
 # bin-average factor and self-bin correction both tend to well-defined limits
 # there), avoiding a 0/0 division.
 _NEGLIGIBLE_POLE_DT = 1e-30
+
+# Tolerance (in units of the bin width) for validating that a profile's sample
+# spacings are positive integer multiples of the bin width in
+# MultiPoleSparseSolve (see _finalize_solver).
+_GRID_SPACING_RTOL = 1e-3
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -1111,17 +1117,26 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources provide a per-particle wake."""
+        """
+        Check that the sources provide a bin-averaged wake.
+
+        The kernel is built from ``get_wake_per_bin`` (see
+        :func:`_update_wake_kernel`), which the base ``TimeDomain`` derives
+        from ``get_wake_per_particle`` when not overridden. A source is usable
+        if it overrides either.
+        """
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
             provides_wake = isinstance(source, TimeDomain) and (
-                type(source).get_wake_per_particle
+                type(source).get_wake_per_bin
+                is not TimeDomain.get_wake_per_bin
+                or type(source).get_wake_per_particle
                 is not TimeDomain.get_wake_per_particle
             )
             if not provides_wake:
                 raise AttributeError(
                     f"The {source=} must be a `TimeDomain` source that"
-                    " overrides `TimeDomain.get_wake_per_particle`."
+                    " overrides `get_wake_per_bin` or `get_wake_per_particle`."
                 )
 
     def on_wakefield_init_simulation(
@@ -1332,14 +1347,23 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._states = backend.zeros(len(self._poles) + 1, complex)
         bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
+        # bin_dt is the width of every bin, and the corrections below apply it
+        # to every bin. The grid need not be globally uniform: a sparse profile
+        # (EquidistantMultiProfile) stores equidistant bunches separated by
+        # charge-free gaps. But every bin must be bin_dt wide and every gap a
+        # whole number of them, i.e. all sample spacings must be positive
+        # integer multiples of bin_dt.
+        spacings = copy_to_cpu(profile_hist_x[1:] - profile_hist_x[:-1])
+        spacings = spacings / bin_dt
+        n_bins_per_spacing = np.round(spacings)
+        assert np.all(n_bins_per_spacing >= 1) and np.all(
+            np.abs(spacings - n_bins_per_spacing) <= _GRID_SPACING_RTOL
+        ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
 
-        # Bin-average the pole wake so this solver matches the other
-        # time-domain solvers (and the frequency-domain solver) on
-        # under-resolved resonators. Averaging exp(p*t) over a centred bin
-        # [t - dt/2, t + dt/2] scales each residue by
-        # sinh(p*dt/2) / (p*dt/2); the p -> 0 limit is 1. See
-        # TimeDomain.get_wake_per_bin for the same correction in the other
-        # solvers.
+        # Bin-average each pole's wake so this solver matches the others on
+        # under-resolved resonators: averaging exp(p*t) over a centred bin
+        # scales its residue by sinh(p*dt/2)/(p*dt/2) (-> 1 as p -> 0). See
+        # TimeDomain.get_wake_per_bin.
         half_p_dt = self._poles * (bin_dt / 2.0)
         half_p_dt_safe = backend.where(
             backend.abs(half_p_dt) > _NEGLIGIBLE_POLE_DT,
@@ -1353,17 +1377,11 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             backend.ones_like(half_p_dt),
         )
 
-        # Self-bin correction. The symmetric bin-average above is exact for
-        # every lag >= 1, but the self-bin (a source bin's contribution to its
-        # own voltage) must be the CAUSAL bin-average: the wake integrated over
-        # only the [0, dt/2] half of the bin, since the wake is zero for
-        # negative lag. The recursion instead evaluates the symmetric
-        # Re(residue) there. The difference is a per-bin term
-        # profile[n] * factor * Re(sum_k residue_k
-        #   * (exp(p_k dt/2) + exp(-p_k dt/2) - 2) / (p_k dt)),
-        # added in calc_induced_voltage. It is independent of the beam
-        # direction (the counter-rotating sign enters squared in the self-bin).
-        # Without it this solver stays O((p*dt)^2) off the convolution solvers.
+        # Self-bin correction: the symmetric bin-average above is exact for
+        # lag >= 1, but a bin's contribution to its own voltage must be the
+        # CAUSAL half-bin average (the wake is zero for negative lag). Add the
+        # residual term (applied in calc_induced_voltage); without it the
+        # solver stays O((p*dt)^2) off the convolution solvers.
         self._self_bin_correction = float(
             backend.sum(
                 backend.where(
