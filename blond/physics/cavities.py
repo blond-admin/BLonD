@@ -55,7 +55,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.physics.feedbacks.base import (
         LocalFeedback as LocalFeedbackExp,
     )
-    from blond.experimental.physics.feedbacks.beam_feedback import (
+    from blond.physics.feedbacks.beam_feedback import (
         BeamFeedbackBase,
     )
     from blond.physics.impedances.base import WakeField
@@ -265,7 +265,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._add_intended_schedule(
+        self._register_schedulable_variables(
             "voltage",
             "phi_rf_design",
             "harmonic",
@@ -276,7 +276,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             LocalFeedback | LocalFeedbackExp | None
         ] = [None for _ in range(self._n_rf)]
 
-        if cavity_feedback is not None:
+        if not isinstance(cavity_feedback, list | None):
+            self.attach_cavity_feedback(
+                cavity_feedback=cavity_feedback,
+                harmonic_index=kwargs.get("main_harmonic_idx", 0),
+            )
+        elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
 
         self._beam_feedback: BeamFeedbackBase | None = (
@@ -533,6 +538,30 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         pass
 
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        pass
+
     def _get_gap_voltage_per_harmonic(
         self,
         ts: NumpyArray,
@@ -622,7 +651,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         beam_feedback
             Beam feedback to be attached to the RF station.
         """
-        from blond.experimental.physics.feedbacks.beam_feedback import (
+        from blond.physics.feedbacks.beam_feedback import (
             BeamFeedbackBase,
         )
 
@@ -1203,6 +1232,28 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf
 
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        return self.omega_rf_design
+
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        return self.cavity_feedback_list[0]
+
     def calc_gap_voltage_without_feedbacks(
         self, ts: NumpyArray
     ) -> NumpyArray | CupyArray:
@@ -1584,6 +1635,7 @@ class MultiHarmonicRFStation(
             name=name,
             delayed_kick=delayed_kick,
             delayed_kick_time_axis=delayed_kick_time_axis,
+            main_harmonic_idx=main_harmonic_idx,
             **kwargs,  # for MRO of fused elements
         )
 
@@ -1699,6 +1751,28 @@ class MultiHarmonicRFStation(
         """
         assert self.omega_rf is not None
         return self.omega_rf[self.main_harmonic_idx]
+
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        return self.omega_rf_design[self.main_harmonic_idx]
+
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        return self.cavity_feedback_list[self.main_harmonic_idx]
 
     def calc_gap_voltage_without_feedbacks(
         self, ts: NumpyArray

@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import numbers
 import warnings
 from abc import abstractmethod
 from os import PathLike
@@ -45,10 +46,10 @@ from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.typing import AnyArray
 
 
 def fit_poles(
@@ -90,7 +91,7 @@ def fit_poles(
     freq = rf.Frequency.from_f(freqs, unit="Hz")
     ntwk = rf.Network(frequency=freq, s=Z.reshape(-1, 1, 1))
 
-    vf = rf.VectorFitting(ntwk)
+    vf = rf.vectorFitting.VectorFitting(ntwk)
     if max_iterations is not None:
         vf.max_iterations = max_iterations
     vf.vector_fit(
@@ -278,41 +279,43 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | ArrayLike | float | int,
-        center_frequencies: NumpyArray | ArrayLike | float | int,
-        quality_factors: NumpyArray | ArrayLike | float | int,
+        shunt_impedances: AnyArray | float | int,
+        center_frequencies: AnyArray | float | int,
+        quality_factors: AnyArray | float | int,
         shunt_impedances_counter_rotating: NumpyArray
         | float
-        | ArrayLike
+        | AnyArray
         | None = None,
     ):
         super().__init__(is_dynamic=False)
 
-        self._shunt_impedances: NumpyArray
-        self._center_frequencies: NumpyArray
-        self._quality_factors: NumpyArray
-        self._n_resonators: int
+        if isinstance(shunt_impedances, numbers.Number):
+            shunt_impedances = [shunt_impedances]
+        if isinstance(center_frequencies, numbers.Number):
+            center_frequencies = [center_frequencies]
+        if isinstance(quality_factors, numbers.Number):
+            quality_factors = [quality_factors]
 
-        if (
-            isinstance(shunt_impedances, float | int)
-            and isinstance(center_frequencies, float | int)
-            and isinstance(quality_factors, float | int)
-        ):
-            self._shunt_impedances = backend.array([shunt_impedances])
-            self._center_frequencies = backend.array([center_frequencies])
-            self._quality_factors = backend.array([quality_factors])
-            self._n_resonators = len(self._shunt_impedances)
-        else:
-            assert len(shunt_impedances) == len(center_frequencies), (
-                f"{len(shunt_impedances)} != {len(center_frequencies)}"
-            )
-            assert len(shunt_impedances) == len(quality_factors), (
-                f"{len(shunt_impedances)} != {len(quality_factors)}"
-            )
-            self._shunt_impedances = np.array(shunt_impedances)
-            self._center_frequencies = np.array(center_frequencies)
-            self._quality_factors = np.array(quality_factors)
-            self._n_resonators = len(shunt_impedances)
+        assert (
+            len(shunt_impedances)
+            == len(center_frequencies)
+            == len(quality_factors)
+        ), (
+            "The number of input shunt impedances, center frequencies and"
+            f" quality factors must match, got {len(shunt_impedances)=}, "
+            f"{len(center_frequencies)=}, {len(quality_factors)=}"
+        )
+
+        self._shunt_impedances = backend.cast_arr_float_if_needed(
+            shunt_impedances
+        )
+        self._center_frequencies = backend.cast_arr_float_if_needed(
+            center_frequencies
+        )
+        self._quality_factors = backend.cast_arr_float_if_needed(
+            quality_factors
+        )
+        self._n_resonators = len(shunt_impedances)
 
         self._shunt_impedances_counter_rotating: (
             NumpyArray | CupyArray | None
@@ -384,35 +387,27 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
             f" maximum frequency of {si_format(f_max)}Hz."
         )
 
-    def get_impedance_from_wake_freq(self, time: NumpyArray | CupyArray):
+    def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
         Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
-
-        Uses the length of the co-rotating impedance cached by
-        :func:`TimeDomain.get_impedance_from_wake` when that cache entry
-        matches ``time`` (giving identical behaviour to before, including the
-        ``n_fft`` zero-padding). If no such entry is cached yet (e.g. this is
-        called before any co-rotating :func:`get_impedance_from_wake` call),
-        falls back to the un-padded rfft length of the bin-averaged wake so
-        this never raises a ``KeyError``.
 
         Parameters
         ----------
         time
             Time array, in [s].
+        n_fft
+            Number of fft bins to use.
 
         Returns
         -------
         frequency_array
             Frequency array corresponding to the wake impedance.
+
+        See Also
+        --------
+        get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
-        cache = getattr(self, "_impedance_from_wake_cache", None)
-        cached = cache.get(False) if cache is not None else None
-        if cached is not None and cached[0] == get_hash(time):
-            n_freq = len(cached[1])
-        else:
-            n_freq = len(backend.fft.rfft(self.get_wake_per_bin(time)))
-        return backend.fft.rfftfreq(n_freq, time[1] - time[0])
+        return backend.fft.rfftfreq(n=n_fft, d=time[1] - time[0])
 
     def get_wake_per_bin(
         self, time: NumpyArray | CupyArray, counter_rotating: bool = False
@@ -498,6 +493,10 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         -------
         wake
             Bin-averaged wake, in [V].
+
+        See Also
+        --------
+        get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
         dt = time[1] - time[0]
 
@@ -1028,9 +1027,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        R_S: float | ArrayLike,
-        frequency_R: float | ArrayLike,
-        a_factor: float | ArrayLike,
+        R_S: float | AnyArray,
+        frequency_R: float | AnyArray,
+        a_factor: float | AnyArray,
     ):
         if hasattr(R_S, "__len__"):
             assert len(R_S) == len(frequency_R), (

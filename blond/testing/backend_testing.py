@@ -30,9 +30,8 @@ from blond.generals.cupy import no_cupy_import as no_cupy
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-    from numpy.typing import ArrayLike
-
     from blond.core.backends.backend import BackendBaseClass
+    from blond.typing import AnyArray
 
 try:
     import cupy  # noqa: F401
@@ -80,6 +79,47 @@ def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
                 )
 
     return backends
+
+
+def pin_fast_test_backends() -> None:
+    """
+    Pin the global numeric backends to a fast, deterministic state.
+
+    Intended to be called from an autouse test fixture so that per-test
+    timing and behaviour do not depend on test order (``pytest-randomly``) or
+    on a backend left active by an earlier test.
+
+    The two backend systems are handled asymmetrically:
+
+    - **BLonD 2**: if the legacy ``bm`` singleton has already been imported,
+      it is reset to the fastest available CPU backend (``use_cpu``:
+      cpp > numba > python). The legacy backend is a mutable global that many
+      regression tests change without restoring; leaving it in pure-python
+      mode made those tests an order-dependent performance sink.
+    - **BLonD 3**: only the slow pure-python kernels are guarded against being
+      the *ambient* default; ``python`` specials are switched to ``numba``.
+      Tests that deliberately exercise the python backend set it themselves
+      after this helper runs and are therefore unaffected.
+
+    Notes
+    -----
+    The legacy backend is only touched when its module is already imported, so
+    backend-agnostic BLonD 3 tests do not pay the cost of importing the legacy
+    code. The first legacy import runs ``use_cpu`` itself, so the state is
+    clean either way.
+    """
+    import sys
+
+    legacy_utils = sys.modules.get("blond.legacy.blond2.utils")
+    if legacy_utils is not None:
+        legacy_utils.bmath.use_cpu()
+
+    if backend.backend.specials_mode == "python":
+        try:
+            backend.backend.set_specials("cpp")
+        except Exception as exc:
+            warnings.warn(str(exc), stacklevel=1)
+            backend.backend.set_specials("numba")
 
 
 def multi_backend_testcase(*args: tuple[str]) -> Callable:
@@ -229,7 +269,7 @@ class ArrayLikeScan:
 
             yield func
 
-    def _cast_to(self, type_: type, value: ArrayLike) -> ArrayLike:
+    def _cast_to(self, type_: type, value: AnyArray) -> AnyArray:
         # Wrapper to ensure cupy arrays are first converted to numpy
         # arrays, otherwise most conversions raise an error
         # because automatic convertion (`.get()`) is not possible.

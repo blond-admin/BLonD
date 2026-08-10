@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import os
 import warnings
 from abc import ABC, abstractmethod
@@ -18,26 +20,32 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
-from blond.generals.exceptions_ import ArrayCastingError
+from blond.generals.exceptions_ import ArrayCastingError, UnknownBackendMode
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
-    from typing import TYPE_CHECKING, Any, Literal
+    from typing import TYPE_CHECKING, Any, Literal, TypeVar
+
+    BackendType = TypeVar("BackendType", bound="type[BackendBaseClass]")
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.typing import AnyArray
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
-ALL_BACKENDS: dict[str, BackendBaseClass] = {}
-AVAILABLE_BACKENDS: dict[str, BackendBaseClass] = {}
+ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
+# `AVAILABLE_BACKENDS` is provided lazily via the module-level
+# `__getattr__` below; see `_probe_available_backends`.
 
 
-def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+def _register_backend(bd: BackendType) -> BackendType:
     ALL_BACKENDS[bd.__name__] = bd
     return bd
 
@@ -353,6 +361,55 @@ class Specials(ABC):
             "The backend for `wake_from_pole_residue` is missing."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: NumpyArray | CupyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        r"""
+        Apply synchrotron radiation and quantum excitation energy kicks.
+
+        Updates ``beam_dE`` in place with
+
+        .. math::
+
+            \Delta E \mapsto \left(1 - \frac{2}{\tau}\right)\,\Delta E
+                            - U_0
+                            + 2 \sigma_\delta \frac{E_0}{\sqrt{\tau}}\,
+                              \mathcal{N}(0, 1)
+
+        where the gaussian noise term is omitted when
+        ``disable_quantum_excitation`` is ``True``.
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. Modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time of the considered synchrotron segment,
+            in [turn].
+        natural_energy_spread
+            Natural energy spread of the considered synchrotron segment,
+            [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+           Disables the quantum excitation kick.
+        """
+        raise NotImplementedError(
+            "Abstract method "
+            "`apply_synchrotron_radiation_and_quantum_excitation_energy_kick` "
+            "is not implemented."
+        )
+
 
 class _ModeSwitchHelper:
     """
@@ -509,8 +566,13 @@ class BackendBaseClass(ABC):
                 self.change_backend(new_backend=backend_)
                 self.set_specials(mode=mode_)
                 return
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "autoselect: `%s`/`%s` is not available: %r",
+                    backend_.__name__,
+                    mode_,
+                    exc,
+                )
 
     def change_backend(
         self,
@@ -524,17 +586,33 @@ class BackendBaseClass(ABC):
         new_backend
             One of the available backends.
         """
-        if self.__class__ == new_backend.__class__:
+        if not isinstance(new_backend, type):
+            raise TypeError(
+                f"`new_backend` must be a {BackendBaseClass.__name__} subclass "
+                f"(the class itself, not an instance), got {new_backend!r}."
+            )
+        if not issubclass(new_backend, BackendBaseClass):
+            raise TypeError(
+                f"`new_backend` must be a {BackendBaseClass.__name__} subclass, "
+                f"got {new_backend!r}."
+            )
+        if self.__class__ is new_backend:
+            # requesting the already active backend must be a no-op
             return
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
         _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
-
         _new_backend.verbose = self.verbose
+        specials_mode_org = self.specials_mode
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
-        self.set_specials(self.specials_mode)  # TODO test changing backends
+        # If the previous specials mode does not exist on the new backend
+        # family (e.g. "cuda" after changing to a CPU backend), keep the
+        # new backend's default mode instead. Suppress only that specific
+        # case so genuine failures from set_specials still propagate.
+        with contextlib.suppress(UnknownBackendMode):
+            self.set_specials(specials_mode_org)
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
@@ -570,17 +648,21 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'cpp_single_core',
+          'numba', 'cuda'
         - `BLOND_BACKEND_BITS` can only be '64'
         """
-        _backend_mode_raw: str = os.environ.get(
-            "BLOND_BACKEND_MODE",
-            DEFAULT_BACKEND,  # default
-        ).lower()
-        if _backend_mode_raw != "numba":
+        _backend_mode_env = os.environ.get("BLOND_BACKEND_MODE")
+        if _backend_mode_env is not None:
             print(
-                f"Using environment variable BLOND_BACKEND_MODE = {_backend_mode_raw}"
+                f"Using environment variable "
+                f"BLOND_BACKEND_MODE = {_backend_mode_env}"
             )
+        _backend_mode_raw: str = (
+            _backend_mode_env
+            if _backend_mode_env is not None
+            else DEFAULT_BACKEND
+        ).lower()
         _allowed_backend_modes = (
             "python",
             "cpp",
@@ -598,7 +680,7 @@ class BackendBaseClass(ABC):
             ] = _backend_mode_raw  # type: ignore
         else:
             raise ValueError(
-                f"The environment variable `BLOND_BACKEND` "
+                f"The environment variable `BLOND_BACKEND_MODE` "
                 f"was set to '{_backend_mode_raw}', but can only be one "
                 f"of {_allowed_backend_modes}."
             )
@@ -659,7 +741,7 @@ class BackendBaseClass(ABC):
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
-    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+    def _asarray_if_needed(self, arr: AnyArray) -> NumpyArray | CupyArray:
         # Faster to check than cast, so only cast if needed
         if isinstance(arr, self.ndarray):
             return arr
@@ -707,7 +789,7 @@ class BackendBaseClass(ABC):
         return arr
 
     def _cast_arr_and_dtype(
-        self, arr: ArrayLike, dtype: type
+        self, arr: AnyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         # Catch likely errors and reraise with slightly friendlier
         # messages.  Raise from the original exception to aid
@@ -735,7 +817,7 @@ class BackendBaseClass(ABC):
         return new_arr
 
     def cast_arr_float_if_needed(
-        self, arr: ArrayLike
+        self, arr: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Convert input to backend.array with ``dtype=backend.float``.
@@ -758,7 +840,7 @@ class BackendBaseClass(ABC):
         return self._cast_arr_and_dtype(arr, self.float)
 
     def cast_arr_complex_if_needed(
-        self, arr: ArrayLike
+        self, arr: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Convert input to backend.array with ``dtype=backend.complex``.
@@ -905,7 +987,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
@@ -1028,7 +1112,9 @@ class CupyBackend(BackendBaseClass):
 
             self.specials = CudaSpecials()
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose:
             print(f"Set special to `{mode}`")
 
@@ -1044,18 +1130,55 @@ class Cupy64Bit(CupyBackend):
         )
 
 
+def _probe_available_backends() -> dict[str, type[BackendBaseClass]]:
+    """
+    Probe which of the registered backends can be instantiated.
+
+    Returns
+    -------
+    available_backends
+        Mapping from backend name to backend class.
+    """
+    available: dict[str, type[BackendBaseClass]] = {}
+    for k, v in ALL_BACKENDS.items():
+        try:
+            v()
+        # Skip on any exception, we only care that it's not available.
+        except Exception as exc:  # pragma: no cover
+            logger.debug("Backend `%s` is not available: %r", k, exc)
+        else:
+            available[k] = v
+    return available
+
+
+def __getattr__(name: str):
+    """
+    Provide lazy module attributes (PEP 562).
+
+    Probing `AVAILABLE_BACKENDS` instantiates every registered backend,
+    which for CUDA queries the GPU and may even trigger a compilation.
+    This must not happen as a side effect of importing this module.
+
+    Parameters
+    ----------
+    name
+        Name of the requested module attribute.
+
+    Returns
+    -------
+    attribute
+        The lazily created module attribute.
+    """
+    if name == "AVAILABLE_BACKENDS":
+        available = _probe_available_backends()
+        globals()["AVAILABLE_BACKENDS"] = available
+        return available
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 default = Numpy64Bit  # use .change_backend(...) to change it anywhere
 backend: Numpy64Bit | Cupy64Bit = default()
-backend.verbose = True
 backend.apply_environment_variables()
-
-
-for k, v in ALL_BACKENDS.items():
-    try:
-        v()
-    # Skip on any exception, we only care that it's not available,
-    # we don't care why.
-    except Exception:  # pragma: no cover
-        pass
-    else:
-        AVAILABLE_BACKENDS[k] = v
+# verbose only after the initial setup, so that importing blond stays
+# quiet, but later backend changes are reported to the user
+backend.verbose = True

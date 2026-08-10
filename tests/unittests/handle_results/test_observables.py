@@ -44,6 +44,9 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
+from blond.utilities.separatrix.symbolic_separatrix import (
+    SymbolicSeparatrixHelper,
+)
 
 simulation = Mock(
     Simulation,
@@ -69,6 +72,12 @@ beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
 beam.read_partial_dt.return_value = beam._dt.array_local
 beam.read_partial_dE.return_value = beam._dE.array_local
 beam.read_partial_flags.return_value = beam._flags.array_local
+beam.dt_min = 1
+beam.dt_max = 2
+sep_helper = Mock(SymbolicSeparatrixHelper)
+dE_sep = np.ones(256)
+sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])
+simulation._get_separatrix_helper.return_value = sep_helper
 
 
 class ObservablesHelper(ObservablesOncePerTurnBase):
@@ -353,9 +362,9 @@ class TestBeamObservation(unittest.TestCase):
                 each_turn_i=1,
                 rf_station=rf_station,
             )
-            bunch_observation = BeamObservationOncePerTurn(each_turn_i=100)
+            bunch_observation = BeamObservationOncePerTurn(each_turn_i=2)
             obs_beam_hist2d = BeamHist2dOncePerTurn(
-                each_turn_i=100, bins=128 if intensity == 0 else (128, 64)
+                each_turn_i=2, bins=128 if intensity == 0 else (128, 64)
             )
             beam1._is_distributed = True
             with self.assertRaisesRegex(
@@ -363,7 +372,7 @@ class TestBeamObservation(unittest.TestCase):
             ):
                 sim.run_simulation(
                     beams=(beam1,),
-                    n_turns=N_TURNS,
+                    n_turns=N_TURNS // 50,
                     observe=(obs_beam_hist2d,),
                 )
             with self.assertRaisesRegex(
@@ -371,7 +380,7 @@ class TestBeamObservation(unittest.TestCase):
             ):
                 sim.run_simulation(
                     beams=(beam1,),
-                    n_turns=N_TURNS,
+                    n_turns=N_TURNS // 50,
                     observe=(bunch_observation,),
                 )
             beam1._is_distributed = False

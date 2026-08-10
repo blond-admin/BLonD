@@ -18,7 +18,9 @@ from numpy import ndarray
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import (
+    backend,
+)
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,

@@ -1156,7 +1156,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             n_turns += 1
 
         assert n_turns > 0, f"{n_turns=}"
-        self._n_turns_max = n_turns
+        self._n_turns_max = int(n_turns)
 
     def get_target_total_energy(
         self,

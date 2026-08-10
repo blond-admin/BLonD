@@ -21,10 +21,10 @@ from blond.physics.cavities import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.typing import AnyArray
 
 
 class BarrierRF(RFManipulationBaseClass):
@@ -68,13 +68,15 @@ class BarrierRF(RFManipulationBaseClass):
 
         self.t_center: float = t_center
         self.t_width: float = t_width
-        self.peak: float = peak_voltage
+        self.peak_voltage: float = peak_voltage
         self.n_bins = n_bins
 
-        self._add_intended_schedule("t_center", "t_width", "peak_voltage")
+        self._register_schedulable_variables(
+            "t_center", "t_width", "peak_voltage"
+        )
 
     def waveform_at_turn_or_time(
-        self, turn_i: int, reference_time: float, bin_centers: ArrayLike
+        self, turn_i: int, reference_time: float, bin_centers: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Create the barrier waveform at the specified time.
@@ -99,7 +101,7 @@ class BarrierRF(RFManipulationBaseClass):
         self.apply_schedules(turn_i, reference_time)
 
         return compute_sin_barrier(
-            self.t_center, self.t_width, self.peak, bin_centers
+            self.t_center, self.t_width, self.peak_voltage, bin_centers
         )
 
     def to_fourier_series(
@@ -373,7 +375,7 @@ def harmonics_to_waveform(
 
 
 def waveform_to_harmonics(
-    waveform: ArrayLike, harmonics: Iterable[int] | None = None
+    waveform: AnyArray, harmonics: Iterable[int] | None = None
 ) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """
     Convert a waveform to a Fourier series.
@@ -408,8 +410,8 @@ def waveform_to_harmonics(
         )
 
     harm_amps = backend.abs(harm_series) / (len(waveform) / 2)
-    harm_phases = (
-        backend.arctan2(harm_series.real, harm_series.imag) + backend.pi
+    harm_phases = backend.pi - backend.arctan2(
+        harm_series.real, harm_series.imag
     )
 
     return harm_amps, harm_phases

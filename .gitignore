@@ -6,6 +6,9 @@ logs
 /docs/build/
 /docs/examples/
 /docs/modules/*.rst
+/blond/core/backends/cpp/compiled/*
+/blond/core/backends/cuda/compiled/*
+/blond/core/backends/*/compiled/*/meta.json
 /__EXAMPLES/*output_files/
 /__BENCHMARKS/debug.log
 /__BENCHMARKS/OTFB.png
@@ -13,7 +16,6 @@ logs
 /__BENCHMARKS/fig/
 /__BENCHMARKS/animations/
 blond/_version.py
-blond/core/backends/*/compiled/*/meta.json
 
 *.kdev4
 *.cubin
