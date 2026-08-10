@@ -373,9 +373,9 @@ def plot_antenna_voltage(feedback, show: bool = True):
     antenna voltage against the rf_centers time base.
 
     Only sensible to call after circuit_track() has populated
-    antenna_voltage_coarse_grid; intended to be used with debug=True
-    to inspect the cavity-voltage evolution (amplitude decay/buildup
-    and detuning-induced phase rotation) turn by turn.
+    antenna_voltage_coarse_grid; intended for inspecting the
+    cavity-voltage evolution (amplitude decay/buildup and
+    detuning-induced phase rotation) turn by turn.
 
     Parameters
     ----------

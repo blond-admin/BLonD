@@ -125,11 +125,13 @@ forward / reverse tracking
     has *elapsed* since its previous update by walking it in *reverse*.
 segment
     One contiguous piece of coarse grid produced by one such walk, at a
-    single tracked frequency.
+    single tracked frequency. Every segment holds at least two coarse
+    centres -- ``RFCenterSegment`` rejects a shorter (degenerate) one at
+    construction, because the coincidence-guard cell width and the
+    residual bookkeeping below are only well-defined with two.
 residual
     The unfilled tail of a segment: the time between its last coarse
-    centre and the segment's end (an empty segment carries the previous
-    one's residual through unchanged). Coarse centre times are
+    centre and the segment's end. Coarse centre times are
     segment-*local*, so the coarse step into the first cell of a segment
     is that cell's local time plus the *preceding* segment's residual.
     It is read back from the segment list
@@ -138,8 +140,8 @@ residual
     (forward) segment's value; the first segment of a turn steps across
     the turn boundary and takes the residual the previous turn ended on.
     The same quantity is the demodulation frame of the forward segment --
-    under ``debug`` an assertion ties the two together so they cannot
-    silently drift apart.
+    under ``validate_grid_each_turn`` an assertion ties the two together
+    so they cannot silently drift apart.
 carried deposit
     Beam-induced voltage laid onto the grid on one turn that must then be
     propagated ("carried") consistently across later turns and segments.
@@ -177,14 +179,18 @@ Classes at a glance
     reference walks and per-turn segment generation of the timing class.
 
 :mod:`blond.physics.feedbacks.rf_center_segment`
-    The ``RFCenterSegment`` value class the coarse grid is built from:
-    the segment's frequency, duration, centre times and its ``residual``
-    -- the unfilled tail between its last centre and its end. The
-    ``residual`` is read back by ``_preceding_segment_residual`` to form
-    the coarse step into the *following* segment's first cell, and is the
-    demodulation frame of the forward segment.
+    The two coarse-grid value classes. ``RFCenterSegment`` is what the
+    grid is built from: the segment's frequency, duration, centre times
+    and its ``residual`` -- the unfilled tail between its last centre and
+    its end. The ``residual`` is read back by
+    ``_preceding_segment_residual`` to form the coarse step into the
+    *following* segment's first cell, and is the demodulation frame of the
+    forward segment; the ``omega`` and ``duration`` are what the
+    reverse-span replay and the registration phase walk.
+    ``PerTurnGridSpan`` (below) is the per-turn span built out of those
+    segments.
 
-:class:`~blond.physics.feedbacks.cavity_feedback.PerTurnGridSpan`
+:class:`~blond.physics.feedbacks.rf_center_segment.PerTurnGridSpan`
     Frozen value class returned by one grid rebuild: this passage's
     reverse and forward centre counts plus ``residual_from_reverse_span``,
     the residual snapshotted *between* the reverse and the forward
@@ -212,7 +218,14 @@ Classes at a glance
     :func:`~blond.physics.feedbacks.cavity_solvers.cavity_response_sparse_matrix_second_order`
     (trapezoidal / Crank-Nicolson) and the feedforward fill seed
     :func:`~blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`.
-    It also holds
+    It also holds the coarse-grid step arithmetic shared by the per-cell and
+    vectorised recursions --
+    :func:`~blond.physics.feedbacks.cavity_solvers.coarse_step_exponent`,
+    :func:`~blond.physics.feedbacks.cavity_solvers.euler_voltage_multiplier`,
+    :func:`~blond.physics.feedbacks.cavity_solvers.exponential_voltage_multiplier`
+    and
+    :func:`~blond.physics.feedbacks.cavity_solvers.exponential_drive_weight`
+    -- and
     :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`,
     the tripwires that decide whether the forward-Euler discretisation is
     admissible at all (per-step decay, detuning phase and beam kick) -- pure
@@ -248,7 +261,9 @@ Each turn the timing class runs:
 1. ``_guard_simultaneous_passage`` -- refuses a coincident
    counter-rotating passage with ``NotImplementedError`` (station at a
    meeting azimuth; the tolerance is half the last forward coarse-cell
-   width), then records this passage's arrival time and direction as the
+   width, a guaranteed-positive genuine width because every segment
+   holds at least two centres), then records this passage's arrival time
+   and direction as the
    record the next passage compares itself against. It runs first so that
    a refused passage cannot leave a half-rebuilt grid behind.
 
@@ -263,7 +278,7 @@ Each turn the timing class runs:
 
 3. ``_rebuild_per_turn_grid`` -- rebuilds this passage's coarse grid
    (``rf_centers``), sizes the coarse state and returns a frozen
-   :class:`~blond.physics.feedbacks.cavity_feedback.PerTurnGridSpan`. It
+   :class:`~blond.physics.feedbacks.rf_center_segment.PerTurnGridSpan`. It
    first calls ``_close_previous_turn_grid``, which captures the previous
    turn's last centre and its end-of-turn residual
    (``_residual_time_carried_into_turn``) *before* clearing the segment
@@ -281,9 +296,10 @@ Each turn the timing class runs:
    generation it takes its size from, nor follow any ``circuit_track``.
 
 4. ``_replay_reverse_span`` -- re-walks this passage's reverse segments
-   with ``no_beam=True``, one ``circuit_track`` per reverse frequency, so
-   that the envelope carries the already-elapsed interval forward. A
-   passage that generated no reverse segments skips the replay entirely.
+   with ``no_beam=True``, one ``circuit_track`` per reverse segment at
+   that segment's own ``omega``, so that the envelope carries the
+   already-elapsed interval forward. A passage that generated no reverse
+   segments skips the replay entirely.
 
 5. ``_accumulate_registration_phase`` -- accumulates the multi-section
    grid-vs-carrier registration phase
@@ -292,9 +308,14 @@ Each turn the timing class runs:
    added to ``_carrier_slip_gap``. Exactly ``+0.0`` for a single section
    and for an unaccelerated ring, so both stay bit-identical.
 
-6. ``_write_debug_readout`` -- only with ``debug=True``: writes the
-   neutral readout (unit relative voltage, zero phase) and ends the turn
-   there, so neither the demodulation nor the forward pass runs.
+6. ``_write_no_correction_readout`` -- only with
+   ``grid_only_no_correction=True``: writes the neutral readout (unit
+   relative voltage, zero phase, i.e. **no correction at all**) and ends
+   the turn there, so neither the demodulation nor the forward pass
+   runs. The three diagnostic switches are independent: ``debug`` only
+   records the inspection-only grid snapshots,
+   ``validate_grid_each_turn`` only runs the per-turn grid integrity
+   check, and only this one stops the physics.
 
 7. ``_track_forward_span`` -- the real work of the turn, in two steps.
 
@@ -583,12 +604,13 @@ Known limitations
 * The fine-grid initial antenna voltage is taken from the first coarse cell
   of the forward segment (guarded by the first-cell charge check) rather
   than interpolated to the profile edge.
-* A coarse-grid segment too short to hold a single centre (an *empty*
-  segment) carries the preceding segment's residual through unchanged
-  rather than adding its own duration to it, so the coarse step that
-  bridges such a segment omits that duration. A run of empty segments
-  therefore shares one residual, which is why
-  ``_preceding_segment_residual`` returns the same value for every start
-  index inside the run and ``RFCenterSegment`` skips its
-  ``0 <= residual <= duration`` bound check when the segment is empty (the
-  carried value may exceed the segment's own near-zero duration).
+* A configuration whose walked intervals are shorter than two coarse
+  steps -- an RF-station section (or the partial first-turn stretch
+  before a station, half a section in the symmetric layout) spanning
+  fewer than two coarse cells -- is rejected at grid construction:
+  ``RFCenterSegment`` requires at least two centres per segment. Reduce
+  ``n_rf_periods_per_coarse_grid`` or use fewer/longer sections. (This
+  replaced the former empty-segment behaviour, where such a segment
+  carried the preceding residual through without adding its own duration
+  to the bridging coarse step and a single-centre forward segment could
+  silently disarm the counter-rotating coincidence guard.)

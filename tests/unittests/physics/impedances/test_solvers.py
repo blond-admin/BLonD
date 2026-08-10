@@ -2389,7 +2389,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         profile: on the ``Mock(StaticProfile)`` the shared ``setUp``
         installs, the guard is itself a mock and never runs. The window
         reproduces the mocked ``hist_x`` exactly -- 21 bins of 1e-10 s
-        centred on zero, so ``window_duration == 2.1e-9`` s.
+        centred on zero, so ``profile_duration == 2.1e-9`` s.
 
         Returns
         -------

@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from unittest.mock import Mock
 
 import numpy as np
@@ -69,14 +70,6 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
-            n_coarse = 3564
-            cavity_feedback.n_coarse = n_coarse
-            _i_coarse = np.zeros(n_coarse, dtype=complex)
-            _i_coarse[0] = 1.5 + 0 * 1j
-            cavity_feedback.I_BEAM_COARSE = _i_coarse
-            _v_ant = np.zeros(n_coarse, dtype=complex)
-            _v_ant[:] = voltage * np.exp(1j * 10 / 180 * np.pi)
-            cavity_feedback.V_ANT_COARSE = _v_ant
         else:
             cavity_feedback = None
 
@@ -189,14 +182,6 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
-            n_coarse = 3564
-            cavity_feedback.n_coarse = n_coarse
-            _i_coarse = np.zeros(n_coarse, dtype=complex)
-            _i_coarse[0] = 1.5 + 0 * 1j
-            cavity_feedback.I_BEAM_COARSE = _i_coarse
-            _v_ant = np.zeros(n_coarse, dtype=complex)
-            _v_ant[:] = voltage * np.exp(1j * 10 / 180 * np.pi)
-            cavity_feedback.V_ANT_COARSE = _v_ant
         else:
             cavity_feedback = None
 
@@ -399,23 +384,40 @@ class TestLHCBeamFeedback(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.create_scenario(mock_cavity_feedback=True)
 
-    def test_lhc_beam_control_cavity_sum_phase(self):
-        self.create_scenario(mock_cavity_feedback=True, current_thres=0.5)
+    def test_lhc_beam_control_cavity_sum_phase_not_implemented(self):
+        # Coupling the phase loop to the surviving (mucol) cavity
+        # feedback is an open design task; attaching a cavity feedback
+        # must fail loudly instead of dying on the deleted blond2
+        # coarse-array attribute names.
+        with self.assertRaises(NotImplementedError) as ctx:
+            self.create_scenario(mock_cavity_feedback=True, current_thres=0.5)
+        message = str(ctx.exception)
+        self.assertIn("I_BEAM_COARSE", message)
+        self.assertIn("antenna_voltage_coarse_grid", message)
+        self.assertIn("open design task", message)
 
-        self.assertAlmostEqual(
-            self.beam_control.dphi * 180 / np.pi,
-            injection_offset_phase + 10,
-            places=2,
+    def test_lhc_beam_control_no_false_cavity_feedback_warning(self):
+        # Without any cavity feedback attached, cavity_sum_phase must be
+        # a silent no-op; the false "Cavity feedbacks are not yet
+        # implemented." UserWarning must be gone.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.create_scenario()
+        messages = [str(w.message) for w in caught]
+        self.assertFalse(
+            any("not yet implemented" in m for m in messages),
+            msg=(f"False cavity-feedback warning re-appeared: {messages}"),
         )
 
     @pytest.mark.skip
     def test_lhc_beam_control_warning_with_two_cavity_controllers(self):
         with self.assertWarns(Warning):
-            self.create_double_scenario(
-                mock_cavity_feedback=True,
-                current_thres=0.5,
-                one_mock_only=True,
-            )
+            with self.assertRaises(NotImplementedError):
+                self.create_double_scenario(
+                    mock_cavity_feedback=True,
+                    current_thres=0.5,
+                    one_mock_only=True,
+                )
 
     def test_lhc_beam_control_mock_rf_noise(self):
         self.create_scenario(
@@ -440,13 +442,8 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
     @pytest.mark.skip
     def test_lhc_beam_control_double_rf_station(self):
-        self.create_double_scenario(
-            mock_cavity_feedback=True,
-            current_thres=0.5,
-        )
-
-        self.assertAlmostEqual(
-            self.beam_control.dphi * 180 / np.pi,
-            injection_offset_phase + 10,
-            places=2,
-        )
+        with self.assertRaises(NotImplementedError):
+            self.create_double_scenario(
+                mock_cavity_feedback=True,
+                current_thres=0.5,
+            )

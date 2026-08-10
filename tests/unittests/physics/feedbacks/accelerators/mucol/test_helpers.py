@@ -150,7 +150,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             I_gen=np.zeros(n_slices, dtype=complex),
             V_ant_init=0.0,
             I_gen_init=0.0,
-            samples_per_rf=self.omega_rf * profile.hist_step,
+            omega_times_dt=self.omega_rf * profile.hist_step,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
             relative_detuning=0.0,
@@ -350,7 +350,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             dT=0.0,
         )
         i_beam = charges / smooth_profile.hist_step
-        samples_per_rf = self.omega_rf * smooth_profile.hist_step
+        omega_times_dt = self.omega_rf * smooth_profile.hist_step
 
         def create_fdbk_class_and_calc_voltage(second_order):
             feedback = IQCavityFeedbackTimingClass(
@@ -369,7 +369,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             feedback.cavity_response_fine(
                 initial_voltage_fine_grid=0.0,
                 initial_generator_current_fine_grid=0.0,
-                samples_per_rf_fine_grid=samples_per_rf,
+                omega_times_dt_fine_grid=omega_times_dt,
                 relative_detuning=0.0,
             )
             return feedback.antenna_voltage_fine_grid
@@ -379,7 +379,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
             "I_gen": np.zeros(n, dtype=complex),
             "V_ant_init": 0.0,
             "I_gen_init": 0.0,
-            "samples_per_rf": samples_per_rf,
+            "omega_times_dt": omega_times_dt,
             "R_over_Q": self.R_over_Q,
             "Q_L": self.Q_L,
             "relative_detuning": 0.0,

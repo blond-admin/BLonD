@@ -140,7 +140,7 @@ def settled_voltage(
         I_gen=np.full(n_samples, generator_current, dtype=complex),
         V_ant_init=V_SET,
         I_gen_init=i_ff,
-        samples_per_rf=2.0 * np.pi,
+        omega_times_dt=2.0 * np.pi,
         R_over_Q=R_OVER_Q,
         Q_L=Q_L,
         relative_detuning=relative_detuning,

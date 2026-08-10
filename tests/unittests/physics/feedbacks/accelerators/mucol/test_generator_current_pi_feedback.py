@@ -606,10 +606,10 @@ class TestFeedbackControllerDelegation(unittest.TestCase):
         cav.antenna_voltage_coarse_grid[idx] = v_ant
         cav.generator_current_coarse_grid = np.zeros(idx + 1, dtype=complex)
         cav._omega_input_for_pi = OMEGA_RF
-        omega_times_T_s = 2 * np.pi  # one rf period
+        omega_times_dt = 2 * np.pi  # one rf period
 
         cav._update_generator_current(
-            omega_times_T_s=omega_times_T_s,
+            omega_times_dt=omega_times_dt,
             coarse_grid_index_to_update=idx,
         )
 
@@ -617,7 +617,7 @@ class TestFeedbackControllerDelegation(unittest.TestCase):
         error, delta_t = stub.calls[0]
         # error = setpoint - antenna voltage; setpoint is V0 here.
         self.assertAlmostEqual(error, (V0 + 0.0j) - v_ant, places=6)
-        self.assertAlmostEqual(delta_t, omega_times_T_s / OMEGA_RF, places=18)
+        self.assertAlmostEqual(delta_t, omega_times_dt / OMEGA_RF, places=18)
         # ...and the controller's output is written to the coarse grid.
         self.assertEqual(cav.generator_current_coarse_grid[idx], sentinel)
 
@@ -935,7 +935,7 @@ class TestResponseMatrixClamping(unittest.TestCase):
         i_max = 0.03
         cav = build_feedback(controller=build_controller(max_output=i_max))
         profile = cav.profile
-        samples_per_rf = OMEGA_RF * profile.hist_step
+        omega_times_dt = OMEGA_RF * profile.hist_step
 
         # Fine-grid current partly above the limit, with varying phase
         phases = np.linspace(0.0, 1.0, N_BINS)
@@ -949,7 +949,7 @@ class TestResponseMatrixClamping(unittest.TestCase):
         cav.cavity_response_fine(
             initial_voltage_fine_grid=0.0,
             initial_generator_current_fine_grid=i_gen_init,
-            samples_per_rf_fine_grid=samples_per_rf,
+            omega_times_dt_fine_grid=omega_times_dt,
             relative_detuning=0.0,
         )
 
@@ -969,7 +969,7 @@ class TestResponseMatrixClamping(unittest.TestCase):
             I_gen=clamped,
             V_ant_init=0.0,
             I_gen_init=i_max + 0.0j,
-            samples_per_rf=samples_per_rf,
+            omega_times_dt=omega_times_dt,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,
             relative_detuning=0.0,

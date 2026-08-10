@@ -8,11 +8,13 @@
 
 
 """
-The :class:`RFCenterSegment` coarse-grid value class.
+The coarse-grid value classes of the cavity feedback.
 
-One segment of the per-turn ``rf_centers`` grid the cavity-feedback timing
-class builds. Kept in its own module so the value type and its validation are
-independent of the (much larger) feedback and grid-construction code.
+:class:`RFCenterSegment` is one segment of the per-turn ``rf_centers`` grid
+the cavity-feedback timing class builds; :class:`PerTurnGridSpan` is the
+per-turn span one grid rebuild produces out of those segments. Both value
+types are kept in this module so they and their validation stay independent
+of the (much larger) feedback and grid-construction code.
 """
 
 from __future__ import annotations
@@ -54,9 +56,8 @@ class RFCenterSegment:
     ``_generate_rf_centers``)."""
     residual: float
     """Accumulator value after this segment -- the leftover time [s] between
-    the last centre and the end of the segment (carried unchanged for an empty
-    segment). Feeds the sub-stepped cross-segment continuity and the
-    demodulation frame, and is READ back by
+    the last centre and the end of the segment. Feeds the sub-stepped
+    cross-segment continuity and the demodulation frame, and is READ back by
     ``_preceding_segment_residual`` on
     :class:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin`
     to form the first coarse step of the FOLLOWING
@@ -66,8 +67,10 @@ class RFCenterSegment:
     any of it is walked, so by consumption time the scalar holds the
     last-generated (forward) segment's value."""
     centers: NumpyArray
-    """The coarse-grid centre times [s] of this segment (may be empty when the
-    segment is shorter than one coarse step)."""
+    """The coarse-grid centre times [s] of this segment. Always holds at
+    least two centres -- enforced in ``__post_init__``, and relied on by the
+    coincidence-guard cell width and the registration-phase gate of
+    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`."""
 
     def __post_init__(self) -> None:
         """Validate the segment fields (frequency, duration, residual, shape)."""

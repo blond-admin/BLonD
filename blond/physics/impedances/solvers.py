@@ -974,7 +974,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         # non-positive clock. This is the same invariant the re-binning
         # consumers check, so it goes through the profile's own guard
         # rather than a second span spelled differently here: the window is
-        # `window_duration` (the outer-edge span, cut_right - cut_left), not
+        # `profile_duration` (the outer-edge span, cut_right - cut_left), not
         # the first-to-last-bin-centre distance this used to compute, which
         # understated it by one hist_step. Cost on a GPU backend is two
         # extra scalar device reads per passage (cut_left/cut_right are
@@ -1349,7 +1349,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         t_rev = self._simulation.get_t_rev_init()
         if isinstance(t_rev, float):
             # This solver needs the window to equal one turn, so it checks
-            # both directions itself; `window_duration` is the shared
+            # both directions itself; `profile_duration` is the shared
             # spelling of the window length that `check_fits_in_span` also
             # compares, so the two cannot drift apart.
             assert abs(profile.profile_duration - t_rev) < profile.hist_step, (

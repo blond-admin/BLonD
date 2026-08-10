@@ -20,6 +20,12 @@ from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
+from blond.physics.feedbacks.cavity_solvers import (
+    coarse_step_exponent,
+    euler_voltage_multiplier,
+    exponential_drive_weight,
+    exponential_voltage_multiplier,
+)
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
@@ -71,7 +77,7 @@ class TestCavityFeedback(unittest.TestCase):
         circuit_track() feeds `relative_detuning = delta_omega / omega_input`
         into cavity_response(), which advances the antenna voltage each
         coarse-grid step by a complex factor containing `1j * relative_detuning
-        * omega_times_T_s == 1j * delta_omega * delta_t`.
+        * omega_times_dt == 1j * delta_omega * delta_t`.
 
         This test drives circuit_track() with a hand-built, constant-step
         rf_centers grid and zero generator/beam current (no_beam=True), so
@@ -115,9 +121,9 @@ class TestCavityFeedback(unittest.TestCase):
 
         v = self.cav_fdbk.antenna_voltage_coarse_grid
 
-        omega_times_T_s = omega_input * dt
+        omega_times_dt = omega_input * dt
         expected_multiplier = (
-            1 - 0.5 * omega_times_T_s / self.Q_L + 1j * self.delta_omega * dt
+            1 - 0.5 * omega_times_dt / self.Q_L + 1j * self.delta_omega * dt
         )
         expected = v0 * expected_multiplier ** np.arange(1, n_steps + 1)
 
@@ -211,7 +217,7 @@ class TestCavityFeedback(unittest.TestCase):
         """Warn when the relative beam kick is between the soft and hard limits."""
         # relative_kick should be between the soft (0.1) and hard (1.0)
         # thresholds: large enough to warn, small enough not to raise
-        omega_times_T_s = 1.0
+        omega_times_dt = 1.0
         self.cav_fdbk._rf_centers = np.array([1e-9, 2e-9])
         self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
@@ -226,7 +232,7 @@ class TestCavityFeedback(unittest.TestCase):
 
         with self.assertWarns(UserWarning) as cm:
             self.cav_fdbk.cavity_response(
-                omega_times_T_s=omega_times_T_s,
+                omega_times_dt=omega_times_dt,
                 coarse_grid_index_to_update=1,
                 relative_detuning=0.0,
                 no_beam=False,
@@ -235,9 +241,9 @@ class TestCavityFeedback(unittest.TestCase):
 
     def test_cavity_response_no_warning_for_small_beam_kick(self):
         """Do not warn when the relative beam kick is negligibly small."""
-        # beam_current * 0.5 * R_over_Q * omega_times_T_s is a tiny fraction
+        # beam_current * 0.5 * R_over_Q * omega_times_dt is a tiny fraction
         # of the previous antenna voltage
-        omega_times_T_s = 1e-9
+        omega_times_dt = 1e-9
         self.cav_fdbk._rf_centers = np.array([1e-9, 2e-9])
         self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
@@ -253,7 +259,7 @@ class TestCavityFeedback(unittest.TestCase):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             self.cav_fdbk.cavity_response(
-                omega_times_T_s=omega_times_T_s,
+                omega_times_dt=omega_times_dt,
                 coarse_grid_index_to_update=1,
                 relative_detuning=0.0,
                 no_beam=False,
@@ -355,7 +361,7 @@ class TestCavityFeedback(unittest.TestCase):
         """Raise when the beam kick exceeds the previous antenna voltage."""
         # beam-induced kick exceeds the previous antenna voltage itself,
         # i.e. the Euler step would flip the sign of the antenna voltage
-        omega_times_T_s = 1.0
+        omega_times_dt = 1.0
         self.cav_fdbk._rf_centers = np.array([1e-9, 2e-9])
         self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
@@ -370,7 +376,7 @@ class TestCavityFeedback(unittest.TestCase):
 
         with self.assertRaises(ValueError) as cm:
             self.cav_fdbk.cavity_response(
-                omega_times_T_s=omega_times_T_s,
+                omega_times_dt=omega_times_dt,
                 coarse_grid_index_to_update=1,
                 relative_detuning=0.0,
                 no_beam=False,
@@ -503,7 +509,7 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
         cav.cavity_response_fine(
             initial_voltage_fine_grid=0.0,
             initial_generator_current_fine_grid=0.0,
-            samples_per_rf_fine_grid=omega_rf * profile.hist_step,
+            omega_times_dt_fine_grid=omega_rf * profile.hist_step,
             relative_detuning=delta_omega / omega_rf,
         )
         return lab_frame_voltage(
@@ -935,24 +941,24 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         """The default branch reproduces the forward-Euler update exactly."""
         cav = self._feedback(exponential=False)
         v_prev, i_gen, i_beam = 30e6 + 1e6j, 0.02 + 0.01j, 0.005j
-        omega_dt, rel_det = 2.0 * np.pi, -1e-4
+        omega_times_dt, rel_det = 2.0 * np.pi, -1e-4
         got = cav._advance_coarse_voltage(
-            v_prev, i_gen, i_beam, omega_dt, rel_det
+            v_prev, i_gen, i_beam, omega_times_dt, rel_det
         )
-        step = -0.5 * omega_dt / self.Q_L + 1j * rel_det * omega_dt
-        drive = self.R_over_Q * omega_dt * (i_gen - 0.5 * i_beam)
+        step = -0.5 * omega_times_dt / self.Q_L + 1j * rel_det * omega_times_dt
+        drive = self.R_over_Q * omega_times_dt * (i_gen - 0.5 * i_beam)
         self.assertAlmostEqual(got, v_prev * (1 + step) + drive, places=6)
 
     def test_exponential_branch_matches_the_closed_form(self):
         """The exponential branch matches e^L V + src (e^L - 1)/L."""
         cav = self._feedback(exponential=True)
         v_prev, i_gen, i_beam = 30e6 + 1e6j, 0.02 + 0.01j, 0.005j
-        omega_dt, rel_det = 2.0 * np.pi, -1e-4
+        omega_times_dt, rel_det = 2.0 * np.pi, -1e-4
         got = cav._advance_coarse_voltage(
-            v_prev, i_gen, i_beam, omega_dt, rel_det
+            v_prev, i_gen, i_beam, omega_times_dt, rel_det
         )
-        step = -0.5 * omega_dt / self.Q_L + 1j * rel_det * omega_dt
-        drive = self.R_over_Q * omega_dt * (i_gen - 0.5 * i_beam)
+        step = -0.5 * omega_times_dt / self.Q_L + 1j * rel_det * omega_times_dt
+        drive = self.R_over_Q * omega_times_dt * (i_gen - 0.5 * i_beam)
         expected = v_prev * np.exp(step) + drive * (np.expm1(step) / step)
         self.assertAlmostEqual(got / expected, 1.0, places=12)
 
@@ -970,12 +976,13 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         cav_eu = self._feedback(exponential=False)
         cav_eu.Q_L = 1e18
         v_prev = 30e6 + 0.0j
-        omega_dt, rel_det = 2.0 * np.pi, 0.5 / (2.0 * np.pi)  # delta*dt = 0.5
+        # delta * dt = 0.5
+        omega_times_dt, rel_det = 2.0 * np.pi, 0.5 / (2.0 * np.pi)
         v_exp = cav_exp._advance_coarse_voltage(
-            v_prev, 0.0, 0.0, omega_dt, rel_det
+            v_prev, 0.0, 0.0, omega_times_dt, rel_det
         )
         v_eu = cav_eu._advance_coarse_voltage(
-            v_prev, 0.0, 0.0, omega_dt, rel_det
+            v_prev, 0.0, 0.0, omega_times_dt, rel_det
         )
         # Exponential: exact rotation by 0.5 rad, magnitude unchanged.
         self.assertAlmostEqual(np.abs(v_exp) / np.abs(v_prev), 1.0, places=12)
@@ -990,12 +997,12 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         cav_exp = self._feedback(exponential=True)
         cav_eu = self._feedback(exponential=False)
         v_prev, i_gen, i_beam = 30e6 + 0.0j, 0.02 + 0.0j, 0.0
-        omega_dt, rel_det = 2.0 * np.pi * 1e-3, -1e-6  # tiny step
+        omega_times_dt, rel_det = 2.0 * np.pi * 1e-3, -1e-6  # tiny step
         v_exp = cav_exp._advance_coarse_voltage(
-            v_prev, i_gen, i_beam, omega_dt, rel_det
+            v_prev, i_gen, i_beam, omega_times_dt, rel_det
         )
         v_eu = cav_eu._advance_coarse_voltage(
-            v_prev, i_gen, i_beam, omega_dt, rel_det
+            v_prev, i_gen, i_beam, omega_times_dt, rel_det
         )
         self.assertAlmostEqual(v_exp / v_eu, 1.0, places=9)
 
@@ -1010,16 +1017,16 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         large per-step beam kick is not a discretisation error there; the
         guard must be skipped, exactly as ``_check_step_sizes`` already is.
         """
-        # Beam current chosen so the Euler relative kick exceeds the hard
-        # cap (relative_kick = |I| * 0.5 * R_over_Q * omega_dt / |V| > 1).
+        # Beam current chosen so the Euler relative kick exceeds the hard cap
+        # (relative_kick = |I| * 0.5 * R_over_Q * omega_times_dt / |V| > 1).
         beam_current = 1000.0
-        omega_times_T_s = 2.0 * np.pi
+        omega_times_dt = 2.0 * np.pi
         previous_voltage = 1.0e6
         relative_kick = (
             abs(beam_current)
             * 0.5
             * self.R_over_Q
-            * omega_times_T_s
+            * omega_times_dt
             / abs(previous_voltage)
         )
         assert relative_kick > 1.0  # the scenario really trips the guard
@@ -1028,14 +1035,14 @@ class TestExponentialCoarseSolver(unittest.TestCase):
         cav_eu = self._feedback(exponential=False)
         with self.assertRaises(ValueError):
             cav_eu._check_beam_kick_magnitude(
-                beam_current, omega_times_T_s, previous_voltage
+                beam_current, omega_times_dt, previous_voltage
             )
 
         # Exponential mode: the exact solver makes the guard inapplicable,
         # so it must return without raising.
         cav_exp = self._feedback(exponential=True)
         cav_exp._check_beam_kick_magnitude(
-            beam_current, omega_times_T_s, previous_voltage
+            beam_current, omega_times_dt, previous_voltage
         )  # must not raise
 
     def test_beam_kicks_kernel_guard_skipped_for_exponential_solver(self):

@@ -24,14 +24,20 @@ owns and initialises in ``__init__`` / ``on_run_simulation``.
 - Tiling carry-over from one segment to the next:
   ``_residual_time_last_rf_centers_calculation``,
   ``_residual_taps_last_rf_centers_calculation`` and
-  ``_last_forward_tracking_freq``; plus the host-written
-  ``_residual_time_carried_into_turn``, which
-  ``RFCenterGridMixin._preceding_segment_residual`` uses at a turn
-  boundary.
-- Walk results the tracking loop then consumes:
-  ``_reverse_tracking_time_array`` / ``_reverse_tracking_omega_list``,
-  ``_forward_tracking_time`` / ``_forward_tracking_omega_rf`` and
-  ``_tracked_forward_until_element``.
+  ``_last_forward_tracking_freq``.
+- Turn-boundary carry-over, captured by
+  ``RFCenterGridMixin._close_previous_turn_grid`` before it clears the
+  previous turn's segments: ``_residual_time_carried_into_turn``, which
+  ``RFCenterGridMixin._preceding_segment_residual`` reads back at a turn
+  boundary, and ``_last_rf_centers_entry``, the previous turn's last
+  centre -- the only piece the host reads back (as a first-turn
+  ``None`` / not-``None`` flag in its per-cell step sizing).
+- Walk results: ``_reverse_tracking_time_array`` /
+  ``_reverse_tracking_omega_list``, which stay inside this module (the
+  reverse generation turns them into segments, and the tracking loop then
+  reads the segments), plus ``_forward_tracking_time`` /
+  ``_forward_tracking_omega_rf`` and ``_tracked_forward_until_element``,
+  which the tracking loop consumes.
 - Reference bookkeeping: ``_reference_state_until_tracked``,
   ``_reference_index_until_tracked``,
   ``reference_index_until_tracked_reverse``, ``_reference_turn_offset``,
@@ -523,9 +529,9 @@ class RFCenterGridMixin:
         """
         offset = 0
         for segment_index, segment in enumerate(self._segments):
-            # A run of empty segments shares one offset; the first match wins
-            # and gives the same number, because an empty segment carries the
-            # previous residual through unchanged.
+            # Segment offsets are strictly increasing (every segment holds
+            # >= 2 centres, enforced in RFCenterSegment), so at most one
+            # segment can match start_index.
             if offset == start_index:
                 if segment_index == 0:
                     return (
@@ -578,9 +584,10 @@ class RFCenterGridMixin:
         -------
         rf_centers
             Segment-local coarse-grid centre times [s]. Empty (with a
-            warning) when the segment is shorter than one coarse step, which
-            is legitimate for a short reverse segment: callers append a
-            zero-length segment and the tracking loop no-ops over it.
+            warning) when the segment is shorter than one coarse step; the
+            ``RFCenterSegment`` the caller then constructs rejects such a
+            degenerate (fewer than two centres) segment with an actionable
+            ``ValueError``.
 
         Notes
         -----
@@ -646,11 +653,13 @@ class RFCenterGridMixin:
                 f"no rf centers in turn {self._parent_rf_station._turn_counter.value} at {self.section_index}",
                 stacklevel=2,
             )
-            # A segment shorter than one coarse step legitimately contains no
-            # centre (common with fine sectioning, where a reverse segment can
-            # be shorter than step_width). Return the empty array -- callers
-            # append a zero-length segment and circuit_track() no-ops over it
-            # -- rather than None, which would crash len(new_rf_centers).
+            # A segment shorter than one coarse step contains no centre
+            # (fine sectioning: a reverse segment shorter than step_width).
+            # Return the empty array rather than indexing rf_centers[-1]
+            # below; the RFCenterSegment the caller constructs right after
+            # rejects the degenerate segment with the actionable >=2-centres
+            # ValueError, and this warning adds the turn/section context
+            # that error cannot know.
             return rf_centers
 
         # reset with current turn

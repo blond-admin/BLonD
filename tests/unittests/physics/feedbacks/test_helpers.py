@@ -158,10 +158,10 @@ class TestACSSparseModel(unittest.TestCase):
             R_over_Q_,
             Q_L_,
             detuning_,
-            samples_per_rf_,
+            omega_times_dt_,
         ):
             def cavity_response(
-                samples_per_rf: float,
+                omega_times_dt: float,
                 R_over_Q,
                 i_gen,
                 i_beam,
@@ -172,21 +172,21 @@ class TestACSSparseModel(unittest.TestCase):
                 r"""ACS cavity response model"""
 
                 return (
-                    i_gen * R_over_Q * samples_per_rf
+                    i_gen * R_over_Q * omega_times_dt
                     + v_ant
                     * (
                         1
-                        - 0.5 * samples_per_rf / Q_L
-                        + 1j * detuning * samples_per_rf
+                        - 0.5 * omega_times_dt / Q_L
+                        + 1j * detuning * omega_times_dt
                     )
-                    - i_beam * 0.5 * R_over_Q * samples_per_rf
+                    - i_beam * 0.5 * R_over_Q * omega_times_dt
                 )
 
             voltage = np.zeros(len(I_gen) + 1, dtype=complex)
             voltage[0] = V_init
             for _i in range(1, n_samples + 1):
                 voltage[_i] = cavity_response(
-                    samples_per_rf_,
+                    omega_times_dt_,
                     R_over_Q_,
                     I_gen[_i - 1],
                     I_beam[_i - 1],
@@ -197,7 +197,7 @@ class TestACSSparseModel(unittest.TestCase):
             return voltage[1:]
 
         n_samples = 1000
-        samples_per_rf = 2 * np.pi / 1
+        omega_times_dt = 2 * np.pi / 1
         I_beam = np.zeros(n_samples)
         I_gen = (0.2565950699764863 + 0.004372312359083769j) * np.ones(
             n_samples
@@ -210,7 +210,7 @@ class TestACSSparseModel(unittest.TestCase):
             R_over_Q=R_over_Q_in,
             Q_L=Q_L_in,
             V_ant_init=V_ant_init_in,
-            samples_per_rf=samples_per_rf,
+            omega_times_dt=omega_times_dt,
             I_gen_init=I_gen[0],
             I_beam=I_beam,  # shortening due to internal extension
             I_gen=I_gen,
@@ -225,7 +225,7 @@ class TestACSSparseModel(unittest.TestCase):
             R_over_Q_in,
             Q_L_in,
             rel_detuning_in,
-            samples_per_rf,
+            omega_times_dt,
         )
 
         DEBUG_PLOT = False
@@ -243,7 +243,7 @@ class TestACSSparseModel(unittest.TestCase):
                 R_over_Q=R_over_Q_in,
                 Q_L=Q_L_in,
                 V_ant_init=V_ant_init_in,
-                samples_per_rf=samples_per_rf,
+                omega_times_dt=omega_times_dt,
                 I_beam=I_beam[1:],
                 I_gen=I_gen,
                 relative_detuning=rel_detuning_in,
@@ -254,7 +254,7 @@ class TestACSSparseModel(unittest.TestCase):
                 R_over_Q=R_over_Q_in,
                 Q_L=Q_L_in,
                 V_ant_init=V_ant_init_in,
-                samples_per_rf=samples_per_rf,
+                omega_times_dt=omega_times_dt,
                 I_beam=I_beam,
                 I_gen=I_gen[1:],
                 I_gen_init=I_gen[0],

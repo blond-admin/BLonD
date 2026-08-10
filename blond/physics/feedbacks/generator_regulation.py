@@ -92,7 +92,7 @@ class GeneratorRegulationMixin:
 
     def _update_generator_current(
         self,
-        omega_times_T_s: float,
+        omega_times_dt: float,
         coarse_grid_index_to_update: int,
     ) -> None:
         """
@@ -104,8 +104,8 @@ class GeneratorRegulationMixin:
 
         Parameters
         ----------
-        omega_times_T_s
-            Angular frequency times sampling time of this step.
+        omega_times_dt
+            RF phase advanced in this step [rad], i.e. ``omega * dt``.
         coarse_grid_index_to_update
             Coarse grid index whose generator current is written.
         """
@@ -116,7 +116,7 @@ class GeneratorRegulationMixin:
             )
         idx = coarse_grid_index_to_update
         error = self.pi_setpoint - self.antenna_voltage_coarse_grid[idx]
-        delta_t = omega_times_T_s / self._omega_input_for_pi
+        delta_t = omega_times_dt / self._omega_input_for_pi
         self.generator_current_coarse_grid[idx] = (
             self._controller.update_generator_current(error, delta_t)
         )

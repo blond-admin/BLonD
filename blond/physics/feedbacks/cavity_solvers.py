@@ -42,7 +42,7 @@ def cavity_response_sparse_matrix(
     I_gen: NumpyArray,
     V_ant_init: float,
     I_gen_init: float,
-    samples_per_rf: float,
+    omega_times_dt: float,
     R_over_Q: float,
     Q_L: float,
     relative_detuning: float,
@@ -67,10 +67,10 @@ def cavity_response_sparse_matrix(
         Initial condition for the antenna voltage.
     I_gen_init : complex float
         Initial condition for the generator current.
-    samples_per_rf : float
-        RF phase advanced per sample [rad], i.e. ``omega_rf * sampling_time``
-        (= 2*pi / samples-per-period). The solver coefficients use it directly
-        as ``omega * dt``; callers pass ``omega_input * profile.hist_step``.
+    omega_times_dt : float
+        RF phase advanced in one sampling step [rad], i.e.
+        ``omega_rf * sampling_time``; callers pass
+        ``omega_input * profile.hist_step``.
     R_over_Q : float
         The R over Q of the cavity.
     Q_L : float
@@ -94,11 +94,11 @@ def cavity_response_sparse_matrix(
     n_samples = len(internal_I_gen)
 
     # Compute matrix elements
-    A = 0.5 * R_over_Q * samples_per_rf
+    A = 0.5 * R_over_Q * omega_times_dt
     B = (
         1
-        - 0.5 * samples_per_rf / Q_L
-        + 1j * relative_detuning * samples_per_rf
+        - 0.5 * omega_times_dt / Q_L
+        + 1j * relative_detuning * omega_times_dt
     )
 
     # Initialize the two sparse matrices needed to find antenna voltage
@@ -125,7 +125,7 @@ def cavity_response_sparse_matrix_second_order(
     I_gen: NumpyArray,
     V_ant_init: float,
     I_gen_init: float,
-    samples_per_rf: float,
+    omega_times_dt: float,
     R_over_Q: float,
     Q_L: float,
     relative_detuning: float,
@@ -148,10 +148,10 @@ def cavity_response_sparse_matrix_second_order(
     :func:`cavity_response_sparse_matrix`.
     The truncation error is therefore :math:`O(\Delta t^2)` rather than
     :math:`O(\Delta t)`, which matters most at coarse binning (large
-    ``samples_per_rf``).
+    ``omega_times_dt``).
 
-    With ``lam = -0.5 * samples_per_rf / Q_L + 1j * relative_detuning *
-    samples_per_rf`` (so ``B = 1 + lam`` of the first-order solver) and the
+    With ``lam = -0.5 * omega_times_dt / Q_L + 1j * relative_detuning *
+    omega_times_dt`` (so ``B = 1 + lam`` of the first-order solver) and the
     per-step drive ``s[i] = A * (2 I_gen[i] - I_beam[i])``, the recursion is
 
     .. math::
@@ -168,10 +168,10 @@ def cavity_response_sparse_matrix_second_order(
         Initial condition for the antenna voltage.
     I_gen_init : complex float
         Initial condition for the generator current.
-    samples_per_rf : float
-        RF phase advanced per sample [rad], i.e. ``omega_rf * sampling_time``
-        (= 2*pi / samples-per-period). The solver coefficients use it directly
-        as ``omega * dt``; callers pass ``omega_input * profile.hist_step``.
+    omega_times_dt : float
+        RF phase advanced in one sampling step [rad], i.e.
+        ``omega_rf * sampling_time``; callers pass
+        ``omega_input * profile.hist_step``.
     R_over_Q : float
         The R over Q of the cavity.
     Q_L : float
@@ -195,9 +195,9 @@ def cavity_response_sparse_matrix_second_order(
 
     n_samples = len(internal_I_gen)
 
-    A = 0.5 * R_over_Q * samples_per_rf
+    A = 0.5 * R_over_Q * omega_times_dt
     # lam == B - 1 of the first-order solver, i.e. (step size) * (decay/detuning)
-    lam = -0.5 * samples_per_rf / Q_L + 1j * relative_detuning * samples_per_rf
+    lam = -0.5 * omega_times_dt / Q_L + 1j * relative_detuning * omega_times_dt
 
     # Per-step current drive, identical to the first-order solver's source term
     s = A * (2 * internal_I_gen - internal_I_beam)
@@ -418,8 +418,8 @@ class ForwardEulerValidityGuard:
         if not self.enabled:
             return
 
-        omega_dt = omega_rf * sampling_time
-        decay_per_step = 0.5 * omega_dt / Q_L
+        omega_times_dt = omega_rf * sampling_time
+        decay_per_step = 0.5 * omega_times_dt / Q_L
         detuning_phase_per_step = delta_omega * sampling_time
 
         if decay_per_step > self.max_step_angle_hard:
@@ -472,7 +472,7 @@ class ForwardEulerValidityGuard:
     def check_beam_kick_magnitude(
         self,
         beam_current: complex | float | int,
-        omega_times_T_s: float | int,
+        omega_times_dt: float | int,
         previous_voltage: complex | float | int,
         R_over_Q: float,
     ) -> None:
@@ -486,8 +486,8 @@ class ForwardEulerValidityGuard:
         ----------
         beam_current
             Beam current sample used for this step [A].
-        omega_times_T_s
-            Angular frequency times sampling time for this step.
+        omega_times_dt
+            RF phase advanced in this step [rad], i.e. ``omega * dt``.
         previous_voltage
             Antenna voltage of the previous coarse-grid step, which the
             kick is added to/subtracted from.
@@ -504,7 +504,7 @@ class ForwardEulerValidityGuard:
         if beam_current == 0:
             return
 
-        beam_kick = beam_current * 0.5 * R_over_Q * omega_times_T_s
+        beam_kick = beam_current * 0.5 * R_over_Q * omega_times_dt
         previous_voltage_abs = np.abs(previous_voltage)
         if previous_voltage_abs == 0:
             return
@@ -563,7 +563,8 @@ class ForwardEulerValidityGuard:
         beam_current
             Per-cell beam current of the segment.
         omega_times_dt
-            Per-cell ``omega * dt`` of the segment.
+            Per-cell RF phase advanced in one step [rad], i.e.
+            ``omega * dt``.
         voltage_init
             Antenna voltage preceding the first cell.
         voltage_out
