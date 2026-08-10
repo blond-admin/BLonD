@@ -126,6 +126,20 @@ forward / reverse tracking
 segment
     One contiguous piece of coarse grid produced by one such walk, at a
     single tracked frequency.
+residual
+    The unfilled tail of a segment: the time between its last coarse
+    centre and the segment's end (an empty segment carries the previous
+    one's residual through unchanged). Coarse centre times are
+    segment-*local*, so the coarse step into the first cell of a segment
+    is that cell's local time plus the *preceding* segment's residual.
+    It is read back from the segment list
+    (``_preceding_segment_residual``), not from the live accumulator,
+    which by the time the grid is walked already holds the last-generated
+    (forward) segment's value; the first segment of a turn steps across
+    the turn boundary and takes the residual the previous turn ended on.
+    The same quantity is the demodulation frame of the forward segment --
+    under ``debug`` an assertion ties the two together so they cannot
+    silently drift apart.
 carried deposit
     Beam-induced voltage laid onto the grid on one turn that must then be
     propagated ("carried") consistently across later turns and segments.
@@ -163,7 +177,21 @@ Classes at a glance
     reference walks and per-turn segment generation of the timing class.
 
 :mod:`blond.physics.feedbacks.rf_center_segment`
-    The ``RFCenterSegment`` value class the coarse grid is built from.
+    The ``RFCenterSegment`` value class the coarse grid is built from:
+    the segment's frequency, duration, centre times and its ``residual``
+    -- the unfilled tail between its last centre and its end. The
+    ``residual`` is read back by ``_preceding_segment_residual`` to form
+    the coarse step into the *following* segment's first cell, and is the
+    demodulation frame of the forward segment.
+
+:class:`~blond.physics.feedbacks.cavity_feedback.PerTurnGridSpan`
+    Frozen value class returned by one grid rebuild: this passage's
+    reverse and forward centre counts plus ``residual_from_reverse_span``,
+    the residual snapshotted *between* the reverse and the forward
+    generation. Returning it rather than leaving it on the feedback is
+    what makes the per-turn phase ordering enforceable by the data flow --
+    the demodulation frame can only be read from a span object, and a span
+    is only produced by a rebuild that snapshotted it in time.
 
 :mod:`blond.physics.feedbacks.generator_regulation`
     ``GeneratorRegulationMixin``: the controller-facing pieces of the timing
@@ -193,6 +221,18 @@ Classes at a glance
     disabled for the exact exponential propagator, which is subject to none
     of these caps.
 
+:mod:`blond.physics.feedbacks.envelope_kernel`
+    The compiled numba host kernel (``envelope_pi_scan``) the coarse
+    per-cell recursion runs on by default
+    (``use_numba_envelope_kernel``). It is byte-identical to the
+    pure-Python per-cell reference, which is kept both as that reference
+    and as the exact fallback: a segment is re-run there when any cell
+    reaches the klystron limit (whose numpy magnitude clamp the kernel
+    cannot reproduce bit-for-bit) or when two coarse points coincide
+    (zero step), and a controller that supplies no compiled form of
+    itself (``supports_envelope_scan``) is driven cell by cell instead.
+    Set the flag ``False`` on an instance to force the reference path.
+
 :mod:`blond.physics.feedbacks.iq`
     IQ / polar conversions (``cartesian_to_polar``, ``polar_to_cartesian``).
 
@@ -200,66 +240,139 @@ Classes at a glance
 Signal path of one turn
 -----------------------
 
-Each turn the timing class performs, in order:
+``_track`` is a pure call-order declaration: it does no work itself, it
+only names the phases below in order and hands what one phase produced to
+the phase that needs it, so the argument lists *are* the dependency graph.
+Each turn the timing class runs:
 
-1. **Coarse-grid construction** (``rf_centers``). The feedback tracks a copy
-   of the beam reference forward to the next RF station and, on later turns,
-   re-derives the segments that elapsed since its last update (reverse
-   tracking). Each segment carries the *design* RF frequency it was tracked
-   with (at the local reference energy), so the coarse-step spacing follows
-   the design RF period even under acceleration and with several stations
-   per ring. A station RF-frequency offset ``delta_omega_rf`` never moves
-   the grid, and does not shift the demodulation carrier either (which stays
-   on the design clock): it enters only as one explicit constant phase, the
-   accumulated kick-clock slip (see below).
+1. ``_guard_simultaneous_passage`` -- refuses a coincident
+   counter-rotating passage with ``NotImplementedError`` (station at a
+   meeting azimuth; the tolerance is half the last forward coarse-cell
+   width), then records this passage's arrival time and direction as the
+   record the next passage compares itself against. It runs first so that
+   a refused passage cannot leave a half-rebuilt grid behind.
 
-2. **Beam-current demodulation.** The timing class calls
-   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` to convert
-   the beam profile into the complex IQ beam-current envelope at the carrier
-   frequency (factor-2 single-sideband demodulation), apply the
-   reference-frame phase correction, and re-bin the fine-grid charge onto the
-   coarse cells charge-conservingly. A guard forbids charge in the first coarse cell,
-   whose value seeds the fine-grid initial condition (double counting), and a
-   warning fires if the profile window does not capture the whole beam.
+2. ``_carrier_slip_gap_at_passage`` -- returns the *live tail* of the
+   RF-frequency-offset phase slip,
+   ``delta_omega_rf * (t_passage - last kick-clock tick)``. The station
+   accumulates its kick clock ``delta_phi_rf`` only at the end of each
+   track, so this gap completes it to the exact accumulated slip at this
+   passage. Exactly ``0.0`` without an offset. It is *returned* and then
+   assigned to ``_carrier_slip_gap``, which makes visible that the value
+   is reset at every passage rather than accumulated.
 
-3. **Coarse-grid cavity update.** The antenna voltage is advanced cell by
-   cell with the forward-Euler discretisation of the cavity-envelope ODE:
-   generator drive ``I_gen (R/Q) omega dt``, decay/detuning multiplier
-   ``1 - 0.5 omega dt / Q_L + i delta_omega dt`` and beam loading
-   ``-0.5 I_beam (R/Q) omega dt``. Discretisation validity is enforced:
-   ``_check_step_sizes`` warns above a per-step decay/rotation of 0.1 and
-   raises above 1.0 -- there the Euler decay factor ``1 - 0.5 omega dt / Q_L``
-   turns negative and the discretised voltage flips sign every step, which the
-   exact (always positive) decay never does; use
-   ``exponential_coarse_solver_enable=True`` for larger steps. An analogous
-   check warns/raises when the per-step
-   beam kick is large relative to the antenna voltage. With
-   ``exponential_coarse_solver_enable=True`` the exact exponential propagator
-   ``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces the Euler step: it is
-   exact in decay and detuning rotation (a pure detuning becomes a pure
-   rotation instead of growing ``|V|`` by ``sqrt(1 + (delta_omega dt)^2)``
-   per step) and is the accurate alternative to sub-stepping at low ``Q_L``
-   or large detuning.
+3. ``_rebuild_per_turn_grid`` -- rebuilds this passage's coarse grid
+   (``rf_centers``), sizes the coarse state and returns a frozen
+   :class:`~blond.physics.feedbacks.cavity_feedback.PerTurnGridSpan`. It
+   first calls ``_close_previous_turn_grid``, which captures the previous
+   turn's last centre and its end-of-turn residual
+   (``_residual_time_carried_into_turn``) *before* clearing the segment
+   list, and then generates this passage's segments: the feedback tracks a
+   copy of the beam reference forward to the next RF station and, on later
+   turns, re-derives the segments that elapsed since its last update
+   (reverse tracking). Each segment carries the *design* RF frequency it
+   was tracked with (at the local reference energy), so the coarse-step
+   spacing follows the design RF period even under acceleration and with
+   several stations per ring. A station RF-frequency offset
+   ``delta_omega_rf`` never moves the grid, and does not shift the
+   demodulation carrier either (which stays on the design clock): it
+   enters only as the explicit constant phase of step 2. ``reset_arrays``
+   is the last statement of this phase -- it can neither precede the grid
+   generation it takes its size from, nor follow any ``circuit_track``.
 
-4. **Optional generator-current control.** With a ``controller`` attached,
-   each coarse step forms the error ``V_set - V_ant[n]`` and lets the
-   controller produce ``I_gen[n]``, which drives the next step; without one,
-   the generator current stays at the constant feedforward value
-   ``generator_current_bias``. The controller is stepped only on the real
-   forward passage, never on the reverse reconstruction segments (those
-   carry a per-segment frame phase, so stepping there would integrate
-   frame-rotated errors and double-advance the delay line and integrator).
-   The klystron limit is enforced on the fine grid as well before the
-   response solve.
+4. ``_replay_reverse_span`` -- re-walks this passage's reverse segments
+   with ``no_beam=True``, one ``circuit_track`` per reverse frequency, so
+   that the envelope carries the already-elapsed interval forward. A
+   passage that generated no reverse segments skips the replay entirely.
 
-5. **Fine-grid solve.** The generator current is interpolated onto the
-   profile grid and the cavity response is solved as a sparse bidiagonal
-   system -- first order by default, or the second-order (Crank-Nicolson)
-   solver with ``second_order_fine_grid_solver_enable=True``, whose
-   truncation error scales with the bin size squared. The result, scaled by
-   ``n_cavities``, yields the
-   voltage correction and phase correction the parent RF station applies to
-   its kick.
+5. ``_accumulate_registration_phase`` -- accumulates the multi-section
+   grid-vs-carrier registration phase
+   ``Psi = sum_k (omega_k - omega_0) T_seg,k`` (explained under *Interplay
+   with the RF station* below) and returns the running total, which is
+   added to ``_carrier_slip_gap``. Exactly ``+0.0`` for a single section
+   and for an unaccelerated ring, so both stay bit-identical.
+
+6. ``_write_debug_readout`` -- only with ``debug=True``: writes the
+   neutral readout (unit relative voltage, zero phase) and ends the turn
+   there, so neither the demodulation nor the forward pass runs.
+
+7. ``_track_forward_span`` -- the real work of the turn, in two steps.
+
+   *Demodulation*: ``calculate_rf_beam_current_partial`` calls
+   :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` to
+   convert the beam profile into the complex IQ beam-current envelope at
+   the *design* carrier (factor-2 single-sideband demodulation), rotate it
+   by the reference-frame phase and by the constant
+   ``-(delta_phi_rf + _carrier_slip_gap)``, and re-bin the fine-grid
+   charge onto the coarse cells charge-conservingly. The demodulation
+   frame is the span's ``residual_from_reverse_span``, snapshotted before
+   the forward generation overwrote the host scalar; re-reading that
+   scalar here would silently shift the frame. Several guards protect this
+   path: charge in the first coarse cell raises (that cell seeds the
+   fine-grid initial condition, so its kick would be double-counted), a
+   profile window longer than the coarse grid it is re-binned onto raises
+   through ``ProfileBaseClass.check_fits_in_span``, a window mapping past
+   the last coarse cell raises, and a warning fires if the profile window
+   does not capture the whole beam.
+
+   *Forward pass*: one ``circuit_track`` over the forward segment, which
+   performs the coarse-grid cavity update, the optional generator control
+   and the fine-grid solve described below.
+
+8. ``_write_station_readout`` -- converts the fine-grid antenna voltage
+   into ``relative_voltage_correction`` (divided by the station voltage)
+   and ``phase_correction`` (referenced to the mean phase of
+   ``station_voltage_coarse_grid``, plus the very same
+   ``_carrier_slip_gap`` the demodulation subtracted, so that the
+   demodulation/readout chain closes). These two are what the parent RF
+   station applies to its kick.
+
+**Coarse-grid cavity update** (inside ``circuit_track``). The antenna
+voltage is advanced cell by cell with the forward-Euler discretisation of
+the cavity-envelope ODE: generator drive ``I_gen (R/Q) omega dt``,
+decay/detuning multiplier ``1 - 0.5 omega dt / Q_L + i delta_omega dt``
+and beam loading ``-0.5 I_beam (R/Q) omega dt``. Discretisation validity
+is enforced by
+:class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`
+(the timing class's ``_check_step_sizes``, ``_check_beam_kicks`` and
+``_check_beam_kick_magnitude`` only supply it the cavity's current
+parameters): it warns above a per-step decay/rotation of 0.1 and raises
+above 1.0 -- there the Euler decay factor ``1 - 0.5 omega dt / Q_L`` turns
+negative and the discretised voltage flips sign every step, which the
+exact (always positive) decay never does; use
+``exponential_coarse_solver_enable=True`` for larger steps. An analogous
+check warns/raises when the per-step beam kick is large relative to the
+antenna voltage. With ``exponential_coarse_solver_enable=True`` the exact
+exponential propagator ``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces
+the Euler step: it is exact in decay and detuning rotation (a pure
+detuning becomes a pure rotation instead of growing ``|V|`` by
+``sqrt(1 + (delta_omega dt)^2)`` per step) and is the accurate alternative
+to sub-stepping at low ``Q_L`` or large detuning.
+
+**Optional generator-current control.** With a ``controller`` attached,
+each coarse step forms the error ``V_set - V_ant[n]`` and lets the
+controller produce ``I_gen[n]``, which drives the next step; without one,
+the generator current stays at the constant feedforward value
+``generator_current_bias``. The controller is stepped only on the real
+forward passage, never on the reverse reconstruction segments (those
+carry a per-segment frame phase, so stepping there would integrate
+frame-rotated errors and double-advance the delay line and integrator).
+Over that reverse span ``reset_arrays`` therefore seeds the generator grid
+with the *last commanded* current instead of the feedforward bias (a
+zero-order hold): those cells replay an interval that has already elapsed
+and during which the loop issued no new command, so the generator kept
+running at whatever it was last told rather than snapping back to the
+bias. Without a controller the held value *is* the bias, so the
+constant-current path is bit-unchanged. The klystron limit is enforced on
+the fine grid as well before the response solve.
+
+**Fine-grid solve.** The generator current is interpolated onto the
+profile grid and the cavity response is solved as a sparse bidiagonal
+system -- first order by default, or the second-order (Crank-Nicolson)
+solver with ``second_order_fine_grid_solver_enable=True``, whose
+truncation error scales with the bin size squared. The result is scaled by
+``n_cavities`` before the readout phase converts it into the voltage
+correction and phase correction the parent RF station applies to its kick.
 
 
 Initial conditions and cavity pre-fill
@@ -319,6 +432,29 @@ For low loaded quality factors the per-RF-period Euler step can violate the
 step-size limits; the sub-stepping mode
 (``n_rf_periods_per_coarse_grid < 1``) subdivides the RF period, with the
 coarse centres tiling continuously across turn boundaries.
+
+**Multi-section registration phase.** A ring with several RF stations
+builds each passage's grid piecewise: every reverse segment ``k`` spans
+``T_seg,k`` at the past station's design frequency ``omega_k``, while the
+forward segment and *both* the demodulation and the readout reference the
+single carrier ``omega_0``. The grid therefore accumulates
+``sum_k omega_k T_seg,k`` where the carrier accumulates
+``omega_0 T_total``, and the difference
+
+   ``Psi = sum_k (omega_k - omega_0) T_seg,k``
+
+is a pure bookkeeping mismatch -- identically zero for a single section,
+which is why single-section rings need no correction at all. It is
+*separate* from the cavity resonance detuning ``delta_omega``, whose
+physical precession the coarse recursion already applies on every step.
+``Psi`` is carried as an explicit *carrier* phase, exactly the idiom the
+RF-frequency offset above uses: subtracted at demodulation
+(``carrier_phase_offset``) and added back at readout
+(``phase_correction``). It is deliberately *not* applied as a rotation of
+the antenna-voltage state -- that would also rotate the generator-driven
+field, which carries no registration error, turning a phase error into an
+amplitude drift. See ``_accumulate_registration_phase`` for the
+implementation.
 
 
 Counter-rotating beams
@@ -423,24 +559,16 @@ Known limitations
   to the accumulated actual RF phase and validated at the discretization
   floor for offsets beyond the cavity half-bandwidth
   (``test_multiturn_delta_omega_rf_*``).
-* Driven (generator-bias) multi-section fast-ramp operation used to drift in
-  ``|V_ant|`` (percent-level over a few turns). **Fixed**: a multi-section
-  passage builds its grid piecewise, so the grid accumulates the RF phase
-  ``sum_k omega_k T_k`` while the demodulation and readout reference the
-  single carrier ``omega_0`` -- a mismatch
-  ``Psi = sum_k (omega_k - omega_0) T_k`` that vanishes identically for one
-  section. ``Psi`` is now carried as an explicit *phase* (folded into the
-  demodulation offset and undone at readout, the same idiom the
-  RF-frequency offset uses) instead of rotating the antenna-voltage state;
-  the generator-driven field, which carries no registration error, is left
-  untouched, and the driven steady state is now exact. Pinned by
+* Driven (generator-bias) multi-section fast-ramp operation keeps a
+  readout-*phase* offset: the registration phase ``Psi`` (see *Interplay
+  with the RF station* above) reaches the beam through
+  ``phase_correction``, but the beam-induced part needs ``Psi`` at readout
+  while the generator-driven part does not, and a single readout phase
+  cannot separate the two. The amplitude drift this bullet used to
+  describe -- percent-level ``|V_ant|`` growth per turn, from applying
+  ``Psi`` as a rotation of the antenna-voltage state -- is gone. Pinned by
   ``TestDrivenSteadyStateFastRamp`` and
   ``TestPIFullTrackingMultiSectionFastRamp``.
-  *Residual*: ``Psi`` still reaches the beam through ``phase_correction``,
-  so a driven multi-section fast ramp keeps a readout-*phase* offset -- the
-  beam-induced part needs ``Psi`` at readout while the generator-driven part
-  does not, and a single readout phase cannot separate the two. The
-  amplitude drift (the original limitation) is gone.
 * The undriven two-section fast-ramp carried wake shows a slow bounded
   secular drift (~0.03 percentage points per turn over 20 turns) against
   the convolution.
@@ -455,3 +583,12 @@ Known limitations
 * The fine-grid initial antenna voltage is taken from the first coarse cell
   of the forward segment (guarded by the first-cell charge check) rather
   than interpolated to the profile edge.
+* A coarse-grid segment too short to hold a single centre (an *empty*
+  segment) carries the preceding segment's residual through unchanged
+  rather than adding its own duration to it, so the coarse step that
+  bridges such a segment omits that duration. A run of empty segments
+  therefore shares one residual, which is why
+  ``_preceding_segment_residual`` returns the same value for every start
+  index inside the run and ``RFCenterSegment`` skips its
+  ``0 <= residual <= duration`` bound check when the segment is empty (the
+  carried value may exceed the segment's own near-zero duration).

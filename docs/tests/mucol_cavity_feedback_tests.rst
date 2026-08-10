@@ -423,6 +423,45 @@ below the ~3e-2 the state rotation produced.
 ``test_four_sections_hold_steady_state``
     Four stations: three reverse segments per passage.
 
+**Class** ``TestDetunedLoopHoldsSetpointAcrossReverseSpan`` -- a detuned,
+PI-regulated cavity must hold its setpoint for the *whole* turn, reverse
+span included. With ``delta_omega != 0`` the matched no-beam drive is no
+longer the feedforward bias but ``I_0 (1 - i tan psi)``,
+``tan psi = 2 Q_L delta_omega / omega_rf``: cancelling the detuning
+precession needs a reactive standing current, which the PI finds on the
+forward span. A multi-section ring then replays the remaining
+``(N - 1) / N`` of the turn as no-beam reverse segments, and
+``reset_arrays`` seeds that span with the **last commanded** generator
+current rather than the constant feedforward bias -- a zero-order hold
+over an interval in which the loop issued no new command. Replaying it
+with the bias instead lets the antenna voltage precess by the analytic
+excursion ``|dV| / V_set ~ delta_omega * T`` (independent of ``Q_L`` and
+``R/Q``) -- ``3.2e-2`` per turn for the two-section case -- on the very
+sample that seeds the fine grid the bunch is solved on, so it is not
+self-correcting. No beam is tracked on purpose: without beam loading the
+correct answer is exactly the setpoint on every coarse sample, so the
+assertion has no tolerance budget to hide in. Constant energy (63 GeV, no
+ramp and no frame slip), five turns, turn 1 skipped while the loop
+converges from ``initial_voltage``, gate ``1e-6`` relative.
+
+``test_detuned_loop_holds_setpoint_over_the_whole_turn``
+    Two sections, one half-bandwidth of detuning: the half-turn reverse
+    span must not drive the cavity off its setpoint.
+``test_four_sections_hold_setpoint_over_the_whole_turn``
+    Four sections, so the reverse span is 3/4 of the turn rather than
+    1/2. The excursion scales with the span duration, which makes this
+    the direct fingerprint of the reverse reconstruction rather than of
+    any forward-pass effect.
+``test_matched_bias_control_case_still_exact``
+    Control: on resonance the bias *is* the held current. Same ring, same
+    loop, same assertion, only ``delta_omega = 0`` -- so a failure of the
+    detuned cases comes from the detuning, not from a broken fixture.
+``test_undriven_detuned_cavity_is_left_free_running``
+    Control: with no controller attached the detuned cavity must still
+    precess away from the setpoint (> 20 % by the last turn). Guards
+    against "fixing" the above by writing a matched current into the grid
+    unconditionally.
+
 **Class** ``TestPIFullTrackingSingleSectionFastRamp`` -- one section on the
 fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
 
@@ -546,7 +585,9 @@ convergence slopes and the residual against the convolution solver.
 **Class** ``TestRfBeamCurrentDownsampling`` -- charge conservation of the
 coarse-grid downsampling in ``rf_beam_current``. Regression test for a dropped
 remainder that used to silently discard demodulated charge past the last
-coarse-cell boundary (up to the whole bunch, depending on its phase).
+coarse-cell boundary (up to the whole bunch, depending on its phase), and for
+the span/index guards that replaced the ``% n_points`` wrap: every write index
+must now land inside the coarse grid, or the call raises.
 
 ``test_downsampling_conserves_demodulated_charge``
     Re-binning the fine-grid demodulated charge onto the coarse grid conserves
@@ -561,9 +602,34 @@ coarse-cell boundary (up to the whole bunch, depending on its phase).
     A mid-window bunch leaves the first cell numerically empty (the guard uses
     a relative threshold, not ``!= 0``).
 ``test_warns_on_particle_loss``
-    Warns when the profile does not capture the whole beam.
+    Warns when the profile does not capture the whole beam (modelled by a
+    density factor putting only half the macroparticles in the window).
 ``test_no_warning_when_profile_captures_full_beam``
     No warning when the window captures everything.
+``test_raises_when_profile_longer_than_coarse_grid``
+    A window longer than the coarse grid raises ``ValueError`` instead of
+    wrapping. The ``% n_points`` wrap is gone: two bunches 3 ``t_rf``
+    apart in a 5 ``t_rf`` window folded onto a 3-cell grid used to put the
+    trailing bunch's index onto the leading bunch's cell and *overwrite*
+    it, losing 50 % of the demodulated charge silently. The guard is
+    ``ProfileBaseClass.check_fits_in_span``.
+``test_particle_loss_warning_is_not_shadowed_by_the_span_guard``
+    The two guards answer different questions -- "is the beam inside the
+    profile?" versus "does the profile fit the span it is re-binned
+    onto?" -- and the fold destroys charge even when the whole beam is
+    captured, so the loss warning is emitted *before* the span check and
+    must still be seen when that check raises.
+``test_raises_when_profile_starts_after_coarse_grid``
+    A window entirely past the grid raises a ``ValueError`` naming the
+    coarse-grid index, not a bare ``IndexError``. This one is raised by
+    ``rf_beam_current`` itself, not by ``check_fits_in_span``.
+``test_long_window_that_fits_still_conserves_charge``
+    Anti-false-positive pin: the same 5 ``t_rf`` two-bunch window the
+    3-cell grid rejects is perfectly valid on an 8-cell grid and must keep
+    conserving charge. This is the geometry ``test_multibunch_beam_loading``
+    relies on (~8 ``t_rf`` window on a 13-cell grid, window/span ratio
+    0.62 -- the widest legitimate one in the suite), so the threshold may
+    not creep below it.
 
 **Class** ``TestRfBeamCurrentCounterRotating`` -- direction-signed charge in
 the RF beam current. In the symmetric muon-collider ring the counter-rotating
@@ -656,9 +722,14 @@ voltage. Uses a high ``Q_L = 1.29e6`` so the previous-pass wake survives
     retuning convolution in the fast frame-slip regime.
 ``test_multiturn_fast_ramp_multisection``
     Multi-section (2 and 4 stations) on the fast ramp matches the retuning
-    convolution: the ``_track`` frame correction removes the carried-envelope
-    phase error ``sum_k (omega_k - omega_0) T_seg,k`` from the other stations'
-    mid-turn grid re-seeding (drift ~0.023 t_rf/turn -> ~0.2 %).
+    convolution: the grid-vs-carrier registration phase
+    ``Psi = sum_k (omega_k - omega_0) T_seg,k``, which the other stations'
+    mid-turn grid re-seeding accumulates in
+    ``_accumulate_registration_phase``, is carried on the
+    demodulation/readout carrier -- *not* applied as a rotation of the
+    antenna-voltage state (see ``TestDrivenSteadyStateFastRamp`` in
+    ``test_pi_feedback_full_tracking.py``). Uncorrected, the arrival time
+    drifted ~0.023 ``t_rf`` per turn; corrected, the error stays ~0.2 %.
 ``test_multiturn_fast_ramp_substepped``
     Sub-stepped (n = 0.5) carried wake holds on the fast ramp: the stale
     reverse-segment re-pass is removed (it corrupted the demodulation frame
@@ -1073,17 +1144,97 @@ turn), so the feedback detects the coincident opposite-direction passage
    known open extension; the offset-passage regime above is the physically
    relevant one for even section counts.
 
+**Class** ``TestReverseWalkDirectionConsistency`` -- a structural invariant
+the physics comparisons above cannot see.
+``get_time_omega_array_reverse_direction`` takes its element *order* from
+the previously tracked beam (``_last_tracked_beam_state_frwrd``) but hands
+``beam.is_counter_rotating`` -- the *current* beam -- to
+``track_reference``. In a single-beam run the two always agree, so only a
+two-beam run can make them differ. They stay safe because the interval to
+back-fill is empty: the forward projection stops at the next RF station in
+the tracked beam's traversal order, which under
+``MainloopCounterRotatingBeams`` is exactly where the *other* beam next
+reaches this feedback, so the reference times match to the bit and the
+early return in ``calculate_rf_centers_for_reverse_direction`` fires
+before the walk is entered. Both tests share one instrumented run per
+regime: they patch ``calculate_rf_centers_for_reverse_direction`` and
+``get_time_omega_array_reverse_direction`` to record every call, and cover
+all three two-beam regimes of this module as subtests (static,
+accelerating fast ramp, ``delta_omega_rf``), each run once and cached,
+because each moves the reference clock differently. Measured in the static
+case: 10 of 12 reverse-direction calls carry a direction mismatch and none
+reaches the walk; with the early return removed all 10 do. The *outcome*
+cannot be compared instead -- the symmetric half-drift / station /
+half-drift layout yields identical arrays for the matched and the
+mismatched element order -- so the "never entered" property and its gate
+are what is asserted.
+
+``test_reverse_walk_never_entered_with_mismatched_direction``
+    Both halves matter: mismatched-direction calls must actually occur
+    (otherwise the beams stopped alternating and the test no longer
+    exercises the configuration it guards), and none of them may reach the
+    element walk.
+``test_mismatched_calls_are_gated_by_exact_time_equality``
+    Pins the mechanism behind it: every mismatched call carries a
+    **bit-exact** zero back-fill gap. The assertion is ``gap == 0.0``, not
+    ``assertAlmostEqual`` -- the production early return uses ``==``, so a
+    merely-approximate equality would not be safe. A companion assertion
+    shows the measurement is live: at least one first passage (nothing
+    projected yet) has a genuinely nonzero gap and legitimately walks.
+
 
 ``test_envelope_kernel.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Class** ``TestEnvelopeKernelBitIdentity`` -- the numba coarse-envelope
-kernel (``envelope_pi_scan``) must reproduce the pure-Python coarse recursion
-bit-for-bit. Each test drives both paths with identical inputs and asserts
-equality across the regimes the kernel must cover: no beam / constant
-current, a forward pass, the inline PI controller (no delay, with delay,
-saturating), the exponential-propagator branch, detuning, and the
-carried-state / multi-section reverse-then-forward cases.
+kernel (``envelope_pi_scan``) must reproduce the pure-Python coarse
+recursion bit-for-bit. Each test drives both paths with identical inputs
+and asserts exact equality across the regimes the kernel must cover.
+
+``test_no_beam_constant_current``
+    Reverse-style segment: no beam, no controller.
+``test_forward_constant_current``
+    Forward segment with beam but a constant generator current.
+``test_forward_pi_no_delay``
+    Forward segment driving a PI controller with no loop delay.
+``test_forward_pi_with_delay``
+    PI controller with a two-sample loop delay (the delay line).
+``test_forward_pi_saturating``
+    PI controller hitting the klystron clamp (the anti-windup path).
+``test_exponential_solver_pi``
+    The exponential propagator with an active PI controller.
+``test_detuned_pi``
+    Non-zero detuning with an active PI controller.
+``test_no_beam_carried_generator_current_off_bias``
+    Reverse segment whose carried generator current is off the bias. The
+    reference drives carried cell 0 from ``last_val_generator_current``
+    but every later cell from the reset-bias grid; a kernel that held the
+    carried value for all cells would diverge.
+``test_no_beam_carried_beam_current_nonzero``
+    Reverse segment whose carried index-0 beam current is nonzero.
+    ``cavity_response`` uses ``last_val_beam_current`` at the carried cell
+    even for a no-beam segment; a kernel that zeroed it would diverge.
+``test_forward_pi_carried_beam_current_nonzero``
+    Forward PI segment with a nonzero carried index-0 beam current.
+``test_multi_section_reverse_then_forward``
+    A two-segment (reverse + forward) run is bit-identical.
+``test_multi_section_carried_state_off_trivial``
+    Two segments with off-bias / nonzero carried state, reproducing the
+    live multi-section turn >= 1 condition end to end.
+
+**Class** ``TestControllerAbstractionContract`` -- the compiled path must
+honour the ``GeneratorCurrentController`` *interface*, not a concrete PI
+class. Driven by ``_ProportionalOnlyController``, a minimal non-PI
+implementation with no compiled scan, over one 32-cell forward segment.
+
+``test_non_pi_controller_runs_on_the_default_path``
+    The default (kernel) path steps the controller once per cell and
+    produces finite voltage and current. Reaching for PI-only attributes
+    on the compiled path used to break every other implementation of the
+    interface.
+``test_non_pi_controller_matches_the_python_path``
+    A controller without a compiled scan still reproduces the pure-Python
+    reference exactly (``np.array_equal`` on both coarse grids).
 
 
 ``test_closed_loop_stability.py``
@@ -1111,18 +1262,71 @@ periods, not merely that two induced-voltage models agree.
 Energy/power self-consistency of the generator drive and the beam-loading
 compensation.
 
-**Class** ``TestBeamLoadingCompensationSustainsSetpoint``
-    The compensation ``I_gen = I_ff + I_beam / 2`` is a fixed point of the
-    coarse step for every detuning; dropping the factor 2 breaks the fixed
-    point (mutation guard).
-**Class** ``TestGeneratorPowerBeamPowerBalance``
-    Generator power versus beam power balances to one on resonance; the raw
-    (missing-half) beam current gives the factor-2 shortfall; with detuning
-    only the reactive term is carried.
-**Class** ``TestPowerCurrentRoundTrip``
-    ``current_limit_from_power`` and its inverse round-trip
-    (power -> current -> power and current -> power -> current are
-    identities).
+**Class** ``TestBeamLoadingCompensationSustainsSetpoint`` -- the
+compensation ``I_gen = I_ff + I_beam / 2`` is a fixed point of the coarse
+step, in the real cavity solver.
+
+``test_compensation_is_a_fixed_point_for_all_detunings``
+    With the compensation applied the voltage never leaves ``V_SET``, for
+    every detuning swept and every beam phasor.
+``test_forgetting_the_factor_two_breaks_the_fixed_point``
+    In-test mutation proving the ``/ 2`` is load-bearing: the correct
+    compensation holds ``V_SET`` (residual at floating noise) while the raw
+    over-compensation drifts by many volts.
+
+**Class** ``TestGeneratorPowerBeamPowerBalance`` -- the incremental klystron
+forward power against the power the beam extracts. The expected beam power
+is derived analytically from the phasors, not mirrored from the
+implementation.
+
+``test_balance_closes_to_one_on_resonance``
+    Beam power uses the *physical* fundamental current ``I_beam / 2``, so
+    ``P_beam = 0.5 Re[V conj(I_beam / 2)]`` and the ratio is 1 to machine
+    precision for every beam phasor.
+``test_raw_beam_current_gives_the_factor_two_shortfall``
+    The discriminator: computing the beam power from the *raw* ``I_beam``
+    halves the balance, so a mis-accounted single-sideband factor 2 would
+    read 0.5 rather than 1. Both values are pinned.
+``test_balance_with_detuning_carries_only_the_reactive_term``
+    With detuning the delivered power gains a purely reactive correction
+    ``delta Q_L Im[V conj(I_beam / 2)]``; the real-power normalization is
+    unchanged, so detuning smuggles in no spurious factor.
+
+**Class** ``TestPowerCurrentRoundTrip`` -- ``current_limit_from_power``
+inverts ``generator_power`` in watts.
+
+``test_power_to_current_to_power_is_identity``
+    Power to current back to power returns the same watts.
+``test_current_to_power_to_current_is_identity``
+    Current to power back to current returns the same amps.
+
+
+Guards tested outside this suite
+--------------------------------
+
+The profile-window-versus-span guard is shared infrastructure, not mucol
+code: ``ProfileBaseClass.profile_duration`` (the outer-edge span
+``cut_right - cut_left``, exactly ``n_bins * hist_step``) and
+``ProfileBaseClass.check_fits_in_span``, which **raises** ``ValueError``
+with a one-``hist_step`` tolerance. It replaced two separate guards that
+used to disagree by one bin. Its own tests live with the code:
+
+``tests/unittests/physics/test_profiles.py``
+    ``TestProfileWindowFitsInSpan`` -- the guard itself: the duration
+    identity, the raise, the equal-window acceptance, the one-bin
+    tolerance and its boundary, the message contents, and the two
+    not-judged escapes (a zero span, which means coincident passages and
+    is another guard's failure, and a sub-bin sentinel span).
+``tests/unittests/physics/impedances/test_solvers.py``
+    Four methods on ``TestMultiPassResonatorSolver`` covering the solver
+    call site: a window wider than the passage interval raises, the
+    ordinary short window stays silent, a passage exactly as long as the
+    window is accepted, and ``allow_delta_t_zero=True`` does not collect a
+    second, duplicate span failure on top of its own warning.
+
+The mucol-side consumer -- the coarse-grid re-binning in
+``rf_beam_current`` -- is covered on this page under
+``TestRfBeamCurrentDownsampling``.
 
 
 Support modules
@@ -1165,6 +1369,21 @@ themselves.
     swing of a PI-feedback run) and ``plot_antenna_voltage`` (coarse-grid
     antenna-voltage evolution of a feedback instance; moved here from the
     timing class, where it was an unused debug method). Not a test module.
+``conftest.py``
+    Loaded automatically by ``pytest``; it pins the backend for the whole
+    package. The mucol suites are written against the import-time default
+    (``Numpy64Bit`` with the ``python`` specials) -- the feedback signal
+    processing is host-only by design and the tests build profile arrays
+    with plain NumPy -- but in a full-suite session the global backend can
+    arrive in any state, so every test re-pins it first. The pin is
+    applied from ``pytest_runtest_setup`` because it has to land *before*
+    ``setUpClass``, where several suites build their profiles, beams and
+    simulations; the autouse fixture only re-applies it per test (a
+    fixture alone would run too late). Setting ``BLOND_BACKEND_MODE=cuda``
+    pins to the GPU backend instead, which is how the package's
+    CuPy-safety is validated. Pinning without restoring is itself a
+    backend mutation, so the same file marks every test in the package
+    ``backend_mutation`` (see the warning under `Running the tests`_).
 ``__init__.py``
     Marks the directory as a package so the test modules can use the
     package-relative imports of ``stubs`` and ``support``.
@@ -1201,6 +1420,22 @@ or a single module / test, for example:
 
    pytest tests/unittests/physics/feedbacks/accelerators/mucol/test_helpers.py
    pytest "tests/unittests/physics/feedbacks/accelerators/mucol/test_mucol_cav_fdbk.py::TestFineGridResonatorBenchmark"
+
+.. warning::
+
+   The package's ``conftest.py`` marks **every** test here
+   ``backend_mutation`` (it re-pins the global backend without restoring
+   it). A run filtered with the repo's standard
+   ``-m "not backend_mutation"`` therefore deselects the whole mucol
+   suite and reports zero tests -- silently, with no error. Drop it, or
+   select the suite explicitly with ``-m "backend_mutation"``, when you
+   mean to run these tests.
+
+By default the pin is the import-time host backend (``Numpy64Bit`` with
+the ``python`` specials), which is what these suites are written and
+validated against. Setting ``BLOND_BACKEND_MODE=cuda`` pins to the GPU
+backend instead -- that is how the package's CuPy safety is validated;
+any other value keeps the host pin.
 
 The debug plots are opt-in via the ``DEBUG_PLOT`` module constant (and
 ``PLOT_DIAGNOSTICS`` in ``test_generator_current_pi_feedback.py``); both default
