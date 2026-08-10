@@ -39,6 +39,7 @@ from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsDirectTerm,
     SupportsTWCFIRModel,
     SupportsVectorFittedModel,
     TimeDomain,
@@ -1282,6 +1283,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._twc_bin_dt: float | None = None
         self._voltage_twc: NumpyArray | CupyArray | None = None
 
+        # constant (direct) impedance term: wake = d * delta(t)
+        self._direct_term: float = 0.0
+        self._bin_dt: float | None = None
+
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
@@ -1307,23 +1312,31 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         twc_a_tilde = []
         twc_omega_r = []
         assert self._parent_wakefield is not None
+        self._direct_term = 0.0
         for source in self._parent_wakefield.sources:
+            recognized = False
             if isinstance(source, SupportsVectorFittedModel):
                 poles_, residues_, cr_signs_ = source.get_vectorfit()
 
                 poles.extend(poles_)
                 residues.extend(residues_)
                 counter_rotation_pole_flip.extend(cr_signs_)
-            elif isinstance(source, SupportsTWCFIRModel):
+                recognized = True
+            if isinstance(source, SupportsTWCFIRModel):
                 r_shunt_, a_tilde_, omega_r_ = source.get_twc_fir()
                 twc_r_shunt.extend(copy_to_cpu(r_shunt_))
                 twc_a_tilde.extend(copy_to_cpu(a_tilde_))
                 twc_omega_r.extend(copy_to_cpu(omega_r_))
-            else:
+                recognized = True
+            if isinstance(source, SupportsDirectTerm):
+                self._direct_term += float(source.get_direct_term())
+                recognized = True
+            if not recognized:
                 raise TypeError(
-                    f"{type(source).__name__} supports neither "
-                    "`SupportsVectorFittedModel` nor `SupportsTWCFIRModel` "
-                    "and can not be used with `MultiPoleSparseSolve`."
+                    f"{type(source).__name__} supports none of "
+                    "`SupportsVectorFittedModel`, `SupportsTWCFIRModel` or "
+                    "`SupportsDirectTerm` and can not be used with "
+                    "`MultiPoleSparseSolve`."
                 )
 
         self._poles = backend.array(poles, dtype=complex)
@@ -1348,6 +1361,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._states = backend.zeros(len(self._poles) + 1, complex)
         bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
+        self._bin_dt = bin_dt
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based
         # state semantics; see poles.cpp for details).
@@ -1455,5 +1469,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 voltage_threaded=self._voltage_threaded,
             )
             self._voltage += self._voltage_twc
+        if self._direct_term != 0.0:
+            # constant impedance Z = d: V(t) = d * I(t); the binned delta
+            # wake carries d / bin_dt so that its time integral is d
+            self._voltage += (
+                self._direct_term
+                * self._charge_per_macroparticle
+                / self._bin_dt
+            ) * profile_hist_y
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

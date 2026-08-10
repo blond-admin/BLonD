@@ -617,6 +617,35 @@ class SupportsVectorFittedModel(ABC):
         pass
 
 
+class SupportsDirectTerm(ABC):
+    """
+    Mixin for sources with a constant (direct) impedance term.
+
+    A constant ``Z(f) = d`` corresponds to the wake ``W(t) = d delta(t)``:
+    the induced voltage is simply ``d`` times the instantaneous beam
+    current. This is the natural discrete representation of impedance
+    structure far above the frequencies a pole-residue model can resolve
+    (e.g. the truncated peak of a resistive-wall table) and matches the
+    constant coefficient of classic vector fitting.
+
+    See Also
+    --------
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    """
+
+    @abstractmethod  # pragma: no cover
+    def get_direct_term(self) -> float:
+        """
+        Provide the constant impedance term.
+
+        Returns
+        -------
+        direct_term
+            Constant impedance ``d``, in [Ohm].
+        """
+        pass
+
+
 class SupportsTWCFIRModel(ABC):
     """
     Mixin for sources with a finite-support (FIR) travelling-wave-cavity wake.
