@@ -402,7 +402,7 @@ class PerTurnGridSpan:
     The per-turn coarse-grid span produced by one grid rebuild.
 
     Carries the three values the later phases of
-    :meth:`IQCavityFeedbackTimingClass._track` need from the grid rebuild.
+    ``IQCavityFeedbackTimingClass._track`` need from the grid rebuild.
     They are *returned* rather than left on the feedback so that the
     ordering is enforced by the data flow: in particular
     ``residual_from_reverse_span`` can only be read from a span object, and
@@ -1417,6 +1417,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         in the same way an excessive ``omega * dt / Q_L`` or
         ``delta_omega * dt`` would.
 
+        The thresholds, the warning and exception messages and the
+        once-only warning flag all live on
+        :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`;
+        this method only supplies the cavity's ``R_over_Q``. Every check is
+        a no-op when the guard is disabled, i.e. on the exact exponential
+        coarse solver.
+
         Parameters
         ----------
         beam_current
@@ -1426,6 +1433,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         previous_voltage
             Antenna voltage of the previous coarse-grid step, which the
             kick is added to/subtracted from.
+
+        Raises
+        ------
+        ValueError
+            If the relative per-step beam kick exceeds the guard's hard cap
+            (``max_relative_kick_hard``).
         """
         self._euler_guard.check_beam_kick_magnitude(
             beam_current,

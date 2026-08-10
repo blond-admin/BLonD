@@ -350,20 +350,10 @@ class ForwardEulerValidityGuard:
     ----------
     enabled
         Whether the tripwires apply. ``False`` makes every check a no-op.
-
-    Attributes
-    ----------
-    max_step_angle
-        Soft (warning) threshold for the per-step decay and detuning phase.
-    max_step_angle_hard
-        Hard (raising) threshold for the same two quantities.
-    max_relative_kick
-        Soft (warning) threshold for the relative per-step beam kick.
-    max_relative_kick_hard
-        Hard (raising) threshold for the relative per-step beam kick.
     """
 
     # Heuristic thresholds for forward-Euler validity [rad, and relative].
+    #: Soft (warning) threshold for the per-step decay and detuning phase.
     max_step_angle = 0.1
     # Hard cap on the per-step decay ``d = decay_per_step``. The forward-Euler
     # decay factor (real part, ignoring detuning) is ``1 - d``:
@@ -378,13 +368,16 @@ class ForwardEulerValidityGuard:
     # deliberately sits at the sign-flip boundary d = 1, not at the divergence
     # boundary d = 2: contracting while inverting every step is still wrong,
     # just not explosively so.
+    #: Hard (raising) threshold for the per-step decay and detuning phase.
     max_step_angle_hard = 1.0
+    #: Soft (warning) threshold for the relative per-step beam kick.
     max_relative_kick = 0.1
     # Beyond this, the single-step beam kick exceeds the antenna voltage it is
     # being subtracted from/added to: the discretized update can flip the sign
     # of the antenna voltage within one coarse-grid step purely due to the
     # beam, which the underlying continuous cavity equation cannot do -- a
     # divergent/unphysical discretization rather than just an inaccurate one.
+    #: Hard (raising) threshold for the relative per-step beam kick.
     max_relative_kick_hard = 1.0
 
     def __init__(self, enabled: bool = True) -> None:

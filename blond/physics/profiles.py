@@ -277,7 +277,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         Returns
         -------
-        window_duration
+        profile_duration
             Time span between `cut_left` and `cut_right`, in [s].
         """
         return self.cut_right - self.cut_left

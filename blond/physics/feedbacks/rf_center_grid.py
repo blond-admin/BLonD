@@ -26,7 +26,7 @@ owns and initialises in ``__init__`` / ``on_run_simulation``.
   ``_residual_taps_last_rf_centers_calculation`` and
   ``_last_forward_tracking_freq``; plus the host-written
   ``_residual_time_carried_into_turn``, which
-  :meth:`RFCenterGridMixin._preceding_segment_residual` uses at a turn
+  ``RFCenterGridMixin._preceding_segment_residual`` uses at a turn
   boundary.
 - Walk results the tracking loop then consumes:
   ``_reverse_tracking_time_array`` / ``_reverse_tracking_omega_list``,

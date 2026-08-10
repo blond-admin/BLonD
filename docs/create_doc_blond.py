@@ -22,7 +22,7 @@ API Documentation
    blond.physics
    blond.specifics
    blond.utilities
-   blond.typing
+   blond.blond_typing
 """
 
 

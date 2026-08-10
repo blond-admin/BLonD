@@ -57,8 +57,9 @@ class RFCenterSegment:
     the last centre and the end of the segment (carried unchanged for an empty
     segment). Feeds the sub-stepped cross-segment continuity and the
     demodulation frame, and is READ back by
-    :meth:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin.\
-_preceding_segment_residual` to form the first coarse step of the FOLLOWING
+    ``_preceding_segment_residual`` on
+    :class:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin`
+    to form the first coarse step of the FOLLOWING
     segment: ``rf_centers`` are segment-local, so that step is the following
     segment's first local centre time plus this unfilled tail. The live host
     scalar cannot serve there -- the whole per-turn grid is generated before
