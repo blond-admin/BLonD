@@ -41,10 +41,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from blond import WakeField
+    from blond.blond_typing import AnyArray
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
-    from blond.typing import AnyArray
 
 logger = logging.getLogger(__name__)
 

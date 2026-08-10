@@ -29,9 +29,9 @@ from blond.generals.cupy import no_cupy_import
 from blond.generals.distributed import helpers as mpi_help
 
 if TYPE_CHECKING:  # pragma: no cover
+    from blond.blond_typing import AnyArray
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.typing import AnyArray
 
 
 class Coasting(base.BeamPreparationRoutine):

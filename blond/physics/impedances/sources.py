@@ -47,8 +47,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+    from blond.blond_typing import AnyArray
     from blond.core.beam.base import BeamBaseClass
-    from blond.typing import AnyArray
 
 
 def fit_poles(

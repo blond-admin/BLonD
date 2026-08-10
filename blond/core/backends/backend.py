@@ -33,7 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from blond.typing import AnyArray
+    from blond.blond_typing import AnyArray
 
 logger = logging.getLogger(__name__)
 

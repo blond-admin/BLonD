@@ -30,8 +30,8 @@ from blond.generals.cupy import no_cupy_import as no_cupy
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from blond.blond_typing import AnyArray
     from blond.core.backends.backend import BackendBaseClass
-    from blond.typing import AnyArray
 
 try:
     import cupy  # noqa: F401
