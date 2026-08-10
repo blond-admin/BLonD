@@ -329,7 +329,7 @@ class TestFunctions(unittest.TestCase):
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
         self.schedulable = Schedulable()
-        self.schedulable._add_intended_schedule("voltage")
+        self.schedulable._register_schedulable_variables("voltage")
         with self.assertRaisesRegex(AssertionError, "doesnt exist"):
             self.schedulable.schedule_from_file(
                 attribute="voltage",
