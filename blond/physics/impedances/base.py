@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import ProfileBaseClass
 
 
-def get_hash(array1d: NumpyArray | CupyArray) -> int:
+def _get_hash_linspace(array1d: NumpyArray | CupyArray) -> int:
     """
     Compute a lightweight, approximate hash value for a 1D NumPy array.
 
@@ -78,7 +78,7 @@ def get_hash(array1d: NumpyArray | CupyArray) -> int:
     --------
     >>> import numpy as np
     >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    >>> get_hash(arr)
+    >>> _get_hash_linspace(arr)
     2398472938472938  # Example output (varies by session)
     """
     len_ = len(array1d)
@@ -308,7 +308,7 @@ class TimeDomain(ABC):
         if cache is None:
             cache = self._impedance_from_wake_cache = {}
         key = bool(counter_rotating)
-        hash_ = get_hash(time)
+        hash_ = _get_hash_linspace(time)
         cached = cache.get(key)
         if cached is not None and cached[0] == hash_:
             return cached[1]

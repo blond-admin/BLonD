@@ -40,7 +40,7 @@ from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
     WakeFieldSource,
-    get_hash,
+    _get_hash_linspace,
 )
 from blond.physics.impedances.readers import ImpedanceReader
 
@@ -190,7 +190,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             Derivative impedance in frequency domain.
         """
         # Recalculate only if `freq_x` is changed
-        hash_ = get_hash(freq_x)
+        hash_ = _get_hash_linspace(freq_x)
         if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
@@ -239,7 +239,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         """
         # Recalculate only if `time` is changed
 
-        hash_ = get_hash(time)
+        hash_ = _get_hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
         freq = backend.fft.rfftfreq(n_fft, d=time[1] - time[0])
@@ -703,7 +703,7 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         """
         # Recalculate only if `freq_x` is changed
 
-        hash_ = get_hash(freq_x + counter_rotation)
+        hash_ = _get_hash_linspace(freq_x + counter_rotation)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
@@ -848,7 +848,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
             Complex impedance array.
         """
         # Recalculate only if `freq_x` is changed
-        hash_ = get_hash(freq_x)
+        hash_ = _get_hash_linspace(freq_x)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
         impedance = backend.interp(
