@@ -21,12 +21,16 @@ Leonard Thiele
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
+
+import numpy as np
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
+
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -37,6 +41,8 @@ if TYPE_CHECKING:  # pragma: no cover
         SingleHarmonicRFStation,
     )
     from blond.physics.profiles import ProfileBaseClass
+
+T = TypeVar("T")
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
@@ -204,3 +210,35 @@ class GlobalFeedback(FeedbackBaseClass):
         """
         super().configure(**kwargs)
         self.cavities = cavities
+
+    def get_from_all_rf_stations(
+        self,
+        accessor: Callable[[RFStationBaseClass], T],
+        rf_station_list: list[RFStationBaseClass] | None = None,
+    ) -> NumpyArray:
+        """
+        Call `accessor` on all rf station instances.
+
+        This method calls a certain attribute or method from all
+        RF station instances associated with this beam feedback instance.
+
+        Parameters
+        ----------
+        accessor
+            A callable that takes an RF station instance and returns the
+            desired value, e.g. `lambda rf: rf.get_main_harmonic_cavity_feedback()`
+            or `lambda rf: rf.some_attribute`.
+        rf_station_list
+            List of rf station objects. If no list is passed, then the list of rf stations
+            associated with the global feedback instance will be used.
+
+        Returns
+        -------
+        output_per_station
+            Array containing the output of the method or attribute from
+            each rf station.
+        """
+        cavity_list = (
+            self.cavities if rf_station_list is None else rf_station_list
+        )
+        return np.array([accessor(obj) for obj in cavity_list])

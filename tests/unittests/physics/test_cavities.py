@@ -37,7 +37,6 @@ from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
     LocalFeedback,
 )
-from blond.experimental.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
@@ -47,6 +46,7 @@ from blond.physics.cavities import (
     SingleHarmonicRFStation,
 )
 from blond.physics.drifts import DriftSimple
+from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
@@ -257,6 +257,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
         mhc.attach_cavity_feedback(cavity_feedback_good)
 
+        self.assertIs(
+            cavity_feedback_good, mhc.get_main_harmonic_cavity_feedback()
+        )
+
         mhc = MultiHarmonicRFStation(
             section_index=1,
             local_wakefield=None,
@@ -323,6 +327,10 @@ class TestRFStationBaseClass(unittest.TestCase):
             harmonic=25000,
             phi_rf=0,
             cavity_feedback=cavity_feedback_good,
+        )
+
+        self.assertIs(
+            cavity_feedback_good, mhc.get_main_harmonic_cavity_feedback()
         )
 
         mhc._turn_counter = 1
@@ -887,6 +895,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.multi_harmonic_cavity._update_reference_based_attributes(
             reference=self.beam.reference
         )
+        # TODO: Maybe better to use self.assertEqual here instead
         assert (
             self.multi_harmonic_cavity.get_main_harmonic()
             == self.multi_harmonic_cavity.harmonic[
@@ -898,6 +907,12 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             == 2
             * np.pi
             / self.multi_harmonic_cavity.get_main_harmonic_omega_rf()
+        )
+        assert (
+            self.multi_harmonic_cavity.get_main_harmonic_t_rf()
+            == 2
+            * np.pi
+            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_design()
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(
@@ -1319,6 +1334,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         self.single_harmonic_cavity._update_reference_based_attributes(
             reference=self.beam.reference
         )
+        # TODO: Maybe better to use self.assertEqual here instead
         assert (
             self.single_harmonic_cavity.get_main_harmonic()
             == self.single_harmonic_cavity.harmonic
@@ -1326,6 +1342,12 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         assert (
             self.single_harmonic_cavity.get_main_harmonic_t_rf()
             == 2 * np.pi / self.single_harmonic_cavity.omega_rf
+        )
+        assert (
+            self.single_harmonic_cavity.get_main_harmonic_t_rf()
+            == 2
+            * np.pi
+            / self.single_harmonic_cavity.get_main_harmonic_omega_rf_design()
         )
         assert (
             self.single_harmonic_cavity.calc_main_harmonic_t_rf(

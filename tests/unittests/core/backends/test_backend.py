@@ -60,6 +60,37 @@ class TestBackendBaseClass(unittest.TestCase):
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
     @pytest.mark.backend_mutation
+    def test_change_backend_same_backend_keeps_specials(self) -> None:
+        self.backend_base_class.set_specials(mode="numba")
+        specials_org = self.backend_base_class.specials
+        self.backend_base_class.change_backend(new_backend=Numpy64Bit)
+        self.assertEqual(self.backend_base_class.specials_mode, "numba")
+        # same backend requested -> must be a no-op
+        self.assertIs(self.backend_base_class.specials, specials_org)
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_rejects_instance(self) -> None:
+        # passing an instance instead of the class is the common mistake;
+        # the message must call that out explicitly
+        with self.assertRaisesRegex(TypeError, "not an instance"):
+            self.backend_base_class.change_backend(new_backend=Numpy64Bit())
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_rejects_non_backend_class(self) -> None:
+        with self.assertRaisesRegex(TypeError, "subclass"):
+            self.backend_base_class.change_backend(new_backend=int)
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_keeps_specials_mode(self) -> None:
+        class AnotherNumpy64Bit(Numpy64Bit):
+            """Different class, to force a real backend change."""
+
+        self.backend_base_class.set_specials(mode="numba")
+        self.backend_base_class.change_backend(new_backend=AnotherNumpy64Bit)
+        self.assertIs(self.backend_base_class.__class__, AnotherNumpy64Bit)
+        self.assertEqual(self.backend_base_class.specials_mode, "numba")
+
+    @pytest.mark.backend_mutation
     def test_set_specials(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
@@ -109,9 +140,13 @@ class TestBackendBaseClass(unittest.TestCase):
             some_backend._finalize()
 
     @pytest.mark.backend_mutation
-    def test_change_backend(self):
+    def test_change_backend_with_instance_is_noop(self):
+        # this method previously shadowed `test_change_backend` above
+        # by reusing its name
         some_backend = Numpy64Bit()
-        some_backend.change_backend(some_backend)  # shouldnt do anything
+        # requesting the already active backend class must be a no-op
+        some_backend.change_backend(Numpy64Bit)
+        self.assertIs(some_backend.__class__, Numpy64Bit)
 
     @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
@@ -161,7 +196,11 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     env = os.environ.copy()
     # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
     # TTY, so numba's colorama atexit hook writes '\x1b[0m' to it.
-    for key in ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS", "PYCHARM_HOSTED"):
+    for key in (
+        "BLOND_BACKEND_MODE",
+        "BLOND_BACKEND_BITS",
+        "PYCHARM_HOSTED",
+    ):
         env.pop(key, None)
     return subprocess.run(
         [sys.executable, "-c", code],
