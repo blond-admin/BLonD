@@ -626,7 +626,10 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         dt = self.track_reference(beam.reference)
 
         higher_alpha = backend.array(
-            self.higher_order_alpha, dtype=backend.float
+            self.higher_order_alpha
+            if self.higher_order_alpha is not None
+            else (),
+            dtype=backend.float,
         )
 
         # Track macroparticles
