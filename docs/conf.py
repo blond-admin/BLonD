@@ -80,6 +80,7 @@ napoleon_use_param = True
 # "name : type") as a cross-referenced type, which otherwise produces a broken
 # reference under nitpicky. The value name is still shown as a labelled return.
 napoleon_use_rtype = False
+napoleon_use_ivar = True
 
 inheritance_graph_attrs = {
     "rankdir": "TB",  # "TB" = Top → Bottom (vertical)
