@@ -664,6 +664,7 @@ class CudaSpecials(Specials):  # NOQA: D101
     @staticmethod
     def wake_from_twc_fir(  # NOQA: D102
         profile: CupyArray,
+        grid_index: CupyArray,
         r_shunt: CupyArray,
         a_tilde: CupyArray,
         omega_r: CupyArray,

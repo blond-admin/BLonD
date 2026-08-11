@@ -676,6 +676,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     @staticmethod
     def wake_from_twc_fir(  # NOQA: D102
         profile: NumpyArray,
+        grid_index: NumpyArray,
         r_shunt: NumpyArray,
         a_tilde: NumpyArray,
         omega_r: NumpyArray,

@@ -1281,6 +1281,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._twc_a_tilde: NumpyArray | CupyArray | None = None
         self._twc_omega_r: NumpyArray | CupyArray | None = None
         self._twc_bin_dt: float | None = None
+        self._twc_grid_index: NumpyArray | CupyArray | None = None
         self._voltage_twc: NumpyArray | CupyArray | None = None
 
         # constant (direct) impedance term: wake = d * delta(t)
@@ -1377,22 +1378,40 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
 
         if len(twc_r_shunt) > 0:
-            # the FIR kernel requires an equidistant grid; the gapped
-            # continuous memory of a sparse multi-profile is not supported
-            hist_x_cpu = copy_to_cpu(profile_hist_x)
-            if not np.allclose(
-                np.diff(hist_x_cpu), bin_dt, rtol=1e-9, atol=0.0
-            ):
-                raise NotImplementedError(
-                    "TWC FIR sources require an equidistant profile grid; "
-                    f"{type(self._parent_wakefield.profile).__name__} does "
-                    "not provide one."
-                )
-            self._twc_bin_dt = bin_dt
-            self._twc_r_shunt = backend.array(twc_r_shunt, dtype=backend.float)
-            self._twc_a_tilde = backend.array(twc_a_tilde, dtype=backend.float)
-            self._twc_omega_r = backend.array(twc_omega_r, dtype=backend.float)
-            self._voltage_twc = backend.zeros_like(self._voltage)
+            self._finalize_twc_sources(
+                twc_r_shunt=twc_r_shunt,
+                twc_a_tilde=twc_a_tilde,
+                twc_omega_r=twc_omega_r,
+                profile_hist_x=profile_hist_x,
+                bin_dt=bin_dt,
+            )
+
+    def _finalize_twc_sources(
+        self, twc_r_shunt, twc_a_tilde, twc_omega_r, profile_hist_x, bin_dt
+    ):
+        # the FIR kernel runs on a common equidistant lattice: every bin
+        # must sit at an integer multiple of `bin_dt` from the first bin.
+        # This holds for equidistant profiles and for the gapped
+        # continuous memory of an `EquidistantMultiProfile` (its bucket
+        # gaps are integer multiples of the bin width).
+        hist_x_cpu = copy_to_cpu(profile_hist_x)
+        grid_position = (hist_x_cpu - hist_x_cpu[0]) / bin_dt
+        grid_index = np.rint(grid_position).astype(np.int32)
+        if not np.allclose(grid_position, grid_index, rtol=0.0, atol=1e-6):
+            raise NotImplementedError(
+                "TWC FIR sources require profile bins on a common "
+                "equidistant lattice (equal bin width, gaps an integer "
+                "multiple of it); "
+                f"{type(self._parent_wakefield.profile).__name__} does "
+                "not provide one."
+            )
+        assert np.all(np.diff(grid_index) > 0)
+        self._twc_grid_index = backend.array(grid_index, dtype=np.int32)
+        self._twc_bin_dt = bin_dt
+        self._twc_r_shunt = backend.array(twc_r_shunt, dtype=backend.float)
+        self._twc_a_tilde = backend.array(twc_a_tilde, dtype=backend.float)
+        self._twc_omega_r = backend.array(twc_omega_r, dtype=backend.float)
+        self._voltage_twc = backend.zeros_like(self._voltage)
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -1460,6 +1479,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             # finite-support wake, no state across calls (see class docs)
             backend.specials.wake_from_twc_fir(
                 profile=profile_hist_y,
+                grid_index=self._twc_grid_index,
                 r_shunt=self._twc_r_shunt,
                 a_tilde=self._twc_a_tilde,
                 omega_r=self._twc_omega_r,

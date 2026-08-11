@@ -70,6 +70,163 @@ def _move_flagged_elements_to_end_py(
     return j + 1
 
 
+def _twc_fir_advance_gap(
+    state: complex,
+    taper: complex,
+    n_free: int,
+    phase: float,
+    rotation: complex,
+) -> tuple[complex, complex]:
+    """
+    Advance the TWC FIR recursion over event-free lattice sites.
+
+    Closed form of `n_free` repetitions of the single-site update
+    ``taper *= rotation`` followed by ``state = (state - taper) *
+    rotation`` (no injections, removals or outputs at these sites).
+
+    Parameters
+    ----------
+    state
+        Phasor carrying the untapered cosine wake.
+    taper
+        Sliding-window accumulator building the linear taper.
+    n_free
+        Number of event-free lattice sites to advance.
+    phase
+        Phase advance per lattice site, in [rad].
+    rotation
+        ``exp(1j * phase)``.
+
+    Returns
+    -------
+    state, taper
+        The advanced phasors.
+    """
+    rot_gap = np.exp(1j * phase * n_free)
+    taper = taper * rot_gap
+    state = state * rot_gap - n_free * taper * rotation
+    return state, taper
+
+
+def _twc_fir_one_mode(
+    profile: NumpyArray,
+    grid_index: NumpyArray,
+    r_shunt: float,
+    a_tilde: float,
+    omega_r: float,
+    bin_dt: float,
+    two_factor: float,
+    voltage: NumpyArray,
+) -> None:
+    """
+    Accumulate one TWC mode of ``wake_from_twc_fir`` into `voltage`.
+
+    See the ``Specials`` ABC for the algorithm and the lattice-grid
+    convention of `grid_index`.
+
+    Parameters
+    ----------
+    profile
+        Beam profile histogram (occupied lattice sites only).
+    grid_index
+        Lattice site of each profile bin, strictly increasing.
+    r_shunt
+        Shunt impedance of the mode, in [Ohm].
+    a_tilde
+        Wake support (filling) time of the mode, in [s].
+    omega_r
+        Angular resonant frequency of the mode, in [rad/s].
+    bin_dt
+        Spacing of the underlying equidistant lattice, in [s].
+    two_factor
+        Twice the profile-to-current conversion factor.
+    voltage
+        Output voltage, in [V]. Accumulated into.
+    """
+    # W(0) amplitude of the single-cosine kernel (no conjugate pair);
+    # the trapezoidal half/half injection below supplies the
+    # (sign(t) + 1) factor of the analytic wake
+    wake_amplitude = 2 * r_shunt / a_tilde
+    # taper length in lattice steps; ceil quantizes the wake support to
+    # the lattice (relative error ~ bin_dt / a_tilde)
+    n_taper = int(np.ceil(a_tilde / bin_dt))
+    inject_scale = two_factor / n_taper
+    phase = omega_r * bin_dt
+    rotation = np.exp(1j * phase)
+    # phase accumulated by a taper term over its full lifetime
+    rotation_removal = np.exp(1j * phase * n_taper)
+
+    state = 0.0 + 0.0j
+    taper = 0.0 + 0.0j
+    # oldest not-yet-removed taper term; term `j` (injected at site
+    # `grid_index[j] + 1`) expires at site `grid_index[j] + n_taper + 1`,
+    # monotonically in `j`
+    oldest = 0
+    for bin_i in range(len(profile)):
+        if bin_i > 0:
+            site = int(grid_index[bin_i - 1])
+            target = int(grid_index[bin_i])
+            inject_site = site + 1
+            inject_pending = True
+
+            while True:
+                # earliest event site: the injection comes first (it is
+                # at `site + 1`); afterwards the next removal, capped by
+                # `target`
+                event_site = target
+                if inject_pending:
+                    event_site = inject_site
+                elif oldest < bin_i:
+                    expiry = int(grid_index[oldest]) + n_taper + 1
+                    event_site = min(expiry, event_site)
+                if event_site >= target:
+                    break
+                if event_site - site > 1:
+                    state, taper = _twc_fir_advance_gap(
+                        state, taper, event_site - 1 - site, phase, rotation
+                    )
+                if inject_pending and event_site == inject_site:
+                    taper += profile[bin_i - 1] * inject_scale
+                    inject_pending = False
+                while (
+                    oldest < bin_i
+                    and int(grid_index[oldest]) + n_taper + 1 == event_site
+                ):
+                    # fully decayed: remove with the phase accumulated
+                    # over its n_taper rotations
+                    taper -= profile[oldest] * inject_scale * rotation_removal
+                    oldest += 1
+                taper *= rotation
+                state -= taper
+                state *= rotation
+                site = event_site
+
+            if target - site > 1:
+                state, taper = _twc_fir_advance_gap(
+                    state, taper, target - 1 - site, phase, rotation
+                )
+            # the output site itself: events, then the taper rotation and
+            # state subtraction; its state rotation happens after the
+            # output below
+            if inject_pending and inject_site == target:
+                taper += profile[bin_i - 1] * inject_scale
+            while (
+                oldest < bin_i
+                and int(grid_index[oldest]) + n_taper + 1 == target
+            ):
+                taper -= profile[oldest] * inject_scale * rotation_removal
+                oldest += 1
+            taper *= rotation
+            state -= taper
+
+        profile_i_half = 0.5 * profile[bin_i] * two_factor
+        state += profile_i_half
+        voltage[bin_i] += wake_amplitude * np.real(state)
+        state += profile_i_half
+
+        state *= rotation
+
+
 class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
 
@@ -689,6 +846,7 @@ class PythonSpecials(Specials):
     def wake_from_twc_fir(
         # read
         profile: NumpyArray,
+        grid_index: NumpyArray,
         r_shunt: NumpyArray,
         a_tilde: NumpyArray,
         omega_r: NumpyArray,
@@ -702,12 +860,23 @@ class PythonSpecials(Specials):
         Travelling-wave-cavity wake via a phasor FIR recursion.
 
         Reference implementation; see the ``Specials`` ABC for the full
-        description of the algorithm and its equidistant-grid assumption.
+        description of the algorithm and its lattice-grid convention.
+
+        The bins live on a common equidistant lattice of spacing `bin_dt`
+        at positions `grid_index` (integers, strictly increasing). Gaps
+        between consecutive bins carry no charge and produce no output;
+        the recursion advances across them in closed form, firing each
+        taper term's removal at its exact lattice expiry site (the same
+        elapsed-time bookkeeping ``wake_from_pole_residue`` uses for its
+        ``t_jump``). On a gap-free grid (``grid_index = arange(n_bins)``)
+        this reduces to the plain per-bin recursion.
 
         Parameters
         ----------
         profile
-            Beam profile histogram on an equidistant grid.
+            Beam profile histogram (occupied lattice sites only).
+        grid_index
+            Lattice site of each profile bin, strictly increasing.
         r_shunt
             Shunt impedance per TWC mode, in [Ohm].
         a_tilde
@@ -715,7 +884,7 @@ class PythonSpecials(Specials):
         omega_r
             Angular resonant frequency per mode, in [rad/s].
         bin_dt
-            Bin width of the equidistant profile grid, in [s].
+            Spacing of the underlying equidistant lattice, in [s].
         factor
             To convert `profile` to current per bin [A].
         voltage
@@ -723,44 +892,17 @@ class PythonSpecials(Specials):
         voltage_threaded
             Cached `voltage` array per thread. For speedup.
         """
-        n_bins = len(profile)
-        two_factor = 2 * factor
-
         voltage[:] = 0
         voltage_threaded[:, :] = 0
 
         for mode_i in range(len(r_shunt)):
-            # W(0) amplitude of the single-cosine kernel (no conjugate
-            # pair); the trapezoidal half/half injection below supplies
-            # the (sign(t) + 1) factor of the analytic wake
-            wake_amplitude = 2 * r_shunt[mode_i] / a_tilde[mode_i]
-            # taper length in bins; ceil quantizes the wake support to
-            # the grid (relative error ~ bin_dt / a_tilde)
-            n_taper = int(np.ceil(a_tilde[mode_i] / bin_dt))
-            rotation = np.exp(1j * omega_r[mode_i] * bin_dt)
-            # phase accumulated by a taper term over its full lifetime
-            rotation_removal = np.exp(1j * omega_r[mode_i] * bin_dt * n_taper)
-
-            state = 0.0 + 0.0j
-            taper = 0.0 + 0.0j
-            for bin_i in range(n_bins):
-                if bin_i > 0:
-                    taper += profile[bin_i - 1] * two_factor / n_taper
-                    oldest = bin_i - 1 - n_taper
-                    if oldest >= 0:
-                        # fully decayed: remove with its accumulated phase
-                        taper -= (
-                            profile[oldest]
-                            * two_factor
-                            / n_taper
-                            * rotation_removal
-                        )
-                    taper *= rotation
-                    state -= taper
-
-                profile_i_half = 0.5 * profile[bin_i] * two_factor
-                state += profile_i_half
-                voltage[bin_i] += wake_amplitude * np.real(state)
-                state += profile_i_half
-
-                state *= rotation
+            _twc_fir_one_mode(
+                profile=profile,
+                grid_index=grid_index,
+                r_shunt=r_shunt[mode_i],
+                a_tilde=a_tilde[mode_i],
+                omega_r=omega_r[mode_i],
+                bin_dt=bin_dt,
+                two_factor=2 * factor,
+                voltage=voltage,
+            )
