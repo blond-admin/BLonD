@@ -41,11 +41,13 @@ from blond.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
 )
-from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
+from blond.physics.feedbacks.buffers import (
     OneTurnBufferBase,
     TwoTurnArray,
     TwoTurnBufferBase,
+)
+from blond.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
 )
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,

@@ -30,11 +30,13 @@ from scipy.signal import firwin
 
 from blond import Simulation, StaticProfile
 from blond.core.ring.helpers import requires
-from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
+from blond.physics.feedbacks.buffers import (
     OneTurnBufferBase,
     TwoTurnArray,
     TwoTurnBufferBase,
+)
+from blond.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
 )
 
 from .helpers import (
