@@ -36,11 +36,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.typing_ import AnyArray
     from blond.physics.cavities import (
         SingleHarmonicRFStation,
     )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
-    from blond.generals.typing_ import AnyArray
 
 logger = logging.getLogger(__name__)
 
