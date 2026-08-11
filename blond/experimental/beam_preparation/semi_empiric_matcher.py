@@ -31,11 +31,6 @@ from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
 
-# Stop the iteration after this many steps without a new error minimum: the
-# fixed-point can settle into a limit cycle instead of converging, and the
-# matched beam at the stalled point is already correct.
-_STAGNATION_PATIENCE = 10
-
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from typing import Any
@@ -202,6 +197,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
     tolerance_potential_well : float, optional
         Convergence threshold. The matching process stops when the error
         falls below this tolerance.
+    stagnation_patience : int, optional
+        Stop the intensity-effects iteration after this many steps without
+        a new error minimum. The fixed-point iteration can settle into a
+        limit cycle instead of converging below ``tolerance_potential_well``,
+        and the matched beam at the stalled point is already correct.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
     debug
@@ -228,6 +228,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         tolerance_potential_well: float = 1e-6,
         maxiter_intensity_effects=1000,
         increment_intensity_effects_until_iteration_i: int = 0,
+        stagnation_patience: int = 10,
         animate: bool = False,
         verbose: bool = True,
         debug=False,
@@ -246,6 +247,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 increment_intensity_effects_until_iteration_i,
                 warning_stacklevel=2,
             )
+        )
+
+        self.stagnation_patience = int_from_float_with_warning(
+            stagnation_patience,
+            warning_stacklevel=2,
         )
 
         self.internal_grid_shape: tuple[int, int] = internal_grid_shape
@@ -327,9 +333,16 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.pause(0.1)
 
         # Track the best (smallest) self-consistency error to detect a limit
-        # cycle / stall (see `_STAGNATION_PATIENCE`).
+        # cycle / stall (see `self.stagnation_patience`), together with the
+        # (small, grid-sized) averaged potential well that produced it: on a
+        # stall the loop must roll back to that minimum, not keep whatever
+        # (worse) state the last, merely non-improving, iteration left
+        # behind. The beam itself (potentially GB-sized) is never copied —
+        # it is deterministically regenerated from the stored potential well
+        # via `self.seed`.
         best_error = float("inf")
         stall_count = 0
+        best_avg_potential_well: NumpyArray | CupyArray | None = None
 
         if sim_tmp.intensity_effect_manager.has_wakefields():
             for i_intensity in range(self.maxiter_intensity_effects):
@@ -421,14 +434,22 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     if error < self.tolerance_potential_well and past_ramp:
                         break
 
-                    # Limit-cycle guard: stop after `_STAGNATION_PATIENCE`
+                    # Limit-cycle guard: stop after `self.stagnation_patience`
                     # iterations without a new error minimum.
                     if error < best_error:
                         best_error = error
                         stall_count = 0
+                        # `self._last_potential_well`/`_prelast_potential_well`
+                        # were just updated by the `_match_beam` call above,
+                        # so this reproduces exactly the averaged potential
+                        # well that produced the beam currently in place.
+                        best_avg_potential_well = (
+                            self._last_potential_well
+                            + self._prelast_potential_well
+                        ) / 2
                     else:
                         stall_count += 1
-                    if stall_count >= _STAGNATION_PATIENCE and past_ramp:
+                    if stall_count >= self.stagnation_patience and past_ramp:
                         if self.verbose:
                             print(
                                 "Stopping: self-consistency error stalled at"
@@ -436,6 +457,16 @@ class SemiEmpiricMatcher(MatchingRoutine):
                                 " (limit cycle, not converging below"
                                 f" tolerance {self.tolerance_potential_well})."
                             )
+                        # Roll back to the beam state at the error minimum,
+                        # regenerated deterministically (same `self.seed`)
+                        # from the small stored potential well, instead of
+                        # keeping the state left by this stalled iteration.
+                        self._rematch_beam_to_potential_well(
+                            beam=beam,
+                            simulation=sim_tmp,
+                            ts=ts,
+                            avg_potential_well=best_avg_potential_well,
+                        )
                         break
 
                 # The per-iteration deepcopy of the full simulation is only
@@ -474,6 +505,78 @@ class SemiEmpiricMatcher(MatchingRoutine):
         time_grid, deltaE_grid, hamilton_2D = self._get_hamilton(
             beam=beam, simulation=simulation, ts=ts
         )
+        self._populate_beam_from_hamiltonian(
+            beam=beam,
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+        )
+
+    def _rematch_beam_to_potential_well(
+        self,
+        beam: BeamBaseClass,
+        simulation: Simulation,
+        ts: NumpyArray | CupyArray,
+        avg_potential_well: NumpyArray | CupyArray,
+    ) -> None:
+        """Regenerate beam coordinates from a previously observed potential well.
+
+        Unlike :meth:`_match_beam`, this does not query
+        ``simulation.get_potential_well_empiric`` again; it rebuilds the
+        Hamiltonian directly from ``avg_potential_well``. Combined with the
+        fixed ``self.seed``, this deterministically reproduces the beam
+        state that ``avg_potential_well`` originally produced, without ever
+        having to keep a copy of the (potentially GB-sized) beam coordinates
+        around.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object.
+        simulation
+            `Simulation` context manager, used only for ``ring`` parameters.
+        ts
+            Time coordinate, in [s] for observation of the potential well.
+        avg_potential_well
+            Previously observed (already-averaged) potential well [V].
+        """
+        deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
+            ts=ts,
+            potential_well=avg_potential_well,
+            reference_total_energy=beam.reference.total_energy,
+            beta=beam.reference.beta,
+            eta=float(
+                simulation.ring.calc_average_eta_0(beam.reference.gamma)
+            ),
+            shape=self.internal_grid_shape,
+        )
+        self._populate_beam_from_hamiltonian(
+            beam=beam,
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+        )
+
+    def _populate_beam_from_hamiltonian(
+        self,
+        beam: BeamBaseClass,
+        time_grid: NumpyArray | CupyArray,
+        deltaE_grid: NumpyArray | CupyArray,
+        hamilton_2D: NumpyArray | CupyArray,
+    ) -> None:
+        """Turn a Hamiltonian grid into a density and populate ``beam`` with it.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object.
+        time_grid
+            2D grid of time coordinates :math:`t` [s].
+        deltaE_grid
+            2D grid of energy offset :math:`\\Delta E` [eV].
+        hamilton_2D
+            2D Hamiltonian evaluated on the grid [eV].
+        """
         density = self.hamilton_to_density_function(
             time_grid=time_grid,
             deltaE_grid=deltaE_grid,
