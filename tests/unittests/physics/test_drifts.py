@@ -15,7 +15,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftExact, DriftSimple
 from blond.testing.backend_testing import multi_backend_testcase
 

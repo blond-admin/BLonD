@@ -27,7 +27,7 @@ from blond import (
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (

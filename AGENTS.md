@@ -115,7 +115,7 @@ comparing each backend to the Python reference.
 - **Arrays may be NumPy *or* CuPy — handle both.** Backend arrays are *not* guaranteed to
   be NumPy. The conversion rules:
   - **Use `copy_to_cpu(arr)`, never `arr.get()` directly.**
-    `from blond.generals.cupy.no_cupy_import import copy_to_cpu` returns a host copy for
+    `from blond.generals.cupy_.no_cupy_import import copy_to_cpu` returns a host copy for
     any backend (`.get()` for CuPy, `.copy()` for NumPy); calling `.get()` yourself crashes
     on a NumPy array.
   - **Never call `np.array(arr)` / `np.asarray(arr)` on a backend array without converting

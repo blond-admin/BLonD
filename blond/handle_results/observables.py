@@ -25,7 +25,7 @@ from numpy.typing import NDArray as NumpyArray
 
 from blond import backend
 from blond.core.base import MainLoopRelevant
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
@@ -40,7 +40,7 @@ if TYPE_CHECKING:  # pragma: no cover
         SingleHarmonicRFStation,
     )
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
-    from blond.typing import AnyArray
+    from blond.generals.typing_ import AnyArray
 
 logger = logging.getLogger(__name__)
 

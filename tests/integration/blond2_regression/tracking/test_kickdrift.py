@@ -16,7 +16,7 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(__file__).parent / "resources"

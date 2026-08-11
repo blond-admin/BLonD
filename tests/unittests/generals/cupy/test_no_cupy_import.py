@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 
-from blond.generals.cupy.no_cupy_import import AllowPlotting, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import AllowPlotting, is_cupy_array
 
 
 class _FakeCupyArray:
@@ -139,7 +139,7 @@ class TestFunctions(unittest.TestCase):
 
         from matplotlib import pyplot as plt
 
-        import blond.generals.cupy.no_cupy_import as no_cupy
+        import blond.generals.cupy_.no_cupy_import as no_cupy
 
         y = cp.ones(12)
 

@@ -7,7 +7,7 @@ import numpy as np
 from blond.core.base import DynamicParameter
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import proton
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.testing.mocks import cycle_const_mock, simulation_mock
 
