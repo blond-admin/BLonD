@@ -21,6 +21,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from blond import (
+    AllowPlotting,
     Beam,
     ConstantMagneticCycle,
     DriftSimple,
@@ -41,7 +42,7 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 
-_DEV_DRAW = True  # TODO os.getenv("DEV_DRAW", "False").lower() == "true"
+_DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 
 # Every time-domain resonator solver must reproduce the frequency-domain
 # reference on this deliberately under-resolved grid (see module docstring).
@@ -158,24 +159,25 @@ def test_low_q_resonator_time_matches_freq_end_to_end():  # NOQA: PLR0915
     }
 
     if _DEV_DRAW:
-        plt.figure("total_induced_voltage")
-        plt.subplot(2, 1, 1)
-        plt.plot(beam_profile.hist_x * 1e9, beam_profile.hist_y, "b")
-        plt.ylabel("Profile")
-        plt.subplot(2, 1, 2)
-        plt.plot(
-            beam_profile.hist_x * 1e9,
-            induced_voltage_freq,
-            "k",
-            lw=2,
-            label="induced_voltage_freq (ref)",
-        )
-        for name, voltage in induced_voltage_time.items():
-            plt.plot(beam_profile.hist_x * 1e9, voltage, label=name)
-        plt.xlabel("Time (ns)")
-        plt.ylabel("Induced voltage (V)")
-        plt.legend()
-        plt.show()
+        with AllowPlotting():
+            plt.figure("total_induced_voltage")
+            plt.subplot(2, 1, 1)
+            plt.plot(beam_profile.hist_x * 1e9, beam_profile.hist_y, "b")
+            plt.ylabel("Profile")
+            plt.subplot(2, 1, 2)
+            plt.plot(
+                beam_profile.hist_x * 1e9,
+                induced_voltage_freq,
+                "k",
+                lw=2,
+                label="induced_voltage_freq (ref)",
+            )
+            for name, voltage in induced_voltage_time.items():
+                plt.plot(beam_profile.hist_x * 1e9, voltage, label=name)
+            plt.xlabel("Time (ns)")
+            plt.ylabel("Induced voltage (V)")
+            plt.legend()
+            plt.show()
 
     # Point-sampling the wake gave ~2.3 here; bin-integration keeps every
     # time-domain solver close to the freq reference on this deliberately
