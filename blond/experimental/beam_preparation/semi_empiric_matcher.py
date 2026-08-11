@@ -449,7 +449,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
                         ) / 2
                     else:
                         stall_count += 1
-                    if stall_count >= self.stagnation_patience and past_ramp:
+                    if (
+                        (stall_count >= self.stagnation_patience)
+                        and past_ramp
+                        and (error == best_error)
+                    ):
                         if self.verbose:
                             print(
                                 "Stopping: self-consistency error stalled at"
