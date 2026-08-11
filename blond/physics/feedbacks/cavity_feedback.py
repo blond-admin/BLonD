@@ -49,7 +49,10 @@ if TYPE_CHECKING:  # pragma: no cover
 BufferCoarse = TypeVar(
     "BufferCoarse", bound=TwoTurnBufferBase | OneTurnBufferBase
 )
+"""TypeVar for the coarse-grid buffer type used by :class:`IQCavityFeedback`."""
+
 BufferFine = TypeVar("BufferFine", bound=OneTurnBufferBase)
+"""TypeVar for the fine-grid buffer type used by :class:`IQCavityFeedback`."""
 
 
 class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
