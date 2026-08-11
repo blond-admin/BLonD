@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import gc
 import math
 from copy import deepcopy
 from typing import TYPE_CHECKING
@@ -29,6 +30,11 @@ from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
+
+# Stop the iteration after this many steps without a new error minimum: the
+# fixed-point can settle into a limit cycle instead of converging, and the
+# matched beam at the stalled point is already correct.
+_STAGNATION_PATIENCE = 10
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -320,6 +326,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.draw()
             plt.pause(0.1)
 
+        # Track the best (smallest) self-consistency error to detect a limit
+        # cycle / stall (see `_STAGNATION_PATIENCE`).
+        best_error = float("inf")
+        stall_count = 0
+
         if sim_tmp.intensity_effect_manager.has_wakefields():
             for i_intensity in range(self.maxiter_intensity_effects):
                 sim_tmp = deepcopy(simulation)  # prevent side effects
@@ -403,12 +414,37 @@ class SemiEmpiricMatcher(MatchingRoutine):
                             f" | Intensity {(scalar * 100):3.1f}%"
                             f" | Error: {error:.{tolerance_decimal_places}f}"
                         )
-                    if (
-                        error < self.tolerance_potential_well
-                        and i_intensity
+                    past_ramp = (
+                        i_intensity
                         > self.increment_intensity_effects_until_iteration_i
-                    ):
+                    )
+                    if error < self.tolerance_potential_well and past_ramp:
                         break
+
+                    # Limit-cycle guard: stop after `_STAGNATION_PATIENCE`
+                    # iterations without a new error minimum.
+                    if error < best_error:
+                        best_error = error
+                        stall_count = 0
+                    else:
+                        stall_count += 1
+                    if stall_count >= _STAGNATION_PATIENCE and past_ramp:
+                        if self.verbose:
+                            print(
+                                "Stopping: self-consistency error stalled at"
+                                f" {best_error:.{tolerance_decimal_places}f}"
+                                " (limit cycle, not converging below"
+                                f" tolerance {self.tolerance_potential_well})."
+                            )
+                        break
+
+                # The per-iteration deepcopy of the full simulation is only
+                # kept alive by reference cycles, so reassigning `sim_tmp`
+                # next iteration does not free it by refcount. Drop it
+                # explicitly so peak memory stays bounded over long runs
+                # instead of growing until the cyclic collector happens to run.
+                del sim_tmp
+                gc.collect()
 
             beam.intensity = intensity_original
 
