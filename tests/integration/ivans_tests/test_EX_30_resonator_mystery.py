@@ -30,21 +30,36 @@ from blond import (
     Ring,
     Simulation,
     StaticProfile,
-    TimeDomainFftSolver,
     WakeField,
     copy_to_cpu,
     proton,
 )
+from blond.physics.impedances.solvers import (
+    MultiPassResonatorSolver,
+    MultiPoleSparseSolve,
+    SingleTurnResonatorConvolutionSolver,
+    TimeDomainFftSolver,
+)
 
-_DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
+_DEV_DRAW = True  # TODO os.getenv("DEV_DRAW", "False").lower() == "true"
+
+# Every time-domain resonator solver must reproduce the frequency-domain
+# reference on this deliberately under-resolved grid (see module docstring).
+_TIME_SOLVER_FACTORIES = (
+    TimeDomainFftSolver,
+    SingleTurnResonatorConvolutionSolver,
+    MultiPoleSparseSolve,
+    MultiPassResonatorSolver,
+)
 
 
 def test_low_q_resonator_time_matches_freq_end_to_end():  # NOQA: PLR0915
-    """Time- and frequency-domain solvers agree for a low-Q resonator.
+    """Every time-domain solver agrees with the freq solver (low-Q).
 
-    Both solvers see the same tracked profile, so the only difference is the
-    wake representation. With bin-integration the relative deviation stays
-    well below the point-sampling regime (~2.3).
+    All solvers see the same tracked profile, so the only difference is the
+    wake representation. With bin-integration each time-domain solver's
+    relative deviation from the frequency-domain reference stays well below
+    the point-sampling regime (~2.3).
     """
     n_particles = int(3e11)
     n_macroparticles = int(5e5)
@@ -106,32 +121,41 @@ def test_low_q_resonator_time_matches_freq_end_to_end():  # NOQA: PLR0915
     quality_factor = 1.0
     shunt_impedance = z_over_n * quality_factor * frequency_res / f_rev
 
-    resonator_freq = Resonators(shunt_impedance, frequency_res, quality_factor)
-    resonator_time = Resonators(shunt_impedance, frequency_res, quality_factor)
+    def make_resonators():
+        return Resonators(shunt_impedance, frequency_res, quality_factor)
 
     wake_freq = WakeField(
-        sources=(resonator_freq,),
+        sources=(make_resonators(),),
         solver=PeriodicFreqSolver(),
         profile=beam_profile,
     )
     wake_freq.track_profile = True
-    wake_time = WakeField(
-        sources=(resonator_time,),
-        solver=TimeDomainFftSolver(),
-        profile=beam_profile,
-    )
-    wake_time.track_profile = True
 
-    ring.add_elements((drift, rf_station, wake_freq, wake_time))
+    wakes_time = {}
+    for make_solver in _TIME_SOLVER_FACTORIES:
+        wake_time = WakeField(
+            sources=(make_resonators(),),
+            solver=make_solver(),
+            profile=beam_profile,
+        )
+        wake_time.track_profile = True
+        wakes_time[make_solver.__name__] = wake_time
+
+    ring.add_elements((drift, rf_station, wake_freq, *wakes_time.values()))
     simulation = Simulation(ring=ring, magnetic_cycle=cycle)
     simulation.run_simulation(beams=beam, n_turns=1)
 
     induced_voltage_freq = np.asarray(copy_to_cpu(wake_freq.induced_voltage))
-    induced_voltage_time = np.asarray(copy_to_cpu(wake_time.induced_voltage))
+    induced_voltage_time = {
+        name: np.asarray(copy_to_cpu(wake.induced_voltage))
+        for name, wake in wakes_time.items()
+    }
 
-    max_rel_dev = np.max(
-        np.abs(induced_voltage_time - induced_voltage_freq)
-    ) / np.max(np.abs(induced_voltage_freq))
+    peak_freq = np.max(np.abs(induced_voltage_freq))
+    max_rel_dev = {
+        name: np.max(np.abs(voltage - induced_voltage_freq)) / peak_freq
+        for name, voltage in induced_voltage_time.items()
+    }
 
     if _DEV_DRAW:
         plt.figure("total_induced_voltage")
@@ -142,20 +166,19 @@ def test_low_q_resonator_time_matches_freq_end_to_end():  # NOQA: PLR0915
         plt.plot(
             beam_profile.hist_x * 1e9,
             induced_voltage_freq,
-            "b",
-            label="induced_voltage_freq",
+            "k",
+            lw=2,
+            label="induced_voltage_freq (ref)",
         )
-        plt.plot(
-            beam_profile.hist_x * 1e9,
-            induced_voltage_time,
-            "g",
-            label="induced_voltage_time (bin-integrated)",
-        )
+        for name, voltage in induced_voltage_time.items():
+            plt.plot(beam_profile.hist_x * 1e9, voltage, label=name)
         plt.xlabel("Time (ns)")
         plt.ylabel("Induced voltage (V)")
         plt.legend()
         plt.show()
 
-    # Point-sampling the wake gave ~2.3 here; bin-integration keeps the two
-    # solvers close on this deliberately under-resolved grid.
-    assert max_rel_dev < 0.15, max_rel_dev
+    # Point-sampling the wake gave ~2.3 here; bin-integration keeps every
+    # time-domain solver close to the freq reference on this deliberately
+    # under-resolved grid.
+    for name, dev in max_rel_dev.items():
+        assert dev < 0.15, (name, dev)
