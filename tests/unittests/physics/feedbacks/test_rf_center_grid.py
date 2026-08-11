@@ -5,6 +5,7 @@ RFCenterGridMixin extraction (blond/physics/feedbacks/rf_center_grid.py)."""
 import inspect
 import warnings
 from copy import deepcopy
+from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1605,3 +1606,210 @@ class TestIQCavityFeedbackTimingClass:
                     time_passed_list[fdbk_idx][trn_ind],
                     time_passed_list[reverse_index][trn_ind],
                 )
+
+
+class _TurnCounterStub:
+    """
+    Turn counter carrying only the ``value`` the reverse walk reads.
+
+    Parameters
+    ----------
+    value
+        Current turn number.
+    """
+
+    def __init__(self, value: int):
+        self.value = value
+
+
+class _ParentStationStub:
+    """
+    Minimal parent-station stand-in for driving the grid mixin directly.
+
+    Parameters
+    ----------
+    omega_rf
+        Design RF frequency returned by ``calc_omega_rf_design``.
+    turn
+        Turn number held by the station's turn counter.
+    """
+
+    def __init__(self, omega_rf: float, turn: int):
+        self._turn_counter = _TurnCounterStub(turn)
+        self._omega_rf = omega_rf
+
+    def calc_omega_rf_design(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """
+        Return the fixed design RF frequency.
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the reference (unused).
+        ring_circumference
+            Circumference of the ring (unused).
+
+        Returns
+        -------
+        float
+            The fixed design RF frequency.
+        """
+        return self._omega_rf
+
+
+class _ReferenceStub:
+    """
+    Minimal reference frame exposing ``time`` and ``beta``.
+
+    Parameters
+    ----------
+    time
+        Reference time [s].
+    beta
+        Relativistic beta of the reference particle.
+    """
+
+    def __init__(self, time: float, beta: float = 1.0):
+        self.time = time
+        self.beta = beta
+
+
+class _AdvancingElementStub:
+    """
+    Reference-altering (drift-like) element advancing time by a fixed step.
+
+    Parameters
+    ----------
+    time_step
+        Time [s] added to the reference on each ``track_reference``.
+    """
+
+    def __init__(self, time_step: float):
+        self._time_step = time_step
+
+    def track_reference(self, reference) -> None:
+        """
+        Advance the reference time by the fixed step.
+
+        Parameters
+        ----------
+        reference
+            Reference frame to advance.
+        """
+        reference.time += self._time_step
+
+
+class _BeamStub:
+    """
+    Minimal beam exposing the reference and the rotation flag.
+
+    Parameters
+    ----------
+    time
+        Reference time [s] of the beam.
+    """
+
+    def __init__(self, time: float):
+        self.is_counter_rotating = False
+        self.reference = _ReferenceStub(time)
+
+
+class TestReverseWalkGuards:
+    """Error/warning guards of the reverse reference walk."""
+
+    omega_rf = 2 * np.pi * 1.3e9
+
+    def _bare_feedback(self, turn: int) -> IQCavityFeedbackTimingClass:
+        feedback = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current_bias=0,
+            n_cavities=1,
+        )
+        feedback._parent_rf_station = _ParentStationStub(self.omega_rf, turn)
+        feedback._ring_circumference = 5.0
+        return feedback
+
+    def test_skipped_turn_is_rejected(self) -> None:
+        # The station's turn counter must never be BEHIND the turn the
+        # last forward projection was made in; a lower value means a turn
+        # was skipped and the reverse walk cannot reconstruct it.
+        feedback = self._bare_feedback(turn=0)
+        feedback._last_tracked_turn_frwrd = 1
+        feedback._reference_state_until_tracked = _ReferenceStub(0.0)
+
+        with pytest.raises(RuntimeError, match="was a turn skipped"):
+            feedback.get_time_omega_array_reverse_direction(
+                beam=_BeamStub(time=1.0)
+            )
+
+    def test_reference_overshoot_warns_about_inconsistency(self) -> None:
+        # The walked reference lands ABOVE the beam's reference time: the
+        # two clocks disagree (e.g. a delta_omega_rf applied directly to
+        # the stations), which the walk must flag rather than silently
+        # accept the overshot interval.
+        feedback = self._bare_feedback(turn=3)
+        feedback._last_tracked_turn_frwrd = 3
+        feedback._reference_state_until_tracked = _ReferenceStub(0.0)
+        feedback._last_tracked_beam_state_frwrd = False
+        element = _AdvancingElementStub(time_step=2.0)
+        feedback._reference_altering_elements = (element,)
+        feedback._reference_altering_elements_reverse = (element,)
+        feedback._reference_index_until_tracked = 0
+        feedback._own_index_in_reference_list = 0
+        feedback._own_index_in_reference_list_reverse = 0
+
+        with pytest.warns(UserWarning, match="Inconsistency with references"):
+            feedback.get_time_omega_array_reverse_direction(
+                beam=_BeamStub(time=1.0)
+            )
+
+        # The walk still completed and recorded the overshot interval.
+        np.testing.assert_array_equal(
+            feedback._reverse_tracking_time_array, [2.0]
+        )
+        np.testing.assert_array_equal(
+            feedback._reverse_tracking_omega_list, [self.omega_rf]
+        )
+
+
+class TestGenerateRfCentersDegenerateSegment:
+    """A segment shorter than one coarse step yields no centre."""
+
+    def test_zero_centre_interval_warns_and_returns_empty(self) -> None:
+        # The first centre sits half an RF period into the segment; a
+        # segment shorter than that contains no centre at all. The
+        # warning supplies the turn/section context that the >=2-centres
+        # ValueError of the RFCenterSegment built right after cannot
+        # know.
+        feedback = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current_bias=0,
+            n_cavities=1,
+        )
+        feedback._parent_rf_station = _ParentStationStub(
+            omega_rf=2 * np.pi, turn=4
+        )
+        residual_sentinel = 0.125
+        feedback._residual_time_last_rf_centers_calculation = residual_sentinel
+
+        with pytest.warns(UserWarning, match="no rf centers in turn 4"):
+            rf_centers = feedback._generate_rf_centers(
+                t_rf=1.0, omega_rf=2 * np.pi, until_time=0.25
+            )
+
+        assert rf_centers.size == 0
+        # The tiling carry-over state must stay untouched: the segment
+        # contributed nothing, so the next segment continues from the
+        # previous residual.
+        assert (
+            feedback._residual_time_last_rf_centers_calculation
+            == residual_sentinel
+        )

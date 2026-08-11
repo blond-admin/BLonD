@@ -499,6 +499,47 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                 self.assertGreater(np.abs(sum_fine), 0.0)
                 np.testing.assert_allclose(sum_coarse, sum_fine, rtol=1e-9)
 
+    def test_lowpass_filter_attenuates_the_fine_current(self):
+        """
+        The optional low-pass filter changes the demodulated current.
+
+        The cutoff is 20 MHz against a 1 GHz carrier, so the filtered
+        fine-grid current must differ from the unfiltered one and carry
+        less energy -- while staying finite and on the same grid.
+        """
+        profile = self._profile_with_bunch_at(0.5)
+        common = {
+            "beam": StubBeam(self.intensity),
+            "profile": profile,
+            "omega_c": self.omega_rf,
+            "dT": 0.0,
+        }
+        unfiltered = rf_beam_current(use_lowpass_filter=False, **common)
+        filtered = rf_beam_current(use_lowpass_filter=True, **common)
+
+        self.assertEqual(filtered.shape, unfiltered.shape)
+        self.assertTrue(np.all(np.isfinite(filtered)))
+        # The filter did something: the arrays differ...
+        self.assertFalse(np.allclose(filtered, unfiltered))
+        # ...and it attenuated (it is a low-pass on a narrow bunch).
+        self.assertLess(np.linalg.norm(filtered), np.linalg.norm(unfiltered))
+
+    def test_sampling_time_without_n_points_is_rejected(self):
+        """``sampling_time`` without ``n_points`` cannot size the grid."""
+        profile = self._profile_with_bunch_at(0.5)
+        with self.assertRaisesRegex(
+            TypeError, "n_points is required when sampling_time"
+        ):
+            rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                use_lowpass_filter=False,
+                dT=0.0,
+                sampling_time=self.t_rf,
+                n_points=None,
+            )
+
     def test_warns_when_beam_maps_before_turn_zero(self):
         """A coarse index below zero warns that the beam is before turn 0."""
         # A large negative time shift maps the leading bins to coarse indices

@@ -80,6 +80,34 @@ class TestAbstractController(unittest.TestCase):
         value = np.array([5.0, -3.0j, 1.0 + 1.0j])
         np.testing.assert_array_equal(_Trivial().limit(value), value)
 
+    def test_compiled_scan_interface_names_the_controller(self):
+        """Without a compiled scan, each scan method raises by name.
+
+        A controller that does not advertise ``supports_envelope_scan``
+        must reject all three compiled-scan calls with a message naming
+        the offending class, so a feedback wired to the wrong controller
+        fails loudly instead of running a half-implemented scan.
+        """
+
+        class _Trivial(GeneratorCurrentController):
+            def update_generator_current(self, error, delta_t):
+                return 0.0 + 0.0j
+
+        controller = _Trivial()
+        self.assertFalse(controller.supports_envelope_scan)
+        scan_calls = {
+            "kernel": controller.envelope_scan_kernel,
+            "state": controller.envelope_scan_state,
+            "absorb": lambda: controller.absorb_envelope_scan_state(()),
+        }
+        for name, scan_call in scan_calls.items():
+            with self.subTest(method=name):
+                with self.assertRaisesRegex(
+                    NotImplementedError,
+                    "_Trivial supplies no compiled envelope scan",
+                ):
+                    scan_call()
+
 
 class TestGeneratorCurrentPIController(unittest.TestCase):
     """Tests for the PI controller error -> generator-current mapping."""

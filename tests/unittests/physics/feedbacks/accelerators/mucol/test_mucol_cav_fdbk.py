@@ -1045,6 +1045,26 @@ class TestExponentialCoarseSolver(unittest.TestCase):
             beam_current, omega_times_dt, previous_voltage
         )  # must not raise
 
+    def test_beam_kick_guard_silent_at_zero_previous_voltage(self):
+        """
+        The kick guard stays silent when the previous voltage is zero.
+
+        The guard measures the beam kick RELATIVE to the antenna voltage
+        it is added to; with ``|V_prev| = 0`` there is no reference to
+        compare against (the relative kick would divide by zero), so even
+        an arbitrarily large kick must neither raise nor warn.
+        """
+        cav_eu = self._feedback(exponential=False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any warning would raise
+            cav_eu._check_beam_kick_magnitude(
+                beam_current=1.0e9,
+                omega_times_dt=2.0 * np.pi,
+                previous_voltage=0.0,
+            )
+        # The once-only warning budget was not consumed either.
+        self.assertFalse(cav_eu._euler_guard._beam_kick_warning_issued)
+
     def test_beam_kicks_kernel_guard_skipped_for_exponential_solver(self):
         """The kernel-path beam-kick guard is skipped for the exact solver."""
         # Two cells; only the second carries beam. Its relative kick vs the

@@ -540,6 +540,19 @@ class TestGeneratorPower(unittest.TestCase):
             places=6,
         )
 
+    def test_generator_power_defaults_to_the_coarse_grid(self):
+        """Without an argument the power is taken on the coarse grid."""
+        cav = build_feedback()
+        cav.generator_current_coarse_grid = np.array(
+            [0.01 + 0.0j, 0.02j, -0.03 + 0.0j]
+        )
+        np.testing.assert_array_equal(
+            cav.generator_power(),
+            cav.generator_power(cav.generator_current_coarse_grid),
+        )
+        # Non-vacuous: the default readout carries real watts.
+        self.assertGreater(np.max(cav.generator_power()), 0.0)
+
 
 class _RecordingController:
     """
@@ -620,6 +633,29 @@ class TestFeedbackControllerDelegation(unittest.TestCase):
         self.assertAlmostEqual(delta_t, omega_times_dt / OMEGA_RF, places=18)
         # ...and the controller's output is written to the coarse grid.
         self.assertEqual(cav.generator_current_coarse_grid[idx], sentinel)
+
+    def test_update_before_circuit_track_is_rejected(self):
+        """Reaching the PI update before circuit_track() fails loudly.
+
+        The controller recovers the sampling time from
+        ``omega_times_dt / omega_input`` and ``omega_input`` is only set
+        by ``circuit_track``; calling the update path first must raise
+        instead of feeding the controller an undefined step.
+        """
+        stub = _RecordingController(0.0 + 0.0j)
+        cav = build_feedback(controller=stub)
+        cav.antenna_voltage_coarse_grid = np.zeros(1, dtype=complex)
+        cav.generator_current_coarse_grid = np.zeros(1, dtype=complex)
+
+        with self.assertRaisesRegex(
+            RuntimeError, "called before circuit_track"
+        ):
+            cav._update_generator_current(
+                omega_times_dt=2 * np.pi,
+                coarse_grid_index_to_update=0,
+            )
+        # The controller was never consulted with a bogus step.
+        self.assertEqual(len(stub.calls), 0)
 
     def test_no_controller_keeps_constant_current(self):
         """Without a controller the generator current stays at the constant value."""
