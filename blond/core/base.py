@@ -205,7 +205,7 @@ class Schedulable:
     Schedulable attributes require two manual entries in the dedicated class:
     - in the initialization:
     >>> def __init__(self, attribute_to_be_scheduled)
-    >>>     self._add_intended_schedule("attribute_to_be_scheduled")
+    >>>     self._register_schedulable_variables("attribute_to_be_scheduled")
     - in the initialisation method:
     >>> def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
     >>> super().on_init_simulation(
@@ -228,9 +228,9 @@ class Schedulable:
         self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
 
-    def _add_intended_schedule(self, *names: str) -> None:
+    def _register_schedulable_variables(self, *names: str) -> None:
         """
-        Add a variable name to the intended schedules.
+        Declare a variable name suitable for scheduling.
 
         When scheduling anything different as an intended variable,
         this class will issue a `UserWarning`.

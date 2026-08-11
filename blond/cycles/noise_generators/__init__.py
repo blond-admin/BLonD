@@ -7,3 +7,13 @@
 # Project website: http://blond.web.cern.ch/
 
 """Module for noise generators."""
+
+from __future__ import annotations
+
+from blond.cycles.noise_generators.base import NoiseGenerator
+from blond.cycles.noise_generators.vari_noise import VariNoise
+
+__all__ = [
+    "NoiseGenerator",
+    "VariNoise",
+]

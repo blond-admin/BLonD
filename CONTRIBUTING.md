@@ -191,7 +191,7 @@ pre-commit install
 To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp --parallel   # Compile the C++ backend
+blond-compile-cpp   # Compile the C++ backend
 ```
 ```bash
 blond-compile-cuda             # Compile the CUDA backend
