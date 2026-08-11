@@ -40,7 +40,8 @@ from blond.physics.feedbacks.cavity_feedback import (
 from .helpers import (
     cavity_response_sparse_matrix,
     fir_filter_lhc_otfb_coeff,
-    smooth_step,
+    ideal_switch_and_limit,
+    klystron_saturation_curve,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -184,6 +185,8 @@ class LHCCavityFeedbackCommissioning:
         Open (True) or closed (False) tuner control; default is False.
     clamping
         Simulate clamping (True) or not (False); default is False.
+    saturation
+        Simulate the saturation effect of the LHC klystrons; default is False.
     enable_klystron
         Flag to enable or disable the group-delay and bandwidth of the klystron.
     excitation
@@ -219,6 +222,7 @@ class LHCCavityFeedbackCommissioning:
         open_rffb: bool = False,
         open_tuner: bool = False,
         clamping: bool = False,
+        saturation: bool = False,
         enable_klystron: bool = False,
         excitation: bool = False,
         excitation_otfb_1: bool = False,
@@ -252,7 +256,7 @@ class LHCCavityFeedbackCommissioning:
         self.open_rffb = not open_rffb
         self.open_tuner = not open_tuner
         self.enable_klystron = enable_klystron
-
+        self.saturation = saturation
         self.clamping = clamping
 
     def generate_white_noise(self, n_points: int):
@@ -380,6 +384,7 @@ class LHCCavityFeedback(
         self.open_rffb = self.rffb.open_rffb
         self.open_tuner = self.rffb.open_tuner
         self.enable_klystron = self.rffb.enable_klystron
+        self.saturation = self.rffb.saturation
         self.clamping = self.rffb.clamping
         self.alpha = self.rffb.alpha
         self.d_phi_ad = self.rffb.d_phi_ad
@@ -391,7 +396,7 @@ class LHCCavityFeedback(
         self.tau_o = self.rffb.tau_o
         self.mu = self.rffb.mu
         self.power_thres = self.rffb.power_thres
-        self.v_swap_thres = (
+        self.i_swap_threshold = (
             np.sqrt(2 * self.power_thres / (self.R_over_Q * self.Q_L))
             / self.G_gen
         )
@@ -661,6 +666,21 @@ class LHCCavityFeedback(
             + self.open_drive_inv * self.I_gen_offset
         )
 
+        if self.saturation:
+            self.buffers_coarse.i_gen_predrive[self.ind] = (
+                klystron_saturation_curve(
+                    predrive=np.abs(
+                        self.buffers_coarse.i_gen_predrive[self.ind]
+                    ),
+                    zero_gain_current=self.i_swap_threshold,
+                    maximum_current=None,
+                    onset=0.8 * self.i_swap_threshold,
+                )
+                * np.exp(
+                    1j * np.angle(self.buffers_coarse.i_gen_predrive[self.ind])
+                )
+            )
+
         # FIR filter
         if self.enable_klystron:
             self.buffers_coarse.i_gen[self.ind] = (
@@ -817,16 +837,11 @@ class LHCCavityFeedback(
         """Model of the Switch and Protect module: clamping of the output power above a given input power."""
         # TODO: check implementation
         if self.clamping:
-            self.buffers_coarse.i_swap_out[self.ind] = (
-                self.v_swap_thres
-                * smooth_step(
-                    np.abs(self.buffers_coarse.i_feedback_out[self.ind]),
-                    x_max=self.v_swap_thres,
-                    N=0,
-                )
-                * np.exp(
-                    1j * np.angle(self.buffers_coarse.i_feedback_out[self.ind])
-                )
+            self.buffers_coarse.i_swap_out[self.ind] = ideal_switch_and_limit(
+                signal=np.abs(self.buffers_coarse.i_feedback_out[self.ind]),
+                limit=self.i_swap_threshold,
+            ) * np.exp(
+                1j * np.angle(self.buffers_coarse.i_feedback_out[self.ind])
             )
         else:
             self.buffers_coarse.i_swap_out[self.ind] = (

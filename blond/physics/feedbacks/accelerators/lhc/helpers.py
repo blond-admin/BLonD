@@ -23,51 +23,104 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
-from scipy.special import comb
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def smooth_step(
-    x: NumpyArray, x_min: float = 0, x_max: float = 1, n_smooth: int = 1
-):
+def _resolve_span(onset, zero_gain_current=None, maximum_current=None):
     """
-    Function to make a smooth step.
-
-    Taken from: https://stackoverflow.com/questions/45165452/how-to-implement-a-smooth-clamp-function-in-python
+    Resolve the span of the output of the klystron model.
 
     Parameters
     ----------
-    x
-        Data to be smoothed.
-    x_min
-        Minimum output value of step.
-    x_max
-        Maximum output value of step.
-    n_smooth
-        Order of smoothness.
+    onset
+        The current value [A] beyond which the gains starts to decrease.
+    zero_gain_current
+        The input current [A] where the gain is exactly zero.
+    maximum_current
+        The maximum generator current [A] available from the klystron.
 
     Returns
     -------
-    output
-        Smooth step of input signal.
+    span
+        The span of the klystron output.
     """
-    # TODO MOVE
-    # TODO TESTCASEW
-    x = np.clip((x - x_min) / (x_max - x_min), 0, 1)
-
-    result = 0
-    for n in range(0, n_smooth + 1):
-        result += (
-            comb(n_smooth + n, n)
-            * comb(2 * n_smooth + 1, n_smooth - n)
-            * (-x) ** n
+    if (zero_gain_current is None) == (maximum_current is None):
+        raise ValueError(
+            "Specify exactly one of zero_gain_point or max_output"
         )
 
-    result *= x ** (n_smooth + 1)
+    if zero_gain_current is not None:
+        if zero_gain_current <= onset:
+            raise ValueError("zero_gain_point must be greater than onset")
+        span = zero_gain_current - onset
+    else:
+        if maximum_current <= onset:
+            raise ValueError("max_output must be greater than onset")
+        span = 1.5 * (
+            maximum_current - onset
+        )  # peak output = onset + (2/3)*span
 
-    return result
+    return span
+
+
+def klystron_saturation_curve(
+    predrive: NumpyArray | complex | float,
+    onset: float = 0.80,
+    maximum_current: float | None = 1.0,
+    zero_gain_current: float | None = None,
+):
+    """
+    Model the saturation curve of a klystron.
+
+    Parameters
+    ----------
+    predrive
+        Input signal to the klystron [A].
+    onset
+        The current value [A] beyond which the gains starts to decrease.
+    maximum_current
+        The maximum generator current [A] available from the klystron.
+    zero_gain_current
+        The input current [A] where the gain is exactly zero.
+
+    Returns
+    -------
+    output_current
+        The output generator current [A].
+    """
+    predrive = np.asarray(predrive, dtype=float)
+
+    span = _resolve_span(onset, zero_gain_current, maximum_current)
+    k = 1.0 / span**2
+    s = np.sign(predrive)
+    ax = np.abs(predrive)
+    overshoot = np.maximum(ax - onset, 0.0)
+
+    inner = np.minimum(ax, onset)  # linear part, slope 1
+    outer = overshoot - k * overshoot**3 / 3.0  # rolled-off part
+
+    return s * (inner + outer)
+
+
+def ideal_switch_and_limit(signal: NumpyArray | float, limit: float = 1.0):
+    """
+    Limit a signal to a certain value.
+
+    Parameters
+    ----------
+    signal
+        Input signal to limit.
+    limit
+        Limit value of the signal.
+
+    Returns
+    -------
+    output_signal
+        Limited output signal.
+    """
+    return np.clip(signal, -limit, limit)
 
 
 def cavity_response_sparse_matrix(
@@ -115,7 +168,6 @@ def cavity_response_sparse_matrix(
         The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1.
     """
     # TODO MOVE
-    # TODO TESTCASE
 
     # Add a zero at the start of RF beam current
     if len(i_beam) != n_samples + 1:
