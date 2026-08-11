@@ -415,9 +415,10 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         """
         Exact closed-form bin-average of the resonator wake.
 
-        Overrides :func:`TimeDomain.get_wake_per_bin` with the analytic result
-        (see :func:`_wake_bin_average`). This is the representation shared by
-        all time-domain resonator solvers.
+        Overrides
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`
+        with the analytic result (see ``_wake_bin_average``). This is the
+        representation shared by all time-domain resonator solvers.
 
         Parameters
         ----------
@@ -937,8 +938,9 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         Point-sampled tabulated wake, interpolated onto ``time``.
 
         The bin-averaged version used by the solvers is obtained through the
-        generic :func:`TimeDomain.get_wake_per_bin` default (exact here, as the
-        table is piecewise-linear).
+        generic
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`
+        default (exact here, as the table is piecewise-linear).
 
         Parameters
         ----------
@@ -1093,7 +1095,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         Point-sampled travelling-wave-cavity wake (alias of :func:`wake_calc`).
 
         The bin-averaged version used by the solvers is obtained through the
-        generic :func:`TimeDomain.get_wake_per_bin` default.
+        generic
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`
+        default.
 
         Parameters
         ----------

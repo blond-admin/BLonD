@@ -227,7 +227,8 @@ class TimeDomain(ABC):
         the parameter-free stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (interior
         points; the edges extrapolate the boundary value). For a tabulated wake
         this is exact, since the table is piecewise-linear by construction.
-        Sources with an analytic wake (e.g. :class:`Resonators`) override this
+        Sources with an analytic wake (e.g.
+        :class:`~blond.physics.impedances.sources.Resonators`) override this
         with the exact closed-form bin-average, which is more accurate when the
         wake oscillates several times within a bin.
 
