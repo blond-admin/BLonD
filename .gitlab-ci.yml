@@ -264,9 +264,12 @@ precommit-check:
   variables:
     SKIP: no-commit-to-branch
   before_script:
+    - python3 -m venv .venv
+    - . .venv/bin/activate
     - pip install uv
-    - uv pip install --system pre-commit
+    - uv pip install pre-commit
   script:
+    - . .venv/bin/activate
     - pre-commit run --all-files
   cache:
     - key: pre-commit-cache
@@ -475,13 +478,16 @@ release_sdist_310:
     - .on_tag
     - .cache_uv
   before_script:
+    - python3 -m venv .venv
+    - . .venv/bin/activate
     - python3 -m pip install --upgrade pip uv
-    - python3 -m uv pip install --system build twine
+    - python3 -m uv pip install build twine
     # Without an up-to-date setuptools, we don't get the requirements
     # inside the sdist.
-    - python3 -m uv pip install --system -U setuptools
+    - python3 -m uv pip install -U setuptools
     - eval ${PRE_SDIST_BUILD}
   script:
+    - . .venv/bin/activate
     - cd ${project_root}
     - python3 -m build --sdist .
     - python3 -m twine upload --verbose
@@ -498,8 +504,10 @@ test_documentation_building:
     - .cache_uv
   script:
     - cd ${project_root}
+    - python3 -m venv .venv
+    - . .venv/bin/activate
     - python3 -m pip install --upgrade pip uv
-    - python3 -m uv pip install --system .[doc]
+    - python3 -m uv pip install .[doc]
     - cd ${project_root}/docs
     - export PATH=/home/non_root/.local/bin:$PATH
     - . ./create_docs.sh
@@ -517,8 +525,10 @@ pages:
   script:
     - cd ${project_root}
     - mkdir public
+    - python3 -m venv .venv
+    - . .venv/bin/activate
     - python3 -m pip install --upgrade pip uv
-    - python3 -m uv pip install --system -v ${project_root}[doc]
+    - python3 -m uv pip install -v ${project_root}[doc]
     - export PATH=$HOME/.local/bin:$PATH
     - cd ./docs
     - ./create_docs.sh
