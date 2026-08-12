@@ -16,7 +16,6 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
-    Numpy64Bit,
     Ring,
     Simulation,
     StaticProfile,
@@ -1558,6 +1557,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
 class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
     @pytest.mark.backend_mutation
+    @multi_backend_testcase("Numpy64Bit")
     def test_cavity_feedback_kick_with_gapped_filling_pattern_does_not_raise(
         self,
     ):
@@ -1571,8 +1571,11 @@ class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
         # followed by `_track_interp`, which previously passed the gapped
         # (non-uniform) `hist_x` straight into `kick_interpolated` with no
         # sparse metadata.
-        backend.change_backend(Numpy64Bit)
-
+        #
+        # Uses `multi_backend_testcase` (rather than a manual
+        # `backend.change_backend(...)`) so the original active
+        # backend is restored after the test, instead of leaking into
+        # whichever test happens to run next.
         sync_momentum = 25.92e9  # [eV / c]
         harmonic = 4620
 
