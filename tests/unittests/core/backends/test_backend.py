@@ -999,6 +999,169 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse(self) -> None:
+        """A particle sitting exactly on the first bin of the *second*
+        island must be kicked using that island's own voltage segment, not
+        misindexed into a neighboring island by a naive global floor()."""
+        dtype = np.float64
+        bins_per_profile = 4
+        # bucket 0 and 3 filled, buckets 1 and 2 empty (a real gap)
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        first_left_cut = 0.0
+        left_cut_distance = 1.0
+        cut_width = 1.0  # == profile_width, one bucket
+        bin_width = cut_width / bins_per_profile
+
+        # memory layout: [bucket0 bins..., bucket3 bins...]
+        bin_centers_np = np.concatenate(
+            [
+                first_left_cut
+                + b * left_cut_distance
+                + bin_width * (np.arange(bins_per_profile) + 0.5)
+                for b in (0, 3)
+            ]
+        )
+        voltage_np = np.array([1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0])
+
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            # particle exactly on bin_centers_np[4] == first bin of the
+            # second island; a global-uniform-grid bug maps this to
+            # memory index 5 instead of 4.
+            dt = backend.array(
+                np.array([bin_centers_np[4]]), dtype=backend.float
+            )
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            voltage = backend.array(voltage_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
+            charge = backend.float(1.0)
+            acceleration_kick = backend.float(0.0)
+
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+                first_left_cut=first_left_cut,
+                left_cut_distance=left_cut_distance,
+                cut_width=cut_width,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+
+            # Ground truth: same particle kicked against ONLY the second
+            # island's own 4-bin dense profile (island-local, no gap).
+            dt_local = backend.array(
+                np.array([bin_centers_np[4] - 3 * left_cut_distance]),
+                dtype=backend.float,
+            )
+            dE_local = backend.zeros_like(dt_local, dtype=backend.float)
+            voltage_local = backend.array(
+                voltage_np[bins_per_profile:], dtype=backend.float
+            )
+            bin_centers_local = backend.array(
+                bin_centers_np[bins_per_profile:] - 3 * left_cut_distance,
+                dtype=backend.float,
+            )
+            backend.specials.kick_interpolated(
+                dt=dt_local,
+                dE=dE_local,
+                voltage=voltage_local,
+                bin_centers=bin_centers_local,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            expected = dE_local
+            if special == "cuda":
+                expected = expected.get()
+
+            np.testing.assert_allclose(
+                result,
+                expected,
+                rtol=self.rtol,
+                err_msg=f"Failed sparse test `{special}` with {dtype}",
+            )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Cross-backend mismatch `{special}` {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse_skips_unfilled_bucket(self) -> None:
+        """A particle whose dt falls into an unfilled bucket's time window
+        must receive no kick (mirrors histogram_sparse's `continue`)."""
+        dtype = np.float64
+        bins_per_profile = 4
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(
+                np.array([1.5]), dtype=backend.float
+            )  # bucket 1, unfilled
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            voltage = backend.array(
+                np.array([1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+                dtype=backend.float,
+            )
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            bin_centers = backend.array(
+                np.arange(8) * 0.25, dtype=backend.float
+            )
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(1.0),
+                acceleration_kick=backend.float(0.0),
+                first_left_cut=0.0,
+                left_cut_distance=1.0,
+                cut_width=1.0,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_allclose(
+                result, np.zeros(1), err_msg=f"Failed `{special}` {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
     def test_histogram_extreme_outliers(self) -> None:
         """Histogram must ignore values of extreme magnitude.
 
