@@ -342,7 +342,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         # via `self.seed`.
         best_error = float("inf")
         stall_count = 0
-        best_avg_potential_well: NumpyArray | CupyArray | None = None
 
         if sim_tmp.intensity_effect_manager.has_wakefields():
             for i_intensity in range(self.maxiter_intensity_effects):
@@ -443,7 +442,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                         # were just updated by the `_match_beam` call above,
                         # so this reproduces exactly the averaged potential
                         # well that produced the beam currently in place.
-                        best_avg_potential_well = (
+                        best_avg_potential_well: NumpyArray | CupyArray = (
                             self._last_potential_well
                             + self._prelast_potential_well
                         ) / 2
