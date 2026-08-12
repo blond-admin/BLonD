@@ -350,6 +350,36 @@ class TestDriftExact(unittest.TestCase):
         )
         self.drift_exact.track(beam=beam)
 
+    def test_track_with_higher_order_alpha_none(self):
+        """``higher_order_alpha=None`` is a documented, type-hinted value
+        and must not crash ``_track`` (regression: ``backend.array(None,
+        ...)`` silently produced a 0-d nan array instead of an empty
+        array, breaking ``len(higher_alpha)`` in every backend kernel).
+        """
+        drift_exact = DriftExact(
+            orbit_length=63.13,
+            section_index=0,
+            momentum_compaction_factor=0.0001278,
+            higher_order_alpha=None,
+        )
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.common_array_size = 1
+        beam.reference.time = float(0)
+        beam.reference.beta = 0.5
+        beam.reference.velocity = float(beam.reference.beta * c0)
+        beam.reference.gamma = float(np.sqrt(1 - 0.25))
+        beam.reference.total_energy = float(938)
+
+        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
+        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
+        beam.write_partial_dt.return_value = beam.dt
+        beam.read_partial_dE.return_value = beam.dE
+        drift_exact._simulation = Mock(Simulation)
+        drift_exact._simulation.turn_counter = DynamicParameter(1)
+
+        drift_exact.track(beam=beam)
+
     @pytest.mark.backend_mutation
     def test_track_vs_blond2(self):
         backend.change_backend(Numpy64Bit)
