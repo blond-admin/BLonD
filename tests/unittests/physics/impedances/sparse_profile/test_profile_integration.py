@@ -288,6 +288,14 @@ class TestSparseProfileIntegration(unittest.TestCase):
         np.testing.assert_allclose(dt_sparse, dt_dense, rtol=1e-8)
         np.testing.assert_allclose(dE_sparse, dE_dense, rtol=1e-8)
 
+    # Deliberately not the first active bucket (index 0 in the
+    # filling pattern below): the first bucket's
+    # `bucket_index_to_memory_index` is always 0, so a broken sparse
+    # kick that ignores the offset mapping entirely would still pass
+    # a test built around bucket 0. See
+    # `test_multiturn_gapped_matches_dense_single_bucket`.
+    _POPULATED_BUCKET = 700
+
     def _build_ring_rf_drift(self):
         ring = Ring(
             circumference=6911.56,
@@ -317,11 +325,17 @@ class TestSparseProfileIntegration(unittest.TestCase):
 
         # Genuine structural gaps: several buckets are allocated as
         # profile "islands" in the sparse representation, but only
-        # the first (bucket 0) is physically populated -- this
-        # isolates the array-indexing correctness of the sparse kick
-        # (the historical bug) from any real inter-bunch wake
-        # cross-talk, which a solo single-bucket simulation could
-        # never reproduce.
+        # one of them (bucket `_POPULATED_BUCKET`, deliberately NOT
+        # the first) is physically populated -- this isolates the
+        # array-indexing correctness of the sparse kick (the
+        # historical bug) from any real inter-bunch wake cross-talk,
+        # which a solo single-bucket simulation could never
+        # reproduce. Using a non-first bucket also means its
+        # `bucket_index_to_memory_index` is nonzero, so the test
+        # only passes if the implementation actually uses the
+        # bucket-to-memory offset mapping: a broken implementation
+        # that silently always used memory offset 0 (as the first
+        # bucket happens to have) would not accidentally pass.
         harmonic = rf_station.harmonic
         filling_pattern = np.zeros(harmonic, bool)
         filling_pattern[[0, 700, 1500, 2600, 3800]] = True
@@ -355,6 +369,19 @@ class TestSparseProfileIntegration(unittest.TestCase):
             beam=beam,
         )
 
+        # Move the (by default bucket-0-centered) bunch into
+        # `_POPULATED_BUCKET`. A shift by an integer number of RF
+        # buckets is a shift of exactly `2 * pi` in RF phase
+        # (`omega_rf * bucket_period == 2 * pi`), so this is a pure
+        # relabelling of which physical bucket the bunch sits in --
+        # it does not change the RF kick physics.
+        t_rev = magnetic_cycle.get_t_rev_init(
+            ring.circumference,
+            particle_type=proton,
+        )
+        bucket_period = t_rev / harmonic
+        beam.dt.array_local += self._POPULATED_BUCKET * bucket_period
+
         sim.run_simulation(beams=beam, n_turns=n_turns)
 
         return beam.dt.copy_as_numpy(), beam.dE.copy_as_numpy()
@@ -364,15 +391,17 @@ class TestSparseProfileIntegration(unittest.TestCase):
     ) -> tuple[np.ndarray, np.ndarray]:
         ring, magnetic_cycle, drift, rf_station = self._build_ring_rf_drift()
 
-        # Exactly one RF period wide, matching bucket 0's
+        # Exactly one RF period wide, matching `_POPULATED_BUCKET`'s
         # `cut_left`/`cut_right` in `EquidistantMultiProfile`
-        # (`profile_width = t_rev / n_slots`, `starts[0] = offset`).
+        # (`profile_width = t_rev / n_slots`,
+        # `starts[i] = offset + i * profile_width`).
         t_rev = magnetic_cycle.get_t_rev_init(
             ring.circumference,
             particle_type=proton,
         )
-        cut_left = 0.0
-        cut_right = t_rev / rf_station.harmonic
+        bucket_period = t_rev / rf_station.harmonic
+        cut_left = self._POPULATED_BUCKET * bucket_period
+        cut_right = cut_left + bucket_period
 
         profile = StaticProfile(
             cut_left=cut_left,
@@ -402,6 +431,12 @@ class TestSparseProfileIntegration(unittest.TestCase):
             ),
             beam=beam,
         )
+
+        # Same relabelling as in `_exec_multiturn_sparse_sim`: shift
+        # the (by default bucket-0-centered) bunch by an integer
+        # number of RF buckets into `_POPULATED_BUCKET`, matching
+        # the profile window above.
+        beam.dt.array_local += self._POPULATED_BUCKET * bucket_period
 
         sim.run_simulation(beams=beam, n_turns=n_turns)
 
