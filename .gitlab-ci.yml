@@ -16,6 +16,10 @@ variables:
   # CPU-homogeneous and you prefer full `-march=native` kernel speed.
   NUMBA_CPU_NAME: "generic"
   NUMBA_CPU_FEATURES: ""
+  # Centralise uv's package cache into the project dir so GitLab can cache it
+  # between runs (default is under the runner's home dir, which is not
+  # guaranteed to persist). See `.cache_uv`.
+  UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv_cache"
 stages:
   - precommit
   - doc_build
@@ -49,6 +53,16 @@ workflow:
     # `import blond` -- which would recompile kernels into the very cache we
     # are pruning. Size budget: BLOND_NUMBA_CACHE_MAX_MB (default 500).
     - python3 dev_tools/prune_numba_cache.py
+
+.cache_uv:
+  # Persist uv's package cache (downloaded/built wheels) between pipelines.
+  # The key is per-job, which also separates Python versions and extras sets
+  # (different image/extras -> different resolved wheels). uv content-addresses
+  # cache entries, so a stale entry is simply ignored, never served wrong.
+  cache:
+    - key: "uv-${CI_JOB_NAME}"
+      paths:
+        - .uv_cache/
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -255,9 +269,12 @@ precommit-check:
   script:
     - pre-commit run --all-files
   cache:
-    key: pre-commit-cache
-    paths:
-      - .cache/pre-commit
+    - key: pre-commit-cache
+      paths:
+        - .cache/pre-commit
+    - key: "uv-${CI_JOB_NAME}"
+      paths:
+        - .uv_cache/
 
 test_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
@@ -268,6 +285,7 @@ test_py_314_no_cupy:
     - .main_no_gpu
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
   dependencies: []
 
 test_py_314_main_many_environments:
@@ -280,6 +298,7 @@ test_py_314_main_many_environments:
     - .publish
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
   dependencies: []
   tags:
     - k8s-gpu
@@ -291,6 +310,7 @@ test_py_310:
   extends:
     - .before
     - .main
+    - .cache_uv
     # - .publish
   dependencies: []
   tags:
@@ -311,6 +331,7 @@ test_py_311:
     - .main
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
     # - .publish
   dependencies: []
   tags:
@@ -331,6 +352,7 @@ test_py_312:
     - .main
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
     # - .publish
   dependencies: []
   tags:
@@ -351,6 +373,7 @@ test_py_313:
     - .main
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
     # - .publish
   dependencies: []
   tags:
@@ -371,6 +394,7 @@ test_py_314:
     - .main
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
     # - .publish
   dependencies: []
   tags:
@@ -390,6 +414,7 @@ test_py_314_only_cupy:
     - .main_only_cupy
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
   dependencies: []
   tags:
     - k8s-gpu
@@ -406,6 +431,7 @@ test_minimum:
   extends:
     - .cache_compiled
     - .cache_numba
+    - .cache_uv
   dependencies: []
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
@@ -447,6 +473,7 @@ release_sdist_310:
   stage: deploy
   extends:
     - .on_tag
+    - .cache_uv
   before_script:
     - python3 -m pip install --upgrade pip uv
     - python3 -m uv pip install --system build twine
@@ -467,6 +494,8 @@ test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python314
   stage: doc_build
   interruptible: true
+  extends:
+    - .cache_uv
   script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip uv
@@ -483,6 +512,8 @@ test_documentation_building:
 
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python314
+  extends:
+    - .cache_uv
   script:
     - cd ${project_root}
     - mkdir public
