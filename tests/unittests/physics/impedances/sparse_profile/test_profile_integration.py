@@ -264,6 +264,149 @@ class TestSparseProfileIntegration(unittest.TestCase):
             "change dE, but dE was unchanged.",
         )
 
+    @pytest.mark.backend_mutation
+    def test_multiturn_gapped_matches_dense_single_bucket(self):
+        # End-to-end regression test for the sparse `kick_interpolated`
+        # fix: a multi-turn simulation of one physical bunch, sitting
+        # in a `EquidistantMultiProfile` whose filling pattern has
+        # several OTHER buckets structurally allocated (creating real
+        # gaps in the concatenated `hist_x`/`hist_y` memory) but no
+        # macroparticles in them, must produce bit-for-bit-equivalent
+        # (to tight rtol) induced-voltage kick physics as the same
+        # bunch tracked in complete isolation with a plain, fully
+        # dense `StaticProfile` covering only its own bucket. Because
+        # the "extra" buckets carry zero charge, there is no genuine
+        # inter-bunch wake cross-talk to confound the comparison --
+        # any mismatch can only come from how the sparse profile's
+        # gapped memory is indexed.
+        backend.change_backend(Numpy64Bit)
+        n_turns = 10
+
+        dt_sparse, dE_sparse = self._exec_multiturn_sparse_sim(n_turns)
+        dt_dense, dE_dense = self._exec_multiturn_dense_sim(n_turns)
+
+        np.testing.assert_allclose(dt_sparse, dt_dense, rtol=1e-8)
+        np.testing.assert_allclose(dE_sparse, dE_dense, rtol=1e-8)
+
+    def _build_ring_rf_drift(self):
+        ring = Ring(
+            circumference=6911.56,
+        )
+        magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=sync_momentum,
+            in_unit="momentum",
+        )
+        drift = DriftSimple(
+            momentum_compaction_factor=momentum_compaction_factor(
+                22.82177322938192
+            ),
+            orbit_length=1.0 * ring.circumference,
+        )
+        rf_station = SingleHarmonicRFStation(
+            harmonic=4620,
+            voltage=0.9e6,
+            phi_rf=0.0,
+        )
+        return ring, magnetic_cycle, drift, rf_station
+
+    def _exec_multiturn_sparse_sim(
+        self, n_turns: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        ring, magnetic_cycle, drift, rf_station = self._build_ring_rf_drift()
+
+        # Genuine structural gaps: several buckets are allocated as
+        # profile "islands" in the sparse representation, but only
+        # the first (bucket 0) is physically populated -- this
+        # isolates the array-indexing correctness of the sparse kick
+        # (the historical bug) from any real inter-bunch wake
+        # cross-talk, which a solo single-bucket simulation could
+        # never reproduce.
+        harmonic = rf_station.harmonic
+        filling_pattern = np.zeros(harmonic, bool)
+        filling_pattern[[0, 700, 1500, 2600, 3800]] = True
+
+        profile = EquidistantMultiProfile(
+            filling_pattern=filling_pattern,
+            bins_per_profile=2**8,
+            offset=0,
+        )
+        wakefield = WakeField(
+            sources=(Resonators(R_shunt, f_res, Q_factor),),
+            solver=MultiPoleSparseSolve(),
+            profile=profile,
+        )
+        ring.add_elements((wakefield, rf_station, drift), reorder=True)
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+
+        beam = Beam(
+            intensity=1e10,
+            particle_type=proton,
+        )
+        sim.prepare_beam(
+            preparation_routine=BiGaussian(
+                sigma_dt=2e-9 / 4,
+                seed=1,
+                n_macroparticles=1e4,
+            ),
+            beam=beam,
+        )
+
+        sim.run_simulation(beams=beam, n_turns=n_turns)
+
+        return beam.dt.copy_as_numpy(), beam.dE.copy_as_numpy()
+
+    def _exec_multiturn_dense_sim(
+        self, n_turns: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        ring, magnetic_cycle, drift, rf_station = self._build_ring_rf_drift()
+
+        # Exactly one RF period wide, matching bucket 0's
+        # `cut_left`/`cut_right` in `EquidistantMultiProfile`
+        # (`profile_width = t_rev / n_slots`, `starts[0] = offset`).
+        t_rev = magnetic_cycle.get_t_rev_init(
+            ring.circumference,
+            particle_type=proton,
+        )
+        cut_left = 0.0
+        cut_right = t_rev / rf_station.harmonic
+
+        profile = StaticProfile(
+            cut_left=cut_left,
+            cut_right=cut_right,
+            n_bins=2**8,
+        )
+        wakefield = WakeField(
+            sources=(Resonators(R_shunt, f_res, Q_factor),),
+            solver=MultiPoleSparseSolve(),
+            profile=profile,
+        )
+        ring.add_elements((wakefield, rf_station, drift), reorder=True)
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+
+        beam = Beam(
+            intensity=1e10,
+            particle_type=proton,
+        )
+        sim.prepare_beam(
+            preparation_routine=BiGaussian(
+                sigma_dt=2e-9 / 4,
+                seed=1,
+                n_macroparticles=1e4,
+            ),
+            beam=beam,
+        )
+
+        sim.run_simulation(beams=beam, n_turns=n_turns)
+
+        return beam.dt.copy_as_numpy(), beam.dE.copy_as_numpy()
+
 
 if __name__ == "__main__":
     unittest.main()
