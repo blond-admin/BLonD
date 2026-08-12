@@ -94,7 +94,7 @@ def check_fail_printing(bool_expr: bool, msg: str):
 _phase_shifts = [0, -1, 1]
 # delta_omega_factor scales the RF-frequency offset applied to the station
 # (delta_omega_rf = factor * omega_rf). The coarse-grid GEOMETRY stays on the
-# *design* RF clock under an offset (see forward_tracking_omega_rf): the
+# *design* RF clock under an offset (see forward_segment_omega_design): the
 # offset enters only as explicit carrier/kick-clock phases, never as a
 # spacing or seed-time change, so the distance checks compare against the
 # design period regardless of the offset.
@@ -282,7 +282,8 @@ class TestIQCavityFeedbackTimingClass:
 
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing._forward_tracking_omega_rf * time_array[-1]
+                    cav_fdbk_timing._forward_segment_omega_design
+                    * time_array[-1]
                     + cav_fdbk_timing._phase_offset_frwrd
                 )
             )
@@ -530,14 +531,16 @@ class TestIQCavityFeedbackTimingClass:
             )
             voltage_array.append(
                 np.sin(
-                    cav_fdbk_timing._forward_tracking_omega_rf * time_array[-1]
+                    cav_fdbk_timing._forward_segment_omega_design
+                    * time_array[-1]
                 )
             )
             rf_centers_array.append(cav_fdbk_timing._rf_centers)
-            # omega_rf_save.append(cav_fdbk_timing.forward_tracking_omega_rf)
-            omega_rf_save.append(cav_fdbk_timing._forward_tracking_omega_rf)
+            # omega_rf_save.append(
+            #     cav_fdbk_timing.forward_segment_omega_design)
+            omega_rf_save.append(cav_fdbk_timing._forward_segment_omega_design)
             print(cav_fdbk_timing.omega_rf)
-            print(cav_fdbk_timing._forward_tracking_omega_rf)
+            print(cav_fdbk_timing._forward_segment_omega_design)
             print(cav_fdbk_timing._parent_rf_station.delta_omega_rf)
             print(cav_fdbk_timing.phi_rf)
             print(
@@ -548,11 +551,11 @@ class TestIQCavityFeedbackTimingClass:
 
             if simulation.turn_i.value == 0:
                 self.t_rf_init = (
-                    2 * np.pi / cav_fdbk_timing._forward_tracking_omega_rf
+                    2 * np.pi / cav_fdbk_timing._forward_segment_omega_design
                 )
                 self.rf_station.delta_omega_rf = (
                     delta_omega_factor
-                    * cav_fdbk_timing._forward_tracking_omega_rf
+                    * cav_fdbk_timing._forward_segment_omega_design
                 )
 
         sim.run_simulation(
@@ -650,7 +653,7 @@ class TestIQCavityFeedbackTimingClass:
                     # ``debug`` records the inspection-only grid
                     # snapshots these tests read
                     # (current_slice_elements_forward,
-                    # reference_time_after_reverse, ...).
+                    # reference_time_after_backfill, ...).
                     debug=True,
                     validate_grid_each_turn=True,
                     # These are grid-geometry-only fixtures: the single
@@ -722,7 +725,7 @@ class TestIQCavityFeedbackTimingClass:
         # silently building a degenerate grid (a single-centre forward
         # segment used to disarm the counter-rotating coincidence guard).
         # Here: 10 sections at harmonic 20 give 2 RF periods per section,
-        # so the turn-0 reverse back-fill before station 0 spans half a
+        # so the turn-0 backfill before station 0 spans half a
         # section = 1 RF period -- one coarse centre.
         backend.change_backend(Numpy64Bit)
         self.harmonic = 20
@@ -789,7 +792,7 @@ class TestIQCavityFeedbackTimingClass:
                         f"{len(fdbk.current_slice_elements_forward)} != 3 in turn {simulation.turn_i.value} section {fdbk.section_index}"
                     )
                 time_passed_list.append(fdbk._forward_tracking_time)
-                omega_list.append(fdbk._forward_tracking_omega_rf)
+                omega_list.append(fdbk._forward_segment_omega_design)
                 rf_centers_list.append(fdbk._rf_centers)
 
                 assert (
@@ -881,36 +884,34 @@ class TestIQCavityFeedbackTimingClass:
                     check_fail_printing(
                         not np.isclose(
                             fdbk.current_beam_reference_time,
-                            fdbk.reference_time_after_reverse,
+                            fdbk.reference_time_after_backfill,
                             atol=0,
                             rtol=1e-12,
                         ),
-                        f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                        f"reference time after backfill not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_backfill} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
                     check_fail_printing(
                         not np.isclose(
                             fdbk.current_beam_reference_energy,
-                            fdbk.reference_energy_after_reverse,
+                            fdbk.reference_energy_after_backfill,
                             atol=0,
                             rtol=1e-12,
                         ),
-                        f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                        f"reference time after backfill not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_backfill} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
 
-                    time_passed_list.append(fdbk._reverse_tracking_time_array)
-                    msk = fdbk._reverse_tracking_time_array != 0
-                    used_time_array = np.array(
-                        fdbk._reverse_tracking_time_array
-                    )[msk]
+                    time_passed_list.append(fdbk._backfill_time_array)
+                    msk = fdbk._backfill_time_array != 0
+                    used_time_array = np.array(fdbk._backfill_time_array)[msk]
                     check_fail_printing(
                         len(used_time_array) != 1,
                         f"time arr length err {len(used_time_array)} != 1 section {idx}, trn {simulation.turn_i.value}",
                     )  # should be unified to 1 value, since only one frequency is used, regardless of number of sections (no acceleration)
-                    omega_list.append(fdbk._reverse_tracking_omega_list)
+                    omega_list.append(fdbk._backfill_segment_omega_design_list)
                     check_fail_printing(
-                        len(fdbk._reverse_tracking_omega_list)
-                        != len(fdbk._reverse_tracking_time_array),
-                        f"omega list not equal, {len(fdbk._reverse_tracking_omega_list)}, {len(fdbk._reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
+                        len(fdbk._backfill_segment_omega_design_list)
+                        != len(fdbk._backfill_time_array),
+                        f"omega list not equal, {len(fdbk._backfill_segment_omega_design_list)}, {len(fdbk._backfill_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
 
             check_allclose_turn_printing_nested(
@@ -998,28 +999,26 @@ class TestIQCavityFeedbackTimingClass:
                     check_fail_printing(
                         not np.isclose(
                             fdbk.current_beam_reference_time,
-                            fdbk.reference_time_after_reverse,
+                            fdbk.reference_time_after_backfill,
                             atol=0,
                             rtol=1e-12,
                         ),
-                        f"reference time after reverse not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                        f"reference time after backfill not within tolerance {fdbk.current_beam_reference_time}, {fdbk.reference_time_after_backfill} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
                     check_fail_printing(
                         not np.isclose(
                             fdbk.current_beam_reference_energy,
-                            fdbk.reference_energy_after_reverse,
+                            fdbk.reference_energy_after_backfill,
                             atol=0,
                             rtol=1e-12,
                         ),
-                        f"reference energy after reverse not within tolerance {fdbk.current_beam_reference_energy}, {fdbk.reference_energy_after_reverse} in turn {simulation.turn_i.value} section {fdbk.section_index}",
+                        f"reference energy after backfill not within tolerance {fdbk.current_beam_reference_energy}, {fdbk.reference_energy_after_backfill} in turn {simulation.turn_i.value} section {fdbk.section_index}",
                     )
 
-                    msk = fdbk._reverse_tracking_time_array != 0
-                    used_time_array = np.array(
-                        fdbk._reverse_tracking_time_array
-                    )[msk]
+                    msk = fdbk._backfill_time_array != 0
+                    used_time_array = np.array(fdbk._backfill_time_array)[msk]
                     used_omega_array = np.array(
-                        fdbk._reverse_tracking_omega_list
+                        fdbk._backfill_segment_omega_design_list
                     )[msk]
                     target_length = n_sections - 1
                     check_fail_printing(
@@ -1027,12 +1026,12 @@ class TestIQCavityFeedbackTimingClass:
                         f"time arr length err {len(used_time_array)} != {target_length} section {idx}, trn {simulation.turn_i.value}",
                     )  # two drifts per section, 3 sections in between cavities
                     check_fail_printing(
-                        len(fdbk._reverse_tracking_omega_list)
-                        != len(fdbk._reverse_tracking_time_array),
-                        f"omega list not equal, {len(fdbk._reverse_tracking_omega_list)}, {len(fdbk._reverse_tracking_time_array)}, section {idx}, trn {simulation.turn_i.value}",
+                        len(fdbk._backfill_segment_omega_design_list)
+                        != len(fdbk._backfill_time_array),
+                        f"omega list not equal, {len(fdbk._backfill_segment_omega_design_list)}, {len(fdbk._backfill_time_array)}, section {idx}, trn {simulation.turn_i.value}",
                     )
                     used_omega_array = np.append(
-                        used_omega_array, fdbk._forward_tracking_omega_rf
+                        used_omega_array, fdbk._forward_segment_omega_design
                     )
                     used_time_array = np.append(
                         used_time_array, fdbk._forward_tracking_time
@@ -1223,20 +1222,18 @@ class TestIQCavityFeedbackTimingClass:
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
                     check_fail_printing(
-                        # one coarse centre per bucket: reverse span plus
+                        # one coarse centre per bucket: backfill span plus
                         # forward segment cover exactly one turn
                         len(fdbk._rf_centers) != self.harmonic,
                         f"failed in {simulation.turn_i.value} {idx} {len(fdbk._rf_centers)}",
                     )
-                    msk = fdbk._reverse_tracking_time_array != 0
-                    used_time_array = np.array(
-                        fdbk._reverse_tracking_time_array
-                    )[msk]
+                    msk = fdbk._backfill_time_array != 0
+                    used_time_array = np.array(fdbk._backfill_time_array)[msk]
                     used_omega_array = np.array(
-                        fdbk._reverse_tracking_omega_list
+                        fdbk._backfill_segment_omega_design_list
                     )[msk]
                     used_omega_array = np.append(
-                        used_omega_array, fdbk._forward_tracking_omega_rf
+                        used_omega_array, fdbk._forward_segment_omega_design
                     )
                     used_time_array = np.append(
                         used_time_array, fdbk._forward_tracking_time
@@ -1553,15 +1550,13 @@ class TestIQCavityFeedbackTimingClass:
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
-                    msk = fdbk._reverse_tracking_time_array != 0
-                    used_time_array = np.array(
-                        fdbk._reverse_tracking_time_array
-                    )[msk]
+                    msk = fdbk._backfill_time_array != 0
+                    used_time_array = np.array(fdbk._backfill_time_array)[msk]
                     used_omega_array = np.array(
-                        fdbk._reverse_tracking_omega_list
+                        fdbk._backfill_segment_omega_design_list
                     )[msk]
                     used_omega_array = np.append(
-                        used_omega_array, fdbk._forward_tracking_omega_rf
+                        used_omega_array, fdbk._forward_segment_omega_design
                     )
                     used_time_array = np.append(
                         used_time_array, fdbk._forward_tracking_time
@@ -1610,7 +1605,7 @@ class TestIQCavityFeedbackTimingClass:
 
 class _TurnCounterStub:
     """
-    Turn counter carrying only the ``value`` the reverse walk reads.
+    Turn counter carrying only the ``value`` the backfill walk reads.
 
     Parameters
     ----------
@@ -1622,9 +1617,16 @@ class _TurnCounterStub:
         self.value = value
 
 
-class _ParentStationStub:
+class _ParentStationStub(SingleHarmonicRFStation):
     """
     Minimal parent-station stand-in for driving the grid mixin directly.
+
+    Subclasses :class:`SingleHarmonicRFStation` ONLY so the grid mixin's
+    ``_resolve_main_harmonic`` isinstance dispatch passes the stub's
+    scalar design frequency through unchanged (a non-single-harmonic
+    parent would be indexed per harmonic). ``super().__init__`` is
+    deliberately not called: the stub carries exactly the two attributes
+    the backfill walk reads.
 
     Parameters
     ----------
@@ -1716,8 +1718,8 @@ class _BeamStub:
         self.reference = _ReferenceStub(time)
 
 
-class TestReverseWalkGuards:
-    """Error/warning guards of the reverse reference walk."""
+class TestBackfillWalkGuards:
+    """Error/warning guards of the backfill reference walk."""
 
     omega_rf = 2 * np.pi * 1.3e9
 
@@ -1737,15 +1739,13 @@ class TestReverseWalkGuards:
     def test_skipped_turn_is_rejected(self) -> None:
         # The station's turn counter must never be BEHIND the turn the
         # last forward projection was made in; a lower value means a turn
-        # was skipped and the reverse walk cannot reconstruct it.
+        # was skipped and the backfill walk cannot reconstruct it.
         feedback = self._bare_feedback(turn=0)
         feedback._last_tracked_turn_frwrd = 1
         feedback._reference_state_until_tracked = _ReferenceStub(0.0)
 
         with pytest.raises(RuntimeError, match="was a turn skipped"):
-            feedback.get_time_omega_array_reverse_direction(
-                beam=_BeamStub(time=1.0)
-            )
+            feedback.get_time_omega_array_backfill(beam=_BeamStub(time=1.0))
 
     def test_reference_overshoot_warns_about_inconsistency(self) -> None:
         # The walked reference lands ABOVE the beam's reference time: the
@@ -1764,17 +1764,140 @@ class TestReverseWalkGuards:
         feedback._own_index_in_reference_list_reverse = 0
 
         with pytest.warns(UserWarning, match="Inconsistency with references"):
-            feedback.get_time_omega_array_reverse_direction(
-                beam=_BeamStub(time=1.0)
-            )
+            feedback.get_time_omega_array_backfill(beam=_BeamStub(time=1.0))
 
         # The walk still completed and recorded the overshot interval.
+        np.testing.assert_array_equal(feedback._backfill_time_array, [2.0])
         np.testing.assert_array_equal(
-            feedback._reverse_tracking_time_array, [2.0]
+            feedback._backfill_segment_omega_design_list, [self.omega_rf]
         )
-        np.testing.assert_array_equal(
-            feedback._reverse_tracking_omega_list, [self.omega_rf]
+
+
+class _MutableTurnCounterStub:
+    """
+    Turn counter exposing the mutable ``_value`` the backfill walk borrows.
+
+    Parameters
+    ----------
+    value
+        Initial turn number.
+    """
+
+    def __init__(self, value: int):
+        self._value = value
+
+    @property
+    def value(self) -> int:
+        """
+        Current turn number.
+
+        Returns
+        -------
+        int
+            The turn number currently held.
+        """
+        return self._value
+
+
+class TestBackfillWalkRestoresForeignTurnCounter:
+    """The borrowed turn counter is handed back even when the walk raises."""
+
+    omega_rf = 2 * np.pi * 1.3e9
+
+    def test_turn_counter_restored_when_track_reference_raises(self) -> None:
+        # The backfill walk temporarily decrements the turn counter of a
+        # FOREIGN RF station (one the feedback does not own) so the station
+        # applies the previous turn's schedule, then restores it. If
+        # track_reference raises in between, an unprotected restore leaves
+        # that station -- and therefore every element of the ring tracked
+        # after it -- on a corrupted turn counter, turning a clean error
+        # into cascading mis-tracking.
+        feedback = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current_bias=0,
+            n_cavities=1,
         )
+        feedback._parent_rf_station = _ParentStationStub(self.omega_rf, turn=4)
+        feedback._ring_circumference = 5.0
+        feedback._last_tracked_turn_frwrd = 3  # -> reference_turn_offset = -1
+        feedback._reference_state_until_tracked = _ReferenceStub(0.0)
+        feedback._last_tracked_beam_state_frwrd = False
+
+        foreign_station = SingleHarmonicRFStation(
+            phi_rf=0.0, harmonic=5, voltage=5e6
+        )
+        original_turn = 7
+        foreign_station._turn_counter = _MutableTurnCounterStub(original_turn)
+        foreign_station.track_reference = Mock(
+            side_effect=RuntimeError("track_reference blew up")
+        )
+
+        feedback._reference_altering_elements = (foreign_station,)
+        feedback._reference_altering_elements_reverse = (foreign_station,)
+        feedback._reference_index_until_tracked = 0
+        feedback._own_index_in_reference_list = 0
+        feedback._own_index_in_reference_list_reverse = 0
+
+        with pytest.raises(RuntimeError, match="track_reference blew up"):
+            feedback.get_time_omega_array_backfill(beam=_BeamStub(time=1.0))
+
+        assert foreign_station._turn_counter._value == original_turn, (
+            "the backfill walk left the foreign station's turn counter at "
+            f"{foreign_station._turn_counter._value} instead of restoring "
+            f"{original_turn}"
+        )
+
+
+class TestPrecedingSegmentResidualFallback:
+    """The live-scalar fall-through is only legal without segments."""
+
+    @staticmethod
+    def _feedback() -> IQCavityFeedbackTimingClass:
+        return IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current_bias=0,
+            n_cavities=1,
+        )
+
+    @staticmethod
+    def _segment(n_centers: int) -> RFCenterSegment:
+        return RFCenterSegment(
+            omega=2 * np.pi,
+            duration=float(n_centers),
+            residual=0.5,
+            centers=np.arange(n_centers, dtype=float),
+        )
+
+    def test_hand_built_grid_without_segments_uses_live_scalar(self) -> None:
+        # Documented fall-back: hand-built grids (tests, direct
+        # circuit_track callers) carry no segment list at all, and must
+        # keep reproducing the historical live-scalar value bit-for-bit.
+        feedback = self._feedback()
+        feedback._segments = []
+        sentinel = 0.125
+        feedback._residual_time_last_rf_centers_calculation = sentinel
+
+        assert feedback._preceding_segment_residual(3) == sentinel
+
+    def test_mid_segment_start_index_on_real_grid_trips(self) -> None:
+        # A start_index that lands INSIDE a segment means the caller
+        # sliced the grid at a non-segment boundary. Silently returning
+        # the live scalar there hands back THIS turn's forward tail -- a
+        # plausible-but-wrong coarse step, exactly the class of bug the
+        # per-segment residual bookkeeping removed.
+        feedback = self._feedback()
+        feedback._segments = [self._segment(3), self._segment(4)]
+        feedback._residual_time_last_rf_centers_calculation = 0.125
+        feedback._residual_time_carried_into_turn = None
+
+        with pytest.raises(AssertionError, match="start_index"):
+            feedback._preceding_segment_residual(2)
 
 
 class TestGenerateRfCentersDegenerateSegment:
@@ -1802,7 +1925,7 @@ class TestGenerateRfCentersDegenerateSegment:
 
         with pytest.warns(UserWarning, match="no rf centers in turn 4"):
             rf_centers = feedback._generate_rf_centers(
-                t_rf=1.0, omega_rf=2 * np.pi, until_time=0.25
+                t_rf=1.0, omega_design=2 * np.pi, until_time=0.25
             )
 
         assert rf_centers.size == 0

@@ -12,7 +12,7 @@ Coarse-grid (``rf_centers``) construction for the cavity-feedback timing class.
 
 :class:`RFCenterGridMixin` bundles the per-turn coarse-grid construction of
 :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`:
-the forward/reverse reference walks that decide which RF frequency each grid
+the forward/backfill reference walks that decide which RF frequency each
 segment is generated at, the segment generation itself, and the derived flat
 ``rf_centers`` / ``rf_centers_lengths`` arrays the tracking loop indexes.
 
@@ -24,7 +24,7 @@ owns and initialises in ``__init__`` / ``on_run_simulation``.
 - Tiling carry-over from one segment to the next:
   ``_residual_time_last_rf_centers_calculation``,
   ``_residual_taps_last_rf_centers_calculation`` and
-  ``_last_forward_tracking_freq``.
+  ``_last_segment_omega_design``.
 - Turn-boundary carry-over, captured by
   ``RFCenterGridMixin._close_previous_turn_grid`` before it clears the
   previous turn's segments: ``_residual_time_carried_into_turn``, which
@@ -32,11 +32,11 @@ owns and initialises in ``__init__`` / ``on_run_simulation``.
   boundary, and ``_last_rf_centers_entry``, the previous turn's last
   centre -- the only piece the host reads back (as a first-turn
   ``None`` / not-``None`` flag in its per-cell step sizing).
-- Walk results: ``_reverse_tracking_time_array`` /
-  ``_reverse_tracking_omega_list``, which stay inside this module (the
-  reverse generation turns them into segments, and the tracking loop then
+- Walk results: ``_backfill_time_array`` /
+  ``_backfill_segment_omega_design_list``, which stay inside this module (the
+  backfill generation turns them into segments, and the tracking loop then
   reads the segments), plus ``_forward_tracking_time`` /
-  ``_forward_tracking_omega_rf`` and ``_tracked_forward_until_element``,
+  ``_forward_segment_omega_design`` and ``_tracked_forward_until_element``,
   which the tracking loop consumes.
 - Reference bookkeeping: ``_reference_state_until_tracked``,
   ``_reference_index_until_tracked``,
@@ -47,19 +47,31 @@ owns and initialises in ``__init__`` / ``on_run_simulation``.
 - Plain host configuration: ``n_rf_periods_per_coarse_grid``,
   ``section_index``, ``_parent_rf_station``, ``_ring_circumference`` and
   ``_debug`` -- the last of which additionally gates the inspection-only
-  ``current_slice_elements_forward`` / ``reference_time_after_reverse`` /
-  ``reference_energy_after_reverse`` / ``current_beam_reference_time`` /
+  ``current_slice_elements_forward`` / ``reference_time_after_backfill`` /
+  ``reference_energy_after_backfill`` / ``current_beam_reference_time`` /
   ``current_beam_reference_energy`` diagnostics written here (nothing reads
   them back).
 
+Two independent notions share the word "backwards" here, and the names keep
+them apart. *Backfill* is a TIME direction: the feedback only runs at its own
+station, so each passage must reconstruct the stretch of grid that already
+elapsed since the previous passage -- every multi-section ring needs it,
+whichever way its beam goes. *Reverse* is a SPACE direction: a
+counter-rotating beam meets the ring's reference-altering elements in the
+reversed order, hence ``_reference_altering_elements_reverse`` and its index
+companions. A single-direction multi-section ring uses the backfill walk and
+never the reversed element list.
+
 Note which frequency the grid runs on: every segment frequency comes from the
-parent station's ``calc_omega_rf_design``. The mixin reads none of the host's
-RF properties -- not ``omega_rf``, ``omega_rf_design``, ``harmonic``,
-``delta_omega_rf`` or ``sampling_time_coarse``, and the host has no ``t_rf``
-accessor at all. The grid geometry is design-clock only; the RF-frequency
-offset enters solely as a demodulation/readout phase. The traversals and the
-segment generation were extracted verbatim from ``cavity_feedback.py`` for
-readability.
+parent station's ``calc_omega_rf_design``, reduced to the host's tracked
+harmonic through ``_resolve_main_harmonic`` (a multi-harmonic station returns
+the whole per-harmonic array; a single-harmonic one is untouched). Beyond
+that dispatch the mixin reads none of the host's RF properties -- not
+``omega_rf``, ``omega_rf_design``, ``harmonic``, ``delta_omega_rf`` or
+``sampling_time_coarse``, and the host has no ``t_rf`` accessor at all. The
+grid geometry is design-clock only; the RF-frequency offset enters solely as
+a demodulation/readout phase. The traversals and the segment generation were
+extracted verbatim from ``cavity_feedback.py`` for readability.
 """
 
 from __future__ import annotations
@@ -90,12 +102,13 @@ class RFCenterGridMixin:
         """
         Reference-altering element list for one beam direction.
 
-        Both the forward-projection and the reverse back-fill traversals walk
-        the ring's reference-altering elements; a counter-rotating beam sees
-        them in the reversed order. Selecting the list through this one helper
-        keeps the two traversals free of duplicated direction ``if`` ladders
-        while still supporting either direction (needed for counter-rotating
-        beams).
+        Both the forward-projection and the backfill traversals walk the
+        ring's reference-altering elements; a counter-rotating beam sees them
+        in the reversed order. This is the *space* sense of "reverse" (see
+        the module docstring), independent of the backfill time direction.
+        Selecting the list through this one helper keeps the two traversals
+        free of duplicated direction ``if`` ladders while still supporting
+        either direction (needed for counter-rotating beams).
 
         Parameters
         ----------
@@ -229,7 +242,11 @@ class RFCenterGridMixin:
         # the bunch-local time (order t_rf, reset each turn) to ~1e-6 rad and
         # never accumulates, so demodulating at the design carrier is
         # exact to well within the discretization floor.
-        self._forward_tracking_omega_rf = (
+        # _resolve_main_harmonic: calc_omega_rf_design returns the whole
+        # per-harmonic array for a MultiHarmonicRFStation; the grid runs
+        # on THIS feedback's harmonic (a no-op for a single-harmonic
+        # station, whose value is a scalar already).
+        self._forward_segment_omega_design = self._resolve_main_harmonic(
             self._parent_rf_station.calc_omega_rf_design(
                 dummy_reference.beta, self._ring_circumference
             )
@@ -277,13 +294,15 @@ class RFCenterGridMixin:
                     self._own_index_in_reference_list : next_reference_altering_element_index
                 ]
 
-    def get_time_omega_array_reverse_direction(  # noqa: PLR0912, PLR0915
+    def get_time_omega_array_backfill(  # noqa: PLR0912, PLR0915
         self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
     ):
         """
-        Determine the slice of elements, which should be tracked in the reverse direction.
+        Determine the slice of elements to walk for the backfill.
 
-        Only gets called after the first turn.
+        The backfill covers the stretch of the ring that has already elapsed
+        since this feedback's previous passage. Only gets called after the
+        first turn.
 
         Parameters
         ----------
@@ -312,7 +331,7 @@ class RFCenterGridMixin:
         if self._last_tracked_beam_state_frwrd is not None:
             # Continue from where the last forward projection stopped, in that
             # beam's direction.
-            reverse_tracking_list = self._reference_list_for_direction(
+            backfill_element_list = self._reference_list_for_direction(
                 self._last_tracked_beam_state_frwrd
             )
             start_index = (
@@ -322,12 +341,12 @@ class RFCenterGridMixin:
             )
         else:
             # first turn, nothing has been tracked yet.
-            reverse_tracking_list = self._reference_list_for_direction(
+            backfill_element_list = self._reference_list_for_direction(
                 beam.is_counter_rotating
             )
             start_index = 0
 
-        for element in reverse_tracking_list[
+        for element in backfill_element_list[
             start_index:
         ]:  # iterate through remaining last turn
             element: AltersReference  # TODO: are duplicate elements allowed in pipeline?
@@ -337,22 +356,36 @@ class RFCenterGridMixin:
                 # Since we are in the previous turn, we need to decrease this manually
                 # and increase it afterwards (only for cavities in case of scheduled acceleration).
                 # this is not strictly true for all cases, but only cases, where the reference crosses the turn border on the forward tracking
+                #
+                # FOREIGN STATE: the turn counter belongs to an RF station
+                # this feedback does not own; it is borrowed for the
+                # duration of the call and must be handed back untouched.
+                # The restore therefore runs in a ``finally``: both this
+                # walk and ``track_reference`` itself can raise, and an
+                # unrestored counter would silently mis-track every element
+                # of the ring for the rest of the run.
                 element._turn_counter._value += reference_turn_offset
-                element.track_reference(
-                    self._reference_state_until_tracked,
-                    beam.is_counter_rotating,
-                )
+                try:
+                    element.track_reference(
+                        self._reference_state_until_tracked,
+                        beam.is_counter_rotating,
+                    )
+                finally:
+                    element._turn_counter._value -= reference_turn_offset
             else:
                 element.track_reference(
                     self._reference_state_until_tracked
                 )  # no need for CR flag
-            if isinstance(element, RFStationBaseClass):
-                element._turn_counter._value -= reference_turn_offset
 
+            # Per-harmonic array on a multi-harmonic parent; the grid
+            # runs on THIS feedback's harmonic (see
+            # forward_segment_omega_design).
             omega_list.append(
-                self._parent_rf_station.calc_omega_rf_design(
-                    self._reference_state_until_tracked.beta,
-                    self._ring_circumference,
+                self._resolve_main_harmonic(
+                    self._parent_rf_station.calc_omega_rf_design(
+                        self._reference_state_until_tracked.beta,
+                        self._ring_circumference,
+                    )
                 )
             )
             time_list.append(self._reference_state_until_tracked.time)
@@ -376,11 +409,11 @@ class RFCenterGridMixin:
                 break
 
         until_index = self._own_index_for_direction(
-            reverse_tracking_list is self._reference_altering_elements_reverse
+            backfill_element_list is self._reference_altering_elements_reverse
         )
 
         if not found:
-            for element in reverse_tracking_list[
+            for element in backfill_element_list[
                 :until_index
             ]:  # iterate through initial current turn
                 element: AltersReference
@@ -393,10 +426,15 @@ class RFCenterGridMixin:
                     element.track_reference(
                         self._reference_state_until_tracked
                     )
+                # Per-harmonic array on a multi-harmonic parent; the
+                # grid runs on THIS feedback's harmonic (see
+                # forward_segment_omega_design).
                 omega_list.append(
-                    self._parent_rf_station.calc_omega_rf_design(
-                        self._reference_state_until_tracked.beta,
-                        self._ring_circumference,
+                    self._resolve_main_harmonic(
+                        self._parent_rf_station.calc_omega_rf_design(
+                            self._reference_state_until_tracked.beta,
+                            self._ring_circumference,
+                        )
                     )
                 )
                 time_list.append(self._reference_state_until_tracked.time)
@@ -409,28 +447,30 @@ class RFCenterGridMixin:
                     break
 
         if len(time_list) > 1:
-            self._reverse_tracking_time_array = np.append(
+            self._backfill_time_array = np.append(
                 np.array(time_list[0] - start_time), np.diff(time_list)
             )
             # Grid geometry stays on the *design* RF clock (see
-            # forward_tracking_omega_rf); the RF-frequency offset enters only
-            # as the constant demodulation/readout phase, not the grid.
-            self._reverse_tracking_omega_list = np.array(omega_list)
+            # forward_segment_omega_design); the RF-frequency offset
+            # enters only as the constant demodulation/readout phase,
+            # not the grid.
+            self._backfill_segment_omega_design_list = np.array(omega_list)
         else:
-            self._reverse_tracking_time_array = np.array(time_list)
+            self._backfill_time_array = np.array(time_list)
             # Grid geometry stays on the *design* RF clock (see
-            # forward_tracking_omega_rf); the RF-frequency offset enters only
-            # as the constant demodulation/readout phase, not the grid.
-            self._reverse_tracking_omega_list = np.array(omega_list)
+            # forward_segment_omega_design); the RF-frequency offset
+            # enters only as the constant demodulation/readout phase,
+            # not the grid.
+            self._backfill_segment_omega_design_list = np.array(omega_list)
 
-        self._unify_same_frequency_time_points_reverse()
+        self._unify_same_frequency_time_points_backfill()
 
         if self._debug:
-            self.reference_time_after_reverse = (
+            self.reference_time_after_backfill = (
                 self._reference_state_until_tracked.time
             )
             self.current_beam_reference_time = beam.reference.time
-            self.reference_energy_after_reverse = (
+            self.reference_energy_after_backfill = (
                 self._reference_state_until_tracked.total_energy
             )
             self.current_beam_reference_energy = beam.reference.total_energy
@@ -506,13 +546,13 @@ class RFCenterGridMixin:
 
         self._clear_segments()
 
-    def _generate_reverse_segments_if_due(
+    def _generate_backfill_segments_if_due(
         self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
     ) -> None:
         """
         Back-fill the segments elapsed since the last passage, if any.
 
-        The reverse walk reconstructs the interval the previous forward
+        The backfill walk reconstructs the interval the previous forward
         projection did not already cover. It is therefore skipped when that
         projection stopped at this very station (the whole turn was tracked
         forward), and -- when no projection has been made yet -- runs only
@@ -529,10 +569,10 @@ class RFCenterGridMixin:
                 self._tracked_forward_until_element
                 is not self._parent_rf_station
             ):  # otherwise, the full turn was already tracked
-                self.calculate_rf_centers_for_reverse_direction(beam=beam)
+                self.calculate_rf_centers_for_backfill(beam=beam)
         elif self._parent_rf_station._turn_counter.value == 0:
             # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
-            self.calculate_rf_centers_for_reverse_direction(beam=beam)
+            self.calculate_rf_centers_for_backfill(beam=beam)
 
     def _validate_grid(self: IQCavityFeedbackTimingClass) -> None:
         """
@@ -599,12 +639,23 @@ class RFCenterGridMixin:
                     )
                 return self._segments[segment_index - 1].residual
             offset += len(segment)
+        # Falling through is legal for exactly ONE case: a hand-built grid
+        # with no segments at all (tests, direct ``circuit_track`` callers),
+        # which reproduces the historical live-scalar value. On a real
+        # per-turn grid an unmatched start_index means the caller sliced
+        # mid-segment, and the live scalar holds THIS turn's forward tail --
+        # a plausible-but-wrong step. Trip immediately instead.
+        assert not self._segments, (
+            f"start_index {start_index} is not a segment boundary of the "
+            "per-turn grid; segment start offsets are "
+            f"{np.cumsum([0, *(len(seg) for seg in self._segments)])[:-1]}"
+        )
         return self._residual_time_last_rf_centers_calculation
 
     def _generate_rf_centers(
         self: IQCavityFeedbackTimingClass,
         t_rf,
-        omega_rf,
+        omega_design,
         until_time: float,
     ):
         """
@@ -612,7 +663,7 @@ class RFCenterGridMixin:
 
         The returned times are segment-local (they start near 0, not at an
         absolute simulation time) and are laid out on the **design** RF
-        clock: both ``t_rf`` and ``omega_rf`` below carry the design
+        clock: both ``t_rf`` and ``omega_design`` below carry the design
         frequency (``calc_omega_rf_design``), never the actual/offset one.
         The RF-frequency offset reaches the feedback only as a demodulation
         and readout phase, which keeps the grid geometry a pure function of
@@ -629,11 +680,10 @@ class RFCenterGridMixin:
         ----------
         t_rf
             RF period of this segment on the design clock [s].
-        omega_rf
-            Design RF frequency of this segment [rad/s]. Despite the name,
-            this is *not* the host's ``omega_rf`` property (the actual
-            frequency); it is stored as ``_last_forward_tracking_freq`` for
-            the next segment's sub-stepping continuation.
+        omega_design
+            Design RF frequency of this segment [rad/s]; it is stored as
+            ``_last_segment_omega_design`` for the next segment's
+            sub-stepping continuation.
         until_time
             Duration of the segment [s]. Centres are generated up to, and
             excluding, this local time.
@@ -653,7 +703,7 @@ class RFCenterGridMixin:
         segment: ``_residual_time_last_rf_centers_calculation`` (the unfilled
         tail between the last centre and ``until_time``),
         ``_residual_taps_last_rf_centers_calculation`` (that tail in RF
-        periods) and ``_last_forward_tracking_freq``.
+        periods) and ``_last_segment_omega_design``.
         """
         # Segments always seed at the design bucket phase: the first centre
         # sits on the falling-edge zero half an RF period into the segment
@@ -675,7 +725,7 @@ class RFCenterGridMixin:
             # lies one full step after the previous turn's last centre, i.e.
             # (step - residual) into the new turn. The residual was measured
             # against the *previous* segment's step, so use that step
-            # (last_forward_tracking_freq), not the current one -- under
+            # (last_segment_omega_design), not the current one -- under
             # acceleration/detuning they differ and mixing them places the
             # first centre at the wrong (possibly negative) offset. The
             # phase-based falling-edge start is only used to seed the very
@@ -684,7 +734,7 @@ class RFCenterGridMixin:
                 self.n_rf_periods_per_coarse_grid
                 * 2
                 * np.pi
-                / self._last_forward_tracking_freq
+                / self._last_segment_omega_design
             )
             time_to_next_falling_edge_zero = (
                 step_width_previous
@@ -712,7 +762,7 @@ class RFCenterGridMixin:
                 stacklevel=2,
             )
             # A segment shorter than one coarse step contains no centre
-            # (fine sectioning: a reverse segment shorter than step_width).
+            # (fine sectioning: a backfill segment shorter than step_width).
             # Return the empty array rather than indexing rf_centers[-1]
             # below; the RFCenterSegment the caller constructs right after
             # rejects the degenerate segment with the actionable >=2-centres
@@ -727,7 +777,7 @@ class RFCenterGridMixin:
         self._residual_taps_last_rf_centers_calculation = (
             self._residual_time_last_rf_centers_calculation / t_rf
         )
-        self._last_forward_tracking_freq = omega_rf
+        self._last_segment_omega_design = omega_design
         return rf_centers
 
     def calculate_rf_centers_for_forward_direction(
@@ -748,29 +798,31 @@ class RFCenterGridMixin:
         # a pure phase by the parent station's kick clock (``delta_phi_rf``)
         # and applied to the beam-current demodulation (see
         # ``calculate_rf_beam_current_partial``) -- never as a time shift or
-        # spacing change of the grid (see forward_tracking_omega_rf).
+        # spacing change of the grid (see forward_segment_omega_design).
 
         new_rf_centers = self._generate_rf_centers(
-            t_rf=(2 * np.pi / self._forward_tracking_omega_rf),
-            omega_rf=self._forward_tracking_omega_rf,
+            t_rf=(2 * np.pi / self._forward_segment_omega_design),
+            omega_design=self._forward_segment_omega_design,
             until_time=self._forward_tracking_time,
         )
 
         self._append_segment(
             RFCenterSegment(
-                omega=self._forward_tracking_omega_rf,
+                omega=self._forward_segment_omega_design,
                 duration=self._forward_tracking_time,
                 residual=self._residual_time_last_rf_centers_calculation,
                 centers=new_rf_centers,
             )
         )
 
-    def _unify_same_frequency_time_points_reverse(
+    def _unify_same_frequency_time_points_backfill(
         self: IQCavityFeedbackTimingClass,
     ):
-        if len(self._reverse_tracking_time_array) > 1:
-            time_arr_to_use = np.copy(self._reverse_tracking_time_array)
-            omega_array_to_use = np.copy(self._reverse_tracking_omega_list)
+        if len(self._backfill_time_array) > 1:
+            time_arr_to_use = np.copy(self._backfill_time_array)
+            omega_array_to_use = np.copy(
+                self._backfill_segment_omega_design_list
+            )
 
             for omega_ind in range(1, len(omega_array_to_use)):
                 if (
@@ -783,16 +835,16 @@ class RFCenterGridMixin:
                     time_arr_to_use[omega_ind - 1] = 0
 
             mask = time_arr_to_use != 0
-            self._reverse_tracking_time_array = time_arr_to_use[mask]
-            self._reverse_tracking_omega_list = omega_array_to_use[mask]
+            self._backfill_time_array = time_arr_to_use[mask]
+            self._backfill_segment_omega_design_list = omega_array_to_use[mask]
 
-    def calculate_rf_centers_for_reverse_direction(
+    def calculate_rf_centers_for_backfill(
         self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
     ) -> None:
         """
-        Compute the coarse-grid rf_centers for the reverse-tracking direction.
+        Compute the coarse-grid rf_centers of the backfill span.
 
-        This function determines the omega_rf values, which were present
+        This function determines the design RF frequencies, which were present
         between the last call of the module and now, and then computes the
         rf-centers from based on these values.
 
@@ -809,19 +861,22 @@ class RFCenterGridMixin:
         if beam.reference.time == self._reference_state_until_tracked.time:
             return
 
-        self.get_time_omega_array_reverse_direction(beam=beam)
+        self.get_time_omega_array_backfill(beam=beam)
 
-        for time_ind, time in enumerate(self._reverse_tracking_time_array):
+        for time_ind, time in enumerate(self._backfill_time_array):
             # if time == 0:  # cavities may cause this in debug mode
             #     continue
+            segment_omega_design = self._backfill_segment_omega_design_list[
+                time_ind
+            ]
             new_rf_centers = self._generate_rf_centers(
-                t_rf=(2 * np.pi / self._reverse_tracking_omega_list[time_ind]),
-                omega_rf=self._reverse_tracking_omega_list[time_ind],
+                t_rf=(2 * np.pi / segment_omega_design),
+                omega_design=segment_omega_design,
                 until_time=time,
             )
             self._append_segment(
                 RFCenterSegment(
-                    omega=self._reverse_tracking_omega_list[time_ind],
+                    omega=segment_omega_design,
                     duration=time,
                     residual=self._residual_time_last_rf_centers_calculation,
                     centers=new_rf_centers,

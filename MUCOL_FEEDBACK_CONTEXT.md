@@ -1,746 +1,900 @@
 # Muon-Collider Cavity Feedback — Work Context & Handoff
 
-Consolidated record of the mucol cavity-feedback work on the BLonD submodule
-(branch `blonder_feature/mucol_feedbacks`), July–August 2026. Checkpoint-
-committed throughout; last structural pass 2026-08-07 (§2.11). Still to be
+Working notes for the mucol cavity-feedback branch
+(`blonder_feature/mucol_feedbacks`), July–August 2026. Checkpoint-committed
+throughout; last full re-verification of this file against the source
+2026-08-11; docs-consistency sweep (this file + both RSTs against the
+source, scripted name/role/test-name checks) 2026-08-12. Still to be
 reviewed before the MR.
 
-This file is a handoff summary, and it is the *derived* copy of everything it
-describes. Where it disagrees with the code or with the two RSTs, the code
-wins and this file is the bug. The authoritative living docs are
-`docs/feedbacks/mucol_cavity_feedback.rst` (design) and
-`docs/tests/mucol_cavity_feedback_tests.rst` (test inventory); the
-design-clock / demodulation invariant in particular is canonically stated in
-the `IQCavityFeedbackTimingClass` docstring and in the design RST's
-"Interplay with the RF station" — §3's `delta_omega_rf` bullet below only
-records *when* it was resolved and *how well* it measures.
+**What this file is.** A maintainer's handoff map: the invariants, the
+decisions (including the rejected ones and the user directives behind them),
+the module layout, and the open questions. It is kept deliberately and it is
+deliberately *not* published documentation.
+
+**What it is not.** It is not the design doc and it is not the test
+inventory. Those are:
+
+- `docs/feedbacks/mucol_cavity_feedback.rst` — design. Sections: *Concepts
+  and notation*, *Classes at a glance*, *Signal path of one turn*, *Initial
+  conditions and cavity pre-fill*, *Interplay with the RF station*,
+  *Counter-rotating beams*, *Validation*, *Known limitations*.
+- `docs/tests/mucol_cavity_feedback_tests.rst` — test inventory. Sections:
+  *Common physics context*, *Test modules*, *Shared feedback-machinery
+  tests*, *Guards tested outside the feedbacks tree*, *Support modules*,
+  *Data and assets*, *Running the tests*.
+
+Where this file would only restate them, it points instead.
+
+**Precedence.** The code wins over all three. This file has asserted the
+*opposite* of the code on a central invariant before (see the corrections
+logged in §2.11 and §3), so read the source, not the note. Every claim below
+was re-checked against the source on 2026-08-11 unless it is marked
+**HISTORY** — history bullets record *what was decided and when*, not what
+the code does today.
 
 ---
 
 ## 0. Scope, constraints, and how to work in this repo
 
-**Scope**: muon-collider (mucol) cavity feedbacks and their base classes only.
-LHC / SPS / experimental / legacy feedback code is **out of scope** and must not
-change behaviour. Shared code (impedance solvers, `rf_beam_current`) was touched
-only where explicitly authorised (the counter-rotating work).
+**Scope**: muon-collider (mucol) cavity feedbacks and their base classes.
+Shared code (impedance solvers, `rf_beam_current`, `profiles.py`,
+`cavities.py`) was touched only where explicitly authorised (the
+counter-rotating work, the unified span guard, the multi-harmonic slot
+check).
 
 **Hard invariants (must always hold):**
+
+- **n = 1 / single-beam path bit-identical**: a single co-rotating beam must
+  produce bit-identical results before/after any change; a single
+  counter-rotating µ⁻ beam must reproduce the co-rotating µ⁺ run bit-for-bit.
+- **Design-clock grid**: the coarse `rf_centers` geometry is a pure function
+  of `calc_omega_rf_design` and the reference times. Frequency and phase
+  offsets (`delta_omega_rf`, `phi_rf_design`, the multi-section registration
+  phase Ψ) enter **only** as demodulation/readout phases, never as grid
+  geometry, and never as a rotation of the antenna-voltage state. Canonical
+  statement: the `IQCavityFeedbackTimingClass` class docstring (*RF-frequency
+  offset* under Notes) and the design RST's *Interplay with the RF station*.
+- **`_segments` is the single source of truth** for the per-turn grid; the
+  flat `_rf_centers` / `_rf_centers_lengths` arrays are derived from it
+  (`_rebuild_grid_arrays`) and can therefore not desync.
+- **Every segment holds ≥ 2 coarse centres** (`RFCenterSegment.__post_init__`).
+  Three separate gates rely on it — see §2.12(b).
+- **`harmonic_index` == list slot** on a `MultiHarmonicRFStation` — see
+  §2.12(a).
+- `IQCavityFeedbackBase` was SLIMMED, not dissolved: the name is kept because
+  `@requires(["IQCavityFeedbackBase"])` in `handle_results/observables.py`
+  string-matches the MRO. `n_cavities` is legally `int | float` (a fractional
+  effective-voltage scale) and must NOT be int-coerced.
+
+**HISTORY — invariants that were retired:**
+
 - ~~LHC path frozen~~ **OBSOLETE (2026-07-25)**: the LHC/SPS cavity feedbacks
   and the blond2 comparison suite were REMOVED from the codebase (the phase
   loop survived — moved to `blond/physics/feedbacks/beam_feedback.py`). The
   byte-identical obligation and its bridge machinery (`dT_index_sign`,
   `coarse_center_offset`, the helpers re-export shims) were stripped in the
   same cleanup. `blond/legacy/blond2/` keeps its own self-contained copies.
-- **n = 1 / single-beam path bit-identical**: a single co-rotating beam must
-  produce bit-identical results before/after any change; a single
-  counter-rotating µ⁻ beam must reproduce the co-rotating µ⁺ run bit-for-bit.
+  Verified 2026-08-11: `tests/.../accelerators/lhc/` holds only
+  `test_beam_feedback.py`; no `comparison_with_blond2/` directory and no
+  `*_blond2_reference.npz` exist anywhere in `tests/`.
 - ~~Feedback splits~~ **MERGED (2026-07-25, user-approved unification)**:
   `rf_beam_current_partial` was folded into the single `rf_beam_current`
   (keyword-only coarse args `sampling_time`/`n_points`; offset always
-  `sampling_time/2`; `external_reference`/`downsample`/`T_rev` removed;
-  byte-exact migration pin `TestUnifiedRfBeamCurrentMigrationPin`).
-  `IQCavityFeedbackBase` was SLIMMED, not dissolved (name kept so
-  `@requires(["IQCavityFeedbackBase"])` in observables keeps string-matching
-  the MRO): dead members deleted (base on_run_simulation/_track/
-  track_no_beam/calculate_rf_beam_current/set_point_from_rfstation/
-  update_feedback_variables/omega_carrier/residual_time_shift/t_rf/
-  HasPropertyCache machinery/n_samples_coarse/use_lowpass_filter); the
-  timing override now carries its OWN `@requires` decorator (regression
-  test `test_cavity_feedback_requires.py` — previously it inherited the
-  constraint from the decorated dead base method); `n_cavities` legalized
-  as `int | float` (fractional effective-voltage scale — do NOT
-  int-coerce); `harmonic_index=1` hardcode preserved + flagged
-  (suspicious, unreachable with SingleHarmonicRFStation).
-  `helpers.py` was DELETED — `cavity_response_sparse_matrix` now lives in
-  `cavity_solvers.py` beside its second-order twin.
+  `sampling_time/2`; `external_reference`/`downsample`/`T_rev` removed).
+  Dead base members deleted (base `on_run_simulation`/`_track`/
+  `track_no_beam`/`calculate_rf_beam_current`/`set_point_from_rfstation`/
+  `update_feedback_variables`/`omega_carrier`/`residual_time_shift`/`t_rf`/
+  HasPropertyCache machinery/`n_samples_coarse`/`use_lowpass_filter`); the
+  timing override now carries its OWN `@requires` decorator (regression test
+  `test_cavity_feedback_requires.py`). `helpers.py` was DELETED —
+  `cavity_response_sparse_matrix` lives in `cavity_solvers.py`.
+- ~~`harmonic_index=1` hardcode preserved + flagged as suspicious~~
+  **SUPERSEDED**: `harmonic_index` is now a real constructor parameter
+  (default 0) with multi-harmonic support; see §2.12(a).
 
 **Environment / gotchas:**
-- Run pytest from `BLonD/` with `.venv/Scripts/python.exe` and `MPLBACKEND=Agg`.
-- The pre-commit `check copyright` (`custom-py-check`) hook is **broken on this
-  machine** (always fails, `WinError 3`); ignore it, trust the other hooks
-  (ruff, isort, numpydoc). Module-docstring summary must start on the line
-  **after** the opening `"""` (numpydoc GL01 convention in this repo).
-- All mucol test files gate debug plotting on `DEBUG_PLOT = False`; never leave
-  it `True` (a guarded `plt.show()` would fire).
-- 2 SPS `TestTravelingWaveCavity` failures (`test_vind`, `test_beam_fine_coarse`)
-  were pre-existing and have since been fixed SPS-locally (90° IQ rotation);
-  unrelated to mucol.
+
+- Run pytest from `BLonD/` with `MPLBACKEND=Agg`. The venv is the **outer**
+  repo's: `../.venv/Scripts/python.exe` (there is no `BLonD/.venv`).
+- The pre-commit `check copyright` (`custom-py-check`) hook is **broken on
+  this machine** (always fails, `WinError 3`); ignore it, trust the other
+  hooks (ruff, isort, numpydoc). Module-docstring summary must start on the
+  line **after** the opening `"""` (numpydoc GL01 convention in this repo).
+- All mucol test files gate debug plotting on `DEBUG_PLOT = False`; never
+  leave it `True` (a guarded `plt.show()` would fire). Verified 2026-08-11.
+  Out of scope but worth knowing: the non-mucol helper
+  `tests/unittests/physics/impedances/comparisons/mtw.py` hardcodes
+  `DEBUG_PLOTTING = True` inside a helper function.
+- Observation tests write `last_*.npy` / `last_*.json` into the CWD — see the
+  open item in §3.
 
 ---
 
-## 1. Physics conventions established (READ FIRST)
+## 1. Conventions and decisions the published docs do not own
+
+The *physics* of §1.1/§1.2 is stated in the design RST's *Counter-rotating
+beams*. What follows is the decision record behind it: why the conventions
+are what they are, and what was rejected.
 
 ### 1.1 Direction-signed charge (counter-rotating beams)
-In the symmetric collider ring the counter-rotating µ⁻ beam has opposite charge
-*and* opposite direction, so its gap (beam) current has the **same sign** as the
-co-rotating µ⁺ beam; both beams see the same beam loading and receive the same
-kick.
 
-The whole beam-loading chain uses `beam.signed_charge_with_direction()`
-(`blond/core/beam/base.py`, returns `particle_type.charge * -1` for a
-counter-rotating beam), on **every source-current site and every kick**:
-- `rf_beam_current` (`beam_current.py`; unified fine+coarse, 2026-07-25)
-- all four wake-solver source-charge sites (`impedances/base.py`,
-  `impedances/solvers.py`: SingleTurnResonatorConvolution, MultiPassResonator,
-  MultiPoleSparse)
-- kicks: `cavities.py`, `impedances/base.py` `WakeField._track`,
-  `experimental/physics/kick_pooling.py`
+`beam.signed_charge_with_direction()` (`blond/core/beam/base.py`, returns
+`particle_type.charge * -1` for a counter-rotating beam) is used on **every
+source-current site and every kick**. Verified sites (2026-08-11):
 
-For a co-rotating beam the signed charge equals the plain charge, so the LHC
-path is bit-unchanged.
+- source: `feedbacks/beam_current.py` (`rf_beam_current`),
+  `impedances/base.py` `WakeField` deposit, and the three solver deposits in
+  `impedances/solvers.py` (SingleTurnResonatorConvolution, MultiPassResonator,
+  MultiPoleSparse);
+- kicks: `physics/cavities.py` — five sites: `_track_interp` and both
+  `_track_no_interp` overrides, plus the two analytic
+  `calc_phi_s_main_harmonic` / `calc_synchrotron_tune_main_harmonic` (the
+  **tune is sign-robust** — it uses `|charge|` and `|cos φ_s|` — so only
+  `phi_s` changes value for a CR µ⁻ beam); `impedances/base.py`
+  `WakeField._track`; `experimental/physics/kick_pooling.py`;
+- test double: `blond/testing/mocks.py` patches it onto `beam_mock`.
 
-Why deposits had to change (not just labels): the kick side was *already* signed
-before this work (shared with the design RF kick, immovable). Raw deposits ×
-signed kick meant a µ⁻ counter-rotating beam's self-wake **accelerated** it
-(measured `dE = −(µ⁺co)`). Signing the deposits was the only fix.
+**Why the deposits had to change (not just the labels).** The kick side was
+*already* signed before this work (shared with the design RF kick,
+immovable). Raw deposits × signed kick meant a µ⁻ counter-rotating beam's
+self-wake **accelerated** it (measured `dE = −(µ⁺co)`). Signing the deposits
+was the only fix. For a co-rotating beam signed == raw, so those paths are
+bit-unchanged.
+
+`blond/physics/barrier_bucket.py` still kicks with the raw
+`beam.particle_type.charge` — **user decision (2026-07-24): IGNORE.** Out of
+feedback scope; still true on 2026-08-11.
 
 ### 1.2 `shunt_impedances_counter_witness` (R_CR) convention
-Public kwarg renamed from `shunt_impedances_counter_rotating` (2026-07-22,
-after the sign-convention flip); the old name is a trapped kwarg raising
-`TypeError` with a migration message. The internal attribute was renamed in
-a follow-up (user directive) to `_shunt_impedances_counter_witness` — the
-MultiPole solver guard's `getattr` string, EX_28, and the direct test
-accesses were swept together, so there is no old-name attribute anywhere.
-`R_CR` is **the shunt the counter-rotating witness experiences**, its reversed
-integration direction included. Effective cross-coupling = `−R_CR/R`. Therefore:
 
-| | `R_CR = +R` | `R_CR = −R` |
-|---|---|---|
-| **same charge** (µ⁺/µ⁺CR) | build-up | cancellation |
-| **opposite charge** (µ⁺/µ⁻CR, the collider pair) | cancellation | **build-up, same kick** |
+The sign table and the field-symmetry rationale are in the design RST
+(*Counter-rotating beams*). Decision record only:
 
-- `R_CR = +R` ⇒ two counter-rotating beams of the **same charge** add up.
-- `R_CR = −R` ⇒ an **asymmetric fundamental mode**: the collider pair (µ⁺/µ⁻)
-  adds up and receives the same kick.
+- Public kwarg renamed from `shunt_impedances_counter_rotating` (2026-07-22,
+  **with** a sign-convention flip). The old name is a **trapped kwarg** that
+  raises `TypeError` with a migration message — deliberately not a
+  pass-through alias, because the meaning changed with the name.
+- The internal attribute is `_shunt_impedances_counter_witness` (user
+  directive); the MultiPole solver guard's `getattr` string, `EX_28` and the
+  direct test accesses were swept together, so no old-name attribute
+  survives.
+- `|R_CR|` must equal `|R|` — enforced in `Resonators.__init__` as a
+  `raise ValueError` (converted from a bare `assert`, which `python -O`
+  strips). Only the sign is free.
+- A single beam / self-wake / same-direction interaction **never consults
+  R_CR** (XOR wake selection), so single-turn / single-beam behaviour is
+  independent of it. Pinned by
+  `test_single_beam_never_consults_the_counter_rotating_shunt`.
+- Closed form for two counter-rotating passages offset by Δ on the ringing
+  tail: `v₂ = (s₂ − F·g)·v₁`, with `s₂` the signed charge of the CR beam,
+  `F = sign(R_CR/R)` and `g = exp(−ωΔ/2Q)`. Build when `s₂F = −1`, cancel
+  when `s₂F = +1`.
 
-**IMPORTANT**: the −R↔FM mapping is a property of the mode's **field symmetry**,
-NOT of fundamental modes in general — comments/docs everywhere say "asymmetric
-fundamental mode". `|R_CR|` must equal `R` (constructor assert, "no energy
-conservation"); only the sign is free. A single beam / self-wake / same-direction
-interaction **never consults R_CR** (XOR wake selection), so single-turn / single-
-beam behaviour is independent of it.
+### 1.3 "backfill" (time) vs "reverse" (space) — naming rule
 
-Closed form for two counter-rotating passages offset by Δ on the ringing tail:
-`v₂ = (s₂ − F·g)·v₁`, `s₂` = signed charge of the CR beam, `F = sign(R_CR/R)`,
-`g = exp(−ωΔ/2Q)`. Build when `s₂F = −1`, cancel when `s₂F = +1`.
+The walk that reconstructs the stretch of grid **already elapsed since this
+feedback's previous passage** is called **BACKFILL**. It is a *time*
+direction, and **every multi-section ring needs it**, whichever way its beam
+goes.
+
+"**Reverse**" is reserved for the *space* direction: a counter-rotating beam
+meets the ring's reference-altering elements in the reversed order.
+
+The distinction is the whole point of the rename: a reviewer reading the old
+names cold concluded the walk existed *for counter-rotating beams*. Canonical
+statement in source: the "Two independent notions share the word 'backwards'"
+paragraph of `rf_center_grid.py`'s module docstring.
+
+Renames applied (no old name survives in `blond/` or `tests/`):
+
+| old (time-sense "reverse") | new |
+|---|---|
+| `calculate_rf_centers_for_reverse_direction` | `calculate_rf_centers_for_backfill` |
+| `get_time_omega_array_reverse_direction` | `get_time_omega_array_backfill` |
+| `_replay_reverse_span` | `_replay_backfill_span` |
+| `_reverse_tracking_time_array` | `_backfill_time_array` |
+| `_reverse_tracking_omega_list` | `_backfill_segment_omega_design_list` |
+| `PerTurnGridSpan.n_reverse_centers` | `.n_backfill_centers` |
+| `residual_from_reverse_span` | `residual_from_backfill_span` |
+| `_generate_reverse_segments_if_due` | `_generate_backfill_segments_if_due` |
+| `_unify_same_frequency_time_points_reverse` | `..._backfill` |
+| `_forward_tracking_omega_rf` | `_forward_segment_omega_design` |
+| `_last_forward_tracking_freq` | `_last_segment_omega_design` |
+| `_generate_rf_centers(omega_rf=)` | `(omega_design=)` |
+| `reset_arrays(n_reverse_cells=)` | `(n_backfill_cells=)` |
+
+**Space-sense "reverse" deliberately KEPT** (all in `cavity_feedback.py`
+`__init__` / `on_run_simulation` and `rf_center_grid.py`):
+`_reference_altering_elements_reverse`, `_own_index_in_reference_list_reverse`,
+`reference_index_until_tracked_reverse`, and the two selector helpers that
+dispatch on them, `_reference_list_for_direction` /
+`_own_index_for_direction`.
+
+**Stragglers — RESOLVED (verified by scripted scan 2026-08-12):** the two
+known stragglers are gone. `envelope_kernel.py` carries no time-sense
+"reverse" anymore (`inactive_controller_scan_state`'s docstring now says
+"no-beam **backfill** segment"), and neither RST contains any pre-rename
+production name — both use the backfill vocabulary throughout, and every
+remaining "reverse" in them is the space sense (counter-rotating element
+traversal) or a genuine `test_get_slice_..._reverse` test name.
+
+### 1.4 One quantity, one name: `omega_times_dt`
+
+The RF phase advanced in one step [rad] is spelled `omega_times_dt`
+**everywhere** in the mucol feedback. Two earlier spellings were retired:
+`samples_per_rf` (which asserted the *reciprocal* of what it held — callers
+pass ω·dt ≈ 0.06 rad, not a sample count) and `omega_times_T_s` (which
+collided with `T_s` = *synchrotron* period). Rationale is recorded in the
+*On naming* paragraph of `cavity_solvers.py`'s module docstring; do not
+reintroduce a synonym.
 
 ---
 
 ## 2. Work completed (by theme)
 
-### 2.1 Review-driven cleanup & bug fixes (earlier in the session)
-- Documentation drift fixed; `PassiveCavity` deleted after porting its pre-fill
-  capability into `IQCavityFeedbackTimingClass`; `"yorak"` placeholders removed.
-- `±π/2` demodulation convention verified.
-- Base-class `np.floor→int` crash fixed; `voltage_setpoint` read-only-property
-  bug fixed; multi-station `delta_omega_rf` guard added.
-- `delta_omega_rf` phase-slip reworked to elapsed-reference-time (must stay at
-  the END of `_track`).
-- Test-hardening campaign (sections × acceleration × substepping); five
-  production bugs found by tests and fixed: substepped demod sign flip, LHC
-  centering convention, multi-section frame drift, stale reverse re-pass,
-  bistable demod residual.
+**HISTORY** unless noted. For *what the code does*, read the design RST; for
+*what is tested*, read the test-inventory RST. These bullets exist to record
+decisions, root causes and rejected alternatives.
+
+### 2.1 Review-driven cleanup & bug fixes (earliest pass)
+
+`PassiveCavity` deleted after porting its pre-fill capability into
+`IQCavityFeedbackTimingClass`; `"yorak"` placeholders removed; `±π/2`
+demodulation convention verified; base-class `np.floor→int` crash fixed;
+`voltage_setpoint` read-only-property bug fixed; multi-station
+`delta_omega_rf` guard added; `delta_omega_rf` phase-slip reworked to
+elapsed-reference-time (**must stay at the END of `_track`** — still true).
+Five production bugs were found *by* the test-hardening campaign: substepped
+demod sign flip, LHC centering convention, multi-section frame drift, stale
+backfill re-pass, bistable demod residual.
 
 ### 2.2 P1 — exact exponential coarse propagator (option)
-`exponential_coarse_solver_enable: bool = False` on `IQCavityFeedbackTimingClass`.
-`cavity_response` routes through `_advance_coarse_voltage`, which does either
-forward-Euler (default, **bit-unchanged**) or the exact
-`V_{n+1} = e^L V_n + src·(e^L−1)/L`. Under pure detuning the exponential step
-preserves `|V|` (a rotation) where Euler grows it by `√(1+(δω·dt)²)`. Tests:
-`TestExponentialCoarseSolver`.
 
-**Review fix**: `_check_step_sizes` now early-returns when
-`exponential_coarse_solver_enable` is set — the forward-Euler stability cap and its
-warnings no longer gate the exact solver (it was previously unreachable in the
-low-Q_L / large-detuning regime it exists for).
+`exponential_coarse_solver_enable: bool = False`. `cavity_response` routes
+through `_advance_coarse_voltage`, which does either forward-Euler (default,
+**bit-unchanged**) or the exact `V_{n+1} = e^L V_n + src·(e^L−1)/L`. Under
+pure detuning the exponential step preserves `|V|` (a rotation) where Euler
+grows it by `√(1+(δω·dt)²)`.
+
+The step-size / beam-kick guards must not gate the exact solver (they were
+previously unreachable in the low-`Q_L` / large-detuning regime the option
+exists for). Since 2026-08-07 that is expressed once, as a constructor flag:
+`self._euler_guard = ForwardEulerValidityGuard(enabled=not
+exponential_coarse_solver_enable)` — not as hand-written early returns.
+
+Public kwarg was renamed to `exponential_coarse_solver_enable` (user's second
+rename); all docs/tests aligned.
 
 ### 2.2b P6 — numba coarse-envelope kernel (performance item #1, DONE)
-The per-cell coarse recursion (`circuit_track`→`cavity_response`→
-`_advance_coarse_voltage` + inline PI, ~10⁵ cells/turn, ~95% interpreter
-overhead) is compiled to a numba host kernel `envelope_pi_scan`
-(`envelope_kernel.py`). It is **host-only** (feedback is sequential signal
-processing — no GPU parallel scan) and **on by default**
-(`use_numba_envelope_kernel: bool = True`, class attribute; set `False` per
-instance to force the reference). Measured ~79× on a 1000-cell RCS segment
-(9.4 µs→0.12 µs per cell).
 
-`circuit_track`'s cell loop was extracted into `_circuit_track_cells`
-(dispatch) → `_circuit_track_cells_python` (byte-identical reference **and**
-fallback) / `_circuit_track_cells_kernel` (host glue + kernel call). The glue
-precomputes the *state-independent* per-cell voltage multiplier `B` (`1+L` Euler
-/ `e^L` exponential) and drive weight `W` (`1` / `(e^L−1)/L`) — "the elementwise
-glue on the python side" — so the kernel is **solver-agnostic** and byte-identical
-to *both* solvers without numba ever evaluating `exp`/`expm1`. Step sizes
-(`_coarse_step_sizes`), beam current (`_kernel_beam_current`) and PI state
-(`_kernel_controller_params`/`_store_controller_state`, deque↔circular-buffer)
-are marshalled per segment.
+The per-cell coarse recursion (~10⁵ cells/turn, ~95 % interpreter overhead)
+is compiled to a numba **host** kernel `envelope_pi_scan`
+(`envelope_kernel.py`). Host-only by design (sequential signal processing —
+no GPU parallel scan) and **on by default**
+(`use_numba_envelope_kernel: bool = True`, a class attribute; set `False` per
+instance to force the reference). Measured ~79× on a 1000-cell RCS segment.
 
-Two exact-fallback paths keep it **byte-identical** (proven: full feedback suite
-+ ~17-digit pinned trajectories pass unchanged with the kernel on):
-- **Coincident (zero) coarse step** → `_circuit_track_cells_python`
-  (skip-and-warn can't vectorise).
-- **Klystron-limit saturation** → the kernel flags any cell within a 1e-9 guard
-  band of `max_output` and the segment reruns on the reference path, because
-  numba's complex `abs` differs from numpy's *scalar* `np.abs` by 1 ULP (~40% of
-  values), which the reference `clamp_magnitude` would otherwise not match. When
-  no cell nears the limit the clamp is never applied → identical.
+`_circuit_track_cells` dispatches to `_circuit_track_cells_python`
+(byte-identical reference **and** fallback) or `_circuit_track_cells_kernel`.
+The glue precomputes the *state-independent* per-cell voltage multiplier `B`
+(`1+L` Euler / `e^L` exponential) and drive weight `W` (`1` / `(e^L−1)/L`),
+so the kernel is **solver-agnostic** and byte-identical to *both* solvers
+without numba ever evaluating `exp`/`expm1`.
 
-`_check_beam_kick_magnitude` runs as a vectorised post-pass (`_check_beam_kicks`)
-that *delegates* to the per-cell checker for message fidelity + warn-then-raise
-ordering. Tests: `test_envelope_kernel.py` (bit-identity across Euler/exponential
-× constant/PI × delay/clamp/detuning × multi-section). `TestPIReverseSpanFrameConsistency`
-(below) and the pinned trajectories force/exercise the reference path.
+**CORRECTION (2026-08-11).** The controller marshalling this section used to
+name (`_kernel_controller_params` / `_store_controller_state` on the
+feedback) no longer exists. Since the controller separation (§2.11) the
+kernel glue calls the *controller's* own
+`envelope_scan_kernel()` / `envelope_scan_state()` /
+`absorb_envelope_scan_state()`. Step sizes (`_coarse_step_sizes`), the
+per-cell multipliers (`_kernel_step_multipliers`) and the beam current
+(`_kernel_beam_current`) are still marshalled per segment by the feedback.
 
-**Adversarial review (5-dimension find → verify-with-probe) found & fixed 3
-carried-state divergences the first tests missed** (they seeded
-`last_val_beam_current=0` and `last_val_generator_current=bias` — the values
-that hide the bugs), all in the carried index-0 cell of a `no_beam` (reverse)
-segment starting at grid index 0, i.e. the **first reverse segment of a
-multi-section ring on turn ≥ 1**:
-1. **Generator-current drive** (HIGH): the kernel held `generator_current_init`
-   for every cell; `cavity_response` uses `last_val_generator_current` only at
-   cell 0 and the (static, reset-bias) `generator_current_coarse_grid[idx-1]`
-   for cells ≥ 1. Fix: the kernel now reads each cell's drive from the
-   pre-filled `generator_current_out[cell-1]` (PI output when active, static
-   grid when inactive), mirroring the reference exactly.
-2. **Beam current at cell 0** (HIGH): `_kernel_beam_current` zeroed cell 0 for
-   `no_beam`; the reference `idx==0` branch uses `last_val_beam_current`
-   unconditionally. Fix: set it before the `no_beam` early return.
-3. **Warn/assert ordering on an invalid grid** (LOW): `_coarse_step_sizes` now
-   defers *any* non-positive step to the reference loop (which warns-and-skips a
-   zero then asserts on a negative in order) instead of a pre-emptive vectorised
-   assert.
-Regression tests seed off-bias / nonzero carried state (bit-exact
-`np.array_equal`); `TestKernelMatchesReferenceEndToEnd` pins a full 2-section
-4-turn run kernel-vs-python byte-for-byte. REFUTED by the review: float32-grid
-NEP-50 (unreachable), hard-kick post-raise state (simulation aborts), the
-test-coverage observations (gaps, since covered).
+Two exact-fallback paths keep it byte-identical:
 
-### 2.3 P2 — PI reverse-span frame fix
+- **Coincident (zero) coarse step** → the Python reference (skip-and-warn
+  can't vectorise).
+- **Klystron-limit saturation** → the kernel flags any cell within a 1e-9
+  guard band of `max_output` and the segment reruns on the reference path,
+  because numba's complex `abs` differs from numpy's *scalar* `np.abs` by
+  1 ULP (~40 % of values). When no cell nears the limit the clamp is never
+  applied → identical.
+
+`_check_beam_kick_magnitude` runs as a vectorised post-pass
+(`_check_beam_kicks`) that *delegates* to the per-cell checker for message
+fidelity + warn-then-raise ordering.
+
+**Adversarial review found & fixed 3 carried-state divergences the first
+tests missed** (they seeded `last_val_beam_current=0` and
+`last_val_generator_current=bias` — the values that *hide* the bugs), all in
+the carried index-0 cell of a `no_beam` (backfill) segment starting at grid
+index 0, i.e. the **first backfill segment of a multi-section ring on turn
+≥ 1**:
+
+1. **Generator-current drive** (HIGH): the kernel held
+   `generator_current_init` for every cell; the reference uses
+   `last_val_generator_current` only at cell 0 and the static grid at
+   `idx-1` for cells ≥ 1. Fix: the kernel reads each cell's drive from the
+   pre-filled `generator_current_out[cell-1]`.
+2. **Beam current at cell 0** (HIGH): `_kernel_beam_current` zeroed cell 0
+   for `no_beam`; the reference `idx==0` branch uses
+   `last_val_beam_current` unconditionally. Fix: set it before the `no_beam`
+   early return.
+3. **Warn/assert ordering on an invalid grid** (LOW): `_coarse_step_sizes`
+   defers *any* non-positive step to the reference loop instead of a
+   pre-emptive vectorised assert.
+
+REFUTED by that review: float32-grid NEP-50 (unreachable), hard-kick
+post-raise state (simulation aborts), the test-coverage observations (since
+covered).
+
+### 2.3 P2 — PI on the forward passage only
+
 The controller is stepped only on the real forward passage
-(`if self._controller_active and not no_beam`), never on the reverse
-reconstruction segments (which carry a per-segment frame phase). Tests:
-`TestPIReverseSpanFrameConsistency` (structural call-count on the pure-Python
-reference path — the kernel inlines the PI, so these count-tests set
-`use_numba_envelope_kernel=False`; mutation-verified — reverting the gate fails
-them).
+(`if self._controller_active and not no_beam`), never on the backfill
+reconstruction segments (which carry a per-segment frame phase). Still true
+2026-08-11, in `cavity_response`. The structural call-count tests must set
+`use_numba_envelope_kernel=False` — the kernel inlines the control law, so
+there is no call to count.
 
-### 2.4 Coverage tests T3, T5–T10
-- `test_wake_vs_feedback_dynamics.py` (T3): self-consistent multi-turn *dynamics*
-  twin (wake vs feedback) on the fast ramp.
-- `test_mtw_vs_nondriven_feedback.py` (T5–T10): δω_rf+beam, long-horizon secular
-  drift, non-divisible harmonic (**xfail** — real gap: charge in first coarse
-  cell → ValueError), detuned regression-lock, driven beam-part linearity,
-  substepped+detuned; plus `test_multiturn_counter_rotating_mu_minus_matches_mu_plus`.
-- `test_multibunch_beam_loading.py` (T8): multi-populated-coarse-cell loading.
+### 2.4–2.7 Coverage, audits, counter-rotating work, five-dimension review
 
-### 2.5 Adversarial test-quality audit (fixed 4 confirmed defects)
-- T5 gate was too loose to detect the δω_rf demod chain (offset cancels in the
-  reference-subtraction) — documented / gate reasoned.
-- `test_first_coarse_cell_precondition` was vacuous — rewritten to exercise the
-  real coarse-cell guard via `rf_beam_current(forbid=True)` + negative control.
-- Multibunch trailing/global gates tightened toward the measured floors
-  (~0.2 %) with headroom, instead of a loose 2 %.
+Superseded as an inventory: see the test RST (*Test modules*) for what each
+file covers, and the design RST (*Validation*) for what the model is
+certified against. What survives as a decision record:
 
-### 2.6 CR-1 … CR-4 (counter-rotating beams)
-- **CR-1**: signed charge in `rf_beam_current` / `rf_beam_current_partial`;
-  `TestRfBeamCurrentCounterRotating` (full sign matrix, mutation-verified);
-  `StubBeam` gained `particle_type`/`is_counter_rotating` + the method. LHC
-  battery bit-identical.
-- **CR-2**: signed charge on all four wake-solver source sites. Fixture/test
-  migration for the sign; `TestCounterRotatingBeamKickSymmetry` (4-corner
-  self-kick equality + deceleration + coincident doubling/cancellation +
-  cross-kick), production `WakeField._track` path, mutation-verified.
-- **CR-3**: two simultaneous beams under `MainloopCounterRotatingBeams`.
-  Empirically (not code-reading): **offset passages** (even section counts,
-  stations off the meeting azimuths) already work at reference accuracy
-  (0.04–0.13 % vs the two-beam convolution) — pinned by
-  `TestTwoBeamOffsetPassages`. **Meeting-azimuth / simultaneous passages**
-  (e.g. single mid-ring station) are serialized wrongly → the feedback now
-  **raises `NotImplementedError`** (`_track`, coincidence guard); pinned by
-  `TestSimultaneousPassageGuard`. The equal-time patch path is **deferred by
-  user decision**. New file: `test_two_beam_counterrotating_feedback.py`. Also
-  fixed the `kick_pooling.py` unsigned-charge kick.
-- **CR-4**: flipped the R_CR convention (see §1.2). 3 sign negations in
-  `sources.py` only (`get_wake_counter_rotation`, its quadrature,
-  `get_vectorfit`) + the parameter docstring; `get_impedance` counter-rotating
-  branch negated too (found in the review — it was inconsistent with the wake
-  path). All consumers inherit; deposits/kicks/kernels/feedback untouched.
-- **2×2 matrix**, both solvers: `TestCounterRotatingTwoBeamMatrix` verifies the
-  charge-pair × shunt-sign table on MultiPassResonatorSolver AND
-  MultiPoleSparseSolve, closed form on the ringing tail, cross-solver agreement
-  ~1e-13. MultiPole cannot take two coincident same-time passes (sequential
-  state machine) → matrix uses a 2·t_rf offset.
-- **Single-beam independence** pinned: `test_single_beam_never_consults_the_
-  counter_rotating_shunt` (µ⁻CR alone with `R_CR` **unset** — the source raises
-  if the CR wake is ever consulted — runs and is bit-identical across shunt
-  signs).
-
-### 2.7 Full five-dimension review (Opus, adversarially verified)
-Confirmed the core physics **sound** (ODE discretizations, PI law + anti-windup
-+ power inverse, pre-fill fixed point on/off resonance, the full signed-charge
-sweep, two-beam test rigor). Confirmed findings, all fixed or flagged:
-- exponential-solver step-size guard (fixed, §2.2)
-- `get_impedance` CR sign inconsistency (fixed, §2.6)
-- `samples_per_rf` docstring was 2π-wrong (it is `ω·dt`, not `dt·f`) — fixed
-  (the name itself has since been retired: the quantity is spelled
-  `omega_times_dt` everywhere, see the *Naming* note in `cavity_solvers.py`)
-- stale `TestPIReverseSpanFrameConsistency` class docstring — fixed
-- `test_single_section_convolution_reference_needs_delta_t_zero` now actually
-  exercises `allow_delta_t_zero=True` (was assert-fail-only)
-- duplicate RST class block + dangling matrix-test cross-reference — fixed
+- **CR-3 two-beam.** Offset passages work at reference accuracy; the
+  **meeting-azimuth / simultaneous** case is refused with
+  `NotImplementedError` in `_guard_simultaneous_passage`, and the equal-time
+  patch path is **deferred by user decision**.
+- **CR-4 sign flip.** Three negations in `sources.py`
+  (`get_wake_counter_rotation`, its quadrature, `get_vectorfit`) plus the
+  `get_impedance` counter-rotating branch (found in review — it was
+  inconsistent with the wake path). All consumers inherit; deposits, kicks,
+  kernels and the feedback were untouched.
+- **MultiPole cannot take two coincident same-time passes** (sequential state
+  machine), so the 2×2 cross-solver matrix uses a 2·t_rf offset.
+- **`samples_per_rf` docstring was 2π-wrong** (it is ω·dt, not dt·f) — fixed,
+  and the name has since been retired entirely (§1.4).
+- Every production sign/gate change is **mutation-verified** (reverting the
+  fix fails the pinning test): P2 gate, exponential branch, T7 xfail reason,
+  CR-1/CR-2 sign matrices, CR-4 matrix, MultiPole deposit.
 
 ### 2.8 Module partition (P1–P5, behaviour-preserving)
-See §4. `cavity_feedback.py` 2462 → 1672 lines.
+
+See §4.
 
 ### 2.9 Misc
-- `DEBUG_PLOT` in `test_mucol_cav_fdbk.py` was `True` (the last stray) → `False`;
-  no `plt.show()` fires in a normal mucol run now.
-- Public kwarg renamed `shunt_impedances_counter_rotating` →
-  `shunt_impedances_counter_witness` (see §1.2): legacy kwarg trapped with a
-  `TypeError` + migration message (sign convention changed with the rename, so
-  no silent pass-through), internal attribute kept, both source-side
-  `RuntimeError` messages now name the public kwarg, unit typo `\omega` →
-  `\Omega` fixed on both shunt docstrings. Swept: `sources.py`, `solvers.py`
-  (incl. the MultiPole guard message), 4 test files, feedback RST.
 
-### 2.10 LHC blond2-comparison suite — speed refactor (pinned references)
+`DEBUG_PLOT` in `test_mucol_cav_fdbk.py` was `True` (the last stray) →
+`False`. The `shunt_impedances_counter_rotating` → `..._counter_witness`
+sweep (see §1.2) also fixed a unit typo `\omega` → `\Omega` on both shunt
+docstrings.
 
-`tests/unittests/physics/feedbacks/accelerators/lhc/comparison_with_blond2/`
-(reviewed physics + structure + speed; suite was 806.5 s / 13.4 min):
+### 2.10 LHC blond2-comparison suite — speed refactor
 
-- **All 5 test classes now load pinned blond2 references** via
-  `support.blond2_reference(name, builder)`: the frozen-legacy half runs
-  once, its outputs are stored losslessly in
-  `resources/<name>_blond2_reference.npz` and loaded on later runs.
-  Regenerate with `BLOND_REGEN_BLOND2_REFERENCE=1` (env var). Every
-  compared value and tolerance is unchanged; blond3 sides byte-identical
-  except the two approved physics fixes below.
-- blond2 closures became module-level `_run_blond2()` builders; dead code
-  removed (tqdm/matplotlib/DEBUG blocks, never-asserted captures, the
-  full-machine `imped_calc` block, a double `generator_power()` call);
-  `pytestmark = backend_mutation` added where the backend is switched.
-- **Physics fixes (both strictly tighten):** phase_error blond3
-  commissioning now passes `open_tuner=True` (matches blond2's frozen
-  tuner — it silently diverged before); the transfer-function suite's
-  three phase assertions were vacuous (`atol=7` > 2π, chosen to survive
-  ±π branch cuts) → replaced by wrapped-difference
-  `angle(H3·conj(H2))` checks calibrated at 1e-2 / 1e-5 / 7e-1 rad
-  (measured 3.9e-3 / 1.5e-6 / 5.8e-1). Also: vacuous rf-power angle
-  assert deleted (power is real-positive both sides), full-machine
-  set-point imag → exact-zero invariant on both sides, full-machine
-  circularity (blond3 injects blond2's histogram) documented in the
-  class docstring.
-- Deliberately **skipped**: shrinking full_machine's dummy
-  `_dE/_flags/_ids` arrays (`n_macroparticles_partial` reads
-  `_dE.local_size`; risk not worth ~2 GB RAM).
+**HISTORY, and now moot.** The suite (pinned `.npz` references via
+`support.blond2_reference`, `BLOND_REGEN_BLOND2_REFERENCE=1`, the two
+approved physics tightenings: `open_tuner=True` on the phase-error
+commissioning and wrapped-difference `angle(H3·conj(H2))` phase assertions
+replacing three vacuous `atol=7` ones) **no longer exists in this tree** —
+verified 2026-08-11. It went with the LHC/SPS feedback purge (§0). The three
+follow-up items it generated (npz vs the large-files hook, CI visibility of
+the repo-root `unittests/` tree, pytest-xdist over the comparison directory)
+are therefore **MOOT** and have been dropped from §3.
 
-### 2.11 Structural pass, 2026-08-06/07 (committed: `46d9d989`, `db86a65b`, `d2ce9d19`, `9b870c1b`, `a30e8acc`)
+### 2.11 Structural pass, 2026-08-06/07
 
-Behaviour-preserving except where noted. This supersedes any earlier
-description of where the guards and the per-turn orchestration live.
+Committed: `46d9d989`, `db86a65b`, `d2ce9d19`, `9b870c1b`, `a30e8acc`.
+Behaviour-preserving except where noted.
 
-- **`_track` decomposed into nine named phases.** `_track` now does no work
+- **`_track` decomposed into named per-turn phases.** `_track` does no work
   itself — it only names the phases in order, and where a phase depends on a
   value another produced, that value is *returned and passed* rather than
-  left on `self`, so the argument lists are the dependency graph. The nine:
-  `_guard_simultaneous_passage`, `_carrier_slip_gap_at_passage`,
-  `_close_previous_turn_grid`, `_rebuild_per_turn_grid` (returns a
-  `PerTurnGridSpan`), `_replay_reverse_span`, `_accumulate_registration_phase`,
-  `_write_debug_readout`, `_track_forward_span`, `_write_station_readout`.
+  left on `self`, so the argument lists are the dependency graph.
+  **CORRECTED 2026-08-11:** this section used to list *nine* phases including
+  `_close_previous_turn_grid` and `_write_debug_readout`. `_track` now calls
+  **eight**, in this order: `_guard_simultaneous_passage`,
+  `_carrier_slip_gap_at_passage`, `_rebuild_per_turn_grid` (returns a
+  `PerTurnGridSpan`; it is the one that calls `_close_previous_turn_grid`,
+  and `reset_arrays` last), `_replay_backfill_span`,
+  `_accumulate_registration_phase`, then either `_write_no_correction_readout`
+  (early return, `grid_only_no_correction` only) or `_track_forward_span` +
+  `_write_station_readout`.
   Two orderings cannot be expressed as arguments and are stated in the
-  respective docstrings (and the first is additionally asserted per turn):
+  respective docstrings (the first is additionally asserted per turn):
   `reset_arrays` must size the coarse state before any `circuit_track`, and
   `_carrier_slip_gap` must be complete before
   `calculate_rf_beam_current_partial` reads it off the instance. The
-  registration phase `Ψ` is *accumulated* by `_accumulate_registration_phase`;
+  registration phase Ψ is *accumulated* by `_accumulate_registration_phase`;
   `_track` only folds it into `_carrier_slip_gap` — so "the `_track` frame
   correction" is no longer the right name for it.
-- **Reverse-span generator prefill (zero-order hold).** `reset_arrays`
-  gained `n_reverse_cells`: the generator grid is still seeded with the
-  feedforward bias, *except* over the leading no-beam reverse-reconstruction
-  cells, which are seeded with `_last_val_generator_current`. Those cells
-  replay an already-elapsed interval during which the loop issued no new
-  command, so the generator kept running at whatever it was last told — it
-  did not snap back to the bias. `cavity_response` already drove the *first*
-  reverse cell from the held value; this extends it over the rest of the
-  span. Without a controller the held value *is* the bias, so the
-  constant-current path is bit-unchanged.
+- **Backfill-span generator prefill (zero-order hold).** `reset_arrays`
+  gained `n_backfill_cells`: the generator grid is seeded with the
+  feedforward bias, *except* over the leading no-beam backfill cells, which
+  are seeded with `_last_val_generator_current`. Those cells replay an
+  already-elapsed interval during which the loop issued no new command, so
+  the generator kept running at whatever it was last told — it did not snap
+  back to the bias. `cavity_response` already drove the *first* backfill cell
+  from the held value; this extends it over the rest of the span. Without a
+  controller the held value *is* the bias, so the constant-current path is
+  bit-unchanged. This fixed a real detuned-cavity defect
+  (3.1e-2 / 4.6e-2 relative setpoint error at 2 / 4 sections).
 - **Segment-boundary residual fix.** `RFCenterSegment.residual` is now
   actually **consumed**: `RFCenterGridMixin._preceding_segment_residual`
   reads it back to form the first coarse step of the *following* segment
   (`rf_centers` are segment-local, so that step is the following segment's
   first local centre plus the preceding segment's unfilled tail). The live
-  host scalar `_residual_time_last_rf_centers_calculation` cannot serve
-  there — the whole per-turn grid is generated before any of it is walked,
-  so by consumption time it holds the last-generated (forward) segment's
-  value. The first segment of a turn takes `_residual_time_carried_into_turn`
+  host scalar `_residual_time_last_rf_centers_calculation` cannot serve there
+  — the whole per-turn grid is generated before any of it is walked, so by
+  consumption time it holds the last-generated (forward) segment's value. The
+  first segment of a turn takes `_residual_time_carried_into_turn`
   (snapshotted before this turn's generation); hand-built grids with no
   segment list fall back to the live scalar, bit-for-bit as before.
-  `__post_init__` bounds `residual` to `[0, duration]` for a non-empty
-  segment (empty segments legitimately carry the previous one's).
-  **Still write-only**: `RFCenterSegment.omega` and `.duration` are
-  validated in `__post_init__` and never read back — only `.centers` and
-  `.residual` are consumed. Keep them (they make the record
-  self-describing), but do not assume they are load-bearing.
+  `__post_init__` bounds `residual` to `[0, duration]` (± 1e-9 s of float
+  slack).
+  **CORRECTED 2026-08-11:** this bullet used to end "**Still write-only**:
+  `RFCenterSegment.omega` and `.duration` are validated in `__post_init__`
+  and never read back". That is **no longer true** — all four fields are
+  load-bearing. `_replay_backfill_span` walks `_segments[:-1]` and drives
+  each segment's `circuit_track` from `segment.omega`, and
+  `_accumulate_registration_phase` computes
+  `Ψ = Σ_k (segment.omega − ω_0) · segment.duration` over the same records.
+  Both replaced earlier slices of loose parallel arrays, which is exactly why
+  the value class exists.
 - **Unified profile-span guard `ProfileBaseClass.check_fits_in_span`**
   (`profiles.py`), plus the new `profile_duration` cached property (the
   outer-edge span `cut_right - cut_left`, i.e. `n_bins * hist_step` — one
   `hist_step` MORE than the first-to-last-bin-centre distance the ad-hoc
-  checks used to compute, which understated the window by one bin). One
-  guard now serves every consumer that must place the profile window inside
-  a span it does not control, and in each case `span` is the same physical
-  quantity — the interval between two consecutive passages of the consuming
-  element. Two call sites: `rf_beam_current` (`beam_current.py`, span =
-  `n_points * sampling_time`, the FORWARD segment only — 1/n_sections of a
-  turn, not a full turn and **not periodic**) and
-  `MultiPassResonatorSolver.calc_induced_voltage` (span = `delta_t`).
-  Both mechanisms destroy charge (re-bin fold at exactly 50 % loss; past-
-  deposit self-overlap), so both raise. **Correction to an earlier note:**
-  there was never a symbol named `check_profile_span_within_passage_time` —
-  nothing of that name was deleted; `check_fits_in_span` and
-  `profile_duration` are both new, and what they replaced were inline
-  ad-hoc width computations.
+  checks used to compute, which understated the window by one bin). One guard
+  now serves every consumer that must place the profile window inside a span
+  it does not control, and in each case `span` is the same physical quantity:
+  the interval between two consecutive passages of the consuming element.
+  Exactly two call sites (verified 2026-08-11): `rf_beam_current`
+  (`beam_current.py`, span = `n_points * sampling_time`, the FORWARD segment
+  only — 1/n_sections of a turn, not a full turn and **not periodic**) and
+  `MultiPassResonatorSolver._update_past_profile_times_wake_times`
+  (`solvers.py`, span = the depositing beam's own previous passage interval).
+  Both mechanisms destroy charge (re-bin fold at exactly 50 % loss;
+  past-deposit self-overlap), so both raise.
+  **Correction to an earlier note, still standing:** there was never a symbol
+  named `check_profile_span_within_passage_time` — nothing of that name was
+  deleted (verified again 2026-08-11 with `git log -S`: the string appears
+  only in this file's own history). `check_fits_in_span` and
+  `profile_duration` are both new, and what they replaced were inline ad-hoc
+  width computations.
   Consequence in `rf_beam_current`: the `% n_points` **wrap-around was
   removed** from the coarse-charge writes (a wrap would overwrite an earlier
   cell rather than accumulate into it, because the coarse grid is not
-  periodic), backed by the span guard plus a new explicit
-  `ind_fine[-1] >= n_points` `ValueError`.
+  periodic), backed by the span guard plus the explicit index bounds of
+  §2.12(h).
+  On the solver side the span judged is deliberately **not** `delta_t` (the
+  inter-deposit gap): that is shorter than a passage interval whenever the
+  element is first reached mid-turn, and interleaved two-beam deposits
+  legitimately overlap because they carry different beams' charge. A beam
+  with no previous passage skips the check.
 - **`ForwardEulerValidityGuard` extracted** to `cavity_solvers.py`, beside
-  the solvers it certifies, because it is pure numerics: it reads no grid,
-  no RF station and no beam, all cavity parameters are passed per call, and
-  the only state it owns is the once-only beam-kick warning flag. It holds
-  the three tripwires (`check_step_sizes`, `check_beam_kick_magnitude`,
+  the solvers it certifies, because it is pure numerics: it reads no grid, no
+  RF station and no beam, all cavity parameters are passed per call, and the
+  only state it owns is the once-only beam-kick warning flag. It holds the
+  three tripwires (`check_step_sizes`, `check_beam_kick_magnitude`,
   `check_beam_kicks`) and the four thresholds (`max_step_angle`,
-  `max_step_angle_hard`, `max_relative_kick`, `max_relative_kick_hard`).
-  The feedback owns one instance (`self._euler_guard`) constructed with
-  `enabled=not exponential_coarse_solver_enable`, which is how the
-  exponential-solver early-returns of §2.2 / §3-#4 are now expressed —
-  a constructor flag instead of two hand-written early returns. The
-  `_check_*` methods on `IQCavityFeedbackTimingClass` survive as thin
-  delegating wrappers.
+  `max_step_angle_hard`, `max_relative_kick`, `max_relative_kick_hard`). The
+  feedback owns one instance (`self._euler_guard`); the `_check_*` methods on
+  `IQCavityFeedbackTimingClass` survive as thin delegating wrappers.
 - **Controller separated from the feedback.** `generator_current_controller.py`
   gained the `GeneratorCurrentController` ABC above
   `GeneratorCurrentPIController`, so the feedback holds only an instance of
   the interface and need not know the control law. The compiled path is now
   an opt-in *controller* capability, not a feedback special case: a
-  controller advertises `supports_envelope_scan` and then owns its scan
-  kernel (`envelope_scan_kernel`), the marshalling of its own tuning/state
+  controller advertises `supports_envelope_scan` (class attribute, `False` on
+  the ABC, `True` on the PI controller) and then owns its scan kernel
+  (`envelope_scan_kernel`), the marshalling of its own tuning/state
   (`envelope_scan_state`) and the write-back (`absorb_envelope_scan_state`).
   Controllers that do not advertise it are driven cell-by-cell through
   `update_generator_current`. `envelope_kernel.py` keeps `envelope_pi_scan`
   and gained `inactive_controller_scan_state`.
-  §2.4/§2.6 physics and the byte-identity pins are unaffected.
+
+### 2.12 Capability + hardening pass, 2026-08-08…11
+
+Commits `51f3f604`, `6086b0d4`, `531ff49b`, `4566b5cd`, `a678e72f`,
+`d93eaf3c` (plus uncommitted working-tree changes at the time of writing —
+`git status` showed ~24 modified files).
+
+**(a) Multi-harmonic support.** The feedback takes `harmonic_index`
+(default 0) and can regulate one harmonic of a `MultiHarmonicRFStation`. All
+RF parameters go through `IQCavityFeedbackBase._resolve_main_harmonic`
+(scalar pass-through for a `SingleHarmonicRFStation`, `value[harmonic_index]`
+otherwise), and the coarse grid is built from **that harmonic's** design
+frequency.
+
+**INVARIANT**: the feedback's `harmonic_index` must equal its slot in the
+station's `cavity_feedback_list`, because
+`calc_gap_voltage_with_feedbacks` applies each feedback's corrections at the
+LIST index (`enumerate(...)`) while the feedback computes them from its own
+index. A mismatch is silent wrong physics, not a crash. Guarded at two
+layers (prevention at attach, validation at run start):
+
+- at attach time — **SUPERSEDED (2026-08-12, maintainer ruling — see
+  §3.3)**: the original mismatch `ValueError`
+  (`RFStationBaseClass._check_feedback_harmonic_index_matches_slot`,
+  called from both `attach_cavity_feedback` branches) was replaced by
+  SET-from-slot: attaching now *overwrites* the feedback's
+  `harmonic_index` with the slot, so a mismatch cannot arise through the
+  attach at all;
+- at run start — `IQCavityFeedbackTimingClass._validate_multi_harmonic_slot`,
+  from `on_run_simulation` (the first hook that both knows the parent and
+  still precedes every grid build). It also rejects a feedback that is
+  *missing* from the list, and one occupying several slots. Reached only
+  by mutating `cavity_feedback_list` directly after the attach.
+
+`attach_cavity_feedback` additionally rejects out-of-range slots — both
+`harmonic_index > n_rf - 1` and `harmonic_index < 0` (a negative index passed
+the old upper-bound check and silently addressed a slot from the END).
+
+**(b) ≥ 2 coarse centres per segment**, enforced in
+`RFCenterSegment.__post_init__` with an actionable message (it reports the
+segment duration in RF periods and names the two remedies). This retired
+three defects at once, and the latter two gates now **RELY** on the
+invariant — both say so at the gate:
+
+1. the meeting-azimuth coincidence tolerance
+   `rf_centers[-1] - rf_centers[-2]` (in `_rebuild_per_turn_grid`) only
+   measures a genuine forward cell width when both entries lie inside the
+   forward segment; a single-centre forward segment made it cross a segment
+   boundary, go negative, and silently **disarm the guard**;
+2. an empty segment carried the preceding residual through without adding its
+   own duration to the bridging coarse step;
+3. the registration-phase gate `n_backfill_centers > 0` is only equivalent to
+   "no backfill segments at all" when no segment can be empty — otherwise an
+   all-empty backfill span **permanently drops its Ψ** from the running
+   total.
+
+**(c) Fine-grid initial-condition causality.**
+`_check_fine_grid_initial_condition_is_causal` runs **every turn** (the first
+forward centre moves with the design frequency and the carried residual;
+`cut_left` is itself settable) and requires
+`rf_centers_forward[0] <= profile.cut_left` **when the window carries
+charge** — gated on `beam_current_fine_grid`, not on `profile.hist`, because
+direct-drive tests hand the fine grid a current without ever slicing.
+
+Record the counter-intuitive, **MEASURED** fact: the seed is deliberately
+coarse index **[0]** and is **NOT** interpolated to `cut_left`. Coarse cell 0
+is charge-free by construction (`forbid_charge_in_first_coarse_cell`), but
+cell 1 typically already holds ~50 % of the bunch, so interpolating from 0
+toward 1 drags up to ~10 % of the beam-induced voltage **backwards in time**,
+into an initial condition that predates the charge that produced it — and the
+fine solve then integrates the same current twice. Interpolating broke 57
+tests. The comment at the seed in `_resolve_fine_grid_voltage` says "must
+stay"; believe it. This guard sits **beside**
+`forbid_charge_in_first_coarse_cell`; neither subsumes the other.
+
+**(d) The `debug` flag was SPLIT into three.** Previously `debug=True`
+silently disabled the feedback (unit gain, zero phase) as a side effect of
+asking for diagnostics. Now: `debug` records the inspection-only snapshots
+only; `validate_grid_each_turn` runs the per-turn grid-vs-`_segments`
+integrity check (and asserts that the forward segment's boundary residual
+equals its demodulation frame — the two used to be derived independently and
+silently disagree); `grid_only_no_correction` — **and nothing else** — stops
+the turn before any correction and writes the neutral readout. All three
+default `False`, which is bit-for-bit the old `debug=False` path.
+
+**(e) Coincident coarse point DUPLICATES the previous cell** (with a warning)
+instead of skipping it. A zero-length step carries zero elapsed time, so
+`V(t+0) = V(t)`; leaving the zeros prefill would advance the *next* cell from
+`v_prev = 0`, destroying the coherent cavity voltage and refilling it only
+over `τ = 2 Q_L / ω` (hundreds of turns at `Q_L ~ 1e6`). Duplication also
+keeps the two downstream readers honest — `reset_arrays` carries the LAST
+cell into the next turn, and the fine solve seeds from the FIRST forward
+cell.
+
+**(f) The pre-fill seed is evaluated on the DESIGN clock.**
+`on_run_simulation` passes `omega=self.omega_rf_design` and the matching
+`t_rev` to `pretrack_fill_voltage`, because the seed initialises the coarse
+recursion, which is driven at `_forward_segment_omega_design`. Evaluating at
+the actual (offset) frequency would miss the no-beam fixed point by
+`O(delta_omega_rf / omega)` — an injection transient the PI would then have
+to burn off.
+
+**(g) `rf_beam_current` guards** (all in `beam_current.py`):
+
+- profile-window-vs-span → `profile.check_fits_in_span` (raises);
+- `hist_step > sampling_time` → **raises**: the downsampling loop derives each
+  coarse cell from *consecutive-index* steps in `ind_fine`, so a fine grid
+  coarser than the coarse grid lets the index jump by ≥ 2, the running
+  counter falls behind and charge is placed at the **wrong time** while the
+  total stays conserved (silent corruption). Reachable from a
+  legitimate-looking setup, since sub-stepping shrinks `sampling_time`;
+- index bounds, `_check_coarse_index_bounds`: mapping **past** the last cell
+  always raises; mapping **before** the first cell (which NumPy's negative
+  indexing would deposit into the *last* cells, ~one forward span late and
+  out of reach of the first-cell guard) raises when those bins carry
+  > 1e-9 of the total demodulated charge and otherwise still only **warns** —
+  the same relative-threshold idiom the first-coarse-cell guard uses, because
+  far Gaussian tails are non-zero in float arithmetic (~1e-100) without being
+  physically populated. So "raises instead of warning-then-wrapping" is true
+  for charge-carrying underflow, not for a numerically-noisy tail.
+
+**(h) `cavity_sum_phase` raises `NotImplementedError` whenever the station
+carries ANY cavity feedback.** It used to consult
+`get_main_harmonic_cavity_feedback` (main-harmonic slot only), so a feedback
+regulating a non-main harmonic of a `MultiHarmonicRFStation` slipped through
+and the phase loop ran as if the cavity were unregulated. It now uses
+`any_feedback_not_none` — the same predicate the beam controls use at run
+start, so both guards fire for exactly the same configurations. With no such
+feedback it stays a silent no-op, which is a normal supported configuration
+(the beam controls call it unconditionally every turn).
+The neighbouring `check_main_rf_stations_with_cavity_feedback` had a
+tautological condition and warned on every run; it now warns only on a
+genuine **mixture** (`any(...) and not all(...)`).
+
+**(i) `_track` decomposition, `circuit_track` split, and the module moves.**
+`circuit_track` now does two things: advance the coarse cells
+(`_circuit_track_cells`) and — only when the segment carries beam — resolve
+the envelope onto the fine grid (`_resolve_fine_grid_voltage`). The
+coarse-step arithmetic (`coarse_step_exponent`, `euler_voltage_multiplier`,
+`exponential_voltage_multiplier`, `exponential_drive_weight`) lives in
+`cavity_solvers.py` beside `ForwardEulerValidityGuard`, so the per-cell
+reference and the vectorised kernel spell it once. `PerTurnGridSpan` lives in
+`rf_center_segment.py` next to `RFCenterSegment`.
+`_validate_voltage_setpoint` (the explicit-setpoint constructor policy) and
+`_limit_fine_grid_generator_current` (the fine-grid klystron clamp) moved
+from the timing class onto `GeneratorRegulationMixin`.
 
 ---
 
 ## 3. Open items / flagged (NOT done — need decisions)
 
-**Physics review (2026-07-23, 46-agent adversarial workflow on committed HEAD
-post-phase-rework): 13 findings → 7 confirmed, 6 refuted, 4 coverage gaps.**
-Three confirmed items actioned as a focused cleanup pass (TDD, mutation-verified,
-zero regressions — full mucol battery 156 passed):
-- **#1/#5 (low) FIXED** — dead `_forward_carrier_omega_rf` attribute removed
-  (was computed in `rf_center_grid`, read nowhere); demod carrier is the
-  *design* RF, and the inter-turn slip enters only as the constant
-  `carrier_phase_offset=-(delta_phi_rf + carrier_slip_gap)`. Corrected the
-  class docstring + grid comments (they claimed the actual carrier was used
-  within the window); the only residual is the intra-window `δω·hist_x`, bounded
-  ~1e-6 rad and non-accumulating (bunch-local `hist_x`). Dropped the stale
-  `# TODO: this is wrong` on the validated anchor. **Answers the "which path is
-  more correct / can the param go to 0.0 / can it be removed" question**:
-  demod-at-actual-carrier is exactly correct, demod-at-design is correct to
-  ~1e-6 rad and simpler — both fine; the dead attribute is gone.
-- **#4 (medium) FIXED** — the forward-Euler beam-kick guards
-  (`_check_beam_kick_magnitude`, `_check_beam_kicks`) now early-return when
-  `_exponential_coarse_solver_enable` is set, mirroring `_check_step_sizes`. The
-  exact exponential propagator integrates the piecewise-constant drive (beam
-  included) exactly, so a large per-step beam kick is not a discretisation error
-  there; the guards could spuriously abort a valid exact large-step run. Tests:
-  `TestExponentialCoarseSolver::test_beam_kick_guard_skipped_for_exponential_solver`
-  (+ kernel-path variant), mutation-verified (Euler still raises).
-- **#7 (medium) doc-fixed** — the RST no longer *recommends* the
-  `MultiPassResonatorSolver(allow_delta_t_zero=True)` meeting-azimuth workaround;
-  a `.. warning::` now states it gives order-asymmetric coincident kicks (first
-  beam W(0)/2, second W(0)). The underlying solver asymmetry (solvers.py:934) is
-  **left for a decision** — the real fix is to deposit both coincident profiles
-  before evaluating either kick (symmetrise the mutual W(0)/2).
-- **#2/#3/#6 (2026-07-23) FIXED** via three parallel agents (TDD, all green):
-  - **#3** — `calc_phi_s_main_harmonic` / `calc_synchrotron_tune_main_harmonic`
-    (`cavities.py:962`, `:899`) now use `signed_charge_with_direction()`, so a
-    CR µ⁻ beam's analytic `phi_s` matches the µ⁺ co beam. Co-rotating
-    bit-identical (signed==raw). The **tune is sign-robust** (uses `|charge|`,
-    `|cos φ_s|`) so only `phi_s` changes value. Tests
-    `TestCounterRotatingSynchronousPhase` (`test_cavities.py`).
-  - **#6** — `_check_step_sizes` comment + raise message (and the class-docstring
-    Sub-stepping paragraph) corrected: the Euler decay factor turns negative at
-    `decay_per_step > 1` (sign-flip, still contracting) and diverges at `> 2`.
-    **DECIDED + SHIPPED** (superseding the "judgment call for the user" this
-    bullet used to pose): the hard cap was tightened from `2.0` to `1.0`
-    (`ForwardEulerValidityGuard.max_step_angle_hard`), so the sign-flipping
-    `1 < d < 2` band is forbidden too, not just the divergent `d > 2`.
-    Pinned by `test_decay_hard_cap_forbids_sign_flip` (0.9 warns, 1.1 raises).
-  - **#2** — the sandwich guard was REPLACED, and a prior belief CORRECTED (see
-    the per-beam-profiles bullet below).
-  Coverage gaps — **all 4 now CLOSED by tests (2026-07-23, 4 parallel agents,
-  all GREEN, ZERO production bugs — the feedback was sound, only tests missing):**
-  - **δω_rf × CR** — `..._matches_mu_plus_with_delta_omega_rf` (test_mtw): lone CR
-    µ⁻ + offset reproduces co µ⁺ bit-for-bit (single beam tracks forward; slip
-    anchor is direction-agnostic, only signed charge differs = +1 for both).
-  - **accel × two-beam CR** — `TestTwoBeamAcceleratingOffsetPassages`
-    (test_two_beam): fast-ramp two-beam vs retuning convolution, 0.13%→0.025%
-    (error shrinks = non-ramping = healthy composition of frame-slip × reverse
-    traversal).
-  - **δω_rf × two-beam CR (the reverse-traversal case, added 2026-07-24)** —
-    `TestTwoBeamDeltaOmegaRfOffsetPassages` (test_two_beam): static cycle,
-    δω_rf=2000, feedback vs retuning convolution (delta_f=δω_rf/2π),
-    0.13%→0.02% (shrinks). Reverse-stream slip anchor is direction-correct;
-    a crossed probe (offset dropped for the reverse stream) grows to 9%/turn,
-    18× over gate — so the test is strongly discriminating. Closes the last
-    residual (δω_rf × two-beam, which neither gap 3 lone-beam nor gap 2 accel
-    covered).
-  - **generator↔beam power** — `test_generator_power_conservation.py` (new):
-    phasor balance closes to 1 WITH the SSB factor-2, 0.5 with raw I_beam (both
-    pinned); current_limit_from_power ⇄ generator_power round-trips 1e-12.
-    Doc-clarity note: beam_current.py:209 "factor 2 recovers the fundamental"
-    should state the units bridge (physical fundamental = I_beam/2 in
-    generator-current units) — not a bug.
-  - **closed-loop Robinson** — `test_closed_loop_stability.py` (new, test-only,
-    300 turns ≈30 Q_s periods): nominal net-DAMPS (−9e-4/turn, genuinely
-    stable), perturbed (flipped detuning) grows (+1.65e-3/turn). 3 new
-    characterizations: (a) loop gain/delay dynamically inert on the dipole
-    (loop ≫ synchrotron rate → only detuning-sign destabilizes); (b) feedback
-    fully suppresses *linear* Robinson (needs a filamenting bunch); (c) slow
-    secular drift common to both signs beyond ~350 turns (matches the known
-    bounded-secular-drift limitation).
+### 3.1 Counter-rotating / two-beam
 
-- ~~MultiPole vs MultiPass on missing R_CR~~ **RESOLVED**: the follow-up
-  session's guard landed via `origin/blonder` (commit `2235e519`, merged in
-  `b047e972`) — MultiPoleSparseSolve now raises on a CR beam with any source
-  missing R_CR. NOTE: that merge also produced one **semantic conflict** in
-  `test_sources.py::test_get_impedance` (origin's `−R` construction ×
-  our negating `get_impedance` kept by the merge ⇒ sign flip); fixed by
-  restoring the `+R` construction matching the surviving convention.
-- **`barrier_bucket.py` CR kick** — **user decision (2026-07-24): IGNORE.**
-  (line ~245 raw charge; wrong-sign barrier kick for a CR beam; out of
-  feedback scope, deliberately not pursued.)
-- **DRIVEN MULTI-SECTION FAST-RAMP FRAME SLIP — FIXED (2026-07-24, root
-  cause).** Was: `|V_ant|` drifted ~3% over 5 turns (2 sections, fast ramp,
-  driven); superlinear, diverging. **Root cause (measured, NOT the assumed
-  geometry bug — seed mis-registration is 1e-6 t_rf/seam, four orders too
-  small):** a multi-section passage builds its grid piecewise, accumulating
-  RF phase `Σ_k ω_k·T_k`, while the demodulation (`omega_c =
-  _forward_tracking_omega_rf`) and the readout both reference the single
-  carrier `ω_0` — a *carrier-phase bookkeeping* mismatch
-  `Ψ = Σ_k (ω_k − ω_0)·T_k`, identically 0 for one section (which is why
-  single-section never needed a correction). The old code applied `Ψ` as a
-  ROTATION OF THE ANTENNA-VOLTAGE STATE (cavity_feedback.py:2161-2177),
-  which also hit the generator-driven field; that field carries no
-  registration error (re-injected on the current grid every cell), so the
-  constant drive fought the rotating state and a phase error became an
-  AMPLITUDE drift. **Fix:** `Ψ` accumulates into `_grid_carrier_phase`,
-  folded into `_carrier_slip_gap` → subtracted at demodulation
-  (`carrier_phase_offset`), added back at readout (`phase_correction`) —
-  the same phase idiom the RF-frequency offset uses, and what the
-  design-clock invariant prescribes. State (hence driven steady state) left
-  untouched; the state rotation is DELETED. `rf_center_grid.py`,
-  `envelope_kernel.py`, `rf_center_segment.py` untouched — no geometry or
-  kernel change needed. **Proof it is a real fix, not a compensation:** the
-  5 mtw tests that failed when the rotation was merely removed now pass
-  WITHOUT it. Bit-identity (SHA-256 over full V_ant grids) for
-  single-section and no-ramp. `TestPIFullTrackingMultiSectionSlowRamp` PIN
-  regenerated (it encoded the old rotated state; behavioural assertions
-  unchanged). **Stretch achieved:** the fast-ramp exclusion is LIFTED —
-  new `TestPIFullTrackingMultiSectionFastRamp` (setpoint restored to 1e-16
-  relative per turn). **Residual caveat:** `Ψ` still reaches the beam via
-  `phase_correction`, so a driven multi-section fast ramp keeps a readout-
-  PHASE offset (the beam-induced part needs `Ψ` at readout, the driven part
-  does not; one readout phase cannot separate them). Amplitude is exact.
-- **2026-07-24 follow-up fixes (3 parallel agents, all green — 73 passed
-  combined):**
-  - **Guard message accuracy (#2 review finding)** — both
-    `_check_two_beam_profile_placement` raise messages corrected: no more
-    false "never histogrammed" claim; they now state the conservative
-    rationale truthfully (replay verifies over ring-element writes only;
-    self-histogramming consumers write atomically but invisibly to the
-    check; feedbacks additionally entangle cross-turn state). Logic
-    untouched; `test_untracked_live_profile_raises` now pins the accuracy
-    fix (`assertNotIn("never histogrammed")`).
-  - **`|R_CR| == |R|` validation (review gap)** — converted from a bare
-    `assert` (stripped under `python -O`) to `raise ValueError` in
-    `Resonators.__init__`; new mismatch test
-    `test___init__counter_witness_magnitude_mismatch` (TDD RED captured:
-    AssertionError vs ValueError). NOTE: constructor now mixes
-    assert/RuntimeError/ValueError styles — future cleanup, would break
-    existing assertRaises expectations.
-  - **Exponential solver end-to-end (review gap)** —
-    `TestExponentialSolverEndToEnd` in test_mtw: (1) standard-Q_L
-    composition pin vs convolution (2.9e-3, gate 0.02; exp-vs-Euler-fb
-    ≤8.5e-7); (2) low-Q_L=32 absolute pin (1.8e-2, gate 0.03) — NOTE the
-    empirical finding: at n=1 low-Q_L the propagators do NOT differ on this
-    observable (both floored by the O(1/(2Q_L)) IQ-envelope truncation ≈
-    1.6% — an inherent model limitation, not a solver defect); (3) the
-    REAL discriminator: large detuning (δω=3.5e6 rad/s, θ=2.7e-3/step,
-    below Euler's own warn threshold) — exp stays at 1.4e-3-3e-3 vs Euler
-    compounding to 6.7e-2/1.3e-1 (38×/98×), mutation-verified (flag off →
-    6.7× over gate). Harness kwargs kept OUT of the comparison cache key
-    (counter_rotating precedent).
-  - **Public kwarg is now `exponential_coarse_solver_enable`** (user's
-    second rename); all docs/RSTs/context/test-harness names aligned — the
-    documented call constructs.
-- ~~`print_one_turn_execution_order` crash on empty `rf_centers`~~ **RESOLVED**
-  (committed `0936668f`, with regression tests in
-  `tests/unittests/core/ring/test_beam_physics_relevant_elements.py`).
-- ~~`phase_correction` vs `pi_setpoint` frame~~ **RESOLVED (user decision:
-  error)**: the constructor now rejects a non-real / non-positive explicit
-  `voltage_setpoint` with `ValueError` (rotate `phi_rf` on the station
-  instead); `TestVoltageSetpointValidation` pins it.
-- **CR-3 equal-time patch path** (deferred by user): integrating two coincident
-  beam currents in the feedback (deposit-sum + envelope rewind). Design options
-  recorded in the memory note. Kick-ordering fork: symmetric one-passage delay /
-  pooled kick / asymmetric lag.
-- **Per-beam live profiles** under two-beam tracking clobber each other (tests
-  use frozen profiles) — core gap. **CORRECTION (2026-07-23, #2):** the item-7
-  belief that a *(profile, consumer, profile) sandwich is sufficient* is WRONG.
-  The exact-interleave replay proves even the minimal sandwich `[P, C, P]` is
-  corrupt (the *forward* beam reads the counter's histogram), and `[P,C,P,Drift]`
-  corrupts the counter beam. A padded layout (e.g. `PCPDD`, `DPCPDDD`) can be
-  safe, but no simple positional rule characterises it. The guard was therefore
-  REPLACED: `_check_two_beam_profile_placement` now **replays the exact mainloop
-  interleave** (forward tracks `elements[k]`, then counter `elements[N-1-k]`;
-  two turns for steady state) and raises if any consumer reads the other beam's
-  histogram — 0 too-lax / 0 too-strict over 1792 layouts **under the
-  pure-reader model** the replay assumes. CAVEAT (review 2026-07-24, #1): the
-  real mucol consumers (WakeField with `track_profile=True`, and the feedback's
+- **CR-3 equal-time patch path** (deferred by user): integrating two
+  coincident beam currents in the feedback (deposit-sum + envelope rewind).
+  Design options recorded in the memory note. Kick-ordering fork: symmetric
+  one-passage delay / pooled kick / asymmetric lag.
+- **Coincident-kick asymmetry in `MultiPassResonatorSolver`.** With
+  `allow_delta_t_zero=True` each beam is kicked inside its own track call, so
+  the first-tracked beam sees `W(0)/2` where the second sees `W(0)`, and
+  swapping the track order swaps which beam is under-kicked. The constructor
+  now **warns** about exactly this, and the design RST carries a `..
+  warning::` instead of recommending the workaround. The real fix — deposit
+  both coincident profiles before evaluating either kick, symmetrising the
+  mutual `W(0)/2` — is **left for a decision**.
+- **Per-beam live profiles** under two-beam tracking clobber each other
+  (tests use frozen profiles) — core gap.
+  **CORRECTION (2026-07-23):** the earlier belief that a
+  *(profile, consumer, profile)* sandwich is sufficient is WRONG. The
+  exact-interleave replay proves even the minimal sandwich `[P, C, P]` is
+  corrupt (the *forward* beam reads the counter's histogram), and
+  `[P,C,P,Drift]` corrupts the counter beam. A padded layout (e.g. `PCPDD`,
+  `DPCPDDD`) can be safe, but no simple positional rule characterises it. The
+  guard was therefore REPLACED:
+  `MainloopCounterRotatingBeams._check_two_beam_profile_placement`
+  (`blond/core/simulation/execution_models/conterrotating_beams.py`) now
+  **replays the exact mainloop interleave** (forward tracks `elements[k]`,
+  then counter `elements[N-1-k]`; two turns for steady state) and raises if
+  any consumer reads the other beam's histogram — 0 too-lax / 0 too-strict
+  over 1792 layouts **under the pure-reader model** the replay assumes.
+  **CAVEAT (review 2026-07-24):** the real mucol consumers (`WakeField` with
+  `track_profile=True`, and the feedback's
   `calculate_rf_beam_current_partial`) SELF-histogram their profile in place
   before consuming it, so the write+read is atomic per beam and no interleave
-  corrupts it. The replay models consumers as pure readers and does NOT see
+  corrupts it. The replay models consumers as pure readers and does not see
   those self-writes, so it is *conservative*: it rejects the natural
-  attached-live-profile layout with the (inaccurate) message "never tracked as
-  a ring element … never histogrammed". No supported config is wrong (the
-  shipped two-beam path uses frozen profiles), but the guard message + the
-  "provably correct" framing overstate; the real long-term fix remains per-beam
-  profile instances. Frozen (`active=False`) profiles remain exempt. Tests in
+  attached-live-profile layout. No supported config is wrong (the shipped
+  two-beam path uses frozen profiles), but the "provably correct" framing
+  overstates. Frozen (`active=False`) profiles are exempt. Tests in
   `test_simulation.py::TestTwoBeamProfilePlacementCheck` (the old
-  `test_sandwiched_live_profile_passes` was corrected to
+  `test_sandwiched_live_profile_passes` became
   `test_minimal_sandwich_rejected`). The real long-term fix remains per-beam
   profile instances; this guard turns silent corruption into a loud error.
-- ~~`delta_omega_rf` lab-frame demod slip~~ **RESOLVED (2026-07-22, task
-  9)**: redesigned — the coarse-grid geometry is fully on the *design* RF
-  clock (`forward_tracking_omega_rf` design-only; no detuned spacing; the
-  former `phase_offset_frwrd`/`_next` slip attributes are removed entirely,
-  and BOTH the forward and reverse paths seed at the constant `t_rf / 2` —
-  the `phi_rf` parameter of `_generate_rf_centers` and the
-  `_get_time_to_next_rising_edge_zero` helper are deleted, resolving the
-  reverse path's per-segment-phase TODO; the multi-section 2e3 rad/s
-  offset run is measured IDENTICAL to the δω=0 baseline per turn), and
-  the offset enters only as explicit phases: the demodulation carrier
-  itself stays on the *design* clock
-  (`omega_c=self._forward_tracking_omega_rf`, from
-  `calc_omega_rf_design`) — the `forward_carrier_omega_rf` (+δω,
-  window-local) attribute this bullet used to name was deleted, see the
-  #1/#5 bullet above — and the offset rides only on the accumulated slip
-  `−(parent.delta_phi_rf + live gap)` on the demodulation with the same
-  total re-applied at readout (station clock via `phi_rf`, live gap added
-  to `phase_correction`). The live gap `δω·(t_now −
-  station._last_reference_time_phase_slip)` compensates the kick clock's
-  end-of-track lag (blond2 convention, untouchable). Measured: net
-  carrier-phase error vs the retuning convolution ≤ 2e-5 rad/turn at 8e2
-  and 2e3 rad/s (was ~2 %/turn per 1e3 rad/s). Four tests
-  (`test_multiturn_delta_omega_rf_{large_offset_consistency,differential,
-  substepped,multisection}`), mutation-verified; grid geometry tests
-  updated to design-clock expectations; docs (design RST + test inventory)
-  updated. Diagnosis was empirical: a per-turn linear-response solve over
-  free demod phases proved the residual error was a whole-envelope readout
-  frame drift from the slipping grid, not a per-deposit demod error —
-  hence the geometry redesign rather than a phase patch.
-- ~~`experimental/physics/feedbacks/helpers.py` still uses raw charge~~
-  **MOOT (verified 2026-08-08)**: `blond/experimental/physics/feedbacks/`
-  no longer exists (the tree now holds only `kick_pooling.py`), so there is
-  no experimental `rf_beam_current` copy left to worry about.
+
+### 3.2 Housekeeping
+
+- **Observation tests write `last_*.npy` / `last_*.json` into the CWD** (the
+  repo root when pytest runs from `BLonD/`). Mechanism:
+  `ObservablesBaseClass.__init__` builds `common_filepath = folder + "last"`,
+  and every concrete observation defaults `folder: str = ""`; the mucol
+  harness (`accelerators/mucol/mucol_cav_fdbk.py`) constructs
+  `IQCavityFeedbackObservation` without a folder. There is no `.gitignore`
+  entry for them (checked). A `.gitignore` line or a `tmp_path` fixture would
+  stop them accumulating as untracked files.
+- **`_phase_offset_frwrd` / `_phase_offset_frwrd_next` are vestigial.**
+  **CORRECTION (2026-08-11):** the `delta_omega_rf` bullet below used to say
+  these "are removed entirely". They are not — both are still initialised to
+  `0.0` in `__init__` and re-zeroed in `on_run_simulation`, and
+  `_phase_offset_frwrd` is still read by one grid test
+  (`test_rf_center_grid.py`, in the expected-waveform construction, where it
+  contributes exactly 0). Nothing writes a non-zero value anywhere. They
+  should be deleted together with that test's use of them.
+- **The extracted mixins** (`RFCenterGridMixin`, `GeneratorRegulationMixin`)
+  are still pure moves (methods take `self: IQCavityFeedbackTimingClass`);
+  promoting them to composed collaborators is the natural follow-up.
 - **P6** (RF-parameter view mixin) skipped per user.
-- **Full Sphinx doc build not yet run**: only docutils structure-lint was run on
-  the two RSTs. CI builds with `sphinx-build -W` (warnings = errors, see
-  CLAUDE.md); run `cd docs && bash create_docs.sh` (sequentially, never looped)
-  before the MR. No new top-level exports were added, so
-  `ASSIGNED_CATEGORIES` needs no update.
-- The extracted mixins (`RFCenterGridMixin`, `GeneratorRegulationMixin`) are
-  pure moves (methods still use `self`); promoting them to composed collaborators
-  is the natural follow-up.
-- **LHC-suite npz references vs the large-files hook** (user decision): the
-  five pinned `resources/*_blond2_reference.npz` total ~61 MB and three
-  exceed pre-commit's `check-added-large-files --maxkb=5000`
-  (transfer_function 10.8, full_machine 15.1, phase_error 30.4 MB).
-  Options: git-lfs, raise `maxkb`, or don't commit the large ones — the
-  loader self-heals by regenerating on first run (at the old one-time
-  cost per machine).
-- **LHC suite CI visibility** (user decision): `pyproject.toml`
-  `testpaths = ["tests/unittests", "tests/integration"]` means CI never
-  collects the repo-root `unittests/` tree (LHC + mucol suites). With
-  pinning the LHC suite is now cheap enough to consider moving under
-  `tests/unittests/` (behind a marker) or adding a dedicated CI job.
-- **pytest-xdist** for the comparison directory (follow-up, after the CI
-  decision): with blond2 pinned, `-n auto --dist loadscope` would run the
-  five classes' blond3 sides in parallel processes.
+- **Full Sphinx doc build not yet run** for the current state of the two
+  RSTs. CI builds with `sphinx-build -W` (warnings = errors, see CLAUDE.md);
+  run `cd docs && bash create_docs.sh` **sequentially, never looped** (a
+  looped/concurrent build wipes the shared `examples/`/`_build/` dirs and
+  produces spurious warnings) before the MR. No new top-level exports were
+  added, so `ASSIGNED_CATEGORIES` needs no update.
+- ~~RST/source name drift~~ **RESOLVED (2026-08-12)**: both RSTs now use
+  the backfill vocabulary throughout and `envelope_kernel.py` carries no
+  time-sense "reverse" — see the resolved-stragglers note in §1.3.
+
+### 3.3 Resolved / decided (kept as records, not as open work)
+
+- ~~Beam phase loop ↔ cavity feedback coupling~~ **DECIDED (2026-08-12,
+  maintainer ruling): deliberate NON-GOAL — the phase loop must not couple
+  to the cavity feedback at all.** The `NotImplementedError` that
+  `cavity_sum_phase` raises whenever a station carries ANY cavity feedback
+  (§2.12(h)) is the intended *permanent contract*, not a stub awaiting an
+  implementation. Background (still accurate): the original body read the
+  deleted blond2 coarse-array API (`I_BEAM_COARSE`, `V_ANT_COARSE`, a
+  fixed `n_coarse` per turn), which exists nowhere in the live tree; with
+  no such feedback the method stays a silent no-op — a normal, supported
+  configuration the beam controls exercise unconditionally every turn.
+  Known wording drift (code frozen during the 2026-08-12 docs sweep): the
+  method's two `TODO`s and its message's "open design task" phrasing
+  predate the ruling — and `TestCavitySumPhaseGuard` pins that phrase
+  verbatim, so message and test must move together in the next code pass.
+  Related: `get_main_harmonic_voltage` warns that it returns the
+  UNPERTURBED voltage while local feedbacks are active (triggered from
+  `BeamFeedbackBase.beam_phase()` when it forms the main-harmonic vector
+  sum); with the coupling ruled out, that warning documents the permanent
+  state, not an interim one.
+- ~~`harmonic_index` API questions~~ **RESOLVED (2026-08-12, maintainer
+  ruling)**, in three parts:
+  - **SET, not validate**: `attach_cavity_feedback` now SETS the feedback's
+    `harmonic_index` from the slot (single-feedback path: the
+    `harmonic_index` argument; list path: each non-None entry's position),
+    via `RFStationBaseClass._set_feedback_harmonic_index_from_slot`
+    (`hasattr` guard, so duck-typed feedbacks without the attribute attach
+    untouched). The slot is authoritative; the constructor value is only
+    the unattached default. Set silently, documented loudly. This
+    supersedes the attach-time mismatch `ValueError`
+    (`_check_feedback_harmonic_index_matches_slot`) described in §2.12(a);
+    the run-start guard `_validate_multi_harmonic_slot` is unchanged and
+    still catches direct `cavity_feedback_list` mutation.
+  - **Fractional `harmonic_index` hard-rejects** (`ValueError`) at both
+    entry points (`IQCavityFeedbackBase.__init__` and
+    `attach_cavity_feedback`), shared via
+    `blond.physics.cavities._coerce_harmonic_index`. A harmonic index is a
+    list slot, not a physical quantity, so the lenient
+    `int_from_float_with_warning` idiom (untouched — other quantities keep
+    it) no longer applies here. `int`, `np.integer` and integral `float`
+    are accepted silently.
+  - **`IQCavityFeedbackBase(harmonic_index=np.int64(1))` FIXED**: the
+    shared strict coercion accepts `np.integer` at both entry points, so
+    the constructor no longer raises on `np.int64`.
+- ~~`delta_omega_rf` lab-frame demod slip~~ **RESOLVED (2026-07-22)**. The
+  coarse-grid geometry went fully onto the design clock; the offset enters
+  only as explicit phases (demod `carrier_phase_offset = −(delta_phi_rf +
+  live gap)`, readout `phi_rf` + `phase_correction`). The live gap
+  `δω·(t_now − station._last_reference_time_phase_slip)` compensates the kick
+  clock's end-of-track lag (blond2 convention, untouchable). Measured net
+  carrier-phase error vs the retuning convolution **≤ 2e-5 rad/turn** at 8e2
+  and 2e3 rad/s (was ~2 %/turn per 1e3 rad/s). Diagnosis was empirical: a
+  per-turn linear-response solve over free demod phases proved the residual
+  was a whole-envelope *readout frame* drift from the slipping grid, not a
+  per-deposit demod error — hence a geometry redesign rather than a phase
+  patch. Also deleted in that pass: the `phi_rf` parameter of
+  `_generate_rf_centers`, the `_get_time_to_next_rising_edge_zero` helper,
+  and (in the follow-up) the dead `_forward_carrier_omega_rf` attribute.
+- ~~Driven multi-section fast-ramp frame slip~~ **FIXED (2026-07-24)**. Root
+  cause was *not* the assumed geometry bug (seed mis-registration is 1e-6
+  t_rf/seam, four orders too small) but a carrier-phase bookkeeping mismatch
+  `Ψ = Σ_k (ω_k − ω_0)·T_k`, identically 0 for one section. The old code
+  applied Ψ as a **rotation of the antenna-voltage state**, which also hit
+  the generator-driven field — a field that carries no registration error at
+  all (re-injected on the current grid every cell) — so the constant drive
+  fought the rotating state and a *phase* error became an *amplitude* drift.
+  Fix: Ψ accumulates into `_grid_carrier_phase`, folds into
+  `_carrier_slip_gap`, is subtracted at demodulation and added back at
+  readout; the state rotation is DELETED. Proof it is a real fix and not a
+  compensation: the 5 mtw tests that failed when the rotation was merely
+  removed now pass **without** it. **Residual caveat** (now a design-RST
+  *Known limitations* bullet): a driven multi-section fast ramp keeps a
+  readout-**phase** offset, because the beam-induced part needs Ψ at readout
+  and the driven part does not, and one readout phase cannot separate them.
+  Amplitude is exact.
+- ~~Forward-Euler hard cap~~ **DECIDED + SHIPPED**: tightened from `2.0` to
+  `1.0` (`ForwardEulerValidityGuard.max_step_angle_hard`), so the
+  sign-flipping `1 < d < 2` band is forbidden too, not just the divergent
+  `d > 2`.
+- ~~`phase_correction` vs `pi_setpoint` frame~~ **RESOLVED (user decision:
+  error)** — the constructor rejects a non-real / non-positive explicit
+  `voltage_setpoint` with `ValueError` (rotate `phi_rf` on the station
+  instead).
+- ~~MultiPole vs MultiPass on missing R_CR~~ **RESOLVED** via
+  `origin/blonder` (`2235e519`, merged in `b047e972`). That merge produced
+  one **semantic conflict** in `test_sources.py::test_get_impedance`
+  (origin's `−R` construction × our negating `get_impedance`); fixed by
+  restoring the `+R` construction matching the surviving convention.
+- ~~`print_one_turn_execution_order` crash on empty `rf_centers`~~
+  **RESOLVED** (`0936668f`; regression tests in
+  `tests/unittests/core/ring/test_beam_physics_relevant_elements.py`).
+- ~~`experimental/physics/feedbacks/helpers.py` still uses raw charge~~
+  **MOOT** — `blond/experimental/physics/` now holds only `kick_pooling.py`
+  (re-verified 2026-08-11), so there is no experimental `rf_beam_current`
+  copy left.
+- ~~LHC-suite npz vs the large-files hook / LHC suite CI visibility /
+  pytest-xdist for the comparison directory~~ **MOOT** — the suite no longer
+  exists (§2.10).
 
 ---
 
-## 4. Module layout after the P1–P5 partition
+## 4. Module layout
 
-`blond/physics/feedbacks/`:
+`blond/physics/feedbacks/` (line counts as of 2026-08-12):
 
 | module | holds |
 |---|---|
-| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`; orchestration (`_track` + its nine phase methods — see §2.11 —, `circuit_track`, `_circuit_track_cells{,_python,_kernel}` + `_coarse_step_sizes`/`_kernel_*` glue, `cavity_response`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `reset_arrays`, `on_run_simulation`, pre-fill). `_check_step_sizes`, `_check_beam_kick_magnitude`, `_check_beam_kicks` remain here as thin wrappers delegating to `self._euler_guard` |
-| `envelope_kernel.py` | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion (performance item #1); solver-agnostic, byte-identical to the Python reference. Reached through the controller's `supports_envelope_scan` capability (2026-08-06), not called by the feedback directly |
-| `rf_center_segment.py` | `RFCenterSegment` value class (re-exported from cavity_feedback for compat). `.centers` and `.residual` are consumed; `.omega`/`.duration` are validated only (see §2.11) |
-| `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` grid construction (forward/reverse reference walks, segment generation, `_append_segment`/`_clear_segments`/`_rebuild_grid_arrays`, `_preceding_segment_residual`, derived arrays). `_segments` is the single source of truth; the flat arrays are derived |
-| `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `generator_power`, `_update_generator_current` |
-| `cavity_solvers.py` | **mucol-only** `cavity_response_sparse_matrix` (first-order/forward-Euler) + `cavity_response_sparse_matrix_second_order` (Crank-Nicolson) + `pretrack_fill_voltage` + `ForwardEulerValidityGuard` (moved here 2026-08-07 — the discretisation tripwires, beside the solvers they certify) |
-| ~~`helpers.py`~~ | DELETED (2026-07-25): `cavity_response_sparse_matrix` moved into `cavity_solvers.py`; re-export shims already gone |
-| `beam_current.py` | `low_pass_filter`, `rf_beam_current` (unified 2026-07-25: single function, keyword-only coarse args; 2026-08-07: coarse-write wrap-around removed, `ProfileBaseClass.check_fits_in_span` called instead) |
-| `iq.py` | `cartesian_to_polar`, `polar_to_cartesian` |
-| `generator_current_controller.py` | `GeneratorCurrentController` ABC (2026-08-06) + `GeneratorCurrentPIController`; `current_limit_from_power`, `clamp_magnitude` |
-| `base.py` | `FeedbackBaseClass` / `LocalFeedback` / `GlobalFeedback` (unchanged) |
+| `cavity_feedback.py` (2718) | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **eight** phase methods (§2.11), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `reset_arrays`, `on_run_simulation`, `_validate_multi_harmonic_slot`, `_check_fine_grid_initial_condition_is_causal`, the pre-fill call. `_check_step_sizes`, `_check_beam_kick_magnitude`, `_check_beam_kicks` are thin wrappers delegating to `self._euler_guard` |
+| `rf_center_grid.py` (884) | `RFCenterGridMixin` — coarse `rf_centers` construction: the forward and **backfill** reference walks, `_generate_rf_centers`, segment generation (`_append_segment` / `_clear_segments` / `_rebuild_grid_arrays` / `_close_previous_turn_grid`), `_preceding_segment_residual`, `_validate_grid`, and the two direction selectors (`_reference_list_for_direction`, `_own_index_for_direction` — the *space*-sense reverse, §1.3). `_segments` is the single source of truth; the flat arrays are derived. Its module docstring is the canonical statement of the backfill-vs-reverse rule and of the design-clock-only geometry |
+| `rf_center_segment.py` (165) | The two value classes: `RFCenterSegment` (all four fields load-bearing — see the correction in §2.11 — with the ≥ 2-centres and `residual ∈ [0, duration]` validation) and `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`). Both are imported by `cavity_feedback.py` |
+| `cavity_solvers.py` (768) | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the coarse-step arithmetic `coarse_step_exponent`, `euler_voltage_multiplier`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`; and `ForwardEulerValidityGuard` — the discretisation tripwires, beside the solvers they certify. Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
+| `envelope_kernel.py` (229) | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
+| `generator_regulation.py` (234) | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current`, `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need both coarse grids and the three values carried across the turn boundary, and because the scan depends on `pi_setpoint` staying *unevaluated* on a span the controller sits out (that property may reach through to the parent station, which a no-beam backfill span must not require) |
+| `generator_current_controller.py` (446) | `GeneratorCurrentController` ABC + `GeneratorCurrentPIController`; the envelope-scan capability hooks (`supports_envelope_scan`, `envelope_scan_kernel`, `envelope_scan_state`, `absorb_envelope_scan_state`); `current_limit_from_power`, `clamp_magnitude` |
+| `beam_current.py` (435) | `low_pass_filter`, `rf_beam_current` (unified; keyword-only coarse args; no wrap-around; `check_fits_in_span` + `hist_step`/`sampling_time` + `_check_coarse_index_bounds` guards) |
+| `beam_feedback.py` (481) | the surviving phase loop (`BeamFeedbackBase`), incl. `cavity_sum_phase`, whose `NotImplementedError` guard is the permanent contract — coupling is a deliberate non-goal (§3.3) |
+| `iq.py` (66) | `cartesian_to_polar`, `polar_to_cartesian` |
+| `base.py` (244) | `FeedbackBaseClass` / `LocalFeedback` / `GlobalFeedback` (unchanged) |
+| ~~`helpers.py`~~ | DELETED (2026-07-25); its contents moved into `cavity_solvers.py`, re-export shims gone |
 
-**Re-exports**: none — `helpers.py` was deleted 2026-07-25 together with its
-`# noqa: F401` shims. The only other `rf_beam_current` in the tree is
+**Re-exports**: none. The only other `rf_beam_current` in the tree is
 `blond/legacy/blond2/llrf/signal_processing.py`, which is self-contained and
 out of scope. Mucol production + tests import from the canonical modules
 above.
 
-**Test split** (`tests/unittests/physics/feedbacks/`):
-`test_rf_center_grid.py` (was `TestIQCavityFeedbackTimingClass`),
-`test_rf_center_segment.py` (was `TestRFCenterSegment`); `test_cavity_feedback.py`
-reduced to the empty `TestIQCavityFeedbackObservationClass` stub. The unused
-debug method `plot_antenna_voltage` moved to
-`tests/unittests/physics/feedbacks/accelerators/mucol/plotting.py` as a function.
+**Tests** — inventory lives in the test RST (*Test modules*). Layout only:
+
+- `tests/unittests/physics/feedbacks/` — `test_base.py`,
+  `test_beam_feedback.py`, `test_cavity_feedback.py`,
+  `test_cavity_feedback_requires.py`, `test_helpers.py`,
+  `test_rf_center_grid.py`, `test_rf_center_segment.py`.
+- `tests/unittests/physics/feedbacks/accelerators/mucol/` — the 14 mucol test
+  modules plus the shared harness (`mucol_cav_fdbk.py`, `support.py`,
+  `stubs.py`, `conftest.py`, `plotting.py`, `fdbk_testing/`). The unused
+  debug method `plot_antenna_voltage` lives in `plotting.py` as a function.
+- **CORRECTED 2026-08-11:** `test_cavity_feedback.py` is no longer "reduced
+  to the empty `TestIQCavityFeedbackObservationClass` stub". It now carries
+  the diagnostic-flag-split tests, the multi-harmonic resolution /
+  degenerate-multi-harmonic / non-main-harmonic-attachment /
+  slot-agreement suites and the coarse-cell step-sizing suite.
+- Guards owned elsewhere: `TestTwoBeamProfilePlacementCheck` in
+  `tests/unittests/core/simulation/test_simulation.py`; the counter-rotating
+  2×2 shunt matrix in `tests/unittests/physics/impedances/test_solvers.py`;
+  the span guard's own unit tests in `tests/unittests/physics/test_profiles.py`.
 
 ---
 
 ## 5. Verification status
 
-- Full battery (mucol + LHC comparisons + impedances): **492 passed**, the only
-  failures being the (now separately fixed) pre-existing SPS TravelingWaveCavity
-  tests — zero regressions from any of this work.
-- Every production sign/gate change is **mutation-verified** (reverting the fix
-  fails the pinning test): P2 gate, exponential branch, T7 xfail reason, CR-1/CR-2
-  sign matrices, CR-4 matrix, MultiPole deposit.
-- The P1–P5 partition is **byte-identical** (pure moves), verified by the full
-  battery + per-step ruff/numpydoc/import/MRO checks.
-- Docs (`docs/feedbacks/…rst`, `docs/tests/…rst`) updated and structurally lint-
-  clean; memory notes updated (`mucol-feedback-module-layout`,
-  `cr-beam-loading-architecture`, and the P1/P2/open-limitations notes).
+- `tests/unittests/physics/feedbacks` **collects 520 tests** (2026-08-12,
+  collection only — this pass did not re-run the battery; up from 513 on
+  2026-08-11 with the seven tests of `TestConstructorHarmonicIndexValidation`
+  and `TestAttachSetsHarmonicIndexFromSlot`).
+- **HISTORY**: the last full battery run recorded here (mucol + LHC
+  comparisons + impedances) was **492 passed**, the only failures being the
+  pre-existing SPS `TestTravelingWaveCavity` ones (`test_vind`,
+  `test_beam_fine_coarse`), since fixed SPS-locally (90° IQ rotation) and
+  unrelated to mucol. That number predates the LHC-suite removal (§2.10) and
+  the 2026-08-08…11 pass; treat it as a historical marker, not a target.
+- Every production sign/gate change is **mutation-verified** (see §2.4–2.7).
+- The P1–P5 partition was **byte-identical** (pure moves), verified by the
+  full battery + per-step ruff/numpydoc/import/MRO checks.
+- Docs: both RSTs are maintained; the full `-W` Sphinx build has **not** been
+  run for the current state (§3.2).
 
 ---
 
 ## 6. Commit status
 
-**HISTORICAL — superseded 2026-08-07.** This section used to read "Nothing is
-committed" and proposed a commit grouping ((a) review fixes + coverage tests,
-(b) CR-1…CR-4 + convention/tests + docs, (c) the P1–P5 module partition,
-(d) the `DEBUG_PLOT` fix). That grouping was never used: the work was
-checkpoint-committed incrementally on `blonder_feature/mucol_feedbacks`
-instead, and `blonder` has since been merged in (`52a03664`). Everything
-described above is committed; check `git log` rather than this section for
-the current state. Re-run the full battery before/after any reshuffle.
+**HISTORY — superseded 2026-08-07.** This section used to read "Nothing is
+committed" and proposed a four-way commit grouping. That grouping was never
+used: the work was checkpoint-committed incrementally on
+`blonder_feature/mucol_feedbacks`, and `blonder` has since been merged in
+(`52a03664`). Check `git log` rather than this section for the current state;
+as of 2026-08-11 the tip is `d93eaf3c` with a substantial uncommitted working
+tree. Re-run the full battery before/after any reshuffle.

@@ -46,7 +46,7 @@ def inactive_controller_scan_state() -> tuple:
     Neutral control arguments for a span with no regulation.
 
     A span the controller sits out (no controller attached, or a no-beam
-    reverse segment) still runs the same scan, with ``controller_active``
+    backfill segment) still runs the same scan, with ``controller_active``
     False. These placeholders satisfy the kernel's signature and are never
     read, so the generator current simply stays constant.
 

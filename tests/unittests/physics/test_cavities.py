@@ -770,6 +770,113 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
 
+class TestAttachCavityFeedbackIndexValidation(unittest.TestCase):
+    """
+    ``attach_cavity_feedback`` slot handling.
+
+    The station applies each feedback's corrections at its LIST slot,
+    while a feedback computes them from the RF parameters at its own
+    ``harmonic_index``. The slot argument is authoritative: attaching
+    SETS the feedback's ``harmonic_index`` from the slot, so the two
+    cannot disagree through this path. A slot that does not exist is
+    rejected, and a fractional slot is a hard error -- a harmonic index
+    is a list slot, not a physical quantity to be rounded.
+    """
+
+    @staticmethod
+    def _make_station(n_harmonics: int = 3) -> MultiHarmonicRFStation:
+        return MultiHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            voltage=np.full(n_harmonics, 6e6),
+            harmonic=np.arange(1, n_harmonics + 1) * 25000.0,
+            n_harmonics=n_harmonics,
+            main_harmonic_idx=0,
+            phi_rf=np.zeros(n_harmonics),
+        )
+
+    @staticmethod
+    def _make_feedback(harmonic_index: int | None = None):
+        feedback = Mock(spec=LocalFeedback)
+        if harmonic_index is not None:
+            feedback.harmonic_index = harmonic_index
+        return feedback
+
+    def test_negative_harmonic_index_raises(self):
+        # -1 passes ``> n_rf - 1`` and would write to the LAST slot.
+        station = self._make_station()
+        with self.assertRaisesRegex(ValueError, "harmonic_index"):
+            station.attach_cavity_feedback(self._make_feedback(), -1)
+        self.assertFalse(station.any_feedback_not_none)
+
+    def test_integral_float_harmonic_index_is_coerced(self):
+        # Reaches the list assignment as a float today and dies there
+        # with "list indices must be integers or slices, not float".
+        station = self._make_station()
+        feedback = self._make_feedback()
+        station.attach_cavity_feedback(feedback, 2.0)
+        self.assertIs(station.cavity_feedback_list[2], feedback)
+
+    def test_fractional_harmonic_index_raises(self):
+        # A harmonic index is a list slot, not a physical quantity, so
+        # there is nothing meaningful to round 1.5 to: hard reject.
+        station = self._make_station()
+        with self.assertRaisesRegex(ValueError, "1.5"):
+            station.attach_cavity_feedback(self._make_feedback(), 1.5)
+        self.assertFalse(station.any_feedback_not_none)
+
+    def test_numpy_integer_harmonic_index_is_accepted(self):
+        # ``np.int64`` is a perfectly good list index but not an ``int``,
+        # so the coercion must not reject it.
+        station = self._make_station()
+        feedback = self._make_feedback()
+        station.attach_cavity_feedback(feedback, np.int64(2))
+        self.assertIs(station.cavity_feedback_list[2], feedback)
+
+    def test_non_numeric_harmonic_index_raises(self):
+        station = self._make_station()
+        with self.assertRaises(TypeError):
+            station.attach_cavity_feedback(self._make_feedback(), "1")
+        self.assertFalse(station.any_feedback_not_none)
+
+    def test_mismatched_feedback_harmonic_index_is_set_from_slot(self):
+        # The slot argument is authoritative: attaching overwrites the
+        # feedback's own index, so a mismatch cannot survive the attach.
+        station = self._make_station()
+        feedback = self._make_feedback(harmonic_index=1)
+        station.attach_cavity_feedback(feedback, 0)
+        self.assertIs(station.cavity_feedback_list[0], feedback)
+        self.assertEqual(feedback.harmonic_index, 0)
+
+    def test_feedback_without_harmonic_index_still_attaches(self):
+        # Duck-typed feedbacks that never declare a harmonic must keep
+        # working exactly as before -- and must not have one grafted on.
+        station = self._make_station()
+        feedback = self._make_feedback()
+        station.attach_cavity_feedback(feedback, 2)
+        self.assertIs(station.cavity_feedback_list[2], feedback)
+        self.assertFalse(hasattr(feedback, "harmonic_index"))
+
+    def test_matching_feedback_harmonic_index_attaches(self):
+        station = self._make_station()
+        feedback = self._make_feedback(harmonic_index=2)
+        station.attach_cavity_feedback(feedback, 2)
+        self.assertIs(station.cavity_feedback_list[2], feedback)
+
+    def test_list_path_sets_feedback_harmonic_index_from_position(self):
+        station = self._make_station()
+        feedback = self._make_feedback(harmonic_index=2)
+        station.attach_cavity_feedback([None, feedback, None])
+        self.assertIs(station.cavity_feedback_list[1], feedback)
+        self.assertEqual(feedback.harmonic_index, 1)
+
+    def test_list_path_accepts_matching_feedback_harmonic_index(self):
+        station = self._make_station()
+        feedback = self._make_feedback(harmonic_index=1)
+        station.attach_cavity_feedback([None, feedback, None])
+        self.assertIs(station.cavity_feedback_list[1], feedback)
+
+
 class TestCallables(unittest.TestCase):
     def test_valid_purely_real_or_imaginary(self):
         """Test that purely real, purely imaginary, and zero pass."""

@@ -8,7 +8,7 @@ is compiled to a numba host kernel
 must reproduce the pure-Python per-cell path **byte-for-byte** (complex128
 ``np.array_equal``), including the forward-Euler and exponential propagators,
 the PI generator-current controller (delay line, conditional anti-windup,
-klystron clamp) and the multi-section reverse/forward segment structure.
+klystron clamp) and the multi-section backfill/forward segment structure.
 
 These tests drive the extracted cell-loop methods
 ``_circuit_track_cells_kernel`` and ``_circuit_track_cells_python`` directly and
@@ -109,7 +109,7 @@ def _seed_single_segment(
         None for a no-beam segment.
     last_val_generator_current
         Carried generator current (``last_val_generator_current``); defaults to
-        ``i_init``. Pass a value off the bias to exercise the reverse-segment
+        ``i_init``. Pass a value off the bias to exercise the backfill-segment
         drive (the reference drives cells >=1 from the reset-bias grid, cell 0
         from the carried value).
     last_val_beam_current
@@ -227,7 +227,7 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             Carried antenna voltage seeding cell 0.
         last_val_generator_current
             Carried generator current; defaults to the bias. A value off the
-            bias exercises the reverse-segment drive divergence.
+            bias exercises the backfill-segment drive divergence.
         last_val_beam_current
             Carried index-0 beam current (used even for a no-beam segment).
 
@@ -287,7 +287,7 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         _assert_bit_identical(self, kernel_snap, python_snap)
 
     def test_no_beam_constant_current(self):
-        """Reverse-style segment: no beam, no controller."""
+        """Backfill-style segment: no beam, no controller."""
         self._compare(no_beam=True)
 
     def test_forward_constant_current(self):
@@ -358,13 +358,14 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
 
     def test_no_beam_carried_generator_current_off_bias(self):
         """
-        Reverse segment whose carried generator current is off the bias.
+        Backfill segment whose carried generator current is off the bias.
 
         The reference drives the carried cell 0 from ``last_val_generator_``
-        ``current`` but every later cell from the reset-bias generator grid; a
-        kernel that held the carried value for all cells would diverge. This is
-        the normal state of the first reverse segment of a multi-section ring on
-        any turn >= 1 after a PI controller has regulated the generator current.
+        ``current`` but every later cell from the reset-bias generator grid;
+        a kernel that held the carried value for all cells would diverge.
+        This is the normal state of the first backfill segment of a
+        multi-section ring on any turn >= 1 after a PI controller has
+        regulated the generator current.
         """
         self._compare(
             no_beam=True,
@@ -373,11 +374,11 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
 
     def test_no_beam_carried_beam_current_nonzero(self):
         """
-        Reverse segment whose carried index-0 beam current is nonzero.
+        Backfill segment whose carried index-0 beam current is nonzero.
 
         ``cavity_response`` uses ``last_val_beam_current`` at the carried cell 0
         even for a no-beam segment; a kernel that zeroed it there would diverge.
-        This is the normal state of the first reverse segment once beam has
+        This is the normal state of the first backfill segment once beam has
         passed on a prior turn.
         """
         self._compare(
@@ -406,7 +407,7 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         last_val_beam_current=0.0 + 0.0j,
     ):
         """
-        Drive a reverse + forward two-segment layout on one path.
+        Drive a backfill + forward two-segment layout on one path.
 
         Parameters
         ----------
@@ -414,7 +415,7 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             Which path to use.
         last_val_generator_current
             Carried generator current seeding the run (off the bias exercises
-            the reverse-segment drive divergence).
+            the backfill-segment drive divergence).
         last_val_beam_current
             Carried index-0 beam current seeding the run.
 
@@ -423,8 +424,8 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         snapshot
             The post-run snapshot.
         """
-        n_rev, n_frwrd = 20, 44
-        n = n_rev + n_frwrd
+        n_backfill, n_frwrd = 20, 44
+        n = n_backfill + n_frwrd
         controller = GeneratorCurrentPIController(
             gain_proportional=1e-9,
             gain_integral=5e-4,
@@ -436,7 +437,7 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         )
         dt = T_RF
         feedback._rf_centers = np.arange(1, n + 1) * dt
-        feedback._rf_centers_lengths = np.array([n_rev, n_frwrd])
+        feedback._rf_centers_lengths = np.array([n_backfill, n_frwrd])
         feedback._residual_time_last_rf_centers_calculation = 0.0
         feedback._last_rf_centers_entry = None
         feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
@@ -453,23 +454,23 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         ).astype(complex)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # Reverse (no-beam) segment, then the forward (beam + PI) segment.
+            # Backfill (no-beam) segment, then the forward (beam+PI) segment.
             feedback._circuit_track_cells(
                 omega_input=OMEGA_RF,
                 no_beam=True,
                 start_index=0,
-                end_index=n_rev,
+                end_index=n_backfill,
             )
             feedback._circuit_track_cells(
                 omega_input=OMEGA_RF,
                 no_beam=False,
-                start_index=n_rev,
+                start_index=n_backfill,
                 end_index=n,
             )
         return _snapshot(feedback)
 
-    def test_multi_section_reverse_then_forward(self):
-        """Two-segment (reverse + forward) run is bit-identical."""
+    def test_multi_section_backfill_then_forward(self):
+        """Two-segment (backfill + forward) run is bit-identical."""
         kernel_snap = self._run_multi_section(True)
         python_snap = self._run_multi_section(False)
         _assert_bit_identical(self, kernel_snap, python_snap)
@@ -479,8 +480,9 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         Two-segment run with off-bias / nonzero carried state.
 
         Reproduces the live multi-section turn >= 1 condition end-to-end: the
-        first reverse segment carries a regulated (off-bias) generator current
-        and a nonzero beam current, and the divergence must still not appear.
+        first backfill segment carries a regulated (off-bias) generator
+        current and a nonzero beam current, and the divergence must still not
+        appear.
         """
         kernel_snap = self._run_multi_section(
             True,
@@ -502,7 +504,8 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
     The per-cell reference loop (``_circuit_track_cells_python``) and its
     vectorised twin (``_coarse_step_sizes``) share the first-cell special
     cases; degenerate (coincident / zero-step) grids must defer the kernel
-    path to the reference loop so the skip-and-warn behaviour is preserved.
+    path to the reference loop, the only one that duplicates the previous
+    cell into the coincident one.
     """
 
     V_INIT = 3.0e7 + 1.0e6j
@@ -585,28 +588,43 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
         delta_t = feedback._coarse_step_sizes(OMEGA_RF, 0, 1)
         np.testing.assert_array_equal(delta_t, [2.0 * np.pi / OMEGA_RF])
 
-    def test_coincident_points_warn_and_skip_the_cell(self):
+    def test_coincident_points_warn_and_duplicate_the_cell(self):
         """
-        Two identical consecutive centres warn and skip the cell.
+        Two identical consecutive centres warn and duplicate the cell.
 
-        CHARACTERIZATION of a KNOWN, documented-as-deferred defect: the
-        skipped cell keeps the zeros prefill, so the following cell is
-        propagated from ``V = 0`` instead of the preceding voltage. This
-        test pins the current (warn, skip, keep tracking) behaviour; it is
-        not an endorsement of the zero-voltage propagation.
+        A coincident centre carries zero elapsed time, so the correct
+        antenna voltage there is the previous cell's, ``V(t + 0) = V(t)``.
+        The cell must hold that value (not the zeros prefill), so the
+        following cell advances from the real carried voltage.
         """
         feedback = self._coincident_grid_feedback(False)
         with self.assertWarnsRegex(
-            UserWarning, "double taking of rf_centers value, skipping"
+            UserWarning, "double taking of rf_centers value, duplicating"
         ):
             feedback._circuit_track_cells_python(
                 OMEGA_RF, no_beam=True, start_index=0, end_index=4
             )
-        # The deferred defect: the skipped cell keeps the zeros prefill...
-        self.assertEqual(feedback.antenna_voltage_coarse_grid[2], 0.0)
-        # ...but tracking completes and the next cell is still advanced
-        # (from the zeroed predecessor, driven by the generator bias).
-        self.assertNotEqual(feedback.antenna_voltage_coarse_grid[3], 0.0)
+        # The coincident cell holds the previous cell's state...
+        self.assertEqual(
+            feedback.antenna_voltage_coarse_grid[2],
+            feedback.antenna_voltage_coarse_grid[1],
+        )
+        self.assertNotEqual(feedback.antenna_voltage_coarse_grid[2], 0.0)
+        self.assertEqual(
+            feedback.generator_current_coarse_grid[2],
+            feedback.generator_current_coarse_grid[1],
+        )
+        # ...and the next cell advances from it, not from zero.
+        self.assertEqual(
+            feedback.antenna_voltage_coarse_grid[3],
+            feedback._advance_coarse_voltage(
+                v_prev=feedback.antenna_voltage_coarse_grid[1],
+                generator_current=feedback.generator_current_coarse_grid[2],
+                beam_current=0,
+                omega_times_dt=OMEGA_RF * T_RF,
+                relative_detuning=0.0,
+            ),
+        )
         self.assertTrue(
             np.all(np.isfinite(feedback.antenna_voltage_coarse_grid))
         )
@@ -623,13 +641,16 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
             False, step_offset=-1e-10 * T_RF
         )
         with self.assertWarnsRegex(
-            UserWarning, "double taking of rf_centers value, skipping"
+            UserWarning, "double taking of rf_centers value, duplicating"
         ):
             # Must NOT raise AssertionError on the negative step.
             feedback._circuit_track_cells_python(
                 OMEGA_RF, no_beam=True, start_index=0, end_index=4
             )
-        self.assertEqual(feedback.antenna_voltage_coarse_grid[2], 0.0)
+        self.assertEqual(
+            feedback.antenna_voltage_coarse_grid[2],
+            feedback.antenna_voltage_coarse_grid[1],
+        )
         self.assertNotEqual(feedback.antenna_voltage_coarse_grid[3], 0.0)
 
     def test_degenerate_segment_defers_the_kernel_to_the_reference(self):
@@ -638,13 +659,13 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
 
         ``_coarse_step_sizes`` reports the degenerate segment with ``None``
         and ``_circuit_track_cells_kernel`` then runs the pure-Python loop,
-        whose skip-and-warn behaviour (the warning below) and result must
-        appear bit-for-bit.
+        whose duplicate-and-warn behaviour (the warning below) and result
+        must appear bit-for-bit.
         """
         kernel_feedback = self._coincident_grid_feedback(True)
         self.assertIsNone(kernel_feedback._coarse_step_sizes(OMEGA_RF, 0, 4))
         with self.assertWarnsRegex(
-            UserWarning, "double taking of rf_centers value, skipping"
+            UserWarning, "double taking of rf_centers value, duplicating"
         ):
             kernel_feedback._circuit_track_cells_kernel(
                 OMEGA_RF, no_beam=True, start_index=0, end_index=4

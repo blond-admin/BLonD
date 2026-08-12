@@ -20,7 +20,7 @@ contribution between a source bin emitted at ``t_e`` and an observation bin at
 with the *accumulated* phase ``theta(t) = integral of omega(t) dt`` -- the phase
 the cavity field winds up as its resonance tracks the accelerating RF (``omega``
 piecewise constant per turn).  This shares none of the feedback's machinery
-(I/Q demodulation, coarse-grid downsampling, reverse tracking, sparse-matrix
+(I/Q demodulation, coarse-grid downsampling, backfill, sparse-matrix
 integration), so agreement is a genuine cross-check.
 
 A real, *matched* ``BiGaussian`` beam is tracked through an accelerating cycle so

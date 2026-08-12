@@ -353,7 +353,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
     A dummy beam without macroparticles drives the static noisy profiles over
     several turns (``profile.active = False`` so the empty beam never
     overwrites the histogram). The feedback's coarse grid is propagated turn
-    over turn through the reverse/forward reference tracking, and its
+    over turn through the backfill/forward reference tracking, and its
     beam-induced gap voltage is compared per turn (and per section) against
     the accumulating multi-pass convolution voltage. Covers single/multiple
     sections and a static or accelerating cycle.
@@ -552,7 +552,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         never overwrites the histogram) are the only excitation. The beam's
         reference still advances each turn, which is what propagates both the
         convolution's past-wake times and the feedback's coarse grid -- the
-        latter through the reverse/forward tracking across all sections.
+        latter through the backfill/forward tracking across all sections.
 
         The ring follows the production layout: per section a half-drift, the
         RF station (with its own profile and wake/feedback), and another
@@ -1008,7 +1008,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         """
         Feedback vs convolution holds for multi-section rings.
 
-        Exercises the feedback's reverse/forward reference tracking across
+        Exercises the feedback's backfill/forward reference tracking across
         several RF stations per turn (where the parent station is no longer
         the only reference-altering element) -- the code path that production
         runs use and that was broken until the ``_turn_counter`` fix.
@@ -1025,7 +1025,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
 
         The reference energy is raised at every RF station each turn
         (``MagneticCyclePerTurnAllRFStations``), so t_rev, the carrier
-        frequency and the reverse-tracking frame slip all vary turn over
+        frequency and the backfill frame slip all vary turn over
         turn. The beam-induced parts (isolated by the no-beam reference
         subtraction, which cancels the common acceleration kick) must still
         track the multi-pass convolution, with one and with several sections.
@@ -1125,7 +1125,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         whose tiling-gap formula also covers the multi-section
         reverse-to-forward handover -- the former turn-0 section-1 sign
         flip was the same demodulation-frame defect). Exercises the
-        reverse-tracking residual carry-over across segments of different
+        backfill residual carry-over across segments of different
         frequency with actual beam-loading physics against the retuning
         convolution.
         """
@@ -1286,7 +1286,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         The large RF-frequency offset also holds with two RF stations.
 
         Two sections at the large offset (set on both stations before the
-        run): the reverse-tracked segments, the per-station kick clocks
+        run): the backfill segments, the per-station kick clocks
         (each anchored at its own first passage) and the multi-section
         frame correction must stay consistent with the carrier anchoring.
         """
@@ -1453,7 +1453,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         no-beam reference antenna voltage additionally holds at the steady-state
         fill ``V_ss = V_DESIGN`` to ~1e-9 (the matched, on-resonance drive has
         zero net rate of change). The two-section no-beam ``|V_ant|`` drifts
-        ~2.4 %/5 turns by design (the reverse-tracking reseed across the other
+        ~2.4 %/5 turns by design (the backfill reseed across the other
         station), so only the beam-part linearity -- which cancels that drift --
         is asserted there.
         """
@@ -1547,7 +1547,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         same sweep, the convolution): the counter-rotating mu-minus beam has
         opposite charge and opposite direction, so its direction-signed gap
         current -- hence its beam loading -- is identical to the co-rotating
-        mu-plus beam's. Runs the full multi-turn Simulation (reverse/forward
+        mu-plus beam's. Runs the full multi-turn Simulation (backfill/forward
         reference tracking, coarse-grid propagation, demodulation) once per
         beam and compares the collected voltages per turn bit-for-bit:
 

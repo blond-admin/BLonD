@@ -952,7 +952,47 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             else:
                 return
 
-    def _update_past_profile_times_wake_times(self, current_time):
+    def _previous_passage_time(
+        self, is_counter_rotating: bool
+    ) -> float | None:
+        """
+        Reference time the given beam last deposited its profile at.
+
+        The stored deposits are tagged with the rotation direction of the
+        beam that made them, so the most recent entry carrying the same
+        tag is that beam's own previous passage. Deposit times are
+        absolute and never shifted, so the difference to the current
+        reference time is the beam's passage interval.
+
+        Parameters
+        ----------
+        is_counter_rotating
+            Rotation direction of the beam about to deposit.
+
+        Returns
+        -------
+        previous_passage_time
+            Reference time of that beam's previous passage, in [s], or
+            `None` if it has not deposited yet -- either because this is
+            its first passage or because its earlier deposits have all
+            decayed out of storage.
+        """
+        # The two deques are parallel by construction (appended together
+        # per deposit, popped together on decay). `strict=False` keeps a
+        # partially populated solver -- as unit tests build -- resolvable
+        # rather than raising from inside a lookup.
+        for flag, deposit_time in zip(
+            self._past_profiles_counter_rotation_flag,
+            self._past_profile_deposit_time,
+            strict=False,
+        ):
+            if flag == is_counter_rotating:
+                return deposit_time
+        return None
+
+    def _update_past_profile_times_wake_times(
+        self, current_time, is_counter_rotating: bool = False
+    ):
         """
         Advance the times in the past profile arrays.
 
@@ -963,29 +1003,47 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         ----------
         current_time
             Simulation time at the moment of calling, has to be > self._last_reference_time.
+        is_counter_rotating
+            Rotation direction of the beam that is about to deposit. Only
+            used to pick the passage interval the span guard judges; the
+            shift applied to the stored arrays is unaffected.
         """
         delta_t = current_time - self._last_reference_time
         assert (delta_t > 0) or self._allow_delta_t_zero, (
             f"delta t was not > 0({delta_t})"
         )  # TODO: performance = ?
-        # The stored past profiles are shifted by delta_t on every passage,
-        # so a profile wider than delta_t overlaps its own previous deposit.
-        # Nothing else here detects that: the assert above only rejects a
-        # non-positive clock. This is the same invariant the re-binning
-        # consumers check, so it goes through the profile's own guard
-        # rather than a second span spelled differently here: the window is
+        # The stored past profiles are shifted by delta_t on every deposit,
+        # so a profile wider than the interval between two deposits *of the
+        # same beam* overlaps that beam's own previous deposit and the same
+        # charge is summed twice into the induced voltage. Nothing else here
+        # detects that: the assert above only rejects a non-positive clock.
+        # The span judged is deliberately NOT delta_t: delta_t is the
+        # inter-deposit gap, which is shorter than a passage interval
+        # whenever the element is first reached mid-turn (no previous
+        # deposit exists at all then) or whenever two counter-rotating
+        # beams deposit alternately -- overlapping deposits there hold
+        # different beams' charge, which is the cross-wake this solver
+        # exists to model. So the guard uses the depositing beam's own
+        # previous passage and is skipped when it has none.
+        # This is otherwise the same invariant the re-binning consumers
+        # check, so it goes through the profile's own guard rather than a
+        # second span spelled differently here: the window is
         # `profile_duration` (the outer-edge span, cut_right - cut_left), not
         # the first-to-last-bin-centre distance this used to compute, which
         # understated it by one hist_step. Cost on a GPU backend is two
         # extra scalar device reads per passage (cut_left/cut_right are
         # cached_property, as hist_step already was), negligible against the
         # per-passage wake convolution below.
-        profile = self._parent_wakefield.profile
-        profile.check_fits_in_span(
-            float(delta_t),
-            span_description="the time between two consecutive passages",
-            consumer=type(self).__name__,
+        previous_passage_time = self._previous_passage_time(
+            is_counter_rotating
         )
+        if previous_passage_time is not None:
+            profile = self._parent_wakefield.profile
+            profile.check_fits_in_span(
+                float(current_time - previous_passage_time),
+                span_description="the time between two consecutive passages",
+                consumer=type(self).__name__,
+            )
         for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t  # NOQA # TODO test PLW2901 `for` loop variable `profile_time` overwritten by assignment target
             self._wake_function_time[prof_ind] += delta_t
@@ -1118,7 +1176,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             self._phase_clock += self._active_omega * (
                 current_time - self._last_reference_time
             )
-        self._update_past_profile_times_wake_times(current_time)
+        self._update_past_profile_times_wake_times(
+            current_time, is_counter_rotating=beam.is_counter_rotating
+        )
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles

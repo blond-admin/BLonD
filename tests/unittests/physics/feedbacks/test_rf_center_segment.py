@@ -199,7 +199,7 @@ class TestRFCenterSegment:
         # integration test: offsetting each segment's (segment-relative)
         # centres by the cumulative durations of the segments before it, the
         # absolute centre times must be strictly increasing (no overlap or
-        # duplicated span between the reverse and forward segments).
+        # duplicated span between the backfill and forward segments).
         fdbk = self._bare_feedback()
         fdbk._clear_segments()
         fdbk._append_segment(
@@ -230,12 +230,12 @@ class TestRFCenterSegment:
 T_RF_BOUNDARY = 1e-9
 OMEGA_BOUNDARY = 2 * np.pi / T_RF_BOUNDARY
 # Three deliberately different residuals: what the PREVIOUS turn ended on,
-# what the reverse segment of this turn ended on, and what the forward
+# what the backfill segment of this turn ended on, and what the forward
 # segment (generated last, hence the value left on the live host scalar)
 # ended on. On an accelerating multi-section ring they differ by
 # delta(t_rf) / 2; here they are pulled apart so the difference is visible.
 RESIDUAL_PREVIOUS_TURN = 0.30 * T_RF_BOUNDARY
-RESIDUAL_REVERSE_SEGMENT = 0.40 * T_RF_BOUNDARY
+RESIDUAL_BACKFILL_SEGMENT = 0.40 * T_RF_BOUNDARY
 RESIDUAL_FORWARD_SEGMENT = 0.50 * T_RF_BOUNDARY
 CENTERS_PER_SEGMENT = 4
 
@@ -258,7 +258,7 @@ class TestSegmentBoundaryStep:
     @staticmethod
     def _two_segment_feedback():
         """
-        Reverse+forward grid whose residuals deliberately all differ.
+        Backfill+forward grid whose residuals deliberately all differ.
 
         Returns
         -------
@@ -277,7 +277,7 @@ class TestSegmentBoundaryStep:
             RFCenterSegment(
                 omega=OMEGA_BOUNDARY,
                 duration=CENTERS_PER_SEGMENT * T_RF_BOUNDARY,
-                residual=RESIDUAL_REVERSE_SEGMENT,
+                residual=RESIDUAL_BACKFILL_SEGMENT,
                 centers=centers.copy(),
             )
         )
@@ -332,14 +332,14 @@ class TestSegmentBoundaryStep:
         return seen
 
     def test_segment_boundary_step_vectorised(self):
-        # Into the forward segment: its local first centre plus the REVERSE
+        # Into the forward segment: its local first centre plus the BACKFILL
         # segment's tail -- not the forward segment's own (live-scalar) tail.
         fdbk = self._two_segment_feedback()
         delta_t = fdbk._coarse_step_sizes(
             OMEGA_BOUNDARY, CENTERS_PER_SEGMENT, 2 * CENTERS_PER_SEGMENT
         )
         assert delta_t[0] == (
-            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_REVERSE_SEGMENT
+            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_BACKFILL_SEGMENT
         )
 
     def test_segment_boundary_step_reference_loop(self):
@@ -348,7 +348,7 @@ class TestSegmentBoundaryStep:
             fdbk, CENTERS_PER_SEGMENT, 2 * CENTERS_PER_SEGMENT
         )
         assert phases[0] == OMEGA_BOUNDARY * (
-            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_REVERSE_SEGMENT
+            fdbk._rf_centers[CENTERS_PER_SEGMENT] + RESIDUAL_BACKFILL_SEGMENT
         )
 
     def test_turn_boundary_step_vectorised(self):
@@ -428,14 +428,14 @@ class TestGuardCellWidthInvariant:
     """
 
     @staticmethod
-    def _feedback_with_reverse_segment():
+    def _feedback_with_backfill_segment():
         """
-        A feedback holding one 3-centre reverse segment.
+        A feedback holding one 3-centre backfill segment.
 
         Returns
         -------
         fdbk
-            Feedback whose ``_segments`` hold a single reverse segment with
+            Feedback whose ``_segments`` hold a single backfill segment with
             centres at ``(0.5, 1.5, 2.5) * T_RF_BOUNDARY``.
         """
         fdbk = TestRFCenterSegment._bare_feedback()
@@ -455,7 +455,7 @@ class TestGuardCellWidthInvariant:
         # rf_centers = [..., 2.5 T, 0.2 T], so the guard tolerance
         # rf_centers[-1] - rf_centers[-2] = -2.3 T was negative and
         # abs(arrival-time difference) < 0.5 * width could never fire.
-        fdbk = self._feedback_with_reverse_segment()
+        fdbk = self._feedback_with_backfill_segment()
         with pytest.raises(ValueError, match="at least two"):
             fdbk._append_segment(
                 RFCenterSegment(
@@ -470,9 +470,9 @@ class TestGuardCellWidthInvariant:
         # With the invariant holding, the last two flat entries both lie
         # inside the forward segment: the guard tolerance is strictly
         # positive and equals the forward segment's own cell spacing --
-        # even when that spacing differs from the reverse segment's.
+        # even when that spacing differs from the backfill segment's.
         forward_spacing = 0.8 * T_RF_BOUNDARY
-        fdbk = self._feedback_with_reverse_segment()
+        fdbk = self._feedback_with_backfill_segment()
         fdbk._append_segment(
             RFCenterSegment(
                 omega=2 * np.pi / forward_spacing,
@@ -486,23 +486,23 @@ class TestGuardCellWidthInvariant:
         np.testing.assert_allclose(width, forward_spacing, rtol=1e-12)
 
 
-# Three reverse segments at deliberately different frequencies, the middle
+# Three backfill segments at deliberately different frequencies, the middle
 # one at the two-centre minimum every segment must hold, plus the forward
 # segment every passage ends with.
-REVERSE_OMEGAS = (0.9 * OMEGA_BOUNDARY, 1.1 * OMEGA_BOUNDARY, OMEGA_BOUNDARY)
-REVERSE_LENGTHS = (3, 2, 2)
+BACKFILL_OMEGAS = (0.9 * OMEGA_BOUNDARY, 1.1 * OMEGA_BOUNDARY, OMEGA_BOUNDARY)
+BACKFILL_LENGTHS = (3, 2, 2)
 FORWARD_OMEGA = 1.2 * OMEGA_BOUNDARY
 
 
-class TestReverseSpanWalksSegments:
+class TestBackfillSpanWalksSegments:
     """
     The per-passage walks read the segment records, not parallel arrays.
 
     ``RFCenterSegment`` carries the frequency and the time span its centres
-    were generated over, so the reverse-span replay and the multi-section
+    were generated over, so the backfill-span replay and the multi-section
     registration phase take omega_k and T_seg,k from the segments
-    themselves. The reverse segments of a passage are ``_segments[:-1]``:
-    the grid is cleared at the start of every passage, the reverse
+    themselves. The backfill segments of a passage are ``_segments[:-1]``:
+    the grid is cleared at the start of every passage, the backfill
     generation appends exactly one segment per elapsed frequency span, and
     the forward generation then appends exactly one more.
     """
@@ -510,19 +510,19 @@ class TestReverseSpanWalksSegments:
     @staticmethod
     def _passage_feedback():
         """
-        A feedback holding one passage's reverse + forward segments.
+        A feedback holding one passage's backfill + forward segments.
 
         Returns
         -------
         fdbk
-            Feedback whose ``_segments`` are three reverse segments (the
+            Feedback whose ``_segments`` are three backfill segments (the
             middle one at the two-centre minimum) followed by the forward
             segment, with the coarse state sized to the derived flat grid.
         """
         fdbk = TestRFCenterSegment._bare_feedback()
         fdbk._clear_segments()
         for omega, n_centers in zip(
-            REVERSE_OMEGAS, REVERSE_LENGTHS, strict=True
+            BACKFILL_OMEGAS, BACKFILL_LENGTHS, strict=True
         ):
             duration = (n_centers + 1) * T_RF_BOUNDARY
             fdbk._append_segment(
@@ -548,16 +548,16 @@ class TestReverseSpanWalksSegments:
         return fdbk
 
     @staticmethod
-    def _recorded_replay(fdbk, n_reverse_centers):
+    def _recorded_replay(fdbk, n_backfill_centers):
         """
         Run the replay with ``circuit_track`` recorded instead of executed.
 
         Parameters
         ----------
         fdbk
-            Feedback whose reverse span should be replayed.
-        n_reverse_centers
-            The passage's reverse centre count (the replay's gate).
+            Feedback whose backfill span should be replayed.
+        n_backfill_centers
+            The passage's backfill centre count (the replay's gate).
 
         Returns
         -------
@@ -571,37 +571,37 @@ class TestReverseSpanWalksSegments:
                 (omega_input, start_index, end_index, no_beam)
             )
         )
-        fdbk._replay_reverse_span(n_reverse_centers=n_reverse_centers)
+        fdbk._replay_backfill_span(n_backfill_centers=n_backfill_centers)
         return calls
 
-    def test_replay_walks_reverse_segments_only(self):
-        # One no-beam pass per reverse segment, at that segment's own omega
+    def test_replay_walks_backfill_segments_only(self):
+        # One no-beam pass per backfill segment, at that segment's own omega
         # and over exactly its own centres -- and the forward segment (the
         # last one) is left to the real forward pass.
         fdbk = self._passage_feedback()
-        calls = self._recorded_replay(fdbk, sum(REVERSE_LENGTHS))
+        calls = self._recorded_replay(fdbk, sum(BACKFILL_LENGTHS))
 
         assert calls == [
-            (REVERSE_OMEGAS[0], 0, 3, True),
-            (REVERSE_OMEGAS[1], 3, 5, True),
-            (REVERSE_OMEGAS[2], 5, 7, True),
+            (BACKFILL_OMEGAS[0], 0, 3, True),
+            (BACKFILL_OMEGAS[1], 3, 5, True),
+            (BACKFILL_OMEGAS[2], 5, 7, True),
         ]
 
-    def test_replay_is_a_no_op_without_reverse_centers(self):
-        # The gate: a passage that generated no reverse centre must not walk
+    def test_replay_is_a_no_op_without_backfill_centers(self):
+        # The gate: a passage that generated no backfill centre must not walk
         # anything (a stale frequency list used to re-run the whole grid).
         fdbk = self._passage_feedback()
         assert self._recorded_replay(fdbk, 0) == []
 
     def test_registration_phase_sums_segment_omega_times_duration(self):
-        # Psi = sum_k (omega_k - omega_0) * T_seg,k over the REVERSE
+        # Psi = sum_k (omega_k - omega_0) * T_seg,k over the BACKFILL
         # segments, both factors taken from the segment records.
         fdbk = self._passage_feedback()
         fdbk._n_rf_stations_in_ring = 2
-        fdbk._forward_tracking_omega_rf = FORWARD_OMEGA
+        fdbk._forward_segment_omega_design = FORWARD_OMEGA
 
         phase = fdbk._accumulate_registration_phase(
-            n_reverse_centers=sum(REVERSE_LENGTHS)
+            n_backfill_centers=sum(BACKFILL_LENGTHS)
         )
 
         expected = float(

@@ -4,7 +4,7 @@ PI-controlled cavity feedback inside a real tracked ``Simulation``.
 Every other PI test drives the controller on hand-built constant-step
 grids (see ``test_generator_current_pi_feedback.py``); here the full chain
 runs in anger: a matched ``BiGaussian`` ``mu_plus`` bunch with strong beam
-loading is tracked through a real ring with the reverse/forward reference
+loading is tracked through a real ring with the backfill/forward reference
 tracking, under strong acceleration, with the
 :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController`
 regulating the generator current -- single- and multi-section, on both the
@@ -87,7 +87,7 @@ def _run_config(
         Number of turns to track.
     intensity
         Beam intensity; ``0`` tracks an empty beam (no macroparticles), used
-        by the structural reverse-span tests.
+        by the structural backfill-span tests.
     controller_call_counter
         If given, a ``{"count": 0}`` dict; every controller update increments
         ``"count"`` so tests can compare controller steps against the
@@ -111,7 +111,7 @@ def _run_config(
         ``i_max_dev`` (maximum generator-current deviation from the bias --
         the loop response), ``v_dev_grid`` (worst relative antenna-voltage
         deviation from ``V_DESIGN`` over the *whole* coarse grid of the
-        turn, reverse reconstruction span included),
+        turn, backfill reconstruction span included),
         ``n_forward``/``n_total`` (forward and total coarse cells per turn);
         plus ``ref_energy`` and ``sigma_dt``.
     """
@@ -178,7 +178,7 @@ def _run_config(
             # inlines the PI (never calling the controller method), so drive the
             # reference path here. The kernel's equivalent forward-only stepping
             # is pinned instead by the byte-identical coarse grids in
-            # test_envelope_kernel (a kernel stepping the PI on the reverse
+            # test_envelope_kernel (a kernel stepping the PI on the backfill
             # segments would diverge there).
             feedback.use_numba_envelope_kernel = False
         station = SingleHarmonicRFStation(
@@ -256,7 +256,7 @@ def _run_config(
         )
         rec["n_total"].append([int(len(f._rf_centers)) for f in feedbacks])
         # Only the forward segment of this turn (the last
-        # rf_centers_lengths[-1] samples) -- the reverse part repeats the
+        # rf_centers_lengths[-1] samples) -- the backfill part repeats the
         # previous turn's no-beam propagation.
         rec["v_min"].append(
             [
@@ -290,7 +290,7 @@ def _run_config(
             ]
         )
         # Worst antenna-voltage deviation over the WHOLE coarse grid of the
-        # turn -- reverse reconstruction span included. With no beam and a
+        # turn -- backfill reconstruction span included. With no beam and a
         # regulated loop the correct value is the setpoint on every sample.
         rec["v_dev_grid"].append(
             [
@@ -312,14 +312,14 @@ def _run_config(
     return rec
 
 
-class TestPIReverseSpanFrameConsistency(unittest.TestCase):
+class TestPIBackfillSpanFrameConsistency(unittest.TestCase):
     """
-    The PI loop must not act on the reverse reconstruction segments.
+    The PI loop must not act on the backfill reconstruction segments.
 
     A multi-section feedback rebuilds the previous turn each turn as
-    ``no_beam`` reverse segments before the forward pass. The controller
+    ``no_beam`` backfill segments before the forward pass. The controller
     must be stepped only on the forward (real, current-turn) segment: the
-    reverse cells carry a per-segment frame phase (corrected only on the
+    backfill cells carry a per-segment frame phase (corrected only on the
     last sample), so a controller stepped there under a fast ramp
     integrates frame-rotated errors and injects spurious quadrature
     current.
@@ -327,9 +327,9 @@ class TestPIReverseSpanFrameConsistency(unittest.TestCase):
     Isolation: rather than measuring the (small) frame drift, these tests
     pin the fix *structurally* by counting controller updates. A
     frame-consistent loop must step the controller once per forward
-    (real-passage) coarse cell and never on a reverse reconstruction cell,
+    (real-passage) coarse cell and never on a backfill reconstruction cell,
     so ``controller-call count == sum(n_forward)`` while ``n_total`` is
-    strictly larger (the reverse cells exist but must be skipped). This is
+    strictly larger (the backfill cells exist but must be skipped). This is
     independent of beam loading, so the tests run with a full-intensity
     beam and assert the call count, not a voltage trajectory.
     """
@@ -343,7 +343,7 @@ class TestPIReverseSpanFrameConsistency(unittest.TestCase):
         Two-section fast ramp: controller calls == forward cells, not total.
 
         With the bug the controller is stepped on every coarse cell,
-        including the reverse reconstruction segments (n_total per station),
+        including the backfill reconstruction segments (n_total per station),
         double-advancing its delay line / integrator on frame-rotated
         errors; the fix restricts it to the forward segment (n_forward).
         """
@@ -357,24 +357,24 @@ class TestPIReverseSpanFrameConsistency(unittest.TestCase):
         )
         n_forward = int(np.sum(rec["n_forward"]))
         n_total = int(np.sum(rec["n_total"]))
-        # Sanity: the reverse segments really are a large fraction.
+        # Sanity: the backfill segments really are a large fraction.
         self.assertGreater(n_total, 1.5 * n_forward)
         self.assertEqual(
             counter["count"],
             n_forward,
             f"controller stepped {counter['count']} times, expected "
             f"{n_forward} (forward cells); {n_total} total cells exist -- "
-            "it is being stepped on the reverse reconstruction segments",
+            "it is being stepped on the backfill reconstruction segments",
         )
 
-    def test_single_section_controller_skips_turn0_reverse(self):
+    def test_single_section_controller_skips_turn0_backfill(self):
         """
         Control: single section is stepped only on forward cells too.
 
-        Single-section rings still reconstruct the very first turn in
-        reverse (n_total > n_forward on turn 0), so the gate must skip that
-        reverse span here as well -- the controller count equals the forward
-        cells, not the total.
+        Single-section rings still reconstruct the very first turn by
+        backfill (n_total > n_forward on turn 0), so the gate must skip
+        that backfill span here as well -- the controller count equals the
+        forward cells, not the total.
         """
         counter = {"count": 0}
         rec = _run_config(
@@ -386,7 +386,7 @@ class TestPIReverseSpanFrameConsistency(unittest.TestCase):
         )
         self.assertGreater(
             int(np.sum(rec["n_total"])), int(np.sum(rec["n_forward"]))
-        )  # turn-0 reverse exists
+        )  # turn-0 backfill exists
         self.assertEqual(counter["count"], int(np.sum(rec["n_forward"])))
 
 
@@ -458,11 +458,11 @@ class TestDrivenSteadyStateFastRamp(unittest.TestCase):
         self._assert_holds_steady_state(2)
 
     def test_four_sections_hold_steady_state(self):
-        """Four stations: three reverse segments per passage."""
+        """Four stations: three backfill segments per passage."""
         self._assert_holds_steady_state(4)
 
 
-class TestDetunedLoopHoldsSetpointAcrossReverseSpan(unittest.TestCase):
+class TestDetunedLoopHoldsSetpointAcrossBackfillSpan(unittest.TestCase):
     r"""
     A detuned, PI-regulated cavity must hold its setpoint all turn long.
 
@@ -471,12 +471,12 @@ class TestDetunedLoopHoldsSetpointAcrossReverseSpan(unittest.TestCase):
     ``tan psi = 2 Q_L delta_omega / omega_rf``: cancelling the detuning
     precession needs a reactive standing current, which the PI finds on the
     forward span. A multi-section ring then replays the remaining
-    ``(N - 1) / N`` of the turn as no-beam reverse segments, and it must
+    ``(N - 1) / N`` of the turn as no-beam backfill segments, and it must
     replay it with the current the loop actually held. Driving it with the
     bias instead lets the antenna voltage precess for most of every turn.
 
     The excursion is analytic: the discarded drive is purely reactive, so
-    over a reverse span of duration ``T``
+    over a backfill span of duration ``T``
 
     .. math:: |\Delta V| / V_\mathsf{set} \simeq \Delta\omega\, T,
 
@@ -498,7 +498,7 @@ class TestDetunedLoopHoldsSetpointAcrossReverseSpan(unittest.TestCase):
     TOLERANCE = 1e-6
 
     def test_detuned_loop_holds_setpoint_over_the_whole_turn(self):
-        """The reverse span must not drive the detuned cavity off setpoint."""
+        """Backfill span must not drive the detuned cavity off setpoint."""
         rec = _run_config(
             self.N_SECTIONS,
             self.ENERGY,
@@ -512,17 +512,17 @@ class TestDetunedLoopHoldsSetpointAcrossReverseSpan(unittest.TestCase):
             worst,
             self.TOLERANCE,
             f"detuned PI loop leaves the setpoint by {worst:.3e} relative; "
-            "the no-beam reverse span is driven by the feedforward bias "
+            "the no-beam backfill span is driven by the feedforward bias "
             "instead of the current the loop held",
         )
 
     def test_four_sections_hold_setpoint_over_the_whole_turn(self):
         """
-        Four sections: the reverse span is 3/4 of the turn, not 1/2.
+        Four sections: the backfill span is 3/4 of the turn, not 1/2.
 
-        The excursion scales with the reverse-span duration
+        The excursion scales with the backfill-span duration
         ``T = (N - 1) / N * t_rev``, so this is the direct fingerprint of
-        the reverse reconstruction rather than of any forward-pass effect.
+        the backfill reconstruction rather than of any forward-pass effect.
         """
         rec = _run_config(
             4,
@@ -537,7 +537,7 @@ class TestDetunedLoopHoldsSetpointAcrossReverseSpan(unittest.TestCase):
             worst,
             self.TOLERANCE,
             f"detuned PI loop leaves the setpoint by {worst:.3e} relative "
-            "over a three-quarter-turn reverse span",
+            "over a three-quarter-turn backfill span",
         )
 
     def test_matched_bias_control_case_still_exact(self):
@@ -858,10 +858,10 @@ class TestKernelMatchesReferenceEndToEnd(unittest.TestCase):
         A 2-section multi-turn tracked run is byte-identical either path.
 
         End-to-end guard for the envelope-kernel bit-identity invariant: it
-        drives the real turn loop (reset, reverse reconstruction segments,
+        drives the real turn loop (reset, backfill reconstruction segments,
         demodulation, forward pass, PI regulation) on the default numba kernel
         and on the pure-Python reference and pins the two byte-for-byte. This
-        exercises exactly the multi-section, turn>=1 carried-state reverse
+        exercises exactly the multi-section, turn>=1 carried-state backfill
         segment where the kernel's generator-current / beam-current drive must
         match the reference (the isolated regression lives in
         test_envelope_kernel.py; this is the whole-simulation counterpart).

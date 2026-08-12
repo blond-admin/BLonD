@@ -539,7 +539,7 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
         The accelerating two-beam feedback matches the two-beam convolution.
 
         Pins the accel frame-slip x reverse-traversal composition: on the
-        fast ramp the coarse grid is rebuilt each turn from reverse segments
+        fast ramp the coarse grid is rebuilt each turn from backfill segments
         across the other station (each re-seeded at its own past-station RF
         frequency), and the two counter-rotating beams traverse the ring in
         opposite element orders. The beam-induced gap voltage must still
@@ -835,18 +835,18 @@ class TestSimultaneousPassageGuard(unittest.TestCase):
         self.assertGreater(peak, 0.0)
 
 
-class TestReverseWalkDirectionConsistency(unittest.TestCase):
+class TestBackfillWalkDirectionConsistency(unittest.TestCase):
     """
-    The reverse reference walk never runs with a mismatched beam direction.
+    The backfill reference walk never runs with a mismatched direction.
 
-    ``get_time_omega_array_reverse_direction`` takes its element *order* from
+    ``get_time_omega_array_backfill`` takes its element *order* from
     the previously tracked beam (``_last_tracked_beam_state_frwrd``, used at
     ``rf_center_grid.py:276-286`` and for the ``until_index`` at ``:342-344``)
     but hands ``beam.is_counter_rotating`` -- the *current* beam -- to
     ``track_reference``. In a single-beam run the two always agree, so the
     distinction is invisible; only a two-beam run can make them differ.
 
-    They stay safe because the interval to back-fill is empty: the forward
+    They stay safe because the interval to backfill is empty: the forward
     projection stops at the next RF station in the tracked beam's traversal
     order, which under ``MainloopCounterRotatingBeams`` is exactly where the
     *other* beam next reaches this feedback. The reference times then match
@@ -859,8 +859,8 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
     itself, so a future change to the projection endpoint or to the
     mainloop's element order cannot silently start walking the elements of
     one beam while tracking the reference of the other. Measured (static
-    case): 10 of 12 reverse-direction calls carry a direction mismatch and
-    none reaches the walk; with the early return removed all 10 do.
+    case): 10 of 12 backfill calls carry a direction mismatch and none
+    reaches the walk; with the early return removed all 10 do.
 
     The invariant is pinned across all three two-beam regimes exercised in
     this module (static, accelerating fast ramp, ``delta_omega_rf``),
@@ -896,7 +896,7 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
         Returns
         -------
         dict
-            ``"calls"``: per reverse-direction call
+            ``"calls"``: per backfill call
             ``(last_tracked_direction, current_direction, time_gap)`` with
             ``time_gap = beam.reference.time - reference_state.time`` [s],
             recorded *before* the early returns run; ``"walks"``: the same
@@ -908,9 +908,11 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
         calls: list[tuple[bool | None, bool, float]] = []
         walks: list[tuple[bool | None, bool]] = []
 
-        original_call = IQCavityFeedbackTimingClass.calculate_rf_centers_for_reverse_direction
+        original_call = (
+            IQCavityFeedbackTimingClass.calculate_rf_centers_for_backfill
+        )
         original_walk = (
-            IQCavityFeedbackTimingClass.get_time_omega_array_reverse_direction
+            IQCavityFeedbackTimingClass.get_time_omega_array_backfill
         )
 
         def recording_call(self, beam):
@@ -935,12 +937,12 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
         with (
             mock.patch.object(
                 IQCavityFeedbackTimingClass,
-                "calculate_rf_centers_for_reverse_direction",
+                "calculate_rf_centers_for_backfill",
                 recording_call,
             ),
             mock.patch.object(
                 IQCavityFeedbackTimingClass,
-                "get_time_omega_array_reverse_direction",
+                "get_time_omega_array_backfill",
                 recording_walk,
             ),
         ):
@@ -971,7 +973,7 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
             if record[0] is not None and record[0] != record[1]
         ]
 
-    def test_reverse_walk_never_entered_with_mismatched_direction(self):
+    def test_backfill_walk_never_entered_with_mismatched_direction(self):
         """
         Mismatched-direction calls occur, and none of them reaches the walk.
 
@@ -986,7 +988,7 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
                 self.assertGreater(
                     len(self._mismatched(records["calls"])),
                     0,
-                    "no reverse-direction call carried a direction "
+                    "no backfill call carried a direction "
                     "mismatch, so this test no longer exercises the "
                     "two-beam configuration it guards "
                     f"(calls: {records['calls']})",
@@ -994,9 +996,9 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
                 self.assertEqual(
                     self._mismatched(records["walks"]),
                     [],
-                    "the reverse walk ran with the element order of one "
+                    "the backfill walk ran with the element order of one "
                     "beam and the reference direction of another; the "
-                    "empty-back-fill invariant no longer holds "
+                    "empty-backfill invariant no longer holds "
                     f"(walk entries: {records['walks']})",
                 )
 
@@ -1028,8 +1030,8 @@ class TestReverseWalkDirectionConsistency(unittest.TestCase):
                 self.assertEqual(
                     [gap for gap in mismatched_gaps if gap != 0.0],
                     [],
-                    "a mismatched-direction call reached the reverse "
-                    "machinery with a nonzero back-fill interval; the "
+                    "a mismatched-direction call reached the backfill "
+                    "machinery with a nonzero backfill interval; the "
                     "exact-time-equality gate no longer protects the "
                     "mixed-direction walk "
                     f"(all mismatched gaps: {mismatched_gaps})",

@@ -540,13 +540,27 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                 n_points=None,
             )
 
-    def test_warns_when_beam_maps_before_turn_zero(self):
-        """A coarse index below zero warns that the beam is before turn 0."""
-        # A large negative time shift maps the leading bins to coarse indices
-        # below zero (``ind_fine < 0``), which the downsampling cannot place
-        # correctly.
+    def test_raises_when_charged_bins_map_before_turn_zero(self):
+        """
+        Charge mapping to a negative coarse index raises, not warns.
+
+        A large negative time shift maps the profile to coarse indices
+        below zero (``ind_fine < 0``). NumPy negative indexing then
+        deposits that charge into the *last* coarse cells -- roughly one
+        full forward-segment span late, and out of reach of the
+        first-coarse-cell guard, which only inspects cell 0. With
+        ``dT = -2 t_rf`` on this fixture the whole bunch maps negative
+        (measured: 100 % of ``sum |charges_fine|`` sits in
+        negative-mapping bins, and the peak coarse cell was the very last
+        one, index 25899 of 25900), so the underflow must be rejected the
+        same way the past-the-end overflow already is.
+
+        This test previously pinned the warn-only behaviour; it was
+        converted to a raise-test once the charge fraction in the
+        negative-mapping bins was measured to be 1.0.
+        """
         profile = self._profile_with_bunch_at(0.5)
-        with self.assertWarnsRegex(UserWarning, "before turn time 0"):
+        with self.assertRaises(ValueError) as cm:
             rf_beam_current(
                 beam=StubBeam(self.intensity),
                 profile=profile,
@@ -556,6 +570,34 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                 sampling_time=self.t_rf,
                 n_points=self.n_points_coarse,
             )
+        self.assertIn("before the start of the coarse grid", str(cm.exception))
+
+    def test_warns_only_when_negative_bins_carry_no_charge(self):
+        """
+        An empty negative-mapping tail warns but does not raise.
+
+        Anti-false-positive pin for the underflow guard: a small negative
+        ``dT`` pushes the *leading, charge-free* bins of the window below
+        the grid start while the bunch itself sits safely inside. Nothing
+        is corrupted, so the long-standing warning must survive -- the
+        raise is reserved for bins that actually carry charge, using the
+        same relative threshold idiom as the first-coarse-cell guard.
+        """
+        profile = self._profile_over(0.0, 5.0, (3.0,))
+        with self.assertWarnsRegex(UserWarning, "before turn time 0"):
+            charges_fine, charges_coarse = rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                use_lowpass_filter=False,
+                dT=-0.1 * self.t_rf,
+                sampling_time=self.t_rf,
+                n_points=8,
+            )
+        self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
+        np.testing.assert_allclose(
+            np.sum(charges_coarse), np.sum(charges_fine), rtol=1e-9
+        )
 
     def _downsampled(self, profile, **kwargs):
         """
@@ -749,6 +791,101 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
                 n_points=3,
             )
         self.assertIn("coarse-grid index", str(cm.exception))
+
+    def _uniform_profile(self, cut_right_trf, n_bins, center_trf, width_trf):
+        """
+        Static profile from 0 with a Gaussian bunch, arbitrary binning.
+
+        Parameters
+        ----------
+        cut_right_trf
+            Right window edge, in units of ``t_rf`` (left edge is 0).
+        n_bins
+            Number of profile bins (sets ``hist_step``).
+        center_trf
+            Bunch centre, in units of ``t_rf``.
+        width_trf
+            Gaussian rms width, in units of ``t_rf``.
+
+        Returns
+        -------
+        StaticProfile
+            The populated profile.
+        """
+        profile = StaticProfile(
+            cut_left=0.0,
+            cut_right=cut_right_trf * self.t_rf,
+            n_bins=n_bins,
+        )
+        t = copy_to_cpu(profile.hist_x)
+        hist_y = np.exp(
+            -0.5
+            * ((t - center_trf * self.t_rf) / (width_trf * self.t_rf)) ** 2
+        )
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        return profile
+
+    def test_raises_when_profile_binning_is_coarser_than_the_grid(self):
+        """
+        A fine grid coarser than the coarse grid desyncs the group counter.
+
+        The downsampling loop walks ``ind_fine`` and assumes it advances by
+        at most 1 between adjacent fine bins; the running group counter
+        ``i`` *is* the coarse index. When ``hist_step > sampling_time`` the
+        rounded index can jump by 2, the counter falls behind, and charge
+        lands at the wrong TIME while the total stays conserved -- silent
+        corruption. Measured on this fixture (3 t_rf window, 16 bins,
+        ``sampling_time = t_rf / 8``, ratio 1.5): all charge went into
+        coarse cells 0-7 instead of the true 0-23, i.e. compressed into the
+        first third of the window, with the complex total conserved to
+        1.8e-16 relative.
+        """
+        profile = self._uniform_profile(3.0, 16, 1.5, 0.3)
+        with self.assertRaises(ValueError) as cm:
+            rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                use_lowpass_filter=False,
+                dT=0.0,
+                sampling_time=self.t_rf / 8,
+                n_points=32,
+            )
+        message = str(cm.exception)
+        self.assertIn("coarser than the coarse grid", message)
+        self.assertIn("n_rf_periods_per_coarse_grid", message)
+
+    def test_binning_just_finer_than_the_grid_is_accepted(self):
+        """
+        Anti-false-positive pin for the binning guard.
+
+        Sub-stepping (``n_rf_periods_per_coarse_grid < 1``) shrinks
+        ``sampling_time``, so a legitimate profile can approach the bound
+        from below. The worst ratio measured over the whole
+        ``tests/unittests/physics/`` tree is 0.12 (the n = 0.25
+        sub-stepped grid-geometry cases in ``test_rf_center_grid.py``), so
+        a ratio of ~0.94 here sits far beyond any real configuration and
+        must still be accepted -- and still conserve charge.
+        """
+        profile = self._uniform_profile(3.0, 26, 1.5, 0.3)
+        sampling_time = self.t_rf / 8
+        ratio = float(profile.hist_step) / sampling_time
+        self.assertLess(ratio, 1.0)
+        self.assertGreater(ratio, 0.9)
+        charges_fine, charges_coarse = rf_beam_current(
+            beam=StubBeam(self.intensity),
+            profile=profile,
+            omega_c=self.omega_rf,
+            use_lowpass_filter=False,
+            dT=0.0,
+            sampling_time=sampling_time,
+            n_points=32,
+        )
+        self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
+        np.testing.assert_allclose(
+            np.sum(charges_coarse), np.sum(charges_fine), rtol=1e-9
+        )
 
     def test_long_window_that_fits_still_conserves_charge(self):
         """

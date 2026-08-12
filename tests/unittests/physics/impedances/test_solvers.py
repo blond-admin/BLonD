@@ -2407,33 +2407,131 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         solver._parent_wakefield.profile = profile
         return solver, profile
 
+    def _seed_deposit(
+        self, solver, profile, deposit_time, is_counter_rotating=False
+    ):
+        """
+        Record one past deposit the way a real passage would.
+
+        Mirrors the bookkeeping ``_update_potential_sources`` does after
+        the span guard has run: the profile is stored, tagged with the
+        depositing beam's rotation direction, and both passage clocks are
+        moved to the deposit time.
+
+        Parameters
+        ----------
+        solver
+            Solver to seed.
+        profile
+            Profile whose window is deposited.
+        deposit_time
+            Reference time of the passage, in [s].
+        is_counter_rotating
+            Rotation direction of the depositing beam.
+        """
+        n_bins = len(profile.hist_x)
+        solver._past_profile_times.appendleft(backend.copy(profile.hist_x))
+        solver._past_profiles.appendleft(backend.copy(profile.hist_y))
+        solver._past_profiles_counter_rotation_flag.appendleft(
+            is_counter_rotating
+        )
+        solver._past_profile_deposit_time.appendleft(deposit_time)
+        solver._past_profile_deposit_phase.appendleft(0.0)
+        solver._wake_function_time.appendleft(
+            backend.linspace(
+                -(n_bins - 1) * profile.hist_step,
+                n_bins * profile.hist_step,
+                int(2 * n_bins - 1),
+                endpoint=False,
+            )
+        )
+        solver._wake_function_vals.appendleft(
+            backend.zeros(int(2 * n_bins - 1), dtype=backend.float)
+        )
+        solver._last_reference_time = deposit_time
+
     def test_profile_wider_than_the_passage_interval_raises(self):
         """
         A profile spanning more than one passage is rejected.
 
         The stored past profiles are shifted by ``delta_t`` on every
         passage. If the profile covers more time than that, the freshly
-        deposited window overlaps the previous one, so the same charge is
-        counted twice and the overlapping part of the past-pass wake is
-        silently zeroed at negative time. Nothing detected this before:
-        the only clock check here is ``delta_t > 0``.
+        deposited window overlaps the *same beam's* previous one, so the
+        same charge is summed twice into the induced voltage over the
+        overlap. Nothing detected this before: the only clock check here
+        is ``delta_t > 0``.
 
         Raises rather than warns: this destroys charge exactly as the
         re-binning path does, and the false-positive sweep over
         ``tests/unittests/physics/`` found no legitimate caller anywhere
-        near the threshold (worst real window/span ratio 0.963).
+        near the threshold -- the widest genuine window/span ratio is
+        0.075, and the only ratios above it belong to the deliberate
+        boundary pins in this class.
         """
         solver, profile = self._solver_with_real_profile()
-        solver._last_reference_time = 0.0
+        self._seed_deposit(solver, profile, deposit_time=0.0)
         with self.assertRaisesRegex(ValueError, "longer"):
             solver._update_past_profile_times_wake_times(
                 current_time=0.5 * profile.profile_duration
             )
 
+    def test_first_deposit_mid_ring_is_not_judged(self):
+        """
+        The very first passage cannot overlap anything, so it is exempt.
+
+        A once-per-turn wakefield placed mid-ring first sees the beam at
+        a fraction of a revolution period, while the window it is given
+        legitimately spans a full turn. With no stored deposit there is
+        nothing for the window to overlap, so the guard must stay quiet.
+        """
+        solver, profile = self._solver_with_real_profile()
+        solver._last_reference_time = -np.finfo(float).eps
+        solver._update_past_profile_times_wake_times(
+            current_time=0.3 * profile.profile_duration
+        )
+
+    def test_interleaved_two_beam_deposits_are_not_judged(self):
+        """
+        A second beam's deposit is measured against its own passages.
+
+        Two counter-rotating beams deposit alternately, so the gap
+        between consecutive *deposits* is the arrival offset of the two
+        beams, not either beam's passage interval. Overlapping deposits
+        there carry different beams' charge -- that is the cross-wake the
+        solver exists to model -- so a full-turn window must be accepted.
+        """
+        solver, profile = self._solver_with_real_profile()
+        self._seed_deposit(
+            solver, profile, deposit_time=0.0, is_counter_rotating=True
+        )
+        solver._update_past_profile_times_wake_times(
+            current_time=0.2 * profile.profile_duration,
+            is_counter_rotating=False,
+        )
+
+    def test_previous_passage_time_picks_the_same_beam_deposit(self):
+        """
+        The direction tag, not recency, selects the passage compared to.
+
+        With both beams' deposits stored, each direction must resolve to
+        its own most recent deposit; a beam that has not deposited yet
+        resolves to ``None`` so the guard can skip it.
+        """
+        solver, profile = self._solver_with_real_profile()
+        self._seed_deposit(solver, profile, deposit_time=1.0)
+        self._seed_deposit(
+            solver, profile, deposit_time=2.0, is_counter_rotating=True
+        )
+        self.assertEqual(solver._previous_passage_time(False), 1.0)
+        self.assertEqual(solver._previous_passage_time(True), 2.0)
+        self.assertIsNone(
+            MultiPassResonatorSolver()._previous_passage_time(False)
+        )
+
     def test_profile_shorter_than_the_passage_interval_stays_silent(self):
         """The ordinary case -- a bunch far shorter than a passage."""
         solver, profile = self._solver_with_real_profile()
-        solver._last_reference_time = 0.0
+        self._seed_deposit(solver, profile, deposit_time=0.0)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             solver._update_past_profile_times_wake_times(
@@ -2456,7 +2554,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         the new deposit exactly after the previous one with no overlap.
         """
         solver, profile = self._solver_with_real_profile()
-        solver._last_reference_time = 0.0
+        self._seed_deposit(solver, profile, deposit_time=0.0)
         solver._update_past_profile_times_wake_times(
             current_time=profile.profile_duration
         )
@@ -2470,9 +2568,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         additionally produce a span failure, which would break a case the
         user has explicitly opted into.
         """
-        solver, _ = self._solver_with_real_profile()
+        solver, profile = self._solver_with_real_profile()
         solver._allow_delta_t_zero = True
-        solver._last_reference_time = 0.0
+        self._seed_deposit(solver, profile, deposit_time=0.0)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             solver._update_past_profile_times_wake_times(current_time=0.0)

@@ -899,6 +899,68 @@ class TestCavityPrefill(unittest.TestCase):
             )
         self.assertIn("n_pretrack", str(cm.exception))
 
+    def test_fill_seed_uses_the_design_clock_under_an_rf_offset(self):
+        """The pre-fill seed is the DESIGN-clock coarse fixed point.
+
+        The coarse recursion drives every step at the design RF
+        frequency (``calc_omega_rf_design``), so its no-beam fixed
+        point is ``V* = -(R/Q) omega_design I_gen / lambda(omega_design)``.
+        Evaluating the fill at the *actual* RF frequency (design plus
+        ``delta_omega_rf``) misses that fixed point by
+        ``O(delta_omega_rf / omega)``, so a cavity started at the seed
+        drifts instead of sitting still -- exactly the spurious
+        injection transient the pre-fill exists to avoid.
+
+        A cavity detuning (``delta_omega != 0``) is what makes the seed
+        frequency-dependent at all: on resonance
+        ``V_ss = 2 (R/Q) Q_L I_gen`` carries no ``omega``.
+        """
+        t_rf = 1.0e-9
+        omega_design = 2.0 * np.pi / t_rf
+        # One permille RF-frequency offset, and a cavity detuning of the
+        # order of the cavity half-bandwidth (~50 deg loading angle).
+        delta_omega_rf = 1.0e-3 * omega_design
+        feedback, rf = self._build_feedback(
+            t_rf, n_pretrack=5, delta_omega=3.0e5
+        )
+        with warnings.catch_warnings():
+            # Programming the offset after construction warns by design
+            # (single station); here it is just run-start configuration.
+            warnings.simplefilter("ignore", UserWarning)
+            rf.delta_omega_rf = delta_omega_rf
+        self._run_on_run_simulation(feedback, rf, t_rf, omega_design)
+        # Guard the premise: the two clocks really do disagree here.
+        self.assertNotAlmostEqual(
+            feedback.omega_rf / feedback.omega_rf_design, 1.0, places=6
+        )
+
+        n_steps = 300
+        feedback._rf_centers = np.arange(1, n_steps + 1) * t_rf
+        feedback._rf_centers_lengths = np.array([n_steps])
+        feedback._residual_time_last_rf_centers_calculation = 0.0
+        feedback._last_rf_centers_entry = None
+        feedback.generator_current_coarse_grid = np.full(
+            n_steps, feedback._generator_current_bias, dtype=complex
+        )
+        feedback._last_val_generator_current = feedback._generator_current_bias
+        feedback._last_val_beam_current = 0.0 + 0.0j
+        feedback._last_val_ant_voltage = feedback._init_voltage
+        feedback.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
+
+        # The forward span is always tracked at the design frequency.
+        feedback.circuit_track(
+            omega_input=feedback.omega_rf_design,
+            no_beam=True,
+            start_index=0,
+            end_index=n_steps,
+        )
+
+        np.testing.assert_allclose(
+            feedback.antenna_voltage_coarse_grid,
+            feedback._init_voltage * np.ones(n_steps),
+            rtol=1e-9,
+        )
+
 
 class TestExponentialCoarseSolver(unittest.TestCase):
     """
@@ -1286,6 +1348,102 @@ class TestVoltageSetpointValidation(unittest.TestCase):
         """A negative (phase pi) setpoint raises ``ValueError``."""
         with self.assertRaises(ValueError):
             self._build(-30e6)
+
+
+class TestFineGridInitialConditionCausality(unittest.TestCase):
+    """
+    Causality of the fine-grid initial condition in ``circuit_track``.
+
+    The fine solve is seeded with the coarse envelope at the FIRST
+    forward coarse centre ``c0``, and then integrates the beam current
+    over ``[profile.cut_left, profile.cut_right]``. Both times live in
+    the same segment-local frame, so the seed is only causal when
+    ``c0 <= cut_left``: otherwise the coarse cell that produced the
+    seed already sits *after* the start of the fine window, and any
+    charge in that window would be integrated twice.
+
+    A charge-free window has nothing to be causal about, so the guard is
+    gated on the beam current the fine solve actually consumes.
+    """
+
+    R_over_Q = 518.0
+    Q_L = 1287601.7251526634
+    f_rf = 1.3e9
+    omega_rf = 2.0 * np.pi * f_rf
+    t_rf = 1.0 / f_rf
+    n_bins = 128
+    n_steps = 8
+
+    def _drive(self, cut_left_rad, with_charge):
+        """
+        Drive ``circuit_track`` over a hand-built constant-step grid.
+
+        The coarse centres are ``(k + 0.5) * t_rf``, so the first
+        forward centre sits at ``0.5 * t_rf`` (i.e. ``pi`` in the
+        radian units of the profile window).
+
+        Parameters
+        ----------
+        cut_left_rad
+            Left edge of the profile window [rad]; the window is three
+            RF periods wide.
+        with_charge
+            Whether the fine grid carries a non-zero beam current.
+
+        Returns
+        -------
+        cav
+            The feedback instance that was driven.
+        """
+        profile = StaticProfile.from_rad(
+            cut_left_rad, cut_left_rad + 3.0 * np.pi, self.n_bins, self.t_rf
+        )
+        cav = IQCavityFeedbackTimingClass(
+            profile=profile,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current_bias=0.0 + 0.0j,
+            n_cavities=1,
+            delta_omega=0.0,
+            initial_voltage=0.0,
+        )
+        cav._rf_centers = (np.arange(self.n_steps) + 0.5) * self.t_rf
+        cav._rf_centers_lengths = np.array([self.n_steps])
+        cav._residual_time_last_rf_centers_calculation = 0.0
+        cav._last_rf_centers_entry = None
+        cav.reset_arrays()
+        cav.beam_current_forward_coarse_grid = np.zeros(
+            self.n_steps, dtype=complex
+        )
+        cav.beam_current_fine_grid = np.full(
+            self.n_bins, 0.02 + 0.0j if with_charge else 0.0 + 0.0j
+        )
+        cav.circuit_track(
+            omega_input=self.omega_rf,
+            no_beam=False,
+            start_index=0,
+            end_index=self.n_steps,
+        )
+        return cav
+
+    def test_charge_before_first_coarse_centre_raises(self):
+        """Charge left of the first forward coarse centre is acausal."""
+        with self.assertRaises(ValueError) as ctx:
+            self._drive(cut_left_rad=0.5 * np.pi, with_charge=True)
+        message = str(ctx.exception)
+        self.assertIn("cut_left", message)
+        self.assertIn("first forward coarse centre", message)
+        self.assertIn("sampling_time_coarse", message)
+
+    def test_charge_free_window_before_first_centre_is_allowed(self):
+        """A charge-free window has nothing to be causal about."""
+        cav = self._drive(cut_left_rad=0.5 * np.pi, with_charge=False)
+        self.assertIsNotNone(cav.antenna_voltage_fine_grid)
+
+    def test_charge_right_of_first_coarse_centre_is_allowed(self):
+        """The physical geometry (cut_left >= c0) stays accepted."""
+        cav = self._drive(cut_left_rad=1.5 * np.pi, with_charge=True)
+        self.assertIsNotNone(cav.antenna_voltage_fine_grid)
 
 
 if __name__ == "__main__":

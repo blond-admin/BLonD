@@ -78,6 +78,16 @@ bunch, by contrast, samples the field over picoseconds, so the voltage it
 actually receives is resolved on the dense **fine grid** (the profile grid),
 onto which the coarse-grid result is interpolated.
 
+The coarse grid has two properties a reader will not guess from the array:
+its entries are segment-*local* times (so the flat array is *not* globally
+monotonic and differencing across a segment boundary is meaningless), and
+its step is that segment's *design* RF period (so it is phase-consistent
+but *not* uniformly spaced in time). Both are documented once, in the
+"The coarse grid" part of the Notes of
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+-- read that before indexing or differencing the array; this page does not
+repeat it.
+
 **The generator control loop**
 
 PI controller
@@ -119,10 +129,18 @@ appear:
 beam reference
     A synchronous-particle clock (time + energy); a copy of the beam's
     reference coordinates the feedback advances to place its grid points.
-forward / reverse tracking
+forward / backfill tracking
     To build the grid the feedback advances the reference *forward* to the
-    next RF station; on later turns it re-derives the stretch of grid that
-    has *elapsed* since its previous update by walking it in *reverse*.
+    next RF station; on later turns it *backfills* the stretch of grid that
+    has already *elapsed* since its previous update, by re-deriving it from
+    the elements it was carried through. Both are directions in **time**,
+    and every multi-section ring needs both -- the backfill has nothing to
+    do with counter-rotating beams. Do not confuse it with the **space**
+    sense of "reverse" used further down, where a counter-rotating beam
+    traverses the ring's elements in the reversed order; that is a
+    different axis entirely (see the module docstring of
+    :mod:`blond.physics.feedbacks.rf_center_grid`, which keeps the two
+    apart by name).
 segment
     One contiguous piece of coarse grid produced by one such walk, at a
     single tracked frequency. Every segment holds at least two coarse
@@ -139,6 +157,10 @@ residual
     which by the time the grid is walked already holds the last-generated
     (forward) segment's value; the first segment of a turn steps across
     the turn boundary and takes the residual the previous turn ended on.
+    That live scalar survives only as the fall-back for a segment-less
+    hand-built grid (tests, direct ``circuit_track`` callers): on a real
+    per-turn grid a start index that is not a segment boundary trips an
+    assertion instead of silently returning this turn's forward tail.
     The same quantity is the demodulation frame of the forward segment --
     under ``validate_grid_each_turn`` an assertion ties the two together
     so they cannot silently drift apart.
@@ -175,8 +197,11 @@ Classes at a glance
     attached to the feedback via the ``controller`` argument.
 
 :mod:`blond.physics.feedbacks.rf_center_grid`
-    The coarse-grid construction: ``RFCenterGridMixin``, the forward/reverse
-    reference walks and per-turn segment generation of the timing class.
+    The coarse-grid construction: ``RFCenterGridMixin``, the
+    forward/backfill reference walks and per-turn segment generation of the
+    timing class. Its module docstring is also where the two meanings of
+    "direction" are held apart -- backfill (time) versus the reversed
+    element order of a counter-rotating beam (space).
 
 :mod:`blond.physics.feedbacks.rf_center_segment`
     The two coarse-grid value classes. ``RFCenterSegment`` is what the
@@ -186,23 +211,29 @@ Classes at a glance
     ``_preceding_segment_residual`` to form the coarse step into the
     *following* segment's first cell, and is the demodulation frame of the
     forward segment; the ``omega`` and ``duration`` are what the
-    reverse-span replay and the registration phase walk.
+    backfill-span replay and the registration phase walk.
     ``PerTurnGridSpan`` (below) is the per-turn span built out of those
     segments.
 
 :class:`~blond.physics.feedbacks.rf_center_segment.PerTurnGridSpan`
     Frozen value class returned by one grid rebuild: this passage's
-    reverse and forward centre counts plus ``residual_from_reverse_span``,
-    the residual snapshotted *between* the reverse and the forward
-    generation. Returning it rather than leaving it on the feedback is
+    backfill and forward centre counts plus
+    ``residual_from_backfill_span``, the residual snapshotted *between* the
+    backfill and the forward generation. Returning it rather than leaving
+    it on the feedback is
     what makes the per-turn phase ordering enforceable by the data flow --
     the demodulation frame can only be read from a span object, and a span
     is only produced by a rebuild that snapshotted it in time.
 
 :mod:`blond.physics.feedbacks.generator_regulation`
-    ``GeneratorRegulationMixin``: the controller-facing pieces of the timing
-    class (per-cavity IQ setpoint, klystron power, per-step generator-current
-    update).
+    ``GeneratorRegulationMixin``: the parts of the timing class that need
+    only the controller and the setpoint -- the setpoint policy
+    (constructor validation and the per-cavity IQ ``pi_setpoint``), the
+    klystron power readout, the per-step generator-current update and the
+    fine-grid actuator clamp. The compiled envelope scan and the per-cell
+    stepping decision stay on the timing class in ``cavity_feedback.py``:
+    they need the coarse grids and the state carried across the turn
+    boundary.
 
 :mod:`blond.physics.feedbacks.beam_current`
     The beam-current demodulation: the single function
@@ -285,7 +316,7 @@ Each turn the timing class runs:
    list, and then generates this passage's segments: the feedback tracks a
    copy of the beam reference forward to the next RF station and, on later
    turns, re-derives the segments that elapsed since its last update
-   (reverse tracking). Each segment carries the *design* RF frequency it
+   (the backfill). Each segment carries the *design* RF frequency it
    was tracked with (at the local reference energy), so the coarse-step
    spacing follows the design RF period even under acceleration and with
    several stations per ring. A station RF-frequency offset
@@ -295,10 +326,10 @@ Each turn the timing class runs:
    is the last statement of this phase -- it can neither precede the grid
    generation it takes its size from, nor follow any ``circuit_track``.
 
-4. ``_replay_reverse_span`` -- re-walks this passage's reverse segments
-   with ``no_beam=True``, one ``circuit_track`` per reverse segment at
+4. ``_replay_backfill_span`` -- re-walks this passage's backfill segments
+   with ``no_beam=True``, one ``circuit_track`` per backfill segment at
    that segment's own ``omega``, so that the envelope carries the
-   already-elapsed interval forward. A passage that generated no reverse
+   already-elapsed interval forward. A passage that generated no backfill
    segments skips the replay entirely.
 
 5. ``_accumulate_registration_phase`` -- accumulates the multi-section
@@ -315,7 +346,12 @@ Each turn the timing class runs:
    runs. The three diagnostic switches are independent: ``debug`` only
    records the inspection-only grid snapshots,
    ``validate_grid_each_turn`` only runs the per-turn grid integrity
-   check, and only this one stops the physics.
+   check (including the residual-versus-demodulation-frame assertion),
+   and only this one -- ``grid_only_no_correction`` -- stops the physics.
+   They were once a single ``debug`` flag doing all three at once, so
+   asking for diagnostics silently switched the feedback off entirely
+   (unit gain, zero phase). With all three at their ``False`` default the
+   tracked result is bit-for-bit what the old ``debug=False`` produced.
 
 7. ``_track_forward_span`` -- the real work of the turn, in two steps.
 
@@ -326,19 +362,37 @@ Each turn the timing class runs:
    by the reference-frame phase and by the constant
    ``-(delta_phi_rf + _carrier_slip_gap)``, and re-bin the fine-grid
    charge onto the coarse cells charge-conservingly. The demodulation
-   frame is the span's ``residual_from_reverse_span``, snapshotted before
+   frame is the span's ``residual_from_backfill_span``, snapshotted before
    the forward generation overwrote the host scalar; re-reading that
    scalar here would silently shift the frame. Several guards protect this
-   path: charge in the first coarse cell raises (that cell seeds the
-   fine-grid initial condition, so its kick would be double-counted), a
-   profile window longer than the coarse grid it is re-binned onto raises
-   through ``ProfileBaseClass.check_fits_in_span``, a window mapping past
-   the last coarse cell raises, and a warning fires if the profile window
-   does not capture the whole beam.
+   path, all of them raising rather than correcting:
+
+   * charge in the *first* coarse cell -- that cell seeds the fine-grid
+     initial condition, so its kick would be double-counted;
+   * a profile window longer than the coarse grid it is re-binned onto,
+     rejected by ``ProfileBaseClass.check_fits_in_span`` (the forward
+     span is not periodic, so a wrapped group would overwrite an earlier
+     cell instead of accumulating into it);
+   * a profile binning coarser than the coarse cell
+     (``hist_step > sampling_time``): the downsampling counts consecutive
+     index steps, so a jumping index places charge at the wrong time
+     while conserving the total -- reachable from a legitimate-looking
+     sub-stepped setup, which shrinks ``sampling_time``;
+   * a window mapping past the last coarse cell, and a window mapping
+     *before* the first one. The latter used to warn and let NumPy's
+     negative indexing deposit the charge onto the *last* coarse cells,
+     about a forward span too late; it now raises as soon as the
+     underflowing bins carry non-negligible charge (a charge-free
+     Gaussian tail sticking out below the grid start still only warns).
+
+   A warning -- not an error -- fires if the profile window does not
+   capture the whole beam.
 
    *Forward pass*: one ``circuit_track`` over the forward segment, which
-   performs the coarse-grid cavity update, the optional generator control
-   and the fine-grid solve described below.
+   performs the coarse-grid cavity update and the optional generator
+   control, then hands the fine-grid half to
+   ``_resolve_fine_grid_voltage`` (initial condition, generator-current
+   interpolation and the fine solve described below).
 
 8. ``_write_station_readout`` -- converts the fine-grid antenna voltage
    into ``relative_voltage_correction`` (divided by the station voltage)
@@ -370,30 +424,47 @@ detuning becomes a pure rotation instead of growing ``|V|`` by
 ``sqrt(1 + (delta_omega dt)^2)`` per step) and is the accurate alternative
 to sub-stepping at low ``Q_L`` or large detuning.
 
+A *coincident* coarse point -- two centres a step of ``delta_t == 0``
+apart, which a segment or turn boundary can produce (and which float noise
+of a few ULPs is clamped to) -- carries no elapsed time, so
+``V(t + 0) = V(t)``: the cell duplicates the previous cell's antenna
+voltage and generator current, taking them across the turn boundary when it
+is the very first cell. It used to be skipped, which left the cell at the
+zeros prefill so the *next* cell propagated from ``V = 0``, destroying the
+coherent voltage and refilling it only over ``2 Q_L / omega`` -- hundreds
+of turns. Duplication also keeps the two downstream readers honest, since
+``reset_arrays`` carries the *last* cell into the next turn and the fine
+solve seeds from the *first* forward cell. The controller is still not
+stepped there: no time elapsed, so there is no new sample to regulate on.
+
 **Optional generator-current control.** With a ``controller`` attached,
 each coarse step forms the error ``V_set - V_ant[n]`` and lets the
 controller produce ``I_gen[n]``, which drives the next step; without one,
 the generator current stays at the constant feedforward value
 ``generator_current_bias``. The controller is stepped only on the real
-forward passage, never on the reverse reconstruction segments (those
+forward passage, never on the backfill reconstruction segments (those
 carry a per-segment frame phase, so stepping there would integrate
 frame-rotated errors and double-advance the delay line and integrator).
-Over that reverse span ``reset_arrays`` therefore seeds the generator grid
+Over that backfill span ``reset_arrays`` therefore seeds the generator grid
 with the *last commanded* current instead of the feedforward bias (a
 zero-order hold): those cells replay an interval that has already elapsed
 and during which the loop issued no new command, so the generator kept
 running at whatever it was last told rather than snapping back to the
-bias. Without a controller the held value *is* the bias, so the
-constant-current path is bit-unchanged. The klystron limit is enforced on
-the fine grid as well before the response solve.
+bias. Resetting them to the bias was a real defect, not a cosmetic one:
+with a detuned cavity the PI holds a reactive standing current, which the
+old reset discarded once per turn (measured setpoint errors of 3.1e-2 and
+4.6e-2 relative at 2 and 4 sections). Without a controller the held value
+*is* the bias, so the constant-current path is bit-unchanged. The klystron
+limit is enforced on the fine grid as well before the response solve.
 
-**Fine-grid solve.** The generator current is interpolated onto the
-profile grid and the cavity response is solved as a sparse bidiagonal
-system -- first order by default, or the second-order (Crank-Nicolson)
-solver with ``second_order_fine_grid_solver_enable=True``, whose
-truncation error scales with the bin size squared. The result is scaled by
-``n_cavities`` before the readout phase converts it into the voltage
-correction and phase correction the parent RF station applies to its kick.
+**Fine-grid solve** (``_resolve_fine_grid_voltage``). The generator current
+is interpolated onto the profile grid and the cavity response is solved as
+a sparse bidiagonal system -- first order by default, or the second-order
+(Crank-Nicolson) solver with ``second_order_fine_grid_solver_enable=True``,
+whose truncation error scales with the bin size squared. The result is
+scaled by ``n_cavities`` before the readout phase converts it into the
+voltage correction and phase correction the parent RF station applies to
+its kick. The initial condition it starts from is described next.
 
 
 Initial conditions and cavity pre-fill
@@ -409,7 +480,44 @@ reaches that target (beam injected part-way through the fill). The fill is
 feedforward-only by design: a controller, if attached, regulates from the
 first tracked turn after injection. On resonance the steady state reduces to
 ``V_ss = 2 (R/Q) Q_L I_gen``, which is also the exact fixed point of the
-coarse-grid Euler step.
+coarse-grid Euler step. The fill is evaluated on the **design** clock
+(``omega_rf_design``), the same clock the coarse recursion it seeds is
+driven at, and ``t_rev`` is read on that clock too. It previously mixed
+clocks: evaluating the fill at the actual (offset) RF frequency misses the
+recursion's own no-beam fixed point by ``O(delta_omega_rf / omega)``,
+leaving an injection transient the PI then has to burn off.
+
+**The fine-grid initial condition.** The fine solve is seeded with the
+coarse antenna voltage at index ``[0]`` of the forward segment -- the
+*first* forward coarse centre -- and then integrates the beam current over
+``[cut_left, cut_right]``. Two halves of one invariant keep that causal.
+
+The first is a per-turn guard,
+``_check_fine_grid_initial_condition_is_causal``: the centre the seed comes
+from must not be later than the start of the window it initialises,
+
+   ``first forward centre <= profile.cut_left``,
+
+checked whenever the window carries charge, and raising otherwise -- the
+seed would then be taken from later in the turn than the interval it
+initialises, and the beam current would be integrated twice. It is checked
+every turn rather than once at setup, because the first forward centre
+moves with the design frequency and with the residual carried from the
+previous passage (both turn-dependent under acceleration and sub-stepping)
+and ``cut_left`` is itself settable. The remedy is to move the profile
+window right, to ``cut_left >= max(t_rf / 2, sampling_time_coarse)``.
+
+The second is that the seed is deliberately the coarse value *at index*
+``[0]``, and deliberately *not* interpolated onto ``cut_left``. This looks
+like an easy accuracy win and is not: coarse cell 0 is charge-free by
+construction (``forbid_charge_in_first_coarse_cell``), but cell 1
+typically already holds about half the bunch and therefore its beam-induced
+voltage step, so interpolating from cell 0 towards cell 1 drags up to ~10 %
+of the beam-induced voltage *backwards* in time, into an initial condition
+that predates the charge which produced it -- and the fine grid then
+re-integrates that same current. Trying it broke 57 tests, including the
+independent comparisons against the multi-pass wake solver. Do not
+"improve" it.
 
 
 Interplay with the RF station
@@ -455,7 +563,7 @@ step-size limits; the sub-stepping mode
 coarse centres tiling continuously across turn boundaries.
 
 **Multi-section registration phase.** A ring with several RF stations
-builds each passage's grid piecewise: every reverse segment ``k`` spans
+builds each passage's grid piecewise: every backfill segment ``k`` spans
 ``T_seg,k`` at the past station's design frequency ``omega_k``, while the
 forward segment and *both* the demodulation and the readout reference the
 single carrier ``omega_0``. The grid therefore accumulates
@@ -476,6 +584,51 @@ the antenna-voltage state -- that would also rotate the generator-driven
 field, which carries no registration error, turning a phase error into an
 amplitude drift. See ``_accumulate_registration_phase`` for the
 implementation.
+
+**Multi-harmonic stations.** The feedback is not restricted to the main
+harmonic: it can be attached to a
+:class:`~blond.physics.cavities.MultiHarmonicRFStation`, and the
+constructor argument ``harmonic_index`` (default ``0``) selects which
+harmonic it regulates. Every RF parameter it reads -- ``omega_rf``,
+``phi_rf``, ``delta_omega_rf``, the harmonic number, the station voltage --
+and the design frequency the coarse grid is built from are taken at that
+index. One feedback instance regulates one harmonic; build a separate
+instance per harmonic.
+
+Because the two sides address the harmonic differently, they must agree:
+
+    **Slot agreement rule.** The station applies each feedback's
+    ``relative_voltage_correction`` / ``phase_correction`` at that
+    feedback's *position* in ``cavity_feedback_list``
+    (``enumerate`` in ``calc_gap_voltage_with_feedbacks``), while the
+    feedback *computes* them from the RF parameters at its own
+    ``harmonic_index``. A disagreement applies corrections derived from
+    harmonic A to harmonic B: no crash, wrong physics. The *slot* is
+    authoritative: ``attach_cavity_feedback`` SETS the feedback's
+    ``harmonic_index`` to the slot it is placed at (the
+    ``harmonic_index`` argument, or its position in a provided list),
+    silently overriding any value given at construction. The
+    constructor value is only the default the feedback carries while it
+    is unattached.
+
+A mismatch therefore cannot arise through the attach path -- neither
+through ``attach_cavity_feedback`` nor through the station constructor,
+which routes through it. What the attach cannot see is a
+``cavity_feedback_list`` mutated directly afterwards, so
+``_validate_multi_harmonic_slot`` still checks the agreement at run
+start (``on_run_simulation``). That run-start check also catches a
+feedback that never made it into the list at all, and one instance
+occupying several slots. Run start is the earliest it can run: the
+parent station is attached *after* the feedback is constructed, so
+``__init__`` cannot see it.
+
+``attach_cavity_feedback`` also rejects an out-of-range slot at *both*
+ends. The upper bound was always there; the lower one was missing, so a
+negative ``harmonic_index`` indexed the list from its end and silently
+regulated the last harmonic. A fractional slot is likewise a hard error
+at both entry points (the attach and the feedback constructor): a
+harmonic index is a list slot, not a physical quantity to be rounded.
+Plain ``int``, ``np.integer`` and integral floats are accepted silently.
 
 
 Counter-rotating beams
@@ -503,7 +656,8 @@ arrivals at a station are ``T_rev / 2`` apart; there the per-passage grid
 machinery handles the alternating arrivals natively and matches the two-beam
 convolution at reference accuracy. Layouts with more sections (``N >= 4``)
 can also keep stations off the meeting azimuths, but the arrival spacing is
-then not ``T_rev / 2`` and this regime is currently untested. A station *at* a meeting azimuth (both beams at the
+then not ``T_rev / 2`` and this regime is currently untested. A station
+*at* a meeting azimuth (both beams at the
 same reference time, e.g. the single mid-ring station of a one-section
 layout) is refused with ``NotImplementedError``: the machinery would
 silently serialize the coincident arrivals one projection window apart.
@@ -598,12 +752,21 @@ Known limitations
   *Counter-rotating beams* above for the guard and the workaround.
 * The coarse re-binning of the beam current assumes the analytic uniform
   grid; configurations far from the tested ones (unusual profile placement)
-  should be validated against the wake solvers. Sub-stepped beam loading
-  itself is validated against the convolution, including with detuning and
-  on the fast ramp.
-* The fine-grid initial antenna voltage is taken from the first coarse cell
-  of the forward segment (guarded by the first-cell charge check) rather
-  than interpolated to the profile edge.
+  should be validated against the wake solvers. The two gross violations
+  now raise instead of corrupting silently -- a window longer than the
+  coarse span, and a profile binned more coarsely than a coarse cell (see
+  the demodulation guards under *Signal path of one turn*) -- but the
+  guards bound the input, they do not extend the assumption. Sub-stepped
+  beam loading itself is validated against the convolution, including with
+  detuning and on the fast ramp.
+* The profile window must lie inside the forward coarse grid, with its
+  first coarse cell charge-free and its left edge not earlier than the
+  first forward coarse centre -- in practice
+  ``cut_left >= max(t_rf / 2, sampling_time_coarse)``. All three are now
+  enforced; see *the fine-grid initial condition* under *Initial
+  conditions and cavity pre-fill*. Seeding from coarse index ``[0]``
+  rather than interpolating to the profile edge is a deliberate, measured
+  choice there, not an approximation waiting to be improved.
 * A configuration whose walked intervals are shorter than two coarse
   steps -- an RF-station section (or the partial first-turn stretch
   before a station, half a section in the symmetric layout) spanning

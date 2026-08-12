@@ -308,11 +308,15 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
           charge of one silently replaces the other -- reproduced at
           exactly 50 % loss.
         * A consumer that *stores* the profile per passage
-          (`MultiPassResonatorSolver`) shifts its past deposits by `span`
-          each time. A window longer than that overlaps its own previous
-          deposit: the same charge is deposited twice, and the part the
-          overlap pushes to negative time is dropped instead of being
-          reported.
+          (`MultiPassResonatorSolver`) shifts its past deposits forward
+          each time. A window longer than the passage interval overlaps
+          the same beam's previous deposit, so over the overlap the same
+          charge is summed twice into the induced voltage. Its `span` is
+          therefore the interval between two passages of one and the same
+          beam, not the gap between consecutive deposits: interleaved
+          deposits of two counter-rotating beams carry different charge
+          and legitimately overlap, and a first deposit has nothing to
+          overlap at all, so that consumer skips the check there.
 
         Physically a bunch -- or bunch train -- longer than the distance
         to the next RF station cannot be represented there at all, since
@@ -323,11 +327,11 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         ----------
         span
             Time span the profile is mapped onto, in [s]. A span that
-            does not exceed `tolerance` -- including zero and the epsilon
-            sentinel used to satisfy a strictly-positive clock assertion
-            on a first deposit -- is not judged at all: it carries no
-            resolvable passage, and a degenerate or coincident clock is a
-            separate failure that its own guard reports.
+            does not exceed `tolerance` -- including zero and any
+            epsilon-scale sentinel a caller uses to satisfy a
+            strictly-positive clock assertion -- is not judged at all: it
+            carries no resolvable passage, and a degenerate or coincident
+            clock is a separate failure that its own guard reports.
         span_description
             Human-readable name of `span`, used in the error message.
         tolerance

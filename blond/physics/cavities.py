@@ -60,6 +60,52 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
+def _coerce_harmonic_index(harmonic_index: int | float) -> int:
+    """
+    Coerce a harmonic index to a plain ``int``, rejecting fractions.
+
+    A harmonic index is a slot of ``cavity_feedback_list``, not a
+    physical quantity: there is nothing meaningful to round ``1.5``
+    to, so a fractional value is a hard error instead of the lenient
+    ``int_from_float_with_warning`` idiom used for physical counts.
+    Python ``int``, ``np.integer`` and integral ``float`` are accepted
+    silently.
+
+    Parameters
+    ----------
+    harmonic_index
+        Candidate harmonic index.
+
+    Returns
+    -------
+    harmonic_index
+        The same value as a plain ``int``.
+
+    Raises
+    ------
+    ValueError
+        If ``harmonic_index`` is a float with a fractional part.
+    TypeError
+        If ``harmonic_index`` is not an ``int``, ``np.integer`` or
+        ``float``.
+    """
+    if isinstance(harmonic_index, int):
+        return harmonic_index
+    if isinstance(harmonic_index, np.integer):
+        # np.int64 indexes a list fine, but is not an `int`.
+        return int(harmonic_index)
+    if isinstance(harmonic_index, float | np.floating):
+        if float(harmonic_index).is_integer():
+            return int(harmonic_index)
+        raise ValueError(
+            f"harmonic_index={harmonic_index}: a harmonic index is a "
+            "list slot (of cavity_feedback_list), not a physical "
+            "quantity, so a fractional value cannot be rounded to a "
+            "meaningful slot."
+        )
+    raise TypeError(f"{type(harmonic_index)=}")
+
+
 class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
@@ -811,6 +857,36 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         else:
             raise TypeError(f"{type(beam_feedback)=}")
 
+    @staticmethod
+    def _set_feedback_harmonic_index_from_slot(
+        cavity_feedback: LocalFeedback,
+        slot: int,
+    ) -> None:
+        """
+        Overwrite a feedback's ``harmonic_index`` with its list slot.
+
+        The station applies each feedback's corrections at the feedback's
+        position in ``cavity_feedback_list``, while a feedback computes
+        them from the RF parameters at its own ``harmonic_index``. A
+        disagreement would apply corrections derived from harmonic A to
+        harmonic B: no crash, wrong physics. The slot is authoritative:
+        writing it onto the feedback makes a disagreement impossible
+        through the attach path (a ``cavity_feedback_list`` mutated
+        directly afterwards is still caught at run start, see
+        ``_validate_multi_harmonic_slot`` on the feedback). Duck-typed
+        feedbacks that never declare a ``harmonic_index`` are left
+        untouched -- nothing is grafted onto them.
+
+        Parameters
+        ----------
+        cavity_feedback
+            Feedback about to be placed in ``cavity_feedback_list``.
+        slot
+            Index of ``cavity_feedback_list`` it is placed at.
+        """
+        if hasattr(cavity_feedback, "harmonic_index"):
+            cavity_feedback.harmonic_index = slot
+
     def attach_cavity_feedback(  # noqa: PLR0912
         self,
         cavity_feedback: LocalFeedback | list[LocalFeedback | None],
@@ -818,6 +894,14 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     ):
         """
         Attach cavity feedback to the RF station after initialization.
+
+        The slot is authoritative for the attached feedback's
+        ``harmonic_index``: placing a feedback SETS its
+        ``harmonic_index`` to the slot it occupies -- the
+        ``harmonic_index`` argument for a single feedback, its list
+        position for a list -- silently overriding any value given at
+        feedback construction. Feedbacks that never declare a
+        ``harmonic_index`` attribute are attached untouched.
 
         Parameters
         ----------
@@ -827,9 +911,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             For a single-harmonic cavity either a list of length
             one or a LocalFeedback object can be provided.
         harmonic_index
-            Harmonic index at which to place the provided feedback.
-            This needs to be provided for multiharmonic cavities,
-            where a single LocalFeedback is provided.
+            Slot of ``cavity_feedback_list`` at which to place the
+            provided feedback. This needs to be provided for
+            multiharmonic cavities, where a single LocalFeedback is
+            provided. ``int``, ``np.integer`` and integral ``float``
+            are accepted; a fractional value is rejected -- a harmonic
+            index is a list slot, not a physical quantity to be
+            rounded.
+
+        Raises
+        ------
+        ValueError
+            If the requested slot does not exist (out of range), or if
+            ``harmonic_index`` is a fractional float.
+        TypeError
+            If ``harmonic_index`` is not a number, or a list entry is
+            neither a ``LocalFeedback`` nor None.
         """
         if isinstance(cavity_feedback, LocalFeedback):
             if harmonic_index is None:
@@ -839,12 +936,24 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                     raise ValueError(
                         "If a single feedback is provided, the harmonic_index needs to be provided as well."
                     )
+            harmonic_index = _coerce_harmonic_index(harmonic_index)
 
             if harmonic_index > self._n_rf - 1:
                 raise ValueError(
                     "Harmonic index must be less than the number of RF stations."
                 )
+            if harmonic_index < 0:
+                # A negative index passes the check above and addresses a
+                # slot from the END of the list, i.e. silently the wrong
+                # harmonic.
+                raise ValueError(
+                    f"{harmonic_index=} must not be negative, "
+                    "cavity_feedback_list has no such slot."
+                )
 
+            self._set_feedback_harmonic_index_from_slot(
+                cavity_feedback=cavity_feedback, slot=harmonic_index
+            )
             cavity_feedback.set_parent_rf_station(rf_station=self)  # type: ignore
             self.cavity_feedback_list[harmonic_index] = cavity_feedback
 
@@ -861,8 +970,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                     stacklevel=2,
                 )
 
-            for feedback in cavity_feedback:
+            for slot, feedback in enumerate(cavity_feedback):
                 if isinstance(feedback, LocalFeedback):
+                    self._set_feedback_harmonic_index_from_slot(
+                        cavity_feedback=feedback, slot=slot
+                    )
                     feedback.set_parent_rf_station(rf_station=self)  # type: ignore
                 elif feedback is None:
                     pass
@@ -2020,6 +2132,37 @@ class MultiHarmonicRFStation(
             )
         return gap_voltage
 
+    def _first_attached_feedback_profile(self):
+        """
+        Return the profile of the first non-None cavity feedback.
+
+        A feedback may sit at any harmonic slot, so the interpolation
+        grid must come from the first attached feedback, not from slot 0
+        (which may be empty).
+
+        Returns
+        -------
+        profile
+            Profile of the first non-None entry of
+            ``cavity_feedback_list``.
+        """
+        profile = next(
+            (
+                feedback.profile
+                for feedback in self.cavity_feedback_list
+                if feedback is not None
+            ),
+            None,
+        )
+        if profile is None:
+            raise RuntimeError(
+                "No cavity feedback is attached to this "
+                "MultiHarmonicRFStation, so there is no profile grid to "
+                "evaluate the gap voltage on. Use "
+                "calc_gap_voltage_without_feedbacks instead."
+            )
+        return profile
+
     def calc_gap_voltage_with_feedbacks(self):
         """
         Calculate total gap voltage in the RF station.
@@ -2033,20 +2176,19 @@ class MultiHarmonicRFStation(
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        gap_voltage = backend.zeros(
-            self.cavity_feedback_list[0].profile.n_bins
-        )
+        profile = self._first_attached_feedback_profile()
+        gap_voltage = backend.zeros(profile.n_bins)
         for ind, feedback in enumerate(self.cavity_feedback_list):
             if feedback is not None:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
-                    ts=self.cavity_feedback_list[0].profile.hist_x,
+                    ts=profile.hist_x,
                     harmonic_index=ind,
                     voltage_correction_factors=feedback.relative_voltage_correction,
                     phase_offsets=feedback.phase_correction,
                 )
             else:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
-                    ts=self.cavity_feedback_list[0].profile.hist_x,
+                    ts=profile.hist_x,
                     harmonic_index=ind,
                 )
 
@@ -2079,7 +2221,7 @@ class MultiHarmonicRFStation(
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
-                time_axis = self.cavity_feedback_list[0].profile.hist_x
+                time_axis = self._first_attached_feedback_profile().hist_x
                 if self._delayed_kick is not None:
                     assert (
                         self._delayed_kick_time_axis is None

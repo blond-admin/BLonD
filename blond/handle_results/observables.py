@@ -1150,7 +1150,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
     coarse-grid cell in all three matrices. Rows are padded to
     ``len_coarse_max`` columns; cells the turn's grid does not reach are
     ``NaN``. The antenna voltage and generator current span the whole
-    per-turn grid (reverse reconstruction segments followed by the
+    per-turn grid (backfill reconstruction segments followed by the
     forward segment), so their valid columns are ``[0, n_grid)``. The
     beam current exists only on the forward (real passage) segment --
     the last ``rf_centers_lengths[-1]`` cells of the grid -- so its

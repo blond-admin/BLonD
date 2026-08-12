@@ -292,9 +292,13 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         It is currently not implemented: the original body was ported
         from the deleted blond2 coarse-array cavity-feedback API and was
         never wired to the surviving ``IQCavityFeedbackTimingClass``.
-        Without a cavity feedback attached to a main-harmonic rf station
-        this method is a silent no-op; with one attached it raises
-        `NotImplementedError`.
+        As long as no rf station on the main harmonic carries a cavity
+        feedback on ANY of its harmonics, this method is a silent no-op
+        -- that is a normal, supported configuration, and the beam
+        controls call this method unconditionally every turn. As soon as
+        one such feedback exists it raises `NotImplementedError`, rather
+        than letting the phase loop run as if the cavity were
+        unregulated.
 
         Parameters
         ----------
@@ -307,7 +311,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         ------
         NotImplementedError
             If any rf station on the main harmonic has a cavity
-            feedback attached.
+            feedback attached to any of its harmonics.
         """
         # TODO: Couple the beam phase loop to the surviving cavity
         #   feedback (``IQCavityFeedbackTimingClass``); see the
@@ -315,7 +319,15 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         # TODO: Handling of simulations with some main rf stations
         #   without cavity FB and some with
         for cav in self._main_cavities:
-            if cav.get_main_harmonic_cavity_feedback() is None:
+            # ``any_feedback_not_none``, not
+            # ``get_main_harmonic_cavity_feedback``: the latter reads
+            # only the main-harmonic slot of ``cavity_feedback_list``,
+            # so a feedback regulating a non-main harmonic of a
+            # `MultiHarmonicRFStation` would slip through unnoticed.
+            # It is also the predicate the LHC/SPS beam controls use to
+            # demand `current_thres` at run start, so both guards now
+            # fire for exactly the same configurations.
+            if not cav.any_feedback_not_none:
                 continue
             raise NotImplementedError(
                 "cavity_sum_phase is not implemented for the surviving "
@@ -328,7 +340,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
                 "beam_current_forward_coarse_grid and "
                 "antenna_voltage_coarse_grid and has no n_coarse. "
                 "Coupling the beam phase loop to that per-turn-grid "
-                "API is an open design task, not a rename."
+                "API is an open design task, not a rename. This is "
+                "raised for a cavity feedback on ANY harmonic of the "
+                "station, not only on the main harmonic."
             )
 
     def radial_difference(self, beam: BeamBaseClass):
@@ -397,20 +411,25 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         This function checks all RF stations on the main harmonic for cavity feedbacks.
         If some have feedbacks and others do not then a warning is raised.
+        A station counts as having a cavity feedback when one is
+        attached to any of its harmonics, not only to its main one.
         """
-        cavity_feedback_list = self.get_from_all_rf_stations(
-            accessor=lambda rf: rf.get_main_harmonic_cavity_feedback(),
+        # A feedback attached to a non-main harmonic still regulates the
+        # station's gap voltage, so ``any_feedback_not_none`` -- and not
+        # the main-harmonic-only ``get_main_harmonic_cavity_feedback``
+        # -- decides whether a station carries a cavity feedback model.
+        has_cavity_feedback = self.get_from_all_rf_stations(
+            accessor=lambda rf: rf.any_feedback_not_none,
             rf_station_list=self._main_cavities,
         )
 
-        mask = np.array(
-            [x is None for x in cavity_feedback_list.flat], dtype=bool
-        ).reshape(cavity_feedback_list.shape)
+        # Only a MIXTURE is suspicious: a uniformly equipped and a
+        # uniformly unequipped set of stations are both well defined.
+        mixed_configuration = bool(
+            np.any(has_cavity_feedback) and not np.all(has_cavity_feedback)
+        )
 
-        all_none = mask.all()
-        all_not_none = (~mask).all()
-
-        if not all_none or not all_not_none:
+        if mixed_configuration:
             warnings.warn(
                 "Some RF stations acting on the main harmonic do not have a cavity feedback model."
                 "Calculation of cavity sum phase might give incorrect results.",

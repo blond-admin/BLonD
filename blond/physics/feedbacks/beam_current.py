@@ -63,6 +63,79 @@ def low_pass_filter(
     return scipy.signal.filtfilt(b, a, signal)
 
 
+def _check_coarse_index_bounds(
+    ind_fine: NumpyArray,
+    charges_fine: NumpyArray,
+    n_points: int,
+) -> None:
+    """
+    Reject fine-to-coarse write indices that fall outside the grid.
+
+    The coarse grid is not periodic, so an index out of either end is
+    silently wrong rather than merely inaccurate: past the last cell it
+    overwrites an earlier cell (or raises a bare ``IndexError``), and
+    below the first cell NumPy's negative indexing deposits the charge
+    into the *last* cells instead -- about one forward-segment span late,
+    and out of reach of the ``forbid_charge_in_first_coarse_cell`` guard,
+    which only inspects cell 0. Both ends are therefore bounded here.
+
+    The lower bound uses the same relative threshold idiom as the
+    first-coarse-cell guard: far Gaussian tails are non-zero in float
+    arithmetic (~1e-100) without being physically populated, so a
+    charge-free tail sticking out below the grid start only warns, while
+    bins that really carry charge raise.
+
+    Parameters
+    ----------
+    ind_fine : int array
+        Coarse-grid index each fine bin is downsampled into.
+    charges_fine : complex array
+        Demodulated fine-grid charge [C], used to weigh how much charge
+        an out-of-range index actually carries.
+    n_points : int
+        Number of coarse-grid cells.
+
+    Raises
+    ------
+    ValueError
+        If the profile maps past the last coarse cell, or if bins
+        carrying non-negligible charge map before the first one.
+
+    Warns
+    -----
+    UserWarning
+        If bins map before the first coarse cell but carry negligible
+        charge.
+    """
+    negative_bins = ind_fine < 0
+    if np.any(negative_bins):
+        total_charge = np.sum(np.abs(charges_fine))
+        underflow_charge = np.sum(np.abs(charges_fine[negative_bins]))
+        if underflow_charge > 1e-9 * total_charge:
+            raise ValueError(
+                f"Beam charge maps onto coarse-grid index "
+                f"{int(np.min(ind_fine))}, before the start of the coarse "
+                f"grid: {underflow_charge / total_charge:.3e} of the "
+                "demodulated charge lies before the grid start, where it "
+                "would wrap onto the last coarse cells instead. Shift the "
+                "profile window (cut_left), or the beam, so that it lies "
+                "inside the grid."
+            )
+        warnings.warn(
+            "part of the beam is located before turn time 0, "
+            "this will cause problems, please shift the beam",
+            stacklevel=3,
+        )
+    if len(ind_fine) and ind_fine[-1] >= n_points:
+        raise ValueError(
+            f"The profile maps onto coarse-grid index {int(ind_fine[-1])}, "
+            f"past the last cell ({n_points - 1}): the profile window lies "
+            "(partly) after the end of the coarse grid. Shift the profile "
+            "window (cut_left), or the beam, so that it lies inside the "
+            "grid."
+        )
+
+
 def rf_beam_current(
     beam: BeamBaseClass,
     profile: StaticProfile,
@@ -176,8 +249,10 @@ def rf_beam_current(
     ValueError
         If ``forbid_charge_in_first_coarse_cell`` is True and the
         downsampling assigns beam charge to the first coarse-grid cell;
-        or if the profile window is longer than the coarse grid it is
-        downsampled onto, or maps past the last coarse cell.
+        if the profile window is longer than the coarse grid it is
+        downsampled onto, or maps past the last coarse cell, or carries
+        charge before the start of it; or if the profile binning
+        (``hist_step``) is coarser than ``sampling_time``.
     """
     # The cavity-feedback signal processing runs on the host (the cavity
     # response solvers downstream use scipy, which is host-only). Bring the
@@ -285,26 +360,34 @@ def rf_beam_current(
         ),
     )
 
+    # The downsampling loop below derives each coarse cell from
+    # CONSECUTIVE-index steps in ind_fine: its running group counter is the
+    # coarse index, which only holds while ind_fine advances by at most 1
+    # per fine bin. A fine grid coarser than the coarse grid lets the
+    # rounded index jump by 2 or more, the counter falls behind, and the
+    # charge is placed at the WRONG TIME while the total stays conserved --
+    # silent corruption. Reachable from a legitimate-looking setup, since
+    # sub-stepping (n_rf_periods_per_coarse_grid < 1) shrinks
+    # sampling_time.
+    hist_step = float(profile.hist_step)
+    if hist_step > sampling_time:
+        raise ValueError(
+            f"The profile binning (hist_step={hist_step} s) is coarser "
+            f"than the coarse grid it is downsampled onto "
+            f"(sampling_time={sampling_time} s). The downsampling assumes "
+            "at least one fine bin per coarse cell; a coarser profile "
+            "makes the coarse index jump, which places charge at the "
+            "wrong time while conserving the total. Bin the profile more "
+            "finely, or use a larger n_rf_periods_per_coarse_grid."
+        )
+
     # Downsample onto the coarse grid. The mapping is centred on half a
     # coarse cell (the coarse bin centre) and shifted by dT.
     coarse_center_offset = sampling_time / 2
     ind_fine = np.round((hist_x + dT - coarse_center_offset) / sampling_time)
     ind_fine = np.array(ind_fine, dtype=int)
     indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-    if np.any(ind_fine < 0):
-        warnings.warn(
-            "part of the beam is located before turn time 0, "
-            "this will cause problems, please shift the beam",
-            stacklevel=2,
-        )
-    if len(ind_fine) and ind_fine[-1] >= n_points:
-        raise ValueError(
-            f"The profile maps onto coarse-grid index {int(ind_fine[-1])}, "
-            f"past the last cell ({n_points - 1}): the profile window lies "
-            "(partly) after the end of the coarse grid. Shift the profile "
-            "window (cut_left), or the beam, so that it lies inside the "
-            "grid."
-        )
+    _check_coarse_index_bounds(ind_fine, charges_fine, n_points)
 
     charges_coarse = np.zeros(n_points, dtype=complex)
     if len(indices) == 0:
@@ -314,10 +397,13 @@ def rf_beam_current(
         # Pick total current within one coarse grid
         charges_coarse[ind_fine[0]] = np.sum(charges_fine[: indices[0]])
         for i in range(1, len(indices)):
-            # Every write index is inside the grid: check_fits_in_span and
-            # the ind_fine[-1] bound above reject the only inputs that
-            # could leave it -- the coarse grid is not periodic, so a wrap
-            # would overwrite, not accumulate.
+            # Every write index is inside the grid: the guards above
+            # bound it on both sides -- check_fits_in_span and the
+            # ind_fine[-1] bound reject anything past the last cell, the
+            # negative-index guard anything before the first. Both
+            # matter, because the coarse grid is not periodic: an index
+            # out of either end wraps or overwrites instead of
+            # accumulating.
             charges_coarse[i + ind_fine[0]] = np.sum(
                 charges_fine[indices[i - 1] : indices[i]]
             )

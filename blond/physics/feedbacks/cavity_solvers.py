@@ -446,7 +446,8 @@ def exponential_drive_weight(
     advance the recursion by ``omega * dt == 0``), whereas the vectorised
     path never sees one: its caller filters coincident coarse points out of
     the whole segment and defers them to the per-cell reference loop, which
-    warns and skips them. Making the guard elementwise would therefore add a
+    warns and duplicates the previous cell into them rather than advancing
+    the recursion at all. Making the guard elementwise would therefore add a
     full extra pass over every cell of the hot recursion for a branch that is
     unreachable there, so the rank test is deliberate rather than an
     oversight.
