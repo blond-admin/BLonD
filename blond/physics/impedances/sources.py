@@ -282,7 +282,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
                 "`freq_x` must be a half spectrum starting at 0 Hz."
             )
             assert float(freq_x[-1]) > 0.0, (
-                "`freq_x` must be a half spectrum with a positive Nyquist."
+                "`freq_x` must be a half spectrum with a positive Nyquist frequency."
             )
             hist_step = 0.5 / float(freq_x[-1])
         h = hist_step
