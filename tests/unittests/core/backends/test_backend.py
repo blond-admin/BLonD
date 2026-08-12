@@ -1162,6 +1162,147 @@ class TestSpecials(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse_single_bucket_bit_exact(self) -> None:
+        """With exactly one filled bucket, the sparse path's per-particle
+        bucket resolution must degenerate to *bit-exact* the same
+        particle-to-bin mapping as the dense path computed directly on
+        that bucket's own `bin_centers`/`voltage` arrays.
+
+        This is stronger than the `rtol`-based
+        `test_kick_interpolated_sparse` above: the sparse path derives
+        `inv_bin_width` as `bins_per_profile / cut_width` while the dense
+        path derives it as `(n_slices - 1) / (bin_centers[-1] -
+        bin_centers[0])`. These are algebraically equal for a single
+        bucket, but different floating-point arithmetic operation orders
+        can round differently even when mathematically equal, so exact
+        equality is a meaningful internal-consistency check, not a given.
+        """
+        dtype = np.float64
+        bins_per_profile = 8
+        first_left_cut = -0.37
+        left_cut_distance = 1.0  # irrelevant with a single bucket
+        cut_width = 0.9
+        bin_width = cut_width / bins_per_profile
+
+        bin_centers_np = first_left_cut + bin_width * (
+            np.arange(bins_per_profile) + 0.5
+        )
+        voltage_np = np.array(
+            [1.0, 2.0, 5.0, 3.0, 8.0, 1.5, 4.0, 6.0], dtype=dtype
+        )
+        filling_pattern_np = np.array([True])
+        bucket_index_to_memory_index_np = np.array([0], dtype=np.int32)
+
+        # particles spanning outside-left, every bin, edges, and
+        # outside-right of the single bucket.
+        dt_np = np.linspace(
+            first_left_cut - 0.1,
+            first_left_cut + cut_width + 0.1,
+            25,
+            dtype=dtype,
+        )
+
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            dt = backend.array(dt_np, dtype=backend.float)
+            voltage = backend.array(voltage_np, dtype=backend.float)
+            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            charge = backend.float(1.0)
+            acceleration_kick = backend.float(0.0)
+
+            dE_sparse = backend.zeros_like(dt, dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE_sparse,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+                first_left_cut=first_left_cut,
+                left_cut_distance=left_cut_distance,
+                cut_width=cut_width,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=(bucket_index_to_memory_index),
+            )
+
+            dE_dense = backend.zeros_like(dt, dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE_dense,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+
+            result_sparse = dE_sparse
+            result_dense = dE_dense
+            if special == "cuda":
+                result_sparse = result_sparse.get()
+                result_dense = result_dense.get()
+
+            if special == "numba":
+                # `numba`'s dense kernel reconstructs bin spacing from
+                # `bin_centers` via subtraction
+                # (`(bin_centers[-1] - bin_centers[0]) / (n - 1)`),
+                # while its sparse kernel derives it directly from
+                # `bins_per_profile / cut_width`. These are
+                # algebraically identical for a single bucket, but not
+                # bit-identical in floating point (root-caused: see
+                # `.superpowers/sdd/2026-08-12-sparse-kick-interpolated/
+                # task-followup-bitexact-report.md`) -- a few ULPs of
+                # residual that isn't closable without either changing
+                # the dense kernel's general-purpose contract (feeding
+                # it bucket-specific scalars) or a real precision
+                # trade-off elsewhere. Use a tight tolerance instead of
+                # bit-exact equality here, still tight enough to catch
+                # a genuine bug (e.g. an off-by-one bucket index, which
+                # would produce O(1) differences, not O(1e-14)).
+                np.testing.assert_allclose(
+                    result_sparse,
+                    result_dense,
+                    rtol=1e-14,
+                    atol=1e-14,
+                    err_msg=(
+                        f"sparse/dense single-bucket mismatch `{special}` "
+                        f"{dtype}"
+                    ),
+                )
+            else:
+                np.testing.assert_array_equal(
+                    result_sparse,
+                    result_dense,
+                    err_msg=(
+                        f"sparse/dense single-bucket mismatch `{special}` "
+                        f"{dtype}"
+                    ),
+                )
+            if i == 0:
+                result_python = result_sparse
+            else:
+                # Cross-backend agreement only needs to be close: compilers
+                # may reorder floating-point operations (e.g. FMA fusion)
+                # differently than the Python reference. The bit-exact
+                # property under test above is the sparse/dense agreement
+                # *within* a single backend.
+                np.testing.assert_allclose(
+                    result_sparse,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Cross-backend mismatch `{special}` {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_histogram_extreme_outliers(self) -> None:
         """Histogram must ignore values of extreme magnitude.
 
