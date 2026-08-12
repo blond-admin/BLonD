@@ -114,5 +114,5 @@ def test_solvers_agree_on_inductive_impedance(n_zeros):
             rtol=1e-10,
             atol=np.abs(reference).max() * 1e-12,
             err_msg=f"The solver {name} failed to achieve"
-                    f" the required accuracy.",
+            f" the required accuracy.",
         )
