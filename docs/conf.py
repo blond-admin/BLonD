@@ -335,6 +335,14 @@ nitpick_ignore_regex = [
     # diagrams, but they have no documented page to link to.
     (r"py:.*", r"blond\.experimental\..*"),
     (r"py:.*", r"blond\.interfaces\.xsuite\..*"),
+    (
+        r"py:class",
+        r"blond\.physics\.feedbacks\.cavity_feedback\.Buffer(Coarse|Fine)",
+    ),
+    (
+        r"py:obj",
+        r"blond\.physics\.feedbacks\.cavity_feedback\.Buffer(Coarse|Fine)",
+    ),
 ]
 
 

@@ -79,6 +79,15 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         Section index of the feedback.
     name
         Name of the feedback.
+
+    Attributes
+    ----------
+    buffer_cls_coarse
+        Concrete buffer class used to store coarse-grid data. Must be
+        set by subclasses.
+    buffer_cls_fine
+        Concrete buffer class used to store fine-grid data. Must be
+        set by subclasses.
     """
 
     buffer_cls_coarse: ClassVar[type[BufferCoarse]]
