@@ -12,15 +12,18 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     Numpy64Bit,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
+    WakeField,
     backend,
     make_multibunch_beam,
     momentum_compaction_factor,
     proton,
 )
+from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 resonator_data = np.loadtxt(
@@ -161,6 +164,105 @@ class TestSparseProfileIntegration(unittest.TestCase):
 
         sim.run_simulation(beams=beam, n_turns=1)
         return profile, profile_wanted
+
+    @pytest.mark.backend_mutation
+    def test_induced_voltage_track_with_gapped_filling_pattern_does_not_raise(
+        self,
+    ):
+        # Build the same simulation as _exec_full_sim_with_profiles, but
+        # swap the filling pattern used for the EquidistantMultiProfile to
+        # one with a genuine internal gap (fill/fill/empty/empty, repeated,
+        # not merely a shorter contiguous run followed by trailing zeros),
+        # attach a real resonator impedance, then run
+        # `WakeField._track()` and confirm it completes without the
+        # `ValueError` raised by `kick_interpolated`'s uniform-spacing
+        # guard, and that a non-zero kick was actually applied.
+        backend.change_backend(Numpy64Bit)
+
+        ring = Ring(
+            circumference=6911.56,
+        )
+        magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=sync_momentum,
+            in_unit="momentum",
+        )
+        _bunch = Beam(
+            intensity=1e10,
+            particle_type=proton,
+        )
+        drift = DriftSimple(
+            momentum_compaction_factor=momentum_compaction_factor(
+                22.82177322938192
+            ),
+            orbit_length=1.0 * ring.circumference,
+        )
+        rf_station = SingleHarmonicRFStation(
+            harmonic=4620,
+            voltage=0.9e6,
+            phi_rf=0.0,
+        )
+        t_rf = (
+            magnetic_cycle.get_t_rev_init(
+                ring.circumference,
+                particle_type=proton,
+            )
+            / rf_station.harmonic
+        )
+
+        # Genuine internal gap: two filled buckets, two empty buckets,
+        # repeated across the whole ring -- as opposed to one contiguous
+        # run of filled buckets followed by zero-padding at the end.
+        bucket_index = np.arange(rf_station.harmonic)
+        filling_pattern = (bucket_index % 4) < 2
+
+        profile = EquidistantMultiProfile(
+            filling_pattern=filling_pattern,
+            bins_per_profile=2**8,
+            offset=0,
+        )
+        wakefield = WakeField(
+            sources=(Resonators(R_shunt, f_res, Q_factor),),
+            solver=MultiPoleSparseSolve(),
+            profile=profile,
+        )
+        ring.add_elements((wakefield, rf_station, drift), reorder=True)
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+
+        sim.prepare_beam(
+            preparation_routine=BiGaussian(
+                sigma_dt=2e-9 / 4,
+                seed=1,
+                n_macroparticles=1e4,
+            ),
+            beam=_bunch,
+        )
+
+        beam = make_multibunch_beam(
+            beam=_bunch,
+            n_times=int(rf_station.harmonic // 10),
+            t_distance=t_rf * 10,
+        )
+        dE_before = beam.dE.copy_as_numpy()
+
+        # Isolate the wakefield's kick: no drift, no RF kick, so any
+        # change in `dE` after tracking can only come from
+        # `WakeField._track()` -> `kick_interpolated`.
+        drift.orbit_length = 0
+        rf_station.voltage = 0.0
+        sim.check_circumference = "ignore"
+
+        sim.run_simulation(beams=beam, n_turns=1)
+
+        dE_after = beam.dE.copy_as_numpy()
+        self.assertFalse(
+            np.allclose(dE_before, dE_after),
+            "Expected the sparse-aware induced-voltage kick to "
+            "change dE, but dE was unchanged.",
+        )
 
 
 if __name__ == "__main__":
