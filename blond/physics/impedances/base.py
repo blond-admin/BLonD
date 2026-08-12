@@ -510,7 +510,11 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             f" {len(induced_voltage)} samples, but the profile"
             f" has {self.profile.n_bins} bins."
         )
-        self._induced_voltage = induced_voltage
+        # Some solvers (e.g. FFT-based convolution) zero-pad to a
+        # convenient transform length and return more samples than
+        # there are profile bins; only the leading `n_bins` samples
+        # correspond to the profile and are physically meaningful.
+        self._induced_voltage = induced_voltage[: self.profile.n_bins]
         # the induced voltage has to be provided with the backend precision
         # because the track() method below requires it by calling the backend.
         return self.induced_voltage
