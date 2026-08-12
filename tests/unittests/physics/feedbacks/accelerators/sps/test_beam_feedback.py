@@ -22,6 +22,7 @@ from blond.experimental.physics.feedbacks.base import (
 from blond.physics.feedbacks.accelerators.sps import (
     SPSBeamControl,
 )
+from blond.physics.feedbacks.buffers import BufferBase, TwoTurnArray
 
 circumference = 2 * np.pi * 1100.009  # [m]
 momentum = 25.92e9
@@ -85,15 +86,20 @@ class TestSPSBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             self.cavity_feedback = Mock(spec=LocalFeedback)
-            self.cavity_feedback.relative_amplitude_correction = None
+            coarse_buffer = Mock(spec=BufferBase)
+
             n_coarse = h
             self.cavity_feedback.n_coarse = n_coarse
-            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse = TwoTurnArray(n_coarse, dtype=complex)
             _i_coarse[0] = 1.5 + 0 * 1j
-            self.cavity_feedback.I_BEAM_COARSE = _i_coarse
-            _v_ant = np.zeros(n_coarse, dtype=complex)
+            coarse_buffer.i_beam = _i_coarse
+
+            _v_ant = TwoTurnArray(n_coarse, dtype=complex)
             _v_ant[:] = voltage_200 * np.exp(1j * 10 / 180 * np.pi)
-            self.cavity_feedback.V_ANT_COARSE = _v_ant
+            coarse_buffer.v_ant = _v_ant
+
+            self.cavity_feedback.buffers_coarse = coarse_buffer
+            self.cavity_feedback.relative_amplitude_correction = None
         else:
             self.cavity_feedback = None
 

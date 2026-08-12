@@ -22,6 +22,7 @@ from blond.physics.feedbacks.accelerators.lhc import (
 from blond.physics.feedbacks.base import (
     LocalFeedback,
 )
+from blond.physics.feedbacks.buffers import BufferBase, TwoTurnArray
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -68,15 +69,20 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
-            cavity_feedback.relative_amplitude_correction = None
+            coarse_buffer = Mock(spec=BufferBase)
+
             n_coarse = 3564
             cavity_feedback.n_coarse = n_coarse
-            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse = TwoTurnArray(n_coarse, dtype=complex)
             _i_coarse[0] = 1.5 + 0 * 1j
-            cavity_feedback.I_BEAM_COARSE = _i_coarse
-            _v_ant = np.zeros(n_coarse, dtype=complex)
+            coarse_buffer.i_beam = _i_coarse
+
+            _v_ant = TwoTurnArray(n_coarse, dtype=complex)
             _v_ant[:] = voltage * np.exp(1j * 10 / 180 * np.pi)
-            cavity_feedback.V_ANT_COARSE = _v_ant
+            coarse_buffer.v_ant = _v_ant
+
+            cavity_feedback.buffers_coarse = coarse_buffer
+            cavity_feedback.relative_amplitude_correction = None
         else:
             cavity_feedback = None
 
@@ -189,15 +195,20 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
-            cavity_feedback.relative_amplitude_correction = None
+            coarse_buffer = Mock(spec=BufferBase)
+
             n_coarse = 3564
             cavity_feedback.n_coarse = n_coarse
-            _i_coarse = np.zeros(n_coarse, dtype=complex)
+            _i_coarse = TwoTurnArray(n_coarse, dtype=complex)
             _i_coarse[0] = 1.5 + 0 * 1j
-            cavity_feedback.I_BEAM_COARSE = _i_coarse
-            _v_ant = np.zeros(n_coarse, dtype=complex)
+            coarse_buffer.i_beam = _i_coarse
+
+            _v_ant = TwoTurnArray(n_coarse, dtype=complex)
             _v_ant[:] = voltage * np.exp(1j * 10 / 180 * np.pi)
-            cavity_feedback.V_ANT_COARSE = _v_ant
+            coarse_buffer.v_ant = _v_ant
+
+            cavity_feedback.buffers_coarse = coarse_buffer
+            cavity_feedback.relative_amplitude_correction = None
         else:
             cavity_feedback = None
 

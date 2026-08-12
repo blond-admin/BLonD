@@ -42,6 +42,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import RFStationBaseClass
+    from blond.physics.feedbacks.base import LocalFeedback
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -297,36 +298,25 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         filled_slots: NumpyArray | None = None
         cavity_sum: NumpyArray | None = None
 
-        # TODO: Remove warning with cavity feedback MR
-        warnings.warn(
-            "Cavity feedbacks are not yet implemented.", stacklevel=1
-        )
-
         # iterate over rf stations on the main harmonic
         # TODO: Handling of simulations with some main rf stations without cavity FB and some with
         for cav in self._main_cavities:
             # Get cavity feedback on main harmonic for every rf station
-            _cavity_feedback = cav.get_main_harmonic_cavity_feedback()
+            _cavity_feedback: LocalFeedback = (
+                cav.get_main_harmonic_cavity_feedback()
+            )
 
             # If the cavity is not None then add its contribution to the cavity sum
             if _cavity_feedback is not None and filled_slots is None:
                 filled_slots = (
-                    np.abs(
-                        _cavity_feedback.I_BEAM_COARSE[
-                            -_cavity_feedback.n_coarse :
-                        ]
-                    )
+                    np.abs(_cavity_feedback.buffers_coarse.i_beam[:])
                     > current_thres
                 )
 
-                cavity_sum = _cavity_feedback.V_ANT_COARSE[
-                    -_cavity_feedback.n_coarse :
-                ]
+                cavity_sum = _cavity_feedback.buffers_coarse.v_ant[:]
 
             elif _cavity_feedback is not None and filled_slots is not None:
-                cavity_sum += _cavity_feedback.V_ANT_COARSE[
-                    -_cavity_feedback.n_coarse :
-                ]
+                cavity_sum += _cavity_feedback.buffers_coarse.v_ant[:]
 
         if cavity_sum is not None:
             cavity_sum_phase = np.angle(cavity_sum)
