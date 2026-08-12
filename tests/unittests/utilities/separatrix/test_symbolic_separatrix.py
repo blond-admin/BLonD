@@ -102,13 +102,15 @@ class TestSymbolicSeparatrixHelper(unittest.TestCase):
         t1 = beam1.dt.max()
         r = t1 - t0
         trange0_ = (t0 - 2 * r, t1 + 2 * r)
-        plt.figure("Dynamic beam")
-        plt.xlim(trange0_)
+        if DEV_DRAW:
+            plt.figure("Dynamic beam")
+            plt.xlim(trange0_)
 
         def custom_action(simulation: Simulation, beam: Beam):
-            plt.figure("Dynamic beam")
+            if DEV_DRAW:
+                plt.figure("Dynamic beam")
+                beam.plot_scatter()
             dt = beam.read_partial_dt()
-            beam.plot_scatter()
             separatrix_dE = SymbolicSeparatrixHelper.from_simulation(
                 simulation=sim
             ).get_separatrix(
