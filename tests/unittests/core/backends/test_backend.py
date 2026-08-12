@@ -964,6 +964,41 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_rejects_non_uniform_bin_centers(self) -> None:
+        """Non-uniform bin_centers (e.g. a sparse multi-island hist_x from
+        EquidistantMultiProfile) must raise, not silently compute the wrong
+        physics by assuming a global uniform grid."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            # islands: uniform within [0, 4) and [10, 14), gap in between
+            bin_centers_np = np.concatenate(
+                [
+                    np.linspace(0, 4, 10, endpoint=False),
+                    np.linspace(10, 14, 10, endpoint=False),
+                ]
+            )
+            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
+            voltage = bin_centers**2
+            charge = backend.float(10)
+            acceleration_kick = backend.float(0.5)
+            with self.assertRaises(ValueError):
+                backend.specials.kick_interpolated(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
+
+    @pytest.mark.backend_mutation
     def test_histogram_extreme_outliers(self) -> None:
         """Histogram must ignore values of extreme magnitude.
 

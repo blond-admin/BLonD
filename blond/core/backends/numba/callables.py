@@ -225,6 +225,40 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
 )
 _lost = BeamFlags.LOST.value
 
+
+@njit(
+    sig_kick_interpolated,
+    parallel=True,
+    fastmath=True,
+    cache=True,
+)
+def _kick_interpolated_dense_nb(  # NOQA PLR0915
+    dt: NumpyArray,
+    dE: NumpyArray,
+    voltage: NumpyArray,
+    bin_centers: NumpyArray,
+    charge: float,
+    acceleration_kick: float,
+) -> None:
+    dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
+    inv_dx = 1 / dx
+    x_min = bin_centers[0]
+    x_max = bin_centers[-1]
+    for i in prange(len(dE)):
+        x = dt[i]
+
+        if x < x_min or x >= x_max:
+            continue
+        else:
+            idx = int((x - x_min) * inv_dx)
+            x0 = x_min + idx * dx
+            y0 = voltage[idx]
+            y1 = voltage[idx + 1]
+
+            v = y0 + (y1 - y0) * inv_dx * (x - x0)
+            dE[i] += charge * v + acceleration_kick
+
+
 sig_apply_sr_without_quantum_excitation = void(sig_dE, nb_f, nb_f)
 sig_apply_sr_with_quantum_excitation = void(sig_dE, nb_f, nb_f, nb_f)
 
@@ -527,13 +561,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
     @staticmethod
     @enforce_precision(FLOAT)
-    @njit(
-        sig_kick_interpolated,
-        parallel=True,
-        fastmath=True,
-        cache=True,
-    )
-    def kick_interpolated(  # NOQA PLR0915 # NOQA: D102
+    def kick_interpolated(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -541,25 +569,24 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         charge: float,
         acceleration_kick: float,
     ) -> None:
-        dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
-        inv_dx = 1 / dx
-        x_min = bin_centers[0]
-        x_max = bin_centers[-1]
-        for i in prange(len(dE)):
-            x = dt[i]
-
-            if x < x_min or x >= x_max:
-                continue
-            else:
-                idx = int((x - x_min) * inv_dx)
-                x0 = x_min + idx * dx
-                # x1 = x0 + dx
-                y0 = voltage[idx]
-                y1 = voltage[idx + 1]
-
-                # Linear interpolation
-                v = y0 + (y1 - y0) * inv_dx * (x - x0)
-                dE[i] += charge * v + acceleration_kick
+        n_slices = len(bin_centers)
+        if n_slices >= 2:  # noqa: PLR2004
+            diffs = np.diff(bin_centers)
+            if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
+                raise ValueError(
+                    "bin_centers is not uniformly spaced (looks like a "
+                    "sparse/multi-island EquidistantMultiProfile.hist_x). "
+                    "Either pass this profile's sparse metadata "
+                    "(first_left_cut, left_cut_distance, cut_width, "
+                    "bins_per_profile, filling_pattern, "
+                    "bucket_index_to_memory_index), e.g. via "
+                    "`profile.sparse_kick_metadata`, or use "
+                    "EquidistantMultiProfile.profiles[i].hist_x for a "
+                    "single bucket."
+                )
+        _kick_interpolated_dense_nb(
+            dt, dE, voltage, bin_centers, charge, acceleration_kick
+        )
 
     @staticmethod
     def move_flagged_elements_to_end(  # NOQA PLR0915 # NOQA: D102
