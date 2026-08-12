@@ -118,6 +118,35 @@ class TestEquidistantMultiProfile(unittest.TestCase):
                     copy_to_cpu(profile_expected.hist_y),
                 )
 
+    def test_sparse_kick_metadata(self):
+        profile = EquidistantMultiProfile.headless(
+            t_rev=4.0,
+            filling_pattern=np.array([1, 0, 0, 1]),
+            bins_per_profile=4,
+        )
+        meta = profile.sparse_kick_metadata
+        self.assertEqual(
+            set(meta.keys()),
+            {
+                "first_left_cut",
+                "left_cut_distance",
+                "cut_width",
+                "bins_per_profile",
+                "filling_pattern",
+                "bucket_index_to_memory_index",
+            },
+        )
+        self.assertAlmostEqual(meta["first_left_cut"], 0.0)
+        self.assertAlmostEqual(meta["left_cut_distance"], 1.0)
+        self.assertAlmostEqual(meta["cut_width"], 1.0)
+        self.assertEqual(meta["bins_per_profile"], 4)
+        np.testing.assert_array_equal(
+            meta["filling_pattern"], np.array([True, False, False, True])
+        )
+        np.testing.assert_array_equal(
+            meta["bucket_index_to_memory_index"], np.array([0, 0, 0, 4])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
