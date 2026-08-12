@@ -238,6 +238,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1095,6 +1101,12 @@ class SingleHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1446,6 +1458,13 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+            Must currently be uniformly spaced (e.g. the `hist_x` of
+            a `StaticProfile`) -- `kick_interpolated`'s
+            uniform-spacing guard raises `ValueError` on a gapped,
+            multi-bucket-island array such as
+            `EquidistantMultiProfile.hist_x`, since the sparse-profile
+            metadata needed to resolve particles to their own bucket
+            is not (yet) forwarded through this parameter.
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
 
@@ -1595,6 +1614,12 @@ class MultiHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1995,6 +2020,13 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+            Must currently be uniformly spaced (e.g. the `hist_x` of
+            a `StaticProfile`) -- `kick_interpolated`'s
+            uniform-spacing guard raises `ValueError` on a gapped,
+            multi-bucket-island array such as
+            `EquidistantMultiProfile.hist_x`, since the sparse-profile
+            metadata needed to resolve particles to their own bucket
+            is not (yet) forwarded through this parameter.
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
 
