@@ -79,13 +79,14 @@ class TestResonatorImpedances(unittest.TestCase):
             beam.setup_beam(dt=distr[:, 0] + 5, dE=distr[:, 1])
             profile.track(beam)
             profile._hist_y[3000:] = 0
-            plt.figure(0)
-            plt.subplot(2, 1, 1)
-            plt.plot(
-                profile.hist_x,
-                profile.hist_y,
-                ["-", "--", ":"][i],
-            )
+            if DEV_PLOT:
+                plt.figure(0)
+                plt.subplot(2, 1, 1)
+                plt.plot(
+                    profile.hist_x,
+                    profile.hist_y,
+                    ["-", "--", ":"][i],
+                )
 
             wake = WakeField(
                 sources=(resonators,),
