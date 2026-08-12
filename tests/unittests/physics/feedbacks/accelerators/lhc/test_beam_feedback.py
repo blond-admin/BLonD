@@ -68,6 +68,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
+            cavity_feedback.relative_amplitude_correction = None
             n_coarse = 3564
             cavity_feedback.n_coarse = n_coarse
             _i_coarse = np.zeros(n_coarse, dtype=complex)
@@ -188,6 +189,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             cavity_feedback = Mock(spec=LocalFeedback)
+            cavity_feedback.relative_amplitude_correction = None
             n_coarse = 3564
             cavity_feedback.n_coarse = n_coarse
             _i_coarse = np.zeros(n_coarse, dtype=complex)

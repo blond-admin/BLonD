@@ -34,19 +34,19 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
-from blond.experimental.physics.feedbacks.base import (
-    LocalFeedback,
-)
-from blond.experimental.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedback,
-)
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
 from blond.physics.drifts import DriftSimple
+from blond.physics.feedbacks.base import (
+    LocalFeedback,
+)
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
+from blond.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
+)
 from blond.physics.impedances.base import WakeField
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
@@ -116,6 +116,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             )
 
         cavity_feedback_good = Mock(spec=LocalFeedback)
+        cavity_feedback_good.relative_amplitude_correction = None
 
         mhc = MultiHarmonicRFStation.headless(
             section_index=1,
@@ -201,10 +202,10 @@ class TestRFStationBaseClass(unittest.TestCase):
             )
 
         cav_fb_0 = Mock(spec=LocalFeedback)
-        cav_fb_0.relative_voltage_correction = np.ones(len(ts)) * 5
+        cav_fb_0.relative_amplitude_correction = np.ones(len(ts)) * 5
         cav_fb_0.phase_correction = np.arange(0.1, 0.7, 100)
         cav_fb_2 = Mock(spec=LocalFeedback)
-        cav_fb_2.relative_voltage_correction = np.ones(len(ts)) * 10
+        cav_fb_2.relative_amplitude_correction = np.ones(len(ts)) * 10
         cav_fb_2.phase_correction = np.arange(0.7, 1.7, len(ts))
         mhc.cavity_feedback_list = [cav_fb_0, None, cav_fb_2, None]
         cav_fb_0.profile = Mock(spec=StaticProfile)
@@ -245,6 +246,7 @@ class TestRFStationBaseClass(unittest.TestCase):
 
     def test_attach_cavity_feedback(self):
         cavity_feedback_good = Mock(spec=LocalFeedback)
+        cavity_feedback_good.relative_amplitude_correction = None
 
         mhc = MultiHarmonicRFStation(
             section_index=1,
@@ -318,7 +320,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         cavity_feedback_good.track = dummy_track
         cavity_feedback_good.profile = prof
         cavity_feedback_good.phase_correction = 0
-        cavity_feedback_good.relative_voltage_correction = 0
+        cavity_feedback_good.relative_amplitude_correction = 0
 
         mhc = SingleHarmonicRFStation(
             section_index=1,
@@ -376,7 +378,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         cavity_feedback_good.track = dummy_track
         cavity_feedback_good.profile = prof
         cavity_feedback_good.phase_correction = 0
-        cavity_feedback_good.relative_voltage_correction = 0
+        cavity_feedback_good.relative_amplitude_correction = 0
 
         mhc = MultiHarmonicRFStation(
             section_index=1,
@@ -717,6 +719,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test_delayed_kick_with_feedback_requires_time_axis(self):
         cavity_feedback = Mock(spec=LocalFeedback)
+        cavity_feedback.relative_amplitude_correction = None
         with self.assertRaises(AssertionError):
             MultiHarmonicRFStation.headless(
                 section_index=0,
@@ -775,7 +778,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         cavity_feedback.profile = Mock(spec=StaticProfile)
         cavity_feedback.profile.n_bins = 10
         cavity_feedback.profile.hist_x = np.linspace(1, 2, 10)
-        cavity_feedback.relative_voltage_correction = np.linspace(1, 2, 10)
+        cavity_feedback.relative_amplitude_correction = np.linspace(1, 2, 10)
         cavity_feedback.phase_correction = np.linspace(1, 2, 10)
         multi_harmonic_cavity = MultiHarmonicRFStation.headless(
             section_index=0,
@@ -1227,6 +1230,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
     def test_delayed_kick_with_feedback_requires_time_axis(self):
         cavity_feedback = Mock(spec=LocalFeedback)
+        cavity_feedback.relative_amplitude_correction = None
         with self.assertRaises(AssertionError):
             SingleHarmonicRFStation.headless(
                 section_index=0,
@@ -1282,7 +1286,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         cavity_feedback.profile = Mock(spec=StaticProfile)
         cavity_feedback.profile.n_bins = 10
         cavity_feedback.profile.hist_x = np.linspace(1, 2, 10)
-        cavity_feedback.relative_voltage_correction = np.linspace(1, 2, 10)
+        cavity_feedback.relative_amplitude_correction = np.linspace(1, 2, 10)
         cavity_feedback.phase_correction = np.linspace(1, 2, 10)
         multi_harmonic_cavity = SingleHarmonicRFStation.headless(
             section_index=0,

@@ -85,6 +85,7 @@ class TestSPSBeamFeedback(unittest.TestCase):
 
         if mock_cavity_feedback:
             self.cavity_feedback = Mock(spec=LocalFeedback)
+            self.cavity_feedback.relative_amplitude_correction = None
             n_coarse = h
             self.cavity_feedback.n_coarse = n_coarse
             _i_coarse = np.zeros(n_coarse, dtype=complex)
