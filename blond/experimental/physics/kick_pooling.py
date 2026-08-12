@@ -73,6 +73,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         self._maxsize = maxsize
         self._buffer_voltage = OrderedDict()
         self._buffer_time_axis = OrderedDict()
+        self._buffer_sparse_metadata = OrderedDict()
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -127,8 +128,14 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         """
         self._buffer_voltage.clear()
         self._buffer_time_axis.clear()
+        self._buffer_sparse_metadata.clear()
 
-    def register(self, time_axis: NumpyArray, voltage: NumpyArray) -> None:
+    def register(
+        self,
+        time_axis: NumpyArray,
+        voltage: NumpyArray,
+        sparse_metadata: dict | None = None,
+    ) -> None:
         """
         Register a voltage to be applied with the next `track` invocation.
 
@@ -138,6 +145,14 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             Time axis of the voltage, in [s].
         voltage
             Voltage along the time axis, in [V].
+        sparse_metadata
+            Sparse-metadata kwargs for `kick_interpolated`
+            (`first_left_cut`, `left_cut_distance`, `cut_width`,
+            `bins_per_profile`, `filling_pattern`,
+            `bucket_index_to_memory_index`), e.g.
+            `EquidistantMultiProfile.sparse_kick_metadata`. Pass this
+            when `time_axis` is a gapped, multi-island array. When
+            omitted, `time_axis` must be uniformly spaced.
         """
 
         key = id(time_axis)
@@ -157,6 +172,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 time_axis.copy(),
                 dtype=backend.float,
             )
+            self._buffer_sparse_metadata[key] = sparse_metadata
 
             # Enforce maxsize
             if len(self._buffer_voltage) > self._maxsize:
@@ -169,10 +185,12 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 )
                 oldest_key, _ = self._buffer_voltage.popitem(last=False)
                 self._buffer_time_axis.pop(oldest_key, None)
+                self._buffer_sparse_metadata.pop(oldest_key, None)
         else:
             # Move to end to mark as recently used (optional)
             self._buffer_voltage.move_to_end(key)
             self._buffer_time_axis.move_to_end(key)
+            self._buffer_sparse_metadata.move_to_end(key)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -187,6 +205,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             if beam.common_array_size > 0:
                 voltage = self._buffer_voltage[key]
                 time = self._buffer_time_axis[key]
+                sparse_metadata = self._buffer_sparse_metadata[key]
                 backend.specials.kick_interpolated(
                     dt=beam.read_partial_dt(),
                     dE=beam.write_partial_dE(),
@@ -194,6 +213,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                     voltage=voltage,
                     charge=beam.particle_type.charge,
                     acceleration_kick=0.0,
+                    **(sparse_metadata or {}),
                 )
 
             # Consume buffer,

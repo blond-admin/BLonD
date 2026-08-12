@@ -66,6 +66,31 @@ class TestPooledInterpolationKick(unittest.TestCase):
             rtol=1e-12,
         )
 
+    def test_register_and_track_with_sparse_metadata(self):
+        # minimal 2-bucket sparse layout, bucket 0 and 1 both filled
+        time_axis = np.array([0.125, 0.375, 0.625, 0.875])
+        voltage = np.array([1.0, 2.0, 3.0, 4.0])
+        sparse_metadata = {
+            "first_left_cut": 0.0,
+            "left_cut_distance": 0.5,
+            "cut_width": 0.5,
+            "bins_per_profile": 2,
+            "filling_pattern": np.array([True, True]),
+            "bucket_index_to_memory_index": np.array([0, 2], dtype=np.int32),
+        }
+        self.pooled_kick.register(
+            time_axis=time_axis,
+            voltage=voltage,
+            sparse_metadata=sparse_metadata,
+        )
+        beam = ProbeBeam(
+            particle_type=lead_82,
+            dt=np.array([0.125]),
+            reference_total_energy=1e12,
+        )
+        self.pooled_kick._track(beam=beam)
+        self.assertNotEqual(beam.dE.copy_as_numpy()[0], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
