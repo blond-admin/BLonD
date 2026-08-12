@@ -95,6 +95,41 @@ grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
+# Cache of uniformity verdicts for `bin_centers` arrays passed to the
+# dense path of `kick_interpolated`. `bin_centers` is rebuilt only on
+# profile reconfiguration (not every turn), so checking it once per
+# distinct array avoids a host<->device sync (`cp.allclose(...).__bool__`)
+# on every call, which would otherwise happen once per RF turn.
+# Keyed by (id, shape, data pointer) since `id()` alone can be reused
+# after an array is garbage collected.
+_MAX_UNIFORMITY_CACHE_SIZE = 64
+_bin_centers_uniformity_cache: dict[tuple[int, tuple, int], bool] = {}
+
+
+def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
+    """Check (and cache) whether `bin_centers` is uniformly spaced.
+
+    The check is memoized per distinct array identity so that the
+    `cp.allclose` host<->device sync only occurs once per distinct
+    `bin_centers` array rather than on every `kick_interpolated` call.
+    """
+    key = (
+        id(bin_centers),
+        tuple(bin_centers.shape),
+        int(bin_centers.data.ptr),
+    )
+    cached = _bin_centers_uniformity_cache.get(key)
+    if cached is not None:
+        return cached
+
+    diffs = cp.diff(bin_centers)
+    is_uniform = bool(cp.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0))
+
+    if len(_bin_centers_uniformity_cache) >= _MAX_UNIFORMITY_CACHE_SIZE:
+        _bin_centers_uniformity_cache.clear()
+    _bin_centers_uniformity_cache[key] = is_uniform
+    return is_uniform
+
 
 class CudaSpecials(Specials):  # NOQA: D101
     @staticmethod
@@ -376,20 +411,20 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         if first_left_cut is None:
             n_slices = bin_centers.size
-            if n_slices >= 2:  # noqa: PLR2004
-                diffs = cp.diff(bin_centers)
-                if not cp.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
-                    raise ValueError(
-                        "bin_centers is not uniformly spaced (looks like "
-                        "a sparse/multi-island "
-                        "EquidistantMultiProfile.hist_x). Either pass "
-                        "this profile's sparse metadata (first_left_cut, "
-                        "left_cut_distance, cut_width, bins_per_profile, "
-                        "filling_pattern, bucket_index_to_memory_index), "
-                        "e.g. via `profile.sparse_kick_metadata`, or use "
-                        "EquidistantMultiProfile.profiles[i].hist_x for "
-                        "a single bucket."
-                    )
+            if n_slices >= 2 and not _is_uniformly_spaced(  # noqa: PLR2004
+                bin_centers
+            ):
+                raise ValueError(
+                    "bin_centers is not uniformly spaced (looks like "
+                    "a sparse/multi-island "
+                    "EquidistantMultiProfile.hist_x). Either pass "
+                    "this profile's sparse metadata (first_left_cut, "
+                    "left_cut_distance, cut_width, bins_per_profile, "
+                    "filling_pattern, bucket_index_to_memory_index), "
+                    "e.g. via `profile.sparse_kick_metadata`, or use "
+                    "EquidistantMultiProfile.profiles[i].hist_x for "
+                    "a single bucket."
+                )
 
             glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
             _gm_linear_interp_kick_help(
