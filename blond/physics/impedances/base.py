@@ -523,6 +523,20 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         )
         voltage = induced_voltage.astype(backend.float)
         bin_centers = self.profile.hist_x  # base for induced voltage
+        dt = beam.read_partial_dt()
+        from blond.physics.profiles_sparse import (
+            EquidistantMultiProfile,  # prevent cyclic import
+        )
+
+        if isinstance(self.profile, EquidistantMultiProfile):
+            # hist_x concatenates the filled buckets only (gapped grid),
+            # but kick_interpolated assumes ONE equidistant grid -- kick
+            # on the packed grid with remapped particle times instead
+            assert self._delayed_kick is None, (
+                "kick pooling does not support EquidistantMultiProfile"
+            )
+            bin_centers = self.profile.packed_hist_x
+            dt = self.profile.map_dt_to_packed(dt)
         if self._delayed_kick is not None:
             # Relies on PooledInterpolationKick.track()
             # being called later.
@@ -532,7 +546,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             )
         else:
             backend.specials.kick_interpolated(
-                dt=beam.read_partial_dt(),
+                dt=dt,
                 dE=beam.write_partial_dE(),
                 # TODO improve induced_voltage calculation data type for speedup
                 voltage=voltage,
