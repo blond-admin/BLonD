@@ -187,6 +187,11 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 self._buffer_time_axis.pop(oldest_key, None)
                 self._buffer_sparse_metadata.pop(oldest_key, None)
         else:
+            # sparse_metadata describes the fixed geometry of
+            # `time_axis`, not an accumulating quantity like
+            # `voltage`: overwrite with the latest call's value.
+            self._buffer_sparse_metadata[key] = sparse_metadata
+
             # Move to end to mark as recently used (optional)
             self._buffer_voltage.move_to_end(key)
             self._buffer_time_axis.move_to_end(key)
