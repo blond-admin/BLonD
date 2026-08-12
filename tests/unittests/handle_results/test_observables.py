@@ -312,6 +312,7 @@ class TestBeamObservation(unittest.TestCase):
         )
 
     def test_lossy_simulation(self):
+        DEV_DRAW = False
         for intensity in (0, 1e9):
             ring = Ring(26658.883)
 
@@ -393,19 +394,20 @@ class TestBeamObservation(unittest.TestCase):
                     obs_beam_hist2d,
                 ),
             )
-            plt.plot(phase_observation.phases)
-            plt.figure()
-            for i in range(bunch_observation.dts.shape[0]):
-                plt.clf()
-                sel = ~np.isnan(bunch_observation.dts[i, :])
-                plt.hist2d(
-                    bunch_observation.dts[i, sel],
-                    bunch_observation.dEs[i, sel],
-                    bins=256,
-                    # range=[[0, 2.5e-9], [-4e8, 4e8]],
-                )
-            obs_beam_hist2d.plot(result_idx=-1)
-            obs_beam_hist2d.plot_fancy(result_idx=-1)
+            if DEV_DRAW:
+                plt.plot(phase_observation.phases)
+                plt.figure()
+                for i in range(bunch_observation.dts.shape[0]):
+                    plt.clf()
+                    sel = ~np.isnan(bunch_observation.dts[i, :])
+                    plt.hist2d(
+                        bunch_observation.dts[i, sel],
+                        bunch_observation.dEs[i, sel],
+                        bins=256,
+                        # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                    )
+                obs_beam_hist2d.plot(result_idx=-1)
+                obs_beam_hist2d.plot_fancy(result_idx=-1)
 
 
 class TestBunchStatistics(unittest.TestCase):

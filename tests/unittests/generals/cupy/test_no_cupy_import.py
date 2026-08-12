@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import matplotlib
-import numba
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
@@ -155,21 +154,21 @@ class TestFunctions(unittest.TestCase):
         except ImportError as exc:
             # skip test if GPU is not available
             self.skipTest(str(exc))
-        self.assertRaises(
-            TypeError, lambda: is_cupy_array(cuda.to_device(np.ones(10)))
-        )
+
+        # is_cupy_array() recognizes a numba.cuda DeviceNDArray purely by
+        # duck-typing its `gpu_data` attribute, so a spec-restricted Mock
+        # exercises that branch without creating a real CUDA context.
+        # (A real `cuda.to_device()` call was used here previously, but
+        # initializing a CUDA context has been observed to segfault the
+        # whole test process on the shared MIG-sliced GPU CI runner.)
+        numba_array_dummy = Mock(spec=[])
+        numba_array_dummy.gpu_data = True
+        with self.assertRaises(TypeError):
+            is_cupy_array(numba_array_dummy)
+
         self.assertEqual(is_cupy_array(cp.ones(10)), True)
 
         self.assertEqual(is_cupy_array(np.ones(10)), False)
         self.assertEqual(is_cupy_array([1, 2, 3]), False)
         self.assertEqual(is_cupy_array("Not an array"), False)
-
-        with self.assertRaises(TypeError):
-            from numba.cuda import to_device
-
-            arr_numba_cuda = to_device(np.ones(10))
-            is_cupy_array(arr_numba_cuda)
-
-        numba_array_dummy = Mock()
-        numba_array_dummy.gpu_data = True
-        self.assertEqual(is_cupy_array(numba.cuda), False)
+        self.assertEqual(is_cupy_array(cuda), False)
