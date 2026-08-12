@@ -454,12 +454,11 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
             self.get_voltage_from_parent_rf_station()
         )
         self.phase_correction = self.alpha_sum - np.mean(
-            np.angle(self.buffers_coarse.v_setpoint.curr)
+            np.angle(self.buffers_coarse.v_setpoint[:])
         )
 
         self.gap_voltage_phase = np.angle(
-            self.buffers_coarse.v_ant.curr
-            / self.buffers_coarse.v_setpoint.curr
+            self.buffers_coarse.v_ant[:] / self.buffers_coarse.v_setpoint[:]
         )
 
     def rf_beam_current(
@@ -486,7 +485,7 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         # Beam current from profile
         (
             self.buffers_fine.i_beam,
-            self.buffers_coarse.i_beam.curr,
+            self.buffers_coarse.i_beam[:],
         ) = rf_beam_current(
             beam=beam,
             profile=self.profile,
@@ -502,8 +501,8 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         self.buffers_fine.i_beam = (
             self.buffers_fine.i_beam / self.profile.hist_step
         )
-        self.buffers_coarse.i_beam.curr = (
-            self.buffers_coarse.i_beam.curr / self.T_s
+        self.buffers_coarse.i_beam[:] = (
+            self.buffers_coarse.i_beam[:] / self.T_s
         )
 
     def set_point_from_rfstation(self) -> NumpyArray:
