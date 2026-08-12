@@ -364,8 +364,8 @@ Induced-voltage classes → solvers:
 |---|---|
 | `InducedVoltageTime(...)` | `TimeDomainFftSolver()` — for profiles short compared with `t_rev` |
 | `InducedVoltageFreq(..., frequency_resolution=Δf)` | `PeriodicFreqSolver(t_periodicity=1/Δf)` |
-| `InducedVoltageResonator(...)` | `SingleTurnResonatorConvolutionSolver()` / `MultiPassResonatorSolver()` |
-| `multi_turn_wake=True`, `mtw_mode=...` | `ContinuousMultiTurnTimeDomainSolver()` / `MultiPassResonatorSolver()`; see `EX_09_Multi_turn_wake.py` |
+| `InducedVoltageResonator(...)` | `blond.physics.impedances.solvers.SingleTurnResonatorConvolutionSolver()` / `blond.physics.impedances.solvers.MultiPassResonatorSolver()` |
+| `multi_turn_wake=True`, `mtw_mode=...` | `blond.physics.impedances.solvers.ContinuousMultiTurnTimeDomainSolver(n_turns=...)` / `blond.physics.impedances.solvers.MultiPassResonatorSolver()`; see `EX_09_Multi_turn_wake.py` |
 | `InductiveImpedance` | `InductiveImpedanceSolver()` |
 | `TotalInducedVoltage([...])` combining several | either several sources in one `WakeField`, or several `WakeField` elements added to the ring (`EX_23` does both) |
 
