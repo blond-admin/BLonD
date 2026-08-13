@@ -25,7 +25,7 @@ from blond import (
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.experimental.simulation.warmup import warmup
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedanceSolver,
