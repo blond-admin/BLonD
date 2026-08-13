@@ -11,11 +11,15 @@ from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
+    Beam,
+    BiGaussian,
     ConstantMagneticCycle,
+    DriftSimple,
     MagneticCyclePerTurn,
     Ring,
     Simulation,
     StaticProfile,
+    make_multibunch_beam,
     positron,
 )
 from blond.acc_math.analytic.hamilton import (
@@ -48,6 +52,7 @@ from blond.physics.cavities import (
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 
@@ -1548,6 +1553,117 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             }
         )
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
+
+
+class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
+    @pytest.mark.backend_mutation
+    @multi_backend_testcase("Numpy64Bit")
+    def test_cavity_feedback_kick_with_gapped_filling_pattern_does_not_raise(
+        self,
+    ):
+        # Real (non-mocked) `SingleHarmonicRFStation` with a real
+        # `IQCavityFeedback` whose `.profile` is an
+        # `EquidistantMultiProfile` with a genuine internal gap
+        # (fill/fill/empty/empty, repeated -- not merely a shorter
+        # contiguous run followed by trailing zeros). This exercises the
+        # `any_feedback_not_none` branch of `_track`, i.e.
+        # `time_axis = self.cavity_feedback_list[0].profile.hist_x`
+        # followed by `_track_interp`, which previously passed the gapped
+        # (non-uniform) `hist_x` straight into `kick_interpolated` with no
+        # sparse metadata.
+        #
+        # Uses `multi_backend_testcase` (rather than a manual
+        # `backend.change_backend(...)`) so the original active
+        # backend is restored after the test, instead of leaking into
+        # whichever test happens to run next.
+        sync_momentum = 25.92e9  # [eV / c]
+        harmonic = 4620
+
+        ring = Ring(circumference=6911.56)
+        magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=sync_momentum,
+            in_unit="momentum",
+        )
+        _bunch = Beam(intensity=1e10, particle_type=proton)
+        drift = DriftSimple(
+            momentum_compaction_factor=0.05,
+            orbit_length=ring.circumference,
+        )
+
+        # Genuine internal gap: two filled buckets, two empty buckets,
+        # repeated across the whole ring -- as opposed to one contiguous
+        # run of filled buckets followed by zero-padding at the end.
+        bucket_index = np.arange(harmonic)
+        filling_pattern = (bucket_index % 4) < 2
+
+        profile = EquidistantMultiProfile(
+            filling_pattern=filling_pattern,
+            bins_per_profile=2**8,
+            offset=0,
+        )
+        cavity_feedback = IQCavityFeedback(
+            profile=profile,
+            n_cavities=1,
+            n_periods_coarse=1,
+            harmonic_index=0,
+        )
+
+        rf_station = SingleHarmonicRFStation(
+            harmonic=harmonic,
+            voltage=0.9e6,
+            phi_rf=0.31,
+            cavity_feedback=cavity_feedback,
+        )
+
+        t_rf = (
+            magnetic_cycle.get_t_rev_init(
+                ring.circumference,
+                particle_type=proton,
+            )
+            / harmonic
+        )
+
+        ring.add_elements((profile, rf_station, drift))
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+        # `profile.hist_x` is only allocated once `on_init_simulation`
+        # has run (triggered above by constructing `Simulation`); set
+        # the feedback's correction arrays on the real, gapped time
+        # axis rather than on the pre-init `None`.
+        cavity_feedback.phase_correction = np.zeros_like(profile.hist_x)
+        cavity_feedback.relative_voltage_correction = np.ones_like(
+            profile.hist_x
+        )
+
+        sim.prepare_beam(
+            preparation_routine=BiGaussian(
+                sigma_dt=2e-9 / 4,
+                seed=1,
+                n_macroparticles=1e4,
+            ),
+            beam=_bunch,
+        )
+
+        beam = make_multibunch_beam(
+            beam=_bunch,
+            n_times=int(harmonic // 10),
+            t_distance=t_rf * 10,
+        )
+        dE_before = beam.dE.copy_as_numpy()
+
+        drift.orbit_length = 0.0
+        sim.check_circumference = "ignore"
+        sim.run_simulation(beams=beam, n_turns=1)
+
+        dE_after = beam.dE.copy_as_numpy()
+        self.assertFalse(
+            np.allclose(dE_before, dE_after),
+            "Expected the sparse-aware cavity feedback kick to change "
+            "dE, but dE was unchanged.",
+        )
 
 
 if __name__ == "__main__":
