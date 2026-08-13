@@ -12,6 +12,7 @@ __all__ = [
     "SemiEmpiricMatcher",
     "ProfileMatcherAddon",
     "PooledInterpolationKick",
+    "warmup",
 ]
 import warnings
 
@@ -22,6 +23,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_de
     ProfileMatcherAddon,
 )
 from blond.experimental.physics.kick_pooling import PooledInterpolationKick
+from blond.experimental.simulation.warmup import warmup
 from blond.generals.warnings_ import ExperimentalFeaturesWarning
 
 _msg = """
