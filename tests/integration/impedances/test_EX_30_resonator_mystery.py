@@ -107,6 +107,7 @@ def test_low_q_resonator_time_matches_freq_end_to_end():  # NOQA: PLR0915
         dE_scale=1,
         dt_scale=bunch_length / 2,
         dt_offset=2.5e-9,
+        seed=0,
     )
 
     number_of_slices = 256
