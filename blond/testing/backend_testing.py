@@ -25,13 +25,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends import backend
-from blond.generals.cupy import no_cupy_import as no_cupy
+from blond.generals.cupy_ import no_cupy_import as no_cupy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
     from blond.core.backends.backend import BackendBaseClass
-    from blond.typing import AnyArray
+    from blond.generals.typing_ import AnyArray
 
 try:
     import cupy  # noqa: F401

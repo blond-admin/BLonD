@@ -34,7 +34,13 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.experimental.physics.feedbacks.base import (
+    LocalFeedback,
+)
+from blond.experimental.physics.feedbacks.cavity_feedback import (
+    IQCavityFeedback,
+)
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,

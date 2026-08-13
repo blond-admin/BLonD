@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from blond import backend, copy_to_cpu
-from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 from blond.generals.distributed.distributed_array import (
     DistributedArray,
     concatenate,

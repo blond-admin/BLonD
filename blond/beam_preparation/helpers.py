@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.beam.base import BeamBaseClass
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.helpers import (
     mpi_aware_random_generator_cpu,
     mpi_local_size,

@@ -596,6 +596,9 @@ class TestStaticProfileObservation(unittest.TestCase):
         type(profile).hist_y = PropertyMock(
             return_value=np.ones(profile.n_bins, dtype=float)
         )
+        type(profile).hist_x = PropertyMock(
+            return_value=np.arange(profile.n_bins, dtype=float)
+        )
         # no changeback required, as this is changed on mocked object
         self.static_profile_observation = StaticProfileObservation(
             each_turn_i=1,
@@ -645,6 +648,27 @@ class TestStaticProfileObservation(unittest.TestCase):
             self.static_profile_observation.update()
 
         assert len(self.static_profile_observation.hist_y) == 1
+
+    def test_plot_waterfall(self) -> None:
+        self.static_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.static_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        self.static_profile_observation.update()
+
+        from matplotlib.collections import QuadMesh
+
+        mesh = self.static_profile_observation.plot_waterfall()
+        assert isinstance(mesh, QuadMesh)
+        np.testing.assert_allclose(
+            mesh.get_array().data.ravel(),
+            self.static_profile_observation.hist_y.ravel(),
+        )
+        plt.close(mesh.axes.figure)
 
 
 class TestWakeFieldObservation(unittest.TestCase):
@@ -777,6 +801,27 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
         np.testing.assert_allclose(
             self.profile.hist_x, self.dynamic_profile_observation.hist_x[0]
         )
+
+    def test_plot_waterfall(self) -> None:
+        self.dynamic_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.dynamic_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        self.dynamic_profile_observation.update()
+
+        from matplotlib.collections import QuadMesh
+
+        mesh = self.dynamic_profile_observation.plot_waterfall()
+        assert isinstance(mesh, QuadMesh)
+        np.testing.assert_allclose(
+            mesh.get_array().data.ravel(),
+            self.dynamic_profile_observation.hist_y.ravel(),
+        )
+        plt.close(mesh.axes.figure)
 
 
 class TestStaticMultiProfileObservation(unittest.TestCase):
