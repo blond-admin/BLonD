@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -34,36 +33,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
     from blond.generals.distributed.distributed_array import DistributedArray
-
-
-@dataclass(frozen=True)
-class BeamStateSnapshot:
-    """
-    Copy of a beam's macroparticle coordinates and intensity.
-
-    Returned by `BeamBaseClass.snapshot_state` and consumed by
-    `BeamBaseClass.restore_state` to restore a beam's macroparticle
-    coordinates to a previously captured state.
-
-    Attributes
-    ----------
-    dt
-        Copy of the macro-particle time coordinates, in [s].
-    dE
-        Copy of the macro-particle energy coordinates, in [eV].
-    flags
-        Copy of the macro-particle flags.
-    ids
-        Copy of the macro-particle ids.
-    intensity
-        Copy of the beam intensity.
-    """
-
-    dt: NumpyArray | CupyArray
-    dE: NumpyArray | CupyArray
-    flags: NumpyArray | CupyArray
-    ids: NumpyArray | CupyArray
-    intensity: float
 
 
 class BeamBaseClass(Preparable, ABC):
@@ -785,67 +754,3 @@ class BeamBaseClass(Preparable, ABC):
         self.intensity *= (
             n_after_truncation_global / n_before_truncation_global
         )
-
-    def snapshot_state(self) -> BeamStateSnapshot:
-        """
-        Capture a copy of the beam's macroparticle coordinates.
-
-        Returns
-        -------
-        snapshot
-            Copy of `dt`, `dE`, `flags`, `ids` and `intensity`, to be later
-            passed to `restore_state`.
-
-        See Also
-        --------
-        restore_state : Restore a beam to a previously captured snapshot.
-        """
-        return BeamStateSnapshot(
-            dt=self._dt.array_local.copy(),
-            dE=self._dE.array_local.copy(),
-            flags=self._flags.array_local.copy(),
-            ids=self._ids.array_local.copy(),
-            intensity=self.intensity,
-        )
-
-    def restore_state(self, snapshot: BeamStateSnapshot) -> None:
-        """
-        Restore the beam's macroparticle coordinates from a snapshot.
-
-        Parameters
-        ----------
-        snapshot
-            A snapshot previously captured with `snapshot_state`.
-
-        See Also
-        --------
-        snapshot_state : Capture a beam state snapshot.
-
-        Notes
-        -----
-        Writes into the existing `dt`/`dE`/`flags`/`ids` buffers in place
-        when their length matches the snapshot, to avoid reallocating
-        (beams can be GB-scale, and this may be called every turn e.g. by
-        `Simulation.warmup`). Falls back to replacing them with fresh
-        arrays only when the length differs, so this also correctly undoes
-        array-length changes caused e.g. by `purge_flagged_entries` in
-        between the snapshot and the restore.
-        """
-        if (
-            self._dt.local_size == len(snapshot.dt)
-            and self._dE.local_size == len(snapshot.dE)
-            and self._flags.local_size == len(snapshot.flags)
-            and self._ids.local_size == len(snapshot.ids)
-        ):
-            self._dt.array_local[:] = snapshot.dt
-            self._dE.array_local[:] = snapshot.dE
-            self._flags.array_local[:] = snapshot.flags
-            self._ids.array_local[:] = snapshot.ids
-        else:
-            self._dt = distributed_array.DistributedArray(snapshot.dt.copy())
-            self._dE = distributed_array.DistributedArray(snapshot.dE.copy())
-            self._flags = distributed_array.DistributedArray(
-                snapshot.flags.copy()
-            )
-            self._ids = distributed_array.DistributedArray(snapshot.ids.copy())
-        self.intensity = snapshot.intensity

@@ -24,6 +24,7 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
@@ -42,7 +43,7 @@ F_RES = resonator_data[:, 0] * 10**9
 Q_FACTOR = resonator_data[:, 1] * 100
 
 
-class TestSimulationWarmup(unittest.TestCase):
+class TestWarmup(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
@@ -97,8 +98,12 @@ class TestSimulationWarmup(unittest.TestCase):
         flags_before = copy_to_cpu(self.beam._flags.array_local.copy())
         ids_before = copy_to_cpu(self.beam._ids.array_local.copy())
 
-        self.simulation.warmup(
-            self.beam, n_turns=5, show_progressbar=False, verbose=False
+        warmup(
+            self.simulation,
+            self.beam,
+            n_turns=5,
+            show_progressbar=False,
+            verbose=False,
         )
 
         np.testing.assert_array_equal(
@@ -123,8 +128,12 @@ class TestSimulationWarmup(unittest.TestCase):
         time_before = self.beam.reference.time
         total_energy_before = self.beam.reference.total_energy
 
-        self.simulation.warmup(
-            self.beam, n_turns=5, show_progressbar=False, verbose=False
+        warmup(
+            self.simulation,
+            self.beam,
+            n_turns=5,
+            show_progressbar=False,
+            verbose=False,
         )
 
         self.assertEqual(self.beam.reference.time, time_before)
@@ -134,8 +143,12 @@ class TestSimulationWarmup(unittest.TestCase):
         turn_before = self.simulation.turn_counter.value
         section_before = self.simulation.section_counter.value
 
-        self.simulation.warmup(
-            self.beam, n_turns=7, show_progressbar=False, verbose=False
+        warmup(
+            self.simulation,
+            self.beam,
+            n_turns=7,
+            show_progressbar=False,
+            verbose=False,
         )
 
         self.assertEqual(self.simulation.turn_counter.value, turn_before)
@@ -154,16 +167,24 @@ class TestSimulationWarmup(unittest.TestCase):
         with patch.object(
             self.profile, "track", wraps=self.profile.track
         ) as tracked:
-            self.simulation.warmup(
-                self.beam, n_turns=1, show_progressbar=False, verbose=False
+            warmup(
+                self.simulation,
+                self.beam,
+                n_turns=1,
+                show_progressbar=False,
+                verbose=False,
             )
         calls_for_one_turn = tracked.call_count
 
         with patch.object(
             self.profile, "track", wraps=self.profile.track
         ) as tracked:
-            self.simulation.warmup(
-                self.beam, n_turns=20, show_progressbar=False, verbose=False
+            warmup(
+                self.simulation,
+                self.beam,
+                n_turns=20,
+                show_progressbar=False,
+                verbose=False,
             )
         calls_for_many_turns = tracked.call_count
 
@@ -181,8 +202,12 @@ class TestSimulationWarmup(unittest.TestCase):
             "track",
             wraps=self.standalone_profile.track,
         ) as tracked:
-            self.simulation.warmup(
-                self.beam, n_turns=1, show_progressbar=False, verbose=False
+            warmup(
+                self.simulation,
+                self.beam,
+                n_turns=1,
+                show_progressbar=False,
+                verbose=False,
             )
         calls_for_one_turn = tracked.call_count
 
@@ -191,8 +216,12 @@ class TestSimulationWarmup(unittest.TestCase):
             "track",
             wraps=self.standalone_profile.track,
         ) as tracked:
-            self.simulation.warmup(
-                self.beam, n_turns=20, show_progressbar=False, verbose=False
+            warmup(
+                self.simulation,
+                self.beam,
+                n_turns=20,
+                show_progressbar=False,
+                verbose=False,
             )
         calls_for_many_turns = tracked.call_count
 
@@ -204,8 +233,12 @@ class TestSimulationWarmup(unittest.TestCase):
         dt_before = copy_to_cpu(self.beam._dt.array_local.copy())
         turn_before = self.simulation.turn_counter.value
 
-        self.simulation.warmup(
-            self.beam, n_turns=0, show_progressbar=False, verbose=False
+        warmup(
+            self.simulation,
+            self.beam,
+            n_turns=0,
+            show_progressbar=False,
+            verbose=False,
         )
 
         np.testing.assert_array_equal(
@@ -214,7 +247,7 @@ class TestSimulationWarmup(unittest.TestCase):
         self.assertEqual(self.simulation.turn_counter.value, turn_before)
 
 
-class TestSimulationWarmupEquilibratesSolverState(unittest.TestCase):
+class TestWarmupEquilibratesSolverState(unittest.TestCase):
     """Warmup should fill up a multi-turn wakefield solver's memory."""
 
     def setUp(self):
@@ -270,7 +303,8 @@ class TestSimulationWarmupEquilibratesSolverState(unittest.TestCase):
         solver = self.wakefield.solver
         self.assertEqual(len(solver._previous_wakes), 0)
 
-        self.simulation.warmup(
+        warmup(
+            self.simulation,
             self.beam,
             n_turns=self.n_wake_turns,
             show_progressbar=False,
