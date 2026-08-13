@@ -265,7 +265,6 @@ One GitLab MR per item, each on its own branch off `blonder`
 and are enforced by `numpydoc-validation`; the HTML docs are built with Sphinx
 (`cd docs && bash create_docs.sh`). Write Parameters/Returns/Raises sections in
 NumPy format or both the hook and the doc build will reject the MR.
-The WARNINGS as errors of the docs module are intentional.
 
 ## Common problems
 
