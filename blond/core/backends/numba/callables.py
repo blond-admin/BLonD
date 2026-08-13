@@ -246,7 +246,7 @@ _lost = BeamFlags.LOST.value
     fastmath=True,
     cache=True,
 )
-def _kick_interpolated_dense_nb(  # NOQA PLR0915
+def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
     dt: NumpyArray,
     dE: NumpyArray,
     voltage: NumpyArray,
@@ -254,6 +254,14 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915
     charge: float,
     acceleration_kick: float,
 ) -> None:
+    if len(bin_centers) < 2:  # noqa: PLR2004
+        # A single-bin (or empty) `bin_centers` has no width to
+        # interpolate across -- nothing can be kicked. Bail out before the
+        # `len(bin_centers) - 1` division below, which would otherwise
+        # raise `ZeroDivisionError` (unlike the float division the
+        # python/cpp backends perform, which quietly yields `nan` and
+        # skips every particle via the range check).
+        return
     dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
     inv_dx = 1 / dx
     x_min = bin_centers[0]
@@ -279,7 +287,7 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915
     fastmath=True,
     cache=True,
 )
-def _kick_interpolated_sparse_nb(  # NOQA PLR0915
+def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     dt: NumpyArray,
     dE: NumpyArray,
     voltage: NumpyArray,

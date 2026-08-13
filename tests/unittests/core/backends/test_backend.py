@@ -1001,6 +1001,47 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_single_bin_skips_uniformity_check(
+        self,
+    ) -> None:
+        """A single-bin `bin_centers` cannot expose non-uniform spacing
+        (`np.diff` on it is empty), so the uniformity guard must not even
+        attempt the check -- and must not kick any particle, since there is
+        no bin width to interpolate across."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = backend.array([0.0], dtype=backend.float)
+            voltage = backend.array([1.0], dtype=backend.float)
+            charge = backend.float(10)
+            acceleration_kick = backend.float(0.5)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                np.asarray(result),
+                0.0,
+                err_msg=(
+                    "a single-bin profile has no width to interpolate "
+                    f"across, so no particle should be kicked, {special=}"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_sparse(self) -> None:
         """A particle sitting exactly on the first bin of the *second*
         island must be kicked using that island's own voltage segment, not
