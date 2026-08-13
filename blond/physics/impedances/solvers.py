@@ -1347,12 +1347,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._states = backend.zeros(len(self._poles) + 1, complex)
         bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
-        # bin_dt is the width of every bin, and the corrections below apply it
-        # to every bin. The grid need not be globally uniform: a sparse profile
-        # (EquidistantMultiProfile) stores equidistant bunches separated by
-        # charge-free gaps. But every bin must be bin_dt wide and every gap a
-        # whole number of them, i.e. all sample spacings must be positive
-        # integer multiples of bin_dt.
+        # Every bin must be bin_dt wide; a sparse profile
+        # (EquidistantMultiProfile) may have charge-free gaps between
+        # bunches, but each gap must be a whole number of bins.
         spacings = copy_to_cpu(profile_hist_x[1:] - profile_hist_x[:-1])
         spacings = spacings / bin_dt
         n_bins_per_spacing = np.round(spacings)
@@ -1365,19 +1362,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # scales its residue by sinh(p*dt/2)/(p*dt/2) (-> 1 as p -> 0). See
         # TimeDomain.get_wake_per_bin.
         half_p_dt = self._poles * (bin_dt / 2.0)
-        # Both factors have a removable singularity only at x = 0 (a pole at
-        # zero frequency, which resonators never have); use the analytic
-        # p -> 0 limit there to avoid a literal 0/0.
+        # p = 0 (a pole at zero frequency, which resonators never have) is a
+        # removable singularity; guard the division and use the p -> 0 limit.
         nonzero_pole = half_p_dt != 0
-        half_p_dt_safe = backend.where(
-            nonzero_pole, half_p_dt, backend.ones_like(half_p_dt)
-        )
-        bin_average_factor = backend.where(
-            nonzero_pole,
-            (backend.exp(half_p_dt) - backend.exp(-half_p_dt))
-            / (2.0 * half_p_dt_safe),
-            backend.ones_like(half_p_dt),
-        )
+        half_p_dt_safe = backend.ones_like(half_p_dt)
+        half_p_dt_safe[nonzero_pole] = half_p_dt[nonzero_pole]
+        bin_average_factor = backend.ones_like(half_p_dt)
+        bin_average_factor[nonzero_pole] = (
+            backend.exp(half_p_dt) - backend.exp(-half_p_dt)
+        )[nonzero_pole] / (2.0 * half_p_dt_safe[nonzero_pole])
 
         # Self-bin correction: the symmetric bin-average above is exact for
         # lag >= 1, but a bin's contribution to its own voltage must be the

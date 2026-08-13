@@ -403,10 +403,10 @@ class TestResonatorImpedances(unittest.TestCase):
             _plot_low_q([TimeDomainFftSolver], title="low-Q: TimeDomainFft")
 
         # point-sampling gave ~2.3 here; bin-integration keeps it small
-        assert dev_coarse < 0.15, dev_coarse
+        self.assertLess(dev_coarse, 0.15)
         # and it converges as the grid is refined
-        assert dev_fine < dev_coarse
-        assert dev_fine < 0.05, dev_fine
+        self.assertLess(dev_fine, dev_coarse)
+        self.assertLess(dev_fine, 0.05)
 
     @pytest.mark.backend_mutation
     def test_low_q_resonator_convolution_matches_freq(self):
@@ -431,9 +431,9 @@ class TestResonatorImpedances(unittest.TestCase):
                 title="low-Q: SingleTurnConvolution",
             )
 
-        assert dev_coarse < 0.15, dev_coarse
-        assert dev_fine < dev_coarse
-        assert dev_fine < 0.05, dev_fine
+        self.assertLess(dev_coarse, 0.15)
+        self.assertLess(dev_fine, dev_coarse)
+        self.assertLess(dev_fine, 0.05)
 
     @pytest.mark.backend_mutation
     def test_low_q_resonator_pole_residue_matches_freq(self):
@@ -453,9 +453,9 @@ class TestResonatorImpedances(unittest.TestCase):
         if DEV_PLOT:
             _plot_low_q([MultiPoleSparseSolve], title="low-Q: MultiPoleSparse")
 
-        assert dev_coarse < 0.15, dev_coarse
-        assert dev_fine < dev_coarse
-        assert dev_fine < 0.05, dev_fine
+        self.assertLess(dev_coarse, 0.15)
+        self.assertLess(dev_fine, dev_coarse)
+        self.assertLess(dev_fine, 0.05)
 
     @pytest.mark.backend_mutation
     def test_low_q_resonator_multi_pass_matches_freq(self):
@@ -477,9 +477,9 @@ class TestResonatorImpedances(unittest.TestCase):
         if DEV_PLOT:
             _plot_low_q([MultiPassResonatorSolver], title="low-Q: MultiPass")
 
-        assert dev_coarse < 0.15, dev_coarse
-        assert dev_fine < dev_coarse
-        assert dev_fine < 0.05, dev_fine
+        self.assertLess(dev_coarse, 0.15)
+        self.assertLess(dev_fine, dev_coarse)
+        self.assertLess(dev_fine, 0.05)
 
     @pytest.mark.backend_mutation
     def test_mixed_resolution_resonators_match_freq(self):
@@ -519,6 +519,6 @@ class TestResonatorImpedances(unittest.TestCase):
                     make_resonators=_mixed_resolution_resonators,
                 )
 
-                assert dev_coarse < 0.15, dev_coarse
-                assert dev_fine < dev_coarse
-                assert dev_fine < 0.05, dev_fine
+                self.assertLess(dev_coarse, 0.15)
+                self.assertLess(dev_fine, dev_coarse)
+                self.assertLess(dev_fine, 0.05)

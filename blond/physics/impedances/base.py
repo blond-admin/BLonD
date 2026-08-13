@@ -220,24 +220,20 @@ class TimeDomain(ABC):
         """
         Wake averaged over each sample bin ``[t - dt/2, t + dt/2]``.
 
-        A BLonD profile is a histogram (piecewise-constant charge per bin), so
-        the induced voltage of the beam is the convolution of the histogram
-        with the wake integrated over each bin, not the wake point-sampled at
-        the bin centres. Point-sampling a wake that oscillates several times
-        within a few bins aliases badly (the low-Q / broadband resonator bug);
-        bin-averaging removes it. Time-domain solvers should use this instead
-        of :func:`get_wake_per_particle` so they agree with the
-        frequency-domain solver and with each other.
+        A profile is a histogram, so its induced voltage is the wake
+        integrated over each bin, not the wake sampled at the bin centre.
+        Point-sampling aliases badly when the wake oscillates several times
+        within a bin (the low-Q / broadband resonator bug); bin-averaging
+        removes it. Time-domain solvers use this instead of
+        :func:`get_wake_per_particle`.
 
-        The default is the exact centered bin-average of the *piecewise-linear*
-        interpolant through the point-sampled wake, which on a uniform grid is
-        the parameter-free stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (interior
-        points; the edges extrapolate the boundary value). For a tabulated wake
-        this is exact, since the table is piecewise-linear by construction.
-        Sources with an analytic wake (e.g.
+        The default here bin-averages the piecewise-linear interpolant
+        through :func:`get_wake_per_particle`, which on a uniform grid
+        reduces to the stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (edges
+        extrapolate the boundary value). Exact for a tabulated wake; sources
+        with an analytic wake (e.g.
         :class:`~blond.physics.impedances.sources.Resonators`) override this
-        with the exact closed-form bin-average, which is more accurate when the
-        wake oscillates several times within a bin.
+        with the exact closed-form bin-average instead.
 
         Parameters
         ----------
@@ -312,18 +308,20 @@ class TimeDomain(ABC):
         impedance_from_wake
             Impedance array.
         """
-        cache = getattr(self, "_impedance_from_wake_cache", None)
-        if cache is None:
+        try:
+            cache = self._impedance_from_wake_cache
+        except AttributeError:
             cache = self._impedance_from_wake_cache = {}
         key = bool(counter_rotating)
         hash_ = _get_hash_linspace(time)
-        cached = cache.get(key)
-        if cached is not None and cached[0] == hash_:
-            return cached[1]
-        self._assert_wake_time_resolves_resonances(time)
-        wake = self.get_wake_per_bin(time, counter_rotating)
-        impedance = backend.fft.rfft(wake, n=n_fft)
-        cache[key] = (hash_, impedance)
+        cached = cache.get(key, (float("nan"), None))
+        if cached[0] == hash_:
+            impedance = cached[1]
+        else:
+            self._assert_wake_time_resolves_resonances(time)
+            wake = self.get_wake_per_bin(time, counter_rotating)
+            impedance = backend.fft.rfft(wake, n=n_fft)
+            cache[key] = (hash_, impedance)
         return impedance
 
 

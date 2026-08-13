@@ -523,28 +523,47 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
         dt = time[1] - time[0]
-
-        def antiderivative(
-            t: NumpyArray | CupyArray,
-        ) -> NumpyArray | CupyArray:
-            out = backend.zeros(len(t), dtype=backend.float, order="C")
-            positive = t > 0.0  # causal: F(t <= 0) = 0 (and F(0) = 0 anyway)
-            for res_ind in range(self._n_resonators):
-                alpha = self._alpha[res_ind]
-                omega_bar = self._omega_bar[res_ind]
-                out[positive] += (
-                    2.0
-                    * shunt_impedances[res_ind]
-                    * alpha
-                    / omega_bar
-                    * backend.exp(-alpha * t[positive])
-                    * backend.sin(omega_bar * t[positive])
-                )
-            return out
-
         return (
-            antiderivative(time + dt / 2) - antiderivative(time - dt / 2)
+            self._wake_antiderivative(time + dt / 2, shunt_impedances)
+            - self._wake_antiderivative(time - dt / 2, shunt_impedances)
         ) / dt
+
+    def _wake_antiderivative(
+        self,
+        t: NumpyArray | CupyArray,
+        shunt_impedances: NumpyArray | CupyArray,
+    ) -> NumpyArray | CupyArray:
+        r"""
+        Closed-form antiderivative :math:`F(t)` of the resonator wake.
+
+        See :func:`_wake_bin_average` for the formula.
+
+        Parameters
+        ----------
+        t
+            Time array at which to evaluate the antiderivative, in [s].
+        shunt_impedances
+            Shunt impedances to use (co- or counter-rotating), in [:math:`\Omega`].
+
+        Returns
+        -------
+        antiderivative
+            :math:`F(t)`, in [V s].
+        """
+        out = backend.zeros(len(t), dtype=backend.float, order="C")
+        positive = t > 0.0  # causal: F(t <= 0) = 0 (and F(0) = 0 anyway)
+        for res_ind in range(self._n_resonators):
+            alpha = self._alpha[res_ind]
+            omega_bar = self._omega_bar[res_ind]
+            out[positive] += (
+                2.0
+                * shunt_impedances[res_ind]
+                * alpha
+                / omega_bar
+                * backend.exp(-alpha * t[positive])
+                * backend.sin(omega_bar * t[positive])
+            )
+        return out
 
     def get_wake_per_particle(
         self,
@@ -986,9 +1005,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
             Interpolated wake, in [V].
         """
         if counter_rotating:
-            raise RuntimeError(
-                "ImpedanceTableTime has no counter-rotating wake."
-            )
+            raise TypeError("ImpedanceTableTime has no counter-rotating wake.")
         if time.min() < self._wake_x.min():
             warnings.warn(
                 "Interpolation of wake outside boundaries",
@@ -1143,7 +1160,7 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             Wake potential array, in [V].
         """
         if counter_rotating:
-            raise RuntimeError(
+            raise TypeError(
                 "TravelingWaveCavity has no counter-rotating wake."
             )
         return self.wake_calc(time=time)
