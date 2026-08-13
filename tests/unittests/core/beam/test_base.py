@@ -273,6 +273,34 @@ class TestBeamBaseClass(unittest.TestCase):
         self.assertEqual(self.beam_base_class._flags.local_size, length_before)
         self.assertEqual(self.beam_base_class._ids.local_size, length_before)
 
+    def test_restore_state_writes_in_place_when_length_unchanged(self):
+        # Beams can be GB-scale with many restore_state calls in a row
+        # (e.g. Simulation.warmup's per-turn loop) - when the particle
+        # count hasn't changed, restore must write into the existing
+        # buffers rather than reallocate fresh arrays every call.
+        dt_buffer_id_before = id(self.beam_base_class._dt.array_local)
+        dE_buffer_id_before = id(self.beam_base_class._dE.array_local)
+        flags_buffer_id_before = id(self.beam_base_class._flags.array_local)
+        ids_buffer_id_before = id(self.beam_base_class._ids.array_local)
+
+        snapshot = self.beam_base_class.snapshot_state()
+        self.beam_base_class._dt.array_local[:] = 0
+        self.beam_base_class.restore_state(snapshot)
+
+        self.assertEqual(
+            id(self.beam_base_class._dt.array_local), dt_buffer_id_before
+        )
+        self.assertEqual(
+            id(self.beam_base_class._dE.array_local), dE_buffer_id_before
+        )
+        self.assertEqual(
+            id(self.beam_base_class._flags.array_local),
+            flags_buffer_id_before,
+        )
+        self.assertEqual(
+            id(self.beam_base_class._ids.array_local), ids_buffer_id_before
+        )
+
     def test_purge_flagged_entries(self):
         ids_before = copy_to_cpu(self.beam_base_class._ids.array_local.copy())
         select = [0, 1, -1]

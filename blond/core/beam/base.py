@@ -823,13 +823,29 @@ class BeamBaseClass(Preparable, ABC):
 
         Notes
         -----
-        Replaces `dt`, `dE`, `flags` and `ids` with fresh arrays rather than
-        assigning in place, so this also correctly undoes array-length
-        changes caused e.g. by `purge_flagged_entries` in between the
-        snapshot and the restore.
+        Writes into the existing `dt`/`dE`/`flags`/`ids` buffers in place
+        when their length matches the snapshot, to avoid reallocating
+        (beams can be GB-scale, and this may be called every turn e.g. by
+        `Simulation.warmup`). Falls back to replacing them with fresh
+        arrays only when the length differs, so this also correctly undoes
+        array-length changes caused e.g. by `purge_flagged_entries` in
+        between the snapshot and the restore.
         """
-        self._dt = distributed_array.DistributedArray(snapshot.dt.copy())
-        self._dE = distributed_array.DistributedArray(snapshot.dE.copy())
-        self._flags = distributed_array.DistributedArray(snapshot.flags.copy())
-        self._ids = distributed_array.DistributedArray(snapshot.ids.copy())
+        if (
+            self._dt.local_size == len(snapshot.dt)
+            and self._dE.local_size == len(snapshot.dE)
+            and self._flags.local_size == len(snapshot.flags)
+            and self._ids.local_size == len(snapshot.ids)
+        ):
+            self._dt.array_local[:] = snapshot.dt
+            self._dE.array_local[:] = snapshot.dE
+            self._flags.array_local[:] = snapshot.flags
+            self._ids.array_local[:] = snapshot.ids
+        else:
+            self._dt = distributed_array.DistributedArray(snapshot.dt.copy())
+            self._dE = distributed_array.DistributedArray(snapshot.dE.copy())
+            self._flags = distributed_array.DistributedArray(
+                snapshot.flags.copy()
+            )
+            self._ids = distributed_array.DistributedArray(snapshot.ids.copy())
         self.intensity = snapshot.intensity
