@@ -25,7 +25,6 @@ from typing import Optional as LateInit
 
 import numpy as np
 from numpy import random as rnd
-from scipy.interpolate import interp1d
 from scipy.signal import firwin
 
 from blond import Simulation, StaticProfile
@@ -625,20 +624,15 @@ class LHCCavityFeedback(
 
         # Find initial value of antenna voltage and generator current
         t_at_init = self.profile.hist_x[0] - self.profile.hist_step
-        V_A_init = interp1d(
-            np.concatenate(
-                (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
-            ),
-            self.buffers_coarse.v_ant.full,
-            fill_value="extrapolate",
-        )(t_at_init)
-        I_gen_init = interp1d(
-            np.concatenate(
-                (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
-            ),
-            self.buffers_coarse.i_gen.full,
-            fill_value="extrapolate",
-        )(t_at_init)
+        x_grid = np.concatenate(
+            (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
+        )
+        V_A_init = self._linear_interp_scalar(
+            x_grid, self.buffers_coarse.v_ant.full, t_at_init
+        )
+        I_gen_init = self._linear_interp_scalar(
+            x_grid, self.buffers_coarse.i_gen.full, t_at_init
+        )
 
         self.buffers_fine.v_ant = cavity_response_sparse_matrix(
             i_beam=self.buffers_fine.i_beam,
@@ -685,15 +679,12 @@ class LHCCavityFeedback(
 
         # FIR filter
         if self.enable_klystron:
-            self.buffers_coarse.i_gen[self.ind] = (
-                self.klystron_fir[0]
-                * self.buffers_coarse.i_gen_predrive[self.ind]
+            window = self.buffers_coarse.i_gen_predrive.get_window(
+                self.ind, len(self.klystron_fir)
+            )[::-1]
+            self.buffers_coarse.i_gen[self.ind] = np.dot(
+                self.klystron_fir, window
             )
-            for k in range(1, len(self.klystron_fir)):
-                self.buffers_coarse.i_gen[self.ind] += (
-                    self.klystron_fir[k]
-                    * self.buffers_coarse.i_gen_predrive[self.ind - k]
-                )
         else:
             self.buffers_coarse.i_gen[self.ind] = (
                 self.buffers_coarse.i_gen_predrive[self.ind - self.n_delay]
@@ -736,14 +727,12 @@ class LHCCavityFeedback(
         )
 
         # FIR filter
-        self.buffers_coarse.v_otfb_fir_out[self.ind] = (
-            self.fir_coeff[0] * self.buffers_coarse.v_otfb_comb[self.ind]
+        window = self.buffers_coarse.v_otfb_comb.get_window(
+            self.ind, self.fir_n_taps
+        )[::-1]
+        self.buffers_coarse.v_otfb_fir_out[self.ind] = np.dot(
+            self.fir_coeff, window
         )
-        for k in range(1, self.fir_n_taps):
-            self.buffers_coarse.v_otfb_fir_out[self.ind] += (
-                self.fir_coeff[k]
-                * self.buffers_coarse.v_otfb_comb[self.ind - k]
-            )
 
         # AC coupling at output
         self.buffers_coarse.v_otfb_out[self.ind] = (
@@ -897,19 +886,6 @@ class LHCCavityFeedback(
             self.swap()
             self.generator_current()
             self.tuner_input()
-            """
-            if i <= 2 or self.n_delay - 5 <= i <= self.n_delay + 5:
-                print(f"Sample {i}")
-                print(self.buffers_coarse.v_ant[self.ind])
-                print(self.buffers_coarse.v_setpoint[self.ind])
-
-                print(self.buffers_coarse.v_feedback_in[self.ind])
-                print(self.buffers_coarse.i_feedback_out[self.ind])
-
-                print(self.buffers_coarse.i_gen_test[self.ind])
-                print(self.buffers_coarse.i_gen_predrive[self.ind])
-                print(self.buffers_coarse.i_gen[self.ind])
-            """
 
     def update_fb_variables(self):
         """Update counter and frequency-dependent variables in a given turn."""
@@ -1147,3 +1123,40 @@ class LHCCavityFeedback(
             Optimum loaded Q.
         """
         return voltage / (r_over_q * real_peak_beam_current)
+
+    @staticmethod
+    def _linear_interp_scalar(
+        x: NumpyArray, y: NumpyArray, t: float
+    ) -> complex:
+        """
+        Evaluate a piecewise-linear interpolant of (x, y) at a single scalar t.
+
+        The method linearly extrapolates beyond the array bounds using the edge segment's
+        slope — equivalent to interp1d(x, y, fill_value="extrapolate")(t) for a
+        scalar t, but without building an interpolator object.
+
+        Parameters
+        ----------
+        x
+            Sorted (ascending) sample locations.
+        y
+            Sample values corresponding to x.
+        t
+            The scalar location to evaluate at.
+
+        Returns
+        -------
+        complex
+            Interpolated (or extrapolated) value at t.
+        """
+        if t <= x[0]:
+            i0, i1 = 0, 1
+        elif t >= x[-1]:
+            i0, i1 = -2, -1
+        else:
+            # locate the bracketing segment
+            i1 = np.searchsorted(x, t)
+            i0 = i1 - 1
+
+        slope = (y[i1] - y[i0]) / (x[i1] - x[i0])
+        return y[i0] + slope * (t - x[i0])

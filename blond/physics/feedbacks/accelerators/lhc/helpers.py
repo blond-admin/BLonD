@@ -127,8 +127,8 @@ def cavity_response_sparse_matrix(
     i_beam: NumpyArray,
     i_gen: NumpyArray,
     n_samples: int,
-    v_ant_init: float,
-    i_gen_init: float,
+    v_ant_init: complex,
+    i_gen_init: complex,
     samples_per_rf: float,  # TODO: is this float or int
     r_over_q: float,
     q_l: float,

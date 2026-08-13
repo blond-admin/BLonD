@@ -170,6 +170,27 @@ class TwoTurnArray:
 
         raise TypeError(f"unsupported index type: {type(key)}")
 
+    def get_window(self, ind: int, n_taps: int) -> NumpyArray:
+        """
+        Get the samples relevant for a FIR filter.
+
+        Parameters
+        ----------
+        ind
+            The last index of to apply the filter from.
+        n_taps
+            The number of taps of the FIR filter.
+
+        Returns
+        -------
+        result
+            Array of values from ind - n_taps + 1 up to ind.
+        """
+        lo = ind - n_taps + 1
+        if lo >= 0:
+            return self.curr[lo : ind + 1]
+        return np.concatenate((self.prev[lo:], self.curr[: ind + 1]))
+
     def __setitem__(self, key, value) -> None:
         """
         Set elements in the two-turn array.
