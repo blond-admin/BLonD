@@ -7,7 +7,7 @@ import numpy as np
 
 from blond import EmptyBeam, uranium_29
 from blond.core.beam.beams import ProbeBeam
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 

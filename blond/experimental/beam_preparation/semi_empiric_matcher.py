@@ -26,7 +26,7 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
 )
-from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10

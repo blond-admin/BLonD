@@ -40,7 +40,7 @@ from blond.experimental.physics.feedbacks.base import (
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,

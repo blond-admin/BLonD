@@ -12,7 +12,7 @@ from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.core.beam.particle_types import ParticleType, mu_minus
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
     MPI_RANK,
