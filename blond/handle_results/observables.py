@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.collections import QuadMesh
 from matplotlib.gridspec import GridSpec
 from matplotlib.image import AxesImage
 from numpy.typing import NDArray as NumpyArray
@@ -43,6 +44,60 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.typing import AnyArray
 
 logger = logging.getLogger(__name__)
+
+
+def _plot_profile_waterfall(
+    hist_x: NumpyArray,
+    hist_y: NumpyArray,
+    turns: NumpyArray,
+    ax: Axes | None,
+    kwargs_pcolormesh: dict | None,
+) -> QuadMesh:
+    """
+    Make a 2D waterfall plot of a beam profile's evolution over turns.
+
+    The profile amplitude is color-coded, with time on the x-axis and
+    turn number on the y-axis.
+
+    Parameters
+    ----------
+    hist_x
+        Histogram x-axis, either of shape ``(n_bins,)`` (shared across
+        all turns) or ``(n_observations, n_bins)`` (one x-axis per turn).
+    hist_y
+        Histogram amplitude of shape ``(n_observations, n_bins)``.
+    turns
+        Turn number of each observation, of shape ``(n_observations,)``.
+    ax
+        `Axes` to plot into. The current axes are used if `None`.
+    kwargs_pcolormesh
+        Keyword arguments for `matplotlib.axes.Axes.pcolormesh`.
+
+    Returns
+    -------
+    mesh
+        The `QuadMesh` pyplot object holding the waterfall plot.
+    """
+    if kwargs_pcolormesh is None:
+        kwargs_pcolormesh = {}
+    if ax is None:
+        ax = plt.gca()
+
+    default_kwargs_pcolormesh = {"shading": "nearest", "cmap": "viridis"}
+    for key, value in default_kwargs_pcolormesh.items():
+        if key not in kwargs_pcolormesh:
+            kwargs_pcolormesh[key] = value
+
+    if hist_x.ndim == 1:
+        mesh = ax.pcolormesh(hist_x, turns, hist_y, **kwargs_pcolormesh)
+    else:
+        y = np.broadcast_to(turns[:, np.newaxis], hist_x.shape)
+        mesh = ax.pcolormesh(hist_x, y, hist_y, **kwargs_pcolormesh)
+
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("Turn")
+    return mesh
+
 
 # DEV NOTE
 # The main reason to have so much boilerplate code
@@ -1234,6 +1289,39 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         """
         return self._hist_y.get_valid_entries()
 
+    def plot_waterfall(
+        self,
+        ax: Axes | None = None,
+        kwargs_pcolormesh: dict | None = None,
+    ) -> QuadMesh:
+        """
+        Make a 2D waterfall plot of the profile evolution over turns.
+
+        The profile amplitude is color-coded, with time on the x-axis
+        and turn number on the y-axis.
+
+        Parameters
+        ----------
+        ax
+            `Axes` to plot into. The current axes are used if `None`.
+        kwargs_pcolormesh
+            Keyword arguments for `matplotlib.axes.Axes.pcolormesh`.
+
+        Returns
+        -------
+        mesh
+            The `QuadMesh` pyplot object holding the waterfall plot.
+        """
+        hist_y = self.hist_y
+        turns = self.turns_array[: hist_y.shape[0]]
+        return _plot_profile_waterfall(
+            hist_x=self.hist_x,
+            hist_y=hist_y,
+            turns=turns,
+            ax=ax,
+            kwargs_pcolormesh=kwargs_pcolormesh,
+        )
+
 
 class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     """
@@ -1580,6 +1668,39 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
             Histogram x-axis array.
         """
         return self._hist_x.get_valid_entries()
+
+    def plot_waterfall(
+        self,
+        ax: Axes | None = None,
+        kwargs_pcolormesh: dict | None = None,
+    ) -> QuadMesh:
+        """
+        Make a 2D waterfall plot of the profile evolution over turns.
+
+        The profile amplitude is color-coded, with time on the x-axis
+        and turn number on the y-axis.
+
+        Parameters
+        ----------
+        ax
+            `Axes` to plot into. The current axes are used if `None`.
+        kwargs_pcolormesh
+            Keyword arguments for `matplotlib.axes.Axes.pcolormesh`.
+
+        Returns
+        -------
+        mesh
+            The `QuadMesh` pyplot object holding the waterfall plot.
+        """
+        hist_y = self.hist_y
+        turns = self.turns_array[: hist_y.shape[0]]
+        return _plot_profile_waterfall(
+            hist_x=self.hist_x,
+            hist_y=hist_y,
+            turns=turns,
+            ax=ax,
+            kwargs_pcolormesh=kwargs_pcolormesh,
+        )
 
 
 class SimulationObservation(ObservablesOncePerTurnBase):
