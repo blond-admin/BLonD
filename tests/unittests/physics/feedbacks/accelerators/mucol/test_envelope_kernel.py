@@ -90,6 +90,7 @@ def _seed_single_segment(
     beam,
     last_val_generator_current=None,
     last_val_beam_current=0.0 + 0.0j,
+    v_beam_init=0.0 + 0.0j,
 ):
     """
     Populate the coarse-grid arrays for a single-segment run.
@@ -101,7 +102,8 @@ def _seed_single_segment(
     n
         Number of coarse cells.
     v_init
-        Carried antenna voltage seeding cell 0 (``last_val_ant_voltage``).
+        Carried generator-sourced antenna voltage seeding cell 0
+        (``last_val_ant_voltage_gen``).
     i_init
         Carried generator current seeding cell 0.
     beam
@@ -115,6 +117,9 @@ def _seed_single_segment(
     last_val_beam_current
         Carried beam current (``last_val_beam_current``) at the carried cell 0,
         used even by a no-beam segment; defaults to zero.
+    v_beam_init
+        Carried beam-sourced antenna voltage seeding cell 0
+        (``last_val_ant_voltage_beam``); defaults to zero.
     """
     dt = T_RF
     feedback._rf_centers = np.arange(1, n + 1) * dt
@@ -122,8 +127,12 @@ def _seed_single_segment(
     feedback._residual_time_last_rf_centers_calculation = 0.0
     feedback._last_rf_centers_entry = None
     feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
+    feedback.antenna_voltage_gen_coarse_grid = np.zeros(n, dtype=complex)
+    feedback.antenna_voltage_beam_coarse_grid = np.zeros(n, dtype=complex)
     feedback.generator_current_coarse_grid = np.full(n, BIAS, dtype=complex)
-    feedback._last_val_ant_voltage = v_init
+    feedback._last_val_ant_voltage_gen = v_init
+    feedback._last_val_ant_voltage_beam = v_beam_init
+    feedback._last_val_ant_voltage = v_init + v_beam_init
     feedback._last_val_generator_current = (
         i_init
         if last_val_generator_current is None
@@ -151,6 +160,8 @@ def _snapshot(feedback):
     """
     snap = {
         "V": feedback.antenna_voltage_coarse_grid.copy(),
+        "V_gen": feedback.antenna_voltage_gen_coarse_grid.copy(),
+        "V_beam": feedback.antenna_voltage_beam_coarse_grid.copy(),
         "I": feedback.generator_current_coarse_grid.copy(),
     }
     if feedback._controller is not None:
@@ -175,6 +186,16 @@ def _assert_bit_identical(test, kernel_snap, python_snap):
     test.assertTrue(
         np.array_equal(kernel_snap["V"], python_snap["V"]),
         msg="antenna voltage differs between kernel and python paths",
+    )
+    test.assertTrue(
+        np.array_equal(kernel_snap["V_gen"], python_snap["V_gen"]),
+        msg=(
+            "generator-sourced voltage differs between kernel and python paths"
+        ),
+    )
+    test.assertTrue(
+        np.array_equal(kernel_snap["V_beam"], python_snap["V_beam"]),
+        msg=("beam-sourced voltage differs between kernel and python paths"),
     )
     test.assertTrue(
         np.array_equal(kernel_snap["I"], python_snap["I"]),
@@ -205,6 +226,9 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         v_init=3.0e7 + 1.0e6j,
         last_val_generator_current=None,
         last_val_beam_current=0.0 + 0.0j,
+        v_beam_init=0.0 + 0.0j,
+        generator_frame_rotation=None,
+        kick_frame_rotation=None,
     ):
         """
         Build, seed and drive a single-segment feedback on one path.
@@ -230,6 +254,14 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             bias exercises the backfill-segment drive divergence.
         last_val_beam_current
             Carried index-0 beam current (used even for a no-beam segment).
+        v_beam_init
+            Carried beam-sourced antenna voltage seeding cell 0.
+        generator_frame_rotation
+            Per-passage generator frame rotation to install, or None for
+            the neutral default.
+        kick_frame_rotation
+            Per-passage kick frame rotation to install, or None for the
+            neutral default.
 
         Returns
         -------
@@ -262,7 +294,12 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             beam=beam,
             last_val_generator_current=last_val_generator_current,
             last_val_beam_current=last_val_beam_current,
+            v_beam_init=v_beam_init,
         )
+        if generator_frame_rotation is not None:
+            feedback._generator_frame_rotation = generator_frame_rotation
+        if kick_frame_rotation is not None:
+            feedback._kick_frame_rotation = kick_frame_rotation
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             feedback._circuit_track_cells(
@@ -399,6 +436,38 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             },
         )
 
+    def test_split_components_with_frame_rotations(self):
+        """
+        Both carried components plus non-unit frame rotations.
+
+        The live multi-section / RF-offset condition: the generator and
+        beam components carry distinct nonzero state and the per-passage
+        rotations are away from unity, so the kernel's composition
+        ``V_beam + V_gen * generator_frame_rotation`` must reproduce the
+        reference multiply bit-for-bit.
+        """
+        self._compare(
+            no_beam=False,
+            v_beam_init=-2.0e6 + 4.0e5j,
+            generator_frame_rotation=np.exp(-0.37j),
+            kick_frame_rotation=np.exp(0.21j),
+        )
+
+    def test_split_components_pi_with_frame_rotations(self):
+        """PI regulation of the kick-frame sum under non-unit rotations."""
+        self._compare(
+            no_beam=False,
+            v_beam_init=-2.0e6 + 4.0e5j,
+            generator_frame_rotation=np.exp(-0.37j),
+            kick_frame_rotation=np.exp(0.21j),
+            controller_kw={
+                "gain_proportional": 1e-9,
+                "gain_integral": 5e-4,
+                "generator_current_bias": BIAS,
+                "n_delay": 2,
+            },
+        )
+
     def _run_multi_section(
         self,
         use_kernel,
@@ -441,10 +510,17 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         feedback._residual_time_last_rf_centers_calculation = 0.0
         feedback._last_rf_centers_entry = None
         feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
+        feedback.antenna_voltage_gen_coarse_grid = np.zeros(n, dtype=complex)
+        feedback.antenna_voltage_beam_coarse_grid = np.zeros(n, dtype=complex)
         feedback.generator_current_coarse_grid = np.full(
             n, BIAS, dtype=complex
         )
-        feedback._last_val_ant_voltage = 3.0e7 + 1.0e6j
+        feedback._last_val_ant_voltage_gen = 3.0e7 + 1.0e6j
+        feedback._last_val_ant_voltage_beam = -1.5e6 + 2.0e5j
+        feedback._last_val_ant_voltage = (
+            feedback._last_val_ant_voltage_gen
+            + feedback._last_val_ant_voltage_beam
+        )
         feedback._last_val_generator_current = last_val_generator_current
         feedback._last_val_beam_current = last_val_beam_current
         rng = np.random.default_rng(77)

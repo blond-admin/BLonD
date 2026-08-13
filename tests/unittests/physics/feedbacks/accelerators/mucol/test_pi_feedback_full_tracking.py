@@ -19,6 +19,7 @@ any change of the tracked feedback numerics shows up here first).
 
 import os
 import unittest
+import warnings
 
 import numpy as np
 
@@ -71,6 +72,7 @@ def _run_config(
     controller_call_counter: dict | None = None,
     use_controller: bool = True,
     detuning_half_bandwidths: float = 0.0,
+    delta_omega_rf: float = 0.0,
 ) -> dict:
     """
     Track a matched bunch with PI-regulated feedbacks on every station.
@@ -101,6 +103,10 @@ def _run_config(
         half-bandwidth ``omega_rf / (2 Q_L)``, so that this number *is*
         ``tan(psi)``. ``0`` (the default) keeps every existing call site on
         resonance and bit-unchanged.
+    delta_omega_rf
+        Station RF-frequency offset [rad/s], set on every station before
+        the run (from turn 0). ``0`` (the default) keeps every existing
+        call site bit-unchanged.
 
     Returns
     -------
@@ -189,6 +195,12 @@ def _run_config(
             profile=profile,
             section_index=section_index,
         )
+        if delta_omega_rf != 0.0:
+            # Pre-run configuration; the post-init setter warning is by
+            # design and irrelevant here.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                station.delta_omega_rf = delta_omega_rf
         stations.append(station)
         feedbacks.append(feedback)
         elements += [
@@ -244,6 +256,8 @@ def _run_config(
         "v_last": [],
         "i_max_dev": [],
         "v_dev_grid": [],
+        "phi_corr": [],
+        "delta_phi_rf": [],
         "ref_energy": [],
         "sigma_dt": [],
         "n_forward": [],
@@ -301,6 +315,13 @@ def _run_config(
                 for f in feedbacks
             ]
         )
+        # Rigid RF phase the feedback hands the station this turn (the
+        # readout is flat over the window here, so the mean is that
+        # constant), and the station kick clock it was applied against.
+        rec["phi_corr"].append(
+            [float(np.mean(f.phase_correction)) for f in feedbacks]
+        )
+        rec["delta_phi_rf"].append([float(s.delta_phi_rf) for s in stations])
         rec["ref_energy"].append(float(b.reference.total_energy))
         rec["sigma_dt"].append(float(np.std(copy_to_cpu(b.dt.array_local))))
 
@@ -460,6 +481,126 @@ class TestDrivenSteadyStateFastRamp(unittest.TestCase):
     def test_four_sections_hold_steady_state(self):
         """Four stations: three backfill segments per passage."""
         self._assert_holds_steady_state(4)
+
+
+class TestDrivenFeedbackIsPhaseNeutralWithoutBeam(unittest.TestCase):
+    """
+    A driven, beam-free cavity on its setpoint must hand the station NO phase.
+
+    The in-repo counterpart of the RCS example's
+    ``test_feedback_is_a_no_op_without_beam``: with the matched generator
+    bias and zero intensity the cavity sits exactly on its setpoint (see
+    ``TestDrivenSteadyStateFastRamp`` for the magnitude), so the feedback
+    must be a no-op -- ``phase_correction == 0`` on every turn. The
+    generator drive is locked to the DESIGN frequency, whose per-segment
+    values the coarse grid already samples, so the driven field carries no
+    grid-vs-carrier registration phase: adding the multi-section
+    registration phase ``Psi = sum_k (omega_k - omega_0) T_seg,k`` to the
+    generator-driven component at the readout is a bookkeeping error that
+    walks the bucket off the design synchronous phase with no beam at all.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 6
+    # The residual is FP dust of the fine-grid solve; the bug this pins was
+    # ~0.3 rad/turn on this ring.
+    TOLERANCE = 1.0e-12
+
+    def _assert_phase_neutral(self, use_controller: bool) -> None:
+        """
+        Track a driven, beam-free 2-section fast ramp; expect zero phase.
+
+        Parameters
+        ----------
+        use_controller
+            Whether the matched bias is held by a PI loop (True) or fed
+            forward as a constant current (False).
+        """
+        rec = _run_config(
+            2,
+            self.ENERGY,
+            self.DELTA_E_TURN,
+            self.N_TURNS,
+            intensity=0.0,
+            use_controller=use_controller,
+        )
+        phi = np.abs(np.array(rec["phi_corr"]))
+        self.assertLess(
+            float(phi.max()),
+            self.TOLERANCE,
+            "driven beam-free feedback applies a rigid RF phase: per turn "
+            f"{np.array(rec['phi_corr'])} rad",
+        )
+
+    def test_matched_bias_applies_no_phase(self):
+        """Constant matched drive: the headline zero-intensity no-op."""
+        self._assert_phase_neutral(use_controller=False)
+
+    def test_pi_loop_applies_no_phase(self):
+        """A PI holding the same setpoint must be phase-neutral too."""
+        self._assert_phase_neutral(use_controller=True)
+
+
+class TestDesignLockedDriveWalkOffUnderRFOffset(unittest.TestCase):
+    r"""
+    Under ``delta_omega_rf`` the design-locked drive walks off the actual RF.
+
+    The klystron drive follows the DESIGN frequency. With a station
+    RF-frequency offset the actual RF accumulates the kick-clock slip
+    ``int delta_omega_rf dt`` relative to the design clock, so the driven
+    (generator) field must appear at MINUS that slip relative to the
+    actual RF -- real physics, not a bookkeeping artefact. The station
+    applies its kick clock ``delta_phi_rf`` through ``phi_rf`` and the
+    live tail of the slip is ``_carrier_slip_gap``, so the anchoring rule
+
+        (net phase relative to actual RF) = -(delta_phi_rf + live gap)
+
+    reduces to ``phase_correction == -delta_phi_rf`` for a beam-free,
+    matched-bias cavity (the readout composition subtracts the full slip
+    from the generator component and then adds back the live gap).
+    """
+
+    ENERGY = 63.0e9
+    N_TURNS = 6
+    #: RF-frequency offset as a fraction of omega_rf: ~0.016 rad of slip
+    #: per turn -- far above the readout's FP floor, far below a wrap.
+    OFFSET_FRACTION = 1.0e-7
+    TOLERANCE = 1.0e-9
+
+    def test_driven_field_appears_at_minus_the_kick_clock_slip(self):
+        """Beam-free driven cavity: ``phase_correction == -delta_phi_rf``."""
+        harmonic = int(HARMONIC - HARMONIC % 2)
+        from blond import ConstantMagneticCycle
+
+        t_rev = ConstantMagneticCycle(
+            reference_particle=mu_plus,
+            value=self.ENERGY,
+            in_unit="total energy",
+        ).get_t_rev_init(CIRCUMFERENCE, particle_type=mu_plus)
+        delta_omega_rf = self.OFFSET_FRACTION * 2.0 * np.pi * harmonic / t_rev
+        rec = _run_config(
+            1,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            intensity=0.0,
+            use_controller=False,
+            delta_omega_rf=delta_omega_rf,
+        )
+        phi_corr = np.array(rec["phi_corr"])[:, 0]
+        delta_phi_rf = np.array(rec["delta_phi_rf"])[:, 0]
+        # The premise has teeth: the kick clock really accumulates.
+        self.assertGreater(float(np.abs(delta_phi_rf[-1])), 0.05)
+        np.testing.assert_allclose(
+            phi_corr,
+            -delta_phi_rf,
+            atol=self.TOLERANCE,
+            err_msg=(
+                "the design-locked drive does not appear at minus the "
+                "kick-clock slip relative to the actual RF"
+            ),
+        )
 
 
 class TestDetunedLoopHoldsSetpointAcrossBackfillSpan(unittest.TestCase):
@@ -676,35 +817,34 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
     DELTA_E_TURN = 4.0e6
     N_TURNS = 6
 
-    # Regenerated when the multi-section grid-vs-carrier registration phase
-    # moved from a rotation of the antenna-voltage STATE onto the
-    # demodulation/readout carrier (see ``_track`` and
-    # ``TestDrivenSteadyStateFastRamp``). The PI loop regulates the raw
-    # coarse antenna voltage, so it used to see a state carrying that
-    # rotation and now sees the true antenna voltage: |V_ant| itself moves
-    # by <1e-6 relative here (the slow ramp's phase is tiny), while the
-    # generator-current response -- a small difference of large numbers --
-    # shifts by ~2.4e-4. Both stations still hold the setpoint and respond
-    # to the loading, which the behavioural tests above assert
-    # independently.
+    # Regenerated when the coarse envelope was split into its generator-
+    # and beam-sourced components and the PI error moved to the KICK-frame
+    # sum (see ``_update_frame_rotations``): the loop now regulates the
+    # applied kick, whose difference from the former raw state is
+    # ``V_beam (1 - e^{i Psi})`` with the slow ramp's registration phase
+    # ``Psi ~ 7e-6 rad/turn``. That moved |V_ant| by <= 2.4e-6 relative
+    # and the current response by <= 1.7e-6 -- marginally beyond the 1e-6
+    # pin tolerance, a real (declared) modelling shift, not FP noise.
+    # Both stations still hold the setpoint and respond to the loading,
+    # which the behavioural tests above assert independently.
     PIN_V_MIN = np.array(
         [
-            [29720238.60345596, 29718279.461241655],
-            [29714423.366358045, 29708813.574096315],
-            [29701429.028963964, 29692046.72468031],
-            [29681320.80143154, 29669519.48808996],
-            [29657362.949341103, 29645226.38311076],
-            [29633591.32297692, 29622598.279163722],
+            [29720241.870437603, 29718291.578992896],
+            [29714444.558270626, 29708843.53792085],
+            [29701466.33210081, 29692091.054452974],
+            [29681368.34197527, 29669577.804998245],
+            [29657420.28679109, 29645289.890251752],
+            [29633652.159150466, 29622668.427521624],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.62027262356374, 56.620271839144614],
-            [56.623036747979334, 56.62309322895194],
-            [56.62744895816398, 56.62916165129061],
-            [56.63706159810912, 56.64423272762598],
-            [56.6564447799741, 56.667824214982446],
-            [56.69140189912312, 56.716810402245585],
+            [56.62027262356375, 56.620266121986276],
+            [56.623039259161175, 56.623083234533965],
+            [56.62742376709935, 56.62913667190933],
+            [56.63700927637203, 56.64423175134397],
+            [56.65642904646521, 56.6677698159723],
+            [56.69138791226268, 56.716714106921884],
         ]
     )
 
@@ -775,24 +915,35 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
     DELTA_E_TURN = 20.0e6
     N_TURNS = 6
 
+    # Regenerated with the split coarse envelope (generator- vs
+    # beam-sourced components; see ``_update_frame_rotations``): these
+    # pins previously encoded the driven multi-section readout-phase
+    # artefact this configuration exists to expose -- the registration
+    # phase ``Psi ~ 0.14 rad/turn/station`` was applied to the
+    # generator-driven field too, and the PI partially fought that
+    # bookkeeping rotation. With the generator component design-anchored
+    # and the PI regulating the kick-frame sum, |V_ant| moved by up to
+    # 1.8e-2 relative and the current response by up to ~9 % here.
+    # ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the fixed
+    # zero-intensity behaviour these numbers now build on.
     PIN_V_MIN = np.array(
         [
-            [29510809.734342266, 29257583.346666165],
-            [29313937.061649576, 29025938.910384115],
-            [29180931.487604056, 28969679.411779363],
-            [29224924.59541966, 29102380.528750226],
-            [29452874.896333005, 29360901.638597563],
-            [29733785.496557347, 29579358.6584041],
+            [29587394.54086683, 29543774.540832333],
+            [29676468.31671796, 29553403.276575282],
+            [29624356.981359284, 29496297.608280458],
+            [29580726.649029866, 29555686.28042151],
+            [29735746.97591483, 29825765.17887941],
+            [29969674.09771953, 29941278.22053024],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.682189929466844, 56.71161284327756],
-            [56.54583554032278, 56.32585826652903],
-            [55.91086834159208, 55.60132240962575],
-            [55.246952051712114, 55.1607570630149],
-            [55.65299112097477, 56.34506291118168],
-            [56.753367631546965, 56.896968910363576],
+            [56.682189929467, 56.7590343761462],
+            [55.93044248155129, 55.58787727483113],
+            [53.1462008548574, 52.87825223329836],
+            [50.2186915900871, 51.274645770223536],
+            [50.28424633707266, 53.22012677798405],
+            [54.379862842346625, 58.098186870389405],
         ]
     )
 

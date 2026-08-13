@@ -155,8 +155,8 @@ class IQCavityFeedbackBase(LocalFeedback):
             )
         self.n_rf_periods_per_coarse_grid = n_rf_periods_per_coarse_grid
 
-        # --- The six IQ state arrays ---------------------------------
-        # All six are complex IQ envelopes (demodulated at the design RF
+        # --- The eight IQ state arrays -------------------------------
+        # All eight are complex IQ envelopes (demodulated at the design RF
         # carrier), all are host (numpy) arrays, and all are ``None``
         # until the first passage fills them. They live on two different
         # time grids, with two different index origins and two different
@@ -231,6 +231,49 @@ class IQCavityFeedbackBase(LocalFeedback):
         UNITS: volts, as a complex IQ envelope in the antenna-voltage
         frame (amplitude ``abs``, phase ``angle``); it is not the
         instantaneous gap voltage.
+
+        FRAME / COMPOSITION: this is the DEMODULATION-FRAME SUM of the two
+        source-split components below,
+        ``antenna_voltage_beam_coarse_grid +
+        antenna_voltage_gen_coarse_grid * generator frame rotation``
+        (see ``IQCavityFeedbackTimingClass._update_frame_rotations``). The
+        components are the propagated state; this sum is (re)composed from
+        them with the CURRENT passage's rotation. For an undriven feedback
+        (zero generator current for the whole run) it equals the beam
+        component bit-for-bit.
+        """
+        self.antenna_voltage_gen_coarse_grid: NumpyArray | None = None
+        """Generator-sourced antenna voltage on the coarse grid, in [V].
+
+        The generator-driven component of the (linear) envelope ODE:
+        same grid, index origin and per-cavity scaling as
+        ``antenna_voltage_coarse_grid``, propagated by the same coarse
+        recursion but sourced by the generator current alone.
+
+        FRAME: natively anchored to the piecewise DESIGN clock -- the
+        generator current is injected as a constant per segment at each
+        segment's own design frequency, which *are* samples of the design
+        program, so this component carries neither the kick-clock slip
+        nor the multi-section registration phase. It is rotated into the
+        demodulation frame only when the sum above is composed. Stays
+        identically zero while the generator current is zero and no
+        initial/pre-fill voltage was given.
+        """
+        self.antenna_voltage_beam_coarse_grid: NumpyArray | None = None
+        """Beam-sourced antenna voltage on the coarse grid, in [V].
+
+        The beam-induced component of the (linear) envelope ODE: same
+        grid, index origin and per-cavity scaling as
+        ``antenna_voltage_coarse_grid``, propagated by the same coarse
+        recursion but sourced by ``-I_beam / 2`` alone.
+
+        FRAME: the demodulation frame -- deposits enter through the
+        demodulated beam current (whose ``carrier_phase_offset``
+        subtracted the accumulated actual-RF slip and the registration
+        phase) and the readout adds the identical total back, closing
+        the chain for every carried deposit exactly as before the split.
+        For an undriven feedback this component IS the former single
+        state, bit-for-bit.
         """
         self.antenna_voltage_fine_grid: NumpyArray | None = None
         """Antenna voltage on the fine grid, in [V], times ``n_cavities``.
@@ -551,10 +594,11 @@ class IQCavityFeedbackTimingClass(
     (``generator_current_bias``). Passing a
     :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`
     instead turns it into a regulated generator current: each coarse-grid
-    step the feedback forms the antenna-voltage error ``V_set - V_ant[n]``
-    and lets the controller convert it into the generator current (see
-    ``_update_generator_current``). All control tuning (gains, loop
-    delay, klystron limit) lives on the controller.
+    step the feedback forms the antenna-voltage error in the *kick frame*
+    -- ``V_set - V_sum[n] * exp(+i (gap + Psi))``, the envelope the station
+    actually applies -- and lets the controller convert it into the
+    generator current (see ``_update_generator_current``). All control
+    tuning (gains, loop delay, klystron limit) lives on the controller.
 
     Where this sits in the turn: the parent RF station first applies its
     scheduled parameters for this passage, then calls this feedback's
@@ -893,10 +937,7 @@ class IQCavityFeedbackTimingClass(
         self._phase_offset_frwrd_next: float = 0.0
         self._phase_offset_frwrd: float = 0.0
 
-        self._last_val_ant_voltage: float = 0.0
-        self._last_val_beam_current: float = 0.0
-        self._last_val_generator_current: float = 0.0
-        self._last_rf_centers_entry: float | None = None
+        self._init_turn_boundary_carries()
 
         self._init_voltage = initial_voltage
 
@@ -954,6 +995,30 @@ class IQCavityFeedbackTimingClass(
                 "budget in turns); set n_pretrack or drop injection_voltage."
             )
 
+    def _init_turn_boundary_carries(self) -> None:
+        """
+        Initialise the turn-boundary carries of the coarse recursion.
+
+        The two antenna-voltage components are the propagated state (see
+        :meth:`reset_arrays` / :meth:`cavity_response`); the un-suffixed
+        value is the carried demodulation-frame SUM, kept for diagnostics
+        and the coincident-first-cell duplication. ``_generator_active``
+        says whether the generator-sourced component carries any signal
+        at all this turn (bias, controller, carried current or carried
+        voltage); refreshed by :meth:`reset_arrays`. While False, the
+        component update and every composition multiply are skipped,
+        keeping an undriven feedback bit-identical to the former
+        single-state recursion. True is the safe default for direct
+        (test) driving.
+        """
+        self._last_val_ant_voltage: complex = 0.0
+        self._last_val_ant_voltage_gen: complex = 0.0
+        self._last_val_ant_voltage_beam: complex = 0.0
+        self._last_val_beam_current: float = 0.0
+        self._last_val_generator_current: float = 0.0
+        self._last_rf_centers_entry: float | None = None
+        self._generator_active: bool = True
+
     def _init_passage_tracking_state(self) -> None:
         """
         Initialise the per-passage bookkeeping attributes.
@@ -969,11 +1034,21 @@ class IQCavityFeedbackTimingClass(
         self._last_track_arrival_time: float | None = None
         self._last_track_is_counter_rotating: bool | None = None
         self._last_forward_cell_width: float | None = None
+        # Live tail of the kick-clock slip at this passage (the slip since
+        # the station clock's last end-of-track tick); one of the two
+        # constituents folded into ``_carrier_slip_gap``.
+        self._kick_clock_slip_gap: float = 0.0
         self._carrier_slip_gap: float = 0.0
         # Running total of the multi-section grid-vs-carrier registration
-        # phase ``sum_k (omega_k - omega_0) T_seg,k`` (see ``_track``).
+        # phase ``sum_k (omega_k - omega_0) T_seg,k`` (see ``_track``);
+        # the other constituent of ``_carrier_slip_gap``.
         # Stays exactly 0.0 for a single section and without acceleration.
         self._grid_carrier_phase: float = 0.0
+        # Per-passage frame rotations (see ``_update_frame_rotations``);
+        # exactly unity until a passage computes them, which is also the
+        # neutral value for direct (test) driving of the cell loops.
+        self._generator_frame_rotation: complex = 1.0 + 0.0j
+        self._kick_frame_rotation: complex = 1.0 + 0.0j
 
     @requires(["RFStationBaseClass"])
     def _check_step_sizes(self) -> None:
@@ -1341,19 +1416,35 @@ class IQCavityFeedbackTimingClass(
                 if rf_centers_idx == 0:
                     # No predecessor in this grid: the state carried across
                     # the turn boundary is the previous cell.
-                    self.antenna_voltage_coarse_grid[0] = (
-                        self._last_val_ant_voltage
+                    self.antenna_voltage_gen_coarse_grid[0] = (
+                        self._last_val_ant_voltage_gen
+                    )
+                    self.antenna_voltage_beam_coarse_grid[0] = (
+                        self._last_val_ant_voltage_beam
                     )
                     self.generator_current_coarse_grid[0] = (
                         self._last_val_generator_current
                     )
                 else:
-                    self.antenna_voltage_coarse_grid[rf_centers_idx] = (
-                        self.antenna_voltage_coarse_grid[rf_centers_idx - 1]
+                    self.antenna_voltage_gen_coarse_grid[rf_centers_idx] = (
+                        self.antenna_voltage_gen_coarse_grid[
+                            rf_centers_idx - 1
+                        ]
+                    )
+                    self.antenna_voltage_beam_coarse_grid[rf_centers_idx] = (
+                        self.antenna_voltage_beam_coarse_grid[
+                            rf_centers_idx - 1
+                        ]
                     )
                     self.generator_current_coarse_grid[rf_centers_idx] = (
                         self.generator_current_coarse_grid[rf_centers_idx - 1]
                     )
+                # The demodulation-frame sum duplicates with its parts
+                # (composed with THIS passage's rotation -- the sum is
+                # derived from the component state, never propagated).
+                self.antenna_voltage_coarse_grid[rf_centers_idx] = (
+                    self._compose_coarse_sum(rf_centers_idx)
+                )
                 # The controller is deliberately NOT stepped: no time has
                 # elapsed, so there is no new sample to regulate on.
                 continue
@@ -1415,9 +1506,20 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
 
         if start_index == 0:
+            voltage_gen_init = complex(self._last_val_ant_voltage_gen)
+            voltage_beam_init = complex(self._last_val_ant_voltage_beam)
+            # The carried demodulation-frame sum; only the beam-kick guard
+            # reads it, and only on a segment that does NOT start at the
+            # carried cell (skip_first) -- kept for the guard's signature.
             voltage_init = complex(self._last_val_ant_voltage)
             generator_current_init = complex(self._last_val_generator_current)
         else:
+            voltage_gen_init = self.antenna_voltage_gen_coarse_grid[
+                start_index - 1
+            ]
+            voltage_beam_init = self.antenna_voltage_beam_coarse_grid[
+                start_index - 1
+            ]
             voltage_init = self.antenna_voltage_coarse_grid[start_index - 1]
             generator_current_init = self.generator_current_coarse_grid[
                 start_index - 1
@@ -1439,6 +1541,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # setpoint stays unevaluated (it may need the parent RF station).
             voltage_setpoint = 0.0 + 0.0j
 
+        voltage_gen_out = np.empty(n_cells, dtype=np.complex128)
+        voltage_beam_out = np.empty(n_cells, dtype=np.complex128)
         voltage_out = np.empty(n_cells, dtype=np.complex128)
         # Pre-fill with the current generator grid: the inactive (no-beam /
         # constant-current) path reads it as each cell's drive current, matching
@@ -1455,11 +1559,17 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 drive_weight,
                 omega_times_dt,
                 beam_current,
+                voltage_gen_out,
+                voltage_beam_out,
                 voltage_out,
                 generator_current_out,
-                voltage_init,
+                voltage_gen_init,
+                voltage_beam_init,
                 generator_current_init,
                 float(self.R_over_Q),
+                bool(self._generator_active),
+                complex(self._generator_frame_rotation),
+                complex(self._kick_frame_rotation),
                 controller_active,
                 voltage_setpoint,
                 float(omega_input),
@@ -1477,6 +1587,16 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             )
             return
 
+        self.antenna_voltage_beam_coarse_grid[start_index:end_index] = (
+            voltage_beam_out
+        )
+        if self._generator_active:
+            # The kernel writes the generator component only while it is
+            # active; otherwise the grid keeps its zeros prefill, exactly
+            # like the reference path, which skips the component update.
+            self.antenna_voltage_gen_coarse_grid[start_index:end_index] = (
+                voltage_gen_out
+            )
         self.antenna_voltage_coarse_grid[start_index:end_index] = voltage_out
         # Commit the generator grid. Active: the PI outputs. Inactive: the
         # unchanged pre-filled values, i.e. a no-op vs the reference (which
@@ -1688,6 +1808,37 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             )
         return voltage_multiplier, drive_weight
 
+    def _compose_coarse_sum(self, coarse_grid_index: int) -> complex:
+        """
+        Compose the demodulation-frame sum at one coarse-grid index.
+
+        ``V_beam + V_gen * generator frame rotation``: the beam component
+        already lives in the demodulation frame, the design-anchored
+        generator component is rotated into it with this passage's
+        rotation (see :meth:`_update_frame_rotations`). While the
+        generator component is inactive the sum IS the beam component --
+        assigned, not added, so an undriven feedback stays bit-identical
+        to the former single-state recursion.
+
+        Parameters
+        ----------
+        coarse_grid_index
+            Coarse-grid index to compose; both component arrays must
+            already hold this cell.
+
+        Returns
+        -------
+        composed_sum
+            The demodulation-frame antenna voltage at that cell [V].
+        """
+        voltage_beam = self.antenna_voltage_beam_coarse_grid[coarse_grid_index]
+        if not self._generator_active:
+            return voltage_beam
+        return voltage_beam + (
+            self.antenna_voltage_gen_coarse_grid[coarse_grid_index]
+            * self._generator_frame_rotation
+        )
+
     def cavity_response(
         self,
         omega_times_dt: float,
@@ -1697,6 +1848,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
     ):
         """
         Calculate antenna voltage on the coarse grid for a specific index.
+
+        Advances the two source-split components (the envelope ODE is
+        linear, so running the same propagator once per source is exact
+        superposition): the beam-sourced component with the generator
+        current pinned to zero, the generator-sourced component with the
+        beam current pinned to zero -- then composes the
+        demodulation-frame sum via ``_compose_coarse_sum``.
 
         Parameters
         ----------
@@ -1709,7 +1867,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         no_beam
             If no beam is present, the beam current is set to 0.
         """
-        if coarse_grid_index_to_update != 0:
+        index = coarse_grid_index_to_update
+        if index != 0:
             if no_beam:
                 beam_current = 0
             else:
@@ -1717,38 +1876,50 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                     len(self._rf_centers) - self._rf_centers_lengths[-1]
                 )
                 beam_current = self.beam_current_forward_coarse_grid[
-                    coarse_grid_index_to_update - forward_offset
+                    index - forward_offset
                 ]
             self._check_beam_kick_magnitude(
                 beam_current=beam_current,
                 omega_times_dt=omega_times_dt,
-                previous_voltage=self.antenna_voltage_coarse_grid[
-                    coarse_grid_index_to_update - 1
-                ],
+                previous_voltage=self.antenna_voltage_coarse_grid[index - 1],
             )
-            self.antenna_voltage_coarse_grid[coarse_grid_index_to_update] = (
-                self._advance_coarse_voltage(
-                    v_prev=self.antenna_voltage_coarse_grid[
-                        coarse_grid_index_to_update - 1
-                    ],
-                    generator_current=self.generator_current_coarse_grid[
-                        coarse_grid_index_to_update - 1
-                    ],
-                    beam_current=beam_current,
-                    omega_times_dt=omega_times_dt,
-                    relative_detuning=relative_detuning,
-                )
-            )
+            voltage_gen_prev = self.antenna_voltage_gen_coarse_grid[index - 1]
+            voltage_beam_prev = self.antenna_voltage_beam_coarse_grid[
+                index - 1
+            ]
+            generator_current = self.generator_current_coarse_grid[index - 1]
         else:
-            self.antenna_voltage_coarse_grid[coarse_grid_index_to_update] = (
+            voltage_gen_prev = self._last_val_ant_voltage_gen
+            voltage_beam_prev = self._last_val_ant_voltage_beam
+            generator_current = self._last_val_generator_current
+            beam_current = self._last_val_beam_current
+        # Beam-sourced component: the former recursion with the generator
+        # current pinned to (0 + 0j) -- bit-identical to the old single
+        # state for an undriven feedback (whose generator grid is zero).
+        self.antenna_voltage_beam_coarse_grid[index] = (
+            self._advance_coarse_voltage(
+                v_prev=voltage_beam_prev,
+                generator_current=(0.0 + 0.0j),
+                beam_current=beam_current,
+                omega_times_dt=omega_times_dt,
+                relative_detuning=relative_detuning,
+            )
+        )
+        if self._generator_active:
+            # Generator-sourced component: same propagator, beam current
+            # pinned to (0 + 0j).
+            self.antenna_voltage_gen_coarse_grid[index] = (
                 self._advance_coarse_voltage(
-                    v_prev=self._last_val_ant_voltage,
-                    generator_current=self._last_val_generator_current,
-                    beam_current=self._last_val_beam_current,
+                    v_prev=voltage_gen_prev,
+                    generator_current=generator_current,
+                    beam_current=(0.0 + 0.0j),
                     omega_times_dt=omega_times_dt,
                     relative_detuning=relative_detuning,
                 )
             )
+        self.antenna_voltage_coarse_grid[index] = self._compose_coarse_sum(
+            index
+        )
 
         # With the PI control active, regulate the generator current of this
         # coarse-grid index from the antenna-voltage error just computed; it
@@ -1885,6 +2056,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         Reset the coarse grids for a new turn, carrying the last values over.
 
+        The antenna voltage is carried as its two source-split components
+        (``_last_val_ant_voltage_gen`` / ``_last_val_ant_voltage_beam``,
+        the propagated state) plus the composed demodulation-frame sum
+        (``_last_val_ant_voltage``, diagnostics and the coincident
+        first-cell duplication). On the very first turn the initial (or
+        pre-fill) voltage seeds the generator component: it is a
+        generator-established, design-anchored field.
+
         The generator grid is seeded with the feedforward bias, except over
         the leading ``n_backfill_cells`` no-beam backfill-reconstruction
         cells,
@@ -1906,10 +2085,27 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             bias, which is what a grid without backfill segments gets.
         """
         if self.antenna_voltage_coarse_grid is None:
+            # First turn: the initial (or pre-fill) voltage is a
+            # generator-established field, so it seeds the design-anchored
+            # generator component; the beam component starts empty.
             self._last_val_ant_voltage = self._init_voltage
+            self._last_val_ant_voltage_gen = self._init_voltage
+            self._last_val_ant_voltage_beam = 0.0 + 0.0j
         else:
             self._last_val_ant_voltage = self.antenna_voltage_coarse_grid[-1]
+            self._last_val_ant_voltage_gen = (
+                self.antenna_voltage_gen_coarse_grid[-1]
+            )
+            self._last_val_ant_voltage_beam = (
+                self.antenna_voltage_beam_coarse_grid[-1]
+            )
         self.antenna_voltage_coarse_grid = np.zeros(
+            len(self._rf_centers), dtype=np.complex128
+        )
+        self.antenna_voltage_gen_coarse_grid = np.zeros(
+            len(self._rf_centers), dtype=np.complex128
+        )
+        self.antenna_voltage_beam_coarse_grid = np.zeros(
             len(self._rf_centers), dtype=np.complex128
         )
         if self.generator_current_coarse_grid is None:
@@ -1927,6 +2123,20 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             self.generator_current_coarse_grid[:n_backfill_cells] = (
                 self._last_val_generator_current
             )
+        # Whether the generator-sourced component carries any signal this
+        # turn. Everything that can source it is checked: an attached
+        # controller, the feedforward bias seeding the grid, the held
+        # (zero-order-hold) command over the backfill cells and the
+        # carried component voltage. While False, the component update
+        # and every composition multiply are skipped -- the sum is then
+        # assigned from the beam component, keeping an undriven feedback
+        # bit-identical to the former single-state recursion.
+        self._generator_active = (
+            self._controller is not None
+            or self._generator_current_bias != 0
+            or self._last_val_generator_current != 0
+            or self._last_val_ant_voltage_gen != 0
+        )
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -1961,13 +2171,20 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             (the station sits at a meeting azimuth of the two beams).
         """
         self._guard_simultaneous_passage(beam=beam)
-        self._carrier_slip_gap = self._carrier_slip_gap_at_passage(beam=beam)
+        self._kick_clock_slip_gap = self._carrier_slip_gap_at_passage(
+            beam=beam
+        )
 
         span = self._rebuild_per_turn_grid(beam=beam)
-        self._replay_backfill_span(n_backfill_centers=span.n_backfill_centers)
-        self._carrier_slip_gap += self._accumulate_registration_phase(
-            n_backfill_centers=span.n_backfill_centers
+        self._carrier_slip_gap = (
+            self._kick_clock_slip_gap
+            + self._accumulate_registration_phase(
+                n_backfill_centers=span.n_backfill_centers
+            )
         )
+        self._update_frame_rotations()
+
+        self._replay_backfill_span(n_backfill_centers=span.n_backfill_centers)
 
         if self._grid_only_no_correction:
             self._write_no_correction_readout()
@@ -2050,11 +2267,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         Notes
         -----
         ORDERING: the gap is *returned*, not assigned, so that the caller's
-        ``self._carrier_slip_gap = ...`` makes visible that it is RESET at
-        every passage rather than accumulated. The multi-section
-        registration phase of this passage is added on top afterwards (see
-        :meth:`_accumulate_registration_phase`), so the instance attribute
-        is only complete after that call.
+        ``self._kick_clock_slip_gap = ...`` makes visible that it is RESET
+        at every passage rather than accumulated. ``_carrier_slip_gap`` is
+        then formed as this gap plus the multi-section registration phase
+        (see :meth:`_accumulate_registration_phase`); the two constituents
+        stay separately available because the generator-component frame
+        rotation needs the kick-clock part with the station clock on top
+        (see :meth:`_update_frame_rotations`).
         """
         # Live tail of the RF-frequency-offset phase slip: the station's
         # kick clock (delta_phi_rf) is accumulated only at the END of each
@@ -2246,11 +2465,15 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         Notes
         -----
-        ORDERING: must run after :meth:`_replay_backfill_span` (it reads the
-        backfill segment list this passage generated) and before
-        :meth:`_track_forward_span`, whose demodulation subtracts the total
-        via ``_carrier_slip_gap``. Like the replay it reads the segment
-        records themselves -- ``RFCenterSegment.omega`` is omega_k and
+        ORDERING: must run after :meth:`_rebuild_per_turn_grid` (it reads
+        the backfill segment list that call generated) and before
+        :meth:`_update_frame_rotations` -- the per-passage frame rotations
+        fold the returned total in -- and hence before every
+        :meth:`circuit_track` of the passage, whose sum composition uses
+        those rotations; :meth:`_track_forward_span`'s demodulation then
+        subtracts the identical total via ``_carrier_slip_gap``. Like the
+        backfill replay it reads the segment records themselves --
+        ``RFCenterSegment.omega`` is omega_k and
         ``RFCenterSegment.duration`` is T_seg,k.
         """
         # Multi-section grid-vs-carrier registration phase. A multi-section
@@ -2322,6 +2545,57 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # both stay bit-identical.
         return self._grid_carrier_phase
 
+    def _update_frame_rotations(self) -> None:
+        r"""
+        Compute this passage's component frame rotations.
+
+        The coarse state is source-split (the envelope ODE is linear, so
+        superposition is exact): the BEAM component lives in the
+        demodulation frame, the GENERATOR component is natively anchored
+        to the piecewise design clock (its current is injected as a
+        constant per segment at each segment's own design frequency --
+        samples of the design program). Composing the demodulation-frame
+        sum therefore rotates the generator component by
+
+        .. math::
+            e^{-i(\Delta\phi_\mathsf{rf} + \mathrm{gap} + \Psi)}
+
+        (station kick clock + live kick-clock gap + registration phase
+        ``Psi``): the readout later adds ``gap + Psi`` back and the
+        station adds ``delta_phi_rf`` through ``phi_rf``, so the
+        generator component nets to its design-clock phase -- under an
+        RF-frequency offset it appears at MINUS the kick-clock slip
+        relative to the actual RF, the physical walk-off of a
+        design-locked drive (see :meth:`_write_station_readout`).
+
+        The kick-frame rotation ``exp(+i (gap + Psi))`` rotates the
+        demodulation-frame sum into the frame of the applied kick; the PI
+        error is formed there, so the loop regulates the voltage the
+        station actually applies.
+
+        Both are exactly ``1 + 0j`` without an RF-frequency offset and
+        without multi-section acceleration (the zero short-circuit keeps
+        the unrotated path free of ``exp`` sign dust).
+
+        Notes
+        -----
+        ORDERING: needs ``delta_phi_rf`` (per-passage station clock) and
+        the completed ``_carrier_slip_gap`` of this passage; must precede
+        every :meth:`circuit_track` of the passage, whose per-cell sum
+        composition and PI error read the rotations off the instance.
+        """
+        total_generator_slip = self.delta_phi_rf + self._carrier_slip_gap
+        self._generator_frame_rotation = (
+            1.0 + 0.0j
+            if total_generator_slip == 0.0
+            else complex(np.exp(-1j * total_generator_slip))
+        )
+        self._kick_frame_rotation = (
+            1.0 + 0.0j
+            if self._carrier_slip_gap == 0.0
+            else complex(np.exp(1j * self._carrier_slip_gap))
+        )
+
     def _write_no_correction_readout(self) -> None:
         """
         Write the neutral readout: unit gain, zero phase.
@@ -2383,7 +2657,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )  # for all rf_centers
 
     def _write_station_readout(self, carrier_slip_gap: float) -> None:
-        """
+        r"""
         Write ``relative_voltage_correction`` and ``phase_correction``.
 
         Parameters
@@ -2398,6 +2672,37 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         -----
         ORDERING: must run after :meth:`_track_forward_span`, which fills
         the fine-grid antenna voltage this readout converts.
+
+        **Readout composition (per-component anchoring).** The fine-grid
+        envelope this readout converts is the demodulation-frame sum
+
+        .. math::
+            V = V_\mathrm{beam}
+                + V_\mathrm{gen}\,
+                  e^{-i(\Delta\phi_\mathsf{rf} + g + \Psi)},
+
+        with ``g`` the live kick-clock gap, ``Psi`` the multi-section
+        registration phase (``carrier_slip_gap = g + Psi``) and
+        ``delta_phi_rf`` the station kick clock. The station applies
+        ``sin(omega_rf ts + phi_rf_design + delta_phi_rf +
+        phase_correction)`` with ``phase_correction = angle(V) +
+        carrier_slip_gap``, so each component nets, relative to the
+        design carrier:
+
+        - beam component: ``angle(V_beam) + delta_phi_rf + g + Psi`` --
+          exactly the total its demodulation subtracted
+          (``carrier_phase_offset = -(delta_phi_rf + g + Psi)``, see
+          :meth:`calculate_rf_beam_current_partial`); the chain closes
+          for every carried deposit, byte-for-byte as before the split;
+        - generator component: ``angle(V_gen) + 0`` -- design-locked, as
+          the klystron drive follows the design frequency. Relative to
+          the ACTUAL RF (which leads the design carrier by the kick-clock
+          slip ``delta_phi_rf + g``) the driven field therefore appears at
+          MINUS that slip: the physical walk-off of a design-locked drive
+          under an RF-frequency offset. Without an offset and without
+          multi-section acceleration every phase above is zero and a
+          driven, beam-free cavity on its setpoint reads out
+          ``phase_correction == 0`` -- the feedback is a no-op.
         """
         # Convert to amplitude and phase
         self.relative_voltage_correction, alpha_sum = cartesian_to_polar(
@@ -2597,6 +2902,27 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             )
         )
 
+        # The fine solve runs in the DEMODULATION frame: its seed (the
+        # first forward coarse cell of the composed sum) carries the
+        # generator component rotated by the generator frame rotation,
+        # and its beam current was demodulated in that frame. The raw
+        # (design-frame) generator current is rotated the same way into
+        # LOCAL inputs -- the solve is linear, so this reproduces the
+        # superposition of the two per-component fine solutions exactly.
+        # The public ``generator_current_fine_grid`` stays the raw
+        # (klystron-limited) design-frame current. Skipped while the
+        # generator component is inactive, keeping an undriven feedback
+        # bit-identical.
+        generator_current_fine_grid = self.generator_current_fine_grid
+        if self._generator_active:
+            generator_current_fine_grid = (
+                generator_current_fine_grid * self._generator_frame_rotation
+            )
+            initial_generator_current_fine_grid = (
+                initial_generator_current_fine_grid
+                * self._generator_frame_rotation
+            )
+
         cavity_response_solver = (
             cavity_response_sparse_matrix_second_order
             if self._second_order_fine_grid_solver_enable
@@ -2604,7 +2930,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
         self.antenna_voltage_fine_grid = cavity_response_solver(
             I_beam=self.beam_current_fine_grid,
-            I_gen=self.generator_current_fine_grid,
+            I_gen=generator_current_fine_grid,
             V_ant_init=initial_voltage_fine_grid,
             I_gen_init=initial_generator_current_fine_grid,
             omega_times_dt=omega_times_dt_fine_grid,

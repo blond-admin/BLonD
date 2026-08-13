@@ -1451,6 +1451,14 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         """
         Antenna Voltage in the feedback ``(n_observations, n_coarse)``, in [V].
 
+        Each row records the feedback's ``antenna_voltage_coarse_grid``,
+        the demodulation-frame sum of the beam- and generator-sourced
+        envelope components -- so in a driven run under an accumulated RF
+        phase slip the complex values appear rotated by minus that slip
+        while their magnitude is invariant, and a driven readout must be
+        compared in the kick frame (or by magnitude), not naively against
+        the complex setpoint.
+
         Returns
         -------
         v_ant_coarse

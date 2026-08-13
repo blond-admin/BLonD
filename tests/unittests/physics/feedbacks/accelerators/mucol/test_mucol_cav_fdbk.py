@@ -107,8 +107,18 @@ class TestCavityFeedback(unittest.TestCase):
         self.cav_fdbk._last_val_beam_current = 0.0 + 0.0j
 
         v0 = self.initial_voltage + 0.0j
+        # The carried field is generator-established (design-anchored),
+        # so it seeds the generator-sourced component.
         self.cav_fdbk._last_val_ant_voltage = v0
+        self.cav_fdbk._last_val_ant_voltage_gen = v0
+        self.cav_fdbk._last_val_ant_voltage_beam = 0.0 + 0.0j
         self.cav_fdbk.antenna_voltage_coarse_grid = np.zeros(
+            n_steps, dtype=complex
+        )
+        self.cav_fdbk.antenna_voltage_gen_coarse_grid = np.zeros(
+            n_steps, dtype=complex
+        )
+        self.cav_fdbk.antenna_voltage_beam_coarse_grid = np.zeros(
             n_steps, dtype=complex
         )
 
@@ -223,6 +233,12 @@ class TestCavityFeedback(unittest.TestCase):
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
             [1.0 + 0.0j, 0.0j]
         )
+        self.cav_fdbk.antenna_voltage_beam_coarse_grid = (
+            self.cav_fdbk.antenna_voltage_coarse_grid.copy()
+        )
+        self.cav_fdbk.antenna_voltage_gen_coarse_grid = np.zeros(
+            2, dtype=complex
+        )
         self.cav_fdbk.generator_current_coarse_grid = np.zeros(
             2, dtype=complex
         )
@@ -248,6 +264,12 @@ class TestCavityFeedback(unittest.TestCase):
         self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
             [self.initial_voltage + 0.0j, 0.0j]
+        )
+        self.cav_fdbk.antenna_voltage_beam_coarse_grid = (
+            self.cav_fdbk.antenna_voltage_coarse_grid.copy()
+        )
+        self.cav_fdbk.antenna_voltage_gen_coarse_grid = np.zeros(
+            2, dtype=complex
         )
         self.cav_fdbk.generator_current_coarse_grid = np.zeros(
             2, dtype=complex
@@ -366,6 +388,12 @@ class TestCavityFeedback(unittest.TestCase):
         self.cav_fdbk._rf_centers_lengths = np.array([2])
         self.cav_fdbk.antenna_voltage_coarse_grid = np.array(
             [1.0 + 0.0j, 0.0j]
+        )
+        self.cav_fdbk.antenna_voltage_beam_coarse_grid = (
+            self.cav_fdbk.antenna_voltage_coarse_grid.copy()
+        )
+        self.cav_fdbk.antenna_voltage_gen_coarse_grid = np.zeros(
+            2, dtype=complex
         )
         self.cav_fdbk.generator_current_coarse_grid = np.zeros(
             2, dtype=complex
@@ -869,8 +897,13 @@ class TestCavityPrefill(unittest.TestCase):
         )
         cav._last_val_generator_current = self.I_g + 0.0j
         cav._last_val_beam_current = 0.0 + 0.0j
+        # The fill is generator-established: seed the gen component.
         cav._last_val_ant_voltage = v_ss
+        cav._last_val_ant_voltage_gen = v_ss
+        cav._last_val_ant_voltage_beam = 0.0 + 0.0j
         cav.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
+        cav.antenna_voltage_gen_coarse_grid = np.zeros(n_steps, dtype=complex)
+        cav.antenna_voltage_beam_coarse_grid = np.zeros(n_steps, dtype=complex)
 
         cav.circuit_track(
             omega_input=self.omega_rf,
@@ -944,8 +977,17 @@ class TestCavityPrefill(unittest.TestCase):
         )
         feedback._last_val_generator_current = feedback._generator_current_bias
         feedback._last_val_beam_current = 0.0 + 0.0j
+        # The pre-fill seed is generator-established: gen component.
         feedback._last_val_ant_voltage = feedback._init_voltage
+        feedback._last_val_ant_voltage_gen = feedback._init_voltage
+        feedback._last_val_ant_voltage_beam = 0.0 + 0.0j
         feedback.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
+        feedback.antenna_voltage_gen_coarse_grid = np.zeros(
+            n_steps, dtype=complex
+        )
+        feedback.antenna_voltage_beam_coarse_grid = np.zeros(
+            n_steps, dtype=complex
+        )
 
         # The forward span is always tracked at the design frequency.
         feedback.circuit_track(

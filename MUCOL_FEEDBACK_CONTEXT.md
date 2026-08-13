@@ -4,8 +4,9 @@ Working notes for the mucol cavity-feedback branch
 (`blonder_feature/mucol_feedbacks`), July–August 2026. Checkpoint-committed
 throughout; last full re-verification of this file against the source
 2026-08-11; docs-consistency sweep (this file + both RSTs against the
-source, scripted name/role/test-name checks) 2026-08-12. Still to be
-reviewed before the MR.
+source, scripted name/role/test-name checks) 2026-08-12; split-envelope
+docs pass (this file + both RSTs + `observables.py` + the outer-repo
+example, see §2.13) 2026-08-12. Still to be reviewed before the MR.
 
 **What this file is.** A maintainer's handoff map: the invariants, the
 decisions (including the rejected ones and the user directives behind them),
@@ -55,6 +56,10 @@ check).
   geometry, and never as a rotation of the antenna-voltage state. Canonical
   statement: the `IQCavityFeedbackTimingClass` class docstring (*RF-frequency
   offset* under Notes) and the design RST's *Interplay with the RF station*.
+  Since the envelope split (§2.13) the propagated state is the two
+  source-split components; the offsets reach the generator-sourced one only
+  through the per-passage *composition* rotation of the demod-frame sum,
+  still never through its propagated state.
 - **`_segments` is the single source of truth** for the per-turn grid; the
   flat `_rf_centers` / `_rf_centers_lengths` arrays are derived from it
   (`_rebuild_grid_arrays`) and can therefore not desync.
@@ -394,14 +399,21 @@ Behaviour-preserving except where noted.
   value another produced, that value is *returned and passed* rather than
   left on `self`, so the argument lists are the dependency graph.
   **CORRECTED 2026-08-11:** this section used to list *nine* phases including
-  `_close_previous_turn_grid` and `_write_debug_readout`. `_track` now calls
-  **eight**, in this order: `_guard_simultaneous_passage`,
-  `_carrier_slip_gap_at_passage`, `_rebuild_per_turn_grid` (returns a
+  `_close_previous_turn_grid` and `_write_debug_readout`.
+  **CORRECTED AGAIN 2026-08-12 (split envelope, §2.13):** `_track` now calls
+  **nine**, in this order: `_guard_simultaneous_passage`,
+  `_carrier_slip_gap_at_passage` (assigned to `_kick_clock_slip_gap` — reset
+  per passage), `_rebuild_per_turn_grid` (returns a
   `PerTurnGridSpan`; it is the one that calls `_close_previous_turn_grid`,
-  and `reset_arrays` last), `_replay_backfill_span`,
-  `_accumulate_registration_phase`, then either `_write_no_correction_readout`
+  and `reset_arrays` last), `_accumulate_registration_phase` (its total plus
+  the kick-clock gap forms `_carrier_slip_gap`), `_update_frame_rotations`
+  (the per-passage generator/kick frame rotations — must precede every
+  `circuit_track` of the passage), `_replay_backfill_span`, then either
+  `_write_no_correction_readout`
   (early return, `grid_only_no_correction` only) or `_track_forward_span` +
-  `_write_station_readout`.
+  `_write_station_readout`. Note the registration phase and the rotations
+  moved BEFORE the backfill replay: the replay's cell updates already
+  compose the demod-frame sum with this passage's rotations.
   Two orderings cannot be expressed as arguments and are stated in the
   respective docstrings (the first is additionally asserted per turn):
   `reset_arrays` must size the coarse state before any `circuit_track`, and
@@ -642,6 +654,64 @@ reference and the vectorised kernel spell it once. `PerTurnGridSpan` lives in
 `_limit_fine_grid_generator_current` (the fine-grid klystron clamp) moved
 from the timing class onto `GeneratorRegulationMixin`.
 
+### 2.13 Split coarse envelope — driven readout-phase residual FIXED (2026-08-12)
+
+The residual caveat of the Ψ fix (§3.3) is CLOSED. The coarse envelope is
+now TWO components propagated by the same recursion (the ODE is linear —
+superposition is exact): `antenna_voltage_gen_coarse_grid`
+(generator-sourced) and `antenna_voltage_beam_coarse_grid` (beam-sourced).
+The public `antenna_voltage_coarse_grid` remains the DEMOD-FRAME SUM,
+recomposed per passage as
+`V_beam + V_gen · exp(−i(delta_phi_rf + gap + Ψ))`
+(`_compose_coarse_sum` / the kernel's per-cell composition) — exactly
+`1+0j` rotation without an offset and without multi-section acceleration,
+hence undriven runs bit-identical (additionally enforced by the
+`_generator_active` gate, which skips the gen-component update and every
+composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
+
+- **Anchoring decision (maintainer-settled): the klystron drive follows the
+  DESIGN frequency.** The gen component is natively design-clock-anchored —
+  a constant injection per segment at each segment's own design frequency
+  is exactly right (those *are* samples of the design program), and it
+  carries no registration phase Ψ at readout. Under a station
+  `delta_omega_rf` the design-locked drive physically walks off at MINUS
+  the kick-clock slip relative to the actual RF — modelled physics, pinned
+  by `TestDesignLockedDriveWalkOffUnderRFOffset`
+  (`phase_correction == −delta_phi_rf`, atol 1e-9). The beam component
+  keeps the pre-existing demod/readout closure byte-for-byte.
+- **`_carrier_slip_gap` contract update:** its two constituents are now
+  held separately — `_kick_clock_slip_gap` (live kick-clock tail, reset per
+  passage) and `_grid_carrier_phase` (running Ψ total) — because the
+  generator frame rotation needs the kick-clock part with the station
+  clock on top (`_update_frame_rotations`:
+  `exp(−i(delta_phi_rf + gap + Ψ))` for composition,
+  `exp(+i(gap + Ψ))` for the kick frame). The demod/readout sides still
+  subtract/add the identical folded total, unchanged.
+- **PI regulates the KICK-frame sum**
+  (`error = V_set − V·exp(+i(gap + Ψ))`), python
+  (`_update_generator_current`) and kernel identically; the
+  `envelope_pi_scan` signature grew (the two component in/out arrays, the
+  `generator_active` gate, the two rotation scalars).
+- **`initial_voltage` / the pre-fill seed the GEN component** (flagged
+  corner, decided): the seed models a generator-established,
+  design-anchored field, so `reset_arrays` puts it on
+  `_last_val_ant_voltage_gen`; the beam component starts empty.
+- **Result:** at intensity 0 the feedback is exactly phase-neutral — the
+  synchronous-phase bug is gone (RCS1 example probe: −4.65 deg growing over
+  8 turns before, ~1.5e-6 deg after; measured in the fix session). Pinned
+  in-repo by `TestDrivenFeedbackIsPhaseNeutralWithoutBeam` (both drive
+  variants, 1e-12 rad gate) and in the outer repo by
+  `test_feedback_is_a_no_op_without_beam`, whose strict `xfail` became a
+  plain pass.
+- **Re-pins:** the multi-section FAST-ramp PI pins were regenerated (the
+  old set encoded the artefact — Ψ ~0.14 rad/turn/station fought by the
+  PI; `i_max_dev` dropped ~9 %, `|V_ant|` moved ≤ 1.8e-2 relative). The
+  multi-section SLOW-ramp pins were regenerated too: the kick-frame PI
+  error shift is `V_beam·(1 − e^{iΨ})` with Ψ ~7e-6 rad/turn there, moving
+  `|V_ant|` ≤ 2.4e-6 and the current response ≤ 1.7e-6 relative —
+  marginally past the 1e-6 pin tolerance, declared in the pin comments;
+  maintainer reviewed and proceeded.
+
 ---
 
 ## 3. Open items / flagged (NOT done — need decisions)
@@ -792,11 +862,14 @@ from the timing class onto `GeneratorRegulationMixin`.
   `_carrier_slip_gap`, is subtracted at demodulation and added back at
   readout; the state rotation is DELETED. Proof it is a real fix and not a
   compensation: the 5 mtw tests that failed when the rotation was merely
-  removed now pass **without** it. **Residual caveat** (now a design-RST
-  *Known limitations* bullet): a driven multi-section fast ramp keeps a
-  readout-**phase** offset, because the beam-induced part needs Ψ at readout
-  and the driven part does not, and one readout phase cannot separate them.
-  Amplitude is exact.
+  removed now pass **without** it. **Residual caveat — RESOLVED
+  (2026-08-12, split envelope, §2.13)**: a driven multi-section fast ramp
+  used to keep a readout-**phase** offset, because the beam-induced part
+  needs Ψ at readout and the driven part does not, and ONE readout phase
+  could not separate them (amplitude was already exact). The source-split
+  envelope separates them per component, so the former design-RST *Known
+  limitations* bullet for it is retired; the RCS1-example measurements of
+  the old residual are kept in §2.13 as record.
 - ~~Forward-Euler hard cap~~ **DECIDED + SHIPPED**: tightened from `2.0` to
   `1.0` (`ForwardEulerValidityGuard.max_step_angle_hard`), so the
   sign-flipping `1 < d < 2` band is forbidden too, not just the divergent
@@ -829,12 +902,12 @@ from the timing class onto `GeneratorRegulationMixin`.
 
 | module | holds |
 |---|---|
-| `cavity_feedback.py` (2718) | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **eight** phase methods (§2.11), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `reset_arrays`, `on_run_simulation`, `_validate_multi_harmonic_slot`, `_check_fine_grid_initial_condition_is_causal`, the pre-fill call. `_check_step_sizes`, `_check_beam_kick_magnitude`, `_check_beam_kicks` are thin wrappers delegating to `self._euler_guard` |
+| `cavity_feedback.py` (3043) | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **nine** phase methods (§2.11, incl. `_update_frame_rotations`), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `reset_arrays` (incl. `_generator_active` refresh and the gen-component seeding), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_check_fine_grid_initial_condition_is_causal`, the pre-fill call. `_check_step_sizes`, `_check_beam_kick_magnitude`, `_check_beam_kicks` are thin wrappers delegating to `self._euler_guard` |
 | `rf_center_grid.py` (884) | `RFCenterGridMixin` — coarse `rf_centers` construction: the forward and **backfill** reference walks, `_generate_rf_centers`, segment generation (`_append_segment` / `_clear_segments` / `_rebuild_grid_arrays` / `_close_previous_turn_grid`), `_preceding_segment_residual`, `_validate_grid`, and the two direction selectors (`_reference_list_for_direction`, `_own_index_for_direction` — the *space*-sense reverse, §1.3). `_segments` is the single source of truth; the flat arrays are derived. Its module docstring is the canonical statement of the backfill-vs-reverse rule and of the design-clock-only geometry |
 | `rf_center_segment.py` (165) | The two value classes: `RFCenterSegment` (all four fields load-bearing — see the correction in §2.11 — with the ≥ 2-centres and `residual ∈ [0, duration]` validation) and `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`). Both are imported by `cavity_feedback.py` |
 | `cavity_solvers.py` (768) | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the coarse-step arithmetic `coarse_step_exponent`, `euler_voltage_multiplier`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`; and `ForwardEulerValidityGuard` — the discretisation tripwires, beside the solvers they certify. Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
-| `envelope_kernel.py` (229) | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
-| `generator_regulation.py` (234) | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current`, `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need both coarse grids and the three values carried across the turn boundary, and because the scan depends on `pi_setpoint` staying *unevaluated* on a span the controller sits out (that property may reach through to the parent station, which a no-beam backfill span must not require) |
+| `envelope_kernel.py` (304) | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Since §2.13 it advances the two source-split components, composes the demod-frame sum per cell and forms the PI error in the kick frame; the signature carries the component in/out arrays, the `generator_active` gate and the two per-passage rotation scalars. Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
+| `generator_regulation.py` (244) | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current` (forms the PI error in the KICK frame via `_kick_frame_rotation`, §2.13), `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need both coarse grids and the three values carried across the turn boundary, and because the scan depends on `pi_setpoint` staying *unevaluated* on a span the controller sits out (that property may reach through to the parent station, which a no-beam backfill span must not require) |
 | `generator_current_controller.py` (446) | `GeneratorCurrentController` ABC + `GeneratorCurrentPIController`; the envelope-scan capability hooks (`supports_envelope_scan`, `envelope_scan_kernel`, `envelope_scan_state`, `absorb_envelope_scan_state`); `current_limit_from_power`, `clamp_magnitude` |
 | `beam_current.py` (435) | `low_pass_filter`, `rf_beam_current` (unified; keyword-only coarse args; no wrap-around; `check_fits_in_span` + `hist_step`/`sampling_time` + `_check_coarse_index_bounds` guards) |
 | `beam_feedback.py` (481) | the surviving phase loop (`BeamFeedbackBase`), incl. `cavity_sum_phase`, whose `NotImplementedError` guard is the permanent contract — coupling is a deliberate non-goal (§3.3) |
@@ -871,9 +944,13 @@ above.
 
 ## 5. Verification status
 
-- `tests/unittests/physics/feedbacks` **collects 520 tests** (2026-08-12,
-  collection only — this pass did not re-run the battery; up from 513 on
-  2026-08-11 with the seven tests of `TestConstructorHarmonicIndexValidation`
+- `tests/unittests/physics/feedbacks` **collects 525 tests** (2026-08-12,
+  collection only — this pass did not re-run the battery; up from 520
+  earlier the same day with the five split-envelope tests of §2.13:
+  `TestDrivenFeedbackIsPhaseNeutralWithoutBeam` (2),
+  `TestDesignLockedDriveWalkOffUnderRFOffset` (1) and the two
+  `test_split_components_*` kernel-identity configs; 513 on
+  2026-08-11 before the seven tests of `TestConstructorHarmonicIndexValidation`
   and `TestAttachSetsHarmonicIndexFromSlot`).
 - **HISTORY**: the last full battery run recorded here (mucol + LHC
   comparisons + impedances) was **492 passed**, the only failures being the

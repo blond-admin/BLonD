@@ -179,6 +179,14 @@ class GeneratorRegulationMixin:
         to the attached controller, which returns the generator current
         written to the coarse grid.
 
+        The error is formed in the KICK frame: the demodulation-frame sum
+        of this cell rotated by ``_kick_frame_rotation`` (the per-passage
+        scalar ``exp(+i * carrier slip gap)``), i.e. the envelope of the
+        kick the station actually applies against ``phi_rf`` -- so the
+        loop regulates the applied voltage, not a bookkeeping frame. The
+        rotation is exactly unity without an RF-frequency offset and
+        without multi-section acceleration.
+
         Parameters
         ----------
         omega_times_dt
@@ -192,7 +200,9 @@ class GeneratorRegulationMixin:
                 " controller needs omega_input to recover the sampling time."
             )
         idx = coarse_grid_index_to_update
-        error = self.pi_setpoint - self.antenna_voltage_coarse_grid[idx]
+        error = self.pi_setpoint - (
+            self.antenna_voltage_coarse_grid[idx] * self._kick_frame_rotation
+        )
         delta_t = omega_times_dt / self._omega_input_for_pi
         self.generator_current_coarse_grid[idx] = (
             self._controller.update_generator_current(error, delta_t)

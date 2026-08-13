@@ -382,12 +382,18 @@ class TestIQCavityFeedbackTimingClass:
         matched to the setpoint, ``V_ss = 2 (R/Q) Q_L I_g`` is the *exact*
         fixed point of the coarse-grid forward-Euler step -- both the step
         size and the RF frequency cancel out of the fixed-point condition.
-        The antenna envelope must therefore stay at ``V_ss`` on every coarse
-        sample, across every segment and turn boundary, under the violent
-        per-turn ramp, the station RF-frequency offsets and the substepping
-        ratios of the sweep. Any bookkeeping error that double-counts,
-        drops or mis-sizes a step would show up as a departure from
-        ``V_ss``.
+        The generator-sourced antenna component must therefore stay at
+        ``V_ss`` (at phase 0: the drive is design-locked, and that
+        component is natively design-anchored) on every coarse sample,
+        across every segment and turn boundary, under the violent
+        per-turn ramp, the station RF-frequency offsets and the
+        substepping ratios of the sweep. Any bookkeeping error that
+        double-counts, drops or mis-sizes a step would show up as a
+        departure from ``V_ss``. The composed demodulation-frame sum
+        holds the same magnitude but appears rotated by minus the
+        accumulated kick-clock slip -- the physical walk-off of a
+        design-locked drive under a station RF-frequency offset (see
+        ``_update_frame_rotations``), so only its ``abs`` is invariant.
         """
         backend.change_backend(Numpy64Bit)
         # Keep the single-segment turn at least two coarse steps long --
@@ -430,10 +436,14 @@ class TestIQCavityFeedbackTimingClass:
         sim = Simulation(self.ring, cycle)
 
         envelopes = []
+        envelopes_gen = []
 
         def callback(simulation: Simulation, beam: Beam):
             envelopes.append(
                 np.copy(cav_fdbk_timing.antenna_voltage_coarse_grid)
+            )
+            envelopes_gen.append(
+                np.copy(cav_fdbk_timing.antenna_voltage_gen_coarse_grid)
             )
             if simulation.turn_i.value == 0:
                 self.rf_station.delta_omega_rf = (
@@ -445,14 +455,29 @@ class TestIQCavityFeedbackTimingClass:
         )
 
         assert len(envelopes) == n_turns_to_simulate
-        for turn_ind, envelope in enumerate(envelopes):
+        for turn_ind, (envelope, envelope_gen) in enumerate(
+            zip(envelopes, envelopes_gen)
+        ):
             assert len(envelope) > 0
+            # The design-anchored generator component holds the fixed
+            # point exactly, phase included.
             np.testing.assert_allclose(
-                envelope,
+                envelope_gen,
                 v_ss + 0.0j,
                 rtol=1e-9,
                 atol=0,
                 err_msg=f"envelope left the fixed point in turn {turn_ind}",
+            )
+            # The demodulation-frame sum is that component rotated by
+            # minus the accumulated kick-clock slip: magnitude-invariant.
+            np.testing.assert_allclose(
+                np.abs(envelope),
+                v_ss,
+                rtol=1e-9,
+                atol=0,
+                err_msg=(
+                    f"|envelope| left the fixed point in turn {turn_ind}"
+                ),
             )
 
     # @pytest.mark.skip

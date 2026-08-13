@@ -93,7 +93,8 @@ repeat it.
 PI controller
     Proportional-Integral controller: commands ``I_gen`` from the voltage
     error ``V_set - V_ant`` (a term proportional to the error plus a term
-    integrating it).
+    integrating it). Here the error is formed in the *kick frame*; see
+    *Signal path of one turn*.
 anti-windup
     Freezes the integrator while the actuator is saturated, so the integral
     does not "wind up" to an unrecoverable value.
@@ -268,7 +269,9 @@ Classes at a glance
 :mod:`blond.physics.feedbacks.envelope_kernel`
     The compiled numba host kernel (``envelope_pi_scan``) the coarse
     per-cell recursion runs on by default
-    (``use_numba_envelope_kernel``). It is byte-identical to the
+    (``use_numba_envelope_kernel``); it advances the two source-split
+    envelope components, composes their demodulation-frame sum and runs
+    the kick-frame PI per cell. It is byte-identical to the
     pure-Python per-cell reference, which is kept both as that reference
     and as the exact fallback: a segment is re-run there when any cell
     reaches the klystron limit (whose numpy magnitude clamp the kernel
@@ -304,8 +307,12 @@ Each turn the timing class runs:
    accumulates its kick clock ``delta_phi_rf`` only at the end of each
    track, so this gap completes it to the exact accumulated slip at this
    passage. Exactly ``0.0`` without an offset. It is *returned* and then
-   assigned to ``_carrier_slip_gap``, which makes visible that the value
-   is reset at every passage rather than accumulated.
+   assigned to ``_kick_clock_slip_gap``, which makes visible that the
+   value is reset at every passage rather than accumulated. It is one of
+   the two constituents of ``_carrier_slip_gap`` -- the other is the
+   multi-section registration phase of step 4 -- and the two are held
+   separately because the generator-component frame rotation needs the
+   kick-clock part with the station clock on top (step 4).
 
 3. ``_rebuild_per_turn_grid`` -- rebuilds this passage's coarse grid
    (``rf_centers``), sizes the coarse state and returns a frozen
@@ -322,22 +329,33 @@ Each turn the timing class runs:
    several stations per ring. A station RF-frequency offset
    ``delta_omega_rf`` never moves the grid, and does not shift the
    demodulation carrier either (which stays on the design clock): it
-   enters only as the explicit constant phase of step 2. ``reset_arrays``
+   enters only as the explicit constant phase assembled in steps 2 and
+   4. ``reset_arrays``
    is the last statement of this phase -- it can neither precede the grid
    generation it takes its size from, nor follow any ``circuit_track``.
 
-4. ``_replay_backfill_span`` -- re-walks this passage's backfill segments
+4. ``_accumulate_registration_phase`` -- accumulates the multi-section
+   grid-vs-carrier registration phase
+   ``Psi = sum_k (omega_k - omega_0) T_seg,k`` (explained under *Interplay
+   with the RF station* below) and returns the running total; exactly
+   ``+0.0`` for a single section and for an unaccelerated ring.
+   ``_carrier_slip_gap`` is then formed as the kick-clock gap of step 2
+   plus this total, and ``_update_frame_rotations`` derives the two
+   per-passage frame rotations every later cell update reads: the
+   *generator* frame rotation ``exp(-i (delta_phi_rf + gap + Psi))``,
+   which rotates the design-anchored generator component into the
+   demodulation frame when the sum is composed, and the *kick* frame
+   rotation ``exp(+i (gap + Psi))``, in which the PI error is formed.
+   Both are exactly ``1 + 0j`` without an RF-frequency offset and
+   without multi-section acceleration, so those paths stay
+   bit-identical.
+
+5. ``_replay_backfill_span`` -- re-walks this passage's backfill segments
    with ``no_beam=True``, one ``circuit_track`` per backfill segment at
    that segment's own ``omega``, so that the envelope carries the
    already-elapsed interval forward. A passage that generated no backfill
-   segments skips the replay entirely.
-
-5. ``_accumulate_registration_phase`` -- accumulates the multi-section
-   grid-vs-carrier registration phase
-   ``Psi = sum_k (omega_k - omega_0) T_seg,k`` (explained under *Interplay
-   with the RF station* below) and returns the running total, which is
-   added to ``_carrier_slip_gap``. Exactly ``+0.0`` for a single section
-   and for an unaccelerated ring, so both stay bit-identical.
+   segments skips the replay entirely. It runs after step 4 because its
+   cell updates already compose the sum with this passage's rotations.
 
 6. ``_write_no_correction_readout`` -- only with
    ``grid_only_no_correction=True``: writes the neutral readout (unit
@@ -398,16 +416,44 @@ Each turn the timing class runs:
    into ``relative_voltage_correction`` (divided by the station voltage)
    and ``phase_correction`` (referenced to the mean phase of
    ``station_voltage_coarse_grid``, plus the very same
-   ``_carrier_slip_gap`` the demodulation subtracted, so that the
-   demodulation/readout chain closes). These two are what the parent RF
-   station applies to its kick.
+   ``_carrier_slip_gap`` the demodulation subtracted). Per component
+   that closes two different chains: the beam component gets back
+   exactly the total its demodulation subtracted (the
+   demodulation/readout closure, byte-for-byte as before the envelope
+   split), while the generator component -- composed into the sum with
+   ``exp(-i (delta_phi_rf + gap + Psi))`` -- nets to its design-clock
+   phase. A driven, beam-free cavity on its setpoint therefore reads
+   out ``phase_correction == 0`` exactly: at zero intensity the
+   feedback is *guaranteed* phase-neutral, whatever the ramp and the
+   section count (pinned at 1e-12 rad by
+   ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam``). These two arrays
+   are what the parent RF station applies to its kick.
 
 **Coarse-grid cavity update** (inside ``circuit_track``). The antenna
 voltage is advanced cell by cell with the forward-Euler discretisation of
 the cavity-envelope ODE: generator drive ``I_gen (R/Q) omega dt``,
 decay/detuning multiplier ``1 - 0.5 omega dt / Q_L + i delta_omega dt``
-and beam loading ``-0.5 I_beam (R/Q) omega dt``. Discretisation validity
-is enforced by
+and beam loading ``-0.5 I_beam (R/Q) omega dt``. The ODE is linear, so
+the state is *source-split* and the same recursion runs once per source
+-- exact superposition. The beam-sourced component
+``antenna_voltage_beam_coarse_grid`` is driven by ``-I_beam / 2`` alone
+and is anchored to the demodulation frame (for an undriven feedback it
+*is* the former single state, bit-for-bit). The generator-sourced
+component ``antenna_voltage_gen_coarse_grid`` is driven by ``I_gen``
+alone and is natively anchored to the piecewise *design* clock: the
+klystron drive follows the design frequency, whose per-segment values
+the coarse grid already samples, so injecting a constant current per
+segment is exactly right and the component carries neither the
+kick-clock slip nor the registration phase (``initial_voltage`` and the
+pre-fill seed this component -- they model a generator-established
+field). The public ``antenna_voltage_coarse_grid`` remains the
+DEMODULATION-FRAME SUM, (re)composed per passage as
+``V_beam + V_gen * exp(-i (delta_phi_rf + gap + Psi))`` -- a rotation
+that is exactly ``1 + 0j`` without an RF-frequency offset and without
+multi-section acceleration, which is why undriven runs stay
+byte-identical to the former single-state recursion.
+
+Discretisation validity is enforced by
 :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`
 (the timing class's ``_check_step_sizes``, ``_check_beam_kicks`` and
 ``_check_beam_kick_magnitude`` only supply it the cavity's current
@@ -427,8 +473,9 @@ to sub-stepping at low ``Q_L`` or large detuning.
 A *coincident* coarse point -- two centres a step of ``delta_t == 0``
 apart, which a segment or turn boundary can produce (and which float noise
 of a few ULPs is clamped to) -- carries no elapsed time, so
-``V(t + 0) = V(t)``: the cell duplicates the previous cell's antenna
-voltage and generator current, taking them across the turn boundary when it
+``V(t + 0) = V(t)``: the cell duplicates the previous cell's
+antenna-voltage components and generator current (and recomposes the
+sum), taking them across the turn boundary when it
 is the very first cell. It used to be skipped, which left the cell at the
 zeros prefill so the *next* cell propagated from ``V = 0``, destroying the
 coherent voltage and refilling it only over ``2 Q_L / omega`` -- hundreds
@@ -438,7 +485,13 @@ solve seeds from the *first* forward cell. The controller is still not
 stepped there: no time elapsed, so there is no new sample to regulate on.
 
 **Optional generator-current control.** With a ``controller`` attached,
-each coarse step forms the error ``V_set - V_ant[n]`` and lets the
+each coarse step forms the error in the KICK frame,
+``V_set - V_ant[n] * exp(+i (gap + Psi))`` -- the envelope of the kick
+the station actually applies against ``phi_rf``, so the loop regulates
+the applied voltage rather than a bookkeeping frame; the rotation is
+exactly unity without an RF-frequency offset and without multi-section
+acceleration, and the pure-Python path and the numba kernel form it
+identically -- and lets the
 controller produce ``I_gen[n]``, which drives the next step; without one,
 the generator current stays at the constant feedforward value
 ``generator_current_bias``. The controller is stepped only on the real
@@ -485,7 +538,10 @@ coarse-grid Euler step. The fill is evaluated on the **design** clock
 driven at, and ``t_rev`` is read on that clock too. It previously mixed
 clocks: evaluating the fill at the actual (offset) RF frequency misses the
 recursion's own no-beam fixed point by ``O(delta_omega_rf / omega)``,
-leaving an injection transient the PI then has to burn off.
+leaving an injection transient the PI then has to burn off. Either seed
+-- the scalar ``initial_voltage`` or the pre-fill -- models a
+generator-established field, so it seeds the *generator* component of
+the source-split coarse state (the beam component starts empty).
 
 **The fine-grid initial condition.** The fine solve is seeded with the
 coarse antenna voltage at index ``[0]`` of the forward segment -- the
@@ -543,7 +599,15 @@ Two distinct frequency knobs exist and must not be confused:
       end-of-track tail), carried as one constant phase;
     * the readout applies the identical total (the clock via ``phi_rf``, the
       tail via ``phase_correction``), so the slip cancels and the
-      demodulation/readout chain closes for every carried deposit.
+      demodulation/readout chain closes for every carried deposit;
+    * the klystron drive, by contrast, follows the *design* frequency
+      (the generator component is design-anchored), so under an offset
+      the driven field physically walks off the actual RF at MINUS the
+      accumulated kick-clock slip: a beam-free, matched-bias cavity
+      reads out ``phase_correction == -delta_phi_rf``. This is modelled
+      physics, not an artefact
+      (``TestDesignLockedDriveWalkOffUnderRFOffset`` pins it per turn at
+      1e-9 rad).
 
     The only approximation is the intra-window mismatch
     ``delta_omega_rf * hist_x`` between the design carrier and the actual RF;
@@ -584,6 +648,28 @@ the antenna-voltage state -- that would also rotate the generator-driven
 field, which carries no registration error, turning a phase error into an
 amplitude drift. See ``_accumulate_registration_phase`` for the
 implementation.
+
+The source-split coarse state (see *Signal path of one turn*) is what
+lets ``Psi`` reach exactly the signal that needs it: the beam-sourced
+component's demodulation/readout closure carries ``Psi``, while the
+design-anchored generator component sees no registration phase at
+readout at all, and the PI regulates the kick-frame sum. This closed
+the former driven multi-section readout-phase offset -- one shared
+readout phase used to hand ``Psi`` to the generator-driven field too,
+walking the RF bucket off the design synchronous phase with no beam at
+all -- and it is why the zero-intensity phase neutrality of the readout
+is exact rather than approximate (the amplitude-drift half of the same
+history, percent-level ``|V_ant|`` growth per turn from rotating the
+state, had already been fixed by carrying ``Psi`` on the carrier; both
+are pinned by ``TestDrivenSteadyStateFastRamp``,
+``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` and
+``TestPIFullTrackingMultiSectionFastRamp``).
+
+One reading rule follows for driven runs: ``antenna_voltage_coarse_grid``
+is the demodulation-frame sum, so under an accumulated slip its complex
+value appears rotated by minus that slip while ``|V|`` is invariant -- a
+naive complex comparison against the setpoint is the wrong check;
+compare in the kick frame (as the PI does), or compare magnitudes.
 
 **Multi-harmonic stations.** The feedback is not restricted to the main
 harmonic: it can be attached to a
@@ -734,16 +820,6 @@ Known limitations
   to the accumulated actual RF phase and validated at the discretization
   floor for offsets beyond the cavity half-bandwidth
   (``test_multiturn_delta_omega_rf_*``).
-* Driven (generator-bias) multi-section fast-ramp operation keeps a
-  readout-*phase* offset: the registration phase ``Psi`` (see *Interplay
-  with the RF station* above) reaches the beam through
-  ``phase_correction``, but the beam-induced part needs ``Psi`` at readout
-  while the generator-driven part does not, and a single readout phase
-  cannot separate the two. The amplitude drift this bullet used to
-  describe -- percent-level ``|V_ant|`` growth per turn, from applying
-  ``Psi`` as a rotation of the antenna-voltage state -- is gone. Pinned by
-  ``TestDrivenSteadyStateFastRamp`` and
-  ``TestPIFullTrackingMultiSectionFastRamp``.
 * The undriven two-section fast-ramp carried wake shows a slow bounded
   secular drift (~0.03 percentage points per turn over 20 turns) against
   the convolution.

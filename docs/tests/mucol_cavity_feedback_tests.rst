@@ -501,8 +501,10 @@ reference tracking, under acceleration, with a
 configuration asserts physical behaviour and then *pins* the end-of-turn
 antenna-voltage and generator-current trajectories against hardcoded
 reference values (characterization: any change of the tracked feedback
-numerics shows up here first); the driven open-loop steady state and the
-numba-kernel bit identity are guarded end to end here as well.
+numerics shows up here first); the driven open-loop steady state, the
+zero-intensity phase neutrality, the design-locked drive walk-off under
+an RF-frequency offset and the numba-kernel bit identity are guarded
+end to end here as well.
 Setting the ``PI_TRACKING_PRINT_PINS`` environment variable prints the
 recorded trajectories instead (used to regenerate the pins); while the pins
 are unrecorded (``None``) the pin tests skip.
@@ -530,6 +532,39 @@ below the ~3e-2 the state rotation produced.
     Two stations must hold it too -- the regression under test.
 ``test_four_sections_hold_steady_state``
     Four stations: three backfill segments per passage.
+
+**Class** ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` -- a driven,
+beam-free cavity on its setpoint must hand the station NO phase: the
+zero-intensity phase-neutrality guarantee of the split coarse envelope,
+and the in-repo counterpart of the RCS example's
+``test_feedback_is_a_no_op_without_beam``. Two-section fast ramp
+(4 GeV + 20 MeV/turn), zero intensity, matched generator bias, six
+turns; each test gates ``max |phase_correction|`` over all turns at
+``1e-12`` rad -- FP dust of the fine-grid solve, against the ~0.3
+rad/turn the fixed bug produced on this ring (the registration phase
+``Psi`` handed to the design-locked generator drive at readout).
+
+``test_matched_bias_applies_no_phase``
+    Constant matched drive: the headline zero-intensity no-op.
+``test_pi_loop_applies_no_phase``
+    A PI loop holding the same setpoint must be phase-neutral too.
+
+**Class** ``TestDesignLockedDriveWalkOffUnderRFOffset`` -- under a station
+RF-frequency offset the design-locked drive walks off the actual RF.
+The klystron drive follows the DESIGN frequency, so with
+``delta_omega_rf`` set the actual RF accumulates the kick-clock slip
+relative to the design clock and the driven (generator) field must
+appear at MINUS that slip relative to the actual RF -- real physics,
+not a bookkeeping artefact. Single section, constant 63 GeV, beam-free,
+constant matched bias, offset ``1e-7 * omega_rf`` (~0.016 rad of slip
+per turn -- far above the readout's FP floor, far below a wrap), six
+turns.
+
+``test_driven_field_appears_at_minus_the_kick_clock_slip``
+    Per turn, ``phase_correction == -delta_phi_rf`` to ``atol=1e-9``
+    rad, after asserting the premise has teeth
+    (``|delta_phi_rf|`` really accumulates past 0.05 rad by the last
+    turn).
 
 **Class** ``TestDetunedLoopHoldsSetpointAcrossBackfillSpan`` -- a detuned,
 PI-regulated cavity must hold its setpoint for the *whole* turn, backfill
@@ -590,12 +625,18 @@ fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
 operating-point (63 GeV, slow) ramp, so the pinned trajectories
 characterise a representative production regime; the transition-adjacent
 fast ramp is covered by ``TestPIFullTrackingMultiSectionFastRamp``. The
-pins were regenerated when the grid-vs-carrier registration phase moved
-from a rotation of the antenna-voltage state onto the demodulation/readout
-carrier (see ``TestDrivenSteadyStateFastRamp``): the loop now regulates
-the true antenna voltage, so ``|V_ant|`` moved by < 1e-6 relative here
-(the slow ramp's phase is tiny) and the generator-current response by
-~2.4e-4.
+pins were last regenerated when the coarse envelope was split into its
+generator- and beam-sourced components and the PI error moved to the
+KICK-frame sum: the loop now regulates the applied kick, whose
+difference from the former raw state is ``V_beam (1 - e^{i Psi})`` with
+this slow ramp's registration phase ``Psi ~ 7e-6`` rad/turn. That moved
+``|V_ant|`` by <= 2.4e-6 relative and the current response by
+<= 1.7e-6 -- marginally beyond the 1e-6 pin tolerance, a real
+(declared) modelling shift, not FP noise; the behavioural tests below
+independently assert that both stations still hold the setpoint and
+respond to the loading. (An earlier regeneration moved the
+registration phase from a rotation of the antenna-voltage state onto
+the demodulation/readout carrier; see ``TestDrivenSteadyStateFastRamp``.)
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -632,6 +673,15 @@ dragged the driven field off its steady state (see
 ``TestDrivenSteadyStateFastRamp``), so a pinned PI trajectory would have
 characterised that drift rather than the loop; with the phase carried on
 the demodulation/readout carrier the fast ramp behaves like the slow one.
+The pins were then regenerated once more with the split coarse envelope:
+the previous set still encoded the driven readout-phase artefact this
+configuration exists to expose (``Psi ~ 0.14`` rad/turn/station handed
+to the generator-driven field too, with the PI partially fighting that
+bookkeeping rotation). With the generator component design-anchored and
+the PI regulating the kick-frame sum, ``|V_ant|`` moved by up to 1.8e-2
+relative and the current response by up to ~9 % here;
+``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the fixed
+zero-intensity behaviour these numbers now build on.
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -1347,6 +1397,11 @@ are what is asserted.
 kernel (``envelope_pi_scan``) must reproduce the pure-Python coarse
 recursion bit-for-bit. Each test drives both paths with identical inputs
 and asserts exact equality across the regimes the kernel must cover.
+The compared snapshot covers the whole coarse state: the two
+source-split component grids (``antenna_voltage_gen_coarse_grid`` and
+``antenna_voltage_beam_coarse_grid``) alongside the composed
+demodulation-frame sum, the generator-current grid and, when a
+controller is attached, its integral and delay line.
 
 ``test_no_beam_constant_current``
     Backfill-style segment: no beam, no controller.
@@ -1373,6 +1428,17 @@ and asserts exact equality across the regimes the kernel must cover.
     even for a no-beam segment; a kernel that zeroed it would diverge.
 ``test_forward_pi_carried_beam_current_nonzero``
     Forward PI segment with a nonzero carried index-0 beam current.
+``test_split_components_with_frame_rotations``
+    Both carried components plus non-unit frame rotations -- the live
+    multi-section / RF-offset condition: the generator and beam
+    components carry distinct nonzero state and the per-passage
+    rotations are away from unity (``exp(-0.37j)`` / ``exp(0.21j)``),
+    so the kernel's composition
+    ``V_beam + V_gen * generator_frame_rotation`` must reproduce the
+    reference multiply bit-for-bit.
+``test_split_components_pi_with_frame_rotations``
+    The same configuration with an active PI controller: the regulation
+    of the kick-frame sum under non-unit rotations is bit-identical.
 ``test_multi_section_backfill_then_forward``
     A two-segment (backfill + forward) run is bit-identical.
 ``test_multi_section_carried_state_off_trivial``
@@ -1752,8 +1818,13 @@ the design period regardless of ``delta_omega_factor``.
 ``test_matched_generator_envelope_invariant_acceleration``
     Physics extension of the same sweep: on resonance with the generator
     matched to the setpoint, ``V_ss = 2 (R/Q) Q_L I_g`` is the *exact* fixed
-    point of the coarse forward-Euler step, so the antenna envelope must not
-    move under acceleration.
+    point of the coarse forward-Euler step. The design-anchored
+    generator-sourced component must hold ``V_ss`` exactly (phase
+    included) under acceleration, while the composed demodulation-frame
+    sum holds the same magnitude but, under the sweep's RF-frequency
+    offsets, appears rotated by minus the accumulated kick-clock slip
+    (the physical walk-off of a design-locked drive) -- so only its
+    ``abs`` is asserted invariant.
 ``test_for_discontinuity_distances_single_section_acceleration``
     The discontinuity sweep again on an accelerating cycle, where the coarse
     step itself changes turn over turn.

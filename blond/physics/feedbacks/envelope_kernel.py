@@ -18,6 +18,23 @@ vectorised, and in pure Python the ~10^5 per-turn cells are dominated by
 interpreter and method-call overhead. :func:`envelope_pi_scan` compiles the
 whole scan to a single numba call.
 
+The envelope ODE is linear, so the recursion is run as TWO independent state
+components through the same propagator -- superposition is exact:
+
+- the *beam-sourced* component, driven by ``-I_beam / 2`` alone (the former
+  single state with the generator current pinned to zero; bit-identical to
+  it for an undriven feedback), anchored to the demodulation frame;
+- the *generator-sourced* component, driven by ``I_gen`` alone, natively
+  anchored to the piecewise design clock the coarse grid samples.
+
+Each cell also composes the demodulation-frame sum
+``V = V_beam + V_gen * generator_frame_rotation`` (the per-passage scalar
+``generator_frame_rotation = exp(-i (delta_phi_rf + carrier slip gap +
+registration phase))`` rotates the design-anchored component into the
+demodulation frame; see ``IQCavityFeedbackTimingClass._track``), which is
+what the PI regulates -- in the *kick frame*,
+``error = V_set - V * kick_frame_rotation``.
+
 The kernel is deliberately *solver-agnostic*: the per-cell voltage multiplier
 ``B`` (``1 + L`` for forward Euler, ``e^L`` for the exponential propagator) and
 the drive weight ``W`` (``1`` or ``(e^L - 1) / L``) depend only on the step
@@ -72,11 +89,17 @@ def envelope_pi_scan(
     drive_weight,
     omega_times_dt,
     beam_current,
+    voltage_gen_out,
+    voltage_beam_out,
     voltage_out,
     generator_current_out,
-    voltage_init,
+    voltage_gen_init,
+    voltage_beam_init,
     generator_current_init,
     r_over_q,
+    generator_active,
+    generator_frame_rotation,
+    kick_frame_rotation,
     controller_active,
     pi_setpoint,
     omega_input,
@@ -91,17 +114,24 @@ def envelope_pi_scan(
     r"""
     Run the coarse-grid antenna-voltage recursion (+ optional PI) over a span.
 
-    Advances, for each coarse cell ``c``,
+    Advances, for each coarse cell ``c``, the two source-split components of
+    the (linear) envelope ODE through the same propagator,
 
     .. math::
-        V_c = V_{c-1}\,B_c + \mathrm{drive}_c\,W_c, \quad
-        \mathrm{drive}_c = (R/Q)\,\omega\Delta t_c\,
-            (I_{\mathrm{gen},c-1} - \tfrac12 I_{\mathrm{beam},c}),
+        V_{\mathrm{beam},c} = V_{\mathrm{beam},c-1}\,B_c
+            + (R/Q)\,\omega\Delta t_c\,
+              (0 - \tfrac12 I_{\mathrm{beam},c})\,W_c, \quad
+        V_{\mathrm{gen},c} = V_{\mathrm{gen},c-1}\,B_c
+            + (R/Q)\,\omega\Delta t_c\,
+              I_{\mathrm{gen},c-1}\,W_c,
 
-    and, when ``controller_active``, updates the generator current from the
-    antenna-voltage error with a saturating PI controller (conditional
-    anti-windup, magnitude clamp). ``max_output = inf`` disables the clamp and
-    the saturation check, matching an unlimited controller.
+    composes the demodulation-frame sum
+    ``V_c = V_beam,c + V_gen,c * generator_frame_rotation`` and, when
+    ``controller_active``, updates the generator current from the kick-frame
+    antenna-voltage error ``V_set - V_c * kick_frame_rotation`` with a
+    saturating PI controller (conditional anti-windup, magnitude clamp).
+    ``max_output = inf`` disables the clamp and the saturation check,
+    matching an unlimited controller.
 
     Parameters
     ----------
@@ -114,20 +144,44 @@ def envelope_pi_scan(
     beam_current
         Per-cell beam current (complex128, length ``N``); zero for a no-beam
         segment.
+    voltage_gen_out
+        Output generator-sourced antenna voltage, written in place
+        (complex128, length ``N``). Not written when ``generator_active``
+        is False (the component is identically zero there).
+    voltage_beam_out
+        Output beam-sourced antenna voltage, written in place (complex128,
+        length ``N``).
     voltage_out
-        Output antenna voltage, written in place (complex128, length ``N``).
+        Output demodulation-frame sum, written in place (complex128,
+        length ``N``).
     generator_current_out
         Generator current (complex128, length ``N``), in/out: pre-filled by the
         caller with the current generator grid (the drive source for the
         inactive path and for cell ``c``'s read of cell ``c-1``); when
         ``controller_active`` each cell's PI output is written over it.
-    voltage_init
-        Antenna voltage seeding the first cell (previous cell's value).
+    voltage_gen_init
+        Generator-sourced voltage seeding the first cell.
+    voltage_beam_init
+        Beam-sourced voltage seeding the first cell.
     generator_current_init
         Generator current driving the first cell (the carried ``last_val`` at a
         segment starting at grid index 0, else the previous grid cell).
     r_over_q
         Cavity ``R/Q`` [Ohm].
+    generator_active
+        Whether the generator-sourced component carries any signal at all
+        (bias, controller or carried voltage). When False its update and the
+        composition multiply are skipped, so an undriven feedback stays
+        bit-identical to the former single-state recursion.
+    generator_frame_rotation
+        Per-passage scalar ``exp(-i (delta_phi_rf + carrier slip gap))``
+        rotating the design-anchored generator component into the
+        demodulation frame of the beam component (unity without an
+        RF-frequency offset and without multi-section acceleration).
+    kick_frame_rotation
+        Per-passage scalar ``exp(+i * carrier slip gap)`` rotating the
+        demodulation-frame sum into the frame of the applied kick, in which
+        the PI error is formed.
     controller_active
         Whether to run the PI controller; if False each cell's drive uses the
         pre-filled generator grid (cell 0 uses ``generator_current_init``) and
@@ -170,7 +224,8 @@ def envelope_pi_scan(
     """
     n = omega_times_dt.shape[0]
     buffer_len = delay_buffer.shape[0]
-    voltage_prev = voltage_init
+    voltage_gen_prev = voltage_gen_init
+    voltage_beam_prev = voltage_beam_init
     # Guard band below the limit: comfortably wider than a double-precision ULP
     # (~2e-16) yet negligible physically, so it can never miss a cell the
     # reference would clamp while almost never firing spuriously.
@@ -188,17 +243,38 @@ def envelope_pi_scan(
             generator_current_drive = generator_current_init
         else:
             generator_current_drive = generator_current_out[cell - 1]
-        drive = (
+        # Beam-sourced component: the former recursion with the generator
+        # current pinned to (0 + 0j) -- bit-identical to the single state
+        # for an undriven feedback (whose generator grid is exactly zero).
+        drive_beam = (
             r_over_q
             * omega_times_dt[cell]
-            * (generator_current_drive - 0.5 * beam_current[cell])
+            * ((0.0 + 0.0j) - 0.5 * beam_current[cell])
         )
-        voltage = voltage_prev * voltage_multiplier[cell] + (
-            drive * drive_weight[cell]
+        voltage_beam = voltage_beam_prev * voltage_multiplier[cell] + (
+            drive_beam * drive_weight[cell]
         )
+        voltage_beam_out[cell] = voltage_beam
+        voltage_beam_prev = voltage_beam
+        if generator_active:
+            # Generator-sourced component: same propagator, beam current
+            # pinned to (0 + 0j).
+            drive_gen = (
+                r_over_q
+                * omega_times_dt[cell]
+                * (generator_current_drive - 0.5 * (0.0 + 0.0j))
+            )
+            voltage_gen = voltage_gen_prev * voltage_multiplier[cell] + (
+                drive_gen * drive_weight[cell]
+            )
+            voltage_gen_out[cell] = voltage_gen
+            voltage_gen_prev = voltage_gen
+            voltage = voltage_beam + voltage_gen * generator_frame_rotation
+        else:
+            voltage = voltage_beam
         voltage_out[cell] = voltage
         if controller_active:
-            error = pi_setpoint - voltage
+            error = pi_setpoint - voltage * kick_frame_rotation
             delta_t = omega_times_dt[cell] / omega_input
             delay_buffer[delay_head] = error
             delay_head = (delay_head + 1) % buffer_len
@@ -225,5 +301,4 @@ def envelope_pi_scan(
                 generator_current_out[cell] = output
         # Inactive: leave generator_current_out[cell] at its pre-filled static
         # grid value -- the constant-current / no-beam path never rewrites it.
-        voltage_prev = voltage
     return delay_buffer, delay_head, integral, saturation_possible
