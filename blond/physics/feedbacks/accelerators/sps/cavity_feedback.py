@@ -184,18 +184,18 @@ class SPSFeedForwardCoarseBuffers(TwoTurnBufferBase):
     i_gen
         Buffer containing the forward current [A] of the generator.
     i_beam_modulated
-        Bla.
+        Beam current modulated from the RF frequency to the central frequency of the TWC.
+    i_ffwd_filtered
+        The feedforward correction signal after applying the FFWD FIR filter.
     i_ffwd_modulated
-        Bla.
-    i_ffwd_delayed
-        Bla.
+        The feedforward correction signal modulated back to the RF frequency.
     i_ffwd_correction
-        Bla.
+        The final correction signal from the feedforward.
     """
 
     i_beam_modulated: TwoTurnArray = field(init=False)
+    i_ffwd_filtered: TwoTurnArray = field(init=False)
     i_ffwd_modulated: TwoTurnArray = field(init=False)
-    i_ffwd_delayed: TwoTurnArray = field(init=False)
     i_ffwd_correction: TwoTurnArray = field(init=False)
 
     def __post_init__(self):
@@ -203,8 +203,8 @@ class SPSFeedForwardCoarseBuffers(TwoTurnBufferBase):
         super().__post_init__()
 
         self.i_beam_modulated = self._make_array(dtype=complex)
+        self.i_ffwd_filtered: TwoTurnArray = field(init=False)
         self.i_ffwd_modulated = self._make_array(dtype=complex)
-        self.i_ffwd_delayed = self._make_array(dtype=complex)
         self.i_ffwd_correction = self._make_array(dtype=complex)
 
 
@@ -732,12 +732,12 @@ class SPSOneTurnFeedback(
                 dt=self.dT,
             )
 
-            self.buffers_ffwd.i_ffwd_correction.curr = np.zeros(
+            self.buffers_ffwd.i_ffwd_filtered.curr = np.zeros(
                 self.n_coarse_ff, dtype=complex
             )
             for ind in range(self.n_coarse_ff):
                 for k in range(self.n_ff):
-                    self.buffers_ffwd.i_ffwd_correction.curr[ind] += (
+                    self.buffers_ffwd.i_ffwd_filtered.curr[ind] += (
                         self.coeff_ff[k]
                         * self.buffers_ffwd.i_beam_modulated[ind - k]
                     )
@@ -750,7 +750,7 @@ class SPSOneTurnFeedback(
                 * (self.omega_c - self.omega_carrier)
             )
             self.buffers_ffwd.i_ffwd_modulated.curr = modulator(
-                self.buffers_ffwd.i_ffwd_correction.curr,
+                self.buffers_ffwd.i_ffwd_filtered.curr,
                 omega_i=self.omega_c,
                 omega_f=self.omega_carrier,
                 t_sampling=5 * self.T_s,
@@ -759,7 +759,7 @@ class SPSOneTurnFeedback(
             )
 
             # Compensate for FIR filter delay
-            self.buffers_ffwd.i_ffwd_delayed.curr = (
+            self.buffers_ffwd.i_ffwd_correction.curr = (
                 self.buffers_ffwd.i_ffwd_modulated.full[
                     self.n_ff_delay : self.n_ff_delay - self.n_coarse_ff
                 ]
@@ -945,7 +945,7 @@ class SPSOneTurnFeedback(
                 * np.interp(
                     self.rf_centers,
                     self.rf_centers[::5],
-                    self.buffers_ffwd.i_ffwd_delayed.curr,
+                    self.buffers_ffwd.i_ffwd_correction.curr,
                 )
             )
 

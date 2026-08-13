@@ -67,35 +67,35 @@ class LHCCavityFeedbackCoarseBuffers(TwoTurnBufferBase):
     i_gen
         Buffer containing the forward current [A] of the generator.
     v_excitation
-        Bla.
+        Buffer containing white noise for transfer function measurements.
     v_feedback_in
-        Bla.
+        Input signal [V] for the RF feedback.
     v_analog_in
-        Bla.
+        Input signal [V] for the analog feedback model.
     i_analog_out
-        Bla.
+        Output signal [A] from the analog feedback branch.
     i_digital_out
-        Bla.
+        Output signal [A] from the digital feedback branch.
     i_feedback_out
-        Bla.
+        Total output signal [A] from the RF feedback model.
     v_otfb_ac_in
-        Bla.
+        Output signal [V] from the AC coupler at the input of the one-turn delay feedback.
     v_otfb_comb
-        Bla.
+        Output signal [V] after the comb-filter of the one-turn delay feedback.
     v_otfb_fir_out
-        Bla.
+        Output signal [V] from the FIR filter of the one-turn delay feedback.
     v_otfb_out
-        Bla.
+        The output signal [V] from the one-turn delay feedback.
     i_swap_out
-        Bla.
+        The output signal [A] from the switch and protect model.
     i_gen_test
-        Bla.
+        The output signal [A] after the generator gain.
     i_gen_predrive
-        Bla.
+        The signal [A] going into the klystron saturation and bandwidth models.
     tuner_in
-        Bla.
+        Input signal for the tuner loop.
     tuner_integrated
-        Bla.
+        The tuner loop signal after the CIC-filter.
     """
 
     v_excitation: TwoTurnArray = field(init=False)
