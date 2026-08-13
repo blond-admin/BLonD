@@ -194,6 +194,8 @@ class TestBackendBaseClass(unittest.TestCase):
 def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     """Run a code snippet in a fresh interpreter without BLOND env vars."""
     env = os.environ.copy()
+    # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
+    # TTY, so numba's colorama atexit hook writes '\x1b[0m' to it.
     for key in (
         "BLOND_BACKEND_MODE",
         "BLOND_BACKEND_BITS",
