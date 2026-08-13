@@ -224,6 +224,55 @@ class TestBeamBaseClass(unittest.TestCase):
             )
         )
 
+    def test_snapshot_state_restore_state_roundtrip(self):
+        snapshot = self.beam_base_class.snapshot_state()
+
+        dt_before = copy_to_cpu(self.beam_base_class._dt.array_local.copy())
+        dE_before = copy_to_cpu(self.beam_base_class._dE.array_local.copy())
+        flags_before = copy_to_cpu(
+            self.beam_base_class._flags.array_local.copy()
+        )
+        ids_before = copy_to_cpu(self.beam_base_class._ids.array_local.copy())
+        intensity_before = self.beam_base_class.intensity
+
+        self.beam_base_class._dt.array_local[:] = 0
+        self.beam_base_class._dE.array_local[:] = 0
+        self.beam_base_class._flags.array_local[:] = -500
+        self.beam_base_class._ids.array_local[:] = -1
+        self.beam_base_class.intensity = -1
+
+        self.beam_base_class.restore_state(snapshot)
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam_base_class._dt.array_local), dt_before
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam_base_class._dE.array_local), dE_before
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam_base_class._flags.array_local),
+            flags_before,
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam_base_class._ids.array_local), ids_before
+        )
+        self.assertEqual(self.beam_base_class.intensity, intensity_before)
+
+    def test_snapshot_state_restore_state_after_purge(self):
+        snapshot = self.beam_base_class.snapshot_state()
+        length_before = self.beam_base_class._dt.local_size
+
+        self.beam_base_class._flags.array_local[[0, 1, -1]] = -500
+        self.beam_base_class.purge_flagged_entries()
+        self.assertNotEqual(self.beam_base_class._dt.local_size, length_before)
+
+        self.beam_base_class.restore_state(snapshot)
+
+        self.assertEqual(self.beam_base_class._dt.local_size, length_before)
+        self.assertEqual(self.beam_base_class._dE.local_size, length_before)
+        self.assertEqual(self.beam_base_class._flags.local_size, length_before)
+        self.assertEqual(self.beam_base_class._ids.local_size, length_before)
+
     def test_purge_flagged_entries(self):
         ids_before = copy_to_cpu(self.beam_base_class._ids.array_local.copy())
         select = [0, 1, -1]
