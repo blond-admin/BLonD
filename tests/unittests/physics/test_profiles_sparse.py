@@ -141,10 +141,12 @@ class TestEquidistantMultiProfile(unittest.TestCase):
         self.assertAlmostEqual(meta["cut_width"], 1.0)
         self.assertEqual(meta["bins_per_profile"], 4)
         np.testing.assert_array_equal(
-            meta["filling_pattern"], np.array([True, False, False, True])
+            copy_to_cpu(meta["filling_pattern"]),
+            np.array([True, False, False, True]),
         )
         np.testing.assert_array_equal(
-            meta["bucket_index_to_memory_index"], np.array([0, 0, 0, 4])
+            copy_to_cpu(meta["bucket_index_to_memory_index"]),
+            np.array([0, 0, 0, 4]),
         )
 
 
