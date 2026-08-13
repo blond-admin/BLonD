@@ -13,7 +13,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
     get_hamilton_semi_analytic,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):

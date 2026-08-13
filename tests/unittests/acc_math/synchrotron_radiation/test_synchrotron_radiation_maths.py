@@ -3,7 +3,7 @@ import unittest
 from blond import backend, electron
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import *
 from blond.core.beam.particle_types import ParticleType
-from blond.generals.exceptions import UnevenArraySizes
+from blond.generals.exceptions_ import UnevenArraySizes
 
 
 class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):

@@ -24,7 +24,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
-    from blond.typing import AnyArray
+    from blond.generals.typing_ import AnyArray
 
 
 class BarrierRF(RFManipulationBaseClass):

@@ -22,7 +22,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_de
     occupation_per_equipotential_to_density,
     occupation_per_equipotential_to_histogram,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
