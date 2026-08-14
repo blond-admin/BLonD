@@ -21,6 +21,7 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -538,36 +539,29 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         )
         voltage = induced_voltage.astype(backend.float)
         bin_centers = self.profile.hist_x  # base for induced voltage
-        dt = beam.read_partial_dt()
-        from blond.physics.profiles_sparse import (
-            EquidistantMultiProfile,  # prevent cyclic import
+        sparse_metadata = (
+            self.profile.sparse_kick_metadata
+            if isinstance(self.profile, EquidistantMultiProfile)
+            else None
         )
-
-        if isinstance(self.profile, EquidistantMultiProfile):
-            # hist_x concatenates the filled buckets only (gapped grid),
-            # but kick_interpolated assumes ONE equidistant grid -- kick
-            # on the packed grid with remapped particle times instead
-            assert self._delayed_kick is None, (
-                "kick pooling does not support EquidistantMultiProfile"
-            )
-            bin_centers = self.profile.packed_hist_x
-            dt = self.profile.map_dt_to_packed(dt)
         if self._delayed_kick is not None:
             # Relies on PooledInterpolationKick.track()
             # being called later.
             self._delayed_kick.register(
                 time_axis=bin_centers,
                 voltage=voltage,
+                sparse_metadata=sparse_metadata,
             )
         else:
             backend.specials.kick_interpolated(
-                dt=dt,
+                dt=beam.read_partial_dt(),
                 dE=beam.write_partial_dE(),
                 # TODO improve induced_voltage calculation data type for speedup
                 voltage=voltage,
                 bin_centers=bin_centers,  # base for induced voltage
                 charge=beam.signed_charge_with_direction(),
                 acceleration_kick=0.0,
+                **(sparse_metadata or {}),
             )
 
     @staticmethod

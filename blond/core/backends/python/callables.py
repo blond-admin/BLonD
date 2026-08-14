@@ -541,6 +541,12 @@ class PythonSpecials(Specials):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
         """
         Interpolated kick method.
@@ -561,21 +567,81 @@ class PythonSpecials(Specials):
             Energy, in [eV], which is added to all particles.
             This is intended to subtract the target energy from the RF
             energy gain in one common call.
+        first_left_cut
+            Left edge of the first bucket's histogram. Pass this together
+            with the other sparse-metadata arguments below (e.g. via
+            `EquidistantMultiProfile.sparse_kick_metadata`) when
+            `bin_centers` is a gapped, multi-island array such as
+            `EquidistantMultiProfile.hist_x`. When omitted, `bin_centers`
+            must be uniformly spaced.
+        left_cut_distance
+            Distance between the left edge of each bucket's histogram.
+        cut_width
+            Distance between left and right edge of one bucket's
+            histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        filling_pattern
+            Filling pattern as a boolean array where `True` means filled
+            bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index, see
+            `_gen_array_bucket_index_to_memory_index`.
         """
+        sparse = first_left_cut is not None
         n_slices = len(bin_centers)
-        inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
-        fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
+        if sparse:
+            inv_bin_width = bins_per_profile / cut_width
+        else:
+            if n_slices >= 2:  # noqa: PLR2004
+                diffs = np.diff(bin_centers)
+                if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
+                    raise ValueError(
+                        "bin_centers is not uniformly spaced (looks like "
+                        "a sparse/multi-island "
+                        "EquidistantMultiProfile.hist_x). Either pass "
+                        "this profile's sparse metadata (first_left_cut, "
+                        "left_cut_distance, cut_width, bins_per_profile, "
+                        "filling_pattern, bucket_index_to_memory_index), "
+                        "e.g. via `profile.sparse_kick_metadata`, or use "
+                        "EquidistantMultiProfile.profiles[i].hist_x for "
+                        "a single bucket."
+                    )
+            inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
         helper2 = (
             charge * voltage[:-1] - bin_centers[:-1] * helper1
         ) + acceleration_kick
 
+        if not sparse:
+            fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(
+                np.int32
+            )
+            for i in range(len(dt)):
+                if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
+                    dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+            return
+
+        n_buckets = len(filling_pattern)
+        inv_hist_dist = 1.0 / left_cut_distance
+        bin_width = cut_width / bins_per_profile
         for i in range(len(dt)):
-            # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
-            if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
-                dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+            bucket_i = int(np.floor((dt[i] - first_left_cut) * inv_hist_dist))
+            if bucket_i < 0 or bucket_i >= n_buckets:
+                continue
+            if not filling_pattern[bucket_i]:
+                continue
+            cut_left = first_left_cut + bucket_i * left_cut_distance
+            bucket_bin_center0 = cut_left + bin_width / 2.0
+            local_bin = int(
+                np.floor((dt[i] - bucket_bin_center0) * inv_bin_width)
+            )
+            if local_bin < 0 or local_bin >= bins_per_profile - 1:
+                continue
+            fbin = bucket_index_to_memory_index[bucket_i] + local_bin
+            dE[i] += dt[i] * helper1[fbin] + helper2[fbin]
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(

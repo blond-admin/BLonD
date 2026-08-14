@@ -144,20 +144,6 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._offset = offset
 
-        # packed-grid kick support (see `map_dt_to_packed`): bucket slot
-        # -> ordinal of the filled bucket in the concatenated memory,
-        # -1 for empty slots. e.g. [0, -1, -1, 1] for pattern [1, 0, 0, 1]
-        _pattern_np = np.asarray(filling_pattern, dtype=bool)
-        self._slot_to_ordinal = backend.array(
-            np.where(
-                _pattern_np,
-                np.cumsum(_pattern_np, dtype=np.int64) - 1,
-                -1,
-            ),
-            dtype=np.int64,
-        )
-        self._packed_hist_x = None
-
         self._left_cut_distance: float | None = None
         self._first_left_cut: float | None = None
         self.profiles: tuple[StaticProfile, ...] | None = None
@@ -256,80 +242,38 @@ class EquidistantMultiProfile(MultiProfile):
         return len(self._continuous_memory_hist_x)
 
     @property
-    def packed_hist_x(self):
+    def sparse_kick_metadata(self) -> dict:
         """
-        Gap-free equidistant bin centers matching the `hist_y` layout.
+        Keyword arguments for a sparse-aware kernel call on this profile.
 
-        `hist_x` concatenates the filled buckets only, so consecutive
-        entries jump across the empty buckets -- it is NOT one
-        equidistant grid. This property provides the same bins packed
-        back to back (bin ``i`` of `packed_hist_x` holds the same charge
-        as bin ``i`` of `hist_y`), which IS equidistant and therefore
-        valid for ``kick_interpolated`` together with particle times
-        mapped by `map_dt_to_packed`.
+        Bundles the island metadata that `kick_interpolated` (and
+        `histogram_sparse`) need to correctly resolve a particle to its
+        own bucket within this profile's concatenated, gapped
+        `hist_x`/`hist_y` memory, instead of assuming `hist_x` is a
+        single uniform grid.
 
         Returns
         -------
-        packed_hist_x
-            Equidistant bin centers of the packed grid, in [s].
+        sparse_kick_metadata
+            Dict with keys ``first_left_cut``, ``left_cut_distance``,
+            ``cut_width``, ``bins_per_profile``, ``filling_pattern``,
+            ``bucket_index_to_memory_index`` -- matching the keyword
+            arguments `Specials.kick_interpolated` expects, so callers
+            can do
+            ``backend.specials.kick_interpolated(..., **profile.sparse_kick_metadata)``.
         """
-        if self._packed_hist_x is None:
-            bin_dt = self._left_cut_distance / self._bins_per_profile
-            self._packed_hist_x = self._first_left_cut + (
-                backend.arange(self.n_bins, dtype=backend.float) + 0.5
-            ) * float(bin_dt)
-        return self._packed_hist_x
-
-    def map_dt_to_packed(self, dt):
-        """
-        Map particle times onto the packed grid of `packed_hist_x`.
-
-        A particle inside filled bucket ``b`` at position ``x`` relative
-        to that bucket is mapped to the same position ``x`` relative to
-        bucket ``b``'s segment of the packed grid. Particles in empty
-        buckets, outside the turn, or within the first/last half bin of
-        a bucket (where an isolated profile would not kick either) are
-        mapped in front of the packed grid so ``kick_interpolated``
-        skips them. Kicking with the mapped times on `packed_hist_x` is
-        exactly equivalent to kicking each bucket in isolation on its
-        own contiguous grid.
-
-        Parameters
-        ----------
-        dt
-            Particle time coordinates, in [s].
-
-        Returns
-        -------
-        dt_packed
-            Particle time coordinates on the packed grid, in [s].
-        """
-        bins_per_profile = self._bins_per_profile
-        bin_dt = self._left_cut_distance / bins_per_profile
-        n_slots = len(self._filling_pattern)
-
-        # position on the underlying full-turn lattice, in bins
-        lattice = (dt - self._first_left_cut) / bin_dt
-        slot_float = lattice // bins_per_profile
-        local = lattice - slot_float * bins_per_profile
-        slot = slot_float.astype(np.int64)
-        in_turn = (slot >= 0) & (slot < n_slots)
-        ordinal = self._slot_to_ordinal[slot.clip(0, n_slots - 1)]
-        # the half-bin edge exclusion keeps the interpolation of every
-        # particle strictly inside its own bucket's segment, so the
-        # seams of the packed grid are never interpolated across
-        first_bin_center = 0.5  # in bins, relative to the bucket cut
-        last_bin_center = bins_per_profile - 0.5
-        valid = (
-            in_turn
-            & (ordinal >= 0)
-            & (local >= first_bin_center)
-            & (local < last_bin_center)
-        )
-        packed = self._first_left_cut + (
-            ordinal * bins_per_profile + local
-        ) * float(bin_dt)
-        return backend.where(valid, packed, self._first_left_cut - bin_dt)
+        return {
+            "first_left_cut": self._first_left_cut,
+            "left_cut_distance": self._left_cut_distance,
+            "cut_width": (
+                self.profiles[0].cut_right - self.profiles[0].cut_left
+            ),
+            "bins_per_profile": self._bins_per_profile,
+            "filling_pattern": self._filling_pattern,
+            "bucket_index_to_memory_index": (
+                self._bucket_index_to_memory_index
+            ),
+        }
 
     def plot(self, **kwargs_plot):
         """

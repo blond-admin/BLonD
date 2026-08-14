@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from numpy import random
 
 from blond import DriftSimple, SingleHarmonicRFStation
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.simulation import ExampleSimulation01
 

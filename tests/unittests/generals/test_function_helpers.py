@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from blond.generals.exceptions import UnevenArraySizes
+from blond.generals.exceptions_ import UnevenArraySizes
 from blond.generals.function_helpers import (
     raise_on_uneven_array_sizes,
 )
