@@ -8,15 +8,21 @@
 
 """
 Integration tests proving that every ``Schedulable`` user-facing element
-actually has its scheduled attribute changed turn-by-turn while a full
-``Simulation.run_simulation`` main loop is executing.
+actually has *every one of its intended schedulable attributes* changed
+turn-by-turn while a full ``Simulation.run_simulation`` main loop is
+executing.
 
 Unlike ``tests/unittests/core/test_base.py::TestSchedulable``, which only
 calls ``apply_schedules`` directly on a bare helper object, these tests run
-a complete ``Simulation`` (``Ring`` + beam + main loop) and record the
+a complete ``Simulation`` (``Ring`` + beam + main loop) and record each
 scheduled attribute turn-by-turn via a ``run_simulation`` callback. This
 proves the scheduling mechanism is actually wired into each element's
 ``_track`` method and not merely into the ``Schedulable`` base class.
+
+Each test schedules *all* attributes an element declares via
+``_register_schedulable_variables`` (i.e. its ``intended_for_scheduling``
+set) simultaneously, and asserts the test doesn't silently miss one by
+comparing against that set directly.
 """
 
 import unittest
@@ -53,16 +59,46 @@ N_TURNS = 5
 N_MACROPARTICLES = 100
 
 
-def _record_each_turn(target, attribute):
-    """Build a `run_simulation` callback recording `target.attribute`."""
-    recorded = []
+def _schedule_all(target, schedules):
+    """Schedule every entry of `schedules` onto `target`.
+
+    Asserts `schedules` covers exactly `target.intended_for_scheduling`,
+    so a test can't silently forget an attribute the element declares as
+    schedulable.
+    """
+    assert set(schedules) == target.intended_for_scheduling, (
+        f"test schedules {sorted(schedules)} do not match "
+        f"{type(target).__name__}.intended_for_scheduling "
+        f"{sorted(target.intended_for_scheduling)}"
+    )
+    for attribute, values in schedules.items():
+        target.schedule(attribute=attribute, value=values)
+
+
+def _record_each_turn(target, attributes):
+    """Build a `run_simulation` callback recording `target.<attribute>`
+    for every name in `attributes`, each turn."""
+    recorded = {attribute: [] for attribute in attributes}
 
     def callback(simulation, beam):
-        value = getattr(target, attribute)
-        recorded.append(np.array(value, copy=True))
+        for attribute in attributes:
+            value = getattr(target, attribute)
+            recorded[attribute].append(np.array(value, copy=True))
 
     callback.recorded = recorded
     return callback
+
+
+def _assert_all_changed_as_scheduled(recorded, schedules):
+    for attribute, schedule in schedules.items():
+        np.testing.assert_allclose(
+            np.array(recorded[attribute]).reshape(np.shape(schedule)),
+            schedule,
+            err_msg=f"attribute {attribute!r} did not follow its schedule",
+        )
+        assert not np.array_equal(
+            recorded[attribute][0], recorded[attribute][-1]
+        ), f"attribute {attribute!r} never changed across turns"
 
 
 class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
@@ -74,7 +110,7 @@ class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_voltage_changes_each_turn_during_simulation(self):
+    def test_all_schedulable_attributes_change_each_turn(self):
         cavity = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
         drift = DriftSimple(
             orbit_length=CIRCUMFERENCE,
@@ -90,8 +126,12 @@ class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
         )
         beam = Beam(intensity=1e9, particle_type=proton)
 
-        voltage_schedule = np.linspace(6e6, 8e6, N_TURNS)
-        cavity.schedule(attribute="voltage", value=voltage_schedule)
+        schedules = {
+            "voltage": np.linspace(6e6, 8e6, N_TURNS),
+            "phi_rf_design": np.linspace(0.0, 0.05, N_TURNS),
+            "harmonic": np.linspace(35640.0, 35645.0, N_TURNS),
+        }
+        _schedule_all(cavity, schedules)
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         sim.prepare_beam(
@@ -101,7 +141,7 @@ class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
             ),
         )
 
-        callback = _record_each_turn(cavity, "voltage")
+        callback = _record_each_turn(cavity, schedules.keys())
         sim.run_simulation(
             beams=(beam,),
             n_turns=N_TURNS,
@@ -110,8 +150,7 @@ class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
             verbose=False,
         )
 
-        np.testing.assert_allclose(callback.recorded, voltage_schedule)
-        self.assertNotEqual(callback.recorded[0], callback.recorded[-1])
+        _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
 class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
@@ -123,7 +162,7 @@ class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_voltage_changes_each_turn_during_simulation(self):
+    def test_all_schedulable_attributes_change_each_turn(self):
         cavity = MultiHarmonicRFStation(
             voltage=np.array([6e6]),
             phi_rf=np.array([0.0]),
@@ -145,10 +184,13 @@ class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
         )
         beam = Beam(intensity=1e9, particle_type=proton)
 
-        voltage_schedule = np.array(
-            [np.linspace(6e6, 8e6, N_TURNS)]
-        ).T  # shape (N_TURNS, 1), one value per harmonic per turn
-        cavity.schedule(attribute="voltage", value=voltage_schedule)
+        # shape (N_TURNS, 1): one value per harmonic (n_harmonics=1) per turn
+        schedules = {
+            "voltage": np.array([np.linspace(6e6, 8e6, N_TURNS)]).T,
+            "phi_rf_design": np.array([np.linspace(0.0, 0.05, N_TURNS)]).T,
+            "harmonic": np.array([np.linspace(35640.0, 35645.0, N_TURNS)]).T,
+        }
+        _schedule_all(cavity, schedules)
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         sim.prepare_beam(
@@ -158,7 +200,7 @@ class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
             ),
         )
 
-        callback = _record_each_turn(cavity, "voltage")
+        callback = _record_each_turn(cavity, schedules.keys())
         sim.run_simulation(
             beams=(beam,),
             n_turns=N_TURNS,
@@ -167,12 +209,7 @@ class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
             verbose=False,
         )
 
-        np.testing.assert_allclose(
-            np.array(callback.recorded), voltage_schedule
-        )
-        self.assertFalse(
-            np.array_equal(callback.recorded[0], callback.recorded[-1])
-        )
+        _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
 class TestBarrierRFScheduling(unittest.TestCase):
@@ -184,7 +221,7 @@ class TestBarrierRFScheduling(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_peak_voltage_changes_each_turn_during_simulation(self):
+    def test_all_schedulable_attributes_change_each_turn(self):
         circumference = 2 * np.pi * 100
         momentum = 3.9051e9
         transition_gamma = 6.1
@@ -197,11 +234,13 @@ class TestBarrierRFScheduling(unittest.TestCase):
         )
         t_rev = magnetic_cycle.get_t_rev_init(circumference, proton)
 
-        barrier_rf = BarrierRF(t_center=t_rev / 2, t_width=200e-9, n_bins=64)
-        peak_voltage_schedule = np.linspace(-5e3, -1e3, N_TURNS)
-        barrier_rf.schedule(
-            attribute="peak_voltage", value=peak_voltage_schedule
-        )
+        barrier_rf = BarrierRF(n_bins=64)
+        schedules = {
+            "t_center": np.linspace(0.4 * t_rev, 0.6 * t_rev, N_TURNS),
+            "t_width": np.linspace(150e-9, 250e-9, N_TURNS),
+            "peak_voltage": np.linspace(-5e3, -1e3, N_TURNS),
+        }
+        _schedule_all(barrier_rf, schedules)
 
         drift = DriftSimple(
             orbit_length=circumference,
@@ -225,7 +264,7 @@ class TestBarrierRFScheduling(unittest.TestCase):
             ),
         )
 
-        callback = _record_each_turn(barrier_rf, "peak_voltage")
+        callback = _record_each_turn(barrier_rf, schedules.keys())
         sim.run_simulation(
             beams=(beam,),
             n_turns=N_TURNS,
@@ -234,8 +273,7 @@ class TestBarrierRFScheduling(unittest.TestCase):
             verbose=False,
         )
 
-        np.testing.assert_allclose(callback.recorded, peak_voltage_schedule)
-        self.assertNotEqual(callback.recorded[0], callback.recorded[-1])
+        _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
 class TestDriftSimpleScheduling(unittest.TestCase):
@@ -247,7 +285,7 @@ class TestDriftSimpleScheduling(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_momentum_compaction_factor_changes_each_turn(self):
+    def test_all_schedulable_attributes_change_each_turn(self):
         cavity = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
         drift = DriftSimple(orbit_length=CIRCUMFERENCE)
         ring = Ring(CIRCUMFERENCE)
@@ -258,14 +296,14 @@ class TestDriftSimpleScheduling(unittest.TestCase):
         )
         beam = Beam(intensity=1e9, particle_type=proton)
 
-        alpha_schedule = np.linspace(
-            momentum_compaction_factor(transition_gamma=55.759505),
-            momentum_compaction_factor(transition_gamma=60.0),
-            N_TURNS,
-        )
-        drift.schedule(
-            attribute="momentum_compaction_factor", value=alpha_schedule
-        )
+        schedules = {
+            "momentum_compaction_factor": np.linspace(
+                momentum_compaction_factor(transition_gamma=55.759505),
+                momentum_compaction_factor(transition_gamma=60.0),
+                N_TURNS,
+            ),
+        }
+        _schedule_all(drift, schedules)
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         sim.prepare_beam(
@@ -275,7 +313,7 @@ class TestDriftSimpleScheduling(unittest.TestCase):
             ),
         )
 
-        callback = _record_each_turn(drift, "momentum_compaction_factor")
+        callback = _record_each_turn(drift, schedules.keys())
         sim.run_simulation(
             beams=(beam,),
             n_turns=N_TURNS,
@@ -284,12 +322,12 @@ class TestDriftSimpleScheduling(unittest.TestCase):
             verbose=False,
         )
 
-        np.testing.assert_allclose(callback.recorded, alpha_schedule)
-        self.assertNotEqual(callback.recorded[0], callback.recorded[-1])
+        _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
 class TestDriftExactScheduling(unittest.TestCase):
-    """`DriftExact.higher_order_alpha` scheduling."""
+    """`DriftExact` schedulable path: `momentum_compaction_factor`
+    (inherited from `DriftSimple`) and `higher_order_alpha`."""
 
     def setUp(self):
         backend.change_backend(Numpy64Bit)
@@ -297,15 +335,9 @@ class TestDriftExactScheduling(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_higher_order_alpha_changes_each_turn(self):
+    def test_all_schedulable_attributes_change_each_turn(self):
         cavity = SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0)
-        drift = DriftExact(
-            orbit_length=CIRCUMFERENCE,
-            momentum_compaction_factor=momentum_compaction_factor(
-                transition_gamma=55.759505
-            ),
-            higher_order_alpha=np.array([1.0]),
-        )
+        drift = DriftExact(orbit_length=CIRCUMFERENCE)
         ring = Ring(CIRCUMFERENCE)
         ring.add_elements([cavity, drift])
 
@@ -314,13 +346,16 @@ class TestDriftExactScheduling(unittest.TestCase):
         )
         beam = Beam(intensity=1e9, particle_type=proton)
 
-        higher_order_alpha_schedule = np.array(
-            [np.linspace(1.0, 2.0, N_TURNS)]
-        ).T  # shape (N_TURNS, 1)
-        drift.schedule(
-            attribute="higher_order_alpha",
-            value=higher_order_alpha_schedule,
-        )
+        schedules = {
+            "momentum_compaction_factor": np.linspace(
+                momentum_compaction_factor(transition_gamma=55.759505),
+                momentum_compaction_factor(transition_gamma=60.0),
+                N_TURNS,
+            ),
+            # shape (N_TURNS, 1): a single higher-order coefficient per turn
+            "higher_order_alpha": np.array([np.linspace(1.0, 2.0, N_TURNS)]).T,
+        }
+        _schedule_all(drift, schedules)
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         sim.prepare_beam(
@@ -330,7 +365,7 @@ class TestDriftExactScheduling(unittest.TestCase):
             ),
         )
 
-        callback = _record_each_turn(drift, "higher_order_alpha")
+        callback = _record_each_turn(drift, schedules.keys())
         sim.run_simulation(
             beams=(beam,),
             n_turns=N_TURNS,
@@ -339,12 +374,7 @@ class TestDriftExactScheduling(unittest.TestCase):
             verbose=False,
         )
 
-        np.testing.assert_allclose(
-            np.array(callback.recorded), higher_order_alpha_schedule
-        )
-        self.assertFalse(
-            np.array_equal(callback.recorded[0], callback.recorded[-1])
-        )
+        _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
 class TestSynchrotronRadiationMasterScheduling(unittest.TestCase):
@@ -386,7 +416,7 @@ class TestSynchrotronRadiationMasterScheduling(unittest.TestCase):
             ".schedule()."
         ),
     )
-    def test_radiation_integrals_changes_each_turn_during_simulation(self):
+    def test_all_schedulable_attributes_change_each_turn(self):
         radiation_integrals = np.array(
             [
                 0.646747216157,
@@ -420,9 +450,8 @@ class TestSynchrotronRadiationMasterScheduling(unittest.TestCase):
         )
         # Intended usage per the class's own docstring/registered
         # schedulable variable -- currently raises, see class docstring.
-        srm.schedule(
-            attribute="radiation_integrals",
-            value=radiation_integrals_schedule,
+        _schedule_all(
+            srm, {"radiation_integrals": radiation_integrals_schedule}
         )
 
         magnetic_cycle = ConstantMagneticCycle(
@@ -441,7 +470,7 @@ class TestSynchrotronRadiationMasterScheduling(unittest.TestCase):
         )
 
         callback = _record_each_turn(
-            radiation_tracker, "share_of_radiation_integrals"
+            radiation_tracker, ("share_of_radiation_integrals",)
         )
         sim.run_simulation(
             beams=(beam,),
@@ -456,9 +485,8 @@ class TestSynchrotronRadiationMasterScheduling(unittest.TestCase):
             * radiation_tracker.share_of_radiation_integrals
             / radiation_integrals
         )
-        np.testing.assert_allclose(np.array(callback.recorded), expected)
-        self.assertFalse(
-            np.array_equal(callback.recorded[0], callback.recorded[-1])
+        _assert_all_changed_as_scheduled(
+            callback.recorded, {"share_of_radiation_integrals": expected}
         )
 
 
@@ -526,17 +554,15 @@ class TestBeamFeedbackScheduling(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
-    def _assert_pl_gain_changes_each_turn(
-        self, beam_control_cls, beam_control_kwargs
+    def _assert_all_gains_change_each_turn(
+        self, beam_control_cls, beam_control_kwargs, schedules
     ):
         sim, beam, _cavity, beam_control = _build_beam_feedback_scenario(
             beam_control_cls, beam_control_kwargs
         )
+        _schedule_all(beam_control, schedules)
 
-        pl_gain_schedule = np.linspace(1e3, 2e3, N_TURNS)
-        beam_control.schedule(attribute="pl_gain", value=pl_gain_schedule)
-
-        callback = _record_each_turn(beam_control, "pl_gain")
+        callback = _record_each_turn(beam_control, schedules.keys())
         sim.run_simulation(
             beams=(beam,),
             n_turns=N_TURNS,
@@ -545,28 +571,51 @@ class TestBeamFeedbackScheduling(unittest.TestCase):
             verbose=False,
         )
 
-        np.testing.assert_allclose(callback.recorded, pl_gain_schedule)
-        self.assertNotEqual(callback.recorded[0], callback.recorded[-1])
+        _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_lhc_pl_gain_changes_each_turn(self):
-        self._assert_pl_gain_changes_each_turn(LHCBeamControl, {})
+    def test_lhc_all_schedulable_attributes_change_each_turn(self):
+        self._assert_all_gains_change_each_turn(
+            LHCBeamControl,
+            {},
+            {
+                "pl_gain": np.linspace(1e3, 2e3, N_TURNS),
+                "sl_gain": np.linspace(1e2, 2e2, N_TURNS),
+                "lhc_a": np.linspace(0.5, 1.5, N_TURNS),
+                "lhc_t": np.linspace(0.01, 0.05, N_TURNS),
+            },
+        )
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_psb_pl_gain_changes_each_turn(self):
-        self._assert_pl_gain_changes_each_turn(PSBBeamControl, {})
+    def test_psb_all_schedulable_attributes_change_each_turn(self):
+        self._assert_all_gains_change_each_turn(
+            PSBBeamControl,
+            {},
+            {
+                "pl_gain": np.linspace(1e3, 2e3, N_TURNS),
+                "rl_gain_a": np.linspace(1e-3, 2e-3, N_TURNS),
+                "rl_gain_b": np.linspace(1e-3, 2e-3, N_TURNS),
+            },
+        )
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_ps_pl_gain_changes_each_turn(self):
-        self._assert_pl_gain_changes_each_turn(PSBeamControl, {})
+    def test_ps_all_schedulable_attributes_change_each_turn(self):
+        self._assert_all_gains_change_each_turn(
+            PSBeamControl,
+            {},
+            {
+                "pl_gain": np.linspace(1e3, 2e3, N_TURNS),
+                "rl_gain": np.linspace(1e-3, 2e-3, N_TURNS),
+            },
+        )
 
     @pytest.mark.backend_mutation
     @pytest.mark.integration
-    def test_sps_pl_gain_changes_each_turn(self):
-        self._assert_pl_gain_changes_each_turn(
+    def test_sps_all_schedulable_attributes_change_each_turn(self):
+        self._assert_all_gains_change_each_turn(
             SPSBeamControl,
             dict(
                 k_phi_n=0.0,
@@ -577,6 +626,16 @@ class TestBeamFeedbackScheduling(unittest.TestCase):
                 k_b_n=0.0,
                 phi_sync=0.0,
             ),
+            {
+                "pl_gain": np.linspace(1e3, 2e3, N_TURNS),
+                "k_phi_n": np.linspace(0.1, 0.2, N_TURNS),
+                "k_phi_nm1": np.linspace(0.1, 0.2, N_TURNS),
+                "k_eps_n": np.linspace(0.1, 0.2, N_TURNS),
+                "k_z_n": np.linspace(0.1, 0.2, N_TURNS),
+                "k_a_n": np.linspace(0.1, 0.2, N_TURNS),
+                "k_b_n": np.linspace(0.1, 0.2, N_TURNS),
+                "phi_sync": np.linspace(0.0, 0.05, N_TURNS),
+            },
         )
 
 
