@@ -6,12 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of specific exceptions."""
-
-from __future__ import annotations
-
-
-class UnevenArraySizes(Exception):
-    """Exception of uneven array sizes in function arguments."""
-
-    pass
+"""Experimental extensions to :class:`~blond.core.simulation.simulation.Simulation`."""

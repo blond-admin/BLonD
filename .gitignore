@@ -368,3 +368,6 @@ tests/unittests/interfaces/rf_noise_cpp/rf-noise-cpp/
 tests/last_*
 last_*.json
 last_*.npy
+
+# superpowers subagent-driven-development scratch workspaces
+.superpowers/

@@ -22,6 +22,7 @@ from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
 from blond.generals.hashing_ import hash_linspace
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -579,12 +580,18 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         )
         voltage = induced_voltage.astype(backend.float)
         bin_centers = self.profile.hist_x  # base for induced voltage
+        sparse_metadata = (
+            self.profile.sparse_kick_metadata
+            if isinstance(self.profile, EquidistantMultiProfile)
+            else None
+        )
         if self._delayed_kick is not None:
             # Relies on PooledInterpolationKick.track()
             # being called later.
             self._delayed_kick.register(
                 time_axis=bin_centers,
                 voltage=voltage,
+                sparse_metadata=sparse_metadata,
             )
         else:
             backend.specials.kick_interpolated(
@@ -595,6 +602,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
                 bin_centers=bin_centers,  # base for induced voltage
                 charge=beam.signed_charge_with_direction(),
                 acceleration_kick=0.0,
+                **(sparse_metadata or {}),
             )
 
     @staticmethod

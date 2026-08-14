@@ -334,6 +334,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bin_centers: NumpyArray,
             charge: float,
             acceleration_kick: float,
+            first_left_cut: float | None = None,
+            left_cut_distance: float | None = None,
+            cut_width: float | None = None,
+            bins_per_profile: int | None = None,
+            filling_pattern: NumpyArray | None = None,
+            bucket_index_to_memory_index: NumpyArray | None = None,
         ) -> None:
             assert _is_valid(
                 (dt, floattype),
@@ -342,11 +348,45 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 (bin_centers, floattype),
             )
 
-            # Cast Python floats to backend floattype
             charge = floattype(charge)
             acceleration_kick = floattype(acceleration_kick)
 
-            _LIBBLOND.linear_interp_kick(
+            if first_left_cut is None:
+                n_slices = len(bin_centers)
+                if n_slices >= 2:  # noqa: PLR2004
+                    diffs = np.diff(bin_centers)
+                    if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
+                        raise ValueError(
+                            "bin_centers is not uniformly spaced (looks "
+                            "like a sparse/multi-island "
+                            "EquidistantMultiProfile.hist_x). Either "
+                            "pass this profile's sparse metadata "
+                            "(first_left_cut, left_cut_distance, "
+                            "cut_width, bins_per_profile, "
+                            "filling_pattern, "
+                            "bucket_index_to_memory_index), e.g. via "
+                            "`profile.sparse_kick_metadata`, or use "
+                            "EquidistantMultiProfile.profiles[i].hist_x "
+                            "for a single bucket."
+                        )
+                _LIBBLOND.linear_interp_kick(
+                    dt.ctypes.data_as(ct.c_void_p),
+                    dE.ctypes.data_as(ct.c_void_p),
+                    voltage.ctypes.data_as(ct.c_void_p),
+                    bin_centers.ctypes.data_as(ct.c_void_p),
+                    c_real(charge, floattype),
+                    ct.c_int(len(bin_centers)),
+                    ct.c_int(len(dt)),
+                    c_real(acceleration_kick, floattype),
+                )
+                return
+
+            assert filling_pattern.dtype == np.bool_
+            assert bucket_index_to_memory_index.dtype == np.int32
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
+
+            _LIBBLOND.linear_interp_kick_sparse(
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
                 voltage.ctypes.data_as(ct.c_void_p),
@@ -355,6 +395,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(len(bin_centers)),
                 ct.c_int(len(dt)),
                 c_real(acceleration_kick, floattype),
+                c_real(floattype(first_left_cut), floattype),
+                c_real(floattype(left_cut_distance), floattype),
+                c_real(floattype(cut_width), floattype),
+                ct.c_int(bins_per_profile),
+                ct.c_int(len(filling_pattern)),
+                filling_pattern.ctypes.data_as(ct.c_void_p),
+                bucket_index_to_memory_index.ctypes.data_as(ct.c_void_p),
             )
 
         @staticmethod

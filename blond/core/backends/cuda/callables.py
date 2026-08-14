@@ -68,6 +68,12 @@ _sm_histogram = gpu_module.get_function("sm_histogram")
 _hybrid_histogram = gpu_module.get_function("hybrid_histogram")
 _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
 _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
+_gm_linear_interp_kick_sparse_help = gpu_module.get_function(
+    "lik_sparse_gm_copy"
+)
+_gm_linear_interp_kick_sparse_comp = gpu_module.get_function(
+    "lik_sparse_gm_comp"
+)
 _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
@@ -88,6 +94,41 @@ threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
+
+# Cache of uniformity verdicts for `bin_centers` arrays passed to the
+# dense path of `kick_interpolated`. `bin_centers` is rebuilt only on
+# profile reconfiguration (not every turn), so checking it once per
+# distinct array avoids a host<->device sync (`cp.allclose(...).__bool__`)
+# on every call, which would otherwise happen once per RF turn.
+# Keyed by (id, shape, data pointer) since `id()` alone can be reused
+# after an array is garbage collected.
+_MAX_UNIFORMITY_CACHE_SIZE = 64
+_bin_centers_uniformity_cache: dict[tuple[int, tuple, int], bool] = {}
+
+
+def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
+    """Check (and cache) whether `bin_centers` is uniformly spaced.
+
+    The check is memoized per distinct array identity so that the
+    `cp.allclose` host<->device sync only occurs once per distinct
+    `bin_centers` array rather than on every `kick_interpolated` call.
+    """
+    key = (
+        id(bin_centers),
+        tuple(bin_centers.shape),
+        int(bin_centers.data.ptr),
+    )
+    cached = _bin_centers_uniformity_cache.get(key)
+    if cached is not None:
+        return cached
+
+    diffs = cp.diff(bin_centers)
+    is_uniform = bool(cp.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0))
+
+    if len(_bin_centers_uniformity_cache) >= _MAX_UNIFORMITY_CACHE_SIZE:
+        _bin_centers_uniformity_cache.clear()
+    _bin_centers_uniformity_cache[key] = is_uniform
+    return is_uniform
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -339,6 +380,12 @@ class CudaSpecials(Specials):  # NOQA: D101
         bin_centers: CupyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: CupyArray | None = None,
+        bucket_index_to_memory_index: CupyArray | None = None,
     ) -> None:
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
@@ -362,33 +409,97 @@ class CudaSpecials(Specials):  # NOQA: D101
         charge = FLOAT(charge)
         acceleration_kick = FLOAT(acceleration_kick)
 
+        if first_left_cut is None:
+            n_slices = bin_centers.size
+            if n_slices >= 2 and not _is_uniformly_spaced(  # noqa: PLR2004
+                bin_centers
+            ):
+                raise ValueError(
+                    "bin_centers is not uniformly spaced (looks like "
+                    "a sparse/multi-island "
+                    "EquidistantMultiProfile.hist_x). Either pass "
+                    "this profile's sparse metadata (first_left_cut, "
+                    "left_cut_distance, cut_width, bins_per_profile, "
+                    "filling_pattern, bucket_index_to_memory_index), "
+                    "e.g. via `profile.sparse_kick_metadata`, or use "
+                    "EquidistantMultiProfile.profiles[i].hist_x for "
+                    "a single bucket."
+                )
+
+            glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
+            _gm_linear_interp_kick_help(
+                args=(
+                    dt,
+                    dE,
+                    voltage,
+                    bin_centers,
+                    charge,
+                    np.int32(bin_centers.size),
+                    np.int32(dt.size),
+                    acceleration_kick,
+                    glob_vkick_factor,
+                ),
+                grid=grid_size,
+                block=block_size,
+            )
+
+            _gm_linear_interp_kick_comp(
+                args=(
+                    dt,
+                    dE,
+                    voltage,
+                    bin_centers,
+                    FLOAT(charge),
+                    np.int32(bin_centers.size),
+                    np.int32(dt.size),
+                    acceleration_kick,
+                    glob_vkick_factor,
+                ),
+                grid=grid_size,
+                block=block_size,
+            )
+            return
+
+        assert filling_pattern.device != "cpu", (
+            f"Requires Cupy array, but got {type(filling_pattern)}."
+        )
+        assert bucket_index_to_memory_index.device != "cpu", (
+            f"Requires Cupy array, but got "
+            f"{type(bucket_index_to_memory_index)}."
+        )
+        assert filling_pattern.dtype == np.bool_
+        assert bucket_index_to_memory_index.dtype == np.int32
+        assert filling_pattern.flags.c_contiguous
+        assert bucket_index_to_memory_index.flags.c_contiguous
+
         glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
-        _gm_linear_interp_kick_help(
+        _gm_linear_interp_kick_sparse_help(
             args=(
-                dt,
-                dE,
                 voltage,
                 bin_centers,
                 charge,
                 np.int32(bin_centers.size),
-                np.int32(dt.size),
                 acceleration_kick,
+                FLOAT(cut_width),
+                np.int32(bins_per_profile),
                 glob_vkick_factor,
             ),
             grid=grid_size,
             block=block_size,
         )
 
-        _gm_linear_interp_kick_comp(
+        _gm_linear_interp_kick_sparse_comp(
             args=(
                 dt,
                 dE,
-                voltage,
-                bin_centers,
-                FLOAT(charge),
-                np.int32(bin_centers.size),
                 np.int32(dt.size),
-                acceleration_kick,
+                FLOAT(first_left_cut),
+                FLOAT(left_cut_distance),
+                FLOAT(cut_width),
+                np.int32(bins_per_profile),
+                np.int32(len(filling_pattern)),
+                filling_pattern,
+                bucket_index_to_memory_index,
                 glob_vkick_factor,
             ),
             grid=grid_size,

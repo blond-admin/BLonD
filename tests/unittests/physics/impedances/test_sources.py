@@ -15,7 +15,7 @@ from blond import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
     CsvReader,
