@@ -371,11 +371,11 @@ class LHCCavityFeedback(
         self.n_pretrack = n_pretrack
         self.omega_c = 2 * np.pi * f_c
         # TODO: implement optimum loaded Q
-        self.Q_L = q_l
-        self.R_over_Q = r_over_q
+        self.q_l = q_l
+        self.r_over_q = r_over_q
         self.tau_loop = tau_loop
         self.tau_otfb = tau_otfb
-        self.logger.debug(f"Cavity loaded Q is {self.Q_L:.0f}")
+        self.logger.debug(f"Cavity loaded Q is {self.q_l:.0f}")
 
         # Import RF FB properties
         self.open_drive = self.rffb.open_drive
@@ -398,7 +398,7 @@ class LHCCavityFeedback(
         self.mu = self.rffb.mu
         self.power_thres = self.rffb.power_thres
         self.i_swap_threshold = (
-            np.sqrt(2 * self.power_thres / (self.R_over_Q * self.Q_L))
+            np.sqrt(2 * self.power_thres / (self.r_over_q * self.q_l))
             / self.G_gen
         )
         self.klystron_bandwidth = self.rffb.klystron_bandwidth
@@ -608,12 +608,12 @@ class LHCCavityFeedback(
             Samples per RF period.
         """
         self.buffers_coarse.v_ant[self.ind] = (
-            self.buffers_coarse.i_gen[self.ind - 1] * self.R_over_Q * samples
+            self.buffers_coarse.i_gen[self.ind - 1] * self.r_over_q * samples
             + self.buffers_coarse.v_ant[self.ind - 1]
-            * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
+            * (1 - 0.5 * samples / self.q_l + 1j * self.detuning * samples)
             - self.buffers_coarse.i_beam[self.ind - 1]
             * 0.5
-            * self.R_over_Q
+            * self.r_over_q
             * samples
         )
 
@@ -641,8 +641,8 @@ class LHCCavityFeedback(
             v_ant_init=V_A_init,
             i_gen_init=I_gen_init,
             samples_per_rf=self.samples_fine,
-            r_over_q=self.R_over_Q,
-            q_l=self.Q_L,
+            r_over_q=self.r_over_q,
+            q_l=self.q_l,
             detuning=self.detuning,
         )
 
@@ -701,8 +701,8 @@ class LHCCavityFeedback(
         """
         return (
             0.5
-            * self.R_over_Q
-            * self.Q_L
+            * self.r_over_q
+            * self.q_l
             * np.absolute(self.buffers_coarse.i_gen.full) ** 2
         )
 
