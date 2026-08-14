@@ -26,6 +26,7 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
 )
+from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
 
 # Oversampling factor for potential well calculation
@@ -202,6 +203,16 @@ class SemiEmpiricMatcher(MatchingRoutine):
         a new error minimum. The fixed-point iteration can settle into a
         limit cycle instead of converging below ``tolerance_potential_well``,
         and the matched beam at the stalled point is already correct.
+    n_warmup_turns : int, optional
+        Number of frozen-beam warmup turns (see
+        :func:`blond.experimental.simulation.warmup.warmup`) executed in
+        each intensity-effects iteration, before the wake-sampling turn.
+        This equilibrates turn-dependent internal state of multi-turn
+        wakefield solvers and feedbacks with the current bunch shape, so
+        the matched potential well includes the equilibrium multi-turn
+        wake instead of a cold single-pass wake. Default is 0 (disabled).
+        Note that warmup turns always cover the full ring;
+        ``until_section_index`` only applies to the sampling turn.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
     debug
@@ -229,6 +240,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         maxiter_intensity_effects=1000,
         increment_intensity_effects_until_iteration_i: int = 0,
         stagnation_patience: int = 10,
+        n_warmup_turns: int = 0,
         animate: bool = False,
         verbose: bool = True,
         debug=False,
@@ -251,6 +263,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         self.stagnation_patience = int_from_float_with_warning(
             stagnation_patience,
+            warning_stacklevel=2,
+        )
+        self.n_warmup_turns = int_from_float_with_warning(
+            n_warmup_turns,
             warning_stacklevel=2,
         )
 
@@ -365,6 +381,21 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # that cause the wake-fields
                 sim_tmp.intensity_effect_manager.set_profiles(active=True)
                 sim_tmp.intensity_effect_manager.unfreeze_wakefields()
+
+                # Equilibrate multi-turn wakefield solver / feedback state
+                # with the current bunch shape before sampling the wake,
+                # so the sampling turn below observes the equilibrium
+                # multi-turn wake instead of a cold single-pass wake.
+                # `warmup` restores beam coordinates, counters and
+                # `beam.reference` itself.
+                if self.n_warmup_turns > 0:
+                    warmup(
+                        simulation=sim_tmp,
+                        beam=beam,
+                        n_turns=self.n_warmup_turns,
+                        show_progressbar=False,
+                        verbose=False,
+                    )
 
                 # this might get changed by the simulation
                 beam_reference_time_original = beam.reference.time
