@@ -156,7 +156,7 @@ comparing each backend to the Python reference.
   a "correct" kernel that round-trips through host memory each turn is still a bug.
 - **Many machines have no GPU — degrade gracefully, never hard-require CuPy.** The
   default/CI path is CPU (`numba`/`cpp`/`python`); CUDA is optional. Import CuPy through
-  the `blond.generals.cupy.no_cupy_import` shims (`copy_to_cpu`, `is_cupy_array`) which
+  the `blond.generals.cupy_.no_cupy_import` shims (`copy_to_cpu`, `is_cupy_array`) which
   work whether or not CuPy is installed — never `import cupy` at module top level in code
   that must load CPU-only. Code and tests must run end-to-end with no GPU present; gate
   GPU-only tests behind the `cupy`/`cuda` markers so they skip cleanly instead of erroring.

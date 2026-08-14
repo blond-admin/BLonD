@@ -320,8 +320,7 @@ class TestDriftExact(unittest.TestCase):
         )  # delta t in s
         beam.write_partial_dt.return_value = beam.dt
         beam.read_partial_dE.return_value = beam.dE
-        self.drift_exact._simulation = Mock(Simulation)
-        self.drift_exact._simulation.turn_counter = DynamicParameter(1)
+        self.drift_exact._turn_counter = DynamicParameter(1)
 
         self.drift_exact.schedule(
             "higher_order_alpha",
@@ -332,8 +331,6 @@ class TestDriftExact(unittest.TestCase):
         self.drift_exact.track(beam=beam)
 
     def test_track_empty_beam_skips_drift(self):
-        from blond.core.simulation.simulation import Simulation
-
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
         beam.common_array_size = 0
@@ -342,8 +339,7 @@ class TestDriftExact(unittest.TestCase):
         beam.reference.velocity = float(0.5 * c0)
         beam.reference.gamma = float(np.sqrt(1 - 0.25))
         beam.reference.total_energy = float(938)
-        self.drift_exact._simulation = Mock(Simulation)
-        self.drift_exact._simulation.turn_counter = DynamicParameter(1)
+        self.drift_exact._turn_counter = DynamicParameter(1)
         self.drift_exact.schedule(
             "higher_order_alpha",
             np.array([[1.49, 23], [1.49, 24]]),
@@ -375,8 +371,7 @@ class TestDriftExact(unittest.TestCase):
         beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
         beam.write_partial_dt.return_value = beam.dt
         beam.read_partial_dE.return_value = beam.dE
-        drift_exact._simulation = Mock(Simulation)
-        drift_exact._simulation.turn_counter = DynamicParameter(1)
+        drift_exact._turn_counter = DynamicParameter(1)
 
         drift_exact.track(beam=beam)
 
