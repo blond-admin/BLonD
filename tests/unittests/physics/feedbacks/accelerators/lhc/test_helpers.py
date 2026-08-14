@@ -137,6 +137,29 @@ class TestCavityResponseMatrix(unittest.TestCase):
 
         self.assertAlmostEqual(np.mean(v_ant.real), v_ant_init, places=5)
 
+        i_beam = np.zeros((n_bins + 1,), dtype=complex)
+        i_gen = np.zeros((n_bins + 1,), dtype=complex)
+        i_gen_init = v_ant_init / r_over_q / ql / 2
+        i_gen[:] = i_gen_init
+
+        v_ant = cavity_response_sparse_matrix(
+            i_beam=i_beam,
+            i_gen=i_gen,
+            n_samples=n_bins,
+            v_ant_init=v_ant_init,
+            i_gen_init=i_gen_init,
+            samples_per_rf=2 * np.pi * hist_step / t_rf,
+            r_over_q=r_over_q,
+            q_l=ql,
+            detuning=(f_r - f_rf) / f_rf,
+        )
+
+        self.assertEqual(v_ant.shape[0], n_bins)
+
+        self.assertAlmostEqual(np.mean(v_ant.imag), 0.0)
+
+        self.assertAlmostEqual(np.mean(v_ant.real), v_ant_init, places=5)
+
     def test_constant_drive_and_beam_induced_voltage(self):
         pass
 
