@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField, backend, mu_minus
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.cavity_solvers import (

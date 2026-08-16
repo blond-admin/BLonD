@@ -23,7 +23,7 @@ import numpy as np
 from blond.core.base import AltersReference
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.cavities import (
     MultiHarmonicRFStation,
     RFStationBaseClass,

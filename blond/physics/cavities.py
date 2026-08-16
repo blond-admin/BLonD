@@ -41,6 +41,7 @@ from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
 from blond.physics.feedbacks.base import LocalFeedback
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -280,6 +281,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1196,11 +1203,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change: float,
         time_axis: NumpyArray | CupyArray,
         voltage: NumpyArray | CupyArray,
+        sparse_metadata: dict | None = None,
     ):
         if self._delayed_kick is not None:
             self._delayed_kick.register(
                 time_axis=time_axis,
                 voltage=voltage - reference_energy_change,
+                sparse_metadata=sparse_metadata,
             )
         else:
             backend.specials.kick_interpolated(
@@ -1210,6 +1219,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 bin_centers=backend.array(time_axis, dtype=backend.float),
                 charge=beam.signed_charge_with_direction(),
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
+                **(sparse_metadata or {}),
             )
 
     def _update_delta_phi_rf_from_beam_feedback(
@@ -1407,6 +1417,12 @@ class SingleHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1624,6 +1640,14 @@ class SingleHarmonicRFStation(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
                 time_axis = self.cavity_feedback_list[0].profile.hist_x
+                sparse_metadata = (
+                    self.cavity_feedback_list[0].profile.sparse_kick_metadata
+                    if isinstance(
+                        self.cavity_feedback_list[0].profile,
+                        EquidistantMultiProfile,
+                    )
+                    else None
+                )
                 if self._delayed_kick is not None:
                     assert (
                         self._delayed_kick_time_axis is None
@@ -1634,6 +1658,7 @@ class SingleHarmonicRFStation(
                     reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
                     voltage=voltage,
+                    sparse_metadata=sparse_metadata,
                 )
             elif self._delayed_kick is not None:
                 assert self._delayed_kick_time_axis is not None
@@ -1761,6 +1786,13 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+            Must currently be uniformly spaced (e.g. the `hist_x` of
+            a `StaticProfile`) -- `kick_interpolated`'s
+            uniform-spacing guard raises `ValueError` on a gapped,
+            multi-bucket-island array such as
+            `EquidistantMultiProfile.hist_x`, since the sparse-profile
+            metadata needed to resolve particles to their own bucket
+            is not (yet) forwarded through this parameter.
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
 
@@ -1910,6 +1942,12 @@ class MultiHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -2221,7 +2259,16 @@ class MultiHarmonicRFStation(
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
-                time_axis = self._first_attached_feedback_profile().hist_x
+                feedback_profile = self._first_attached_feedback_profile()
+                time_axis = feedback_profile.hist_x
+                sparse_metadata = (
+                    feedback_profile.sparse_kick_metadata
+                    if isinstance(
+                        feedback_profile,
+                        EquidistantMultiProfile,
+                    )
+                    else None
+                )
                 if self._delayed_kick is not None:
                     assert (
                         self._delayed_kick_time_axis is None
@@ -2231,6 +2278,7 @@ class MultiHarmonicRFStation(
                     reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
                     voltage=voltage,
+                    sparse_metadata=sparse_metadata,
                 )
             elif self._delayed_kick is not None:
                 assert self._delayed_kick_time_axis is not None
@@ -2335,6 +2383,13 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+            Must currently be uniformly spaced (e.g. the `hist_x` of
+            a `StaticProfile`) -- `kick_interpolated`'s
+            uniform-spacing guard raises `ValueError` on a gapped,
+            multi-bucket-island array such as
+            `EquidistantMultiProfile.hist_x`, since the sparse-profile
+            metadata needed to resolve particles to their own bucket
+            is not (yet) forwarded through this parameter.
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
 

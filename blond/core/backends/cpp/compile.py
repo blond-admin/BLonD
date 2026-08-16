@@ -29,7 +29,7 @@ default_libname = "libblond"
 #: keyed by normalised absolute path. Kept alive for the process lifetime
 #: (see `add_dll_directory_once`); never closed on purpose, because the
 #: loaded library must stay resolvable for as long as the process runs.
-_added_dll_directories: dict[str, object] = {}
+_added_dll_directory_keys: set = set()
 
 
 def add_dll_directory_once(directory: str) -> None:
@@ -57,9 +57,9 @@ def add_dll_directory_once(directory: str) -> None:
     if not hasattr(os, "add_dll_directory"):
         return
     key = os.path.normcase(os.path.abspath(directory))
-    if key in _added_dll_directories:
-        return
-    _added_dll_directories[key] = os.add_dll_directory(directory)
+    if key not in _added_dll_directory_keys:
+        os.add_dll_directory(directory)
+        _added_dll_directory_keys.add(key)
 
 
 cpp_files = [
@@ -398,9 +398,8 @@ def _prepare_cflags(
             root + "_double" + parallel_suffix + ext
         )
 
-        if hasattr(os, "add_dll_directory"):
-            directory, _ = os.path.split(libname_double)
-            add_dll_directory_once(directory)
+        directory, _ = os.path.split(libname_double)
+        add_dll_directory_once(directory)
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")

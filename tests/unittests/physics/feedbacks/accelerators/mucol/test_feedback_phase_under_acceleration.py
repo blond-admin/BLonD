@@ -64,7 +64,7 @@ from blond import (
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftSubstepped
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.impedances.solvers import MultiPassResonatorSolver

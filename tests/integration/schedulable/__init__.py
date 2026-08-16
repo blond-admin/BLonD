@@ -5,13 +5,3 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
-
-"""Collection of specific exceptions."""
-
-from __future__ import annotations
-
-
-class UnevenArraySizes(Exception):
-    """Exception of uneven array sizes in function arguments."""
-
-    pass

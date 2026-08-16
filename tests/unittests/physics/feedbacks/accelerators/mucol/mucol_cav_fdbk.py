@@ -22,7 +22,7 @@ from blond.examples.scripts.EX_08_Semi_empiric_matcher import (
     bucket_fill_by_emittance_gaussian,
 )
 from blond.experimental import SemiEmpiricMatcher
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.observables import IQCavityFeedbackObservation
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,

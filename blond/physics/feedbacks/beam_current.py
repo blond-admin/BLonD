@@ -25,7 +25,7 @@ import scipy
 from scipy.constants import elementary_charge
 
 from blond.core.beam.base import BeamBaseClass
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 logger = logging.getLogger(__name__)
 
