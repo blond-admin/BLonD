@@ -153,11 +153,12 @@ class PythonSpecials(Specials):
         stop
             Stop of the histogram bins.
         """
-        array_write[:], _ = np.histogram(
+        hist, _ = np.histogram(
             array_read,
             range=(float(start), float(stop)),
             bins=len(array_write),
         )
+        array_write[:] = hist
 
     @staticmethod
     def loss_box(  # NOQA: D102
