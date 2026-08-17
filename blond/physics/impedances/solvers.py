@@ -1547,6 +1547,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             factor=self._charge_per_macroparticle,
         )
 
+        # Causal self-bin correction (see _finalize_solver): the recursion
+        # evaluates the self-bin with the symmetric bin-average; add the term
+        # that turns it into the causal one, consistent with get_wake_per_bin.
+        # Restored here after the cc31313f merge (blond_bugfix/24 low-Q-
+        # resonator fix x TWC-FIR/direct-term branch) silently relocated this
+        # into the (unrelated) TWC and direct-term branches below, so it
+        # stopped applying to the plain pole-residue voltage -- the common
+        # case, and the one every non-TWC, non-direct-term source hits.
+        # Verified: for an intentionally unresolvable pole
+        # (|p|*bin_dt ~ 3.2), restoring this drops the sparse-vs-freq-domain
+        # peak-voltage ratio from 140x to 1.18x (see scratch/bug.py in
+        # 2026_pole_residue_model).
+        self._voltage += (
+            profile_hist_y
+            * self._charge_per_macroparticle
+            * self._self_bin_correction
+        )
+
         if self._twc_r_shunt is not None:
             # finite-support wake, no state across calls (see class docs)
             backend.specials.wake_from_twc_fir(
@@ -1560,7 +1578,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 voltage=self._voltage_twc,
                 voltage_threaded=self._voltage_threaded,
             )
-            self._voltage += self._voltage_twc * self._self_bin_correction
+            self._voltage += self._voltage_twc
         if self._direct_term != 0.0:
             # constant impedance Z = d: V(t) = d * I(t); the binned delta
             # wake carries d / bin_dt so that its time integral is d
@@ -1568,6 +1586,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 self._direct_term
                 * self._charge_per_macroparticle
                 / self._bin_dt
-            ) * profile_hist_y * self._self_bin_correction
+            ) * profile_hist_y
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage
