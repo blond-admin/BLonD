@@ -217,7 +217,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         dt += 1
 
         beam.setup_beam(
-            dt=dt, dE=backend.linspace(0, 1, 1000, dtype=backend.float)
+            dt=dt * 1e-12, dE=backend.linspace(0, 1, 1000, dtype=backend.float)
         )
         profile = DynamicProfileConstNBins(n_bins=200)
         profile.update_attributes(beam=beam)
@@ -3358,6 +3358,7 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_update_wake_kernel_fails(self):
+        from blond.physics.impedances.base import TimeDomain
         from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
@@ -3370,8 +3371,8 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
 
-        class FaultyResonators:
-            def get_wake(self):  # emulate wroing implementation
+        class FaultyResonators(TimeDomain):
+            def get_wake_per_particle(self):  # emulate wrong signature
                 return
 
         wf_mutli = WakeField.headless(
@@ -3384,11 +3385,12 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             wf_mutli.solver._update_wake_kernel()
 
         class FaultyResonators2:
-            def get_cake(self):  # emulate wroing implementation
+            def get_cake(self):  # emulate no wake method at all
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake`"
+            AttributeError,
+            "must be a `TimeDomain` source that overrides",
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),
@@ -3396,6 +3398,25 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
                 profile=prof,
                 beam=beam_mock,
             )
+
+    def test_check_source_ducktypes_accepts_bin_only_source(self):
+        """A source overriding only get_wake_per_bin must be accepted.
+
+        The solver builds its kernel from ``get_wake_per_bin`` (line
+        ``_update_wake_kernel``), so a source that provides the bin-averaged
+        wake directly -- without ``get_wake_per_particle`` -- is valid and must
+        not be rejected as missing a wake.
+        """
+        from blond.physics.impedances.base import TimeDomain
+
+        class BinOnlyResonators(TimeDomain):
+            def get_wake_per_bin(self, time, counter_rotating=False):
+                return backend.zeros_like(time)
+
+        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
+        solver._parent_wakefield = Mock(WakeField)
+        solver._parent_wakefield.sources = (BinOnlyResonators(),)
+        solver._check_source_ducktypes()  # must not raise
 
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10

@@ -704,7 +704,9 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             ] = 0.0
         self._wake_function_vals = backend.zeros_like(self._wake_function_time)
         for source in self._parent_wakefield.sources:
-            self._wake_function_vals += source.get_wake(
+            # bin-averaged wake so this solver agrees with the frequency-domain
+            # solver (and TimeDomainFftSolver) for under-resolved resonators
+            self._wake_function_vals += source.get_wake_per_bin(
                 self._wake_function_time
             )
 
@@ -978,15 +980,14 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-                self._wake_function_vals[prof_ind] += (
-                    source.get_wake_counter_rotation(
-                        self._wake_function_time[prof_ind]
-                    )
-                    if (
+                # bin-averaged wakes so this solver agrees with the other
+                # time-domain solvers on under-resolved resonators
+                self._wake_function_vals[prof_ind] += source.get_wake_per_bin(
+                    self._wake_function_time[prof_ind],
+                    counter_rotating=(
                         self._past_profiles_counter_rotation_flag[prof_ind]
                         ^ self._past_profiles_counter_rotation_flag[0]
-                    )
-                    else source.get_wake(self._wake_function_time[prof_ind])
+                    ),
                 )
                 # exclusive OR, only if directionality of current profile and past profile differ,
                 # its actually counter-rotating
@@ -1118,12 +1119,26 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ``get_wake``."""
+        """
+        Check that the sources provide a bin-averaged wake.
+
+        The kernel is built from ``get_wake_per_bin`` (see
+        :func:`_update_wake_kernel`), which the base ``TimeDomain`` derives
+        from ``get_wake_per_particle`` when not overridden. A source is usable
+        if it overrides either.
+        """
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
-            if not hasattr(source, "get_wake"):
+            provides_wake = isinstance(source, TimeDomain) and (
+                type(source).get_wake_per_bin
+                is not TimeDomain.get_wake_per_bin
+                or type(source).get_wake_per_particle
+                is not TimeDomain.get_wake_per_particle
+            )
+            if not provides_wake:
                 raise AttributeError(
-                    f"The {source=} should implement `TimeDomain.get_wake`."
+                    f"The {source=} must be a `TimeDomain` source that"
+                    " overrides `get_wake_per_bin` or `get_wake_per_particle`."
                 )
 
     def on_wakefield_init_simulation(
@@ -1168,7 +1183,9 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what the we expect
-            wake_kernel_tmp = source.get_wake(time_axis)
+            # bin-averaged wake for consistency with the other time-domain
+            # solvers on under-resolved resonators
+            wake_kernel_tmp = source.get_wake_per_bin(time_axis)
 
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
@@ -1282,6 +1299,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self.last_reference_time: float | None = None
 
         self._charge_per_macroparticle: float | None = None  # in Coulomb
+        self._self_bin_correction: float | None = None
 
         # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
@@ -1373,6 +1391,49 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._states = backend.zeros(len(self._poles) + 1, complex)
         bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
         self._bin_dt = bin_dt
+        # Every bin must be bin_dt wide; a sparse profile
+        # (EquidistantMultiProfile) may have charge-free gaps between
+        # bunches, but each gap must be a whole number of bins.
+        spacings = copy_to_cpu(profile_hist_x[1:] - profile_hist_x[:-1])
+        spacings = spacings / bin_dt
+        n_bins_per_spacing = np.round(spacings)
+        assert np.all(n_bins_per_spacing >= 1) and np.allclose(
+            spacings, n_bins_per_spacing
+        ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
+
+        # Bin-average each pole's wake so this solver matches the others on
+        # under-resolved resonators: averaging exp(p*t) over a centred bin
+        # scales its residue by sinh(p*dt/2)/(p*dt/2) (-> 1 as p -> 0). See
+        # TimeDomain.get_wake_per_bin.
+        half_p_dt = self._poles * (bin_dt / 2.0)
+        # p = 0 (a pole at zero frequency, which resonators never have) is a
+        # removable singularity; guard the division and use the p -> 0 limit.
+        nonzero_pole = half_p_dt != 0
+        half_p_dt_safe = backend.ones_like(half_p_dt)
+        half_p_dt_safe[nonzero_pole] = half_p_dt[nonzero_pole]
+        bin_average_factor = backend.ones_like(half_p_dt)
+        bin_average_factor[nonzero_pole] = (
+            backend.exp(half_p_dt) - backend.exp(-half_p_dt)
+        )[nonzero_pole] / (2.0 * half_p_dt_safe[nonzero_pole])
+
+        # Self-bin correction: the symmetric bin-average above is exact for
+        # lag >= 1, but a bin's contribution to its own voltage must be the
+        # CAUSAL half-bin average (the wake is zero for negative lag). Add the
+        # residual term (applied in calc_induced_voltage); without it the
+        # solver stays O((p*dt)^2) off the convolution solvers.
+        self._self_bin_correction = float(
+            backend.sum(
+                backend.where(
+                    nonzero_pole,
+                    self._residues
+                    * (backend.exp(half_p_dt) + backend.exp(-half_p_dt) - 2.0)
+                    / (2.0 * half_p_dt_safe),
+                    backend.zeros_like(half_p_dt),
+                )
+            ).real
+        )
+
+        self._residues = self._residues * bin_average_factor
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
         # on the first call (C++ now uses edge-based rather than centre-based
         # state semantics; see poles.cpp for details).
@@ -1485,6 +1546,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             update_on_bin=self._update_on_bin,
             factor=self._charge_per_macroparticle,
         )
+
         if self._twc_r_shunt is not None:
             # finite-support wake, no state across calls (see class docs)
             backend.specials.wake_from_twc_fir(
@@ -1498,7 +1560,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 voltage=self._voltage_twc,
                 voltage_threaded=self._voltage_threaded,
             )
-            self._voltage += self._voltage_twc
+            self._voltage += self._voltage_twc * self._self_bin_correction
         if self._direct_term != 0.0:
             # constant impedance Z = d: V(t) = d * I(t); the binned delta
             # wake carries d / bin_dt so that its time integral is d
@@ -1506,6 +1568,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 self._direct_term
                 * self._charge_per_macroparticle
                 / self._bin_dt
-            ) * profile_hist_y
+            ) * profile_hist_y * self._self_bin_correction
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

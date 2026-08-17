@@ -21,6 +21,7 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.hashing_ import hash_linspace
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -122,16 +123,107 @@ class WakeFieldSource(ABC):
 class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
 
-    @abstractmethod  # pragma: no cover
+    def get_wake_per_particle(
+        self, time: NumpyArray | CupyArray, counter_rotating: bool = False
+    ) -> NumpyArray | CupyArray:
+        """
+        Point-charge wake (Green's function) sampled at ``time``, in [V].
+
+        Kernel sources override this. Sources that define their impedance
+        another way (e.g. InductiveImpedance) do not implement it and instead
+        override get_impedance_from_wake.
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+        counter_rotating
+            If ``True``, use the counter-rotating wake instead of the
+            co-rotating one.
+
+        Returns
+        -------
+        wake
+            Point-charge wake, in [V].
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide a point-charge wake."
+        )
+
+    def get_wake_per_bin(
+        self, time: NumpyArray | CupyArray, counter_rotating: bool = False
+    ) -> NumpyArray | CupyArray:
+        """
+        Wake averaged over each sample bin ``[t - dt/2, t + dt/2]``.
+
+        A profile is a histogram, so its induced voltage is the wake
+        integrated over each bin, not the wake sampled at the bin centre.
+        Point-sampling aliases badly when the wake oscillates several times
+        within a bin (the low-Q / broadband resonator bug); bin-averaging
+        removes it. Time-domain solvers use this instead of
+        :func:`get_wake_per_particle`.
+
+        The default here bin-averages the piecewise-linear interpolant
+        through :func:`get_wake_per_particle`, which on a uniform grid
+        reduces to the stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (edges
+        extrapolate the boundary value). Exact for a tabulated wake; sources
+        with an analytic wake (e.g.
+        :class:`~blond.physics.impedances.sources.Resonators`) override this
+        with the exact closed-form bin-average instead.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres) at which the wake is evaluated, in [s].
+        counter_rotating
+            If ``True``, use the counter-rotating wake instead of the
+            co-rotating one.
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        w = self.get_wake_per_particle(time, counter_rotating)
+        wake_prev = backend.concatenate((w[:1], w[:-1]))
+        wake_next = backend.concatenate((w[1:], w[-1:]))
+        return (wake_prev + 6.0 * w + wake_next) / 8.0
+
+    def _assert_wake_time_resolves_resonances(  # noqa: B027
+        self, time: NumpyArray | CupyArray
+    ) -> None:
+        """
+        No-op hook consulted by :func:`get_impedance_from_wake` before FFT-ing the wake.
+
+        Sources whose bin-averaged wake can alias if the sampling grid is too
+        coarse (e.g. :class:`~blond.physics.impedances.sources.Resonators`)
+        override this to raise instead.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s].
+        """
+        pass
+
     def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
+        counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:
         """
-        Get impedance equivalent to the partial wake in time domain.
+        Impedance from the bin-averaged wake: ``rfft(get_wake_per_bin(...))``.
+
+        Keeps a single cached ``(hash, impedance)`` slot per rotation
+        direction (co- and counter-rotating), recomputing and overwriting
+        that slot whenever ``time`` changes. This bounds the cache to at
+        most two entries regardless of how many distinct ``time`` arrays are
+        seen over a simulation (e.g. one new array per turn with a dynamic
+        profile). Sources whose impedance is not a wake FFT (e.g.
+        InductiveImpedance) override this.
 
         Parameters
         ----------
@@ -143,81 +235,30 @@ class TimeDomain(ABC):
             Simulation `Beam` object.
         n_fft
             Number of points to be used in the fft.
+        counter_rotating
+            If ``True``, use the counter-rotating wake instead of the
+            co-rotating one.
 
         Returns
         -------
         impedance_from_wake
             Impedance array.
         """
-        pass
-
-
-class TimeDomainCounterRotation(ABC):
-    """Indication of a source, which has a defined wakefield for the counterrotating case."""
-
-    @abstractmethod  # pragma: no cover
-    def get_wake(
-        self, time: NumpyArray | CupyArray
-    ) -> (
-        NumpyArray | CupyArray
-    ):  # TODO: this function should be moved to TimeDomain
-        """
-        Get wake potential equivalent to the partial wake in time domain.
-
-        Parameters
-        ----------
-        time
-            Time array at which the wake is calculated [V].
-        """
-        pass
-
-    @abstractmethod  # pragma: no cover
-    def get_wake_counter_rotation(
-        self, time: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
-
-        Parameters
-        ----------
-        time
-            Time array at which the wake is calculated, in [s].
-
-        Returns
-        -------
-        wake_potential: NumpyArray
-            Potential array, in [V].
-        """
-        pass
-
-    @abstractmethod  # pragma: no cover
-    def get_impedance_from_wake_counter_rotation(
-        self,
-        time: NumpyArray | CupyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray | CupyArray:
-        """
-        Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of points used in the fft.
-
-        Returns
-        -------
-        impedance_from_wake
-            Impedance array.
-        """
-        pass
+        try:
+            cache = self._impedance_from_wake_cache
+        except AttributeError:
+            cache = self._impedance_from_wake_cache = {}
+        key = bool(counter_rotating)
+        hash_ = hash_linspace(time)
+        cached = cache.get(key, (float("nan"), None))
+        if cached[0] == hash_:
+            impedance = cached[1]
+        else:
+            self._assert_wake_time_resolves_resonances(time)
+            wake = self.get_wake_per_bin(time, counter_rotating)
+            impedance = backend.fft.rfft(wake, n=n_fft)
+            cache[key] = (hash_, impedance)
+        return impedance
 
 
 class FreqDomain(ABC):
