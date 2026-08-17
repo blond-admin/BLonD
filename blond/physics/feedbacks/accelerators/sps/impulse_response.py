@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)

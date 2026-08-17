@@ -203,7 +203,7 @@ class SPSFeedForwardCoarseBuffers(TwoTurnBufferBase):
         super().__post_init__()
 
         self.i_beam_modulated = self._make_array(dtype=complex)
-        self.i_ffwd_filtered: TwoTurnArray = field(init=False)
+        self.i_ffwd_filtered = self._make_array(dtype=complex)
         self.i_ffwd_modulated = self._make_array(dtype=complex)
         self.i_ffwd_correction = self._make_array(dtype=complex)
 
