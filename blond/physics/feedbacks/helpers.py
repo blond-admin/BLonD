@@ -144,11 +144,14 @@ def rf_beam_current(
     """
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
+    prof_time = copy_to_cpu(profile.hist_x)
+    prof_density = copy_to_cpu(profile.hist_y)
+
     charges = (
         beam.ratio  # FIXME add to beam
         * beam.particle_type.charge
         * e
-        * np.copy(profile.hist_y)
+        * prof_density
     )
     logger.debug(
         "Sum of particles: %d, total charge: %.4e C",
@@ -158,8 +161,8 @@ def rf_beam_current(
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.0 * charges * np.cos(omega_c * copy_to_cpu(profile.hist_x))
-    Q_f = -2.0 * charges * np.sin(omega_c * copy_to_cpu(profile.hist_x))
+    I_f = 2.0 * charges * np.cos(omega_c * prof_time)
+    Q_f = -2.0 * charges * np.sin(omega_c * prof_time)
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
@@ -187,7 +190,7 @@ def rf_beam_current(
         n_points = int(downsample["points"])
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((profile.hist_x + dT - np.pi / omega_c) / T_s)
+        ind_fine = np.round((prof_time + dT - np.pi / omega_c) / T_s)
         ind_fine = ind_fine.astype(int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
