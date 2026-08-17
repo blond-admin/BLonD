@@ -278,7 +278,7 @@ Reading coordinates back:
 
 The returned array may live on the **GPU**. Never call `.get()`,
 `np.array(...)` or `np.asarray(...)` on it directly — use
-`copy_to_cpu(arr)` from `blond.generals._cupy.no_cupy_import` (exported as
+`copy_to_cpu(arr)` from `blond.generals.cupy_.no_cupy_import` (exported as
 `blond.copy_to_cpu`). Legacy scripts are full of bare NumPy calls on
 `beam.dt`; every one of them needs this treatment. Keep the conversion out of
 the per-turn loop — it forces a host↔device round trip.
