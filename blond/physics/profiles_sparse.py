@@ -241,6 +241,40 @@ class EquidistantMultiProfile(MultiProfile):
         """
         return len(self._continuous_memory_hist_x)
 
+    @property
+    def sparse_kick_metadata(self) -> dict:
+        """
+        Keyword arguments for a sparse-aware kernel call on this profile.
+
+        Bundles the island metadata that `kick_interpolated` (and
+        `histogram_sparse`) need to correctly resolve a particle to its
+        own bucket within this profile's concatenated, gapped
+        `hist_x`/`hist_y` memory, instead of assuming `hist_x` is a
+        single uniform grid.
+
+        Returns
+        -------
+        sparse_kick_metadata
+            Dict with keys ``first_left_cut``, ``left_cut_distance``,
+            ``cut_width``, ``bins_per_profile``, ``filling_pattern``,
+            ``bucket_index_to_memory_index`` -- matching the keyword
+            arguments `Specials.kick_interpolated` expects, so callers
+            can do
+            ``backend.specials.kick_interpolated(..., **profile.sparse_kick_metadata)``.
+        """
+        return {
+            "first_left_cut": self._first_left_cut,
+            "left_cut_distance": self._left_cut_distance,
+            "cut_width": (
+                self.profiles[0].cut_right - self.profiles[0].cut_left
+            ),
+            "bins_per_profile": self._bins_per_profile,
+            "filling_pattern": self._filling_pattern,
+            "bucket_index_to_memory_index": (
+                self._bucket_index_to_memory_index
+            ),
+        }
+
     def plot(self, **kwargs_plot):
         """
         Plot each profile.

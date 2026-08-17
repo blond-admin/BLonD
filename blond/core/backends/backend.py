@@ -201,7 +201,62 @@ class Specials(ABC):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
+        """
+        Interpolated kick method.
+
+        With the sparse-metadata arguments omitted, `bin_centers` must be
+        uniformly spaced; implementations raise `ValueError` otherwise
+        (e.g. when handed a gapped, multi-island array such as
+        `EquidistantMultiProfile.hist_x` without its metadata). With the
+        sparse-metadata arguments given (all six together, typically via
+        `EquidistantMultiProfile.sparse_kick_metadata`), particles are
+        resolved to their own bucket before interpolation, matching
+        `histogram_sparse`'s bucket-resolution semantics.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s].
+        dE
+            Macro-particle energy coordinates, in [eV].
+        voltage
+            Array of voltages along `bin_centers`, in [V].
+        bin_centers
+            Positions of `voltage`, in [s].
+        charge
+            Particle charge, as number of elementary charges `e` [].
+        acceleration_kick
+            Energy, in [eV], which is added to all particles.
+            This is intended to subtract the target energy from the RF
+            energy gain in one common call.
+        first_left_cut
+            Left edge of the first bucket's histogram. Pass this together
+            with the other sparse-metadata arguments below (e.g. via
+            `EquidistantMultiProfile.sparse_kick_metadata`) when
+            `bin_centers` is a gapped, multi-island array such as
+            `EquidistantMultiProfile.hist_x`. When omitted, `bin_centers`
+            must be uniformly spaced.
+        left_cut_distance
+            Distance between the left edge of each bucket's histogram.
+        cut_width
+            Distance between left and right edge of one bucket's
+            histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        filling_pattern
+            Filling pattern as a boolean array where `True` means filled
+            bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index, see
+            `_gen_array_bucket_index_to_memory_index`.
+        """
         raise NotImplementedError(
             "Abstract method `kick_interpolated` is not implemented."
         )

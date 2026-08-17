@@ -153,6 +153,20 @@ sig_kick_interpolated = void(
     sig_charge,
     sig_acceleration_kick,
 )
+sig_kick_interpolated_sparse = void(
+    sig_dt,
+    sig_dE,
+    sig_voltage,
+    sig_bin_centers,
+    sig_charge,
+    sig_acceleration_kick,
+    nb_f,  # first_left_cut
+    nb_f,  # left_cut_distance
+    nb_f,  # cut_width
+    numba.int32,  # bins_per_profile
+    numba.bool[:],  # filling_pattern
+    numba.int32[:],  # bucket_index_to_memory_index
+)
 sig_array_read = nb_f[:]
 sig_array_write = nb_f[:]
 sig_start = nb_f
@@ -224,6 +238,91 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
     _move_flagged_elements_to_end_py
 )
 _lost = BeamFlags.LOST.value
+
+
+@njit(
+    sig_kick_interpolated,
+    parallel=True,
+    fastmath=True,
+    cache=True,
+)
+def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
+    dt: NumpyArray,
+    dE: NumpyArray,
+    voltage: NumpyArray,
+    bin_centers: NumpyArray,
+    charge: float,
+    acceleration_kick: float,
+) -> None:
+    if len(bin_centers) < 2:  # noqa: PLR2004
+        # A single-bin (or empty) `bin_centers` has no width to
+        # interpolate across -- nothing can be kicked. Bail out before the
+        # `len(bin_centers) - 1` division below, which would otherwise
+        # raise `ZeroDivisionError` (unlike the float division the
+        # python/cpp backends perform, which quietly yields `nan` and
+        # skips every particle via the range check).
+        return
+    dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
+    inv_dx = 1 / dx
+    x_min = bin_centers[0]
+    x_max = bin_centers[-1]
+    for i in prange(len(dE)):
+        x = dt[i]
+
+        if x < x_min or x >= x_max:
+            continue
+        else:
+            idx = int((x - x_min) * inv_dx)
+            x0 = x_min + idx * dx
+            y0 = voltage[idx]
+            y1 = voltage[idx + 1]
+
+            v = y0 + (y1 - y0) * inv_dx * (x - x0)
+            dE[i] += charge * v + acceleration_kick
+
+
+@njit(
+    sig_kick_interpolated_sparse,
+    parallel=True,
+    fastmath=True,
+    cache=True,
+)
+def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
+    dt: NumpyArray,
+    dE: NumpyArray,
+    voltage: NumpyArray,
+    bin_centers: NumpyArray,
+    charge: float,
+    acceleration_kick: float,
+    first_left_cut: float,
+    left_cut_distance: float,
+    cut_width: float,
+    bins_per_profile: int,
+    filling_pattern: NumpyArray,
+    bucket_index_to_memory_index: NumpyArray,
+) -> None:
+    n_buckets = len(filling_pattern)
+    inv_hist_dist = 1.0 / left_cut_distance
+    inv_bin_width = bins_per_profile / cut_width
+    bin_width = cut_width / bins_per_profile
+    for i in prange(len(dE)):
+        x = dt[i]
+        bucket_i = int(np.floor((x - first_left_cut) * inv_hist_dist))
+        if bucket_i < 0 or bucket_i >= n_buckets:
+            continue
+        if not filling_pattern[bucket_i]:
+            continue
+        cut_left = first_left_cut + bucket_i * left_cut_distance
+        bucket_bin_center0 = cut_left + bin_width / 2.0
+        local_bin = int(np.floor((x - bucket_bin_center0) * inv_bin_width))
+        if local_bin < 0 or local_bin >= bins_per_profile - 1:
+            continue
+        idx = bucket_index_to_memory_index[bucket_i] + local_bin
+        v = voltage[idx] + (
+            voltage[idx + 1] - voltage[idx]
+        ) * inv_bin_width * (x - bin_centers[idx])
+        dE[i] += charge * v + acceleration_kick
+
 
 sig_apply_sr_without_quantum_excitation = void(sig_dE, nb_f, nb_f)
 sig_apply_sr_with_quantum_excitation = void(sig_dE, nb_f, nb_f, nb_f)
@@ -527,39 +626,54 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
     @staticmethod
     @enforce_precision(FLOAT)
-    @njit(
-        sig_kick_interpolated,
-        parallel=True,
-        fastmath=True,
-        cache=True,
-    )
-    def kick_interpolated(  # NOQA PLR0915 # NOQA: D102
+    def kick_interpolated(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
-        dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
-        inv_dx = 1 / dx
-        x_min = bin_centers[0]
-        x_max = bin_centers[-1]
-        for i in prange(len(dE)):
-            x = dt[i]
-
-            if x < x_min or x >= x_max:
-                continue
-            else:
-                idx = int((x - x_min) * inv_dx)
-                x0 = x_min + idx * dx
-                # x1 = x0 + dx
-                y0 = voltage[idx]
-                y1 = voltage[idx + 1]
-
-                # Linear interpolation
-                v = y0 + (y1 - y0) * inv_dx * (x - x0)
-                dE[i] += charge * v + acceleration_kick
+        if first_left_cut is None:
+            n_slices = len(bin_centers)
+            if n_slices >= 2:  # noqa: PLR2004
+                diffs = np.diff(bin_centers)
+                if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
+                    raise ValueError(
+                        "bin_centers is not uniformly spaced (looks like "
+                        "a sparse/multi-island "
+                        "EquidistantMultiProfile.hist_x). Either pass "
+                        "this profile's sparse metadata (first_left_cut, "
+                        "left_cut_distance, cut_width, bins_per_profile, "
+                        "filling_pattern, bucket_index_to_memory_index), "
+                        "e.g. via `profile.sparse_kick_metadata`, or use "
+                        "EquidistantMultiProfile.profiles[i].hist_x for "
+                        "a single bucket."
+                    )
+            _kick_interpolated_dense_nb(
+                dt, dE, voltage, bin_centers, charge, acceleration_kick
+            )
+            return
+        _kick_interpolated_sparse_nb(
+            dt,
+            dE,
+            voltage,
+            bin_centers,
+            charge,
+            acceleration_kick,
+            first_left_cut,
+            left_cut_distance,
+            cut_width,
+            np.int32(bins_per_profile),
+            filling_pattern,
+            bucket_index_to_memory_index,
+        )
 
     @staticmethod
     def move_flagged_elements_to_end(  # NOQA PLR0915 # NOQA: D102
