@@ -187,7 +187,7 @@ def rf_beam_current(
 
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.round((profile.hist_x + dT - np.pi / omega_c) / T_s)
-        ind_fine = np.array(ind_fine, dtype=int)
+        ind_fine = ind_fine.astype(int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
         # Pick total current within one coarse grid
