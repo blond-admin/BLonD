@@ -1565,6 +1565,18 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
+class _MinimalIQCavityFeedbackForTesting(IQCavityFeedback):
+    """Minimal concrete implementation of IQCavityFeedback for testing."""
+
+    def update_fb_variables(self) -> None:
+        """Minimal implementation of abstract method."""
+        pass
+
+    def circuit_track(self, no_beam: bool = False) -> None:
+        """Minimal implementation of abstract method."""
+        pass
+
+
 class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
     @pytest.mark.backend_mutation
     @multi_backend_testcase("Numpy64Bit")
@@ -1603,7 +1615,12 @@ class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
 
         # Genuine internal gap: two filled buckets, two empty buckets,
         # repeated across the whole ring -- as opposed to one contiguous
-        # run of filled buckets followed by zero-padding at the end.
+        # run of filled buckets followed by trailing zeros. This exercises the
+        # `any_feedback_not_none` branch of `_track`, i.e.
+        # `time_axis = self.cavity_feedback_list[0].profile.hist_x`
+        # followed by `_track_interp`, which previously passed the gapped
+        # (non-uniform) `hist_x` straight into `kick_interpolated` with no
+        # sparse metadata.
         bucket_index = np.arange(harmonic)
         filling_pattern = (bucket_index % 4) < 2
 
@@ -1612,7 +1629,7 @@ class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
             bins_per_profile=2**8,
             offset=0,
         )
-        cavity_feedback = IQCavityFeedback(
+        cavity_feedback = _MinimalIQCavityFeedbackForTesting(
             profile=profile,
             n_cavities=1,
             n_periods_coarse=1,
