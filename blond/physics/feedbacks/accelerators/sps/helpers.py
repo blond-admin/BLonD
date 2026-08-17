@@ -26,7 +26,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def get_power_gen_i(i_gen_per_cav: NumpyArray, z_0: float) -> float:
+def get_power_from_current(
+    i_gen_per_cav: NumpyArray | complex | float, z_0: float
+) -> NumpyArray | float:
     """
     RF generator power calculated from generator current.
 

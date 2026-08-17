@@ -32,7 +32,7 @@ from blond.core.ring.helpers import requires
 from blond.physics.feedbacks.accelerators.sps.helpers import (
     comb_filter,
     feedforward_filter_generator,
-    get_power_gen_i,
+    get_power_from_current,
     modulator,
     moving_average,
 )
@@ -1046,7 +1046,7 @@ class SPSOneTurnFeedback(
         rf_power
             Calculated RF power [W].
         """
-        return get_power_gen_i(self.buffers_coarse.i_gen.full, 50)
+        return get_power_from_current(self.buffers_coarse.i_gen.full, 50)
 
     def wo_clamping(self):
         """Bypass the generator power clamping."""
