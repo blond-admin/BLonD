@@ -26,6 +26,7 @@ import scipy
 from scipy.constants import e
 
 from blond.core.beam.base import BeamBaseClass
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +158,8 @@ def rf_beam_current(
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.0 * charges * np.cos(omega_c * profile.hist_x)
-    Q_f = -2.0 * charges * np.sin(omega_c * profile.hist_x)
+    I_f = 2.0 * charges * np.cos(omega_c * copy_to_cpu(profile.hist_x))
+    Q_f = -2.0 * charges * np.sin(omega_c * copy_to_cpu(profile.hist_x))
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
