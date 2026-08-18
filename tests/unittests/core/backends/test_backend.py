@@ -28,7 +28,7 @@ try:
 except ModuleNotFoundError:
     cupy_available = False
 
-from numba import set_num_threads
+from numba import get_num_threads, set_num_threads
 
 from blond.testing.helpers import allclose_tolerances
 
@@ -3335,8 +3335,6 @@ class TestSpecials(unittest.TestCase):
         ``2 *`` injection factor as a genuine complex-conjugate-pair pole.
         All backends must agree with each other on this.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3370,7 +3368,7 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (get_num_threads(), n_bins), dtype=backend.float
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3388,7 +3386,7 @@ class TestSpecials(unittest.TestCase):
                 factor=backend.float(1.0),
             )
 
-            result = np.asarray(copy_to_cpu(voltage))
+            result = copy_to_cpu(voltage)
 
             if i == 0:
                 result_reference = result
@@ -3400,7 +3398,7 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
-            result2 = np.asarray(copy_to_cpu(states))
+            result2 = copy_to_cpu(states)
 
             if i == 0:
                 result2_reference = result2
