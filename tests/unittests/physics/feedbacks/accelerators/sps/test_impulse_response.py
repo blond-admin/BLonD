@@ -28,6 +28,8 @@ class TestRectangleAndTriangleFunctions(unittest.TestCase):
 
         self.assertAlmostEqual(float(np.mean(y_arr[x_arr > tau][1:])), 0.0)
 
+        # TODO: implement signal where the falling edge is outside the window
+
     def test_rectangle_fail(self):
 
         # Check fail when time array does not start at rising edge

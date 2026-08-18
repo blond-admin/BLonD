@@ -39,7 +39,7 @@ rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
 
 # The beam
 number_of_bunches = 72  # Length of the batch [number of bunches]
-n_macroparticles = 1_000_000  # Number of macroparticles per bunch [-]
+n_macroparticles = 100_000  # Number of macroparticles per bunch [-]
 tau_bunch = 3.0e-9  # Bunch length [s]
 bunch_spacing = 5  # Bunch spacing [number of rf buckets]
 injection_energy_error = 0  # Injection energy error [eV]
@@ -51,6 +51,24 @@ G_llrf = 20
 G_tx = 1
 G_ff = 1
 a_comb = 63 / 64
+
+
+class TestSPSOneTurnFeedback(unittest.TestCase):
+    def test_custom_setpoint(self):
+        # TODO: implement
+        pass
+
+    def test_failure_in_init(self):
+        # TODO: implement
+        pass
+
+    def test_incorrect_tws_tau(self):
+        # TODO: implement
+        pass
+
+    def test_standard_commissioning(self):
+        # TODO: implement
+        pass
 
 
 class TestSPSCavityFeedback(unittest.TestCase):
@@ -95,11 +113,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
             sigma_dt=tau_bunch / 4,
             seed=1234,
         )
-
-        if commissioning is None:
-            commissioning = SPSCavityFeedbackCommissioning(
-                open_loop=False, open_ff=False, debug=False
-            )
 
         cavity_feedback = SPSCavityFeedback(
             profile=profile,
@@ -148,9 +161,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         return simulation, beam
 
     def test_one_turn_delay_feedback(self):
-        commissioning = SPSCavityFeedbackCommissioning(
-            open_ff=True,
-        )
+        commissioning = None
         simulation, beam = self.create_scenario(commissioning=commissioning)
 
         rf_station = simulation.ring.elements.get_element(
@@ -159,6 +170,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         cavity_feedback: SPSCavityFeedback = (
             rf_station.get_main_harmonic_cavity_feedback()
         )
+
+        self.assertEqual(cavity_feedback.OTFB_1.open_ff, 0)
+        self.assertEqual(cavity_feedback.OTFB_2.open_ff, 0)
 
         target_mean_voltage_3sec = 669693.8922412858
         target_mean_voltage_4sec = 887723.7656973798
@@ -242,11 +256,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         cavity_feedback.track(beam=beam)
 
-        target_mean_voltage_3sec = 719879.2193976191
-        target_mean_voltage_4sec = 992377.4497708735
+        target_mean_voltage_3sec = 719594.6231249172
+        target_mean_voltage_4sec = 991858.371108505
 
-        target_max_voltage_3sec = 1357783.0747418394
-        target_max_voltage_4sec = 2294980.95775722
+        target_max_voltage_3sec = 1353966.801056147
+        target_max_voltage_4sec = 2288145.950835744
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
@@ -275,11 +289,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-        target_mean_power_3sec = 118633.90084294468
-        target_mean_power_4sec = 124112.49981515526
+        target_mean_power_3sec = 118634.04286945327
+        target_mean_power_4sec = 124112.44113981347
 
-        target_max_power_3sec = 125500.47766321833
-        target_max_power_4sec = 135697.80286706766
+        target_max_power_3sec = 125515.57560204196
+        target_max_power_4sec = 135697.80857785046
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
@@ -315,11 +329,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         cavity_feedback.track(beam=beam)
 
-        target_mean_voltage_3sec = 700907.8794683248
-        target_mean_voltage_4sec = 957895.2296272368
+        target_mean_voltage_3sec = 700716.0597870443
+        target_mean_voltage_4sec = 957526.8680339582
 
-        target_max_voltage_3sec = 1136882.8438123984
-        target_max_voltage_4sec = 1890516.6957680818
+        target_max_voltage_3sec = 1134006.369873736
+        target_max_voltage_4sec = 1885204.821227101
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
@@ -348,11 +362,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-        target_mean_power_3sec = 118833.55065205484
-        target_mean_power_4sec = 123735.66400154989
+        target_mean_power_3sec = 118835.5114545722
+        target_mean_power_4sec = 123737.62042847557
 
-        target_max_power_3sec = 156602.43733882008
-        target_max_power_4sec = 185052.7158483995
+        target_max_power_3sec = 156460.55283835143
+        target_max_power_4sec = 184763.7947763473
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
@@ -395,6 +409,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
             rf_station.get_main_harmonic_cavity_feedback()
         )
 
+        self.assertEqual(cavity_feedback.OTFB_1.open_ff, 1)
+        self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
+
         target_mean_voltage_3sec = 669693.8922412858
         target_mean_voltage_4sec = 887723.7656973798
 
@@ -477,11 +494,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         cavity_feedback.track(beam=beam)
 
-        target_mean_voltage_3sec = 720035.4455132243
-        target_mean_voltage_4sec = 992736.2671321571
+        target_mean_voltage_3sec = 719750.2763709549
+        target_mean_voltage_4sec = 992215.3445669926
 
-        target_max_voltage_3sec = 1357783.0747418392
-        target_max_voltage_4sec = 2294980.9577572206
+        target_max_voltage_3sec = 1353966.801056147
+        target_max_voltage_4sec = 2288145.950835744
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
@@ -510,11 +527,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-        target_mean_power_3sec = 119337.69544427162
-        target_mean_power_4sec = 125500.61683927145
+        target_mean_power_3sec = 119333.04968393837
+        target_mean_power_4sec = 125489.86623813033
 
-        target_max_power_3sec = 263959.57960349275
-        target_max_power_4sec = 349473.06627607805
+        target_max_power_3sec = 263030.6139606892
+        target_max_power_4sec = 347876.7127743392
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
@@ -550,11 +567,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         cavity_feedback.track(beam=beam)
 
-        target_mean_voltage_3sec = 670127.2437983346
-        target_mean_voltage_4sec = 883802.2505492448
+        target_mean_voltage_3sec = 670134.4944808393
+        target_mean_voltage_4sec = 883823.0669048417
 
-        target_max_voltage_3sec = 744536.4172064766
-        target_max_voltage_4sec = 1050367.0253132517
+        target_max_voltage_3sec = 744371.5534235353
+        target_max_voltage_4sec = 1049911.8808480394
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
@@ -583,11 +600,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-        target_mean_power_3sec = 147970.4698244471
-        target_mean_power_4sec = 173847.1718177561
+        target_mean_power_3sec = 147777.61765445358
+        target_mean_power_4sec = 173491.12236045886
 
-        target_max_power_3sec = 760564.1896078447
-        target_max_power_4sec = 1188856.9519884584
+        target_max_power_3sec = 756477.2050868174
+        target_max_power_4sec = 1181683.3857683493
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
@@ -714,11 +731,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         cavity_feedback.track(beam=beam)
 
-        target_mean_voltage_4sec = 1088362.0268588583
-        target_mean_voltage_5sec = 1401933.1885392386
+        target_mean_voltage_4sec = 1087845.4111294912
+        target_mean_voltage_5sec = 1401106.087261154
 
-        target_max_voltage_4sec = 2359186.7095714654
-        target_max_voltage_5sec = 3467498.487802676
+        target_max_voltage_4sec = 2352372.3501146217
+        target_max_voltage_5sec = 3456614.0311293746
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
@@ -747,11 +764,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-        target_mean_power_4sec = 153184.39271708208
-        target_mean_power_5sec = 146818.7618668209
+        target_mean_power_4sec = 153184.438964153
+        target_mean_power_5sec = 146818.49131173396
 
-        target_max_power_4sec = 165076.26405158968
-        target_max_power_5sec = 168591.50535078964
+        target_max_power_4sec = 165080.96144978618
+        target_max_power_5sec = 168548.10856555318
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
@@ -787,11 +804,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         cavity_feedback.track(beam=beam)
 
-        target_mean_voltage_4sec = 1054513.0622475357
-        target_mean_voltage_5sec = 1345602.7211031278
+        target_mean_voltage_4sec = 1054147.9821517656
+        target_mean_voltage_5sec = 1345022.3575921939
 
-        target_max_voltage_4sec = 1957690.0938218157
-        target_max_voltage_5sec = 2814792.525540921
+        target_max_voltage_4sec = 1952416.74259459
+        target_max_voltage_5sec = 2806388.1290586162
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
@@ -820,11 +837,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-        target_mean_power_4sec = 152417.90311351998
-        target_mean_power_5sec = 148083.69118486813
+        target_mean_power_4sec = 152422.63681253025
+        target_mean_power_5sec = 148077.8242585613
 
-        target_max_power_4sec = 211620.68634508818
-        target_max_power_5sec = 257114.3703686788
+        target_max_power_4sec = 211365.16790033312
+        target_max_power_5sec = 256557.62510228768
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
@@ -974,6 +991,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         self.assertAlmostEqual(max_power_4sec_cpp, max_power_4sec_py, places=5)
+
+    def test_two_different_commissionings(self):
+        # TODO: implement
+        pass
+
+    def test_debugging(self):
+        # TODO: implement
+        pass
 
 
 class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
