@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 import numpy as np
 
+from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 from blond.physics.feedbacks.base import LocalFeedback
@@ -456,6 +457,11 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         self.phase_correction = self.alpha_sum - np.mean(
             np.angle(self.buffers_coarse.v_setpoint[:])
         )
+
+        self.relative_amplitude_correction = backend.array(
+            self.relative_amplitude_correction
+        )
+        self.phase_correction = backend.array(self.phase_correction)
 
         self.gap_voltage_phase = np.angle(
             self.buffers_coarse.v_ant[:] / self.buffers_coarse.v_setpoint[:]
