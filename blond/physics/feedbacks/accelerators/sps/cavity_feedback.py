@@ -29,6 +29,7 @@ from scipy.signal import fftconvolve
 
 from blond import Simulation
 from blond.core.ring.helpers import requires
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.sps.helpers import (
     comb_filter,
     feedforward_filter_generator,
@@ -629,7 +630,9 @@ class SPSOneTurnFeedback(
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_carrier, self.rf_centers)
         self.TWC.impulse_response_beam(
-            self.omega_carrier, self.profile.hist_x, self.rf_centers
+            self.omega_carrier,
+            copy_to_cpu(self.profile.hist_x),
+            self.rf_centers,
         )
 
         if not no_beam:
@@ -657,7 +660,7 @@ class SPSOneTurnFeedback(
         # Obtain generator-induced voltage on the fine grid by interpolation
         self.buffers_fine.v_ant_start = np.copy(self.buffers_fine.v_ant)
         self.buffers_fine.v_ant = self.buffers_fine.v_beam_induced + np.interp(
-            self.profile.hist_x,
+            copy_to_cpu(self.profile.hist_x),
             self.rf_centers,
             self.buffers_coarse.v_generator_induced.curr,
         )

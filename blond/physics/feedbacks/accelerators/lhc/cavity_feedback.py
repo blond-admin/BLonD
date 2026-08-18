@@ -29,6 +29,7 @@ from scipy.signal import firwin
 
 from blond import Simulation, StaticProfile
 from blond.core.ring.helpers import requires
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.buffers import (
     OneTurnBufferBase,
     TwoTurnArray,
@@ -578,13 +579,12 @@ class LHCCavityFeedback(
 
         if not no_beam:
             # Resample generator current to the fine-grid
+            prof_hist_x = copy_to_cpu(self.profile.hist_x)
             self.buffers_fine.i_gen = np.interp(
                 np.concatenate(
                     (
-                        np.array(
-                            [self.profile.hist_x[0] - self.profile.hist_step]
-                        ),
-                        self.profile.hist_x,
+                        np.array([prof_hist_x[0] - self.profile.hist_step]),
+                        prof_hist_x,
                     )
                 ),
                 self.rf_centers,
@@ -623,7 +623,7 @@ class LHCCavityFeedback(
         self.samples_fine = self.omega_rf * self.profile.hist_step
 
         # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.hist_x[0] - self.profile.hist_step
+        t_at_init = float(self.profile.hist_x[0]) - self.profile.hist_step
         x_grid = np.concatenate(
             (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)
         )
