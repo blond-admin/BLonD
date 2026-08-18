@@ -28,6 +28,7 @@ from matplotlib import pyplot as plt
 from scipy.signal import fftconvolve
 
 from blond import Simulation
+from blond.core.backends.backend import backend
 from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.sps.helpers import (
@@ -1348,12 +1349,14 @@ class SPSCavityFeedback:
             ax.grid()
             ax.set_ylabel("Voltage [V]")
 
+        profile_hist_x = copy_to_cpu(self.OTFB_1.profile.hist_x)
+
         for i in range(self.turns):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_1.track_no_beam()
             if debug:
                 ax.plot(
-                    self.OTFB_1.profile.hist_x * 1e6,
+                    profile_hist_x * 1e6,
                     np.abs(self.OTFB_1.buffers_fine.v_ant),
                     color=colors[i],
                 )
@@ -1371,7 +1374,7 @@ class SPSCavityFeedback:
 
         # Interpolate from the coarse mesh to the fine mesh of the beam
         self.V_sum = np.interp(
-            self.OTFB_1.profile.hist_x,
+            profile_hist_x,
             self.OTFB_1.rf_centers,
             self.OTFB_1.n_cavities
             * self.OTFB_1.buffers_coarse.v_generator_induced.curr
@@ -1390,8 +1393,13 @@ class SPSCavityFeedback:
         )
         self.phase_correction = self.alpha_sum - np.angle(
             np.interp(
-                self.OTFB_1.profile.hist_x,
+                profile_hist_x,
                 self.OTFB_1.rf_centers,
                 self.OTFB_1.buffers_coarse.v_setpoint.curr,
             )
         )
+
+        self.relative_amplitude_correction = backend.array(
+            self.relative_amplitude_correction
+        )
+        self.phase_correction = backend.array(self.phase_correction)
