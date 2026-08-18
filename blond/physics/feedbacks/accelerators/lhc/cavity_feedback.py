@@ -158,7 +158,7 @@ class LHCCavityFeedbackCommissioning:
     d_phi_ad
         Phase misalignment of digital FB w.r.t. analog FB [deg].
     g_a
-        Analog FB gain [1].
+        Analog FB gain [A/V].
     g_d
         Digital FB gain, w.r.t. analog gain [1].
     g_o
@@ -184,7 +184,7 @@ class LHCCavityFeedbackCommissioning:
     open_rffb
         Open (True) or closed (False) RFFB; default is False.
     open_tuner
-        Open (True) or closed (False) tuner control; default is False.
+        Open (True) or closed (False) tuner control; default is True.
     clamping
         Simulate clamping (True) or not (False); default is False.
     saturation
@@ -209,7 +209,7 @@ class LHCCavityFeedbackCommissioning:
         self,
         alpha: float = 15 / 16,
         d_phi_ad: float = 0,
-        g_a: float = 0.00001,
+        g_a: float = 6.79e-6,
         g_d: float = 10,
         g_o: float = 10,
         tau_a: float = 170e-6,
@@ -222,7 +222,7 @@ class LHCCavityFeedbackCommissioning:
         open_loop: bool = False,
         open_otfb: bool = False,
         open_rffb: bool = False,
-        open_tuner: bool = False,
+        open_tuner: bool = True,
         clamping: bool = False,
         saturation: bool = False,
         enable_klystron: bool = False,
@@ -315,7 +315,7 @@ class LHCCavityFeedback(
     tau_loop
         Total loop delay [s]; default is 650e-9 s.
     tau_otfb
-        Total loop delay as seen by OTFB [s]; default is 1472e-9 s.
+        Total loop delay as seen by OTFB [s]; default is 1200e-9 s.
     rffb
         LHCCavityLoopCommissioning type class containing RF FB gains and delays.
         If this parameter is None, a new LHCCavityLoopCommissioning is used.
@@ -337,7 +337,7 @@ class LHCCavityFeedback(
         q_l: float = 20000,
         r_over_q: float = 45,
         tau_loop: float = 650e-9,
-        tau_otfb: float = 1472e-9,
+        tau_otfb: float = 1200e-9,
         rffb: LHCCavityFeedbackCommissioning | None = None,
         harmonic_index: int = 0,
     ):

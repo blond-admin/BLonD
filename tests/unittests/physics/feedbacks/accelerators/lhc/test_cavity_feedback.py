@@ -14,6 +14,7 @@ from blond import (
     StaticProfile,
     proton,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.lhc import (
     LHCCavityFeedback,
     LHCCavityFeedbackCommissioning,
@@ -51,7 +52,7 @@ tau_otfb = 1200e-9
 class TestLHCCavityFeedback(unittest.TestCase):
     @staticmethod
     def create_scenario(
-        commissioning: LHCCavityFeedbackCommissioning,
+        commissioning: LHCCavityFeedbackCommissioning = None,
         disable_fine_grid: bool = False,
         n_turns: int = 20,
         q_l: float = 20_000,
@@ -157,19 +158,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
             commissioning=commissioning, n_pretrack=100, disable_fine_grid=True
         )
 
-        commissioning = LHCCavityFeedbackCommissioning(
-            g_a=g_a,
-            g_d=g_d,
-            g_o=g_o,
-            tau_a=tau_a,
-            tau_d=tau_d,
-            tau_o=tau_o,
-            open_tuner=True,
-            open_otfb=False,
-            enable_klystron=False,
-            clamping=False,
-            saturation=False,
-        )
+        commissioning = None
         simulation_with_otfb, beam_with_otfb = self.create_scenario(
             commissioning=commissioning, n_pretrack=100, disable_fine_grid=True
         )
@@ -436,8 +425,43 @@ class TestLHCCavityFeedback(unittest.TestCase):
             places=5,
         )
 
-    def test_induced_voltage_calculation(self):
-        pass
+    def test_compare_coarse_and_fine_grids(self):
+        simulation, beam = self.create_scenario(
+            n_pretrack=100, disable_fine_grid=False
+        )
+
+        rf_station = simulation.ring.elements.get_element(
+            SingleHarmonicRFStation
+        )
+        cavity_feedback: LHCCavityFeedback = (
+            rf_station.get_main_harmonic_cavity_feedback()
+        )
+        cavity_feedback.track(beam)
+
+        n_mov_avg = 2**5 * 10
+
+        fine_ant_buffer = cavity_feedback.buffers_fine.v_ant / 8
+        fine_ant_buffer = np.convolve(
+            fine_ant_buffer, np.ones(n_mov_avg) / n_mov_avg, "valid"
+        )
+
+        fine_ant_buffer_interp = np.interp(
+            cavity_feedback.rf_centers[1:72],
+            copy_to_cpu(cavity_feedback.profile.hist_x)[n_mov_avg - 1 : :],
+            fine_ant_buffer,
+        )
+
+        np.testing.assert_allclose(
+            cavity_feedback.buffers_coarse.v_ant.curr.real[1:72],
+            fine_ant_buffer_interp.real,
+            rtol=5e-5,
+        )
+
+        np.testing.assert_allclose(
+            cavity_feedback.buffers_coarse.v_ant.curr.imag[1:72],
+            fine_ant_buffer_interp.imag,
+            rtol=5e-3,
+        )
 
 
 class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
