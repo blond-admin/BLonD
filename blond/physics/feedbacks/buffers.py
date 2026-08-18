@@ -164,8 +164,8 @@ class TwoTurnArray:
             # boundary-crossing or fully negative slice: only concatenate
             # the (small) region actually needed
             concat = np.concatenate(self._data)
-            lo = n + start if start < 0 else start
-            hi = n + stop if stop < 0 else stop
+            lo = n + start
+            hi = n + stop
             return concat[lo:hi:step]
 
         raise TypeError(f"unsupported index type: {type(key)}")
