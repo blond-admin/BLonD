@@ -3327,6 +3327,92 @@ class TestSpecials(unittest.TestCase):
                             )
 
     @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_real_pole_cross_backend(self) -> None:
+        """Cross-backend parity when some poles are real.
+
+        A real pole (``imag == 0``) has no implicit complex conjugate in
+        the vector-fitting convention, so it must not receive the same
+        ``2 *`` injection factor as a genuine complex-conjugate-pair pole.
+        All backends must agree with each other on this.
+        """
+        import numba as _nb
+
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        # Pole 0 and 2 are real (no implicit conjugate); pole 1 is complex.
+        poles_np = np.array(
+            [-1e8 + 0j, -2e8 + 5e8j, -3e8 + 0j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.5 + 0j, 0.5 - 1.0j, 0.3 + 0j],
+            dtype=np.complex128,
+        )
+        update_on_bin_np = np.array([0], dtype=np.int32)
+
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.ones(n_poles, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (_nb.get_num_threads(), n_bins), dtype=backend.float
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            backend.specials.wake_from_pole_residue(
+                profile=profile,
+                profile_dts=profile_dts,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=cr_flags,
+                states=states,
+                voltage=voltage,
+                voltage_threaded=voltage_threaded,
+                update_on_bin=update_on_bin,
+                factor=backend.float(1.0),
+            )
+
+            result = np.asarray(copy_to_cpu(voltage))
+
+            if i == 0:
+                result_reference = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+            result2 = np.asarray(copy_to_cpu(states))
+
+            if i == 0:
+                result2_reference = result2
+            else:
+                np.testing.assert_allclose(
+                    result2,
+                    result2_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_cr_flip_invariance(self) -> None:
         """Voltage is invariant under ``cr_pole_flip`` sign flips.
 

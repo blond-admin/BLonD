@@ -59,6 +59,7 @@ def fit_poles(
     n_pole: int,
     max_iterations: int | None = None,
     plot_result: bool = False,
+    n_pole_real: int = 0,
 ):
     """
     Use vector fitting to get a `VectorFittedModel`.
@@ -70,11 +71,16 @@ def fit_poles(
     Z
         Impedance array to be fitted, in [Ω].
     n_pole
-        Number of poles to fit.
+        Number of complex-conjugate pole pairs to fit.
     max_iterations
         Maximum number of iterations.
     plot_result
         Whether to plot the result (needs ``plt.show()``).
+    n_pole_real
+        Number of real poles to fit. Unlike a complex pole (which stands
+        in for an implicit, unstored conjugate partner), a real pole has
+        no conjugate and must not be doubled when its wake/impedance is
+        reconstructed.
 
     Returns
     -------
@@ -96,7 +102,7 @@ def fit_poles(
     if max_iterations is not None:
         vf.max_iterations = max_iterations
     vf.vector_fit(
-        n_poles_real=0,
+        n_poles_real=n_pole_real,
         n_poles_cmplx=n_pole,
         fit_constant=True,
         fit_proportional=True,
