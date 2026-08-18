@@ -35,12 +35,13 @@ def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
     r"""
     Rectangular function of time.
 
-    .. math:: \\mathsf{rect} \\left( \frac{t}{\tau} \right) =
+    .. math::
+    \text{rect} \left( \frac{t}{\tau} \right) =
         \begin{cases}
-            1 \\, , \\, t \\in (-\tau/2, \tau/2) \\
-            0.5 \\, , \\, t = \\pm \tau/2 \\
-            0 \\, , \\, \textsf{otherwise}
-        \\end{cases}
+            1 \, , \, t \in (-\tau/2, \tau/2) \\
+            0.5 \, , \, t = \pm \tau/2 \\
+            0 \, , \, \text{otherwise}
+        \end{cases}
 
     Parameters
     ----------
@@ -85,12 +86,13 @@ def triangle(t: NumpyArray, tau: float) -> NumpyArray:
     r"""
     Triangular function of time.
 
-    .. math:: \\mathsf{tri} \\left( \frac{t}{\tau} \right) =
+    .. math::
+    \text{tri} \left( \frac{t}{\tau} \right) =
         \begin{cases}
-            1 - \frac{t}{\tau}\\, , \\, t \\in (0, \tau) \\
-            0.5 \\, , \\, t = 0 \\
-            0 \\, , \\, \textsf{otherwise}
-        \\end{cases}
+            1 - \frac{t}{\tau} \, , \, t \in (0, \tau) \\
+            0.5 \, , \, t = 0 \\
+            0 \, , \, \text{otherwise}
+        \end{cases}
 
     Parameters
     ----------
@@ -106,13 +108,13 @@ def triangle(t: NumpyArray, tau: float) -> NumpyArray:
     """
     dt = t[1] - t[0]
     llimit = np.where(np.fabs(t) < dt / 2)[0]
-    logger.debug(f"In triangle(), index of rising edge is {llimit[0]}")
     if len(llimit) != 1:
         # ImpulseError
         raise RuntimeError(
             "ERROR in impulse_response.triangle(): time"
             + " array doesn't start at rising edge!"
         )
+    logger.debug(f"In triangle(), index of rising edge is {llimit[0]}")
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     y[llimit[0] + 1 :] = 1 - t[llimit[0] + 1 :] / tau
@@ -130,71 +132,71 @@ class TravellingWaveCavity:
     in matrix form,
 
     .. math::
-        \\left( \begin{matrix} V_I(t) \\
-        V_Q(t) \\end{matrix} \right)
-        = \\left( \begin{matrix} h_s(t) & - h_c(t) \\
-        h_c(t) & h_s(t) \\end{matrix} \right)
-        * \\left( \begin{matrix} I_I(t) \\
-        I_Q(t) \\end{matrix} \right) \\, ,
+        \left( \begin{matrix} V_I(t) \\
+        V_Q(t) \end{matrix} \right)
+        = \left( \begin{matrix} h_s(t) & - h_c(t) \\
+        h_c(t) & h_s(t) \end{matrix} \right)
+        * \left( \begin{matrix} I_I(t) \\
+        I_Q(t) \end{matrix} \right) \, ,
 
     where :math:`*` denotes convolution,
-    :math:`h(t)*x(t) = \\int d\tau h(\tau)x(t-\tau)`.
+    :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`.
 
     For the **cavity-to-beam induced voltage**, we define
 
     .. math::
-        R_b \\equiv \frac{\rho l^2}{8} \\,
+        R_b \equiv \frac{\rho l^2}{8} \,
 
     where :math:`\rho` is the series impedance, :math:`l` the accelerating
     length, :math:`\tau` the filling time. The cavity-to-beam wake is
 
     .. math::
-        W_b(t) = \frac{4 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos(\\omega_r t)
+        W_b(t) = \frac{4 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{tri}(x)` is the triangular function, :math:`\\omega_r`
-    is the central revolution frequency of the cavity, and :math:`\\omega_c` is
+    where :math:`\text{tri}(x)` is the triangular function, :math:`\omega_r`
+    is the central revolution frequency of the cavity, and :math:`\omega_c` is
     the carrier revolution frequency of the I,Q demodulated current signal. On
-    the carrier frequency, :math:`\\omega_c = \\omega_r`,
+    the carrier frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right) \\
-        h_{c,b}(t) &= 0 \\, .
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right) \\
+        h_{c,b}(t) &= 0 \, .
 
     For the **cavity-to-generator induced voltage**, we define
 
     .. math::
-        R_g \\equiv l \\sqrt{\frac{\rho Z_0}{2}} \\,
+        R_g \equiv l \sqrt{\frac{\rho Z_0}{2}} \,
 
     where :math:`Z_0` is the shunt impedance when measuring the generator
-    current; assumed to be 50 :math:`\\Omega`. The cavity-to-generator wake is
+    current; assumed to be 50 :math:`\Omega`. The cavity-to-generator wake is
 
     .. math::
-        W_g(t) = \frac{2 R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos(\\omega_r t)
+        W_g(t) = \frac{2 R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{rect}(x)` is the rectangular function. On the carrier
-    frequency, :math:`\\omega_c = \\omega_r`,
+    where :math:`\text{rect}(x)` is the rectangular function. On the carrier
+    frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right) \\
-        h_{c,g}(t) &= 0 \\, .
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right) \\
+        h_{c,g}(t) &= 0 \, .
 
     Parameters
     ----------
@@ -390,71 +392,71 @@ class SPS3Section200MHzTWC(TravellingWaveCavity):
     in matrix form,
 
     .. math::
-        \\left( \begin{matrix} V_I(t) \\
-        V_Q(t) \\end{matrix} \right)
-        = \\left( \begin{matrix} h_s(t) & - h_c(t) \\
-        h_c(t) & h_s(t) \\end{matrix} \right)
-        * \\left( \begin{matrix} I_I(t) \\
-        I_Q(t) \\end{matrix} \right) \\, ,
+        \left( \begin{matrix} V_I(t) \\
+        V_Q(t) \end{matrix} \right)
+        = \left( \begin{matrix} h_s(t) & - h_c(t) \\
+        h_c(t) & h_s(t) \end{matrix} \right)
+        * \left( \begin{matrix} I_I(t) \\
+        I_Q(t) \end{matrix} \right) \, ,
 
     where :math:`*` denotes convolution,
-    :math:`h(t)*x(t) = \\int d\tau h(\tau)x(t-\tau)`.
+    :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`.
 
     For the **cavity-to-beam induced voltage**, we define
 
     .. math::
-        R_b \\equiv \frac{\rho l^2}{8} \\,
+        R_b \equiv \frac{\rho l^2}{8} \,
 
     where :math:`\rho` is the series impedance, :math:`l` the accelerating
     length, :math:`\tau` the filling time. The cavity-to-beam wake is
 
     .. math::
-        W_b(t) = \frac{4 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos(\\omega_r t)
+        W_b(t) = \frac{4 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{tri}(x)` is the triangular function, :math:`\\omega_r`
-    is the central revolution frequency of the cavity, and :math:`\\omega_c` is
+    where :math:`\text{tri}(x)` is the triangular function, :math:`\omega_r`
+    is the central revolution frequency of the cavity, and :math:`\omega_c` is
     the carrier revolution frequency of the I,Q demodulated current signal. On
-    the carrier frequency, :math:`\\omega_c = \\omega_r`,
+    the carrier frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right) \\
-        h_{c,b}(t) &= 0 \\, .
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right) \\
+        h_{c,b}(t) &= 0 \, .
 
     For the **cavity-to-generator induced voltage**, we define
 
     .. math::
-        R_g \\equiv l \\sqrt{\frac{\rho Z_0}{2}} \\,
+        R_g \equiv l \sqrt{\frac{\rho Z_0}{2}} \,
 
     where :math:`Z_0` is the shunt impedance when measuring the generator
-    current; assumed to be 50 :math:`\\Omega`. The cavity-to-generator wake is
+    current; assumed to be 50 :math:`\Omega`. The cavity-to-generator wake is
 
     .. math::
-        W_g(t) = \frac{2 R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos(\\omega_r t)
+        W_g(t) = \frac{2 R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{rect}(x)` is the rectangular function. On the carrier
-    frequency, :math:`\\omega_c = \\omega_r`,
+    where :math:`\text{rect}(x)` is the rectangular function. On the carrier
+    frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right) \\
-        h_{c,g}(t) &= 0 \\, .
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right) \\
+        h_{c,g}(t) &= 0 \, .
 
     Parameters
     ----------
@@ -477,71 +479,71 @@ class SPS4Section200MHzTWC(TravellingWaveCavity):
     in matrix form,
 
     .. math::
-        \\left( \begin{matrix} V_I(t) \\
-        V_Q(t) \\end{matrix} \right)
-        = \\left( \begin{matrix} h_s(t) & - h_c(t) \\
-        h_c(t) & h_s(t) \\end{matrix} \right)
-        * \\left( \begin{matrix} I_I(t) \\
-        I_Q(t) \\end{matrix} \right) \\, ,
+        \left( \begin{matrix} V_I(t) \\
+        V_Q(t) \end{matrix} \right)
+        = \left( \begin{matrix} h_s(t) & - h_c(t) \\
+        h_c(t) & h_s(t) \end{matrix} \right)
+        * \left( \begin{matrix} I_I(t) \\
+        I_Q(t) \end{matrix} \right) \, ,
 
     where :math:`*` denotes convolution,
-    :math:`h(t)*x(t) = \\int d\tau h(\tau)x(t-\tau)`.
+    :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`.
 
     For the **cavity-to-beam induced voltage**, we define
 
     .. math::
-        R_b \\equiv \frac{\rho l^2}{8} \\,
+        R_b \equiv \frac{\rho l^2}{8} \,
 
     where :math:`\rho` is the series impedance, :math:`l` the accelerating
     length, :math:`\tau` the filling time. The cavity-to-beam wake is
 
     .. math::
-        W_b(t) = \frac{4 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos(\\omega_r t)
+        W_b(t) = \frac{4 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{tri}(x)` is the triangular function, :math:`\\omega_r`
-    is the central revolution frequency of the cavity, and :math:`\\omega_c` is
+    where :math:`\text{tri}(x)` is the triangular function, :math:`\omega_r`
+    is the central revolution frequency of the cavity, and :math:`\omega_c` is
     the carrier revolution frequency of the I,Q demodulated current signal. On
-    the carrier frequency, :math:`\\omega_c = \\omega_r`,
+    the carrier frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right) \\
-        h_{c,b}(t) &= 0 \\, .
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right) \\
+        h_{c,b}(t) &= 0 \, .
 
     For the **cavity-to-generator induced voltage**, we define
 
     .. math::
-        R_g \\equiv l \\sqrt{\frac{\rho Z_0}{2}} \\,
+        R_g \equiv l \sqrt{\frac{\rho Z_0}{2}} \,
 
     where :math:`Z_0` is the shunt impedance when measuring the generator
-    current; assumed to be 50 :math:`\\Omega`. The cavity-to-generator wake is
+    current; assumed to be 50 :math:`\Omega`. The cavity-to-generator wake is
 
     .. math::
-        W_g(t) = \frac{2 R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos(\\omega_r t)
+        W_g(t) = \frac{2 R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{rect}(x)` is the rectangular function. On the carrier
-    frequency, :math:`\\omega_c = \\omega_r`,
+    where :math:`\text{rect}(x)` is the rectangular function. On the carrier
+    frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right) \\
-        h_{c,g}(t) &= 0 \\, .
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right) \\
+        h_{c,g}(t) &= 0 \, .
 
     Parameters
     ----------
@@ -564,71 +566,71 @@ class SPS5Section200MHzTWC(TravellingWaveCavity):
     in matrix form,
 
     .. math::
-        \\left( \begin{matrix} V_I(t) \\
-        V_Q(t) \\end{matrix} \right)
-        = \\left( \begin{matrix} h_s(t) & - h_c(t) \\
-        h_c(t) & h_s(t) \\end{matrix} \right)
-        * \\left( \begin{matrix} I_I(t) \\
-        I_Q(t) \\end{matrix} \right) \\, ,
+        \left( \begin{matrix} V_I(t) \\
+        V_Q(t) \end{matrix} \right)
+        = \left( \begin{matrix} h_s(t) & - h_c(t) \\
+        h_c(t) & h_s(t) \end{matrix} \right)
+        * \left( \begin{matrix} I_I(t) \\
+        I_Q(t) \end{matrix} \right) \, ,
 
     where :math:`*` denotes convolution,
-    :math:`h(t)*x(t) = \\int d\tau h(\tau)x(t-\tau)`.
+    :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`.
 
     For the **cavity-to-beam induced voltage**, we define
 
     .. math::
-        R_b \\equiv \frac{\rho l^2}{8} \\,
+        R_b \equiv \frac{\rho l^2}{8} \,
 
     where :math:`\rho` is the series impedance, :math:`l` the accelerating
     length, :math:`\tau` the filling time. The cavity-to-beam wake is
 
     .. math::
-        W_b(t) = \frac{4 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos(\\omega_r t)
+        W_b(t) = \frac{4 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-         \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+         \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{tri}(x)` is the triangular function, :math:`\\omega_r`
-    is the central revolution frequency of the cavity, and :math:`\\omega_c` is
+    where :math:`\text{tri}(x)` is the triangular function, :math:`\omega_r`
+    is the central revolution frequency of the cavity, and :math:`\omega_c` is
     the carrier revolution frequency of the I,Q demodulated current signal. On
-    the carrier frequency, :math:`\\omega_c = \\omega_r`,
+    the carrier frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \\mathsf{tri}\\left(\frac{t}{\tau}\right) \\
-        h_{c,b}(t) &= 0 \\, .
+        h_{s,b}(t) &= \frac{2 R_b}{\tau} \text{tri}\left(\frac{t}{\tau}\right) \\
+        h_{c,b}(t) &= 0 \, .
 
     For the **cavity-to-generator induced voltage**, we define
 
     .. math::
-        R_g \\equiv l \\sqrt{\frac{\rho Z_0}{2}} \\,
+        R_g \equiv l \sqrt{\frac{\rho Z_0}{2}} \,
 
     where :math:`Z_0` is the shunt impedance when measuring the generator
-    current; assumed to be 50 :math:`\\Omega`. The cavity-to-generator wake is
+    current; assumed to be 50 :math:`\Omega`. The cavity-to-generator wake is
 
     .. math::
-        W_g(t) = \frac{2 R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos(\\omega_r t)
+        W_g(t) = \frac{2 R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos(\omega_r t)
 
     and the impulse response components are
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\cos((\\omega_c - \\omega_r)t) \\, , \\
-        h_{c,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right)
-        \\sin((\\omega_c - \\omega_r)t) \\, ,
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \cos((\omega_c - \omega_r)t) \, , \\
+        h_{c,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right)
+        \sin((\omega_c - \omega_r)t) \, ,
 
-    where :math:`\\mathsf{rect}(x)` is the rectangular function. On the carrier
-    frequency, :math:`\\omega_c = \\omega_r`,
+    where :math:`\text{rect}(x)` is the rectangular function. On the carrier
+    frequency, :math:`\omega_c = \omega_r`,
 
     .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \\mathsf{rect}\\left(\frac{t}{\tau}\right) \\
-        h_{c,g}(t) &= 0 \\, .
+        h_{s,g}(t) &= \frac{R_g}{\tau} \text{rect}\left(\frac{t}{\tau}\right) \\
+        h_{c,g}(t) &= 0 \, .
 
     Parameters
     ----------
