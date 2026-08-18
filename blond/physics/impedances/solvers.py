@@ -1122,20 +1122,26 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         The kernel is built from ``get_wake_per_bin`` (see
         :func:`_update_wake_kernel`), which the base ``TimeDomain`` derives
         from ``get_wake_per_particle`` when not overridden. A source is usable
-        if it overrides either.
+        if it overrides either -- checked here, at setup, so an
+        unusable source fails with a clear message instead of the base
+        class's default ``get_wake_per_particle`` only raising once
+        the tracking loop actually calls it.
         """
         for source in self._parent_wakefield.sources:
-            source: TimeDomain  # type hint what what we expect
-            provides_wake = isinstance(source, TimeDomain) and (
+            if not isinstance(source, TimeDomain):
+                raise AttributeError(
+                    f"The {source=} must be a `TimeDomain` source."
+                )
+            overrides_wake = (
                 type(source).get_wake_per_bin
                 is not TimeDomain.get_wake_per_bin
                 or type(source).get_wake_per_particle
                 is not TimeDomain.get_wake_per_particle
             )
-            if not provides_wake:
+            if not overrides_wake:
                 raise AttributeError(
-                    f"The {source=} must be a `TimeDomain` source that"
-                    " overrides `get_wake_per_bin` or `get_wake_per_particle`."
+                    f"The {source=} must override `get_wake_per_bin` or "
+                    "`get_wake_per_particle`."
                 )
 
     def on_wakefield_init_simulation(

@@ -3390,7 +3390,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
 
         with self.assertRaisesRegex(
             AttributeError,
-            "must be a `TimeDomain` source that overrides",
+            "must be a `TimeDomain` source",
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),
@@ -3417,6 +3417,28 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         solver._parent_wakefield = Mock(WakeField)
         solver._parent_wakefield.sources = (BinOnlyResonators(),)
         solver._check_source_ducktypes()  # must not raise
+
+    def test_check_source_ducktypes_rejects_source_overriding_neither(self):
+        """A `TimeDomain` source overriding neither wake method is rejected.
+
+        Distinct from a source that isn't `TimeDomain` at all: this one
+        passes the `isinstance` check but its `get_wake_per_bin` would
+        just call the base `get_wake_per_particle`, which only raises
+        once actually used -- caught here at setup instead.
+        """
+        from blond.physics.impedances.base import TimeDomain
+
+        class NoOverrideSource(TimeDomain):
+            pass
+
+        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
+        solver._parent_wakefield = Mock(WakeField)
+        solver._parent_wakefield.sources = (NoOverrideSource(),)
+        with self.assertRaisesRegex(
+            AttributeError,
+            "must override `get_wake_per_bin` or `get_wake_per_particle`",
+        ):
+            solver._check_source_ducktypes()
 
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
