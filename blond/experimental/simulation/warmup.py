@@ -145,9 +145,10 @@ def warmup(
       profile's ``active`` flag.
     - Only wakefield solver / feedback internal state is intentionally
       left mutated by this call — that is the point of the function.
-    - Not integrated with beam-matching routines (e.g.
-      ``SemiEmpiricMatcher``) — call this after ``prepare_beam()`` and
-      before ``run_simulation()``.
+    - For standalone use, call this after ``prepare_beam()`` and before
+      ``run_simulation()``. ``SemiEmpiricMatcher`` can additionally run
+      this during matching itself (``n_warmup_turns`` parameter), so the
+      matched potential well includes the equilibrium multi-turn wake.
     """
     if n_turns <= 0:
         return

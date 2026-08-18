@@ -13,6 +13,7 @@ from __future__ import annotations
 import itertools
 import os
 import time
+import weakref
 from typing import TYPE_CHECKING
 
 import cupy as cp  # type: ignore
@@ -100,10 +101,13 @@ _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 # profile reconfiguration (not every turn), so checking it once per
 # distinct array avoids a host<->device sync (`cp.allclose(...).__bool__`)
 # on every call, which would otherwise happen once per RF turn.
-# Keyed by (id, shape, data pointer) since `id()` alone can be reused
-# after an array is garbage collected.
+# Keyed by `id()`, which CPython/CuPy may reuse for an unrelated array
+# once the original is garbage collected. That reuse window is closed
+# by `weakref.finalize`: it purges the entry at the exact moment the
+# original array is deallocated, so a stale verdict can never be read
+# for a different array that later gets the same id.
 _MAX_UNIFORMITY_CACHE_SIZE = 64
-_bin_centers_uniformity_cache: dict[tuple[int, tuple, int], bool] = {}
+_bin_centers_uniformity_cache: dict[int, bool] = {}
 
 
 def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
@@ -113,11 +117,7 @@ def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
     `cp.allclose` host<->device sync only occurs once per distinct
     `bin_centers` array rather than on every `kick_interpolated` call.
     """
-    key = (
-        id(bin_centers),
-        tuple(bin_centers.shape),
-        int(bin_centers.data.ptr),
-    )
+    key = id(bin_centers)
     cached = _bin_centers_uniformity_cache.get(key)
     if cached is not None:
         return cached
@@ -128,6 +128,7 @@ def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
     if len(_bin_centers_uniformity_cache) >= _MAX_UNIFORMITY_CACHE_SIZE:
         _bin_centers_uniformity_cache.clear()
     _bin_centers_uniformity_cache[key] = is_uniform
+    weakref.finalize(bin_centers, _bin_centers_uniformity_cache.pop, key, None)
     return is_uniform
 
 
