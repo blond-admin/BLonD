@@ -35,7 +35,6 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -1350,10 +1349,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # Every bin must be bin_dt wide; a sparse profile
         # (EquidistantMultiProfile) may have charge-free gaps between
         # bunches, but each gap must be a whole number of bins.
-        spacings = copy_to_cpu(profile_hist_x[1:] - profile_hist_x[:-1])
-        spacings = spacings / bin_dt
-        n_bins_per_spacing = np.round(spacings)
-        assert np.all(n_bins_per_spacing >= 1) and np.allclose(
+        spacings = (profile_hist_x[1:] - profile_hist_x[:-1]) / bin_dt
+        n_bins_per_spacing = backend.round(spacings)
+        assert backend.all(n_bins_per_spacing >= 1) and backend.allclose(
             spacings, n_bins_per_spacing
         ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
 
