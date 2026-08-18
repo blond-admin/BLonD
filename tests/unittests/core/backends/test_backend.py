@@ -28,7 +28,7 @@ try:
 except ModuleNotFoundError:
     cupy_available = False
 
-from numba import get_num_threads, set_num_threads
+from numba import set_num_threads
 
 from blond.testing.helpers import allclose_tolerances
 
@@ -3143,8 +3143,6 @@ class TestSpecials(unittest.TestCase):
         allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
         ``float64`` the only precision all backends consistently accept.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3179,7 +3177,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3230,8 +3229,6 @@ class TestSpecials(unittest.TestCase):
         allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
         ``float64`` the only precision all backends consistently accept.
         """
-        import numba as _nb
-
         for charge in (-1, 1):
             for is_counterrotating_beam in (False, True):
                 for cr_flags_sign in (-1, 1):
@@ -3282,7 +3279,7 @@ class TestSpecials(unittest.TestCase):
                         )
                         voltage = backend.zeros(n_bins, dtype=backend.float)
                         voltage_threaded = backend.zeros(
-                            (_nb.get_num_threads(), n_bins),
+                            (backend.specials.get_max_threads(), n_bins),
                             dtype=backend.float,
                         )
                         update_on_bin = backend.array(
@@ -3368,7 +3365,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3420,8 +3418,6 @@ class TestSpecials(unittest.TestCase):
         Starting from zero state, the per-backend voltage must therefore
         be identical with and without flipped poles.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3448,7 +3444,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3500,8 +3497,6 @@ class TestSpecials(unittest.TestCase):
         them, so the jump at the boundary is physically meaningful. Scoped
         to float64 for the same reason as `test_wake_from_pole_residue`.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3544,7 +3539,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
