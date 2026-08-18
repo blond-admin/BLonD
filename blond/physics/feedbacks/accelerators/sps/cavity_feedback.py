@@ -1088,7 +1088,7 @@ class SPSCavityFeedback:
         default is 0.5.
     a_comb
         Comb filter ratio [1]; default is 15/16.
-    turns
+    n_pretrack
         Number of turns to pre-track without beam.
     post_LS2
         Activates pre-LS2 scenario (False) or post-LS2 scenario (True); default
@@ -1115,7 +1115,7 @@ class SPSCavityFeedback:
         g_llrf: float | list = 10,
         g_tx: float | list = 0.5,
         a_comb: float | None = None,
-        turns: int = 1000,
+        n_pretrack: int = 1000,
         post_LS2: bool = True,
         v_part: float | None = None,
         df: list[float] = 0,
@@ -1142,13 +1142,7 @@ class SPSCavityFeedback:
         G_llrf_1, G_llrf_2 = to_pair(g_llrf)
         G_tx_1, G_tx_2 = to_pair(g_tx)
         df_1, df_2 = to_pair(df)
-
-        if hasattr(commissioning, "__iter__"):
-            commissioning_1 = commissioning[0]
-            commissioning_2 = commissioning[1]
-        else:
-            commissioning_1 = commissioning
-            commissioning_2 = commissioning
+        commissioning_1, commissioning_2 = to_pair(commissioning)
 
         # Voltage partitioning has to be a fraction
         if v_part and v_part * (1 - v_part) < 0:
@@ -1226,7 +1220,7 @@ class SPSCavityFeedback:
         self.logger = logging.getLogger(__class__.__name__)
 
         # Initialise OTFB without beam
-        self.turns = int(turns)
+        self.n_pretrack = int(n_pretrack)
 
         self.logger.info("Class initialized")
 
@@ -1267,10 +1261,10 @@ class SPSCavityFeedback:
         """
         self.gap_voltage_phase = np.zeros(self.OTFB_1.n_coarse)
 
-        if self.turns < 1:
+        if self.n_pretrack < 1:
             # FeedbackError
             raise RuntimeError(
-                "ERROR in SPSCavityFeedback: 'turns' has to be a positive integer!"
+                "ERROR in SPSCavityFeedback: 'n_pretrack' has to be a positive integer!"
             )
         self.track_init(debug=self.OTFB_1.debug)
 
@@ -1343,7 +1337,7 @@ class SPSCavityFeedback:
         """
         if debug:
             cmap = plt.get_cmap("jet")
-            colors = cmap(np.linspace(0, 1, self.turns))
+            colors = cmap(np.linspace(0, 1, self.n_pretrack))
             plt.figure("Pre-tracking without beam")
             ax = plt.axes([0.18, 0.1, 0.8, 0.8])
             ax.grid()
@@ -1351,7 +1345,7 @@ class SPSCavityFeedback:
 
         profile_hist_x = copy_to_cpu(self.OTFB_1.profile.hist_x)
 
-        for i in range(self.turns):
+        for i in range(self.n_pretrack):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_1.track_no_beam()
             if debug:

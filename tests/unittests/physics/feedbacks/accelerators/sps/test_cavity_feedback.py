@@ -74,8 +74,10 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 class TestSPSCavityFeedback(unittest.TestCase):
     @staticmethod
     def create_scenario(
-        commissioning: SPSCavityFeedbackCommissioning = None,
+        commissioning: SPSCavityFeedbackCommissioning | list = None,
         post_ls2: bool = True,
+        n_pretrack: int = 1000,
+        v_part: float = None,
     ):
         beam = Beam(
             intensity,
@@ -122,6 +124,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
             g_llrf=G_llrf,
             a_comb=a_comb,
             post_LS2=post_ls2,
+            n_pretrack=n_pretrack,
+            v_part=v_part,
         )
 
         cavity.attach_cavity_feedback(cavity_feedback, harmonic_index=0)
@@ -160,6 +164,65 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         return simulation, beam
 
+    @staticmethod
+    def voltage_and_power_from_first_two_turns(
+        cavity_feedback: SPSCavityFeedback, beam: Beam
+    ):
+        n_turns = 2
+        mean_voltage_otfb_1 = np.zeros(n_turns + 1)
+        mean_voltage_otfb_2 = np.zeros(n_turns + 1)
+        max_voltage_otfb_1 = np.zeros(n_turns + 1)
+        max_voltage_otfb_2 = np.zeros(n_turns + 1)
+
+        mean_power_otfb_1 = np.zeros(n_turns + 1)
+        mean_power_otfb_2 = np.zeros(n_turns + 1)
+        max_power_otfb_1 = np.zeros(n_turns + 1)
+        max_power_otfb_2 = np.zeros(n_turns + 1)
+
+        for i in range(n_turns + 1):
+            mean_voltage_otfb_1[i] = np.mean(
+                np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr)
+            )
+            mean_voltage_otfb_2[i] = np.mean(
+                np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr)
+            )
+
+            max_voltage_otfb_1[i] = np.max(
+                np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr)
+            )
+            max_voltage_otfb_2[i] = np.max(
+                np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr)
+            )
+
+            mean_power_otfb_1[i] = np.mean(
+                np.abs(cavity_feedback.OTFB_1.calc_power()[-h:])
+            )
+            mean_power_otfb_2[i] = np.mean(
+                np.abs(cavity_feedback.OTFB_2.calc_power()[-h:])
+            )
+
+            max_power_otfb_1[i] = np.max(
+                np.abs(cavity_feedback.OTFB_1.calc_power()[-h:])
+            )
+            max_power_otfb_2[i] = np.max(
+                np.abs(cavity_feedback.OTFB_2.calc_power()[-h:])
+            )
+
+            cavity_feedback.track(beam)
+
+        output = (
+            mean_voltage_otfb_1,
+            mean_voltage_otfb_2,
+            max_voltage_otfb_1,
+            max_voltage_otfb_2,
+            mean_power_otfb_1,
+            mean_power_otfb_2,
+            max_power_otfb_1,
+            max_power_otfb_2,
+        )
+
+        return output
+
     def test_one_turn_delay_feedback(self):
         commissioning = None
         simulation, beam = self.create_scenario(commissioning=commissioning)
@@ -171,229 +234,87 @@ class TestSPSCavityFeedback(unittest.TestCase):
             rf_station.get_main_harmonic_cavity_feedback()
         )
 
+        output = self.voltage_and_power_from_first_two_turns(
+            cavity_feedback, beam
+        )
+
         self.assertEqual(cavity_feedback.OTFB_1.open_ff, 0)
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 0)
 
-        target_mean_voltage_3sec = 669693.8922412858
-        target_mean_voltage_4sec = 887723.7656973798
-
-        target_max_voltage_3sec = 669693.8922502627
-        target_max_voltage_4sec = 887723.7657088347
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
+        target_mean_voltage_3sec = [
+            669693.8922412858,
+            719594.6231249172,
+            700716.0597870443,
+        ]
+        target_mean_voltage_4sec = [
+            887723.7656973798,
+            991858.371108505,
+            957526.8680339582,
+        ]
+        np.testing.assert_allclose(
+            output[0],
+            target_mean_voltage_3sec,
+        )
+        np.testing.assert_allclose(
+            output[1],
+            target_mean_voltage_4sec,
         )
 
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
+        target_max_voltage_3sec = [
+            669693.8922502627,
+            1353966.801056147,
+            1134006.369873736,
+        ]
+        target_max_voltage_4sec = [
+            887723.7657088347,
+            2288145.950835744,
+            1885204.821227101,
+        ]
+        np.testing.assert_allclose(
+            output[2],
+            target_max_voltage_3sec,
+        )
+        np.testing.assert_allclose(
+            output[3],
+            target_max_voltage_4sec,
         )
 
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
+        target_mean_power_3sec = [
+            118552.70780873713,
+            118634.04286945327,
+            118835.5114545722,
+        ]
+        target_mean_power_4sec = [
+            123909.11559327216,
+            124112.44113981347,
+            123737.62042847557,
+        ]
+        np.testing.assert_allclose(
+            output[4],
+            target_mean_power_3sec,
+        )
+        np.testing.assert_allclose(
+            output[5],
+            target_mean_power_4sec,
         )
 
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
+        target_max_power_3sec = [
+            118552.70791481061,
+            125515.57560204196,
+            156460.55283835143,
+        ]
+        target_max_power_4sec = [
+            123909.11569149903,
+            135697.80857785046,
+            184763.7947763473,
+        ]
+        np.testing.assert_allclose(
+            output[6],
+            target_max_power_3sec,
         )
-
-        target_mean_power_3sec = 118552.70780873713
-        target_mean_power_4sec = 123909.11559327216
-
-        target_max_power_3sec = 118552.70791481061
-        target_max_power_4sec = 123909.11569149903
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        ##################
-        ##### Turn 1 #####
-        ##################
-
-        cavity_feedback.track(beam=beam)
-
-        target_mean_voltage_3sec = 719594.6231249172
-        target_mean_voltage_4sec = 991858.371108505
-
-        target_max_voltage_3sec = 1353966.801056147
-        target_max_voltage_4sec = 2288145.950835744
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_max_voltage_3sec,
-            1,
-            places=5,
-        )
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_max_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        target_mean_power_3sec = 118634.04286945327
-        target_mean_power_4sec = 124112.44113981347
-
-        target_max_power_3sec = 125515.57560204196
-        target_max_power_4sec = 135697.80857785046
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_max_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_max_power_4sec,
-            1,
-            places=5,
-        )
-
-        ##################
-        ##### Turn 2 #####
-        ##################
-
-        cavity_feedback.track(beam=beam)
-
-        target_mean_voltage_3sec = 700716.0597870443
-        target_mean_voltage_4sec = 957526.8680339582
-
-        target_max_voltage_3sec = 1134006.369873736
-        target_max_voltage_4sec = 1885204.821227101
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_max_voltage_3sec,
-            1,
-            places=5,
-        )
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_max_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        target_mean_power_3sec = 118835.5114545722
-        target_mean_power_4sec = 123737.62042847557
-
-        target_max_power_3sec = 156460.55283835143
-        target_max_power_4sec = 184763.7947763473
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_max_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_max_power_4sec,
-            1,
-            places=5,
+        np.testing.assert_allclose(
+            output[7],
+            target_max_power_4sec,
         )
 
     def test_feedforward(self):
@@ -409,229 +330,87 @@ class TestSPSCavityFeedback(unittest.TestCase):
             rf_station.get_main_harmonic_cavity_feedback()
         )
 
+        output = self.voltage_and_power_from_first_two_turns(
+            cavity_feedback, beam
+        )
+
         self.assertEqual(cavity_feedback.OTFB_1.open_ff, 1)
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
 
-        target_mean_voltage_3sec = 669693.8922412858
-        target_mean_voltage_4sec = 887723.7656973798
-
-        target_max_voltage_3sec = 669693.8922502627
-        target_max_voltage_4sec = 887723.7657088347
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
+        target_mean_voltage_3sec = [
+            669693.8922412858,
+            719750.2763709549,
+            670134.4944808393,
+        ]
+        target_mean_voltage_4sec = [
+            887723.7656973798,
+            992215.3445669926,
+            883823.0669048417,
+        ]
+        np.testing.assert_allclose(
+            output[0],
+            target_mean_voltage_3sec,
+        )
+        np.testing.assert_allclose(
+            output[1],
+            target_mean_voltage_4sec,
         )
 
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
+        target_max_voltage_3sec = [
+            669693.8922502627,
+            1353966.801056147,
+            744371.5534235353,
+        ]
+        target_max_voltage_4sec = [
+            887723.7657088347,
+            2288145.950835744,
+            1049911.8808480394,
+        ]
+        np.testing.assert_allclose(
+            output[2],
+            target_max_voltage_3sec,
+        )
+        np.testing.assert_allclose(
+            output[3],
+            target_max_voltage_4sec,
         )
 
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
+        target_mean_power_3sec = [
+            118552.70780873713,
+            119333.04968393837,
+            147777.61765445358,
+        ]
+        target_mean_power_4sec = [
+            123909.11559327216,
+            125489.86623813033,
+            173491.12236045886,
+        ]
+        np.testing.assert_allclose(
+            output[4],
+            target_mean_power_3sec,
+        )
+        np.testing.assert_allclose(
+            output[5],
+            target_mean_power_4sec,
         )
 
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
+        target_max_power_3sec = [
+            118552.70791481061,
+            263030.6139606892,
+            756477.2050868174,
+        ]
+        target_max_power_4sec = [
+            123909.11569149903,
+            347876.7127743392,
+            1181683.3857683493,
+        ]
+        np.testing.assert_allclose(
+            output[6],
+            target_max_power_3sec,
         )
-
-        target_mean_power_3sec = 118552.70780873713
-        target_mean_power_4sec = 123909.11559327216
-
-        target_max_power_3sec = 118552.70791481061
-        target_max_power_4sec = 123909.11569149903
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        ##################
-        ##### Turn 1 #####
-        ##################
-
-        cavity_feedback.track(beam=beam)
-
-        target_mean_voltage_3sec = 719750.2763709549
-        target_mean_voltage_4sec = 992215.3445669926
-
-        target_max_voltage_3sec = 1353966.801056147
-        target_max_voltage_4sec = 2288145.950835744
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_max_voltage_3sec,
-            1,
-            places=5,
-        )
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_max_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        target_mean_power_3sec = 119333.04968393837
-        target_mean_power_4sec = 125489.86623813033
-
-        target_max_power_3sec = 263030.6139606892
-        target_max_power_4sec = 347876.7127743392
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_max_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_max_power_4sec,
-            1,
-            places=5,
-        )
-
-        ##################
-        ##### Turn 2 #####
-        ##################
-
-        cavity_feedback.track(beam=beam)
-
-        target_mean_voltage_3sec = 670134.4944808393
-        target_mean_voltage_4sec = 883823.0669048417
-
-        target_max_voltage_3sec = 744371.5534235353
-        target_max_voltage_4sec = 1049911.8808480394
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_max_voltage_3sec,
-            1,
-            places=5,
-        )
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_max_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        target_mean_power_3sec = 147777.61765445358
-        target_mean_power_4sec = 173491.12236045886
-
-        target_max_power_3sec = 756477.2050868174
-        target_max_power_4sec = 1181683.3857683493
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_mean_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_max_power_3sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_max_power_4sec,
-            1,
-            places=5,
+        np.testing.assert_allclose(
+            output[7],
+            target_max_power_4sec,
         )
 
     def test_pre_ls2_settings(self):
@@ -649,226 +428,84 @@ class TestSPSCavityFeedback(unittest.TestCase):
             rf_station.get_main_harmonic_cavity_feedback()
         )
 
-        target_mean_voltage_4sec = 986359.7396637555
-        target_mean_voltage_5sec = 1237766.6594053463
-
-        target_max_voltage_4sec = 986359.7396764832
-        target_max_voltage_5sec = 1237766.6594214134
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
+        output = self.voltage_and_power_from_first_two_turns(
+            cavity_feedback, beam
         )
 
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_5sec,
-            1,
-            places=5,
+        target_mean_voltage_4sec = [
+            986359.7396637555,
+            1087845.4111294912,
+            1054147.9821517656,
+        ]
+        target_mean_voltage_5sec = [
+            1237766.6594053463,
+            1401106.087261154,
+            1345022.3575921939,
+        ]
+        np.testing.assert_allclose(
+            output[0],
+            target_mean_voltage_4sec,
+        )
+        np.testing.assert_allclose(
+            output[1],
+            target_mean_voltage_5sec,
         )
 
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
+        target_max_voltage_4sec = [
+            986359.7396764832,
+            2352372.3501146217,
+            1952416.74259459,
+        ]
+        target_max_voltage_5sec = [
+            1237766.6594214134,
+            3456614.0311293746,
+            2806388.1290586162,
+        ]
+        np.testing.assert_allclose(
+            output[2],
+            target_max_voltage_4sec,
+        )
+        np.testing.assert_allclose(
+            output[3],
+            target_max_voltage_5sec,
         )
 
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_5sec,
-            1,
-            places=5,
+        target_mean_power_4sec = [
+            152974.21678181743,
+            153184.438964153,
+            152422.63681253025,
+        ]
+        target_mean_power_5sec = [
+            146456.5969673544,
+            146818.49131173396,
+            148077.8242585613,
+        ]
+        np.testing.assert_allclose(
+            output[4],
+            target_mean_power_4sec,
+        )
+        np.testing.assert_allclose(
+            output[5],
+            target_mean_power_5sec,
         )
 
-        target_mean_power_4sec = 152974.21678181743
-        target_mean_power_5sec = 146456.5969673544
-
-        target_max_power_4sec = 152974.21690113
-        target_max_power_5sec = 146456.59708978832
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()))
-            / target_mean_power_4sec,
-            1,
-            places=5,
+        target_max_power_4sec = [
+            152974.21690113,
+            165080.96144978618,
+            211365.16790033312,
+        ]
+        target_max_power_5sec = [
+            146456.59708978832,
+            168548.10856555318,
+            256557.62510228768,
+        ]
+        np.testing.assert_allclose(
+            output[6],
+            target_max_power_4sec,
         )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()))
-            / target_mean_power_5sec,
-            1,
-            places=5,
-        )
-
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        # Mean is equal to max since the voltage and power should
-        # be flat before the arrival of the beam
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()))
-            / target_mean_power_5sec,
-            1,
-            places=5,
-        )
-
-        ##################
-        ##### Turn 1 #####
-        ##################
-
-        cavity_feedback.track(beam=beam)
-
-        target_mean_voltage_4sec = 1087845.4111294912
-        target_mean_voltage_5sec = 1401106.087261154
-
-        target_max_voltage_4sec = 2352372.3501146217
-        target_max_voltage_5sec = 3456614.0311293746
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_5sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_max_voltage_4sec,
-            1,
-            places=5,
-        )
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_max_voltage_5sec,
-            1,
-            places=5,
-        )
-
-        target_mean_power_4sec = 153184.438964153
-        target_mean_power_5sec = 146818.49131173396
-
-        target_max_power_4sec = 165080.96144978618
-        target_max_power_5sec = 168548.10856555318
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_mean_power_5sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_max_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_max_power_5sec,
-            1,
-            places=5,
-        )
-
-        ##################
-        ##### Turn 2 #####
-        ##################
-
-        cavity_feedback.track(beam=beam)
-
-        target_mean_voltage_4sec = 1054147.9821517656
-        target_mean_voltage_5sec = 1345022.3575921939
-
-        target_max_voltage_4sec = 1952416.74259459
-        target_max_voltage_5sec = 2806388.1290586162
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_mean_voltage_5sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
-            / target_max_voltage_4sec,
-            1,
-            places=5,
-        )
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
-            / target_max_voltage_5sec,
-            1,
-            places=5,
-        )
-
-        target_mean_power_4sec = 152422.63681253025
-        target_mean_power_5sec = 148077.8242585613
-
-        target_max_power_4sec = 211365.16790033312
-        target_max_power_5sec = 256557.62510228768
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_mean_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.mean(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_mean_power_5sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_1.calc_power()[-h:]))
-            / target_max_power_4sec,
-            1,
-            places=5,
-        )
-
-        self.assertAlmostEqual(
-            np.max(np.abs(cavity_feedback.OTFB_2.calc_power()[-h:]))
-            / target_max_power_5sec,
-            1,
-            places=5,
+        np.testing.assert_allclose(
+            output[7],
+            target_max_power_5sec,
         )
 
     def test_cpp_convolution(self):
@@ -886,35 +523,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
             rf_station.get_main_harmonic_cavity_feedback()
         )
 
-        cavity_feedback.track(beam=beam)
-        cavity_feedback.track(beam=beam)
-
-        mean_voltage_3sec_cpp = np.mean(
-            np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr)
-        )
-        max_voltage_3sec_cpp = np.max(
-            np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr)
-        )
-
-        mean_voltage_4sec_cpp = np.mean(
-            np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr)
-        )
-        max_voltage_4sec_cpp = np.max(
-            np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr)
-        )
-
-        mean_power_3sec_cpp = np.mean(
-            np.abs(cavity_feedback.OTFB_1.calc_power()[-h:])
-        )
-        max_power_3sec_cpp = np.max(
-            np.abs(cavity_feedback.OTFB_1.calc_power()[-h:])
-        )
-
-        mean_power_4sec_cpp = np.mean(
-            np.abs(cavity_feedback.OTFB_2.calc_power()[-h:])
-        )
-        max_power_4sec_cpp = np.max(
-            np.abs(cavity_feedback.OTFB_2.calc_power()[-h:])
+        output_cpp = self.voltage_and_power_from_first_two_turns(
+            cavity_feedback, beam
         )
 
         commissioning = SPSCavityFeedbackCommissioning(
@@ -931,70 +541,162 @@ class TestSPSCavityFeedback(unittest.TestCase):
             rf_station.get_main_harmonic_cavity_feedback()
         )
 
-        cavity_feedback.track(beam=beam)
-        cavity_feedback.track(beam=beam)
-
-        mean_voltage_3sec_py = np.mean(
-            np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr)
-        )
-        max_voltage_3sec_py = np.max(
-            np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr)
-        )
-
-        mean_voltage_4sec_py = np.mean(
-            np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr)
-        )
-        max_voltage_4sec_py = np.max(
-            np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr)
-        )
-
-        mean_power_3sec_py = np.mean(
-            np.abs(cavity_feedback.OTFB_1.calc_power()[-h:])
-        )
-        max_power_3sec_py = np.max(
-            np.abs(cavity_feedback.OTFB_1.calc_power()[-h:])
-        )
-
-        mean_power_4sec_py = np.mean(
-            np.abs(cavity_feedback.OTFB_2.calc_power()[-h:])
-        )
-        max_power_4sec_py = np.max(
-            np.abs(cavity_feedback.OTFB_2.calc_power()[-h:])
+        output_py = self.voltage_and_power_from_first_two_turns(
+            cavity_feedback, beam
         )
 
         # Check voltages
-        self.assertAlmostEqual(
-            mean_voltage_3sec_cpp, mean_voltage_3sec_py, places=5
+        np.testing.assert_allclose(
+            output_cpp[0],
+            output_py[0],
         )
-
-        self.assertAlmostEqual(
-            max_voltage_3sec_cpp, max_voltage_3sec_py, places=5
+        np.testing.assert_allclose(
+            output_cpp[1],
+            output_py[1],
         )
-
-        self.assertAlmostEqual(
-            mean_voltage_4sec_cpp, mean_voltage_4sec_py, places=5
+        np.testing.assert_allclose(
+            output_cpp[2],
+            output_py[2],
         )
-
-        self.assertAlmostEqual(
-            max_voltage_4sec_cpp, max_voltage_4sec_py, places=5
+        np.testing.assert_allclose(
+            output_cpp[3],
+            output_py[3],
         )
 
         # Check RF power
-        self.assertAlmostEqual(
-            mean_power_3sec_cpp, mean_power_3sec_py, places=5
+        np.testing.assert_allclose(
+            output_cpp[4],
+            output_py[4],
+        )
+        np.testing.assert_allclose(
+            output_cpp[5],
+            output_py[5],
+        )
+        np.testing.assert_allclose(
+            output_cpp[6],
+            output_py[6],
+        )
+        np.testing.assert_allclose(
+            output_cpp[7],
+            output_py[7],
         )
 
-        self.assertAlmostEqual(max_power_3sec_cpp, max_power_3sec_py, places=5)
-
-        self.assertAlmostEqual(
-            mean_power_4sec_cpp, mean_power_4sec_py, places=5
+    def test_mixed_feedback_settings(self):
+        commissioning_1 = SPSCavityFeedbackCommissioning(
+            open_ff=True,
+        )
+        commissioning_2 = SPSCavityFeedbackCommissioning(
+            open_ff=False,
+        )
+        simulation, beam = self.create_scenario(
+            commissioning=[commissioning_1, commissioning_2]
         )
 
-        self.assertAlmostEqual(max_power_4sec_cpp, max_power_4sec_py, places=5)
+        rf_station = simulation.ring.elements.get_element(
+            MultiHarmonicRFStation
+        )
+        cavity_feedback: SPSCavityFeedback = (
+            rf_station.get_main_harmonic_cavity_feedback()
+        )
 
-    def test_two_different_commissionings(self):
+        output = self.voltage_and_power_from_first_two_turns(
+            cavity_feedback, beam
+        )
+
+        self.assertEqual(cavity_feedback.OTFB_1.open_ff, 0)
+        self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
+
+        target_mean_voltage_3sec = [
+            669693.8922412858,
+            719594.6231249172,
+            700716.0597870443,
+        ]
+        target_mean_voltage_4sec = [
+            887723.7656973798,
+            992215.3445669926,
+            883823.0669048417,
+        ]
+        np.testing.assert_allclose(
+            output[0],
+            target_mean_voltage_3sec,
+        )
+        np.testing.assert_allclose(
+            output[1],
+            target_mean_voltage_4sec,
+        )
+
+        target_max_voltage_3sec = [
+            669693.8922502627,
+            1353966.801056147,
+            1134006.369873736,
+        ]
+        target_max_voltage_4sec = [
+            887723.7657088347,
+            2288145.950835744,
+            1049911.8808480394,
+        ]
+        np.testing.assert_allclose(
+            output[2],
+            target_max_voltage_3sec,
+        )
+        np.testing.assert_allclose(
+            output[3],
+            target_max_voltage_4sec,
+        )
+
+        target_mean_power_3sec = [
+            118552.70780873713,
+            118634.04286945327,
+            118835.5114545722,
+        ]
+        target_mean_power_4sec = [
+            123909.11559327216,
+            125489.86623813033,
+            173491.12236045886,
+        ]
+        np.testing.assert_allclose(
+            output[4],
+            target_mean_power_3sec,
+        )
+        np.testing.assert_allclose(
+            output[5],
+            target_mean_power_4sec,
+        )
+
+        target_max_power_3sec = [
+            118552.70791481061,
+            125515.57560204196,
+            156460.55283835143,
+        ]
+        target_max_power_4sec = [
+            123909.11569149903,
+            347876.7127743392,
+            1181683.3857683493,
+        ]
+        np.testing.assert_allclose(
+            output[6],
+            target_max_power_3sec,
+        )
+        np.testing.assert_allclose(
+            output[7],
+            target_max_power_4sec,
+        )
+
+    def test_explicit_comb_filter_coefficient(self):
         # TODO: implement
         pass
+
+    def test_explicit_partitioning(self):
+        # TODO: implement
+        pass
+
+    def test_incorrect_turns(self):
+        with self.assertRaises(RuntimeError):
+            self.create_scenario(n_pretrack=-1)
+
+    def test_incorrect_partitioning(self):
+        with self.assertRaises(RuntimeError):
+            self.create_scenario(v_part=-0.2)
 
     def test_debugging(self):
         # TODO: implement

@@ -131,6 +131,22 @@ class TestModulator(unittest.TestCase):
             remodulated_signal.imag, initial_arr.imag
         )
 
+    def test_minimum_signal_length(self):
+        n_points = 1
+        initial_frequency = 1e6
+        sampling_time = 1 / initial_frequency
+        final_frequency = 1.01e6
+
+        initial_arr = np.ones(n_points) * (1 + 1j * 0)
+
+        with self.assertRaises(RuntimeError):
+            modulated_signal = modulator(
+                signal=initial_arr,
+                omega_i=2 * np.pi * initial_frequency,
+                omega_f=2 * np.pi * final_frequency,
+                t_sampling=sampling_time,
+            )
+
 
 class TestFeedforwardFilterGenerator(unittest.TestCase):
     def test_3_section(self):
