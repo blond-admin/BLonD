@@ -878,10 +878,15 @@ class PythonSpecials(Specials):
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
 
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only a pole with imag != 0 stands in for an
+            # unstored conjugate partner and needs the doubled injection.
+            injection_factor = factor if pole.imag == 0 else two_factor
+
             decay = 0.0 + 0j
             for bin_i in range(n_bins):
                 profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
                 )
 
                 if bin_i == update_on_bin_i:

@@ -896,7 +896,8 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 cr_pole_flip = -1.0
 
             # y[n] = profile[n] + exp(p * dt) * y[n-1]
-            # V[n] = 2 * Re(r * y[n])
+            # V[n] = 2 * Re(r * y[n]) for a complex pole (stands in for its
+            # unstored conjugate); V[n] = Re(r * y[n]) for a real pole.
             # state = 0.0 + 0.0j
             i_update = 0
             # empty `update_on_bin` means "never update"; `decay` stays 0
@@ -909,11 +910,16 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             state = complex(states[pole_i])
             decay = 0.0 + 0.0j
 
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only a pole with imag != 0 stands in for an
+            # unstored conjugate partner and needs the doubled injection.
+            injection_factor = factor if pole.imag == 0 else two_factor
+
             t_start = states[-1]
 
             for bin_i in range(n_bins):
                 profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
                 )
 
                 if bin_i == update_on_bin_i:
