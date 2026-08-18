@@ -622,6 +622,8 @@ class BackendBaseClass(ABC):
         self.array: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
         self.isclose: Callable = None  # type: ignore
+        self.allclose: Callable = None  # type: ignore
+        self.round: Callable = None  # type: ignore
         self.empty: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
         self.linspace: Callable = None  # type: ignore
@@ -1014,6 +1016,8 @@ class NumpyBackend(BackendBaseClass):
         self.array = np.array
         self.gradient = np.gradient
         self.isclose = np.isclose
+        self.allclose = np.allclose
+        self.round = np.round
         self.empty = np.empty
         self.repeat = np.repeat
         self.linspace = np.linspace
@@ -1166,6 +1170,8 @@ class CupyBackend(BackendBaseClass):
         self.array = cp.array
         self.gradient = cp.gradient
         self.isclose = cp.isclose
+        self.allclose = cp.allclose
+        self.round = cp.round
         self.empty = cp.empty
         self.repeat = cp.repeat
         self.linspace = cp.linspace

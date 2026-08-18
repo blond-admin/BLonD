@@ -109,9 +109,7 @@ def _low_q_run(
     induced_voltage
         Induced voltage over the profile, in [V].
     """
-    from blond.core.backends.backend import Numpy64Bit, backend
-
-    backend.change_backend(Numpy64Bit)
+    from blond.core.backends.backend import backend
 
     circumference = 2 * np.pi * 4242.89
     ring = Ring(circumference=circumference)
