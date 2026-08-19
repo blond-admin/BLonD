@@ -502,7 +502,7 @@ class Resonators(
             return self._cache_impedance_from_wake
 
         wake = self.get_wake(time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
+        impedance_from_wake = backend.fft_parallel.rfft(wake, n=n_fft)
 
         self._cache_impedance_from_wake_hash = hash_
         self._cache_impedance_from_wake = impedance_from_wake
@@ -544,7 +544,7 @@ class Resonators(
             return self._cache_impedance_from_wake_counter_rotation
 
         wake_counter_rotation = self.get_wake_counter_rotation(time)
-        impedance_from_wake_counter_rotation = backend.fft.rfft(
+        impedance_from_wake_counter_rotation = backend.fft_parallel.rfft(
             wake_counter_rotation, n=n_fft
         )
 
@@ -1060,7 +1060,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
                 stacklevel=1,
             )
         wake = backend.interp(time, self._wake_x, self._wake_y)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
+        impedance_from_wake = backend.fft_parallel.rfft(wake, n=n_fft)
         self._cache_impedance_from_wake_hash = hash_
         self._cache_impedance_from_wake = impedance_from_wake
         return impedance_from_wake
@@ -1208,7 +1208,7 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             Wake impedance in frequency domain.
         """
         wake = self.wake_calc(time=time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
+        impedance_from_wake = backend.fft_parallel.rfft(wake, n=n_fft)
         return impedance_from_wake
 
     def get_impedance(

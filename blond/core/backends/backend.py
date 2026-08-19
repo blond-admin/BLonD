@@ -498,21 +498,30 @@ class _MaybeParallelFFT:
     """
     FFT façade that opts into multithreading for large CPU transforms.
 
-    Wraps `scipy.fft` (CPU) and passes `workers=-1` (all cores) once a
-    transform's size reaches `min_size_for_parallel`; below that,
-    thread-spawn overhead tends to outweigh the FFT cost itself, so
-    transforms stay single-threaded. On CuPy, the transform already runs
-    fully parallel on the GPU and `cupy.fft` accepts no `workers`
-    argument, so calls are forwarded unchanged.
+    Wraps `pyfftw.interfaces.scipy_fft` (CPU) — a `scipy.fft`-compatible
+    façade over the FFTW3 library, with plan caching enabled so repeated
+    calls at the same size skip FFTW's replanning cost — and passes
+    `workers=-1` (all cores) once a transform's size reaches
+    `min_size_for_parallel`; below that, thread coordination overhead
+    tends to outweigh the FFT cost itself, so transforms stay
+    single-threaded. `pyfftw` is a pip-installable wheel on Linux and
+    Windows, so this needs no locally-built/maintained FFTW3 bindings
+    (see the abandoned `blond/core/backends/cpp/fft.cpp`, which is not
+    compiled into the cpp backend and should not be revived for this).
+    On CuPy, the transform already runs fully parallel on the GPU and
+    `cupy.fft` accepts no `workers` argument, so calls are forwarded
+    unchanged.
 
     Unlike `backend.fft` (`numpy.fft`/`cupy.fft`), this façade has no
-    `out=` support: `scipy.fft` does not expose it, so buffered/reused
-    output arrays should keep using `backend.fft` directly.
+    `out=` support: neither `scipy.fft` nor its `pyfftw` façade expose
+    it, so buffered/reused output arrays should keep using `backend.fft`
+    directly.
 
     Parameters
     ----------
     fft_module
-        `scipy.fft` for CPU backends, `cupy.fft` for GPU backends.
+        `pyfftw.interfaces.scipy_fft` for CPU backends, `cupy.fft` for
+        GPU backends.
     is_gpu
         Whether `fft_module` already runs fully parallel on a GPU.
     min_size_for_parallel
@@ -1097,8 +1106,11 @@ class NumpyBackend(BackendBaseClass):
             specials_mode="python",
             is_gpu=False,
         )
-        import scipy.fft as _scipy_fft_module
+        import pyfftw.interfaces.cache as _pyfftw_cache
+        import pyfftw.interfaces.scipy_fft as _pyfftw_scipy_fft
         from scipy.signal import fftconvolve
+
+        _pyfftw_cache.enable()
 
         self.array = np.array
         self.gradient = np.gradient
@@ -1113,7 +1125,7 @@ class NumpyBackend(BackendBaseClass):
         self.ones = np.ones
         self.zeros_like = np.zeros_like
         self.fft = np.fft
-        self.fft_parallel = _MaybeParallelFFT(_scipy_fft_module, is_gpu=False)
+        self.fft_parallel = _MaybeParallelFFT(_pyfftw_scipy_fft, is_gpu=False)
         self.all = np.all
         self.random = np.random
         self.sinc = np.sinc

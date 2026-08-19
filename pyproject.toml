@@ -35,6 +35,7 @@ dependencies = [
   "setuptools>=60",    # packaging utilities
   "numpy>=2",          # array computing
   "scipy>=1.15,<1.18", # scientific computing algorithms
+  "pyfftw>=0.15",      # threaded/plan-cached FFTW3 bindings for backend.fft_parallel
   "matplotlib>=3.9",   # plotting and visualization
   "numba>=0.61",       # simple computing backend that compiles everywhere out of the box
   "tqdm>4",            # nice loading bar
