@@ -388,7 +388,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             if backend.is_gpu:
                 # At the time of writing (2025), out is not a keyword argument
                 # of cp.fft.rfft, but might be in future.
-                out = backend.fft.irfft(
+                out = backend.fft_parallel.irfft(
                     self._freq_y
                     * self._parent_wakefield.profile.beam_spectrum(
                         n_fft=self._n_time
@@ -410,12 +410,15 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._induced_voltage_buffer[key] = out
         else:
             # create array and safe it to buffer
-            self._induced_voltage_buffer[key] = _factor * backend.fft.irfft(
-                self._freq_y
-                * self._parent_wakefield.profile.beam_spectrum(
-                    n_fft=self._n_time
-                ),
-                n=self._n_time,
+            self._induced_voltage_buffer[key] = (
+                _factor
+                * backend.fft_parallel.irfft(
+                    self._freq_y
+                    * self._parent_wakefield.profile.beam_spectrum(
+                        n_fft=self._n_time
+                    ),
+                    n=self._n_time,
+                )
             )
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
@@ -596,7 +599,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             n_fft = next_fast_len(n_fft)
         # `n=n_fft` is required: `next_fast_len` may return an odd
         # length, which irfft cannot infer from the half spectrum.
-        induced_voltage = _factor * backend.fft.irfft(
+        induced_voltage = _factor * backend.fft_parallel.irfft(
             self._impedance_from_wake_y
             * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft),
             n=n_fft,

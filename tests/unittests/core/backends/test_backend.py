@@ -336,6 +336,63 @@ class TestNumpyBackend(unittest.TestCase):
             self.numpy_backend.set_specials("doesnt exist")
 
 
+class TestFftParallel(unittest.TestCase):
+    """Tests for `backend.fft_parallel`, the workers-aware FFT façade."""
+
+    def setUp(self) -> None:
+        self.original_backend = backend.__class__
+
+    def tearDown(self) -> None:
+        backend.change_backend(self.original_backend)
+
+    @multi_backend_testcase
+    def test_rfft_matches_numpy(self) -> None:
+        x = np.random.default_rng(0).normal(size=4096)
+        expected = np.fft.rfft(x)
+        result = copy_to_cpu(
+            backend.fft_parallel.rfft(backend.array(x, dtype=backend.float))
+        )
+        np.testing.assert_allclose(
+            result, expected, **allclose_tolerances(expected)
+        )
+
+    @multi_backend_testcase
+    def test_irfft_matches_numpy(self) -> None:
+        x = np.random.default_rng(1).normal(size=4096)
+        spectrum = np.fft.rfft(x)
+        expected = np.fft.irfft(spectrum, n=4096)
+        result = copy_to_cpu(
+            backend.fft_parallel.irfft(
+                backend.array(spectrum, dtype=backend.complex), n=4096
+            )
+        )
+        np.testing.assert_allclose(
+            result, expected, **allclose_tolerances(expected)
+        )
+
+    @pytest.mark.backend_mutation
+    def test_workers_for_size_below_threshold_is_serial_on_cpu(
+        self,
+    ) -> None:
+        backend.change_backend(Numpy64Bit)
+        threshold = backend.fft_parallel.min_size_for_parallel
+        self.assertEqual(
+            backend.fft_parallel.workers_for_size(threshold - 1), 1
+        )
+
+    @pytest.mark.backend_mutation
+    def test_workers_for_size_at_threshold_is_parallel_on_cpu(self) -> None:
+        backend.change_backend(Numpy64Bit)
+        threshold = backend.fft_parallel.min_size_for_parallel
+        self.assertEqual(backend.fft_parallel.workers_for_size(threshold), -1)
+
+    @pytest.mark.backend_mutation
+    @skip_if_no_cupy
+    def test_workers_for_size_is_noop_on_gpu(self) -> None:
+        backend.change_backend(Cupy64Bit)
+        self.assertIsNone(backend.fft_parallel.workers_for_size(10_000_000))
+
+
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
         self.n_voltages = 3

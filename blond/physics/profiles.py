@@ -441,7 +441,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
-            self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
+            self._beam_spectrum_buffer[n_fft] = backend.fft_parallel.rfft(
                 self._hist_y,  # type: ignore
                 n_fft,
             )
@@ -449,7 +449,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         elif backend.is_gpu:
             # At the time of writing (2025), out is not a keyword argument
             # of cp.fft.rfft, but might be in future.
-            self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
+            self._beam_spectrum_buffer[n_fft] = backend.fft_parallel.rfft(
                 self._hist_y,
                 n_fft,
             )

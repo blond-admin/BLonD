@@ -491,6 +491,161 @@ class _ModeSwitchHelper:
         self.backend.set_specials(mode=self.mode_org)
 
 
+DEFAULT_FFT_PARALLEL_MIN_SIZE = 2**16  # ~65k samples
+
+
+class _MaybeParallelFFT:
+    """
+    FFT façade that opts into multithreading for large CPU transforms.
+
+    Wraps `scipy.fft` (CPU) and passes `workers=-1` (all cores) once a
+    transform's size reaches `min_size_for_parallel`; below that,
+    thread-spawn overhead tends to outweigh the FFT cost itself, so
+    transforms stay single-threaded. On CuPy, the transform already runs
+    fully parallel on the GPU and `cupy.fft` accepts no `workers`
+    argument, so calls are forwarded unchanged.
+
+    Unlike `backend.fft` (`numpy.fft`/`cupy.fft`), this façade has no
+    `out=` support: `scipy.fft` does not expose it, so buffered/reused
+    output arrays should keep using `backend.fft` directly.
+
+    Parameters
+    ----------
+    fft_module
+        `scipy.fft` for CPU backends, `cupy.fft` for GPU backends.
+    is_gpu
+        Whether `fft_module` already runs fully parallel on a GPU.
+    min_size_for_parallel
+        Transform size (in samples) at or above which `workers=-1` is
+        passed on CPU. Ignored on GPU.
+    """
+
+    def __init__(
+        self,
+        fft_module: ModuleType,
+        is_gpu: bool,
+        min_size_for_parallel: int = DEFAULT_FFT_PARALLEL_MIN_SIZE,
+    ) -> None:
+        self._fft_module = fft_module
+        self._is_gpu = is_gpu
+        self.min_size_for_parallel = min_size_for_parallel
+
+    def workers_for_size(self, size: int) -> int | None:
+        """
+        Number of `scipy.fft` workers to use for a transform of `size`.
+
+        Parameters
+        ----------
+        size
+            Length of the transform (i.e. the FFT's `n`).
+
+        Returns
+        -------
+        int or None
+            `None` on GPU (the argument does not apply); `-1` (all
+            cores) once `size >= min_size_for_parallel`, else `1`.
+        """
+        if self._is_gpu:
+            return None
+        return -1 if size >= self.min_size_for_parallel else 1
+
+    def _with_workers(self, size: int, kwargs: dict) -> dict:
+        workers = self.workers_for_size(size)
+        if workers is not None:
+            kwargs.setdefault("workers", workers)
+        return kwargs
+
+    def rfft(self, x: AnyArray, n: int | None = None, **kwargs) -> AnyArray:
+        """
+        Real-input FFT; see `scipy.fft.rfft`/`cupy.fft.rfft`.
+
+        Parameters
+        ----------
+        x
+            Real-valued input array.
+        n
+            Transform length. Defaults to `x.shape[-1]`.
+        **kwargs
+            Forwarded to the underlying `rfft`.
+
+        Returns
+        -------
+        AnyArray
+            The (complex) half-spectrum of `x`.
+        """
+        size = n if n is not None else x.shape[-1]
+        return self._fft_module.rfft(
+            x, n=n, **self._with_workers(size, kwargs)
+        )
+
+    def irfft(self, x: AnyArray, n: int | None = None, **kwargs) -> AnyArray:
+        """
+        Inverse of `rfft`; see `scipy.fft.irfft`/`cupy.fft.irfft`.
+
+        Parameters
+        ----------
+        x
+            Half-spectrum, as returned by `rfft`.
+        n
+            Output length. Defaults to `2 * (x.shape[-1] - 1)`.
+        **kwargs
+            Forwarded to the underlying `irfft`.
+
+        Returns
+        -------
+        AnyArray
+            The reconstructed real-valued signal.
+        """
+        size = n if n is not None else 2 * (x.shape[-1] - 1)
+        return self._fft_module.irfft(
+            x, n=n, **self._with_workers(size, kwargs)
+        )
+
+    def fft(self, x: AnyArray, n: int | None = None, **kwargs) -> AnyArray:
+        """
+        Complex FFT; see `scipy.fft.fft`/`cupy.fft.fft`.
+
+        Parameters
+        ----------
+        x
+            Input array.
+        n
+            Transform length. Defaults to `x.shape[-1]`.
+        **kwargs
+            Forwarded to the underlying `fft`.
+
+        Returns
+        -------
+        AnyArray
+            The (complex) full spectrum of `x`.
+        """
+        size = n if n is not None else x.shape[-1]
+        return self._fft_module.fft(x, n=n, **self._with_workers(size, kwargs))
+
+    def ifft(self, x: AnyArray, n: int | None = None, **kwargs) -> AnyArray:
+        """
+        Inverse complex FFT; see `scipy.fft.ifft`/`cupy.fft.ifft`.
+
+        Parameters
+        ----------
+        x
+            Input spectrum.
+        n
+            Transform length. Defaults to `x.shape[-1]`.
+        **kwargs
+            Forwarded to the underlying `ifft`.
+
+        Returns
+        -------
+        AnyArray
+            The reconstructed (complex) signal.
+        """
+        size = n if n is not None else x.shape[-1]
+        return self._fft_module.ifft(
+            x, n=n, **self._with_workers(size, kwargs)
+        )
+
+
 class BackendBaseClass(ABC):
     """
     Base class for a backend.
@@ -564,6 +719,7 @@ class BackendBaseClass(ABC):
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
         self.fft: ModuleType = None  # type: ignore
+        self.fft_parallel: _MaybeParallelFFT = None  # type: ignore
         self.all: Callable = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
         self.sinc: Callable = None  # type: ignore
@@ -941,6 +1097,7 @@ class NumpyBackend(BackendBaseClass):
             specials_mode="python",
             is_gpu=False,
         )
+        import scipy.fft as _scipy_fft_module
         from scipy.signal import fftconvolve
 
         self.array = np.array
@@ -956,6 +1113,7 @@ class NumpyBackend(BackendBaseClass):
         self.ones = np.ones
         self.zeros_like = np.zeros_like
         self.fft = np.fft
+        self.fft_parallel = _MaybeParallelFFT(_scipy_fft_module, is_gpu=False)
         self.all = np.all
         self.random = np.random
         self.sinc = np.sinc
@@ -1108,6 +1266,7 @@ class CupyBackend(BackendBaseClass):
         self.ones = cp.ones
         self.zeros_like = cp.zeros_like
         self.fft = cp.fft
+        self.fft_parallel = _MaybeParallelFFT(cp.fft, is_gpu=True)
         self.all = cp.all
         self.random = cp.random
         self.sinc = cp.sinc
