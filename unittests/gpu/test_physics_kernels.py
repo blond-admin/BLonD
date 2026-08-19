@@ -26,7 +26,7 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath as bm
-from blond.utils import build_wrap_cpp
+from blond.utils import build_wrap_cpp as butils_wrap_cpp
 
 
 class TestSyntheticData:
