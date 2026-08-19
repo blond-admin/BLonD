@@ -35,6 +35,7 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
