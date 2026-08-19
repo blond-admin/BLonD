@@ -119,6 +119,15 @@ workflow:
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - pip list
     - cd ${project_root}
+    # Warm the numba JIT cache in a single process before mpirun spawns 2
+    # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
+    # cold, both processes race to compile and write the same cache
+    # entries concurrently, and the loser can be left with a corrupted or
+    # partial entry -- causing an unrelated numba-backed call to raise on
+    # just that rank, which then deadlocks the other rank's next MPI
+    # collective. Compiling once, single-process, first (mirroring the cpp
+    # /cuda compile steps in `.before`) avoids the race.
+    - python3 -m pytest -v -m "not mpi" tests/unittests/core/backends/test_backend.py
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order. Random
     # ordering can desync the ranks (one rank enters a collective while the
@@ -186,6 +195,15 @@ workflow:
     - pip list
     - cd ${project_root}
     - mkdir -p junit-reports
+    # Warm the numba JIT cache in a single process before mpirun spawns 2
+    # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
+    # cold, both processes race to compile and write the same cache
+    # entries concurrently, and the loser can be left with a corrupted or
+    # partial entry -- causing an unrelated numba-backed call to raise on
+    # just that rank, which then deadlocks the other rank's next MPI
+    # collective. Compiling once, single-process, first (mirroring the cpp
+    # /cuda compile steps in `.before`) avoids the race.
+    - python3 -m pytest -v -m "not mpi" tests/unittests/core/backends/test_backend.py
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order. Random
     # ordering can desync the ranks (one rank enters a collective while the
