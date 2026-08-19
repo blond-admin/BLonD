@@ -655,6 +655,109 @@ class _MaybeParallelFFT:
         )
 
 
+class _CachedFftwTransform:
+    """
+    Buffered real-FFT cache backed by cached `pyfftw.builders` plans.
+
+    Caches one `pyfftw.FFTW` plan per (direction, output size, input
+    length), reusing its internal input/output buffers across calls, so
+    that repeated calls at the same size -- the common case turn-to-turn
+    in a simulation's hot loop, since a `Profile`'s bin count is normally
+    fixed for a whole run -- pay neither FFTW's replanning cost nor a new
+    array allocation, while still running multithreaded once the
+    transform is large enough (`_MaybeParallelFFT.workers_for_size`
+    decides the thread count). Unlike `_MaybeParallelFFT`, this keeps the
+    zero-allocation behaviour of `out=`-based buffering at every size, not
+    just below `min_size_for_parallel`.
+
+    GPU has no equivalent: `cupy.fft` exposes no way to reuse an output
+    buffer, only its own internal plan cache (which already amortises
+    replanning). So GPU backends should not construct this class and
+    should instead point `backend.fft_cached` straight at
+    `backend.fft_parallel`.
+
+    Parameters
+    ----------
+    workers_for_size
+        `_MaybeParallelFFT.workers_for_size`, used to pick FFTW's
+        `threads` for a newly built plan.
+    """
+
+    def __init__(self, workers_for_size: Callable[[int], int | None]) -> None:
+        self._workers_for_size = workers_for_size
+        self._plans: dict[tuple[str, int, int], Any] = {}
+
+    def _get_plan(self, kind: str, x: AnyArray, n: int) -> tuple[Any, bool]:
+        key = (kind, n, x.shape[-1])
+        plan = self._plans.get(key)
+        if plan is not None:
+            return plan, False
+
+        import pyfftw
+
+        builder = (
+            pyfftw.builders.rfft if kind == "rfft" else (pyfftw.builders.irfft)
+        )
+        plan = builder(
+            x,
+            n=n,
+            threads=self._workers_for_size(n),
+            planner_effort="FFTW_ESTIMATE",
+        )
+        self._plans[key] = plan
+        return plan, True
+
+    def rfft(self, x: AnyArray, n: int | None = None) -> AnyArray:
+        """
+        Real-input FFT, buffered and workers-aware; see `scipy.fft.rfft`.
+
+        Parameters
+        ----------
+        x
+            Real-valued input array.
+        n
+            Transform length. Defaults to `x.shape[-1]`.
+
+        Returns
+        -------
+        AnyArray
+            The (complex) half-spectrum of `x`. The returned array is
+            owned by this cache and is overwritten on the next `rfft`
+            call of the same `n` and input length -- copy it if it must
+            outlive that.
+        """
+        size = n if n is not None else x.shape[-1]
+        plan, freshly_built = self._get_plan("rfft", x, size)
+        if not freshly_built:
+            plan.input_array[: x.shape[-1]] = x
+        return plan()
+
+    def irfft(self, x: AnyArray, n: int | None = None) -> AnyArray:
+        """
+        Inverse of `rfft`, buffered and workers-aware; see `scipy.fft.irfft`.
+
+        Parameters
+        ----------
+        x
+            Half-spectrum, as returned by `rfft`.
+        n
+            Output length. Defaults to `2 * (x.shape[-1] - 1)`.
+
+        Returns
+        -------
+        AnyArray
+            The reconstructed real-valued signal. The returned array is
+            owned by this cache and is overwritten on the next `irfft`
+            call of the same `n` and input length -- copy it if it must
+            outlive that.
+        """
+        size = n if n is not None else 2 * (x.shape[-1] - 1)
+        plan, freshly_built = self._get_plan("irfft", x, size)
+        if not freshly_built:
+            plan.input_array[:] = x
+        return plan()
+
+
 class BackendBaseClass(ABC):
     """
     Base class for a backend.
@@ -729,6 +832,7 @@ class BackendBaseClass(ABC):
         self.zeros_like: Callable = None  # type: ignore
         self.fft: ModuleType = None  # type: ignore
         self.fft_parallel: _MaybeParallelFFT = None  # type: ignore
+        self.fft_cached: _CachedFftwTransform | _MaybeParallelFFT = None  # type: ignore
         self.all: Callable = None  # type: ignore
         self.random: ModuleType = None  # type: ignore
         self.sinc: Callable = None  # type: ignore
@@ -1126,6 +1230,9 @@ class NumpyBackend(BackendBaseClass):
         self.zeros_like = np.zeros_like
         self.fft = np.fft
         self.fft_parallel = _MaybeParallelFFT(_pyfftw_scipy_fft, is_gpu=False)
+        self.fft_cached = _CachedFftwTransform(
+            self.fft_parallel.workers_for_size
+        )
         self.all = np.all
         self.random = np.random
         self.sinc = np.sinc
@@ -1279,6 +1386,10 @@ class CupyBackend(BackendBaseClass):
         self.zeros_like = cp.zeros_like
         self.fft = cp.fft
         self.fft_parallel = _MaybeParallelFFT(cp.fft, is_gpu=True)
+        # cupy.fft has no way to reuse an output buffer (only its own
+        # internal plan cache), so there is no cached/buffered variant
+        # to offer here; callers get the same behaviour either way.
+        self.fft_cached = self.fft_parallel
         self.all = cp.all
         self.random = cp.random
         self.sinc = cp.sinc

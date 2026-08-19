@@ -135,6 +135,30 @@ class TestProfileBaseClass(unittest.TestCase):
                 np.fft.rfft(copy_to_cpu(self.profile_base_class.hist_y)),
             )
 
+    def test_beam_spectrum_reuses_buffer_below_parallel_threshold(self):
+        n_fft = backend.fft_parallel.min_size_for_parallel - 1
+        first = self.profile_base_class.beam_spectrum(n_fft=n_fft)
+        second = self.profile_base_class.beam_spectrum(n_fft=n_fft)
+        if not backend.is_gpu:
+            self.assertIs(first, second)
+
+    def test_beam_spectrum_reuses_buffer_above_parallel_threshold(self):
+        # `fft_cached` (pyFFTW plan cache) buffers at every size, unlike
+        # the naive `out=` reuse it replaced, which only paid off below
+        # the parallel threshold.
+        n_fft = backend.fft_parallel.min_size_for_parallel
+        first = self.profile_base_class.beam_spectrum(n_fft=n_fft)
+        second = self.profile_base_class.beam_spectrum(n_fft=n_fft)
+        with AllowPlotting():
+            np.testing.assert_almost_equal(
+                copy_to_cpu(second),
+                np.fft.rfft(
+                    copy_to_cpu(self.profile_base_class.hist_y), n=n_fft
+                ),
+            )
+        if not backend.is_gpu:
+            self.assertIs(first, second)
+
     def test_invalidate_cache(self):
         self.profile_base_class.invalidate_cache()
 

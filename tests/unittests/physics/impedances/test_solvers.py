@@ -500,6 +500,41 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
+    @multi_backend_testcase
+    def test_calc_induced_voltage_repeatable_for_large_n_time(self):
+        # `_n_time` above `fft_parallel.min_size_for_parallel` used to
+        # switch `calc_induced_voltage` onto a different (non-buffered)
+        # code path; `fft_cached` now buffers uniformly at every size.
+        # Pin down that repeated calls at that size stay consistent.
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
+        self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1e-9
+        self.periodic_freq_solver._parent_wakefield.profile.n_bins = 20
+        self.periodic_freq_solver.t_periodicity = 1e-4  # n_time = 100000
+        self.assertGreaterEqual(
+            self.periodic_freq_solver._n_time,
+            backend.fft_parallel.min_size_for_parallel,
+        )
+        n_freq = self.periodic_freq_solver._n_time // 2 + 1
+        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
+            0, 1, n_freq
+        )
+        beam = Mock(BeamBaseClass)
+        beam.intensity = int(11e3)
+        beam.n_macroparticles_partial.return_value = int(3e6)
+        self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / beam.n_macroparticles_partial.return_value
+        )
+        beam.particle_type.charge = 1
+        beam.ratio = 1e5
+
+        first = self.periodic_freq_solver.calc_induced_voltage(beam=beam)
+        second = self.periodic_freq_solver.calc_induced_voltage(beam=beam)
+        np.testing.assert_allclose(
+            copy_to_cpu(first), copy_to_cpu(second), rtol=1e-12
+        )
+
     def test_calc_induced_voltage_odd_n_time_matches_reference(self):
         # Regression test: with an odd FFT length
         # (n_time = t_periodicity / hist_step), irfft without `n=` returned

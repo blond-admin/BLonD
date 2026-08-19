@@ -179,8 +179,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
         self._freq_y_needs_update = True  # at least one update
 
-        self._induced_voltage_buffer = {}
-
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
@@ -382,50 +380,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
         # `n=self._n_time` is required: the half spectrum is ambiguous
         # about the signal length and irfft defaults to the (wrong for
         # odd `_n_time`) even length `2 * (n_freq - 1)`.
-        key = self._n_time
-        if key in self._induced_voltage_buffer:
-            # use `out` variable of fft to avoid array creation
-            if backend.is_gpu:
-                # At the time of writing (2025), out is not a keyword argument
-                # of cp.fft.rfft, but might be in future.
-                out = backend.fft_parallel.irfft(
-                    self._freq_y
-                    * self._parent_wakefield.profile.beam_spectrum(
-                        n_fft=self._n_time
-                    ),
-                    n=self._n_time,
-                )
-            else:
-                out = self._induced_voltage_buffer[key]
-                backend.fft.irfft(
-                    self._freq_y
-                    * self._parent_wakefield.profile.beam_spectrum(
-                        n_fft=self._n_time
-                    ),
-                    n=self._n_time,
-                    out=out,
-                )
-
-            out *= _factor
-            self._induced_voltage_buffer[key] = out
-        else:
-            # create array and safe it to buffer
-            self._induced_voltage_buffer[key] = (
-                _factor
-                * backend.fft_parallel.irfft(
-                    self._freq_y
-                    * self._parent_wakefield.profile.beam_spectrum(
-                        n_fft=self._n_time
-                    ),
-                    n=self._n_time,
-                )
-            )
+        # `fft_cached` reuses its own internal output buffer across calls
+        # of the same size (via a cached pyFFTW plan on CPU), so no
+        # buffering is needed here; on GPU it falls back to `fft_parallel`
+        # since `cupy.fft` has no way to reuse an output buffer.
+        induced_voltage = _factor * backend.fft_cached.irfft(
+            self._freq_y
+            * self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+            n=self._n_time,
+        )
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated
-        return self._induced_voltage_buffer[key][
-            : self._parent_wakefield.profile.n_bins
-        ]
+        return induced_voltage[: self._parent_wakefield.profile.n_bins]
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
@@ -599,7 +566,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             n_fft = next_fast_len(n_fft)
         # `n=n_fft` is required: `next_fast_len` may return an odd
         # length, which irfft cannot infer from the half spectrum.
-        induced_voltage = _factor * backend.fft_parallel.irfft(
+        induced_voltage = _factor * backend.fft_cached.irfft(
             self._impedance_from_wake_y
             * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft),
             n=n_fft,

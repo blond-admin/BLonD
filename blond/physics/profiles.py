@@ -64,8 +64,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         self._hist_y: NumpyArray | CupyArray | None = None
         self.hist_y_to_density_factor: float | None = None
 
-        self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
-
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -439,28 +437,11 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
 
-        no_array_buffer = n_fft not in self._beam_spectrum_buffer
-        if no_array_buffer:
-            self._beam_spectrum_buffer[n_fft] = backend.fft_parallel.rfft(
-                self._hist_y,  # type: ignore
-                n_fft,
-            )
-        # recycle array, but overwrite data (preventing new array allocation)
-        elif backend.is_gpu:
-            # At the time of writing (2025), out is not a keyword argument
-            # of cp.fft.rfft, but might be in future.
-            self._beam_spectrum_buffer[n_fft] = backend.fft_parallel.rfft(
-                self._hist_y,
-                n_fft,
-            )
-        else:
-            backend.fft.rfft(
-                self._hist_y,
-                n_fft,
-                out=self._beam_spectrum_buffer[n_fft],  # type: ignore
-            )
-
-        return self._beam_spectrum_buffer[n_fft]
+        # `fft_cached` reuses its own internal output buffer across calls
+        # of the same size (via a cached pyFFTW plan on CPU), so no
+        # buffering is needed here; on GPU it falls back to `fft_parallel`
+        # since `cupy.fft` has no way to reuse an output buffer.
+        return backend.fft_cached.rfft(self._hist_y, n_fft)  # type: ignore
 
     def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property."""

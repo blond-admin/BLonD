@@ -393,6 +393,73 @@ class TestFftParallel(unittest.TestCase):
         self.assertIsNone(backend.fft_parallel.workers_for_size(10_000_000))
 
 
+class TestFftCached(unittest.TestCase):
+    """Tests for `backend.fft_cached`, the buffered FFT plan cache."""
+
+    def setUp(self) -> None:
+        self.original_backend = backend.__class__
+
+    def tearDown(self) -> None:
+        backend.change_backend(self.original_backend)
+
+    @multi_backend_testcase
+    def test_rfft_matches_numpy(self) -> None:
+        x = np.random.default_rng(0).normal(size=4096)
+        expected = np.fft.rfft(x)
+        result = copy_to_cpu(
+            backend.fft_cached.rfft(backend.array(x, dtype=backend.float))
+        )
+        np.testing.assert_allclose(
+            result, expected, **allclose_tolerances(expected)
+        )
+
+    @multi_backend_testcase
+    def test_irfft_matches_numpy(self) -> None:
+        x = np.random.default_rng(1).normal(size=4096)
+        spectrum = np.fft.rfft(x)
+        expected = np.fft.irfft(spectrum, n=4096)
+        result = copy_to_cpu(
+            backend.fft_cached.irfft(
+                backend.array(spectrum, dtype=backend.complex), n=4096
+            )
+        )
+        np.testing.assert_allclose(
+            result, expected, **allclose_tolerances(expected)
+        )
+
+    @pytest.mark.backend_mutation
+    def test_rfft_reuses_output_buffer_on_cpu(self) -> None:
+        backend.change_backend(Numpy64Bit)
+        x1 = np.random.default_rng(0).normal(size=8)
+        x2 = np.random.default_rng(1).normal(size=8)
+        first = backend.fft_cached.rfft(x1, n=20)
+        second = backend.fft_cached.rfft(x2, n=20)
+        self.assertIs(first, second)
+        expected = np.fft.rfft(x2, n=20)
+        np.testing.assert_allclose(
+            second, expected, **allclose_tolerances(expected)
+        )
+
+    @pytest.mark.backend_mutation
+    def test_irfft_reuses_output_buffer_on_cpu(self) -> None:
+        backend.change_backend(Numpy64Bit)
+        spectrum1 = np.fft.rfft(np.random.default_rng(0).normal(size=8), n=20)
+        spectrum2 = np.fft.rfft(np.random.default_rng(1).normal(size=8), n=20)
+        first = backend.fft_cached.irfft(spectrum1, n=20)
+        second = backend.fft_cached.irfft(spectrum2, n=20)
+        self.assertIs(first, second)
+        expected = np.fft.irfft(spectrum2, n=20)
+        np.testing.assert_allclose(
+            second, expected, **allclose_tolerances(expected)
+        )
+
+    @pytest.mark.backend_mutation
+    @skip_if_no_cupy
+    def test_is_fft_parallel_on_gpu(self) -> None:
+        backend.change_backend(Cupy64Bit)
+        self.assertIs(backend.fft_cached, backend.fft_parallel)
+
+
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
         self.n_voltages = 3
