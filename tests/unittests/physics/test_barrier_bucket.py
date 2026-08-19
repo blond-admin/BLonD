@@ -9,7 +9,7 @@ import numpy.testing as nptest
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayShapeError
 from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
 

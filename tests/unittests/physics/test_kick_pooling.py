@@ -66,6 +66,79 @@ class TestPooledInterpolationKick(unittest.TestCase):
             rtol=1e-12,
         )
 
+    def test_register_and_track_with_sparse_metadata(self):
+        # minimal 2-bucket sparse layout, bucket 0 and 1 both filled
+        #
+        # `register()` converts `time_axis`/`voltage` to the active
+        # backend itself, but `sparse_metadata`'s arrays are stored
+        # and forwarded as-is, so they must already be on the active
+        # backend here - a plain `np.array` would fail e.g. under a
+        # CUDA-active backend (leaked from another `backend_mutation`
+        # test, see project convention on backend-agnostic tests).
+        time_axis = backend.array([0.125, 0.375, 0.625, 0.875])
+        voltage = backend.array([1.0, 2.0, 3.0, 4.0])
+        sparse_metadata = {
+            "first_left_cut": 0.0,
+            "left_cut_distance": 0.5,
+            "cut_width": 0.5,
+            "bins_per_profile": 2,
+            "filling_pattern": backend.array([True, True]),
+            "bucket_index_to_memory_index": backend.array(
+                [0, 2], dtype=np.int32
+            ),
+        }
+        self.pooled_kick.register(
+            time_axis=time_axis,
+            voltage=voltage,
+            sparse_metadata=sparse_metadata,
+        )
+        beam = ProbeBeam(
+            particle_type=lead_82,
+            dt=backend.array([0.125]),
+            reference_total_energy=1e12,
+        )
+        self.pooled_kick._track(beam=beam)
+        self.assertNotEqual(beam.dE.copy_as_numpy()[0], 0.0)
+
+    def test_register_twice_overwrites_sparse_metadata(self):
+        # `voltage` accumulates across repeat `register()` calls for
+        # the same `time_axis`, but `sparse_metadata` describes fixed
+        # geometry and should instead be overwritten by the latest
+        # call, not silently retain the first call's value.
+        time_axis = np.array([0.125, 0.375, 0.625, 0.875])
+        voltage = np.array([1.0, 2.0, 3.0, 4.0])
+        first_sparse_metadata = {
+            "first_left_cut": 0.0,
+            "left_cut_distance": 0.5,
+            "cut_width": 0.5,
+            "bins_per_profile": 2,
+            "filling_pattern": np.array([True, True]),
+            "bucket_index_to_memory_index": np.array([0, 2], dtype=np.int32),
+        }
+        second_sparse_metadata = {
+            "first_left_cut": 1.0,
+            "left_cut_distance": 0.5,
+            "cut_width": 0.5,
+            "bins_per_profile": 2,
+            "filling_pattern": np.array([True, True]),
+            "bucket_index_to_memory_index": np.array([0, 2], dtype=np.int32),
+        }
+        self.pooled_kick.register(
+            time_axis=time_axis,
+            voltage=voltage,
+            sparse_metadata=first_sparse_metadata,
+        )
+        self.pooled_kick.register(
+            time_axis=time_axis,
+            voltage=voltage,
+            sparse_metadata=second_sparse_metadata,
+        )
+        key = id(time_axis)
+        self.assertIs(
+            self.pooled_kick._buffer_sparse_metadata[key],
+            second_sparse_metadata,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

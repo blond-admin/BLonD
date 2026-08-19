@@ -21,6 +21,7 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -228,6 +229,7 @@ class FreqDomain(ABC):
         freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        hist_step: float | None = None,
     ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
@@ -240,6 +242,12 @@ class FreqDomain(ABC):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
+        hist_step
+            Bin width of the time-domain signal the impedance will be
+            applied to, in [s]. `freq_x` alone is ambiguous about the
+            signal length (odd vs. even), so sources whose impedance
+            depends on the discrete time grid need this; analytic
+            sources may ignore it.
 
         Returns
         -------
@@ -497,9 +505,17 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         induced_voltage
             Induced voltage along the profile, in [V].
         """
-        self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)[
-            : self.profile.n_bins
-        ]
+        induced_voltage = self.solver.calc_induced_voltage(beam=beam)
+        assert len(induced_voltage) >= self.profile.n_bins, (
+            f"{type(self.solver).__name__} returned only"
+            f" {len(induced_voltage)} samples, but the profile"
+            f" has {self.profile.n_bins} bins."
+        )
+        # Some solvers (e.g. FFT-based convolution) zero-pad to a
+        # convenient transform length and return more samples than
+        # there are profile bins; only the leading `n_bins` samples
+        # correspond to the profile and are physically meaningful.
+        self._induced_voltage = induced_voltage[: self.profile.n_bins]
         # the induced voltage has to be provided with the backend precision
         # because the track() method below requires it by calling the backend.
         return self.induced_voltage
@@ -523,12 +539,18 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         )
         voltage = induced_voltage.astype(backend.float)
         bin_centers = self.profile.hist_x  # base for induced voltage
+        sparse_metadata = (
+            self.profile.sparse_kick_metadata
+            if isinstance(self.profile, EquidistantMultiProfile)
+            else None
+        )
         if self._delayed_kick is not None:
             # Relies on PooledInterpolationKick.track()
             # being called later.
             self._delayed_kick.register(
                 time_axis=bin_centers,
                 voltage=voltage,
+                sparse_metadata=sparse_metadata,
             )
         else:
             backend.specials.kick_interpolated(
@@ -539,6 +561,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
                 bin_centers=bin_centers,  # base for induced voltage
                 charge=beam.signed_charge_with_direction(),
                 acceleration_kick=0.0,
+                **(sparse_metadata or {}),
             )
 
     @staticmethod

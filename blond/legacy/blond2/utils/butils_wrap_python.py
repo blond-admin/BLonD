@@ -20,6 +20,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 RNG = np.random.default_rng()
 
+# Fallback for NumPy < 2.0
+if hasattr(np, 'trapezoid'):
+    from numpy import trapezoid
+else:
+    from numpy import trapz as trapezoid
 
 # --------------- Similar to kick.cpp -----------------
 def kick(
@@ -532,13 +537,13 @@ def beam_phase(
     phi_rf: float,
     bin_size: float,
 ) -> float:
-    scoeff = np.trapezoid(
+    scoeff = trapezoid( # type: ignore
         np.exp(alpha * (bin_centers))
         * np.sin(omega_rf * bin_centers + phi_rf)
         * profile,
         dx=bin_size,
     )
-    ccoeff = np.trapezoid(
+    ccoeff = trapezoid( # type: ignore
         np.exp(alpha * (bin_centers))
         * np.cos(omega_rf * bin_centers + phi_rf)
         * profile,
@@ -555,10 +560,10 @@ def beam_phase_fast(
     phi_rf: float,
     bin_size: float,
 ) -> float:
-    scoeff = np.trapezoid(
+    scoeff = trapezoid( # type: ignore
         profile * np.sin(omega_rf * bin_centers + phi_rf), dx=bin_size
     )
-    ccoeff = np.trapezoid(
+    ccoeff = trapezoid( # type: ignore
         profile * np.cos(omega_rf * bin_centers + phi_rf), dx=bin_size
     )
 

@@ -13,11 +13,13 @@ from __future__ import annotations
 import ctypes as ct
 import os
 import sys
+import weakref
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
+from blond.core.backends.cpp.compile import add_dll_directory_once
 from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
 from blond.generals.compiled_cache import mark_used
 
@@ -25,6 +27,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
 
     from numpy.typing import NDArray as NumpyArray
+
+# Upper bound on the number of cached array-pointer entries; the cache is
+# cleared wholesale once it grows past this to keep memory bounded.
+_PTR_CACHE_MAX_SIZE = 4096
 
 
 def c_real(
@@ -117,11 +123,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     basepath, f"libblond_{precision}{parallel_suffix}.dll"
                 )
 
-            if hasattr(os, "add_dll_directory"):
-                os.add_dll_directory(os.path.dirname(libblond_path))
-                _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
-            else:
-                _LIBBLOND = ct.CDLL(str(libblond_path))
+            # Cached: repeated backend loads must not keep appending
+            # to the DLL search path (see add_dll_directory_once).
+            add_dll_directory_once(os.path.dirname(libblond_path))
+            _LIBBLOND = ct.CDLL(str(libblond_path), winmode=0)
         else:
             raise ValueError(
                 f"Supporting 'win' and 'posix', not {sys.platform}."
@@ -160,17 +165,100 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 # make PyCharm automatically link the correct file
             ) from exc
 
-    def _getPointer(x: NumpyArray) -> ct.c_void_p:
-        return x.ctypes.data_as(ct.c_void_p)
+    # Building a ctypes pointer from a numpy array (`x.ctypes.data_as(...)`)
+    # constructs a fresh numpy `_ctypes` helper and a new ctypes object on every
+    # call -- ~2 us each, which dominates the cost of small/medium kernels once
+    # you pass several arrays. In a simulation the same array objects are reused
+    # every turn (buffers updated in place; BLonD never resizes kernel arrays),
+    # so cache the `c_void_p` keyed by array identity.
+    #
+    # Safety: a numpy array never relocates its data buffer while alive, so a
+    # cached address stays valid for that array's lifetime. We store a `weakref`
+    # (not a strong ref, so caching never keeps an array -- or a beam -- alive)
+    # and re-validate `ref() is x` on every hit, which makes a recycled `id()`
+    # after garbage collection a cache miss rather than a stale pointer.
+    _pointer_cache: dict[int, tuple] = {}
 
-    def _getLen(x: NumpyArray) -> ct.c_int:
+    def _get_pointer(x: NumpyArray) -> ct.c_void_p:
+        """
+        Return a cached ``c_void_p`` to ``x``'s data buffer.
+
+        Parameters
+        ----------
+        x
+            Array whose data buffer address is needed. The cache holds only a
+            weak reference to it, so the caller must keep ``x`` alive while
+            using the returned pointer.
+
+        Returns
+        -------
+        ct.c_void_p
+            Pointer to ``x``'s data buffer, reused from the cache when ``x``
+            has been seen before.
+        """
+        _id = id(x)
+        entry = _pointer_cache.get(_id)
+        if entry is not None and entry[0]() is x:
+            pointer = entry[1]
+        else:
+            pointer = ct.c_void_p(
+                x.ctypes.data
+            )  # int address -> pointer; does not pin x
+            if len(_pointer_cache) >= _PTR_CACHE_MAX_SIZE:  # bound cache size
+                _pointer_cache.clear()
+            _pointer_cache[_id] = (weakref.ref(x), pointer)
+        return pointer
+
+    def _get_len(x: NumpyArray) -> ct.c_int:
+        """
+        Return the length of ``x`` as a ``c_int``.
+
+        Parameters
+        ----------
+        x
+            Array whose length is passed to the C++ kernel.
+
+        Returns
+        -------
+        ct.c_int
+            ``len(x)`` wrapped as a ctypes ``c_int``.
+        """
         return ct.c_int(len(x))
+
+    def _is_valid(*pairs: tuple[NumpyArray, type]) -> bool:
+        """
+        Assert each ``(array, dtype)`` has that dtype and is C-contiguous.
+
+        The C++ kernels are compiled for a fixed dtype and read raw,
+        contiguous buffers, so a wrong dtype or a non-contiguous array would
+        crash or silently corrupt results. Uses ``assert`` on purpose so
+        ``python -O`` strips the checks from the hot path.
+
+        Parameters
+        ----------
+        *pairs
+            One or more ``(array, dtype)`` tuples; each ``array`` must have
+            the given ``dtype`` and be C-contiguous.
+        """
+        valid = True
+        for arr, dtype in pairs:
+            if (arr.dtype != dtype) or (not arr.flags.c_contiguous):
+                valid = False
+                break
+        return valid
 
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
     _LIBBLOND.blond_omp_get_max_threads.argtypes = []
+
+    # The array pointers are cached by the shared `_get_pointer` above; like every
+    # other callable here we pass already-typed ctypes objects, so no `argtypes`
+    # are needed (measured: setting them adds ~0.5 us of redundant per-arg
+    # type-checking).
+    # TODO: Refactor this file to float64 only.
+    complextype = np.complex64 if floattype == np.float32 else np.complex128
 
     class CppSpecials(Specials):
         @staticmethod
@@ -194,10 +282,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             phi_rf: float,
             bin_size: float,
         ) -> float:
-            assert hist_x.dtype == floattype
-            assert hist_y.dtype == floattype
-            assert hist_x.flags.c_contiguous
-            assert hist_y.flags.c_contiguous
+            assert _is_valid((hist_x, floattype), (hist_y, floattype))
 
             # Cast Python floats to backend floattype
             alpha = floattype(alpha)
@@ -226,10 +311,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             start: float,
             stop: float,
         ) -> None:
-            assert array_read.dtype == floattype
-            assert array_write.dtype == floattype
-            assert array_read.flags.c_contiguous
-            assert array_write.flags.c_contiguous
+            assert _is_valid((array_read, floattype), (array_write, floattype))
 
             # Cast Python floats to backend floattype
             start = floattype(start)
@@ -252,21 +334,59 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bin_centers: NumpyArray,
             charge: float,
             acceleration_kick: float,
+            first_left_cut: float | None = None,
+            left_cut_distance: float | None = None,
+            cut_width: float | None = None,
+            bins_per_profile: int | None = None,
+            filling_pattern: NumpyArray | None = None,
+            bucket_index_to_memory_index: NumpyArray | None = None,
         ) -> None:
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-            assert voltage.dtype == floattype
-            assert bin_centers.dtype == floattype
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
-            assert voltage.flags.c_contiguous
-            assert bin_centers.flags.c_contiguous
+            assert _is_valid(
+                (dt, floattype),
+                (dE, floattype),
+                (voltage, floattype),
+                (bin_centers, floattype),
+            )
 
-            # Cast Python floats to backend floattype
             charge = floattype(charge)
             acceleration_kick = floattype(acceleration_kick)
 
-            _LIBBLOND.linear_interp_kick(
+            if first_left_cut is None:
+                n_slices = len(bin_centers)
+                if n_slices >= 2:  # noqa: PLR2004
+                    diffs = np.diff(bin_centers)
+                    if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
+                        raise ValueError(
+                            "bin_centers is not uniformly spaced (looks "
+                            "like a sparse/multi-island "
+                            "EquidistantMultiProfile.hist_x). Either "
+                            "pass this profile's sparse metadata "
+                            "(first_left_cut, left_cut_distance, "
+                            "cut_width, bins_per_profile, "
+                            "filling_pattern, "
+                            "bucket_index_to_memory_index), e.g. via "
+                            "`profile.sparse_kick_metadata`, or use "
+                            "EquidistantMultiProfile.profiles[i].hist_x "
+                            "for a single bucket."
+                        )
+                _LIBBLOND.linear_interp_kick(
+                    dt.ctypes.data_as(ct.c_void_p),
+                    dE.ctypes.data_as(ct.c_void_p),
+                    voltage.ctypes.data_as(ct.c_void_p),
+                    bin_centers.ctypes.data_as(ct.c_void_p),
+                    c_real(charge, floattype),
+                    ct.c_int(len(bin_centers)),
+                    ct.c_int(len(dt)),
+                    c_real(acceleration_kick, floattype),
+                )
+                return
+
+            assert filling_pattern.dtype == np.bool_
+            assert bucket_index_to_memory_index.dtype == np.int32
+            assert filling_pattern.flags.c_contiguous
+            assert bucket_index_to_memory_index.flags.c_contiguous
+
+            _LIBBLOND.linear_interp_kick_sparse(
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
                 voltage.ctypes.data_as(ct.c_void_p),
@@ -275,6 +395,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(len(bin_centers)),
                 ct.c_int(len(dt)),
                 c_real(acceleration_kick, floattype),
+                c_real(floattype(first_left_cut), floattype),
+                c_real(floattype(left_cut_distance), floattype),
+                c_real(floattype(cut_width), floattype),
+                ct.c_int(bins_per_profile),
+                ct.c_int(len(filling_pattern)),
+                filling_pattern.ctypes.data_as(ct.c_void_p),
+                bucket_index_to_memory_index.ctypes.data_as(ct.c_void_p),
             )
 
         @staticmethod
@@ -287,22 +414,21 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray,
             flags: NumpyArray,
         ) -> None:
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-            assert flags.dtype == np.int32
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
-            assert flags.flags.c_contiguous
+            assert _is_valid(
+                (dt, floattype),
+                (dE, floattype),
+                (flags, np.int32),
+            )
 
             _LIBBLOND.loss_box(
                 c_real(e_max, floattype),
                 c_real(e_min, floattype),
                 c_real(t_min, floattype),
                 c_real(t_max, floattype),
-                _getPointer(dt),
-                _getPointer(dE),
-                _getPointer(flags),
-                _getLen(dt),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(flags),
+                _get_len(dt),
             )
 
         @staticmethod
@@ -315,10 +441,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             charge: float,
             acceleration_kick: float,
         ) -> None:
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
+            assert _is_valid((dt, floattype), (dE, floattype))
 
             # Cast Python floats to backend floattype
             charge = floattype(charge)
@@ -349,41 +472,37 @@ def reload_cpp_backend(  # NOQA: PLR0915
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-            assert voltage.dtype == floattype
-            assert omega_rf.dtype == floattype
-            assert phi_rf.dtype == floattype
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
-            assert voltage.flags.c_contiguous
-            assert omega_rf.flags.c_contiguous
-            assert phi_rf.flags.c_contiguous
+            assert _is_valid(
+                (dt, floattype),
+                (dE, floattype),
+                (voltage, floattype),
+                (omega_rf, floattype),
+                (phi_rf, floattype),
+            )
 
             # Cast Python floats to backend floattype
             charge = floattype(charge)
             acceleration_kick = floattype(acceleration_kick)
 
             _LIBBLOND.kick_multi_harmonic(
-                _getPointer(dt),
-                _getPointer(dE),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 ct.c_int(n_rf),
                 c_real(charge, floattype),
-                _getPointer(voltage),
-                _getPointer(omega_rf),
-                _getPointer(phi_rf),
-                _getLen(dt),
+                _get_pointer(voltage),
+                _get_pointer(omega_rf),
+                _get_pointer(phi_rf),
+                _get_len(dt),
                 c_real(acceleration_kick, floattype),
             )
 
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
-            assert array.dtype == floattype
-            assert array.flags.c_contiguous
+            assert _is_valid((array, floattype))
             # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
-                _LIBBLOND.sum_1d_array(_getPointer(array), _getLen(array))
+                _LIBBLOND.sum_1d_array(_get_pointer(array), _get_len(array))
             )
 
         @staticmethod
@@ -391,18 +510,15 @@ def reload_cpp_backend(  # NOQA: PLR0915
             array_1: NumpyArray,
             array_2: NumpyArray,
         ) -> float:
-            assert array_1.dtype == floattype
-            assert array_2.dtype == floattype
-            assert array_1.flags.c_contiguous
-            assert array_2.flags.c_contiguous
+            assert _is_valid((array_1, floattype), (array_2, floattype))
             assert len(array_1) == len(array_2)
 
             # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
                 _LIBBLOND.dot_product_1d_array(
-                    _getPointer(array_1),
-                    _getPointer(array_2),
+                    _get_pointer(array_1),
+                    _get_pointer(array_2),
                     ct.c_int(len(array_2)),
                 )
             )
@@ -416,11 +532,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             beta: float,
             energy: float,
         ) -> None:
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
+            assert _is_valid((dt, floattype), (dE, floattype))
 
             # Cast Python floats to backend floattype
             T = floattype(T)
@@ -429,13 +541,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
             energy = floattype(energy)
 
             _LIBBLOND.drift_simple(
-                _getPointer(dt),
-                _getPointer(dE),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 c_real(T, floattype),
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _getLen(dt),
+                _get_len(dt),
             )
 
         @staticmethod
@@ -448,13 +560,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
             beta: float,
             energy: float,
         ):
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-            assert higher_alpha.dtype == floattype
-
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
-            assert higher_alpha.flags.c_contiguous
+            assert _is_valid(
+                (dt, floattype),
+                (dE, floattype),
+                (higher_alpha, floattype),
+            )
 
             # Cast Python floats to backend floattype
             T = floattype(T)
@@ -463,17 +573,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
             alpha_0 = floattype(alpha_0)
 
             _LIBBLOND.drift_exact(
-                _getPointer(dt),  # real_t *__restrict__ beam_dt
-                _getPointer(dE),  # const real_t *__restrict__ beam_dE
+                _get_pointer(dt),  # real_t *__restrict__ beam_dt
+                _get_pointer(dE),  # const real_t *__restrict__ beam_dE
                 c_real(T, floattype),  # const real_t T
                 c_real(alpha_0, floattype),  # const real_t alpha_zero
-                _getPointer(
+                _get_pointer(
                     higher_alpha
                 ),  # const real_t *__restrict__ higher_alpha
-                _getLen(higher_alpha),  # const int n_alpha
+                _get_len(higher_alpha),  # const int n_alpha
                 c_real(beta, floattype),  # const real_t beta
                 c_real(energy, floattype),  # const real_t energy
-                _getLen(dt),  # const int n_macroparticles
+                _get_len(dt),  # const int n_macroparticles
             )
 
         @staticmethod
@@ -493,10 +603,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             if disable_quantum_excitation:
                 _LIBBLOND.apply_synchrotron_radiation_no_excitation(
-                    _getPointer(beam_dE),
+                    _get_pointer(beam_dE),
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
-                    _getLen(beam_dE),
+                    _get_len(beam_dE),
                 )
             else:
                 noise_scale = floattype(
@@ -506,11 +616,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     * total_energy
                 )
                 _LIBBLOND.apply_synchrotron_radiation_and_quantum_excitation(
-                    _getPointer(beam_dE),
+                    _get_pointer(beam_dE),
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
                     c_real(noise_scale, floattype),
-                    _getLen(beam_dE),
+                    _get_len(beam_dE),
                 )
 
         @staticmethod
@@ -521,15 +631,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             dE: NumpyArray,
             ids: NumpyArray,
         ):
-            assert dt.dtype == floattype
-            assert dE.dtype == floattype
-            assert dt.flags.c_contiguous
-            assert dE.flags.c_contiguous
-
-            assert flags.dtype == np.int32
-            assert ids.dtype == np.int32
-            assert flags.flags.c_contiguous
-            assert ids.flags.c_contiguous
+            assert _is_valid(
+                (dt, floattype),
+                (dE, floattype),
+                (flags, np.int32),
+                (ids, np.int32),
+            )
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
                 ct.c_int32(np.int32(flag)),
@@ -583,19 +690,16 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ``bins_per_profile = 8``.
                 Use `_gen_array_bucket_index_to_memory_index` to generate this.
             """
-            assert x.dtype == floattype
-            assert out.dtype == floattype
-            assert filling_pattern.dtype == np.bool
-            assert bucket_index_to_memory_index.dtype == np.int32
-
-            assert x.flags.c_contiguous
-            assert out.flags.c_contiguous
-            assert filling_pattern.flags.c_contiguous
-            assert bucket_index_to_memory_index.flags.c_contiguous
+            assert _is_valid(
+                (x, floattype),
+                (out, floattype),
+                (filling_pattern, np.bool),
+                (bucket_index_to_memory_index, np.int32),
+            )
 
             _LIBBLOND.histogram_sparse(
-                _getPointer(x),  # input
-                _getPointer(out),  # output
+                _get_pointer(x),  # input
+                _get_pointer(out),  # output
                 c_real(first_left_cut, floattype),  # first_left_cut
                 c_real(left_cut_distance, floattype),  # left_cut_distance
                 c_real(cut_width, floattype),  # cut_width
@@ -603,8 +707,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(n_active_profiles),  # n_profiles
                 ct.c_int(len(filling_pattern)),  # n_buckets
                 ct.c_int(len(x)),  # n_macroparticles # n_macroparticles
-                _getPointer(filling_pattern),  # filling_pattern
-                _getPointer(
+                _get_pointer(filling_pattern),  # filling_pattern
+                _get_pointer(
                     bucket_index_to_memory_index
                 ),  # bucket_index_to_memory_index
             )
@@ -656,47 +760,38 @@ def reload_cpp_backend(  # NOQA: PLR0915
             voltage_threaded
                 Cached `voltage` array per thread. For speedup.
             """
-            complextype = (
-                np.complex64 if floattype == np.float32 else np.complex128
+            assert _is_valid(
+                (profile, floattype),
+                (profile_dts, floattype),
+                (poles, complextype),
+                (residues, complextype),
+                (counterrotating_pole_signs, floattype),
+                (states, complextype),
+                (voltage, floattype),
+                (voltage_threaded, floattype),
+                (update_on_bin, np.int32),
             )
 
-            assert profile.dtype == floattype
-            assert profile_dts.dtype == floattype
-            assert poles.dtype == complextype
-            assert residues.dtype == complextype
-            assert counterrotating_pole_signs.dtype == floattype
-            assert states.dtype == complextype
-            assert voltage.dtype == floattype
-            assert voltage_threaded.dtype == floattype
-            assert update_on_bin.dtype == np.int32
-
-            assert profile.flags.c_contiguous
-            assert profile_dts.flags.c_contiguous
-            assert poles.flags.c_contiguous
-            assert residues.flags.c_contiguous
-            assert counterrotating_pole_signs.flags.c_contiguous
-            assert states.flags.c_contiguous
-            assert voltage.flags.c_contiguous
-            assert voltage_threaded.flags.c_contiguous
-            assert update_on_bin.flags.c_contiguous
-
+            # Array pointers come from the shared (cached) `_get_pointer`; the
+            # changing scalars and the cheap sizes are passed as fresh typed
+            # ctypes objects (same convention as every other callable here).
             _LIBBLOND.wake_from_pole_residue(
-                _getPointer(profile),
-                _getPointer(profile_dts),
-                _getPointer(poles),
-                _getPointer(residues),
+                _get_pointer(profile),
+                _get_pointer(profile_dts),
+                _get_pointer(poles),
+                _get_pointer(residues),
                 ct.c_bool(is_counterrotating_beam),
-                _getPointer(counterrotating_pole_signs),
-                _getPointer(update_on_bin),
+                _get_pointer(counterrotating_pole_signs),
+                _get_pointer(update_on_bin),
                 c_real(factor, floattype),
-                _getPointer(states),
-                _getPointer(voltage),
-                _getPointer(voltage_threaded),
-                ct.c_int(len(profile)),  # n_bins
-                ct.c_int(len(poles)),  # n_poles
+                _get_pointer(states),
+                _get_pointer(voltage),
+                _get_pointer(voltage_threaded),
+                _get_len(profile),  # n_bins
+                _get_len(poles),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads
-                ct.c_int(len(update_on_bin)),  # n_updates
-                ct.c_int(len(profile_dts)),  # n_profile_dts
+                _get_len(update_on_bin),  # n_updates
+                _get_len(profile_dts),  # n_profile_dts
             )
 
         @staticmethod

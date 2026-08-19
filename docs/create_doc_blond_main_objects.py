@@ -49,6 +49,7 @@ ASSIGNED_CATEGORIES = {
     "InductiveImpedanceSolver": Categories.WAKE.value,
     "ImpedanceTableFreq": Categories.WAKE.value,
     "TimeDomainFftSolver": Categories.WAKE.value,
+    "MultiPoleSparseSolve": Categories.WAKE.value,
     # Cycle
     "MagneticCycleByTime": Categories.CYCLE.value,
     "MagneticCyclePerTurn": Categories.CYCLE.value,

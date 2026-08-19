@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +14,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
     get_hamilton_semi_analytic,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):
@@ -340,6 +341,62 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             preparation_routine=matcher,
         )
         return matcher
+
+
+class TestSemiEmpiricMatcherWarmup(unittest.TestCase):
+    """Wiring of the frozen-beam ``warmup`` into the matcher iteration."""
+
+    def _run_matching(self, **matcher_kwargs):
+        from blond.testing.simulation import SimulationTwoRFStationsWithWake
+
+        sim = SimulationTwoRFStationsWithWake()
+        t_rev = sim.simulation.magnetic_cycle.get_t_rev_init(
+            sim.simulation.ring.circumference,
+            particle_type=sim.beam1.particle_type,
+        )
+        ts = np.linspace(0, t_rev) / 36540
+        matcher = SemiEmpiricMatcher(
+            time_limit=(ts.min(), ts.max()),
+            hamilton_to_density_kwargs=dict(
+                hamilton_max=100,
+                density_modifier=4,
+            ),
+            n_macroparticles=1e4,
+            internal_grid_shape=(128 - 1, 128 - 1),
+            # Exactly two intensity iterations: the convergence error is
+            # only computed for `i_intensity > 1`, so with maxiter=2 the
+            # loop can never break early.
+            maxiter_intensity_effects=2,
+            increment_intensity_effects_until_iteration_i=0,
+            tolerance_potential_well=1e-6,
+            verbose=False,
+            **matcher_kwargs,
+        )
+        sim.simulation.prepare_beam(
+            beam=sim.beam1,
+            preparation_routine=matcher,
+        )
+        return matcher
+
+    def test_warmup_off_by_default(self):
+        with mock.patch(
+            "blond.experimental.beam_preparation.semi_empiric_matcher.warmup"
+        ) as warmup_spy:
+            self._run_matching()
+        warmup_spy.assert_not_called()
+
+    def test_warmup_called_once_per_intensity_iteration(self):
+        from blond.experimental.simulation.warmup import warmup
+
+        with mock.patch(
+            "blond.experimental.beam_preparation.semi_empiric_matcher.warmup",
+            wraps=warmup,
+        ) as warmup_spy:
+            self._run_matching(n_warmup_turns=2)
+        # one call per intensity-effects iteration (see maxiter above)
+        self.assertEqual(warmup_spy.call_count, 2)
+        for call in warmup_spy.call_args_list:
+            self.assertEqual(call.kwargs["n_turns"], 2)
 
 
 class TestCallables:
