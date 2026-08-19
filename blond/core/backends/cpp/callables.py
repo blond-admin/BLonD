@@ -820,10 +820,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert parameter_array.flags.c_contiguous
 
             _LIBBLOND.music_track(
-                _getPointer(beam_dt),
-                _getPointer(beam_dE),
-                _getPointer(induced_voltage),
-                _getPointer(parameter_array),
+                _get_pointer(beam_dt),
+                _get_pointer(beam_dE),
+                _get_pointer(induced_voltage),
+                _get_pointer(parameter_array),
                 ct.c_int(len(beam_dt)),
                 c_real(alpha, floattype),
                 c_real(omega_bar, floattype),
