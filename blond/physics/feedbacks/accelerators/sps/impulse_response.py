@@ -230,7 +230,7 @@ class TravellingWaveCavity:
             self.v_g = float(v_g)
         else:
             # ImpulseError
-            raise RuntimeError(
+            raise ValueError(
                 "ERROR in TravellingWaveCavity: group"
                 + " velocity out of limits (0,1)!"
             )
@@ -246,6 +246,13 @@ class TravellingWaveCavity:
         # Shunt impedances towards beam and generator
         self.R_beam = 0.125 * self.rho * self.l_cav**2
         self.R_gen = self.l_cav * np.sqrt(0.5 * self.rho * self.Z_0)
+
+        self.h_gen: NumpyArray | None = None
+        self.h_beam: NumpyArray | None = None
+        self.h_beam_coarse: NumpyArray | None = None
+
+        self.W_beam: NumpyArray | None = None
+        self.W_gen: NumpyArray | None = None
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -272,11 +279,11 @@ class TravellingWaveCavity:
         h_thres = 1e-12
         freq_thres = 0.1
 
-        self.omega_c = float(omega_c)
-        self.d_omega = self.omega_c - self.omega_r
-        if np.fabs((self.d_omega) / self.omega_r) > freq_thres:
+        omega_c = float(omega_c)
+        d_omega = omega_c - self.omega_r
+        if np.fabs(d_omega / self.omega_r) > freq_thres:
             # ImpulseError
-            raise RuntimeError(
+            raise ValueError(
                 "ERROR in TravellingWaveCavity"
                 + " impulse_response(): carrier frequency"
                 + " should be close to central frequency of the"
@@ -292,10 +299,9 @@ class TravellingWaveCavity:
         ).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
-        if np.fabs((self.d_omega) / self.omega_r) > h_thres:
+        if np.fabs(d_omega / self.omega_r) > h_thres:
             self.h_gen = self.h_gen.real * (
-                np.cos(self.d_omega * t_gen)
-                - 1j * np.sin(self.d_omega * t_gen)
+                np.cos(d_omega * t_gen) - 1j * np.sin(d_omega * t_gen)
             )
 
     def impulse_response_beam(
@@ -325,46 +331,37 @@ class TravellingWaveCavity:
         h_thres = 1e-12
         freq_thres = 0.1
 
-        self.omega_c = float(omega_c)
-        self.d_omega = self.omega_c - self.omega_r
-        if np.fabs((self.d_omega) / self.omega_r) > freq_thres:
-            raise RuntimeError(
+        omega_c = float(omega_c)
+        d_omega = omega_c - self.omega_r
+        if np.fabs(d_omega / self.omega_r) > freq_thres:
+            raise ValueError(
                 "ERROR in TravellingWaveCavity"
                 + " impulse_response(): carrier frequency"
                 + " should be close to central frequency of the"
                 + " cavity!"
             )
 
-        # Move starting point of impulse response to correct value
-        t_beam = time_fine - time_fine[0]
-
-        # Impulse response if on carrier frequency
-        self.h_beam = (
-            -2 * self.R_beam / self.tau * triangle(t_beam, self.tau)
-        ).astype(np.complex128)
-
-        # Impulse response if not on carrier frequency
-        if np.fabs((self.d_omega) / self.omega_r) > h_thres:
-            self.h_beam = self.h_beam.real * (
-                np.cos(self.d_omega * t_beam)
-                - 1j * np.sin(self.d_omega * t_beam)
-            )
-
-        if time_coarse is not None:
+        def beam_impulse_response(time_array: NumpyArray):
             # Move starting point of impulse response to correct value
-            t_beam = time_coarse - time_coarse[0]
+            t_beam = time_array - time_array[0]
 
-            # Impulse response if on carrier frequency
-            self.h_beam_coarse = (
+            h_beam = (
                 -2 * self.R_beam / self.tau * triangle(t_beam, self.tau)
             ).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
-            if np.fabs((self.d_omega) / self.omega_r) > h_thres:
-                self.h_beam_coarse = self.h_beam_coarse.real * (
-                    np.cos(self.d_omega * t_beam)
-                    - 1j * np.sin(self.d_omega * t_beam)
+            if np.fabs(d_omega / self.omega_r) > h_thres:
+                return h_beam.real * (
+                    np.cos(d_omega * t_beam) - 1j * np.sin(d_omega * t_beam)
                 )
+            else:
+                # Impulse response if on carrier frequency
+                return h_beam
+
+        self.h_beam = beam_impulse_response(time_array=time_fine)
+
+        if time_coarse is not None:
+            self.h_beam_coarse = beam_impulse_response(time_array=time_coarse)
 
     def compute_wakes(self, time: NumpyArray):
         """
