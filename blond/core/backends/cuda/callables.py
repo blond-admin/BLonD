@@ -902,7 +902,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 profile_dts,
                 poles_r,
                 residues_r,
-                np.int32(1 if is_counterrotating_beam else 0),
+                np.bool_(is_counterrotating_beam),
                 counterrotating_pole_signs,
                 update_on_bin,
                 FLOAT(factor),
@@ -916,3 +916,22 @@ class CudaSpecials(Specials):  # NOQA: D101
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),
         )
+
+        @staticmethod
+        def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+            beam_dt: CupyArray,
+            beam_dE: CupyArray,
+            induced_voltage: CupyArray,
+            parameter_array: CupyArray,
+            alpha: float,
+            omega_bar: float,
+            const: float,
+            coeff1: float,
+            coeff2: float,
+            coeff3: float,
+            coeff4: float,
+            time_since_last_track: float,
+            multiturn: bool,
+        ) -> None:
+            # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+            raise NotImplementedError
