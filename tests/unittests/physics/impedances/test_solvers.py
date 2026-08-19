@@ -509,9 +509,15 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.sources = (
             self.resonators,
         )
-        self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1e-9
+        hist_step = 1e-9
+        self.periodic_freq_solver._parent_wakefield.profile.hist_step = (
+            hist_step
+        )
         self.periodic_freq_solver._parent_wakefield.profile.n_bins = 20
-        self.periodic_freq_solver.t_periodicity = 1e-4  # n_time = 100000
+        # comfortably above the parallel threshold, whatever it is tuned to
+        self.periodic_freq_solver.t_periodicity = (
+            2 * backend.fft_parallel.min_size_for_parallel * hist_step
+        )
         self.assertGreaterEqual(
             self.periodic_freq_solver._n_time,
             backend.fft_parallel.min_size_for_parallel,

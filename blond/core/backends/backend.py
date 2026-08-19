@@ -491,7 +491,7 @@ class _ModeSwitchHelper:
         self.backend.set_specials(mode=self.mode_org)
 
 
-DEFAULT_FFT_PARALLEL_MIN_SIZE = 2**16  # ~65k samples
+DEFAULT_FFT_PARALLEL_MIN_SIZE = 2**17  # ~131k samples
 
 
 class _MaybeParallelFFT:
