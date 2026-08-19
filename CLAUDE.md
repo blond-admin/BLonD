@@ -224,6 +224,16 @@ One GitLab MR per item, each on its own branch off `blonder`
 - **Strict TDD with visible RED:** write the failing test, run it, show it failing,
   *then* implement. (User explicitly requires seeing RED.)
 - Tests mirror the `blond/` tree under `tests/unittests/`.
+- **Every test class must inherit from `unittest.TestCase` and use its
+  assertions (`assertEqual`, `assertTrue`, `assertRaises`, …) — never a bare
+  `assert` statement.** This is a different `assert` than the one in *Backend
+  conventions* above: that note is about production wrapper code, where a
+  stripped-under-`-O` `assert` is the intended fast-path guard. In test code
+  bare `assert` is a bug risk, not a convention — it gives no diagnostic on
+  failure (no expected-vs-actual) and is *also* silently stripped under
+  `python -O`, which can turn a failing test into a silent pass. Write
+  `class TestFoo(unittest.TestCase):` with `test_*` methods, not
+  module-level `def test_...():` functions with bare `assert`.
 - **Pre-commit before every `git commit`** — see the callout above; this is not
   optional.
 - Commit messages: past tense ("Fixed …", "Added …"), body explains *why*.
