@@ -290,67 +290,47 @@ def rf_beam_current(
                 "Downsampling input erroneous in rf_beam_current"
             )
         if isinstance(profile, SparseBatch):
-            # find the profile covering the latest bunches
-            distances = np.array(
-                [
-                    profile_.bin_centers[-1]
-                    for profile_ in profile.profiles_list
-                ]
+            order = np.argsort(profile.bin_centers)
+            profile_bin_centers = profile.bin_centers[order]
+            profile_n_macroparticles = \
+                profile.n_macroparticles[order]
+            extra_bins = np.arange(
+                profile_bin_centers[
+                    -1
+                ],
+                profile_bin_centers[-1]
+                + 2 * T_s
+                + dT
+                + np.pi / omega_c,
+                step=profile.bin_size,
             )
-            maximum = max(distances[distances > 0])
-            index_profile_to_use = int(np.where(distances == maximum)[0][0])
-            ind_fine = np.round(
-                (
-                    profile.profiles_list[index_profile_to_use].bin_centers
-                    - dT
-                    - np.pi / omega_c
-                )
-                / T_s
+            profile_bin_centers_for_coarse = np.concatenate(
+                (profile_bin_centers, extra_bins)
             )
-            ind_fine = np.array(ind_fine, dtype=int)
-            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-            if len(indices) == 0:
-                extra_bins = np.arange(
-                    profile.profiles_list[index_profile_to_use].bin_centers[
-                        -1
-                    ],
-                    profile.profiles_list[index_profile_to_use].bin_centers[-1]
-                    + T_s
-                    + dT
-                    + np.pi / omega_c,
-                    step=profile.bin_size,
-                )
-                profile_bin_centers = np.concatenate(
-                    (profile.bin_centers, extra_bins)
-                )
-                profile_n_macroparticles = np.concatenate(
-                    (profile.n_macroparticles, np.zeros(len(extra_bins)))
-                )
-                charges = (
+            profile_n_macroparticles_for_coarse = np.concatenate(
+                (profile_n_macroparticles, np.zeros(len(extra_bins)))
+            )
+            charges = (
                     profile.beam.ratio
                     * profile.beam.particle.charge
                     * e
-                    * np.copy(profile_n_macroparticles)
-                )
-                I_f = 2.0 * charges * np.cos(omega_c * profile_bin_centers)
-                Q_f = -2.0 * charges * np.sin(omega_c * profile_bin_centers)
-                charges_fine = I_f + 1j * Q_f
-                warnings.warn(
-                    "The length of the sparse profile is too "
-                    "short to properly convert the charges from the fine to the coarse grid."
-                    "Profile has been extented."
-                )
-            else:
-                profile_bin_centers = profile.bin_centers
+                    * np.copy(profile_n_macroparticles_for_coarse)
+            )
+            I_f = 2.0 * charges * np.cos(omega_c * profile_bin_centers_for_coarse)
+            Q_f = -2.0 * charges * np.sin(omega_c * profile_bin_centers_for_coarse)
+            charges_fine_for_coarse_grid = I_f + 1j * Q_f
+
         else:
-            profile_bin_centers = profile.bin_centers
+            profile_bin_centers_for_coarse = profile.bin_centers
+            charges_fine_for_coarse_grid = charges_fine
+
         charges_coarse = charges_from_fine_to_coarse(
             T_s,
-            charges_fine,
+            charges_fine_for_coarse_grid,
             dT,
             n_points,
             omega_c,
-            profile_bin_centers,
+            profile_bin_centers_for_coarse,
         )
 
         return charges_fine, charges_coarse
@@ -369,15 +349,16 @@ def charges_from_fine_to_coarse(
 ) -> ndarray[tuple[int], dtype[Any]]:
     ind_fine = np.round((profile_bin_centers - dT - np.pi / omega_c) / T_s)
     ind_fine = np.array(ind_fine, dtype=int)
-    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+    indices = np.where((ind_fine[1:] - ind_fine[:-1]) >= 1)[0]
 
     # Pick total current within one coarse grid
     charges_coarse = np.zeros(n_points, dtype=complex)
     charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
     for i in range(1, len(indices)):
-        charges_coarse[(i + ind_fine[0]) % n_points] = np.sum(
+        charges_coarse[ind_fine[indices[i]] % n_points] = (
+            np.sum(
             charges_fine[np.arange(indices[i - 1], indices[i])]
-        )  # TODO: modulo might not be physical
+        ))  # TODO: modulo might not be physical
     return charges_coarse
 
 

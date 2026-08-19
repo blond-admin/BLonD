@@ -653,7 +653,6 @@ class SparseBatch(SparseProfileBaseClass):
         )
         self._update_profile_lists(_additional_indices=additional_batches)
 
-
 def SparseSlices(
     rf_station: RFStation,
     beam: Beam,

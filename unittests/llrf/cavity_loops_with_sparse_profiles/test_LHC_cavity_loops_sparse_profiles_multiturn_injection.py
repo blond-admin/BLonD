@@ -20,12 +20,11 @@ Lina Valle
 """
 
 import unittest
-
-import numpy as np
 import warnings
+
 import matplotlib.pyplot as plt
-from scipy.constants import e
-from scipy.interpolate.interpolate import interp1d
+import numpy as np
+from scipy.interpolate import interp1d
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
@@ -37,7 +36,6 @@ from blond.llrf.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )
-from blond.llrf.signal_processing import charges_from_fine_to_coarse
 
 # ---------------------------------------------------------------------------
 # Shared machine parameters (LHC-like), reused by every test class below.
@@ -55,7 +53,7 @@ MOM_COMPACTION = 1 / GAMMA_TRANSITION**2
 
 N_MACROPARTICLES = int(1e5)
 BUNCH_INTENSITY = 1e11
-BUNCH_SIGMA_DT = 0.5e-9
+BUNCH_SIGMA_DT = 0.25e-9
 number_of_batches = 10  # Length of the batch [number of batches]
 batch_spacing = 5  # Number of empty buckets between each batch [number of rf
 # buckets]
@@ -102,7 +100,7 @@ def build_beam(ring, rf_station, injected_batches,  seed=1234):
     bigaussian(
         ring,
         rf_station,
-        beam,
+        single_bunch,
         sigma_dt=BUNCH_SIGMA_DT,
         seed=seed,
         reinsertion=True,
@@ -156,7 +154,7 @@ def update_beam(beam, ring, rf_station, sparse_profile, injected_batches,
         bigaussian(
             ring,
             rf_station,
-            beam,
+            single_bunch,
             sigma_dt=BUNCH_SIGMA_DT,
             seed=seed,
             reinsertion=True,
@@ -183,17 +181,19 @@ def update_beam(beam, ring, rf_station, sparse_profile, injected_batches,
                 single_batch.dt[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
                     single_bunch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
                 )
+        injected_batches += 1
         updated_batch_list = np.zeros(HARMONIC_NUMBER)
         for k in range(injected_batches):
             updated_batch_list[k * batch_spacing] = 1
+        index = np.where(updated_batch_list == 1)[0][-1]
         beam.add_particles([single_batch.dt
-                            + (injected_batches * batch_spacing) * rf_station.t_rf[0, 0],
-                            # index
+                            + index *
+                            rf_station.t_rf[0, 0],
                             single_batch.dE
                             ])
         sparse_profile.update_batch_list(
             updated_batch_list=updated_batch_list)
-        injected_batches += 1
+
         return beam, sparse_profile, injected_batches
     else:
         return beam, sparse_profile, injected_batches
@@ -204,12 +204,12 @@ def build_standard_profile(beam, rf_station, n_slices):
         beam,
         CutOptions(
             cut_left=0.0,
-            cut_right=(batch_spacing * number_of_batches + 1)
+            cut_right=(batch_spacing * number_of_batches + 10)
             * rf_station.t_rf[
                 0,
                 0,
             ],
-            n_slices=n_slices * (batch_spacing * number_of_batches + 1),
+            n_slices=n_slices * (batch_spacing * number_of_batches + 10),
         ),
     )
     profile.track()
@@ -970,7 +970,6 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
         self.CL_sparse = LHCCavityLoop(
             self.rf, self.profile_sparse, **common_kwargs
         )
-
         self.CL_standard.track()
         self.CL_sparse.track()
 
@@ -1012,7 +1011,27 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
                 "docstring of this test for the likely cause. Profile "
                 f"{p}",
             )
-    def test_muliturn_injection(self):
+    def test_muliturn_injection_rf_beam_current(self):
+        common_kwargs = dict(
+            f_c=self.f_c,
+            G_gen=1,
+            I_gen_offset=0.0,
+            n_cavities=8,
+            n_pretrack=0,
+            Q_L=20000,
+            R_over_Q=45,
+            tau_loop=650e-9,
+            tau_otfb=1472e-9,
+            RFFB=self.RFFB,
+        )
+        self.CL_standard = LHCCavityLoop(
+            self.rf, self.profile_std, **common_kwargs
+        )
+        self.CL_sparse = LHCCavityLoop(
+            self.rf, self.profile_sparse, **common_kwargs
+        )
+        self.CL_standard.track()
+        self.CL_sparse.track()
         injected_batches = 1
         for k in range(number_of_batches - injected_batches):
             self.beam, self.profile_sparse, injected_batches =  update_beam(
@@ -1025,12 +1044,493 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
             print(f'Injection #{k+1}')
             self.assertEqual(injected_batches,
                              k + 2)
-            self.test_coarse_antenna_voltage_consistent_after_one_track()
-            self.test_fine_grid_antenna_voltage_consistent()
-            self.test_fine_grid_antenna_voltage_consistent_track_one_turn()
-            self.test_fine_grid_cavity_response_inputs()
-            self.test_fine_grid_generator_current_consistent_fine_grid_disabled()
-            self.test_rf_beam_current_consistent()
+            self.CL_standard.profile.track()
+            # Test consistency of the rf beam current
+            self.CL_standard.rf_beam_current(lpf=self.CL_standard.lpf)
+            self.CL_sparse.rf_beam_current(lpf=self.CL_sparse.lpf)
+
+            np.testing.assert_allclose(
+                self.CL_standard.I_BEAM_COARSE[-self.CL_standard.n_coarse:],
+                self.CL_sparse.I_BEAM_COARSE[-self.CL_sparse.n_coarse:],
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="I_BEAM_COARSE differs between standard Profile and "
+                        "multi-batch SparseBatch for the same beam.",
+            )
+            for p, profile in enumerate(self.CL_sparse.profile.profiles_list):
+                index = np.argmin(
+                    np.abs(
+                        self.CL_standard.profile.bin_centers
+                        - profile.bin_centers[0]
+                    )
+                )
+                np.testing.assert_allclose(
+                    self.CL_standard.profile.bin_centers[index],
+                    self.CL_sparse.profile.bin_centers[p * profile.n_slices],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.I_BEAM_FINE[
+                        index: index + profile.n_slices],
+                    self.CL_sparse.I_BEAM_FINE[
+                        p * profile.n_slices: (p + 1) * profile.n_slices
+                    ],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="I_BEAM_FINE differs between standard Profile and "
+                            "single-batch SparseBatch for the same beam, profile number "
+                            f"{p}",
+                )
+    def test_muliturn_injection_coarse_antenna_voltage_consistent_after_one_track(
+            self):
+        common_kwargs = dict(
+            f_c=self.f_c,
+            G_gen=1,
+            I_gen_offset=0.0,
+            n_cavities=8,
+            n_pretrack=0,
+            Q_L=20000,
+            R_over_Q=45,
+            tau_loop=650e-9,
+            tau_otfb=1472e-9,
+            RFFB=self.RFFB,
+        )
+        self.CL_standard = LHCCavityLoop(
+            self.rf, self.profile_std, **common_kwargs
+        )
+        self.CL_sparse = LHCCavityLoop(
+            self.rf, self.profile_sparse, **common_kwargs
+        )
+        self.CL_standard.track()
+        self.CL_sparse.track()
+        injected_batches = 1
+        for k in range(number_of_batches - injected_batches):
+            self.beam, self.profile_sparse, injected_batches = update_beam(
+                beam=self.beam,
+                ring=self.ring,
+                rf_station=self.rf,
+                sparse_profile=self.profile_sparse,
+                injected_batches=injected_batches,
+                seed=1234)
+            print(f'Injection #{k + 1}')
+            self.assertEqual(injected_batches,
+                             k + 2)
+            self.CL_standard.profile.track()
+
+            self.CL_standard.track()
+            self.CL_sparse.track()
+
+            np.testing.assert_allclose(
+                self.CL_standard.V_ANT_COARSE,
+                self.CL_sparse.V_ANT_COARSE,
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="V_ANT_COARSE differs between standard Profile and "
+                        "single-batch SparseBatch for the same beam.",
+            )
+            np.testing.assert_allclose(
+                self.CL_standard.I_GEN_COARSE,
+                self.CL_sparse.I_GEN_COARSE,
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="I_GEN_COARSE differs between standard Profile and "
+                        "single-batch SparseBatch for the same beam.",
+            )
+
+    def test_muliturn_injection_fine_grid_generator_current_consistent_fine_grid_disabled(self):
+        common_kwargs = dict(
+            f_c=self.f_c,
+            G_gen=1,
+            I_gen_offset=0.0,
+            n_cavities=8,
+            n_pretrack=0,
+            Q_L=20000,
+            R_over_Q=45,
+            tau_loop=650e-9,
+            tau_otfb=1472e-9,
+            RFFB=self.RFFB,
+        )
+        self.CL_standard = LHCCavityLoop(
+            self.rf, self.profile_std, **common_kwargs
+        )
+        self.CL_sparse = LHCCavityLoop(
+            self.rf, self.profile_sparse, **common_kwargs
+        )
+        self.CL_standard.disable_fine_grid = True
+        self.CL_sparse.disable_fine_grid = True
+        self.CL_standard.track()
+        self.CL_sparse.track()
+        injected_batches = 1
+        for k in range(number_of_batches - injected_batches):
+            self.beam, self.profile_sparse, injected_batches = update_beam(
+                beam=self.beam,
+                ring=self.ring,
+                rf_station=self.rf,
+                sparse_profile=self.profile_sparse,
+                injected_batches=injected_batches,
+                seed=1234)
+            print(f'Injection #{k + 1}')
+            self.assertEqual(injected_batches,
+                             k + 2)
+            self.CL_standard.profile.track()
+
+            self.CL_standard.disable_fine_grid = True
+            self.CL_sparse.disable_fine_grid = True
+            self.CL_standard.track()
+            self.CL_sparse.track()
+            for p, profile in enumerate(self.CL_sparse.profile.profiles_list):
+                index = np.argmin(
+                    np.abs(
+                        self.CL_standard.profile.bin_centers
+                        - profile.bin_centers[0]
+                    )
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.profile.bin_centers[index],
+                    self.CL_sparse.profile.bin_centers[p * profile.n_slices],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                )
+                np.testing.assert_allclose(
+                    self.CL_standard.I_BEAM_FINE[
+                        index: index + profile.n_slices],
+                    self.CL_sparse.I_BEAM_FINE[
+                        p * profile.n_slices: (p + 1) * profile.n_slices
+                    ],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="I_BEAM_FINE differs between standard Profile and "
+                            "single-batch SparseBatch for the same beam, profile number "
+                            f"{p}",
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.I_GEN_FINE[
+                        index + 1: index + profile.n_slices + 1
+                    ],
+                    self.CL_sparse.I_GEN_FINE[
+                        p * profile.n_slices + 1: (
+                                                              p + 1) * profile.n_slices + 1
+                    ],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="I_GEN_FINE differs between standard Profile and "
+                            "single-batch SparseBatch for the same beam, profile number "
+                            f"{p}",
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.V_ANT_FINE[
+                        index + 1: index + profile.n_slices + 1
+                    ],
+                    self.CL_sparse.V_ANT_FINE[
+                        p * profile.n_slices + 1: (
+                                                              p + 1) * profile.n_slices + 1
+                    ],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="V_ANT_FINE differs between standard Profile and "
+                            "single-batch SparseBatch for the same beam -- see the "
+                            "docstring of this test for the likely cause. Profile "
+                            f"{p}",
+                )
+    def test_muliturn_fine_grid_cavity_response_inputs(self):
+        common_kwargs = dict(
+            f_c=self.f_c,
+            G_gen=1,
+            I_gen_offset=0.0,
+            n_cavities=8,
+            n_pretrack=0,
+            Q_L=20000,
+            R_over_Q=45,
+            tau_loop=650e-9,
+            tau_otfb=1472e-9,
+            RFFB=self.RFFB,
+        )
+        self.CL_standard = LHCCavityLoop(
+            self.rf, self.profile_std, **common_kwargs
+        )
+        self.CL_sparse = LHCCavityLoop(
+            self.rf, self.profile_sparse, **common_kwargs
+        )
+        self.CL_standard.track()
+        self.CL_sparse.track()
+        injected_batches = 1
+        for k in range(number_of_batches - injected_batches):
+            self.beam, self.profile_sparse, injected_batches = update_beam(
+                beam=self.beam,
+                ring=self.ring,
+                rf_station=self.rf,
+                sparse_profile=self.profile_sparse,
+                injected_batches=injected_batches,
+                seed=1234)
+            print(f'Injection #{k + 1}')
+            self.assertEqual(injected_batches,
+                             k + 2)
+            self.CL_standard.profile.track()
+
+            self.CL_standard.track()
+            self.CL_sparse.track()
+
+            np.testing.assert_equal(
+                self.CL_standard.samples_fine,
+                self.CL_sparse.samples_fine,
+            )
+            t_at_init = (
+                self.CL_standard.profile.bin_centers[0]
+                - self.CL_standard.profile.bin_size
+            )
+            t_at_init_sparse = (
+                self.CL_sparse.profile.bin_centers[0]
+                - self.CL_sparse.profile.bin_size
+            )
+            np.testing.assert_equal(t_at_init, t_at_init_sparse)
+
+            np.testing.assert_array_equal(self.CL_standard.rf_centers,
+                                          self.CL_sparse.rf_centers)
+            np.testing.assert_allclose(
+                self.CL_standard.V_ANT_COARSE,
+                self.CL_sparse.V_ANT_COARSE,
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="V_ANT_COARSE differs between standard Profile and "
+                        "single-batch SparseBatch for the same beam.",
+            )
+
+            V_A_init = interp1d(
+                np.concatenate(
+                    (
+                        self.CL_standard.rf_centers
+                        - self.CL_standard.T_s * self.CL_standard.n_coarse,
+                        self.CL_standard.rf_centers,
+                    )
+                ),
+                self.CL_standard.V_ANT_COARSE,
+                fill_value="extrapolate",
+            )(t_at_init)
+
+            V_A_init_sparse = interp1d(
+                np.concatenate(
+                    (
+                        self.CL_sparse.rf_centers
+                        - self.CL_sparse.T_s * self.CL_sparse.n_coarse,
+                        self.CL_sparse.rf_centers,
+                    )
+                ),
+                self.CL_sparse.V_ANT_COARSE,
+                fill_value="extrapolate",
+            )(t_at_init_sparse)
+            np.testing.assert_allclose(V_A_init,
+                                       V_A_init_sparse,
+                                       atol = self.atol,
+                                       rtol = self.rtol,
+                                       )
+
+            I_gen_init = interp1d(
+                np.concatenate(
+                    (
+                        self.CL_standard.rf_centers
+                        - self.CL_standard.T_s * self.CL_standard.n_coarse,
+                        self.CL_standard.rf_centers,
+                    )
+                ),
+                self.CL_standard.I_GEN_COARSE,
+                fill_value="extrapolate",
+            )(t_at_init)
+            I_gen_init_sparse = interp1d(
+                np.concatenate(
+                    (
+                        self.CL_sparse.rf_centers
+                        - self.CL_sparse.T_s * self.CL_sparse.n_coarse,
+                        self.CL_sparse.rf_centers,
+                    )
+                ),
+                self.CL_sparse.I_GEN_COARSE,
+                fill_value="extrapolate",
+            )(t_at_init_sparse)
+            np.testing.assert_allclose(I_gen_init,
+                                       I_gen_init_sparse,
+                                       atol=self.atol,
+                                       rtol=self.rtol,
+                                       )
+
+            np.testing.assert_allclose(
+                self.CL_standard.I_GEN_FINE[0],
+                self.CL_sparse.I_GEN_FINE[0],
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="I_GEN_FINE first element differs between standard "
+                "Profile and "
+                "single-batch SparseBatch for the same beam",
+            )
+            for p, profile in enumerate(self.CL_sparse.profile.profiles_list):
+                index = np.argmin(
+                    np.abs(
+                        self.CL_standard.profile.bin_centers
+                        - profile.bin_centers[0]
+                    )
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.profile.bin_centers[index],
+                    self.CL_sparse.profile.bin_centers[p * profile.n_slices],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                )
+                np.testing.assert_allclose(
+                    self.CL_standard.I_BEAM_FINE[index : index + profile.n_slices],
+                    self.CL_sparse.I_BEAM_FINE[
+                        p * profile.n_slices : (p + 1) * profile.n_slices
+                    ],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="I_BEAM_FINE differs between standard Profile and "
+                    "single-batch SparseBatch for the same beam, profile number "
+                    f"{p}",
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.I_GEN_FINE[
+                        index + 1 : index + profile.n_slices + 1
+                    ],
+                    self.CL_sparse.I_GEN_FINE[
+                        p * profile.n_slices + 1 : (p + 1) * profile.n_slices + 1
+                    ],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="I_GEN_FINE differs between standard Profile and "
+                    "single-batch SparseBatch for the same beam, profile number "
+                    f"{p}",
+                )
+
+    def test_muliturn_fine_grid_antenna_voltage_consistent(self):
+        common_kwargs = dict(
+            f_c=self.f_c,
+            G_gen=1,
+            I_gen_offset=0.0,
+            n_cavities=8,
+            n_pretrack=0,
+            Q_L=20000,
+            R_over_Q=45,
+            tau_loop=650e-9,
+            tau_otfb=1472e-9,
+            RFFB=self.RFFB,
+        )
+        self.CL_standard = LHCCavityLoop(
+            self.rf, self.profile_std, **common_kwargs
+        )
+        self.CL_sparse = LHCCavityLoop(
+            self.rf, self.profile_sparse, **common_kwargs
+        )
+
+        self.CL_standard.track()
+        self.CL_sparse.track()
+
+        injected_batches = 1
+        for k in range(number_of_batches - injected_batches):
+            self.beam, self.profile_sparse, injected_batches = update_beam(
+                beam=self.beam,
+                ring=self.ring,
+                rf_station=self.rf,
+                sparse_profile=self.profile_sparse,
+                injected_batches=injected_batches,
+                seed=1234)
+            print(f'Injection #{k + 1}')
+            self.assertEqual(injected_batches,
+                             k + 2)
+            self.CL_standard.profile.track()
+
+            self.CL_standard.track()
+            self.CL_sparse.track()
+
+            np.testing.assert_allclose(
+                self.CL_standard.V_ANT_FINE[0],
+                self.CL_sparse.V_ANT_FINE[0],
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="V_ANT_FINE first element differs between standard "
+                "Profile and "
+                "single-batch SparseBatch for the same beam",
+            )
+            for p, profile in enumerate(self.CL_sparse.profile.profiles_list):
+                index = np.argmin(
+                    np.abs(
+                        self.CL_standard.profile.bin_centers
+                        - profile.bin_centers[0]
+                    )
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.profile.bin_centers[index],
+                    self.CL_sparse.profile.bin_centers[p * profile.n_slices],
+                    rtol=self.rtol,
+                    atol=self.atol,
+                )
+
+                np.testing.assert_allclose(
+                    self.CL_standard.V_ANT_FINE[
+                        index + 1 : index + profile.n_slices + 1
+                    ],
+                    self.CL_sparse.V_ANT_FINE[
+                        p * profile.n_slices + 1 : (p + 1) * profile.n_slices + 1
+                    ],
+                    rtol=1e-3,
+                    atol=1e-7,
+                    err_msg="V_ANT_FINE differs between standard Profile and "
+                    "single-batch SparseBatch for the same beam -- see the "
+                    "docstring of this test for the likely cause. Profile "
+                    f"{p}",
+                )
+
+    def test_multiturn_injection_generator_power(self):
+        common_kwargs = dict(
+            f_c=self.f_c,
+            G_gen=1,
+            I_gen_offset=0.0,
+            n_cavities=8,
+            n_pretrack=0,
+            Q_L=20000,
+            R_over_Q=45,
+            tau_loop=650e-9,
+            tau_otfb=1472e-9,
+            RFFB=self.RFFB,
+        )
+        self.CL_standard = LHCCavityLoop(
+            self.rf, self.profile_std, **common_kwargs
+        )
+        self.CL_sparse = LHCCavityLoop(
+            self.rf, self.profile_sparse, **common_kwargs
+        )
+        self.CL_standard.track()
+        self.CL_sparse.track()
+        injected_batches = 1
+        for k in range(number_of_batches - injected_batches):
+            self.beam, self.profile_sparse, injected_batches = update_beam(
+                beam=self.beam,
+                ring=self.ring,
+                rf_station=self.rf,
+                sparse_profile=self.profile_sparse,
+                injected_batches=injected_batches,
+                seed=1234)
+            print(f'Injection #{k + 1}')
+            self.assertEqual(injected_batches,
+                             k + 2)
+            self.CL_standard.profile.track()
+
+            self.CL_standard.track()
+            self.CL_sparse.track()
+
+            np.testing.assert_allclose(
+                self.CL_standard.generator_power(),
+                self.CL_sparse.generator_power(),
+                rtol=self.rtol,
+                atol=self.atol,
+                err_msg="generator_power differs between standard Profile and "
+                        "single-batch SparseBatch for the same beam.",
+            )
 
 if __name__ == "__main__":
     unittest.main()

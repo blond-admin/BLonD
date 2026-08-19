@@ -76,13 +76,14 @@ def build_ring_and_rf():
     return ring, rf_station
 
 
-def build_beam(ring, rf_station, injected_batches,  seed=1234):
+def build_beam(ring, rf_station, seed=1234):
     """Build a Gaussian bunch so that Profile/SparseBatch slicing is
     well defined (an empty/point beam makes bin_size degenerate)."""
     # The beam
+
     # Beam object for the batch
-    N_m = N_MACROPARTICLES * injected_batches * number_of_bunches_per_batch
-    N_p = BUNCH_INTENSITY * injected_batches * number_of_bunches_per_batch
+    N_m = N_MACROPARTICLES * number_of_batches * number_of_bunches_per_batch
+    N_p = BUNCH_INTENSITY * number_of_batches * number_of_bunches_per_batch
     beam = Beam(ring, N_m, N_p)
     # First generate a single gaussian bunch
     single_bunch = Beam(ring, N_MACROPARTICLES, BUNCH_INTENSITY)
@@ -96,101 +97,40 @@ def build_beam(ring, rf_station, injected_batches,  seed=1234):
     )
     # Copy the bunch throughout the batch
 
-    if number_of_bunches_per_batch > 1:
-        single_batch = Beam(
-            ring,
-            number_of_bunches_per_batch * N_MACROPARTICLES,
-            number_of_bunches_per_batch * BUNCH_INTENSITY,
-        )
+    if number_of_bunches_per_batch >1:
+        single_batch = Beam(ring,
+                            number_of_bunches_per_batch*N_MACROPARTICLES,
+                            number_of_bunches_per_batch*BUNCH_INTENSITY)
         for i in range(number_of_bunches_per_batch):
-            single_batch.dE[
-                i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES
-            ] = single_bunch.dE
-            single_batch.dt[
-                i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES
-            ] = single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
-        for i in range(injected_batches):
-            N_MACROPARTICLES_PER_BATCH = (
-                number_of_bunches_per_batch * N_MACROPARTICLES
+            single_batch.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] \
+                = single_bunch.dE
+            single_batch.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
+                    single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
             )
-            beam.dE[
-                i * N_MACROPARTICLES_PER_BATCH : (i + 1)
-                * N_MACROPARTICLES_PER_BATCH
-            ] = single_batch.dE
-            beam.dt[
-                i * N_MACROPARTICLES_PER_BATCH : (i + 1)
-                * N_MACROPARTICLES_PER_BATCH
-            ] = single_batch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
+        for i in range(number_of_batches):
+            N_MACROPARTICLES_PER_BATCH = number_of_bunches_per_batch * N_MACROPARTICLES
+            beam.dE[i * N_MACROPARTICLES_PER_BATCH: (i + 1) * N_MACROPARTICLES_PER_BATCH] = (
+                single_batch.dE
+            )
+            beam.dt[i * N_MACROPARTICLES_PER_BATCH: (i + 1) * N_MACROPARTICLES_PER_BATCH] = (
+                    single_batch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
+            )
     else:
-        for i in range(injected_batches):
-            beam.dE[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
+        for i in range(number_of_batches):
+            beam.dE[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
                 single_bunch.dE
             )
-            beam.dt[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
-                single_bunch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
-            )
-    return beam, injected_batches
-
-
-def update_beam(beam, ring, rf_station, sparse_profile, injected_batches,
-                seed=1234):
-    """Build a Gaussian bunch so that Profile/SparseBatch slicing is
-    well defined (an empty/point beam makes bin_size degenerate)."""
-
-    if injected_batches < number_of_batches:
-        # First generate a single gaussian bunch
-        single_bunch = Beam(ring, N_MACROPARTICLES, BUNCH_INTENSITY)
-        bigaussian(
-            ring,
-            rf_station,
-            beam,
-            sigma_dt=BUNCH_SIGMA_DT,
-            seed=seed,
-            reinsertion=True,
-        )
-        # Copy the bunch throughout the batch
-        single_batch = Beam(
-            ring,
-            number_of_bunches_per_batch * N_MACROPARTICLES,
-            number_of_bunches_per_batch * BUNCH_INTENSITY,
-        )
-        if number_of_bunches_per_batch > 1:
-            for i in range(number_of_bunches_per_batch):
-                single_batch.dE[
-                    i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES
-                ] = single_bunch.dE
-                single_batch.dt[
-                    i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES
-                ] = single_bunch.dt + i * bunch_spacing * rf_station.t_rf[0, 0]
-        else:
-            for i in range(number_of_batches):
-                single_batch.dE[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
-                    single_bunch.dE
-                )
-                single_batch.dt[i * N_MACROPARTICLES : (i + 1) * N_MACROPARTICLES] = (
+            beam.dt[i * N_MACROPARTICLES: (i + 1) * N_MACROPARTICLES] = (
                     single_bunch.dt + i * batch_spacing * rf_station.t_rf[0, 0]
-                )
-        updated_batch_list = np.zeros(HARMONIC_NUMBER)
-        for k in range(injected_batches):
-            updated_batch_list[k * batch_spacing] = 1
-        beam.add_particles([single_batch.dt
-                            + (injected_batches * batch_spacing) * rf_station.t_rf[0, 0],
-                            # index
-                            single_batch.dE
-                            ])
-        sparse_profile.update_batch_list(
-            updated_batch_list=updated_batch_list)
-        injected_batches += 1
-        return beam, sparse_profile, injected_batches
-    else:
-        return beam, sparse_profile, injected_batches
+            )
+    return beam
+
 
 def build_standard_profile(beam, rf_station, n_slices):
     """A standard Profile covering the injected bunches and an extra bucket."""
     profile = Profile(
         beam,
-        CutOptions(cut_left=0.0,
-                   cut_right=(batch_spacing *
+        CutOptions(cut_left=0.0, cut_right=(batch_spacing *
                                             number_of_batches+1)
             * rf_station.t_rf[
                 0,
@@ -202,17 +142,18 @@ def build_standard_profile(beam, rf_station, n_slices):
     return profile
 
 
-def build_sparse_profile(beam, rf_station, n_slices, injected_batches):
-    """A SparseBatch profile with a profile per number of bunches."""
+def build_sparse_profile(beam, rf_station, n_slices):
+    """A SparseBatch profile with a profile per number of bunches.
+    """
     batch_list = np.zeros(HARMONIC_NUMBER)
-    for k in range(injected_batches):
+    for k in range(number_of_batches):
         batch_list[k * batch_spacing] = 1
     sparse_profile = SparseBatch(
         rf_station=rf_station,
         beam=beam,
-        number_of_slices_per_profile=(int(batch_spacing / 2) + 1) * n_slices,
+        number_of_slices_per_profile=(int(batch_spacing/2)+1) * n_slices,
         batch_list=batch_list,
-        batch_length=int(batch_spacing / 2) + 1,
+        batch_length=int(batch_spacing/2)+1,
         tracker_mode="onebyone",
     )
     sparse_profile.track()
@@ -223,18 +164,17 @@ class TestRFBeamCurrent(unittest.TestCase):
     N_SLICES = 4 * HARMONIC_NUMBER // 5  # fine relative to the coarse (n_coarse) grid
     def setUp(self):
         self.ring, self.rf = build_ring_and_rf()
-        self.beam, injected_batches = build_beam(self.ring, self.rf, injected_batches= 1)
+        self.beam = build_beam(self.ring, self.rf)
         self.omega = 2 * np.pi * 200.222e6
 
         self.profile_std = build_standard_profile(
             self.beam, self.rf, self.N_SLICES
         )
         self.profile_sparse = build_sparse_profile(
-            self.beam, self.rf, self.N_SLICES,
-            injected_batches= 1,
+            self.beam, self.rf, self.N_SLICES
         )
-        self.T_s = 10 * self.rf.t_rev[0] / self.rf.harmonic[0, 0]
-        self.n_points = 3654
+        self.T_s = 5 * self.rf.t_rev[0] / self.rf.harmonic[0, 0]
+        self.n_points = 100
         self.rtol = 1e-15
         self.atol = 1e-12
 
@@ -402,7 +342,8 @@ class TestRFBeamCurrent(unittest.TestCase):
 
         I_f_sparse = 2.0 * charges_sparse * np.cos(self.omega *
                                                    self.profile_sparse.bin_centers)
-        Q_f_sparse = -2.0 * charges_sparse * np.sin(self.omega *self.profile_sparse.bin_centers)
+        Q_f_sparse = -2.0 * charges_sparse * np.sin(self.omega *
+                                                    self.profile_sparse.bin_centers)
         charges_fine_sparse = I_f_sparse + 1j * Q_f_sparse
 
         charges_coarse_std = charges_from_fine_to_coarse(T_s = self.T_s,
@@ -413,41 +354,123 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                         omega_c=self.omega,
                                                         profile_bin_centers=self.profile_std.bin_centers,
                                                         )
-
-        ind_fine = np.round(
-            (self.profile_sparse.profiles_list[-1].bin_centers - 0 - np.pi /
-             self.omega) /
-            self.T_s)
-        ind_fine = np.array(ind_fine, dtype=int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-        if len(indices) == 0:
-            extra_bins = np.arange(self.profile_sparse.bin_centers[-1],
-                                   self.profile_sparse.bin_centers[-1] +
-                                   self.T_s + 0 + np.pi/self.omega,
-                                   step=self.profile_sparse.bin_size)
-            profile_bin_centers = np.concatenate((self.profile_sparse.bin_centers, extra_bins))
-            profile_n_macroparticles = np.concatenate(
-                (self.profile_sparse.n_macroparticles,
-                 np.zeros(len(extra_bins))))
-            charges = (
-                    self.profile_sparse.beam.ratio
-                    * self.profile_sparse.beam.particle.charge
-                    * e
-                    * np.copy(profile_n_macroparticles)
-            )
-            I_f = 2.0 * charges * np.cos(self.omega * profile_bin_centers)
-            Q_f = -2.0 * charges * np.sin(self.omega * profile_bin_centers)
-            charges_fine_sparse = I_f + 1j * Q_f
-        else:
-            profile_bin_centers = self.profile_sparse.bin_centers
         charges_coarse_sparse = charges_from_fine_to_coarse(T_s = self.T_s,
                                                             charges_fine =
                                                             charges_fine_sparse,
                                                             dT = 0,
                                                             n_points=self.n_points,
                                                             omega_c=self.omega,
-                                                            profile_bin_centers=profile_bin_centers,
+                                                            profile_bin_centers=self.profile_sparse.bin_centers,
                                                             )
+        with self.assertRaises(expected_exception=AssertionError):
+            np.testing.assert_allclose(charges_coarse_std,
+                                       charges_coarse_sparse,
+                                       rtol = self.rtol,
+                                       atol = self.atol,
+                                       )
+        order = np.argsort(self.profile_sparse.bin_centers)
+        profile_bin_centers = self.profile_sparse.bin_centers[order]
+        profile_n_macroparticles = \
+            self.profile_sparse.n_macroparticles[order]
+
+        ind_fine = np.round(
+            (
+                    profile_bin_centers
+                    - 0
+                    - np.pi / self.omega
+            )
+            / self.T_s
+        )
+        ind_fine = np.array(ind_fine, dtype=int)
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) >= 1)[0]
+        extra_bins = np.arange(
+            profile_bin_centers[
+                -1
+            ],
+            profile_bin_centers[-1]
+            + self.T_s
+            + 0
+            + np.pi / self.omega,
+            step=self.profile_sparse.bin_size,
+        )
+        profile_bin_centers_for_coarse = np.concatenate(
+            (self.profile_sparse.bin_centers, extra_bins)
+        )
+        profile_n_macroparticles = np.concatenate(
+            (self.profile_sparse.n_macroparticles, np.zeros(len(extra_bins)))
+        )
+        charges = (
+                self.profile_sparse.beam.ratio
+                * self.profile_sparse.beam.particle.charge
+                * e
+                * np.copy(profile_n_macroparticles)
+        )
+        I_f = 2.0 * charges * np.cos(
+            self.omega * profile_bin_centers_for_coarse)
+        Q_f = -2.0 * charges * np.sin(
+            self.omega * profile_bin_centers_for_coarse)
+        charges_fine_for_coarse_grid = I_f + 1j * Q_f
+        warnings.warn(
+            "The length of the sparse profile is too "
+            "short to properly convert the charges from the fine to the coarse grid."
+            "Profile has been extented."
+        )
+        # else:
+        #     profile_bin_centers_for_coarse = profile_bin_centers
+        #     charges_extended = (
+        #             self.profile_sparse.beam.ratio
+        #             * self.profile_sparse.beam.particle.charge
+        #             * e
+        #             * np.copy(profile_n_macroparticles)
+        #     )
+        #     I_f = (
+        #             2.0
+        #             * charges_extended
+        #             * np.cos(self.omega * profile_bin_centers)
+        #     )
+        #     Q_f = (
+        #             -2.0
+        #             * charges_extended
+        #             * np.sin(self.omega * profile_bin_centers)
+        #     )
+        #     charges_fine_for_coarse_grid = I_f + 1j * Q_f
+        # # Check internal fix works
+        # profile_bin_centers = np.concatenate((self.profile_sparse.bin_centers,
+        #
+        #                                       np.arange(
+        #                                           self.profile_sparse.bin_centers[
+        #                                               -1],
+        #                                           self.profile_sparse.bin_centers[-1] +
+        #                                           2 *
+        #                                           self.profile_sparse.rf_station.t_rf[
+        #                                               0, 0],
+        #                                           step=self.profile_sparse.bin_size)))
+        # profile_n_macroparticles = np.concatenate((self.profile_sparse.n_macroparticles,
+        #                                            np.zeros(len(np.arange(
+        #                                                self.profile_sparse.bin_centers[-1],
+        #                                                self.profile_sparse.bin_centers[
+        #                                                    -1] +
+        #                                                2 *
+        #                                                self.profile_sparse.rf_station.t_rf[
+        #                                                    0, 0],
+        #                                                step=self.profile_sparse.bin_size)))))
+        # charges_sparse = (
+        #         self.profile_sparse.beam.ratio
+        #         * self.profile_sparse.beam.particle.charge
+        #         * e
+        #         * np.copy(profile_n_macroparticles)
+        # )
+        # I_f = 2.0 * charges_sparse * np.cos(self.omega * profile_bin_centers)
+        # Q_f = -2.0 * charges_sparse * np.sin(self.omega * profile_bin_centers)
+        # charges_fine_sparse = I_f + 1j * Q_f
+        charges_coarse_sparse = charges_from_fine_to_coarse(T_s=self.T_s,
+                                                           charges_fine=
+                                                           charges_fine_for_coarse_grid,
+                                                           dT=0,
+                                                           n_points=self.n_points,
+                                                           omega_c=self.omega,
+                                                           profile_bin_centers=profile_bin_centers_for_coarse,
+                                                           )
         np.testing.assert_allclose(charges_coarse_std,
                                    charges_coarse_sparse,
                                    rtol=self.rtol,
@@ -505,7 +528,7 @@ class TestRFBeamCurrent(unittest.TestCase):
             external_reference=True,
             dT=0,
         ))
-
+        self.profile_sparse.track()
         rf_current_sparse, rf_current_coarse_sparse = rf_beam_current(
             self.profile_sparse,
             self.omega,
@@ -539,24 +562,6 @@ class TestRFBeamCurrent(unittest.TestCase):
                                    rtol=self.rtol,
                                    atol=self.atol,
                                    )
-    def test_muliturn_injection(self):
-        injected_batches = 1
-        for k in range(number_of_batches - injected_batches):
-            self.beam, self.profile_sparse, injected_batches =  update_beam(
-                beam = self.beam,
-                ring = self.ring,
-                rf_station = self.rf,
-                sparse_profile = self.profile_sparse,
-                injected_batches = injected_batches,
-                seed=1234)
-            print(f'Injection #{k+1}')
-            self.assertEqual(injected_batches,
-                             k + 2)
-            self.test_charges_fine_grid()
-            self.test_charges_from_fine_to_coarse()
-            self.test_downsampling()
-            self.test_rf_beam_current()
-
 
 if __name__ == "__main__":
     unittest.main()

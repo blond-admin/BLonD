@@ -194,6 +194,22 @@ class CavityFeedback:
 
     def track(self):
         r"""Tracking method of the cavity feedback"""
+        if isinstance(self.profile, SparseBatch):
+            # lengthening necessary in case of multi-turn injection
+            if len(self.I_BEAM_FINE) != self.profile.n_slices:
+                difference = (
+                        self.profile.n_slices - len(self.I_BEAM_FINE)
+                )
+                self.I_BEAM_FINE = np.concatenate(
+                    (self.I_BEAM_FINE, np.zeros(difference, dtype=complex))
+                )
+                difference = self.profile.n_slices + 1 - len(self.V_ANT_FINE)
+                self.I_GEN_FINE = np.concatenate(
+                    (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
+                )
+                self.V_ANT_FINE = np.concatenate(
+                    (self.V_ANT_FINE, np.zeros(difference, dtype=complex))
+                )
         # Update parameters from rest of BLonD classes
         self.update_rf_variables()
         self.update_fb_variables()
@@ -1732,9 +1748,7 @@ class LHCCavityLoop(CavityFeedback):
                 )
             for p, profile in enumerate(self.profile.profiles_list):
                 if p == 0:
-                    self.V_ANT_FINE[0 : profile.n_slices + 1] = (
-                        self.n_cavities
-                        * cavity_response_sparse_matrix(
+                    self.V_ANT_FINE[0 : profile.n_slices + 1] = cavity_response_sparse_matrix(
                             I_beam=self.I_BEAM_FINE[
                                 p * profile.n_slices : (p + 1)
                                 * profile.n_slices
@@ -1752,8 +1766,6 @@ class LHCCavityLoop(CavityFeedback):
                             Q_L=self.Q_L,
                             detuning=self.detuning,
                         )
-                    )
-
                 else:
                     # find the closest previous profile
                     distances = np.array(
@@ -1831,9 +1843,7 @@ class LHCCavityLoop(CavityFeedback):
                     self.V_ANT_FINE[
                         p * profile.n_slices + 1 : (p + 1) * profile.n_slices
                         + 1
-                    ] = (
-                        self.n_cavities
-                        * cavity_response_sparse_matrix(
+                    ] = cavity_response_sparse_matrix(
                             I_beam=self.I_BEAM_FINE[
                                 p * profile.n_slices : (p + 1)
                                 * profile.n_slices
@@ -1849,8 +1859,7 @@ class LHCCavityLoop(CavityFeedback):
                             R_over_Q=self.R_over_Q,
                             Q_L=self.Q_L,
                             detuning=self.detuning,
-                        )[-profile.n_slices :]
-                    )
+                        )[-profile.n_slices:]
 
         else:
             self.V_ANT_FINE = cavity_response_sparse_matrix(
@@ -1865,9 +1874,9 @@ class LHCCavityLoop(CavityFeedback):
                 detuning=self.detuning,
             )
 
-            self.V_ANT_FINE[-self.profile.n_slices :] = (
-                self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
-            )
+        self.V_ANT_FINE[-self.profile.n_slices :] = (
+            self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
+        )
 
     def generator_current(self):
         r"""Generator response
