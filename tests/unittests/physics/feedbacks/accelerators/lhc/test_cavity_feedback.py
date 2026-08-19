@@ -19,6 +19,9 @@ from blond.physics.feedbacks.accelerators.lhc import (
     LHCCavityFeedback,
     LHCCavityFeedbackCommissioning,
 )
+from blond.physics.feedbacks.transfer_function_analysis import (
+    estimate_transfer_function,
+)
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -465,14 +468,181 @@ class TestLHCCavityFeedback(unittest.TestCase):
 
 
 class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
-    def create_scenario(self):
-        pass
+    @staticmethod
+    def create_scenario(
+        commissioning: LHCCavityFeedbackCommissioning,
+        cut_data: int = 0,
+        n_pretrack: int = 200,
+    ):
+        f_rf = 400.789e6
+        harmonic = 35640
+
+        profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
+
+        cavity_feedback = LHCCavityFeedback(
+            profile=profile, rffb=commissioning, n_pretrack=n_pretrack
+        )
+        cavity_feedback.disable_fine_grid = True
+
+        cavity_feedback.set_hardware_commissioning(
+            omega_rf=2 * np.pi * f_rf, harmonic=harmonic
+        )
+
+        return estimate_transfer_function(
+            input_signal=cavity_feedback.v_excitation_in,
+            output_signal=cavity_feedback.v_excitation_out,
+            t_s=cavity_feedback.T_s,
+            data_cut=cut_data,
+        )
 
     def test_open_loop_response(self):
-        pass
+        cut_data = 3564 * 5
+        r_over_q = 45
+        q_l = 20_000
+        domega = 0.0
+        f_rf = 400.789e6
+        omega_rf = 2 * np.pi * f_rf
+
+        commissioning = LHCCavityFeedbackCommissioning(
+            g_a=g_a,
+            g_d=g_d,
+            g_o=g_o,
+            tau_a=tau_a,
+            tau_d=tau_d,
+            tau_o=tau_o,
+            excitation=True,
+            open_loop=True,
+            open_otfb=True,
+        )
+
+        f_est, h_est = self.create_scenario(
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+        )
+
+        h_a = lambda s: g_a * tau_a * s / (1 + tau_a * s)
+        h_d = lambda s: g_a * g_d / (1 + tau_d * s)
+        h_delay = lambda s: np.exp(-tau_loop * s)
+        z_cav = lambda s: (
+            r_over_q * q_l / (1 + 2 * q_l * (s - 1j * domega) / omega_rf)
+        )
+
+        h_open = lambda s: 2 * h_delay(s) * (h_a(s) + h_d(s)) * z_cav(s)
+
+        h_actual = h_open(1j * 2 * np.pi * f_est)
+
+        np.testing.assert_allclose(
+            actual=h_est.real, desired=h_actual.real, atol=35
+        )
+
+        np.testing.assert_allclose(
+            actual=h_est.imag, desired=h_actual.imag, atol=10
+        )
 
     def test_closed_loop_response(self):
-        pass
+        cut_data = 3564 * 5
+        r_over_q = 45
+        q_l = 20_000
+        domega = 0.0
+        f_rf = 400.789e6
+        omega_rf = 2 * np.pi * f_rf
+
+        commissioning = LHCCavityFeedbackCommissioning(
+            g_a=g_a,
+            g_d=g_d,
+            g_o=g_o,
+            tau_a=tau_a,
+            tau_d=tau_d,
+            tau_o=tau_o,
+            excitation=True,
+            open_loop=False,
+            open_otfb=True,
+        )
+
+        f_est, h_est = self.create_scenario(
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+        )
+
+        h_a = lambda s: g_a * tau_a * s / (1 + tau_a * s)
+        h_d = lambda s: g_a * g_d / (1 + tau_d * s)
+        h_delay = lambda s: np.exp(-tau_loop * s)
+        z_cav = lambda s: (
+            r_over_q * q_l / (1 + 2 * q_l * (s - 1j * domega) / omega_rf)
+        )
+
+        h_open = lambda s: 2 * h_delay(s) * (h_a(s) + h_d(s)) * z_cav(s)
+        h_closed = lambda s: h_open(s) / (1 + h_open(s))
+
+        h_actual = h_closed(1j * 2 * np.pi * f_est)
+
+        np.testing.assert_allclose(
+            actual=h_est.real, desired=h_actual.real, atol=0.03
+        )
+
+        np.testing.assert_allclose(
+            actual=h_est.imag, desired=h_actual.imag, atol=0.03
+        )
 
     def test_one_turn_delay_feedback_reponse(self):
-        pass
+        cut_data = 3564 * 5
+        r_over_q = 45
+        a_comb = 15 / 16
+        q_l = 20_000
+        domega = 0.0
+        f_rf = 400.789e6
+        omega_rf = 2 * np.pi * f_rf
+
+        f_span = 750e3
+
+        t_rev = 35640 / f_rf
+
+        commissioning = LHCCavityFeedbackCommissioning(
+            g_a=g_a,
+            g_d=g_d,
+            g_o=g_o,
+            tau_a=tau_a,
+            tau_d=tau_d,
+            tau_o=tau_o,
+            excitation=True,
+            open_loop=False,
+            open_otfb=False,
+        )
+
+        f_est, h_est = self.create_scenario(
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+        )
+
+        h_est = h_est[(f_est > -f_span) & (f_est < f_span)]
+        f_est = f_est[(f_est > -f_span) & (f_est < f_span)]
+
+        h_a = lambda s: g_a * tau_a * s / (1 + tau_a * s)
+        h_d = lambda s: g_a * g_d / (1 + tau_d * s)
+        h_delay = lambda s: np.exp(-tau_loop * s)
+
+        h_comb = lambda s: (
+            g_o
+            * (1 - a_comb)
+            * np.exp(-t_rev * s)
+            / (1 - a_comb * np.exp(-t_rev * s))
+        )
+        h_ac = lambda s: tau_o * s / (1 + tau_o * s)
+        h_comp = lambda s: np.exp(tau_otfb * s)
+        h_otfb = lambda s: h_ac(s) * h_comb(s) * h_ac(s) * h_comp(s)
+
+        z_cav = lambda s: (
+            r_over_q * q_l / (1 + 2 * q_l * (s - 1j * domega) / omega_rf)
+        )
+
+        h_open = lambda s: (
+            2 * h_delay(s) * (h_a(s) * (h_otfb(s) + 1) + h_d(s)) * z_cav(s)
+        )
+        h_closed = lambda s: h_open(s) / (1 + h_open(s))
+
+        h_actual = h_closed(1j * 2 * np.pi * f_est)
+
+        np.testing.assert_allclose(
+            actual=h_est.real, desired=h_actual.real, atol=0.6
+        )
+
+        np.testing.assert_allclose(
+            actual=h_est.imag, desired=h_actual.imag, atol=0.5
+        )

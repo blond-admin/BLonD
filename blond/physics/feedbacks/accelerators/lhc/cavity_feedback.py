@@ -409,6 +409,9 @@ class LHCCavityFeedback(
 
         self.disable_fine_grid = False
 
+        self.v_excitation_in: LateInit = None
+        self.v_excitation_out: LateInit = None
+
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
