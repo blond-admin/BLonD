@@ -748,6 +748,44 @@ class TestRFBeamCurrent(unittest.TestCase):
         peak_rf_current = np.max(np.absolute(rf_current_coarse))
         self.assertAlmostEqual(peak_rf_current, 2.9284593979, 7)
 
+    @pytest.mark.backend_mutation
+    def test_5(self):
+        self.simulation.prepare_beam(
+            beam=self.beam,
+            preparation_routine=BiGaussian(
+                n_macroparticles=self.n_macroparticles,
+                sigma_dt=3.2e-9 / 4,
+                sigma_dE=None,
+                reinsertion=True,
+                seed=1234,
+            ),
+        )
+        t_rev = float(
+            (2 * np.pi * self.rf.get_main_harmonic())
+            / self.rf.calc_omega_rf_design(
+                self.beam.reference.beta, self.ring.circumference
+            )[self.rf.main_harmonic_idx]
+        )
+        self.profile.track(self.beam)
+        self.assertEqual(
+            len(self.beam.read_partial_dt()),
+            np.sum(self.profile.hist_y),
+            "In"
+            + " TestBeamCurrent: particle number mismatch in Beam vs Profile",
+        )
+
+        # RF current calculation with incorrect downsampling
+        with self.assertRaises(RuntimeError):
+            rf_current = rf_beam_current(
+                self.beam,
+                self.profile,
+                self.omega,
+                t_rev,
+                use_lowpass_filter=False,
+                external_reference=False,
+                downsample={"Ts": 25e-9},
+            )
+
 
 class TestIQ(unittest.TestCase):
     # Run before every test
