@@ -2,6 +2,8 @@ import unittest
 
 import numpy as np
 
+from blond import backend
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.sps.impulse_response import (
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -190,9 +192,9 @@ class TestTravellingWaveCavities(unittest.TestCase):
             a_factor=2 * np.pi * tws.tau,
         )
 
-        imp_wake = tws_imp.wake_calc(t_arr)
+        imp_wake = tws_imp.wake_calc(backend.array(t_arr))
 
         np.testing.assert_allclose(
-            actual=tws.W_beam,
-            desired=-imp_wake,
+            actual=copy_to_cpu(tws.W_beam),
+            desired=copy_to_cpu(-imp_wake),
         )

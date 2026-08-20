@@ -17,6 +17,10 @@ from blond import (
 from blond.physics.feedbacks.accelerators.sps import (
     SPSCavityFeedback,
     SPSCavityFeedbackCommissioning,
+    SPSOneTurnFeedback,
+)
+from tests.unittests.handle_results.test_observables_as_elements import (
+    simulation,
 )
 
 # Initialize the accelerator
@@ -54,21 +58,171 @@ a_comb = 63 / 64
 
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
+    @staticmethod
+    def create_scenario(
+        commissioning: SPSCavityFeedbackCommissioning = None,
+        n_sections: int = 3,
+        v_part: float = 4 / 9,
+        twc_tau: float = None,
+    ):
+        beam = Beam(
+            intensity,
+            proton,
+        )
+
+        cycle = ConstantMagneticCycle(proton, momentum, in_unit="momentum")
+
+        lattice = DriftSimple(
+            orbit_length=circumference, momentum_compaction_factor=alpha
+        )
+
+        cavity = MultiHarmonicRFStation(
+            voltage=np.array([voltage_200, voltage_800]),
+            phi_rf=np.array([phase_200, phase_800]),
+            harmonic=np.array([h, 4 * h]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+        )
+
+        f_rf = cavity.calc_main_harmonic_omega_rf_design(
+            rel_beta, lattice.orbit_length
+        ) / (2 * np.pi)
+        t_rf = 1 / f_rf
+
+        profile = StaticProfile(
+            cut_left=(-5.5 + bucket_shift) * t_rf,
+            cut_right=(6.5 + number_of_bunches * bunch_spacing + bucket_shift)
+            * t_rf,
+            n_bins=(10 * number_of_bunches + 12) * 2**5,
+        )
+
+        bigaussian = BiGaussian(
+            n_macroparticles=n_macroparticles,
+            sigma_dt=tau_bunch / 4,
+            seed=1234,
+        )
+
+        cavity_feedback = SPSOneTurnFeedback(
+            profile=profile,
+            n_sections=n_sections,
+            commissioning=commissioning,
+            v_part=v_part,
+            g_ff=G_ff,
+            g_tx=G_tx,
+            g_llrf=G_llrf,
+            a_comb=a_comb,
+        )
+
+        if twc_tau is not None:
+            cavity_feedback.TWC.tau = twc_tau
+
+        cavity.attach_cavity_feedback(cavity_feedback, harmonic_index=0)
+
+        ring = Ring(
+            circumference,
+        )
+
+        ring.add_elements(
+            [profile, cavity, lattice],
+        )
+
+        simulation = Simulation(
+            ring,
+            cycle,
+        )
+
+        simulation.prepare_beam(beam, bigaussian)
+
+        simulation.finalize(
+            (beam,),
+            n_turns,
+        )
+
+        return simulation, beam
+
     def test_custom_setpoint(self):
-        # TODO: implement
-        pass
+        v_set_custom = np.zeros(2 * h, dtype=complex)
+        one_turn = np.zeros(h, dtype=complex)
+        one_turn[: h // 2] = np.linspace(0, 1, h // 2) * (1 + 1j * 0)
+        one_turn[h // 2 :] = np.linspace(1, 0, h // 2) * (1 + 1j * 0)
+        v_set_custom[:h] = one_turn
+        v_set_custom[h:] = one_turn
+
+        commissioning = SPSCavityFeedbackCommissioning(v_set=v_set_custom)
+
+        simulation, beam = self.create_scenario(commissioning=commissioning)
+
+        rf_station = simulation.ring.elements.get_element(
+            MultiHarmonicRFStation
+        )
+        cavity_feedback: SPSOneTurnFeedback = (
+            rf_station.get_main_harmonic_cavity_feedback()
+        )
+
+        np.testing.assert_array_equal(
+            cavity_feedback.buffers_coarse.v_setpoint.curr, one_turn
+        )
+
+        np.testing.assert_allclose(
+            cavity_feedback.buffers_coarse.v_ant.curr, one_turn, atol=0.02
+        )
+
+    def test_incorrect_custom_setpoint(self):
+        v_len = h + 10
+        v_set_custom = np.zeros(2 * v_len, dtype=complex)
+        one_turn = np.zeros(v_len, dtype=complex)
+        one_turn[: v_len // 2] = np.linspace(0, 1, v_len // 2) * (1 + 1j * 0)
+        one_turn[v_len // 2 :] = np.linspace(1, 0, v_len // 2) * (1 + 1j * 0)
+        v_set_custom[:v_len] = one_turn
+        v_set_custom[v_len:] = one_turn
+
+        commissioning = SPSCavityFeedbackCommissioning(v_set=v_set_custom)
+
+        with self.assertRaises(RuntimeError):
+            simulation, beam = self.create_scenario(
+                commissioning=commissioning
+            )
 
     def test_failure_in_init(self):
-        # TODO: implement
-        pass
+        # Check incorrect partitioning
+        with self.assertRaises(ValueError):
+            self.create_scenario(v_part=1.1)
+
+        # Check incorrect number of sections
+        with self.assertRaises(ValueError):
+            self.create_scenario(n_sections=2)
 
     def test_incorrect_tws_tau(self):
-        # TODO: implement
-        pass
+        with self.assertRaises(ValueError):
+            self.create_scenario(twc_tau=1e-9)
 
     def test_standard_commissioning(self):
-        # TODO: implement
-        pass
+        simulation, beam = self.create_scenario()
+
+        rf_station = simulation.ring.elements.get_element(
+            MultiHarmonicRFStation
+        )
+        cavity_feedback: SPSOneTurnFeedback = (
+            rf_station.get_main_harmonic_cavity_feedback()
+        )
+
+        self.assertEqual(cavity_feedback.open_loop, 1)
+
+        self.assertEqual(cavity_feedback.open_fb, 1)
+
+        self.assertEqual(cavity_feedback.open_drive, 1)
+
+        self.assertEqual(cavity_feedback.open_ff, 0)
+
+        self.assertEqual(cavity_feedback.custom_setpoint, None)
+
+        self.assertEqual(cavity_feedback.cpp_conv, False)
+
+        self.assertEqual(cavity_feedback.rot_iq, 1)
+
+        self.assertEqual(cavity_feedback.excitation, 0)
+
+        self.assertEqual(cavity_feedback.debug, False)
 
 
 class TestSPSCavityFeedback(unittest.TestCase):

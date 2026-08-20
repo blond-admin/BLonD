@@ -256,7 +256,7 @@ class SPSCavityFeedbackCommissioning:
         self.open_fb = 0 if open_fb else 1
         self.open_drive = 0 if open_drive else 1
         self.open_ff = 0 if open_ff else 1
-        self.V_SET = v_set
+        self.v_set = v_set
         self.cpp_conv = cpp_conv
         self.pwr_clamp = pwr_clamp
         self.rot_iq: complex = rot_iq
@@ -291,6 +291,8 @@ class SPSOneTurnFeedback(
         Comb filter coefficient; default is 63/64.
     df
         Change of the TWC central frequency in Hz from the 2021 measurement; default is 0 Hz.
+    n_pretrack
+        Number of turns to pre-track without beam.
     commissioning
         A SPSCavityLoopCommissioning type class; default is None. If this parameter is None, a new
         SPSCavityLoopCommissioning is used.
@@ -312,6 +314,7 @@ class SPSOneTurnFeedback(
         g_tx: float = 1,
         a_comb: float = 63 / 64,
         df: float = 0,
+        n_pretrack: int = 1000,
         commissioning: SPSCavityFeedbackCommissioning | None = None,
         harmonic_index: int = 0,
     ):
@@ -337,7 +340,7 @@ class SPSOneTurnFeedback(
         self.open_drive = commissioning.open_drive
         self.open_ff = commissioning.open_ff
 
-        self.custom_setpoint = commissioning.V_SET
+        self.custom_setpoint = commissioning.v_set
         self.set_point_modulation = True
         if self.custom_setpoint is None:  # Vset as array or not
             self.set_point_modulation = False
@@ -349,10 +352,11 @@ class SPSOneTurnFeedback(
 
         self.n_sections = int(n_sections)
         self.df = df
+        self.n_pretrack = n_pretrack
 
         self.V_part = float(v_part)
         if self.V_part * (1 - self.V_part) < 0:
-            raise RuntimeError(
+            raise ValueError(
                 "ERROR in SPSOneTurnFeedback: V_part should be in range (0,1)!"
             )
 
@@ -375,7 +379,7 @@ class SPSOneTurnFeedback(
             # TWC resonant frequency
             self.omega_c = self.TWC.omega_r
         else:
-            raise RuntimeError(
+            raise ValueError(
                 "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
             )
 
@@ -503,7 +507,7 @@ class SPSOneTurnFeedback(
 
         n_mov_av_thres = 2
         if self.n_mov_av < n_mov_av_thres:
-            raise RuntimeError(
+            raise ValueError(
                 "ERROR in SPSOneTurnFeedback: profile has to"
                 " have at least 12.5 ns resolution!"
             )
@@ -518,6 +522,10 @@ class SPSOneTurnFeedback(
         # Update global cavity loop variables before tracking
         self.update_rf_variables()
         self.update_fb_variables()
+
+        if self.n_pretrack > 0:
+            self.track_no_beam(n_pretrack=self.n_pretrack)
+
         self.logger.info("Class initialized")
 
         self.phi_mod_0: Any | None = None
@@ -1167,6 +1175,7 @@ class SPSCavityFeedback:
                 g_tx=float(G_tx_1),
                 a_comb=float(a_comb),
                 df=float(df_1),
+                n_pretrack=0,
                 commissioning=commissioning_1,
                 harmonic_index=harmonic_index,
             )
@@ -1180,6 +1189,7 @@ class SPSCavityFeedback:
                 g_tx=float(G_tx_2),
                 a_comb=float(a_comb),
                 df=float(df_2),
+                n_pretrack=0,
                 commissioning=commissioning_2,
                 harmonic_index=harmonic_index,
             )
@@ -1199,6 +1209,7 @@ class SPSCavityFeedback:
                 g_tx=float(G_tx_1),
                 a_comb=float(a_comb),
                 df=float(df_1),
+                n_pretrack=0,
                 commissioning=commissioning_1,
                 harmonic_index=harmonic_index,
             )
@@ -1212,6 +1223,7 @@ class SPSCavityFeedback:
                 g_tx=float(G_tx_2),
                 a_comb=float(a_comb),
                 df=float(df_2),
+                n_pretrack=0,
                 commissioning=commissioning_2,
                 harmonic_index=harmonic_index,
             )
