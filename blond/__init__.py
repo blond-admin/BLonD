@@ -60,6 +60,7 @@ __all__ = [
     "BeamStatisticsOncePerTurn",
     "WakeFieldObservation",
     "typing",
+    "Music",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
@@ -111,6 +112,7 @@ from blond.physics.cavities import (
 from blond.physics.drifts import DriftSimple
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
+from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
     MultiPoleSparseSolve,

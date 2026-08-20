@@ -85,7 +85,7 @@ class Music:
         Revolution period [s]
     last_dt: float
         Last longitudinal coordinate of the beam [s]
-    array_parameters : float array
+    parameter_array : float array
         Array gathering four attributes already defined to be used in the C++
         algorithm.
 
@@ -136,7 +136,7 @@ class Music:
         self.input_second_component = 0
         self.t_rev = t_rev
         self.last_dt = self.beam.dt[-1]
-        self.array_parameters = np.array(
+        self.parameter_array = np.array(
             [
                 self.input_first_component,
                 self.input_second_component,
@@ -165,7 +165,7 @@ class Music:
             self.beam.dt,
             self.beam.dE,
             self.induced_voltage,
-            self.array_parameters,
+            self.parameter_array,
             self.alpha,
             self.omega_bar,
             self.const,
@@ -197,7 +197,7 @@ class Music:
             self.beam.dt,
             self.beam.dE,
             self.induced_voltage,
-            self.array_parameters,
+            self.parameter_array,
             self.alpha,
             self.omega_bar,
             self.const,
