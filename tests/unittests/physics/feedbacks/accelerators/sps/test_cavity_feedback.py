@@ -19,8 +19,8 @@ from blond.physics.feedbacks.accelerators.sps import (
     SPSCavityFeedbackCommissioning,
     SPSOneTurnFeedback,
 )
-from tests.unittests.handle_results.test_observables_as_elements import (
-    simulation,
+from blond.physics.feedbacks.transfer_function_analysis import (
+    estimate_transfer_function,
 )
 
 # Initialize the accelerator
@@ -858,7 +858,38 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
 
 class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
-    def create_scenario(self):
+    @staticmethod
+    def get_simulated_transfer_function(
+        commissioning: SPSCavityFeedbackCommissioning,
+        cut_data: int = 0,
+        n_pretrack: int = 1000,
+    ):
+        f_rf = 400.789e6 / 2
+        harmonic = 4620
+
+        profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
+
+        cavity_feedback = SPSOneTurnFeedback(
+            profile=profile,
+            n_sections=3,
+            commissioning=commissioning,
+            n_pretrack=n_pretrack,
+        )
+        cavity_feedback.disable_fine_grid = True
+
+        cavity_feedback.set_hardware_commissioning(
+            omega_rf=2 * np.pi * f_rf, harmonic=harmonic
+        )
+
+        return estimate_transfer_function(
+            input_signal=cavity_feedback.v_excitation_in,
+            output_signal=cavity_feedback.v_excitation_out,
+            t_s=cavity_feedback.T_s,
+            data_cut=cut_data,
+        )
+
+    @staticmethod
+    def get_analytic_transfer_function(self):
         # TODO: implement
         pass
 
@@ -870,6 +901,6 @@ class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
         # TODO: implement
         pass
 
-    def test_one_turn_delay_feedback_reponse(self):
+    def test_one_turn_delay_feedback_response(self):
         # TODO: implement
         pass
