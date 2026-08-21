@@ -1715,28 +1715,28 @@ class LHCCavityLoop(CavityFeedback):
 
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
-        # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
-        V_A_init = interp1d(
-            np.concatenate(
-                (
-                    self.rf_centers - self.T_s * self.n_coarse,
-                    self.rf_centers,
-                )
-            ),
+        # Interpolators for the coarse-grid loop state (previous and current
+        # turn), used to anchor every fine-grid window solve
+        coarse_time = np.concatenate(
+            (
+                self.rf_centers - self.T_s * self.n_coarse,
+                self.rf_centers,
+            )
+        )
+        V_ant_coarse_interp = interp1d(
+            coarse_time,
             self.V_ANT_COARSE,
             fill_value="extrapolate",
-        )(t_at_init)
-        I_gen_init = interp1d(
-            np.concatenate(
-                (
-                    self.rf_centers - self.T_s * self.n_coarse,
-                    self.rf_centers,
-                )
-            ),
+        )
+        I_gen_coarse_interp = interp1d(
+            coarse_time,
             self.I_GEN_COARSE,
             fill_value="extrapolate",
-        )(t_at_init)
+        )
+        # Find initial value of antenna voltage and generator current
+        t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
+        V_A_init = V_ant_coarse_interp(t_at_init)
+        I_gen_init = I_gen_coarse_interp(t_at_init)
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.bin_size
         if isinstance(self.profile, SparseBatch):
@@ -1767,79 +1767,13 @@ class LHCCavityLoop(CavityFeedback):
                             detuning=self.detuning,
                         )
                 else:
-                    # find the closest previous profile
-                    distances = np.array(
-                        [
-                            profile.bin_centers[0] - profile_.bin_centers[-1]
-                            for profile_ in self.profile.profiles_list
-                        ]
-                    )
-                    minimum = min(distances[distances > 0])
-                    index_profile_to_use = int(
-                        np.where(distances == minimum)[0][0]
-                    )
-                    # flipped arange to ensure all the bin centers of the
-                    # current profile are in the extended profile bin centers
-                    first_half = np.arange(
-                        start=profile.bin_centers[0],
-                        stop=(
-                            self.profile.profiles_list[index_profile_to_use].bin_centers[0]
-                        ),
-                        step=-profile.bin_size,
-                    )
-                    first_half.sort()
-                    extended_profile_length = np.concatenate(
-                        (
-                            first_half,
-                            np.arange(
-                                start=profile.bin_centers[0],
-                                stop=profile.bin_centers[-1],
-                                step=+profile.bin_size,
-                            ),
-                        )
-                    )
-
-                    I_GEN_FINE_previous_profile_extended = np.interp(
-                        extended_profile_length,
-                        self.rf_centers,
-                        self.I_GEN_COARSE[-self.n_coarse :],
-                    )
-                    difference = (len(I_GEN_FINE_previous_profile_extended)
-                                  - profile.n_slices)
-                    I_BEAM_FINE_previous_profile_extended = np.concatenate(
-                        (
-                            self.I_BEAM_FINE[
-                                (p - 1) * profile.n_slices : p
-                                * profile.n_slices
-                            ],
-                            np.zeros(
-                                difference,
-                                dtype=complex,
-                            ),
-                        )
-                    )
-
-                    V_ANT_FINE_previous_profile_extended = (
-                        cavity_response_sparse_matrix(
-                            I_beam=I_BEAM_FINE_previous_profile_extended,
-                            I_gen=I_GEN_FINE_previous_profile_extended,
-                            n_samples=len(extended_profile_length),
-                            V_ant_init=V_A_init,
-                            I_gen_init=I_gen_init,
-                            samples_per_rf=self.samples_fine,
-                            R_over_Q=self.R_over_Q,
-                            Q_L=self.Q_L,
-                            detuning=self.detuning,
-                        )
-                    )
-
+                    # Anchor this window on the coarse-grid loop state at its
+                    # own start instead of propagating a fine-grid bridge
+                    # across the beam-free gap: the coarse recursion is the
+                    # same cavity model and is the authoritative solution
                     t_at_init = profile.bin_centers[0] - profile.bin_size
-
-                    V_A_init = interp1d(
-                        extended_profile_length,
-                        V_ANT_FINE_previous_profile_extended[1:],
-                        fill_value="extrapolate",
-                    )(t_at_init)
+                    V_A_init = V_ant_coarse_interp(t_at_init)
+                    I_gen_init = I_gen_coarse_interp(t_at_init)
                     self.V_ANT_FINE[
                         p * profile.n_slices + 1 : (p + 1) * profile.n_slices
                         + 1
@@ -1849,8 +1783,9 @@ class LHCCavityLoop(CavityFeedback):
                                 * profile.n_slices
                             ],
                             I_gen=self.I_GEN_FINE[
-                                p * profile.n_slices : (p + 1)
+                                p * profile.n_slices + 1 : (p + 1)
                                 * profile.n_slices
+                                + 1
                             ],
                             n_samples=profile.n_slices,
                             V_ant_init=V_A_init,
