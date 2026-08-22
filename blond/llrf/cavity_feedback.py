@@ -1767,10 +1767,6 @@ class LHCCavityLoop(CavityFeedback):
                             detuning=self.detuning,
                         )
                 else:
-                    # Anchor this window on the coarse-grid loop state at its
-                    # own start instead of propagating a fine-grid bridge
-                    # across the beam-free gap: the coarse recursion is the
-                    # same cavity model and is the authoritative solution
                     t_at_init = profile.bin_centers[0] - profile.bin_size
                     V_A_init = V_ant_coarse_interp(t_at_init)
                     I_gen_init = I_gen_coarse_interp(t_at_init)
