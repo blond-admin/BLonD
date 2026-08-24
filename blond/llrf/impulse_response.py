@@ -24,6 +24,8 @@ from scipy.constants import c
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
+from . import cavity_loop_kernels
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
     from numpy.typing import NDArray as NumpyArray
@@ -86,7 +88,17 @@ def cavity_response_sparse_matrix(
     A = 0.5 * R_over_Q * samples_per_rf
     B = 1 - 0.5 * samples_per_rf / Q_L + 1j * detuning * samples_per_rf
 
-    # Initialize the two sparse matrices needed to find antenna voltage
+    # Find vector on the "current" side of the equation
+    b = np.empty(n_samples + 1, dtype=complex)
+    b[1:] = A * (2 * I_gen[:-1] - I_beam[:-1])
+    b[0] = V_ant_init
+
+    # The system matrix is lower bidiagonal (1 on the diagonal, -B on the
+    # subdiagonal), so the solve is a plain forward recursion
+    # V[n] = B*V[n-1] + b[n]
+    if cavity_loop_kernels.NUMBA_AVAILABLE:
+        return cavity_loop_kernels.cavity_response_forward(b, complex(B))
+
     B_matrix = diags(
         [-B, 1],
         [-1, 0],
@@ -94,11 +106,6 @@ def cavity_response_sparse_matrix(
         dtype=complex,
         format="csc",
     )
-    I_matrix = diags([A], [-1], (n_samples + 1, n_samples + 1), dtype=complex)
-
-    # Find vector on the "current" side of the equation
-    b = I_matrix.dot(2 * I_gen - I_beam)
-    b[0] = V_ant_init
 
     # Solve the sparse linear system of equations and return
     return spsolve(B_matrix, b)
