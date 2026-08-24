@@ -1554,7 +1554,7 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
                 self.CL_sparse.generator_power(),
                 rtol=self.rtol,
                 atol=self.atol,
-                err_msg="generator_power differs between standard Profile and "
+                err_msg="V_ANT_COARSE differs between standard Profile and "
                 "single-batch SparseBatch for the same beam.",
             )
 
