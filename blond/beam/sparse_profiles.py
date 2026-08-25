@@ -26,7 +26,7 @@ from ..utils import bmath as bm
 from ..utils.build_wrap_python import sparse_histogram
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, Optional
     from numpy.typing import NDArray as NumpyArray
 
     from .beam import Beam
@@ -320,6 +320,7 @@ class SparseProfileBaseClass:
     def _set_additional_cuts(
         self,
         _updated_filling_pattern: NumpyArray,
+        _ordered_new_indices: Optional[NumpyArray] = None,
     ):
         """
         Internal method to update the cut array properties of the Sparse
@@ -330,6 +331,23 @@ class SparseProfileBaseClass:
         is defined by its distance, in number of RF buckets (
         self._profile_length_in_buckets), from the bucket index considered.
         This is done as a pre-processing.
+
+        The appending ORDER matters: the trackers pair profiles_list[i] with
+        the beam particle block [i * N: (i + 1) * N], so new profiles must be
+        appended in the order the corresponding particles were appended to
+        the beam (injection order), which is not in general the bucket-index
+        order. A single new index is unambiguous; several new indices at once
+        are accepted only together with _ordered_new_indices, which gives the
+        injection order explicitly.
+
+        Parameters
+        ----------
+        _updated_filling_pattern
+            Updated filling pattern (0/1 per bucket).
+        _ordered_new_indices
+            Bucket indices of the new profiles in injection order. Must
+            contain exactly the indices that are new in
+            _updated_filling_pattern. Optional when only one index is new.
 
         Returns
         ---------
@@ -367,6 +385,32 @@ class SparseProfileBaseClass:
         if len(masked_indices) != _additional_indices:
             raise ValueError(
                 "The mask does not reflect the additional indices"
+            )
+
+        if _ordered_new_indices is not None:
+            _ordered_new_indices = np.asarray(
+                _ordered_new_indices, dtype=int
+            ).ravel()
+            if not np.array_equal(
+                np.sort(_ordered_new_indices), masked_indices
+            ):
+                raise ValueError(
+                    f"The ordered new indices {_ordered_new_indices} do not "
+                    f"match the indices that are new in the updated filling "
+                    f"pattern {masked_indices}"
+                )
+            masked_indices = _ordered_new_indices
+        elif _additional_indices > 1:
+            raise ValueError(
+                f"{_additional_indices} new indices were added in a single "
+                f"update call without their injection order. Profiles are "
+                f"paired with beam particle blocks by creation order, and "
+                f"appending several new profiles in bucket-index order "
+                f"silently mispairs (and thereby un-kicks) every batch whose "
+                f"injection order differs from its bucket-index order. "
+                f"Either update one index per call, in injection order, or "
+                f"pass the new bucket indices in injection order via the "
+                f"ordered-indices argument."
             )
 
         updated_cut_left = masked_indices * t_rf
@@ -514,6 +558,7 @@ class SparseBucket(SparseProfileBaseClass):
     def update_bunch_list(
         self,
         updated_bunch_list: list[int],
+        new_bunch_indices: Optional[list[int]] = None,
     ):
         """
         Function to update the SparseBucket object to match the new bunch
@@ -527,9 +572,16 @@ class SparseBucket(SparseProfileBaseClass):
         updated_bunch_list
             Updated bunch list. Must be the same length as the stored bunch
             list.
+        new_bunch_indices
+            Bucket indices of the newly injected bunches in INJECTION order.
+            Required when more than one bunch is new in this call: profiles
+            are paired with beam particle blocks by creation order, so the
+            new profiles must be appended in the order the bunches were
+            appended to the beam.
         """
         additional_filled_buckets = self._set_additional_cuts(
-            _updated_filling_pattern=updated_bunch_list
+            _updated_filling_pattern=updated_bunch_list,
+            _ordered_new_indices=new_bunch_indices,
         )
         self._update_profile_lists(
             _additional_indices=additional_filled_buckets
@@ -634,6 +686,7 @@ class SparseBatch(SparseProfileBaseClass):
     def update_batch_list(
         self,
         updated_batch_list: list[int],
+        new_batch_indices: Optional[list[int]] = None,
     ):
         """
         Function to update the SparseBatch object to match the new batch
@@ -647,9 +700,16 @@ class SparseBatch(SparseProfileBaseClass):
         updated_batch_list
             Updated batch list. Must be the same length as the stored batch
             list.
+        new_batch_indices
+            Bucket indices of the newly injected batches in INJECTION order.
+            Required when more than one batch is new in this call: profiles
+            are paired with beam particle blocks by creation order, so the
+            new profiles must be appended in the order the batches were
+            appended to the beam.
         """
         additional_batches = self._set_additional_cuts(
-            _updated_filling_pattern=updated_batch_list
+            _updated_filling_pattern=updated_batch_list,
+            _ordered_new_indices=new_batch_indices,
         )
         self._update_profile_lists(_additional_indices=additional_batches)
 
