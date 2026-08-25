@@ -2,8 +2,10 @@ import unittest
 
 import numpy as np
 
-from blond.utils import build_wrap_cpp, build_wrap_python
-from blond.utils import build_wrap_cpp
+from blond.utils import (
+    build_wrap_cpp as butils_wrap_cpp,
+    build_wrap_python as butils_wrap_python,
+)
 
 
 class TestFunctions(unittest.TestCase):
