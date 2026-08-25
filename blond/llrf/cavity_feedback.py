@@ -29,6 +29,7 @@ from scipy.interpolate import interp1d
 
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
+from . import cavity_loop_kernels
 
 # Import SPS3Section and feedforward_filter for eval(..) below
 # noqa statement is used to block autoformatter from
@@ -2095,6 +2096,59 @@ class LHCCavityLoop(CavityFeedback):
 
     def track_one_turn(self):
         r"""Single-turn tracking, index by index."""
+
+        if cavity_loop_kernels.NUMBA_AVAILABLE:
+            T_s = self.T_s
+            samples = T_s * self.omega_rf
+            cavity_loop_kernels.coarse_loop_one_turn(
+                self.n_coarse,
+                samples,
+                self.R_over_Q,
+                1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples,
+                bool(self.enable_klystron),
+                self.n_delay,
+                float(self.open_loop),
+                1 - T_s / self.tau_o,
+                self.alpha,
+                self.G_o * (1 - self.alpha),
+                self.n_otfb,
+                np.ascontiguousarray(self.fir_coeff),
+                float(self.open_otfb),
+                float(int(bool(self.excitation_otfb))),
+                1 - T_s / self.tau_a,
+                self.G_a,
+                1 - T_s / self.tau_d,
+                T_s / self.tau_d * self.G_a * self.G_d
+                * np.exp(1j * self.d_phi_ad),
+                float(self.open_rffb),
+                bool(self.clamping),
+                self.v_swap_thres,
+                self.G_gen,
+                float(self.open_drive),
+                self.open_drive_inv * self.I_gen_offset + 0j,
+                np.ascontiguousarray(self.klystron_fir),
+                self.V_ANT_COARSE,
+                self.I_GEN_COARSE,
+                self.I_BEAM_COARSE,
+                self.V_SET,
+                self.V_FB_IN,
+                self.V_AC_IN,
+                self.V_AN_IN,
+                self.V_AN_OUT,
+                self.V_DI_OUT,
+                self.V_OTFB,
+                self.V_OTFB_INT,
+                self.V_FIR_OUT,
+                self.V_FB_OUT,
+                self.V_SWAP_OUT,
+                self.I_TEST,
+                self.I_GEN_GAIN,
+                self.TUNER_INPUT,
+                self.TUNER_INTEGRATED,
+                self.V_EXC,
+            )
+            self.ind = 2 * self.n_coarse - 1
+            return
 
         for i in range(self.n_coarse):
             T_s = self.T_s
