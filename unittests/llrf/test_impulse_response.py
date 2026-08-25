@@ -754,19 +754,112 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
 
 class TestFunctions(unittest.TestCase):
-    @unittest.skip
+    # Parameters of an LHC-like ACS cavity, matching the values used in
+    # the LHCCavityLoop unittests
+    R_OVER_Q = 45
+    Q_L = 20000
+    DETUNING = -1e-5
+    SAMPLES_PER_RF = 2 * np.pi / 10  # phase advance per sample, 10 samples/rf
+    N_SAMPLES = 200
+
+    def _random_signals(self, seed=1234):
+        """Random complex beam/generator currents and initial conditions."""
+        rng = np.random.default_rng(seed)
+        I_beam = rng.normal(size=self.N_SAMPLES + 1) + 1j * rng.normal(
+            size=self.N_SAMPLES + 1
+        )
+        I_gen = rng.normal(size=self.N_SAMPLES + 1) + 1j * rng.normal(
+            size=self.N_SAMPLES + 1
+        )
+        V_ant_init = complex(rng.normal(), rng.normal())
+        I_gen_init = complex(rng.normal(), rng.normal())
+        return I_beam, I_gen, V_ant_init, I_gen_init
+
+    def _reference_recursion(self, I_beam, I_gen, V_ant_init):
+        """Standard per-sample python method, the same recursion as
+        LHCCavityLoop.cavity_response():
+
+            V[n] = I_gen[n-1] * (R/Q) * samples
+                 + V[n-1] * (1 - 0.5 * samples / Q_L + 1j * detuning * samples)
+                 - I_beam[n-1] * 0.5 * (R/Q) * samples
+        """
+        V_ant = np.zeros(self.N_SAMPLES + 1, dtype=complex)
+        V_ant[0] = V_ant_init
+        for n in range(1, self.N_SAMPLES + 1):
+            V_ant[n] = (
+                I_gen[n - 1] * self.R_OVER_Q * self.SAMPLES_PER_RF
+                + V_ant[n - 1]
+                * (
+                    1
+                    - 0.5 * self.SAMPLES_PER_RF / self.Q_L
+                    + 1j * self.DETUNING * self.SAMPLES_PER_RF
+                )
+                - I_beam[n - 1] * 0.5 * self.R_OVER_Q * self.SAMPLES_PER_RF
+            )
+        return V_ant
+
     def test_cavity_response_sparse_matrix(self):
-        # TODO: implement test for `cavity_response_sparse_matrix`
-        cavity_response_sparse_matrix(
-            I_beam=None,
-            I_gen=None,
-            n_samples=None,
-            V_ant_init=None,
-            I_gen_init=None,
-            samples_per_rf=None,
-            R_over_Q=None,
-            Q_L=None,
-            detuning=None,
+        """The sparse-matrix solve must reproduce the standard per-sample
+        python recursion (LHCCavityLoop.cavity_response) to machine
+        precision."""
+        I_beam, I_gen, V_ant_init, I_gen_init = self._random_signals()
+
+        V_matrix = cavity_response_sparse_matrix(
+            I_beam=I_beam,
+            I_gen=I_gen,
+            n_samples=self.N_SAMPLES,
+            V_ant_init=V_ant_init,
+            I_gen_init=I_gen_init,
+            samples_per_rf=self.SAMPLES_PER_RF,
+            R_over_Q=self.R_OVER_Q,
+            Q_L=self.Q_L,
+            detuning=self.DETUNING,
+        )
+        V_ref = self._reference_recursion(I_beam, I_gen, V_ant_init)
+
+        self.assertEqual(len(V_matrix), self.N_SAMPLES + 1)
+        np.testing.assert_allclose(
+            V_matrix,
+            V_ref,
+            rtol=1e-12,
+            atol=1e-14,
+            err_msg="In TestFunctions test_cavity_response_sparse_matrix: "
+            "sparse-matrix solve differs from the per-sample recursion",
+        )
+
+    def test_cavity_response_sparse_matrix_short_inputs(self):
+        """Passing currents of length n_samples must be equivalent to
+        passing length n_samples + 1 arrays with a leading zero beam
+        current and I_gen_init prepended, as documented."""
+        I_beam, I_gen, V_ant_init, I_gen_init = self._random_signals(seed=42)
+        I_beam[0] = 0.0
+        I_gen[0] = I_gen_init
+
+        kwargs = dict(
+            n_samples=self.N_SAMPLES,
+            V_ant_init=V_ant_init,
+            I_gen_init=I_gen_init,
+            samples_per_rf=self.SAMPLES_PER_RF,
+            R_over_Q=self.R_OVER_Q,
+            Q_L=self.Q_L,
+            detuning=self.DETUNING,
+        )
+        V_full = cavity_response_sparse_matrix(
+            I_beam=I_beam, I_gen=I_gen, **kwargs
+        )
+        V_short = cavity_response_sparse_matrix(
+            I_beam=I_beam[1:], I_gen=I_gen[1:], **kwargs
+        )
+
+        self.assertEqual(V_full[0], V_ant_init)
+        np.testing.assert_allclose(
+            V_short,
+            V_full,
+            rtol=1e-12,
+            atol=1e-14,
+            err_msg="In TestFunctions "
+            "test_cavity_response_sparse_matrix_short_inputs: the padded "
+            "short-input path differs from full-length inputs",
         )
 
     @unittest.skip
