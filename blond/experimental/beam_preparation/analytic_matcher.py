@@ -43,6 +43,7 @@ from blond.beam_preparation.bigaussian import get_main_harmonic_attributes
 from blond.beam_preparation.helpers import populate_beam
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.analytic_abel import (
+    AbelSide,
     distribution_from_line_density,
 )
 from blond.experimental.beam_preparation.analytic_action import (
@@ -956,7 +957,8 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         line_density_type: str | None = None,
         bunch_length: float | None = None,
         exponent: float | None = None,
-        half_option: Literal["first", "second", "both"] = "first",
+        half_option: AbelSide
+        | Literal["first", "second", "both"] = AbelSide.FIRST,
         n_points_abel: int = 10_000,
         profile_centering: Literal["peak", "barycenter"] = "peak",
         seed: int | None = 0,
@@ -989,10 +991,9 @@ class LineDensityMatcher(_AnalyticMatcherBase):
                 "(`time_array` + `line_density_values`) or an analytic "
                 "family (`line_density_type` + `bunch_length`)."
             )
-        if half_option not in ("first", "second", "both"):
-            raise ValueError(
-                f"Unknown {half_option=}; use 'first', 'second' or 'both'."
-            )
+
+        half_option = AbelSide._from_input(half_option)
+
         if profile_centering not in ("peak", "barycenter"):
             raise ValueError(
                 f"Unknown {profile_centering=}; use 'peak' or 'barycenter'."
@@ -1024,7 +1025,7 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         self._line_density_type = line_density_type
         self._bunch_length = bunch_length
         self._exponent = exponent
-        self._half_option: Literal["first", "second", "both"] = half_option
+        self._half_option: AbelSide = half_option
         self._n_points_abel = int(n_points_abel)
         self._profile_centering = profile_centering
         self._seed = seed

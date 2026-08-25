@@ -45,14 +45,33 @@ Deviations from BLonD 2 (accuracy fixes, not behavior changes):
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Literal
+    from typing import Literal, Self
 
     from numpy.typing import NDArray as NumpyArray
+
+
+class AbelSide(StrEnum):
+    FIRST = "first"
+    SECOND = "second"
+    BOTH = "both"
+
+    @classmethod
+    def _from_input(cls, half_option: Self | str) -> Self:
+
+        try:
+            half_option = cls(half_option)
+        except ValueError:
+            raise ValueError(f"Attempted to cast {half_option=} to AbelSide"
+                                "unsuccessfully.  Valid options are "
+                                f"{list(cls)}.")
+
+        return half_option
 
 
 def _abel_transform_branch(
@@ -61,7 +80,7 @@ def _abel_transform_branch(
     potential_branch: NumpyArray,
     *,
     eom_factor_dE: float,
-    branch: Literal["first", "second"],
+    branch: AbelSide,
     n_points_abel: int | None,
 ) -> tuple[NumpyArray, NumpyArray]:
     r"""
@@ -92,7 +111,7 @@ def _abel_transform_branch(
 
     with np.errstate(invalid="ignore", divide="ignore"):
         for i in range(n_points):
-            if branch == "first":
+            if branch == AbelSide.FIRST:
                 integrand = line_density_derivative_abel[: i + 1] / np.sqrt(
                     potential_abel[: i + 1] - potential_abel[i]
                 )
@@ -109,7 +128,7 @@ def _abel_transform_branch(
                 distribution_values[i] = prefactor * np.trapezoid(
                     integrand, x=time_abel[: i + 1]
                 )
-            else:
+            elif branch == AbelSide.SECOND:
                 integrand = line_density_derivative_abel[i:] / np.sqrt(
                     potential_abel[i:] - potential_abel[i]
                 )
@@ -122,6 +141,9 @@ def _abel_transform_branch(
                 distribution_values[i] = -prefactor * np.trapezoid(
                     integrand, x=time_abel[i:]
                 )
+            else:
+                raise ValueError("branch should be AbelSide.FIRST or "
+                                 f"AbelSide.SECOND, not {branch=}.")
 
     # Unphysical results are zeroed, as in BLonD 2 (which cleaned NaN
     # and negatives): NaN/inf from non-monotonic or duplicated
@@ -138,7 +160,8 @@ def distribution_from_line_density(
     potential_well: NumpyArray,
     *,
     eom_factor_dE: float,
-    half_option: Literal["first", "second", "both"] = "first",
+    half_option: AbelSide
+    | Literal["first", "second", "both"] = AbelSide.FIRST,
     n_points_abel: int | None = None,
     verbose: bool = False,
     plot: bool = False,
@@ -200,10 +223,8 @@ def distribution_from_line_density(
     assert time_array.shape == potential_well.shape, (
         f"{time_array.shape=} must match {potential_well.shape=}"
     )
-    if half_option not in ("first", "second", "both"):
-        raise ValueError(
-            f"Unknown {half_option=}; use 'first', 'second' or 'both'."
-        )
+
+    half_option = AbelSide._from_input(half_option)
 
     # Central-difference derivative on the full profile, so the bunch
     # centre keeps a two-sided estimate on both branches.
@@ -225,15 +246,15 @@ def distribution_from_line_density(
             "well does not contain a centred bunch to invert."
         )
 
-    branches: list[Literal["first", "second"]]
-    if half_option == "both":
-        branches = ["first", "second"]
-    else:
-        branches = [half_option]
+    branches = (
+        [AbelSide.FIRST, AbelSide.SECOND]
+        if half_option is AbelSide.BOTH
+        else [half_option]
+    )
 
     results = {}
     for branch in branches:
-        if branch == "first":
+        if branch is AbelSide.FIRST:
             branch_slice = slice(None, minimum_index_first + 1)
         else:
             branch_slice = slice(minimum_index_second, None)
@@ -246,9 +267,9 @@ def distribution_from_line_density(
             n_points_abel=n_points_abel,
         )
 
-    if half_option == "both":
-        hamiltonian_first, distribution_first = results["first"]
-        hamiltonian_second, distribution_second = results["second"]
+    if half_option is AbelSide.BOTH:
+        hamiltonian_first, distribution_first = results[AbelSide.FIRST]
+        hamiltonian_second, distribution_second = results[AbelSide.SECOND]
         # The second branch runs from the minimum outwards, so its
         # Hamiltonian coordinates are already ascending for np.interp.
         distribution_values = (
