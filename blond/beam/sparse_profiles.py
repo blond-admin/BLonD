@@ -320,7 +320,7 @@ class SparseProfileBaseClass:
     def _set_additional_cuts(
         self,
         _updated_filling_pattern: NumpyArray,
-        _ordered_new_indices: Optional[NumpyArray] = None,
+        injection_ordered_indices: Optional[NumpyArray] = None,
     ):
         """
         Internal method to update the cut array properties of the Sparse
@@ -337,14 +337,14 @@ class SparseProfileBaseClass:
         appended in the order the corresponding particles were appended to
         the beam (injection order), which is not in general the bucket-index
         order. A single new index is unambiguous; several new indices at once
-        are accepted only together with _ordered_new_indices, which gives the
+        are accepted only together with injection_ordered_indices, which gives the
         injection order explicitly.
 
         Parameters
         ----------
         _updated_filling_pattern
             Updated filling pattern (0/1 per bucket).
-        _ordered_new_indices
+        injection_ordered_indices
             Bucket indices of the new profiles in injection order. Must
             contain exactly the indices that are new in
             _updated_filling_pattern. Optional when only one index is new.
@@ -387,19 +387,19 @@ class SparseProfileBaseClass:
                 "The mask does not reflect the additional indices"
             )
 
-        if _ordered_new_indices is not None:
-            _ordered_new_indices = np.asarray(
-                _ordered_new_indices, dtype=int
+        if injection_ordered_indices is not None:
+            injection_ordered_indices = np.asarray(
+                injection_ordered_indices, dtype=int
             ).ravel()
             if not np.array_equal(
-                np.sort(_ordered_new_indices), masked_indices
+                np.sort(injection_ordered_indices), masked_indices
             ):
                 raise ValueError(
-                    f"The ordered new indices {_ordered_new_indices} do not "
+                    f"The ordered new indices {injection_ordered_indices} do not "
                     f"match the indices that are new in the updated filling "
                     f"pattern {masked_indices}"
                 )
-            masked_indices = _ordered_new_indices
+            masked_indices = injection_ordered_indices
         elif _additional_indices > 1:
             raise ValueError(
                 f"{_additional_indices} new indices were added in a single "
@@ -581,7 +581,7 @@ class SparseBucket(SparseProfileBaseClass):
         """
         additional_filled_buckets = self._set_additional_cuts(
             _updated_filling_pattern=updated_bunch_list,
-            _ordered_new_indices=new_bunch_indices,
+            injection_ordered_indices=new_bunch_indices,
         )
         self._update_profile_lists(
             _additional_indices=additional_filled_buckets
@@ -709,7 +709,7 @@ class SparseBatch(SparseProfileBaseClass):
         """
         additional_batches = self._set_additional_cuts(
             _updated_filling_pattern=updated_batch_list,
-            _ordered_new_indices=new_batch_indices,
+            injection_ordered_indices=new_batch_indices,
         )
         self._update_profile_lists(_additional_indices=additional_batches)
 
