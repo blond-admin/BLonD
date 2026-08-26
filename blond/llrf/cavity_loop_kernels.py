@@ -18,6 +18,7 @@ numba only removes the interpreter overhead. Set the environment variable
 pure-Python/scipy code paths (e.g. for A/B validation).
 
 :Authors: **Lina Valle**
+Co-Authored-By: Claude Sonnet 5 noreply@anthropic.com
 """
 
 import os
@@ -108,8 +109,7 @@ def coarse_loop_one_turn(
             V_FB_IN[ind] = V_SET[ind] - open_loop * V_ANT_COARSE[ind]
         else:
             V_FB_IN[ind] = (
-                V_SET[ind - n_delay]
-                - open_loop * V_ANT_COARSE[ind - n_delay]
+                V_SET[ind - n_delay] - open_loop * V_ANT_COARSE[ind - n_delay]
             )
         V_AC_IN[ind] = (
             ac_coeff * V_AC_IN[ind - 1] + V_FB_IN[ind] - V_FB_IN[ind - 1]
