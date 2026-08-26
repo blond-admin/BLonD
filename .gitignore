@@ -21,6 +21,8 @@ blond/_version.py
 *egg-info
 venvs
 .vscode
+/legacy/
+/blond/examples/
 
 # End of placeholder for user defined entries
 
