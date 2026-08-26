@@ -24,11 +24,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.signal import fftconvolve
 
-from blond import Simulation
-from blond.core.backends.backend import backend
+from blond import Simulation, backend
 from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.sps.helpers import (
@@ -53,6 +51,7 @@ from blond.physics.feedbacks.cavity_feedback import (
 )
 from blond.physics.feedbacks.helpers import (
     cartesian_to_polar,
+    generate_white_noise,
 )
 from blond.physics.profiles import StaticProfile
 
@@ -216,8 +215,6 @@ class SPSCavityFeedbackCommissioning:
 
     Parameters
     ----------
-    debug
-        Debugging output active (True/False); default is False.
     open_loop
         Open (True) or closed (False) cavity loop; default is False.
     open_fb
@@ -236,11 +233,14 @@ class SPSCavityFeedbackCommissioning:
         Option to rotate the set point and beam induced voltages in the complex plane.
     excitation
         Excite the model with white noise to perform BBNA measurements.
+    seed1
+        Seed for the generation of the white noise.
+    seed2
+        Second seed for the generation of the white noise.
     """
 
     def __init__(
         self,
-        debug: bool = False,
         open_loop: bool = False,
         open_fb: bool = False,
         open_drive: bool = False,
@@ -250,8 +250,9 @@ class SPSCavityFeedbackCommissioning:
         pwr_clamp: bool = False,
         rot_iq: complex = 1,
         excitation: bool = False,
+        seed1: int = 1234,
+        seed2: int = 5678,
     ):
-        self.debug = bool(debug)
         self.open_loop = 0 if open_loop else 1
         self.open_fb = 0 if open_fb else 1
         self.open_drive = 0 if open_drive else 1
@@ -261,6 +262,8 @@ class SPSCavityFeedbackCommissioning:
         self.pwr_clamp = pwr_clamp
         self.rot_iq: complex = rot_iq
         self.excitation: int = int(excitation)
+        self.seed1 = seed1
+        self.seed2 = seed2
 
 
 class SPSOneTurnFeedback(
@@ -348,7 +351,8 @@ class SPSOneTurnFeedback(
         self.cpp_conv = commissioning.cpp_conv
         self.rot_iq: complex = commissioning.rot_iq
         self.excitation = commissioning.excitation
-        self.debug = commissioning.debug
+        self.excitation_seed1 = commissioning.seed1
+        self.excitation_seed2 = commissioning.seed2
 
         self.n_sections = int(n_sections)
         self.df = df
@@ -392,6 +396,9 @@ class SPSOneTurnFeedback(
             self.conv = self.matr_conv
 
         self.buffers_ffwd: SPSFeedForwardCoarseBuffers | None = None
+        self.phi_mod_0: Any | None = None
+        self.v_excitation_in: NumpyArray | None = None
+        self.v_excitation_out: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -404,24 +411,24 @@ class SPSOneTurnFeedback(
         **kwargs
             Configure parameters collected by the MRO chain.
         """
-        if self.open_loop == 0:  # Open Loop
+        if self.open_loop == 0:  # pragma: no cover
             self.logger.debug("Opening overall OTFB loop")
-        elif self.open_loop == 1:
+        else:
             self.logger.debug("Closing overall OTFB loop")
 
-        if self.open_fb == 0:  # Open Feedback
+        if self.open_fb == 0:  # pragma: no cover
             self.logger.debug("Opening feedback of drive correction")
-        elif self.open_fb == 1:
+        else:
             self.logger.debug("Closing feedback of drive correction")
 
-        if self.open_drive == 0:  # Open Drive
+        if self.open_drive == 0:  # pragma: no cover
             self.logger.debug("Opening drive to generator")
-        elif self.open_drive == 1:
+        else:
             self.logger.debug("Closing drive to generator")
 
-        if self.open_ff == 0:  # Open Feedforward
+        if self.open_ff == 0:  # pragma: no cover
             self.logger.debug("Opening feed-forward on beam current")
-        elif self.open_ff == 1:
+        else:
             self.logger.debug("Closing feed-forward on beam current")
 
     @requires(["RFStationBaseClass"])
@@ -450,6 +457,49 @@ class SPSOneTurnFeedback(
             simulation=simulation, beam=beam, n_turns=n_turns, **kwargs
         )
 
+        self.setup_feedback()
+
+        # Update global cavity loop variables before tracking
+        self.update_rf_variables()
+        self.update_fb_variables()
+
+        if self.n_pretrack > 0:
+            self.track_no_beam(n_pretrack=self.n_pretrack)
+
+        self.logger.info("Class initialized")
+
+    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+        """
+        Method to prepare the cavity feedback model for transfer function measurements.
+
+        This is meant to set the necessary feedback parameters to run the model
+        standalone, e.g. to perform transfer function measurements.
+
+        Parameters
+        ----------
+        omega_rf
+            Angular frequency of the RF system.
+        harmonic
+            Harmonic number of the RF system.
+        """
+        super().set_hardware_commissioning(
+            omega_rf=omega_rf, harmonic=harmonic
+        )
+
+        self.setup_feedback()
+
+        # Update global cavity loop variables before tracking
+        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
+        self.update_fb_variables()
+        self.logger.info("Class initialized")
+
+        if self.n_pretrack > 0:
+            self.track_no_beam(n_pretrack=self.n_pretrack)
+            if self.excitation:
+                self.track_no_beam_excitation(n_turns=self.n_pretrack)
+
+    def setup_feedback(self):
+        """Method to setup the cavity feedback model."""
         # 200 MHz travelling wave cavity (TWC) model
         if self.open_ff == 1:
             # Feed-forward filter
@@ -500,9 +550,7 @@ class SPSOneTurnFeedback(
         )
 
         # Initialize moving average
-        self.n_mov_av = round(
-            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf()
-        )
+        self.n_mov_av = round(self.TWC.tau / self.T_s)
         self.logger.debug(f"Moving average over {self.n_mov_av} points")
 
         n_mov_av_thres = 2
@@ -518,113 +566,6 @@ class SPSOneTurnFeedback(
             self.buffers_ffwd = SPSFeedForwardCoarseBuffers(
                 samples_per_turn=self.n_coarse_ff
             )
-
-        # Update global cavity loop variables before tracking
-        self.update_rf_variables()
-        self.update_fb_variables()
-
-        if self.n_pretrack > 0:
-            self.track_no_beam(n_pretrack=self.n_pretrack)
-
-        self.logger.info("Class initialized")
-
-        self.phi_mod_0: Any | None = None
-
-    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
-        """
-        Method to prepare the cavity feedback model for transfer function measurements.
-
-        This is meant to set the necessary feedback parameters to run the model
-        standalone, e.g. to perform transfer function measurements.
-
-        Parameters
-        ----------
-        omega_rf
-            Angular frequency of the RF system.
-        harmonic
-            Harmonic number of the RF system.
-        """
-        super().set_hardware_commissioning(
-            omega_rf=omega_rf, harmonic=harmonic
-        )
-        # 200 MHz travelling wave cavity (TWC) model
-        if self.open_ff == 1:
-            # Feed-forward filter
-            self.coeff_ff = getattr(
-                sys.modules[__name__],
-                "feedforward_filter_TWC" + str(self.n_sections),
-            )
-            self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
-            self.n_ff_delay = round(
-                0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
-            )
-
-            self.logger.debug(
-                f"Feed-forward delay in samples {self.n_ff_delay}"
-            )
-
-            # Multiply gain by normalisation factors from filter and
-            # beam-to generator current
-            self.G_ff *= self.TWC.R_beam / (
-                self.TWC.R_gen * np.sum(self.coeff_ff)
-            )
-
-        self.logger.debug(
-            f"SPS OTFB cavities: {self.n_cavities}, sections: {self.n_sections}, "
-            f"voltage partition {self.V_part:.2f}, gain: {self.G_tx:.2e}",
-        )
-
-        # Length of arrays in LLRF
-        self.n_coarse_ff = int(self.n_coarse / 5)
-        # Initialize turn-by-turn variables
-
-        # Check array length for set point modulation
-        if self.set_point_modulation:
-            if self.custom_setpoint.shape[0] != 2 * self.n_coarse:
-                raise RuntimeError(
-                    f"V_SET length should be {(2 * self.n_coarse)}"
-                )
-            self.set_point = self.set_point_mod
-            self.buffers_coarse.v_setpoint.prev = self.custom_setpoint[
-                : self.n_coarse
-            ]
-            self.buffers_coarse.v_setpoint.curr = self.custom_setpoint[
-                -self.n_coarse :
-            ]
-        else:
-            self.set_point = self.set_point_std
-
-        # Array to hold the bucket-by-bucket voltage with length LLRF
-        self.logger.debug(
-            f"Length of arrays on coarse grid 2x {self.n_coarse}"
-        )
-
-        # Initialize moving average
-        self.n_mov_av = round(
-            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf()
-        )
-        self.logger.debug(f"Moving average over {self.n_mov_av} points")
-
-        n_mov_av_thres = 2
-        if self.n_mov_av < n_mov_av_thres:
-            raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: profile has to"
-                " have at least 12.5 ns resolution!"
-            )
-
-        # Initialise feed-forward; sampled every fifth bucket
-        if self.open_ff == 1:
-            self.logger.debug("Feed-forward active")
-            self.buffers_ffwd = SPSFeedForwardCoarseBuffers(
-                samples_per_turn=self.n_coarse_ff
-            )
-
-        # Update global cavity loop variables before tracking
-        self.update_rf_variables()
-        self.update_fb_variables()
-        self.logger.info("Class initialized")
-
-        self.phi_mod_0: Any | None = None
 
     def circuit_track(self, no_beam: bool = False):
         """
@@ -674,6 +615,43 @@ class SPSOneTurnFeedback(
             self.buffers_coarse.v_generator_induced.curr,
         )
         self.buffers_fine.v_ant = self.n_cavities * self.buffers_fine.v_ant
+
+    def track_no_beam_excitation(self, n_turns: int):
+        """
+        Pre-tracking for n_turns turns, without beam.
+
+        With excitation; setpoint from white noise. v_excitation_in
+        and v_excitation_out can be used to measure the transfer function
+        of the system at set point.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns to track.
+
+        Notes
+        -----
+        v_excitation_in : complex array
+            Noise being played in set point; n_coarse * n_turns elements
+        v_excitation_out : complex array
+            System reaction to noise (accumulated from V_ANT); n_coarse * n_turns
+            elements
+        """
+        self.v_excitation_in = 1000 * generate_white_noise(
+            self.n_coarse * n_turns
+        )
+        self.v_excitation_out = np.zeros(
+            self.n_coarse * n_turns, dtype=complex
+        )
+
+        for i in range(n_turns):
+            self.buffers_coarse.noise.curr = self.v_excitation_in[
+                self.n_coarse * i : self.n_coarse * (i + 1)
+            ]
+            self.track_no_beam()
+            self.v_excitation_out[
+                self.n_coarse * i : self.n_coarse * (i + 1)
+            ] = self.buffers_coarse.v_generator_induced.curr
 
     def llrf_model(self):
         """
@@ -1001,15 +979,15 @@ class SPSOneTurnFeedback(
             : current.shape[0]
         ]
 
-    def call_conv(self, signal, kernel):
+    def call_conv(self, current: NumpyArray, transfer_function: NumpyArray):
         """
         Convolution of beam current with impulse response using an optimised C++ convolution.
 
         Parameters
         ----------
-        signal
+        current
             The current signal array [A].
-        kernel
+        transfer_function
             The impulse response.
 
         Returns
@@ -1018,11 +996,11 @@ class SPSOneTurnFeedback(
             Calculated voltage [V].
         """
         # Make sure that the buffers are stored contiguously
-        signal = np.ascontiguousarray(signal)
-        kernel = np.ascontiguousarray(kernel)
+        signal = np.ascontiguousarray(current)
+        kernel = np.ascontiguousarray(transfer_function)
 
         result = np.zeros(len(kernel) + len(signal) - 1, dtype=complex)
-        np.convolve(signal, kernel, result=result, mode="full")
+        backend.specials.convolve(signal, kernel, result=result, mode="full")
 
         return result
 
@@ -1059,14 +1037,6 @@ class SPSOneTurnFeedback(
             Calculated RF power [W].
         """
         return get_power_from_current(self.buffers_coarse.i_gen.full, 50)
-
-    def wo_clamping(self):
-        """Bypass the generator power clamping."""
-        pass
-
-    def w_clamping(self):
-        """Apply the generator power clamping."""
-        pass
 
 
 class SPSCavityFeedback:
@@ -1278,7 +1248,7 @@ class SPSCavityFeedback:
             raise RuntimeError(
                 "ERROR in SPSCavityFeedback: 'n_pretrack' has to be a positive integer!"
             )
-        self.track_init(debug=self.OTFB_1.debug)
+        self.track_init()
 
     def set_parent_rf_station(
         self, rf_station: SingleHarmonicRFStation | MultiHarmonicRFStation
@@ -1338,45 +1308,14 @@ class SPSCavityFeedback:
 
         self.gap_voltage_phase = np.angle(cav_sum / cav_sum_ref)
 
-    def track_init(self, debug: bool = False):
-        """
-        Tracking of the SPSCavityFeedback without beam.
-
-        Parameters
-        ----------
-        debug
-            Flag to enable plots for debugging the code.
-        """
-        if debug:
-            cmap = plt.get_cmap("jet")
-            colors = cmap(np.linspace(0, 1, self.n_pretrack))
-            plt.figure("Pre-tracking without beam")
-            ax = plt.axes([0.18, 0.1, 0.8, 0.8])
-            ax.grid()
-            ax.set_ylabel("Voltage [V]")
-
+    def track_init(self):
+        """Tracking of the SPSCavityFeedback without beam."""
         profile_hist_x = copy_to_cpu(self.OTFB_1.profile.hist_x)
 
         for i in range(self.n_pretrack):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_1.track_no_beam()
-            if debug:
-                ax.plot(
-                    profile_hist_x * 1e6,
-                    np.abs(self.OTFB_1.buffers_fine.v_ant),
-                    color=colors[i],
-                )
-                ax.plot(
-                    self.OTFB_1.rf_centers * 1e6,
-                    self.OTFB_1.n_cavities
-                    * np.abs(self.OTFB_1.buffers_coarse.v_ant.curr),
-                    color=colors[i],
-                    linestyle="",
-                    marker=".",
-                )
             self.OTFB_2.track_no_beam()
-        if debug:
-            plt.show()
 
         # Interpolate from the coarse mesh to the fine mesh of the beam
         self.V_sum = np.interp(

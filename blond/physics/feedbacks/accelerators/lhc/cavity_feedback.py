@@ -21,15 +21,19 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
-from typing import Optional as LateInit
 
 import numpy as np
-from numpy import random as rnd
 from scipy.signal import firwin
 
 from blond import Simulation, StaticProfile
 from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.physics.feedbacks.accelerators.lhc.helpers import (
+    cavity_response_sparse_matrix,
+    fir_filter_lhc_otfb_coeff,
+    ideal_switch_and_limit,
+    klystron_saturation_curve,
+)
 from blond.physics.feedbacks.buffers import (
     OneTurnBufferBase,
     TwoTurnArray,
@@ -38,13 +42,7 @@ from blond.physics.feedbacks.buffers import (
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
-
-from .helpers import (
-    cavity_response_sparse_matrix,
-    fir_filter_lhc_otfb_coeff,
-    ideal_switch_and_limit,
-    klystron_saturation_curve,
-)
+from blond.physics.feedbacks.helpers import generate_white_noise
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -68,7 +66,8 @@ class LHCCavityFeedbackCoarseBuffers(TwoTurnBufferBase):
     i_gen
         Buffer containing the forward current [A] of the generator.
     v_excitation
-        Buffer containing white noise for transfer function measurements.
+        Buffer containing white noise for transfer function measurements
+        at the input of analog feedback branch.
     v_feedback_in
         Input signal [V] for the RF feedback.
     v_analog_in
@@ -261,28 +260,6 @@ class LHCCavityFeedbackCommissioning:
         self.saturation = saturation
         self.clamping = clamping
 
-    def generate_white_noise(self, n_points: int):
-        """
-        Generate white noise.
-
-        Parameters
-        ----------
-        n_points
-            Number of points to generate the white noise for.
-
-        Returns
-        -------
-        white_noise
-            Array containing the generated white noise.
-        """
-        r1 = rnd.default_rng(self.seed1)
-        r1 = r1.uniform(low=0.0, high=1.0, size=n_points)
-
-        r2 = rnd.default_rng(self.seed2)
-        r2 = r2.uniform(low=0.0, high=1.0, size=n_points)
-
-        return np.exp(2 * np.pi * 1j * r1) * np.sqrt(-2 * np.log(r2))
-
 
 class LHCCavityFeedback(
     IQCavityFeedback[LHCCavityFeedbackCoarseBuffers, OneTurnBufferBase]
@@ -379,15 +356,6 @@ class LHCCavityFeedback(
         self.logger.debug(f"Cavity loaded Q is {self.q_l:.0f}")
 
         # Import RF FB properties
-        self.open_drive = self.rffb.open_drive
-        self.open_drive_inv = self.rffb.open_drive_inv
-        self.open_loop = self.rffb.open_loop
-        self.open_otfb = self.rffb.open_otfb
-        self.open_rffb = self.rffb.open_rffb
-        self.open_tuner = self.rffb.open_tuner
-        self.enable_klystron = self.rffb.enable_klystron
-        self.saturation = self.rffb.saturation
-        self.clamping = self.rffb.clamping
         self.alpha = self.rffb.alpha
         self.d_phi_ad = self.rffb.d_phi_ad
         self.G_a = self.rffb.g_a
@@ -408,9 +376,13 @@ class LHCCavityFeedback(
         self.excitation_otfb_2 = self.rffb.excitation_otfb_2
 
         self.disable_fine_grid = False
+        self.excitation_otfb = False
+        self.fir_n_taps: int | None = None
+        self.fir_coeff: NumpyArray | None = None
+        self.klystron_fir: NumpyArray | None = None
 
-        self.v_excitation_in: LateInit = None
-        self.v_excitation_out: LateInit = None
+        self.v_excitation_in: NumpyArray | None = None
+        self.v_excitation_out: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -448,53 +420,19 @@ class LHCCavityFeedback(
             Additional keyword arguments.
         """
         super().on_run_simulation(simulation, beam, n_turns, **kwargs)
-        self.logger.debug(
-            f"Length of arrays in generator path {self.n_coarse}"
-        )
 
-        # Initialise FIR filter for OTFB
-        self.fir_n_taps = 63
-        self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
-        self.logger.debug(
-            f"Sum of FIR coefficients {np.sum(self.fir_coeff):.4e}"
-        )
-
+        self.setup_feedback()
         self.update_rf_variables()
         self.update_fb_variables()
         self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
 
-        self.buffers_fine.i_gen = np.zeros(
-            self.profile.n_bins + 1, dtype=complex
-        )
-
-        # Bandwidth of klystron
-        num_taps = round(2 * self.tau_loop / self.T_s + 1)
-        self.klystron_fir = firwin(
-            num_taps,
-            self.rffb.klystron_bandwidth,
-            fs=1 / self.T_s,
-            pass_zero="lowpass",
-        )
-
         # Pre-track without beam
         self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
-        if self.excitation:
-            self.excitation_otfb = False
-            self.logger.debug("Injecting noise in voltage set point")
-            self.track_no_beam_excitation(self.n_pretrack)
-        elif self.excitation_otfb_1 or self.excitation_otfb_2:
-            self.excitation_otfb = True
-            self.logger.debug("Injecting noise at OTFB output")
-            self.track_no_beam_excitation_otfb(self.n_pretrack)
-        else:
-            self.excitation_otfb = False
-            self.logger.debug("Pre-tracking without beam")
-            self.track_no_beam(self.n_pretrack)
+
+        self.logger.debug("Pre-tracking without beam")
+        self.track_no_beam(self.n_pretrack)
 
         self.logger.info("LHCCavityLoop class initialized")
-
-        self.v_excitation_in: LateInit = None
-        self.v_excitation_out: LateInit = None
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
         """
@@ -513,6 +451,29 @@ class LHCCavityFeedback(
         super().set_hardware_commissioning(
             omega_rf=omega_rf, harmonic=harmonic
         )
+
+        self.setup_feedback()
+        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
+        self.update_fb_variables()
+        self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
+
+        # Pre-track without beam
+        self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
+        if self.excitation:
+            self.logger.debug("Injecting noise in voltage set point")
+            self.track_no_beam_excitation(self.n_pretrack)
+        elif self.excitation_otfb_1 or self.excitation_otfb_2:
+            self.excitation_otfb = True
+            self.logger.debug("Injecting noise at OTFB output")
+            self.track_no_beam_excitation_otfb(self.n_pretrack)
+        else:
+            self.logger.debug("Pre-tracking without beam")
+            self.track_no_beam(self.n_pretrack)
+
+        self.logger.info("LHCCavityLoop class initialized")
+
+    def setup_feedback(self):
+        """Method to setup the cavity feedback model."""
         self.logger.debug(
             f"Length of arrays in generator path {self.n_coarse}"
         )
@@ -523,10 +484,6 @@ class LHCCavityFeedback(
         self.logger.debug(
             f"Sum of FIR coefficients {np.sum(self.fir_coeff):.4e}"
         )
-
-        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
-        self.update_fb_variables()
-        self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
 
         self.buffers_fine.i_gen = np.zeros(
             self.profile.n_bins + 1, dtype=complex
@@ -540,26 +497,6 @@ class LHCCavityFeedback(
             fs=1 / self.T_s,
             pass_zero="lowpass",
         )
-
-        self.v_excitation_in: LateInit = None
-        self.v_excitation_out: LateInit = None
-
-        # Pre-track without beam
-        self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
-        if self.excitation:
-            self.excitation_otfb = False
-            self.logger.debug("Injecting noise in voltage set point")
-            self.track_no_beam_excitation(self.n_pretrack)
-        elif self.excitation_otfb_1 or self.excitation_otfb_2:
-            self.excitation_otfb = True
-            self.logger.debug("Injecting noise at OTFB output")
-            self.track_no_beam_excitation_otfb(self.n_pretrack)
-        else:
-            self.excitation_otfb = False
-            self.logger.debug("Pre-tracking without beam")
-            self.track_no_beam(self.n_pretrack)
-
-        self.logger.info("LHCCavityLoop class initialized")
 
     def circuit_track(self, no_beam: bool = False):
         """
@@ -661,11 +598,11 @@ class LHCCavityFeedback(
             self.G_gen * self.buffers_coarse.i_swap_out[self.ind]
         )
         self.buffers_coarse.i_gen_predrive[self.ind] = (
-            self.open_drive * self.buffers_coarse.i_gen_test[self.ind]
-            + self.open_drive_inv * self.I_gen_offset
+            self.rffb.open_drive * self.buffers_coarse.i_gen_test[self.ind]
+            + self.rffb.open_drive_inv * self.I_gen_offset
         )
 
-        if self.saturation:
+        if self.rffb.saturation:
             self.buffers_coarse.i_gen_predrive[self.ind] = (
                 klystron_saturation_curve(
                     predrive=np.abs(
@@ -681,7 +618,7 @@ class LHCCavityFeedback(
             )
 
         # FIR filter
-        if self.enable_klystron:
+        if self.rffb.enable_klystron:
             window = self.buffers_coarse.i_gen_predrive.get_window(
                 self.ind, len(self.klystron_fir)
             )[::-1]
@@ -755,15 +692,15 @@ class LHCCavityFeedback(
             Sampling time on the coarse-grid.
         """
         # Calculate voltage difference to act on
-        if self.enable_klystron:
+        if self.rffb.enable_klystron:
             self.buffers_coarse.v_feedback_in[self.ind] = (
                 self.buffers_coarse.v_setpoint[self.ind]
-                - self.open_loop * self.buffers_coarse.v_ant[self.ind]
+                - self.rffb.open_loop * self.buffers_coarse.v_ant[self.ind]
             )
         else:
             self.buffers_coarse.v_feedback_in[self.ind] = (
                 self.buffers_coarse.v_setpoint[self.ind]
-                - self.open_loop * self.buffers_coarse.v_ant[self.ind]
+                - self.rffb.open_loop * self.buffers_coarse.v_ant[self.ind]
             )
 
         # On the analog branch, OTFB can contribute
@@ -777,7 +714,7 @@ class LHCCavityFeedback(
 
         self.buffers_coarse.v_analog_in[self.ind] = (
             self.buffers_coarse.v_feedback_in[self.ind]
-            + self.open_otfb * self.buffers_coarse.v_otfb_out[self.ind]
+            + self.rffb.open_otfb * self.buffers_coarse.v_otfb_out[self.ind]
             + int(bool(self.excitation_otfb))
             * self.buffers_coarse.v_excitation[self.ind]
         )
@@ -806,7 +743,7 @@ class LHCCavityFeedback(
         )
 
         # Total output: sum of analog and digital feedback
-        self.buffers_coarse.i_feedback_out[self.ind] = self.open_rffb * (
+        self.buffers_coarse.i_feedback_out[self.ind] = self.rffb.open_rffb * (
             self.buffers_coarse.i_analog_out[self.ind]
             + self.buffers_coarse.i_digital_out[self.ind]
         )
@@ -830,7 +767,7 @@ class LHCCavityFeedback(
     def swap(self):
         """Model of the Switch and Protect module: clamping of the output power above a given input power."""
         # TODO: check implementation
-        if self.clamping:
+        if self.rffb.clamping:
             self.buffers_coarse.i_swap_out[self.ind] = ideal_switch_and_limit(
                 signal=np.abs(self.buffers_coarse.i_feedback_out[self.ind]),
                 limit=self.i_swap_threshold,
@@ -856,7 +793,7 @@ class LHCCavityFeedback(
         )
 
         # Propagate the corrections to the detuning two the global parameters
-        self.detuning = self.detuning + dtune * self.open_tuner
+        self.detuning = self.detuning + dtune * self.rffb.open_tuner
         self.d_omega = self.detuning * self.omega_c
         self.omega_c = self.omega_rf + self.d_omega
 
@@ -940,8 +877,8 @@ class LHCCavityFeedback(
             System reaction to noise (accumulated from V_ANT); n_coarse * n_turns
             elements
         """
-        self.v_excitation_in = 1000 * self.rffb.generate_white_noise(
-            self.n_coarse * n_turns
+        self.v_excitation_in = 1000 * generate_white_noise(
+            self.n_coarse * n_turns, self.rffb.seed1, self.rffb.seed2
         )
         self.v_excitation_out = np.zeros(
             self.n_coarse * n_turns, dtype=complex
@@ -987,8 +924,8 @@ class LHCCavityFeedback(
             System reaction to noise (accumulated from V_ANT); n_coarse * n_turns
             elements
         """
-        self.v_excitation_in = 10000 * self.rffb.generate_white_noise(
-            self.n_coarse * n_turns
+        self.v_excitation_in = 10000 * generate_white_noise(
+            self.n_coarse * n_turns, self.rffb.seed1, self.rffb.seed2
         )
         self.v_excitation_out = np.zeros(
             self.n_coarse * n_turns, dtype=complex
@@ -1036,7 +973,7 @@ class LHCCavityFeedback(
                 self.generator_current()
                 if self.excitation_otfb_1:
                     self.v_excitation_out[n * self.n_coarse + i] = (
-                        self.buffers_coarse.v_feedback_in[self.n_coarse + i]
+                        self.buffers_coarse.v_feedback_in[self.ind]
                     )
                 elif self.excitation_otfb_2:
                     self.v_excitation_out[n * self.n_coarse + i] = (
@@ -1044,7 +981,12 @@ class LHCCavityFeedback(
                     )
 
     @staticmethod
-    def half_detuning(imag_peak_beam_current, r_over_q, rf_frequency, voltage):
+    def half_detuning(
+        imag_peak_beam_current: float | NumpyArray,
+        r_over_q: float | NumpyArray,
+        rf_frequency: float | NumpyArray,
+        voltage: float | NumpyArray,
+    ):
         """
         Optimum detuning for half-detuning scheme.
 
@@ -1069,7 +1011,9 @@ class LHCCavityFeedback(
         )
 
     @staticmethod
-    def half_detuning_power(peak_beam_current, voltage):
+    def half_detuning_power(
+        peak_beam_current: float | NumpyArray, voltage: float | NumpyArray
+    ):
         """
         RF power consumption half-detuning scheme with optimum detuning.
 
@@ -1088,7 +1032,9 @@ class LHCCavityFeedback(
         return 0.125 * peak_beam_current * voltage
 
     @staticmethod
-    def optimum_Q_L(detuning, rf_frequency):
+    def optimum_Q_L(
+        detuning: float | NumpyArray, rf_frequency: float | NumpyArray
+    ):
         """
         Optimum loaded Q when no real part of RF beam current is present.
 
@@ -1107,7 +1053,11 @@ class LHCCavityFeedback(
         return np.fabs(0.5 * rf_frequency / detuning)
 
     @staticmethod
-    def optimum_Q_L_beam(r_over_q, real_peak_beam_current, voltage):
+    def optimum_Q_L_beam(
+        r_over_q: float | NumpyArray,
+        real_peak_beam_current: float | NumpyArray,
+        voltage: float | NumpyArray,
+    ):
         """
         Optimum loaded Q when a real part of RF beam current is present.
 

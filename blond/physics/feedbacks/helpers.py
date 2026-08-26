@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
+from numpy import random as rnd
 from scipy.constants import e
 
 from blond.core.beam.base import BeamBaseClass
@@ -37,6 +38,33 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import StaticProfile
 
 logger = logging.getLogger(__name__)
+
+
+def generate_white_noise(n_points: int, seed1=1234, seed2=5678):
+    """
+    Generate white noise.
+
+    Parameters
+    ----------
+    n_points
+        Number of points to generate the white noise for.
+    seed1
+        Seed for the generation of the white noise.
+    seed2
+        Second seed for the generation of the white noise.
+
+    Returns
+    -------
+    white_noise
+        Array containing the generated white noise.
+    """
+    r1 = rnd.default_rng(seed1)
+    r1 = r1.uniform(low=0.0, high=1.0, size=n_points)
+
+    r2 = rnd.default_rng(seed2)
+    r2 = r2.uniform(low=0.0, high=1.0, size=n_points)
+
+    return np.exp(2 * np.pi * 1j * r1) * np.sqrt(-2 * np.log(r2))
 
 
 def low_pass_filter(

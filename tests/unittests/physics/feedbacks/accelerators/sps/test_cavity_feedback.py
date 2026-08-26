@@ -2,6 +2,7 @@ import copy
 import unittest
 
 import numpy as np
+from scipy.signal import find_peaks
 
 from blond import (
     Beam,
@@ -64,6 +65,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         n_sections: int = 3,
         v_part: float = 4 / 9,
         twc_tau: float = None,
+        n_pretrack: int = 1000,
     ):
         beam = Beam(
             intensity,
@@ -111,6 +113,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             g_tx=G_tx,
             g_llrf=G_llrf,
             a_comb=a_comb,
+            n_pretrack=n_pretrack,
         )
 
         if twc_tau is not None:
@@ -222,7 +225,52 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.assertEqual(cavity_feedback.excitation, 0)
 
-        self.assertEqual(cavity_feedback.debug, False)
+    def test_pretrack(self):
+        f_rf = 400.789e6 / 2
+        harmonic = 4620
+        v_set_custom = np.ones(2 * h, dtype=complex) * 1e6
+
+        commissioning = SPSCavityFeedbackCommissioning(
+            open_fb=True, v_set=v_set_custom
+        )
+
+        profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
+
+        cavity_feedback = SPSOneTurnFeedback(
+            profile=profile,
+            n_sections=3,
+            n_cavities=1,
+            commissioning=commissioning,
+            n_pretrack=0,
+        )
+        cavity_feedback.disable_fine_grid = True
+
+        cavity_feedback.set_hardware_commissioning(
+            omega_rf=2 * np.pi * f_rf, harmonic=harmonic
+        )
+
+        np.testing.assert_allclose(
+            cavity_feedback.buffers_coarse.v_ant.curr, np.zeros(harmonic)
+        )
+
+        cavity_feedback = SPSOneTurnFeedback(
+            profile=profile,
+            n_sections=3,
+            n_cavities=1,
+            commissioning=commissioning,
+            n_pretrack=1000,
+        )
+        cavity_feedback.disable_fine_grid = True
+
+        cavity_feedback.set_hardware_commissioning(
+            omega_rf=2 * np.pi * f_rf, harmonic=harmonic
+        )
+
+        np.testing.assert_allclose(
+            np.abs(cavity_feedback.buffers_coarse.v_ant.curr),
+            np.abs(cavity_feedback.buffers_coarse.v_setpoint.curr),
+            rtol=0.05,
+        )
 
 
 class TestSPSCavityFeedback(unittest.TestCase):
@@ -232,6 +280,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
         post_ls2: bool = True,
         n_pretrack: int = 1000,
         v_part: float = None,
+        a_comb: float | None = 63 / 64,
+        g_llrf: float = 20,
     ):
         beam = Beam(
             intensity,
@@ -275,7 +325,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             commissioning=commissioning,
             g_ff=G_ff,
             g_tx=G_tx,
-            g_llrf=G_llrf,
+            g_llrf=g_llrf,
             a_comb=a_comb,
             post_LS2=post_ls2,
             n_pretrack=n_pretrack,
@@ -836,13 +886,64 @@ class TestSPSCavityFeedback(unittest.TestCase):
             target_max_power_4sec,
         )
 
-    def test_explicit_comb_filter_coefficient(self):
-        # TODO: implement
-        pass
+    def test_nonexplicit_comb_filter_coefficient_and_partitioning(self):
+        simulation, beam = self.create_scenario(
+            post_ls2=True, v_part=0.5, a_comb=None
+        )
 
-    def test_explicit_partitioning(self):
-        # TODO: implement
-        pass
+        rf_station = simulation.ring.elements.get_element(
+            MultiHarmonicRFStation
+        )
+        cavity_feedback: SPSCavityFeedback = (
+            rf_station.get_main_harmonic_cavity_feedback()
+        )
+
+        self.assertAlmostEqual(
+            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
+            * cavity_feedback.OTFB_1.n_cavities
+            / 0.5
+            / voltage_200,
+            0.9968353014814768,
+            places=4,
+        )
+
+        self.assertAlmostEqual(
+            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
+            * cavity_feedback.OTFB_2.n_cavities
+            / (1 - 0.5)
+            / voltage_200,
+            0.9910285854440698,
+            places=4,
+        )
+
+        simulation, beam = self.create_scenario(
+            post_ls2=False, v_part=0.5, a_comb=None, g_llrf=10
+        )
+
+        rf_station = simulation.ring.elements.get_element(
+            MultiHarmonicRFStation
+        )
+        cavity_feedback: SPSCavityFeedback = (
+            rf_station.get_main_harmonic_cavity_feedback()
+        )
+
+        self.assertAlmostEqual(
+            np.mean(np.abs(cavity_feedback.OTFB_1.buffers_coarse.v_ant.curr))
+            * cavity_feedback.OTFB_1.n_cavities
+            / 0.5
+            / voltage_200,
+            0.9834997877347231,
+            places=4,
+        )
+
+        self.assertAlmostEqual(
+            np.mean(np.abs(cavity_feedback.OTFB_2.buffers_coarse.v_ant.curr))
+            * cavity_feedback.OTFB_2.n_cavities
+            / (1 - 0.5)
+            / voltage_200,
+            0.9906089027461353,
+            places=4,
+        )
 
     def test_incorrect_turns(self):
         with self.assertRaises(RuntimeError):
@@ -852,14 +953,10 @@ class TestSPSCavityFeedback(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.create_scenario(v_part=-0.2)
 
-    def test_debugging(self):
-        # TODO: implement
-        pass
-
 
 class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
-    @staticmethod
     def get_simulated_transfer_function(
+        self,
         commissioning: SPSCavityFeedbackCommissioning,
         cut_data: int = 0,
         n_pretrack: int = 1000,
@@ -869,38 +966,90 @@ class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
 
         profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
 
-        cavity_feedback = SPSOneTurnFeedback(
+        self.cavity_feedback = SPSOneTurnFeedback(
             profile=profile,
             n_sections=3,
+            n_cavities=1,
             commissioning=commissioning,
             n_pretrack=n_pretrack,
         )
-        cavity_feedback.disable_fine_grid = True
+        self.cavity_feedback.disable_fine_grid = True
 
-        cavity_feedback.set_hardware_commissioning(
+        self.cavity_feedback.set_hardware_commissioning(
             omega_rf=2 * np.pi * f_rf, harmonic=harmonic
         )
 
         return estimate_transfer_function(
-            input_signal=cavity_feedback.v_excitation_in,
-            output_signal=cavity_feedback.v_excitation_out,
-            t_s=cavity_feedback.T_s,
+            input_signal=self.cavity_feedback.v_excitation_in,
+            output_signal=self.cavity_feedback.v_excitation_out,
+            t_s=self.cavity_feedback.T_s,
             data_cut=cut_data,
         )
 
     @staticmethod
-    def get_analytic_transfer_function(self):
-        # TODO: implement
-        pass
+    def get_analytic_transfer_function(cavity_feedback: SPSOneTurnFeedback):
+        r_g = cavity_feedback.TWC.R_gen
+        tau = cavity_feedback.TWC.tau
+        f_c = cavity_feedback.TWC.omega_r / 2 / np.pi
+        f_rf = cavity_feedback.omega_rf / 2 / np.pi
+        g_otfb = cavity_feedback.G_tx * cavity_feedback.G_llrf
+        a_comb = cavity_feedback.a_comb
+        n_clock = cavity_feedback.n_coarse
+        f_clock = n_clock * f_rf / h
+
+        z_gen = lambda f: (
+            r_g * (np.sinc(tau * (f - f_c)) + np.sinc(tau * (f + f_c)))
+        )
+        h_comb = lambda z: (
+            g_otfb
+            * (1 - a_comb)
+            / (1 - a_comb * z ** (-n_clock))
+            * z ** (-n_clock)
+        )
+        h_cav = lambda s: 1 / (1 + tau * s / 2)
+
+        h_open = lambda f: (
+            z_gen(f)
+            * h_comb(np.exp(2j * np.pi * (f - f_rf) / f_clock))
+            * h_cav(2j * np.pi * (f - f_c))
+            / r_g
+        )
+
+        return h_open
 
     def test_open_loop_response(self):
-        # TODO: implement
-        pass
+        v_set_custom = np.ones(2 * h, dtype=complex) * 1e6 * 0.0
 
-    def test_closed_loop_response(self):
-        # TODO: implement
-        pass
+        commissioning = SPSCavityFeedbackCommissioning(
+            excitation=True, open_ff=True, open_loop=True, v_set=v_set_custom
+        )
+        f_est, h_est = self.get_simulated_transfer_function(
+            commissioning=commissioning, cut_data=h * 5, n_pretrack=4000
+        )
 
-    def test_one_turn_delay_feedback_response(self):
-        # TODO: implement
-        pass
+        h_open = self.get_analytic_transfer_function(
+            cavity_feedback=self.cavity_feedback
+        )
+
+        f_c = self.cavity_feedback.TWC.omega_r / 2 / np.pi
+        f_rf = self.cavity_feedback.omega_rf / 2 / np.pi
+        df = f_c - f_rf
+
+        h_expected = (
+            h_open(f_est + f_rf)
+            * np.max(np.abs(h_est))
+            / np.max(np.abs(h_open(f_est + f_rf)))
+        )
+
+        mask = (-2.1e6 < (f_est - df)) & ((f_est - df) < 2.1e6)
+
+        h_est = h_est[mask]
+        h_expected = h_expected[mask]
+        f_est = f_est[mask]
+
+        peaks_est, prop_est = find_peaks(np.abs(h_est), distance=800)
+        peaks_exp, prop_exp = find_peaks(np.abs(h_expected), distance=800)
+
+        self.assertEqual(len(peaks_exp), len(peaks_est))
+
+        np.testing.assert_allclose(peaks_exp, peaks_est, atol=4)

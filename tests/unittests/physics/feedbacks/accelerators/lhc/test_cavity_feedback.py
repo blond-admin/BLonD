@@ -466,6 +466,28 @@ class TestLHCCavityFeedback(unittest.TestCase):
             rtol=5e-3,
         )
 
+    def test_optimum_ql_with_beam(self):
+        optimum_q = LHCCavityFeedback.optimum_Q_L_beam(
+            r_over_q=45, real_peak_beam_current=1.111, voltage=1e6
+        )
+        self.assertAlmostEqual(optimum_q, 20002.0002000)
+
+    def test_linear_interp_scalar(self):
+        x_arr = np.array([0, 1, 2, 3, 4, 5])
+        y_arr = np.array([0, 1, 2, 3, 4, 5])
+
+        t_val = -1
+        val = LHCCavityFeedback._linear_interp_scalar(
+            x=x_arr, y=y_arr, t=t_val
+        )
+        self.assertAlmostEqual(val, t_val)
+
+        t_val = 6
+        val = LHCCavityFeedback._linear_interp_scalar(
+            x=x_arr, y=y_arr, t=t_val
+        )
+        self.assertAlmostEqual(val, t_val)
+
 
 class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
     @staticmethod
@@ -582,7 +604,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
             actual=h_est.imag, desired=h_actual.imag, atol=0.03
         )
 
-    def test_one_turn_delay_feedback_reponse(self):
+    def test_one_turn_delay_feedback_response(self):
         cut_data = 3564 * 5
         r_over_q = 45
         a_comb = 15 / 16
@@ -646,3 +668,68 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         np.testing.assert_allclose(
             actual=h_est.imag, desired=h_actual.imag, atol=0.5
         )
+
+    def test_otfb_excitation_response(self):
+        cut_data = 3564 * 5
+        r_over_q = 45
+        a_comb = 15 / 16
+        q_l = 20_000
+        domega = 0.0
+        f_rf = 400.789e6
+        omega_rf = 2 * np.pi * f_rf
+
+        f_span = 750e3
+
+        t_rev = 35640 / f_rf
+
+        commissioning = LHCCavityFeedbackCommissioning(
+            g_a=g_a,
+            g_d=g_d,
+            g_o=g_o,
+            tau_a=tau_a,
+            tau_d=tau_d,
+            tau_o=tau_o,
+            excitation_otfb_1=True,
+            excitation_otfb_2=False,
+            open_loop=False,
+            open_otfb=False,
+        )
+
+        f_est, h_est = self.create_scenario(
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+        )
+
+        h_est = h_est[(f_est > -f_span) & (f_est < f_span)]
+        f_est = f_est[(f_est > -f_span) & (f_est < f_span)]
+
+        h_a = lambda s: g_a * tau_a * s / (1 + tau_a * s)
+        h_d = lambda s: g_a * g_d / (1 + tau_d * s)
+        h_delay = lambda s: np.exp(-tau_loop * s)
+
+        h_comb = lambda s: (
+            g_o
+            * (1 - a_comb)
+            * np.exp(-t_rev * s)
+            / (1 - a_comb * np.exp(-t_rev * s))
+        )
+        h_ac = lambda s: tau_o * s / (1 + tau_o * s)
+        h_comp = lambda s: np.exp(tau_otfb * s)
+        h_otfb = lambda s: h_ac(s) * h_comb(s) * h_ac(s) * h_comp(s)
+
+        z_cav = lambda s: (
+            r_over_q * q_l / (1 + 2 * q_l * (s - 1j * domega) / omega_rf)
+        )
+
+        h_open = lambda s: (
+            2 * h_delay(s) * (h_a(s) * (h_otfb(s) + 1) + h_d(s)) * z_cav(s)
+        )
+        h_closed = lambda s: h_open(s) / (1 + h_open(s))
+
+        h_actual = h_closed(1j * 2 * np.pi * f_est)
+
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.plot(f_est, 28 * np.log10(np.abs(h_est)))
+        plt.plot(f_est, 28 * np.log10(np.abs(h_actual)))
+        plt.show()
