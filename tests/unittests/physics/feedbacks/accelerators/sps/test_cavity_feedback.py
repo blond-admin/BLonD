@@ -219,8 +219,6 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.assertEqual(cavity_feedback.custom_setpoint, None)
 
-        self.assertEqual(cavity_feedback.cpp_conv, False)
-
         self.assertEqual(cavity_feedback.rot_iq, 1)
 
         self.assertEqual(cavity_feedback.excitation, 0)
@@ -710,79 +708,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
         np.testing.assert_allclose(
             output[7],
             target_max_power_5sec,
-        )
-
-    def test_cpp_convolution(self):
-        commissioning = SPSCavityFeedbackCommissioning(
-            open_ff=False, cpp_conv=True
-        )
-        simulation, beam = self.create_scenario(
-            commissioning=commissioning, post_ls2=True
-        )
-
-        rf_station = simulation.ring.elements.get_element(
-            MultiHarmonicRFStation
-        )
-        cavity_feedback: SPSCavityFeedback = (
-            rf_station.get_main_harmonic_cavity_feedback()
-        )
-
-        output_cpp = self.voltage_and_power_from_first_two_turns(
-            cavity_feedback, beam
-        )
-
-        commissioning = SPSCavityFeedbackCommissioning(
-            open_ff=False, cpp_conv=False
-        )
-        simulation, beam = self.create_scenario(
-            commissioning=commissioning, post_ls2=True
-        )
-
-        rf_station = simulation.ring.elements.get_element(
-            MultiHarmonicRFStation
-        )
-        cavity_feedback: SPSCavityFeedback = (
-            rf_station.get_main_harmonic_cavity_feedback()
-        )
-
-        output_py = self.voltage_and_power_from_first_two_turns(
-            cavity_feedback, beam
-        )
-
-        # Check voltages
-        np.testing.assert_allclose(
-            output_cpp[0],
-            output_py[0],
-        )
-        np.testing.assert_allclose(
-            output_cpp[1],
-            output_py[1],
-        )
-        np.testing.assert_allclose(
-            output_cpp[2],
-            output_py[2],
-        )
-        np.testing.assert_allclose(
-            output_cpp[3],
-            output_py[3],
-        )
-
-        # Check RF power
-        np.testing.assert_allclose(
-            output_cpp[4],
-            output_py[4],
-        )
-        np.testing.assert_allclose(
-            output_cpp[5],
-            output_py[5],
-        )
-        np.testing.assert_allclose(
-            output_cpp[6],
-            output_py[6],
-        )
-        np.testing.assert_allclose(
-            output_cpp[7],
-            output_py[7],
         )
 
     def test_mixed_feedback_settings(self):

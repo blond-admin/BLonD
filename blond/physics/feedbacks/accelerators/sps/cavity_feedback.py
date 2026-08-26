@@ -225,8 +225,6 @@ class SPSCavityFeedbackCommissioning:
         Open (True) or closed (False) feed-forward; default is True.
     v_set
         Array set point voltage; default is False.
-    cpp_conv
-        Enable (True) or disable (False) convolutions using a C++ implementation; default is False.
     pwr_clamp
         Enable (True) or disable (False) power clamping; default is False.
     rot_iq
@@ -246,7 +244,6 @@ class SPSCavityFeedbackCommissioning:
         open_drive: bool = False,
         open_ff: bool = True,
         v_set: NumpyArray | None = None,
-        cpp_conv: bool = False,
         pwr_clamp: bool = False,
         rot_iq: complex = 1,
         excitation: bool = False,
@@ -258,7 +255,6 @@ class SPSCavityFeedbackCommissioning:
         self.open_drive = 0 if open_drive else 1
         self.open_ff = 0 if open_ff else 1
         self.v_set = v_set
-        self.cpp_conv = cpp_conv
         self.pwr_clamp = pwr_clamp
         self.rot_iq: complex = rot_iq
         self.excitation: int = int(excitation)
@@ -348,7 +344,6 @@ class SPSOneTurnFeedback(
         if self.custom_setpoint is None:  # Vset as array or not
             self.set_point_modulation = False
 
-        self.cpp_conv = commissioning.cpp_conv
         self.rot_iq: complex = commissioning.rot_iq
         self.excitation = commissioning.excitation
         self.excitation_seed1 = commissioning.seed1
@@ -388,12 +383,6 @@ class SPSOneTurnFeedback(
             )
 
         self.dphi_mod = 0
-
-        # Switch between convolution methods
-        if self.cpp_conv:
-            self.conv = self.call_conv
-        else:
-            self.conv = self.matr_conv
 
         self.buffers_ffwd: SPSFeedForwardCoarseBuffers | None = None
         self.phi_mod_0: Any | None = None
@@ -959,8 +948,9 @@ class SPSOneTurnFeedback(
             * self.T_s
         )
 
+    @staticmethod
     def matr_conv(
-        self, current: NumpyArray, transfer_function: NumpyArray
+        current: NumpyArray, transfer_function: NumpyArray
     ) -> NumpyArray:
         """
         Convolution of beam current with impulse response.
@@ -982,31 +972,6 @@ class SPSOneTurnFeedback(
         return fftconvolve(current, transfer_function, mode="full")[
             : current.shape[0]
         ]
-
-    def call_conv(self, current: NumpyArray, transfer_function: NumpyArray):
-        """
-        Convolution of beam current with impulse response using an optimised C++ convolution.
-
-        Parameters
-        ----------
-        current
-            The current signal array [A].
-        transfer_function
-            The impulse response.
-
-        Returns
-        -------
-        voltage
-            Calculated voltage [V].
-        """
-        # Make sure that the buffers are stored contiguously
-        signal = np.ascontiguousarray(current)
-        kernel = np.ascontiguousarray(transfer_function)
-
-        result = np.zeros(len(kernel) + len(signal) - 1, dtype=complex)
-        backend.specials.convolve(signal, kernel, result=result, mode="full")
-
-        return result
 
     def update_fb_variables(self):
         """Update variables in the feedback."""
