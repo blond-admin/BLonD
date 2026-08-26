@@ -225,7 +225,9 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
 
         self.gap_voltage_phase = np.zeros(self.n_coarse)
 
-    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+    def set_hardware_commissioning(
+        self, omega_rf: float, harmonic: int, setpoint_voltage: float = 0.0
+    ):
         """
         Method to prepare the cavity feedback model for transfer function measurements.
 
@@ -238,6 +240,8 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
             Angular frequency of the RF system.
         harmonic
             Harmonic number of the RF system.
+        setpoint_voltage
+            Option to change the setpoint voltage.
         """
         self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE

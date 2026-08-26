@@ -19,6 +19,7 @@ Helga Timko
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -383,6 +384,7 @@ class LHCCavityFeedback(
 
         self.v_excitation_in: NumpyArray | None = None
         self.v_excitation_out: NumpyArray | None = None
+        self.get_next_setpoint: Callable | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -426,6 +428,8 @@ class LHCCavityFeedback(
         self.update_fb_variables()
         self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
 
+        self.get_next_setpoint = self.set_point_from_rfstation
+
         # Pre-track without beam
         self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
 
@@ -434,7 +438,9 @@ class LHCCavityFeedback(
 
         self.logger.info("LHCCavityLoop class initialized")
 
-    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+    def set_hardware_commissioning(
+        self, omega_rf: float, harmonic: int, setpoint_voltage: float = 0.0
+    ):
         """
         Method to prepare the cavity feedback model for transfer function measurements.
 
@@ -447,14 +453,24 @@ class LHCCavityFeedback(
             Angular frequency of the RF system.
         harmonic
             Harmonic number of the RF system.
+        setpoint_voltage
+            Option to change the setpoint voltage.
         """
         super().set_hardware_commissioning(
-            omega_rf=omega_rf, harmonic=harmonic
+            omega_rf=omega_rf,
+            harmonic=harmonic,
+            setpoint_voltage=setpoint_voltage,
         )
 
         self.setup_feedback()
         self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
         self.update_fb_variables()
+
+        def get_voltage():
+            return np.ones(self.n_coarse, dtype=complex) * setpoint_voltage
+
+        self.get_next_setpoint = get_voltage
+
         self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
 
         # Pre-track without beam
@@ -750,11 +766,12 @@ class LHCCavityFeedback(
 
     def update_set_point(self):
         """Update the set point for the next turn based on the design RF voltage."""
+        new_setpoint = self.get_next_setpoint()
         coeff = np.polyfit(
             [0, self.n_coarse + 1],
             [
                 self.buffers_coarse.v_setpoint.prev[-1],
-                self.set_point_from_rfstation()[0],
+                new_setpoint[0],
             ],
             1,
         )
@@ -762,7 +779,8 @@ class LHCCavityFeedback(
         v_set_prev = poly(np.linspace(0, self.n_coarse, self.n_coarse))
 
         self.buffers_coarse.v_setpoint.prev = v_set_prev
-        self.buffers_coarse.v_setpoint.curr = self.set_point_from_rfstation()
+
+        self.buffers_coarse.v_setpoint.curr = new_setpoint
 
     def swap(self):
         """Model of the Switch and Protect module: clamping of the output power above a given input power."""

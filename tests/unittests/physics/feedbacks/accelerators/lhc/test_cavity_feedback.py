@@ -488,6 +488,28 @@ class TestLHCCavityFeedback(unittest.TestCase):
         )
         self.assertAlmostEqual(val, t_val)
 
+    def test_hardware_commissioning_without_excitation(self):
+        f_rf = 400.789e6
+        harmonic = 35640
+        n_pretrack = 200
+        commissioning = LHCCavityFeedbackCommissioning()
+
+        profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
+
+        cavity_feedback = LHCCavityFeedback(
+            profile=profile, rffb=commissioning, n_pretrack=n_pretrack
+        )
+        cavity_feedback.disable_fine_grid = True
+
+        cavity_feedback.set_hardware_commissioning(
+            omega_rf=2 * np.pi * f_rf, harmonic=harmonic
+        )
+
+        np.testing.assert_allclose(
+            np.zeros(cavity_feedback.n_coarse, dtype=complex),
+            cavity_feedback.buffers_coarse.v_ant.curr,
+        )
+
 
 class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
     @staticmethod
@@ -669,7 +691,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
             actual=h_est.imag, desired=h_actual.imag, atol=0.5
         )
 
-    def test_otfb_excitation_response(self):
+    def test_otfb_excitation_response_1(self):
         cut_data = 3564 * 5
         r_over_q = 45
         a_comb = 15 / 16
@@ -727,9 +749,60 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
 
         h_actual = h_closed(1j * 2 * np.pi * f_est)
 
-        import matplotlib.pyplot as plt
+    def test_otfb_excitation_response_2(self):
+        cut_data = 3564 * 5
+        r_over_q = 45
+        a_comb = 15 / 16
+        q_l = 20_000
+        domega = 0.0
+        f_rf = 400.789e6
+        omega_rf = 2 * np.pi * f_rf
 
-        plt.figure()
-        plt.plot(f_est, 28 * np.log10(np.abs(h_est)))
-        plt.plot(f_est, 28 * np.log10(np.abs(h_actual)))
-        plt.show()
+        f_span = 750e3
+
+        t_rev = 35640 / f_rf
+
+        commissioning = LHCCavityFeedbackCommissioning(
+            g_a=g_a,
+            g_d=g_d,
+            g_o=g_o,
+            tau_a=tau_a,
+            tau_d=tau_d,
+            tau_o=tau_o,
+            excitation_otfb_1=False,
+            excitation_otfb_2=True,
+            open_loop=False,
+            open_otfb=False,
+        )
+
+        f_est, h_est = self.create_scenario(
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+        )
+
+        h_est = h_est[(f_est > -f_span) & (f_est < f_span)]
+        f_est = f_est[(f_est > -f_span) & (f_est < f_span)]
+
+        h_a = lambda s: g_a * tau_a * s / (1 + tau_a * s)
+        h_d = lambda s: g_a * g_d / (1 + tau_d * s)
+        h_delay = lambda s: np.exp(-tau_loop * s)
+
+        h_comb = lambda s: (
+            g_o
+            * (1 - a_comb)
+            * np.exp(-t_rev * s)
+            / (1 - a_comb * np.exp(-t_rev * s))
+        )
+        h_ac = lambda s: tau_o * s / (1 + tau_o * s)
+        h_comp = lambda s: np.exp(tau_otfb * s)
+        h_otfb = lambda s: h_ac(s) * h_comb(s) * h_ac(s) * h_comp(s)
+
+        z_cav = lambda s: (
+            r_over_q * q_l / (1 + 2 * q_l * (s - 1j * domega) / omega_rf)
+        )
+
+        h_open = lambda s: (
+            2 * h_delay(s) * (h_a(s) * (h_otfb(s) + 1) + h_d(s)) * z_cav(s)
+        )
+        h_closed = lambda s: h_open(s) / (1 + h_open(s))
+
+        h_actual = h_closed(1j * 2 * np.pi * f_est)

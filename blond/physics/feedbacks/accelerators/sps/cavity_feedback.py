@@ -468,7 +468,9 @@ class SPSOneTurnFeedback(
 
         self.logger.info("Class initialized")
 
-    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+    def set_hardware_commissioning(
+        self, omega_rf: float, harmonic: int, setpoint_voltage: float = 0.0
+    ):
         """
         Method to prepare the cavity feedback model for transfer function measurements.
 
@@ -481,6 +483,8 @@ class SPSOneTurnFeedback(
             Angular frequency of the RF system.
         harmonic
             Harmonic number of the RF system.
+        setpoint_voltage
+            Option to change the setpoint voltage.
         """
         super().set_hardware_commissioning(
             omega_rf=omega_rf, harmonic=harmonic
