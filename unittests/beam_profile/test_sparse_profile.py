@@ -534,6 +534,83 @@ class testProfileClass(unittest.TestCase):
 
         np.testing.assert_equal(updated_batch_list, sparse_profile.batch_list)
 
+    def test_update_batch_list_ordering(self):
+        """New profiles must be appended in injection order: several new
+        batches in one call require new_batch_indices, and the cut arrays
+        must follow that order, not the bucket-index order."""
+        t_rf = self.rf_station.t_rf[0, 0]
+
+        # Several new batches without an injection order is ambiguous
+        sparse_profile = SparseBatch(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            np.array([0, 1, 0, 0, 0]),
+            self.profile_length_in_buckets * 2,
+        )
+        with self.assertRaises(ValueError):
+            sparse_profile.update_batch_list(
+                updated_batch_list=np.array([1, 1, 0, 1, 0])
+            )
+
+        # new_batch_indices inconsistent with the updated pattern
+        with self.assertRaises(ValueError):
+            sparse_profile.update_batch_list(
+                updated_batch_list=np.array([1, 1, 0, 1, 0]),
+                new_batch_indices=[2, 0],
+            )
+
+        # Injection order [3, 0] must be preserved in the cut arrays
+        sparse_profile.update_batch_list(
+            updated_batch_list=np.array([1, 1, 0, 1, 0]),
+            new_batch_indices=[3, 0],
+        )
+        np.testing.assert_allclose(
+            sparse_profile.cut_left_array, np.array([1, 3, 0]) * t_rf
+        )
+        np.testing.assert_equal(
+            sparse_profile.batch_list, np.array([1, 1, 0, 1, 0])
+        )
+
+        # One-at-a-time updates (the historical pattern) remain valid
+        sparse_profile_seq = SparseBatch(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            np.array([0, 1, 0, 0, 0]),
+            self.profile_length_in_buckets * 2,
+        )
+        sparse_profile_seq.update_batch_list(
+            updated_batch_list=np.array([0, 1, 0, 1, 0])
+        )
+        sparse_profile_seq.update_batch_list(
+            updated_batch_list=np.array([1, 1, 0, 1, 0])
+        )
+        np.testing.assert_allclose(
+            sparse_profile_seq.cut_left_array, np.array([1, 3, 0]) * t_rf
+        )
+
+    def test_update_bunch_list_ordering(self):
+        """Same ordering contract for SparseBucket.update_bunch_list."""
+        t_rf = self.rf_station.t_rf[0, 0]
+        sparse_profile = SparseBucket(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            np.array([0, 1, 0, 0, 0]),
+        )
+        with self.assertRaises(ValueError):
+            sparse_profile.update_bunch_list(
+                updated_bunch_list=np.array([1, 1, 0, 1, 0])
+            )
+        sparse_profile.update_bunch_list(
+            updated_bunch_list=np.array([1, 1, 0, 1, 0]),
+            new_bunch_indices=[3, 0],
+        )
+        np.testing.assert_allclose(
+            sparse_profile.cut_left_array, np.array([1, 3, 0]) * t_rf
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
