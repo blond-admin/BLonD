@@ -71,10 +71,10 @@ mpi = [
   "mpi4py>=4", # MPI bindings for distributed computing
 ]
 gpu_cuda12 = [
-  "cupy-cuda12x", # GPU array computing (CUDA 12)
+  "cupy-cuda12x<14.2.0", # GPU array computing (CUDA 12)
 ]
 gpu_cuda13 = [
-  "cupy-cuda13x", # GPU array computing (CUDA 13)
+  "cupy-cuda13x<14.2.0", # GPU array computing (CUDA 13)
 ]
 xsuite = [
   "xpart>=0.23.9, !=0.23.16", # particle objects
