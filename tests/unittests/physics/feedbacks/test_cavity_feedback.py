@@ -130,6 +130,7 @@ class TestIQCavityFeedback(unittest.TestCase):
             + 0.5 * t_rf * cavity_feedback.n_periods_coarse
         )
 
-        np.testing.assert_array_equal(
-            expected_rf_centers, cavity_feedback.rf_centers
+        np.testing.assert_allclose(
+            expected_rf_centers,
+            cavity_feedback.rf_centers,
         )

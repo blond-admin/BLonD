@@ -132,7 +132,6 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.beam,
             self.profile,
             self.omega,
-            t_rev,
             use_lowpass_filter=False,
             external_reference=True,
             dT=0,
@@ -197,7 +196,6 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.beam,
             self.profile,
             self.omega,
-            t_rev,
             use_lowpass_filter=False,
             external_reference=True,
         )
@@ -451,7 +449,7 @@ class TestRFBeamCurrent(unittest.TestCase):
 
         # RF current calculation with low-pass filter
         rf_current = rf_beam_current(
-            self.beam, self.profile, self.omega, t_rev, use_lowpass_filter=True
+            self.beam, self.profile, self.omega, use_lowpass_filter=True
         )
 
         Iref_real = np.array(
@@ -738,7 +736,6 @@ class TestRFBeamCurrent(unittest.TestCase):
             beam2,
             profile2,
             float(self.omega_rf),
-            float(t_rev),
             use_lowpass_filter=False,
             downsample={"Ts": T_s, "points": self.rf.get_main_harmonic() / 5},
         )
@@ -780,7 +777,6 @@ class TestRFBeamCurrent(unittest.TestCase):
                 self.beam,
                 self.profile,
                 self.omega,
-                t_rev,
                 use_lowpass_filter=False,
                 external_reference=False,
                 downsample={"Ts": 25e-9},

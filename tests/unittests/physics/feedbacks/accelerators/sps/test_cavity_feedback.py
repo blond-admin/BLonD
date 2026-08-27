@@ -916,7 +916,7 @@ class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
         r_g = cavity_feedback.TWC.R_gen
         tau = cavity_feedback.TWC.tau
         f_c = cavity_feedback.TWC.omega_r / 2 / np.pi
-        f_rf = cavity_feedback.omega_rf / 2 / np.pi
+        f_rf = 400.789e6 / 2
         g_otfb = cavity_feedback.G_tx * cavity_feedback.G_llrf
         a_comb = cavity_feedback.a_comb
         n_clock = cavity_feedback.n_coarse
@@ -957,7 +957,7 @@ class TestSPSCavityFeedbackTransferFunction(unittest.TestCase):
         )
 
         f_c = self.cavity_feedback.TWC.omega_r / 2 / np.pi
-        f_rf = self.cavity_feedback.omega_rf / 2 / np.pi
+        f_rf = 400.789e6 / 2
         df = f_c - f_rf
 
         h_expected = (

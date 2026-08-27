@@ -540,6 +540,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         )
 
     def test_open_loop_response(self):
+        # TODO: add some frequency detuning?
         cut_data = 3564 * 5
         r_over_q = 45
         q_l = 20_000
