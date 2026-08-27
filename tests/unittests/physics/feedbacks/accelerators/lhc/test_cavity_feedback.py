@@ -101,7 +101,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
             profile,
             tau_loop=tau_loop,
             tau_otfb=tau_otfb,
-            rffb=commissioning,
+            commissioning=commissioning,
             q_l=q_l,
             n_pretrack=n_pretrack,
             f_c=detuning + 400.789e6,
@@ -497,7 +497,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
         profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
 
         cavity_feedback = LHCCavityFeedback(
-            profile=profile, rffb=commissioning, n_pretrack=n_pretrack
+            profile=profile, commissioning=commissioning, n_pretrack=n_pretrack
         )
         cavity_feedback.disable_fine_grid = True
 
@@ -524,7 +524,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
 
         cavity_feedback = LHCCavityFeedback(
-            profile=profile, rffb=commissioning, n_pretrack=n_pretrack
+            profile=profile, commissioning=commissioning, n_pretrack=n_pretrack
         )
         cavity_feedback.disable_fine_grid = True
 

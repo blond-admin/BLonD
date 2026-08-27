@@ -294,7 +294,7 @@ class LHCCavityFeedback(
         Total loop delay [s]; default is 650e-9 s.
     tau_otfb
         Total loop delay as seen by OTFB [s]; default is 1200e-9 s.
-    rffb
+    commissioning
         LHCCavityLoopCommissioning type class containing RF FB gains and delays.
         If this parameter is None, a new LHCCavityLoopCommissioning is used.
     harmonic_index
@@ -316,7 +316,7 @@ class LHCCavityFeedback(
         r_over_q: float = 45,
         tau_loop: float = 650e-9,
         tau_otfb: float = 1200e-9,
-        rffb: LHCCavityFeedbackCommissioning | None = None,
+        commissioning: LHCCavityFeedbackCommissioning | None = None,
         harmonic_index: int = 0,
     ):
         super().__init__(
@@ -340,11 +340,11 @@ class LHCCavityFeedback(
         self.logger = logging.getLogger(__class__.__name__)
 
         # Options for commissioning the feedback
-        if rffb is None:
-            rffb = LHCCavityFeedbackCommissioning()
+        if commissioning is None:
+            commissioning = LHCCavityFeedbackCommissioning()
 
         # Import classes and parameters
-        self.rffb = rffb
+        self.commissioning = commissioning
         self.I_gen_offset = i_gen_offset
         self.G_gen = g_gen
         self.n_pretrack = n_pretrack
@@ -357,24 +357,24 @@ class LHCCavityFeedback(
         self.logger.debug(f"Cavity loaded Q is {self.q_l:.0f}")
 
         # Import RF FB properties
-        self.alpha = self.rffb.alpha
-        self.d_phi_ad = self.rffb.d_phi_ad
-        self.G_a = self.rffb.g_a
-        self.G_d = self.rffb.g_d
-        self.G_o = self.rffb.g_o
-        self.tau_a = self.rffb.tau_a
-        self.tau_d = self.rffb.tau_d
-        self.tau_o = self.rffb.tau_o
-        self.mu = self.rffb.mu
-        self.power_thres = self.rffb.power_thres
+        self.alpha = self.commissioning.alpha
+        self.d_phi_ad = self.commissioning.d_phi_ad
+        self.G_a = self.commissioning.g_a
+        self.G_d = self.commissioning.g_d
+        self.G_o = self.commissioning.g_o
+        self.tau_a = self.commissioning.tau_a
+        self.tau_d = self.commissioning.tau_d
+        self.tau_o = self.commissioning.tau_o
+        self.mu = self.commissioning.mu
+        self.power_thres = self.commissioning.power_thres
         self.i_swap_threshold = (
             np.sqrt(2 * self.power_thres / (self.r_over_q * self.q_l))
             / self.G_gen
         )
-        self.klystron_bandwidth = self.rffb.klystron_bandwidth
-        self.excitation = self.rffb.excitation
-        self.excitation_otfb_1 = self.rffb.excitation_otfb_1
-        self.excitation_otfb_2 = self.rffb.excitation_otfb_2
+        self.klystron_bandwidth = self.commissioning.klystron_bandwidth
+        self.excitation = self.commissioning.excitation
+        self.excitation_otfb_1 = self.commissioning.excitation_otfb_1
+        self.excitation_otfb_2 = self.commissioning.excitation_otfb_2
 
         self.disable_fine_grid = False
         self.excitation_otfb = False
@@ -509,7 +509,7 @@ class LHCCavityFeedback(
         num_taps = round(2 * self.tau_loop / self.T_s + 1)
         self.klystron_fir = firwin(
             num_taps,
-            self.rffb.klystron_bandwidth,
+            self.commissioning.klystron_bandwidth,
             fs=1 / self.T_s,
             pass_zero="lowpass",
         )
@@ -614,11 +614,12 @@ class LHCCavityFeedback(
             self.G_gen * self.buffers_coarse.i_swap_out[self.ind]
         )
         self.buffers_coarse.i_gen_predrive[self.ind] = (
-            self.rffb.open_drive * self.buffers_coarse.i_gen_test[self.ind]
-            + self.rffb.open_drive_inv * self.I_gen_offset
+            self.commissioning.open_drive
+            * self.buffers_coarse.i_gen_test[self.ind]
+            + self.commissioning.open_drive_inv * self.I_gen_offset
         )
 
-        if self.rffb.saturation:
+        if self.commissioning.saturation:
             self.buffers_coarse.i_gen_predrive[self.ind] = (
                 klystron_saturation_curve(
                     predrive=np.abs(
@@ -634,7 +635,7 @@ class LHCCavityFeedback(
             )
 
         # FIR filter
-        if self.rffb.enable_klystron:
+        if self.commissioning.enable_klystron:
             window = self.buffers_coarse.i_gen_predrive.get_window(
                 self.ind, len(self.klystron_fir)
             )[::-1]
@@ -708,15 +709,17 @@ class LHCCavityFeedback(
             Sampling time on the coarse-grid.
         """
         # Calculate voltage difference to act on
-        if self.rffb.enable_klystron:
+        if self.commissioning.enable_klystron:
             self.buffers_coarse.v_feedback_in[self.ind] = (
                 self.buffers_coarse.v_setpoint[self.ind]
-                - self.rffb.open_loop * self.buffers_coarse.v_ant[self.ind]
+                - self.commissioning.open_loop
+                * self.buffers_coarse.v_ant[self.ind]
             )
         else:
             self.buffers_coarse.v_feedback_in[self.ind] = (
                 self.buffers_coarse.v_setpoint[self.ind]
-                - self.rffb.open_loop * self.buffers_coarse.v_ant[self.ind]
+                - self.commissioning.open_loop
+                * self.buffers_coarse.v_ant[self.ind]
             )
 
         # On the analog branch, OTFB can contribute
@@ -730,7 +733,8 @@ class LHCCavityFeedback(
 
         self.buffers_coarse.v_analog_in[self.ind] = (
             self.buffers_coarse.v_feedback_in[self.ind]
-            + self.rffb.open_otfb * self.buffers_coarse.v_otfb_out[self.ind]
+            + self.commissioning.open_otfb
+            * self.buffers_coarse.v_otfb_out[self.ind]
             + int(bool(self.excitation_otfb))
             * self.buffers_coarse.v_excitation[self.ind]
         )
@@ -759,9 +763,12 @@ class LHCCavityFeedback(
         )
 
         # Total output: sum of analog and digital feedback
-        self.buffers_coarse.i_feedback_out[self.ind] = self.rffb.open_rffb * (
-            self.buffers_coarse.i_analog_out[self.ind]
-            + self.buffers_coarse.i_digital_out[self.ind]
+        self.buffers_coarse.i_feedback_out[self.ind] = (
+            self.commissioning.open_rffb
+            * (
+                self.buffers_coarse.i_analog_out[self.ind]
+                + self.buffers_coarse.i_digital_out[self.ind]
+            )
         )
 
     def update_set_point(self):
@@ -785,7 +792,7 @@ class LHCCavityFeedback(
     def swap(self):
         """Model of the Switch and Protect module: clamping of the output power above a given input power."""
         # TODO: check implementation
-        if self.rffb.clamping:
+        if self.commissioning.clamping:
             self.buffers_coarse.i_swap_out[self.ind] = ideal_switch_and_limit(
                 signal=np.abs(self.buffers_coarse.i_feedback_out[self.ind]),
                 limit=self.i_swap_threshold,
@@ -811,7 +818,7 @@ class LHCCavityFeedback(
         )
 
         # Propagate the corrections to the detuning two the global parameters
-        self.detuning = self.detuning + dtune * self.rffb.open_tuner
+        self.detuning = self.detuning + dtune * self.commissioning.open_tuner
         self.d_omega = self.detuning * self.omega_c
         self.omega_c = self.omega_rf + self.d_omega
 
@@ -896,7 +903,9 @@ class LHCCavityFeedback(
             elements
         """
         self.v_excitation_in = 1000 * generate_white_noise(
-            self.n_coarse * n_turns, self.rffb.seed1, self.rffb.seed2
+            self.n_coarse * n_turns,
+            self.commissioning.seed1,
+            self.commissioning.seed2,
         )
         self.v_excitation_out = np.zeros(
             self.n_coarse * n_turns, dtype=complex
@@ -943,7 +952,9 @@ class LHCCavityFeedback(
             elements
         """
         self.v_excitation_in = 10000 * generate_white_noise(
-            self.n_coarse * n_turns, self.rffb.seed1, self.rffb.seed2
+            self.n_coarse * n_turns,
+            self.commissioning.seed1,
+            self.commissioning.seed2,
         )
         self.v_excitation_out = np.zeros(
             self.n_coarse * n_turns, dtype=complex
