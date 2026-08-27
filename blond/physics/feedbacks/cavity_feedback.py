@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 import numpy as np
 
+from blond import MultiHarmonicRFStation, SingleHarmonicRFStation
 from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
@@ -283,9 +284,16 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         phi_rf
             Phi_rf for the harmonic index/only one.
         """
-        harmonic = self._parent_rf_station.get_main_harmonic()
-        omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf()
-        phi_rf = self._parent_rf_station.get_main_harmonic_phi_rf()
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
+            harmonic = self._parent_rf_station.get_main_harmonic()
+            omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf()
+            phi_rf = self._parent_rf_station.get_main_harmonic_phi_rf()
+        elif isinstance(self._parent_rf_station, MultiHarmonicRFStation):
+            harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
+            omega_rf = self._parent_rf_station.omega_rf[self.harmonic_index]
+            phi_rf = self._parent_rf_station.phi_rf[self.harmonic_index]
+        else:
+            raise TypeError("The parent rf station was an unrecognized type")
 
         return harmonic, omega_rf, phi_rf
 
@@ -307,13 +315,24 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         phi_rf_design
             Phi_rf_design for the harmonic index/only one.
         """
-        harmonic = self._parent_rf_station.get_main_harmonic()
-        omega_rf_design = (
-            self._parent_rf_station.get_main_harmonic_omega_rf_design()
-        )
-        phi_rf_design = (
-            self._parent_rf_station.get_main_harmonic_phi_rf_design()
-        )
+        if isinstance(self._parent_rf_station, SingleHarmonicRFStation):
+            harmonic = self._parent_rf_station.get_main_harmonic()
+            omega_rf_design = (
+                self._parent_rf_station.get_main_harmonic_omega_rf_design()
+            )
+            phi_rf_design = (
+                self._parent_rf_station.get_main_harmonic_phi_rf_design()
+            )
+        elif isinstance(self._parent_rf_station, MultiHarmonicRFStation):
+            harmonic = self._parent_rf_station.harmonic[self.harmonic_index]
+            omega_rf_design = self._parent_rf_station.omega_rf_design[
+                self.harmonic_index
+            ]
+            phi_rf_design = self._parent_rf_station.phi_rf_design[
+                self.harmonic_index
+            ]
+        else:
+            raise TypeError("The parent rf station was an unrecognized type")
 
         return harmonic, omega_rf_design, phi_rf_design
 

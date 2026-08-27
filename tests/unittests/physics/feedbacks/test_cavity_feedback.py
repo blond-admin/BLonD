@@ -7,6 +7,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -133,4 +134,81 @@ class TestIQCavityFeedback(unittest.TestCase):
         np.testing.assert_allclose(
             expected_rf_centers,
             cavity_feedback.rf_centers,
+        )
+
+    def test_get_design_rf_parameters(self):
+        energy = np.sqrt(momentum**2 + proton.mass**2)
+        rel_gamma = energy / proton.mass
+        rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
+
+        beam = Beam(
+            intensity,
+            proton,
+        )
+
+        cycle = ConstantMagneticCycle(proton, momentum, in_unit="momentum")
+
+        lattice = DriftSimple(
+            orbit_length=circumference, momentum_compaction_factor=alpha
+        )
+
+        cavity = MultiHarmonicRFStation(
+            n_harmonics=2,
+            main_harmonic_idx=0,
+            voltage=np.array([voltage, voltage * 0.2]),
+            phi_rf=np.array([0.0, np.pi]),
+            harmonic=np.array([h, 4 * h]),
+        )
+
+        f_rf = cavity.calc_main_harmonic_omega_rf_design(
+            rel_beta, lattice.orbit_length
+        ) / (2 * np.pi)
+        f_rev = f_rf / h
+        t_rf = 1 / f_rf
+        t_rev = 1 / f_rev
+
+        profile = StaticProfile(
+            cut_left=-1.5 * t_rf,
+            cut_right=2.5 * t_rf,
+            n_bins=4 * 2**6,
+        )
+
+        cavity_feedback = DummyFeedback(profile=profile, n_periods_coarse=0.5)
+
+        cavity.attach_cavity_feedback(cavity_feedback, harmonic_index=0)
+
+        bigaussian = BiGaussian(
+            n_macroparticles, sigma_dt=tau_bunch / 4, seed=1234
+        )
+
+        ring = Ring(
+            circumference,
+        )
+        ring_elements = [profile, cavity, lattice]
+        ring.add_elements(
+            ring_elements,
+        )
+
+        simulation = Simulation(
+            ring,
+            cycle,
+        )
+
+        simulation.prepare_beam(beam, bigaussian)
+
+        simulation.finalize(
+            (beam,),
+            n_turns,
+        )
+
+        harm, omega_rf_d, phi_rf_d = (
+            cavity_feedback.get_harmonic_and_omega_rf_phi_rf_design()
+        )
+
+        self.assertEqual(harm, cavity.harmonic[cavity_feedback.harmonic_index])
+        self.assertEqual(
+            omega_rf_d, cavity.omega_rf_design[cavity_feedback.harmonic_index]
+        )
+        self.assertEqual(
+            phi_rf_d, cavity.phi_rf_design[cavity_feedback.harmonic_index]
         )

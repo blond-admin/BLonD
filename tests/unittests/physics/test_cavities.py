@@ -929,6 +929,11 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             == self.multi_harmonic_cavity.get_main_harmonic_t_rf()
         )
 
+        self.assertEqual(
+            self.multi_harmonic_cavity.get_main_harmonic_phi_rf_design(),
+            self.multi_harmonic_cavity.get_main_harmonic_phi_rf(),
+        )
+
         self.multi_harmonic_cavity.cavity_feedback_list = [
             Mock(spec=LocalFeedback),
         ]
@@ -1367,6 +1372,12 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         self.single_harmonic_cavity.cavity_feedback_list = [
             Mock(spec=LocalFeedback),
         ]
+
+        self.assertEqual(
+            self.single_harmonic_cavity.get_main_harmonic_phi_rf_design(),
+            self.single_harmonic_cavity.get_main_harmonic_phi_rf(),
+        )
+
         with self.assertWarnsRegex(
             UserWarning,
             "`get_main_harmonic_voltage` returns unperturbed voltage",
