@@ -99,7 +99,6 @@ def rf_beam_current(
     beam: BeamBaseClass,
     profile: StaticProfile,
     omega_c: float,
-    T_rev: float,
     use_lowpass_filter: bool = True,
     downsample: dict | None = None,
     external_reference: bool = True,
@@ -148,8 +147,6 @@ def rf_beam_current(
         A Profile type class.
     omega_c
         Revolution frequency [1/s] at which the current should be calculated.
-    T_rev
-        Revolution period [s] of the machine.
     use_lowpass_filter
         Apply low-pass filter; default is True.
     downsample
@@ -186,7 +183,7 @@ def rf_beam_current(
         np.sum(profile.hist_y),
         np.sum(charges),
     )
-    logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
+    logger.debug("DC current is %.4e A/s", np.sum(charges))
 
     # Mix with frequency of interest; remember factor 2 demodulation
     I_f = 2.0 * charges * np.cos(omega_c * prof_time)
@@ -198,7 +195,7 @@ def rf_beam_current(
         cutoff = 20.0e6 * 2.0 * profile.hist_step
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
-    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
+    logger.debug("RF total current is %.4e A/s", np.fabs(np.sum(I_f)))
 
     charges_fine = I_f + 1j * Q_f
     if external_reference:

@@ -576,7 +576,8 @@ class LHCCavityFeedback(
     def cavity_response_fine_matrix(self):
         """ACS cavity response model in matrix form on the fine-grid."""
         # Number of samples on fine grid
-        self.samples_fine = self.omega_rf * self.profile.hist_step
+        _, omega_rf, _ = self.get_harmonic_and_omega_rf_phi_rf()
+        self.samples_fine = omega_rf * self.profile.hist_step
 
         # Find initial value of antenna voltage and generator current
         t_at_init = float(self.profile.hist_x[0]) - self.profile.hist_step
@@ -807,6 +808,7 @@ class LHCCavityFeedback(
     def tuner(self):
         """Model of the tuner algorithm."""
         # Compute the detuning factor for the current turn
+        _, omega_rf, _ = self.get_harmonic_and_omega_rf_phi_rf()
         volt = self.get_voltage_from_parent_rf_station()
         dtune = (
             -(self.mu / 2)
@@ -820,7 +822,7 @@ class LHCCavityFeedback(
         # Propagate the corrections to the detuning two the global parameters
         self.detuning = self.detuning + dtune * self.commissioning.open_tuner
         self.d_omega = self.detuning * self.omega_c
-        self.omega_c = self.omega_rf + self.d_omega
+        self.omega_c = omega_rf + self.d_omega
 
     def tuner_input(self):
         """Gather data for the detuning algorithm."""
@@ -846,7 +848,7 @@ class LHCCavityFeedback(
         for i in range(self.n_coarse):
             T_s = self.T_s
             self.ind = i
-            self.cavity_response(samples=T_s * self.omega_rf)
+            self.cavity_response(samples=self.samples)
             self.rf_feedback(t_s=T_s)
             self.swap()
             self.generator_current()
@@ -860,10 +862,12 @@ class LHCCavityFeedback(
         self.n_otfb = round(self.tau_otfb / self.T_s) + self.n_fir
 
         # Present detuning
-        self.d_omega = self.omega_c - self.omega_rf
+        self.d_omega = (
+            self.omega_c - 2 * np.pi * self.n_periods_coarse / self.T_s
+        )
 
         # Dimensionless quantities
-        self.samples = self.omega_rf * self.T_s
+        self.samples = 2 * np.pi * self.n_periods_coarse  # omega_rf * self.T_s
         self.detuning = self.d_omega / self.omega_c
 
     def update_set_point_excitation(self, excitation: NumpyArray, turn: int):
@@ -996,7 +1000,7 @@ class LHCCavityFeedback(
 
             for i in range(self.n_coarse):
                 self.ind = i
-                self.cavity_response(self.T_s * self.omega_rf)
+                self.cavity_response(self.samples)
                 self.rf_feedback(self.T_s)
                 self.swap()
                 self.generator_current()

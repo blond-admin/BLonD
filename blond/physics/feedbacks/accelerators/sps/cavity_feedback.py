@@ -975,8 +975,6 @@ class SPSOneTurnFeedback(
 
     def update_fb_variables(self):
         """Update variables in the feedback."""
-        t_rf = 2 * np.pi / float(self.omega_rf)
-
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
         self.phi_mod_0 = (
             (self.omega_carrier_prev - self.omega_c)
@@ -987,12 +985,12 @@ class SPSOneTurnFeedback(
         self.dphi_mod = self.dphi_mod % (2 * np.pi)
 
         # Present delay time
-        self.n_mov_av = int(self.TWC.tau / t_rf)
+        self.n_mov_av = int(self.TWC.tau / self.T_s)
         self.n_delay = self.n_coarse - self.n_mov_av
 
         if self.open_ff == 1:
             self.n_ff_delay = round(
-                0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / t_rf / 5
+                0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
             )
 
     # Power related functions

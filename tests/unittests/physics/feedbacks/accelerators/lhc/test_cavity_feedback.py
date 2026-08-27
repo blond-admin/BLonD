@@ -296,13 +296,13 @@ class TestLHCCavityFeedback(unittest.TestCase):
                 np.abs(cavity_feedback.buffers_coarse.i_beam.curr)
             ),
             r_over_q=cavity_feedback.r_over_q,
-            rf_frequency=cavity_feedback.omega_rf / 2 / np.pi,
+            rf_frequency=rf_station.omega_rf / 2 / np.pi,
             voltage=np.mean(np.abs(cavity_feedback.buffers_coarse.v_ant.curr)),
         )
 
         q_l_optimum = cavity_feedback.optimum_Q_L(
             detuning=theoretical_detuning,
-            rf_frequency=cavity_feedback.omega_rf / 2 / np.pi,
+            rf_frequency=rf_station.omega_rf / 2 / np.pi,
         )
         cavity_feedback.q_l = q_l_optimum
 

@@ -137,8 +137,6 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
 
         self.omega_carrier_prev: float | None = None
         self.omega_carrier: float | None = None
-        self.omega_rf: float | None = None
-        self.t_rev: float | None = None
 
         # Present sampling time
         self.T_s_prev: float | None = None
@@ -195,16 +193,12 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         harmonic, omega_rf, phi_rf = self.get_harmonic_and_omega_rf_phi_rf()
 
         self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
-        # TODO REMWORK/REMOVE
-        t_rev = float((2 * np.pi * harmonic) / omega_rf)
-        # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(harmonic)
+        t_rev = simulation.get_t_rev_init()
+        t_rf = 2 * np.pi / omega_rf
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = omega_rf / self.n_periods_coarse
-        # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(omega_rf)
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -244,16 +238,12 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
             Option to change the setpoint voltage.
         """
         self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
-        # TODO REMWORK/REMOVE
         t_rev = float((2 * np.pi * harmonic) / omega_rf)
-        # TODO REMWORK/REMOVE
         t_rf = 2 * np.pi / omega_rf
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = omega_rf / self.n_periods_coarse
-        # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(omega_rf)
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -361,28 +351,19 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         else:
             phi_rf = 0.0
 
-        # Present RF angular frequency
-        self.omega_rf = omega_rf
-        t_rev = float(  # TODO REMWORK/REMOVE
-            2 * np.pi * harmonic / self.omega_rf
-        )
-
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
-        self.omega_carrier = self.omega_rf
+        self.omega_carrier = omega_rf
 
         # Present sampling time
         self.T_s_prev = self.T_s
-        self.T_s = self.n_periods_coarse * 2 * np.pi / self.omega_rf
-
-        # Update the coarse grid sampling
-        self.n_coarse = round(t_rev / self.T_s)
+        self.T_s = self.n_periods_coarse * 2 * np.pi / omega_rf
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -phi_rf / self.omega_rf
+        self.dT = -phi_rf / omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
@@ -486,12 +467,6 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         use_lowpass_filter
             Whether to apply a lowpass filter when calculating the beam current.
         """
-        harmonic, omega_rf_design, _ = (
-            self.get_harmonic_and_omega_rf_phi_rf_design()
-        )
-        t_rev = float(  # TODO REMWORK/REMOVE
-            (2 * np.pi * harmonic) / omega_rf_design
-        )
         # Beam current from profile
         (
             self.buffers_fine.i_beam,
@@ -500,7 +475,6 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
             beam=beam,
             profile=self.profile,
             omega_c=self.omega_carrier,
-            T_rev=t_rev,
             use_lowpass_filter=use_lowpass_filter,
             downsample={"Ts": self.T_s, "points": self.n_coarse},
             external_reference=True,
