@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -136,7 +137,8 @@ class TestIQCavityFeedback(unittest.TestCase):
             cavity_feedback.rf_centers,
         )
 
-    def test_get_design_rf_parameters(self):
+    @staticmethod
+    def create_rf_parameter_tests(single_harmonic: bool = False):
         energy = np.sqrt(momentum**2 + proton.mass**2)
         rel_gamma = energy / proton.mass
         rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
@@ -152,13 +154,20 @@ class TestIQCavityFeedback(unittest.TestCase):
             orbit_length=circumference, momentum_compaction_factor=alpha
         )
 
-        cavity = MultiHarmonicRFStation(
-            n_harmonics=2,
-            main_harmonic_idx=0,
-            voltage=np.array([voltage, voltage * 0.2]),
-            phi_rf=np.array([0.0, np.pi]),
-            harmonic=np.array([h, 4 * h]),
-        )
+        if single_harmonic:
+            cavity = SingleHarmonicRFStation(
+                voltage=voltage,
+                phi_rf=0.0,
+                harmonic=h,
+            )
+        else:
+            cavity = MultiHarmonicRFStation(
+                n_harmonics=2,
+                main_harmonic_idx=0,
+                voltage=np.array([voltage, voltage * 0.2]),
+                phi_rf=np.array([0.0, np.pi]),
+                harmonic=np.array([h, 4 * h]),
+            )
 
         f_rf = cavity.calc_main_harmonic_omega_rf_design(
             rel_beta, lattice.orbit_length
@@ -201,6 +210,11 @@ class TestIQCavityFeedback(unittest.TestCase):
             n_turns,
         )
 
+        return cavity_feedback, cavity
+
+    def test_get_design_rf_parameters_multi_harmonic(self):
+        cavity_feedback, cavity = self.create_rf_parameter_tests()
+
         harm, omega_rf_d, phi_rf_d = (
             cavity_feedback.get_harmonic_and_omega_rf_phi_rf_design()
         )
@@ -212,3 +226,30 @@ class TestIQCavityFeedback(unittest.TestCase):
         self.assertEqual(
             phi_rf_d, cavity.phi_rf_design[cavity_feedback.harmonic_index]
         )
+
+    def test_get_design_rf_parameters_single_harmonic(self):
+        cavity_feedback, cavity = self.create_rf_parameter_tests(
+            single_harmonic=True
+        )
+
+        harm, omega_rf_d, phi_rf_d = (
+            cavity_feedback.get_harmonic_and_omega_rf_phi_rf_design()
+        )
+
+        self.assertEqual(harm, cavity.harmonic)
+        self.assertEqual(omega_rf_d, cavity.omega_rf_design)
+        self.assertEqual(phi_rf_d, cavity.phi_rf_design)
+
+    def test_get_rf_parameters_incorrect_rf_station(self):
+        cavity_feedback, cavity = self.create_rf_parameter_tests(
+            single_harmonic=True
+        )
+        wrong_rf_station = Mock(spec=DriftSimple)
+
+        cavity_feedback._parent_rf_station = wrong_rf_station
+
+        with self.assertRaises(TypeError):
+            _ = cavity_feedback.get_harmonic_and_omega_rf_phi_rf()
+
+        with self.assertRaises(TypeError):
+            _ = cavity_feedback.get_harmonic_and_omega_rf_phi_rf_design()
