@@ -50,6 +50,7 @@ multi-pass convolution voltage.
 """
 
 import unittest
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -72,6 +73,7 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_solvers import ForwardEulerValidityGuard
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
@@ -1369,44 +1371,68 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
             f"endpoint rel_err {rel_errors[-1]:.4g}",
         )
 
-    @unittest.expectedFailure
-    def test_multiturn_nondivisible_harmonic(self):
+    def test_multiturn_nondivisible_harmonic_is_rejected(self):
         """
-        KNOWN LIMITATION: harmonic not divisible by 2*n_sections is unsupported.
+        KNOWN LIMITATION, pinned as an explicit contract: a harmonic not
+        divisible by ``2 * n_sections`` is rejected, loudly and early.
 
         The other multi-section tests reduce the harmonic to a multiple of
-        ``2 * n_sections`` so each half-drift spans a whole number of RF periods
-        and the inter-station geometric phase ``omega * T_seg`` vanishes. This
-        test instead forces an odd harmonic (``base + 1``, a quarter-period
-        residual per half-drift), which should make that geometric phase
-        nonzero -- but the feedback never gets far enough to be judged on
-        accuracy: the fractional-period geometry de-aligns the coarse-grid
-        tiling from the profile's zeroed leading edge, so beam charge is
-        downsampled into the *first* coarse cell. Because the fine-grid initial
-        antenna voltage is seeded from that cell, its beam kick would be
-        double-counted, and ``rf_beam_current`` raises ``ValueError``
-        (beam_current.py,
-        "Beam charge was downsampled into the first coarse-grid cell") before
+        ``2 * n_sections`` so each half-drift spans a whole number of RF
+        periods and the inter-station geometric phase ``omega * T_seg``
+        vanishes. This test instead forces an odd harmonic (``base + 1``, a
+        quarter-period residual per half-drift), which would make that
+        geometric phase nonzero -- but the feedback never gets far enough to
+        be judged on accuracy: the fractional-period geometry de-aligns the
+        coarse-grid tiling from the profile's zeroed leading edge, so beam
+        charge is downsampled into the *first* coarse cell. The fine-grid
+        initial antenna voltage is seeded from that cell, so its beam kick
+        would be double-counted -- hence ``rf_beam_current`` raises before
         any voltage is produced.
 
-        The failure is deterministic for both the static and fast two-section
-        configs (verified). It exposes a real gap: the feedback's coarse-grid
-        construction assumes the harmonic is commensurate with the ring
-        segmentation (so the tiling boundary lands on the empty profile edge);
-        the geometry-agnostic ``MultiPassResonatorSolver`` reference has no such
-        restriction. Marked ``expectedFailure`` until the coarse grid tolerates
-        an incommensurate harmonic (e.g. by anchoring the first cell to the
-        zeroed edge rather than the RF-bucket tiling).
+        This asserts the raise rather than carrying an ``expectedFailure``:
+        an xfail passes on *any* error, so it would keep passing if the
+        limitation were replaced by an unrelated crash, and it would fail
+        loudly (as an unexpected pass) the day the geometry is generalised.
+        Pinning the exception and its message instead makes the contract
+        explicit -- the configuration is refused with an actionable
+        diagnostic -- and turns a future fix into a deliberate, visible edit
+        of this test.
+
+        The rejection is deterministic for both the static and the fast
+        two-section config (both are exercised below). It remains a real
+        gap: the coarse-grid construction assumes the harmonic is
+        commensurate with the ring segmentation, while the
+        geometry-agnostic ``MultiPassResonatorSolver`` reference has no such
+        restriction. Generalising it (e.g. anchoring the first cell to the
+        zeroed profile edge rather than to the RF-bucket tiling) would let
+        the accuracy comparison this test originally attempted run for real.
         """
         base = int(self.MULTITURN_HARMONIC - self.MULTITURN_HARMONIC % (2 * 2))
         harmonic = base + 1  # odd -> not divisible by 2 * n_sections (= 4)
         for acceleration, fast_ramp in ((False, False), (True, True)):
-            self._assert_multiturn_consistency(
-                n_sections=2,
-                acceleration=acceleration,
-                fast_ramp=fast_ramp,
-                harmonic_override=harmonic,
-            )
+            with self.subTest(acceleration=acceleration):
+                with self.assertRaises(ValueError) as raised:
+                    self._assert_multiturn_consistency(
+                        n_sections=2,
+                        acceleration=acceleration,
+                        fast_ramp=fast_ramp,
+                        harmonic_override=harmonic,
+                    )
+                message = str(raised.exception)
+                # The demodulation-frame guard catches this geometry one
+                # step earlier than the first-coarse-cell charge check, and
+                # by root cause: a harmonic not divisible by 2 * n_sections
+                # leaves a quarter-period residual per half-drift, so
+                # omega_c * dT lands away from pi and the beam-induced
+                # voltage would be rotated (past 0.5 pi, sign-inverted).
+                self.assertIn(
+                    "demodulation frame is not aligned with the RF bucket",
+                    message,
+                )
+                # The diagnostic must stay actionable: it has to say what is
+                # wrong, not merely that something went wrong.
+                self.assertIn("omega_c * dT", message)
+                self.assertIn("not divisible by the number of", message)
 
     def test_multiturn_detuned_regression_lock(self):
         """
@@ -1928,10 +1954,14 @@ class TestExponentialSolverEndToEnd(unittest.TestCase):
         static cavity detuning of 3.5e6 rad/s (~1100 half-bandwidths): the
         per-step envelope rotation is ``theta = delta_omega * t_rf ~=
         2.7e-3`` rad -- far below the 0.1 per-step warning threshold of
-        ``_check_step_sizes``, so forward Euler runs without complaint --
-        yet Euler's per-step magnitude growth ``sqrt(1 + theta^2)``
-        compounds to ``exp(N theta^2 / 2) - 1 ~= 10 %`` per turn over the
-        ``N = 25900`` coarse cells. The exponential propagator is exact in
+        ``_check_step_sizes`` -- yet Euler's per-step magnitude growth
+        ``sqrt(1 + theta^2)`` compounds to ``exp(N theta^2 / 2) - 1 ~= 10 %``
+        per turn over the ``N = 25900`` coarse cells.  This is exactly the
+        divergent regime the guard's coupled stability check now rejects
+        (``|B| > 1``, i.e. ``theta > sqrt(d (2 - d)) = 2.2e-3`` at this
+        ``Q_L``); the Euler leg below therefore runs with the guard
+        explicitly bypassed, so that the error the guard prevents stays
+        measurable here. The exponential propagator is exact in
         the detuning rotation (magnitude 1). Against the detuned
         convolution reference (resonator centred at ``1/t_rf +
         delta_omega / 2 pi``), measured ``rel_err(v, conv)`` per turn:
@@ -1948,9 +1978,18 @@ class TestExponentialSolverEndToEnd(unittest.TestCase):
         whole exponential end-to-end suite.
         """
         delta_omega = self.DETUNING_LARGE
-        convolution, feedback_euler = self.harness._feedback_vs_convolution(
-            n_sections=1, acceleration=False, delta_omega=delta_omega
-        )
+        # The guard now refuses this Euler configuration as divergent (that
+        # is the point of the test); bypass it to exhibit the drift.
+        with patch.object(
+            ForwardEulerValidityGuard, "check_step_sizes", lambda *a, **k: None
+        ):
+            convolution, feedback_euler = (
+                self.harness._feedback_vs_convolution(
+                    n_sections=1,
+                    acceleration=False,
+                    delta_omega=delta_omega,
+                )
+            )
         feedback_exp = self._run_feedback_beam_induced(
             exponential_coarse_solver_enable=True, delta_omega=delta_omega
         )

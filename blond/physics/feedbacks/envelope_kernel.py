@@ -33,7 +33,7 @@ Each cell also composes the demodulation-frame sum
 registration phase))`` rotates the design-anchored component into the
 demodulation frame; see ``IQCavityFeedbackTimingClass._track``), which is
 what the PI regulates -- in the *kick frame*,
-``error = V_set - V * kick_frame_rotation``.
+``error = (V_set - V * kick_frame_rotation) * pi_error_frame_rotation``.
 
 The kernel is deliberately *solver-agnostic*: the per-cell voltage multiplier
 ``B`` (``1 + L`` for forward Euler, ``e^L`` for the exponential propagator) and
@@ -100,6 +100,7 @@ def envelope_pi_scan(
     generator_active,
     generator_frame_rotation,
     kick_frame_rotation,
+    pi_error_frame_rotation,
     controller_active,
     pi_setpoint,
     omega_input,
@@ -182,6 +183,11 @@ def envelope_pi_scan(
         Per-passage scalar ``exp(+i * carrier slip gap)`` rotating the
         demodulation-frame sum into the frame of the applied kick, in which
         the PI error is formed.
+    pi_error_frame_rotation
+        Per-passage scalar ``exp(+i * delta_phi_rf)`` rotating the kick-frame
+        error into the actuator (design) frame the generator current acts in,
+        cancelling the ``exp(-i * delta_phi_rf)`` the composition applies to
+        the generator component (unity without an RF-frequency offset).
     controller_active
         Whether to run the PI controller; if False each cell's drive uses the
         pre-filled generator grid (cell 0 uses ``generator_current_init``) and
@@ -274,7 +280,9 @@ def envelope_pi_scan(
             voltage = voltage_beam
         voltage_out[cell] = voltage
         if controller_active:
-            error = pi_setpoint - voltage * kick_frame_rotation
+            error = (
+                pi_setpoint - voltage * kick_frame_rotation
+            ) * pi_error_frame_rotation
             delta_t = omega_times_dt[cell] / omega_input
             delay_buffer[delay_head] = error
             delay_head = (delay_head + 1) % buffer_len

@@ -749,10 +749,18 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Debugging flag to allow two beams to calculate the induced
         voltage at the same time, i.e. to deposit at the same reference
         time (``delta_t = 0``). Coincident passages of two
-        counter-rotating beams receive *order-dependent* kicks: the
-        first-tracked beam misses the other's simultaneous cross-wake
-        (it sees ``W(0)/2`` where the second-tracked beam sees ``W(0)``).
-        The flag therefore suits single-beam use, or serves as a
+        counter-rotating beams then get **wrong** kicks, not merely
+        order-dependent ones: the first-tracked beam misses the other's
+        simultaneous cross-wake entirely, and the second takes the full
+        ``W(0)`` of the first where the beam-loading theorem gives
+        ``W(0)/2``. For two equal coincident charges the kicks come out
+        as ``0.5`` and ``1.5`` times the correct value -- the sum
+        survives, the split does not -- so the two beams differ
+        spuriously and swapping the track order swaps which one is
+        under-kicked. Symmetrising it is a deliberate non-goal; a
+        coincident deposit therefore emits a second, runtime
+        ``UserWarning`` saying the result is wrong (once per solver).
+        The flag suits single-beam use, or serves as a
         numerical-tolerance escape for equal arrival times, but it is not
         a meeting-azimuth two-beam model; see the *Counter-rotating
         beams* warning in ``docs/feedbacks/mucol_cavity_feedback.rst``.
@@ -834,20 +842,27 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._active_omega: float | None = None
 
         self._allow_delta_t_zero = allow_delta_t_zero
+        # One-shot latch for the runtime warning below: a meeting-azimuth
+        # station is coincident on every turn for every beam, so warning
+        # per passage would bury the message and pay the warnings-filter
+        # machinery inside the tracking loop.
+        self._coincident_deposit_warned = False
 
         if allow_delta_t_zero:
             warnings.warn(
                 "allow_delta_t_zero=True permits coincident (delta_t = 0)"
                 " passages, and two coincident counter-rotating beams then"
-                " receive order-dependent kicks: each beam is kicked inside"
-                " its own track call, so the first-tracked beam misses the"
-                " other's simultaneous cross-wake -- it sees W(0)/2 where"
-                " the second-tracked beam sees W(0) -- and swapping the"
-                " track order swaps which beam is under-kicked by the whole"
-                " mutual term. The flag is meant for single-beam use, or as"
-                " a numerical-tolerance escape for equal arrival times; it"
-                " is not a meeting-azimuth two-beam model. See the"
-                " 'Counter-rotating beams' warning in"
+                " receive order-dependent kicks that are simply wrong: each"
+                " beam is kicked inside its own track call, so the"
+                " first-tracked beam misses the other's simultaneous"
+                " cross-wake -- it sees W(0)/2 where the second-tracked"
+                " beam sees W(0) -- and swapping the track order swaps"
+                " which beam is under-kicked by the whole mutual term."
+                " The flag is meant for single-beam use, or as a"
+                " numerical-tolerance escape for equal arrival times; it"
+                " is not a meeting-azimuth two-beam model, and a deposit"
+                " that really is coincident warns again at that point."
+                " See the 'Counter-rotating beams' warning in"
                 " docs/feedbacks/mucol_cavity_feedback.rst.",
                 UserWarning,
                 stacklevel=2,
@@ -1012,6 +1027,50 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         assert (delta_t > 0) or self._allow_delta_t_zero, (
             f"delta t was not > 0({delta_t})"
         )  # TODO: performance = ?
+        # A coincident deposit is not merely order-dependent, it is wrong
+        # for BOTH passages, and nothing downstream repairs it. The
+        # passage already kicked at this reference time had its induced
+        # voltage returned before this profile existed, so it missed the
+        # whole mutual term; this passage in turn reads that earlier
+        # deposit as an ordinary stored past one and takes its full W(0)
+        # where the beam-loading theorem gives W(0) / 2. For two equal
+        # coincident charges the kicks come out as 0.5 and 1.5 times the
+        # correct W(0) * Q: the sum survives, the split does not, so the
+        # artefact appears as a spurious differential between the two
+        # beams -- precisely the quantity a two-beam study measures.
+        # Symmetrising this (deposit both coincident profiles, then
+        # evaluate either kick) is a deliberate non-goal, so the run says
+        # so out loud instead. Guarded on a stored profile: with nothing
+        # deposited yet there is no earlier kick to have missed anything,
+        # and `<= 0` rather than `== 0` because the flag's documented
+        # purpose includes absorbing float noise on equal arrival times,
+        # which can land marginally negative.
+        if (
+            delta_t <= 0
+            and len(self._past_profiles) != 0
+            and not self._coincident_deposit_warned
+        ):
+            self._coincident_deposit_warned = True
+            warnings.warn(
+                "Coincident (delta_t <= 0) deposit at reference time"
+                f" {float(current_time)} s: the induced voltage computed"
+                " from here on is wrong, not merely order-dependent. The"
+                " passage already kicked at this time never saw this"
+                " profile, and this passage takes the full W(0) of that"
+                " earlier deposit where the beam-loading theorem gives"
+                " W(0) / 2 -- for two equal coincident beams the kicks"
+                " come out as 0.5 and 1.5 times the correct value, so the"
+                " beams differ spuriously and swapping the track order"
+                " swaps which one is under-kicked. This is a known,"
+                " unfixed limitation of allow_delta_t_zero=True, not a"
+                " tolerance to tune: there is no correct model here."
+                " Keep stations off the beams' meeting azimuths instead;"
+                " see the 'Counter-rotating beams' warning in"
+                " docs/feedbacks/mucol_cavity_feedback.rst. Warned once"
+                " per solver.",
+                UserWarning,
+                stacklevel=2,
+            )
         # The stored past profiles are shifted by delta_t on every deposit,
         # so a profile wider than the interval between two deposits *of the
         # same beam* overlaps that beam's own previous deposit and the same
@@ -1407,15 +1466,17 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         # todo check that the time of n_revolutions matches n * length_profile
         t_rev = self._simulation.get_t_rev_init()
-        if isinstance(t_rev, float):
-            # This solver needs the window to equal one turn, so it checks
-            # both directions itself; `profile_duration` is the shared
-            # spelling of the window length that `check_fits_in_span` also
-            # compares, so the two cannot drift apart.
-            assert abs(profile.profile_duration - t_rev) < profile.hist_step, (
-                f"Expected profile length of {t_rev} s, but got "
-                f"{profile.profile_duration} s."
-            )
+        # Checked unconditionally: `get_t_rev_init` casts with `float()` on
+        # its only return path, so the `isinstance(t_rev, float)` gate that
+        # used to wrap this could never be false -- it only made a mandatory
+        # check read as optional. This solver needs the window to equal one
+        # turn, so it checks both directions itself; `profile_duration` is
+        # the shared spelling of the window length that `check_fits_in_span`
+        # also compares, so the two cannot drift apart.
+        assert abs(profile.profile_duration - t_rev) < profile.hist_step, (
+            f"Expected profile length of {t_rev} s, but got "
+            f"{profile.profile_duration} s."
+        )
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass

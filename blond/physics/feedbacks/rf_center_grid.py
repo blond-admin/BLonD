@@ -328,12 +328,19 @@ class RFCenterGridMixin:
         else:
             raise RuntimeError("Turn value not possible, was a turn skipped?")
 
+        # ONE direction for the whole walk. The backfill re-derives an
+        # interval that has already elapsed, so the traversal order, the
+        # indices into that order and the per-station section remap must all
+        # describe the beam whose forward projection laid down the carried
+        # state -- not whichever beam happens to be tracked now. Deriving
+        # them from a single flag is what keeps them from disagreeing: with
+        # two beams the current beam's direction can differ from the carried
+        # one, and mixing the two would order the elements for one beam while
+        # applying the other's energy program.
         if self._last_tracked_beam_state_frwrd is not None:
             # Continue from where the last forward projection stopped, in that
             # beam's direction.
-            backfill_element_list = self._reference_list_for_direction(
-                self._last_tracked_beam_state_frwrd
-            )
+            backfill_is_counter_rotating = self._last_tracked_beam_state_frwrd
             start_index = (
                 self.reference_index_until_tracked_reverse
                 if self._last_tracked_beam_state_frwrd
@@ -341,10 +348,11 @@ class RFCenterGridMixin:
             )
         else:
             # first turn, nothing has been tracked yet.
-            backfill_element_list = self._reference_list_for_direction(
-                beam.is_counter_rotating
-            )
+            backfill_is_counter_rotating = beam.is_counter_rotating
             start_index = 0
+        backfill_element_list = self._reference_list_for_direction(
+            backfill_is_counter_rotating
+        )
 
         for element in backfill_element_list[
             start_index:
@@ -368,7 +376,7 @@ class RFCenterGridMixin:
                 try:
                     element.track_reference(
                         self._reference_state_until_tracked,
-                        beam.is_counter_rotating,
+                        backfill_is_counter_rotating,
                     )
                 finally:
                     element._turn_counter._value -= reference_turn_offset
@@ -389,27 +397,13 @@ class RFCenterGridMixin:
                 )
             )
             time_list.append(self._reference_state_until_tracked.time)
-            isclose = np.isclose(
-                self._reference_state_until_tracked.time,
-                beam.reference.time,
-                rtol=1e-12,
-                atol=0,
-            )
-            is_above = (
-                self._reference_state_until_tracked.time > beam.reference.time
-            )
-            if isclose or is_above:  # counterrotation should break earlier
-                if is_above:
-                    warnings.warn(
-                        "Inconsistency with references, is a "
-                        "delta_omega_rf applied to the rf_stations?",
-                        stacklevel=2,
-                    )
+            if self._backfill_walk_reached_beam(beam.reference.time):
+                # counterrotation should break earlier
                 found = True
                 break
 
         until_index = self._own_index_for_direction(
-            backfill_element_list is self._reference_altering_elements_reverse
+            backfill_is_counter_rotating
         )
 
         if not found:
@@ -420,7 +414,7 @@ class RFCenterGridMixin:
                 if isinstance(element, RFStationBaseClass):
                     element.track_reference(
                         self._reference_state_until_tracked,
-                        beam.is_counter_rotating,
+                        backfill_is_counter_rotating,
                     )
                 else:
                     element.track_reference(
@@ -438,12 +432,8 @@ class RFCenterGridMixin:
                     )
                 )
                 time_list.append(self._reference_state_until_tracked.time)
-                if np.isclose(
-                    self._reference_state_until_tracked.time,
-                    beam.reference.time,
-                    rtol=1e-12,
-                    atol=0,
-                ):  # counterrotation should break earlier
+                if self._backfill_walk_reached_beam(beam.reference.time):
+                    # counterrotation should break earlier
                     break
 
         if len(time_list) > 1:
@@ -456,7 +446,14 @@ class RFCenterGridMixin:
             # not the grid.
             self._backfill_segment_omega_design_list = np.array(omega_list)
         else:
-            self._backfill_time_array = np.array(time_list)
+            # Durations since the walk's start, exactly as the branch above:
+            # a single recorded reference time is still a SEGMENT LENGTH
+            # (time_list[0] - start_time), never the absolute clock reading.
+            # Storing the absolute time here made the segment grow with the
+            # simulation clock, so the grid spanned the whole elapsed run.
+            self._backfill_time_array = (
+                np.asarray(time_list, dtype=float) - start_time
+            )
             # Grid geometry stays on the *design* RF clock (see
             # forward_segment_omega_design); the RF-frequency offset
             # enters only as the constant demodulation/readout phase,
@@ -651,6 +648,62 @@ class RFCenterGridMixin:
             f"{np.cumsum([0, *(len(seg) for seg in self._segments)])[:-1]}"
         )
         return self._residual_time_last_rf_centers_calculation
+
+    def _backfill_walk_reached_beam(
+        self: IQCavityFeedbackTimingClass, beam_reference_time: float
+    ) -> bool:
+        """
+        Whether the backfill walk has reached the current beam's arrival.
+
+        The walk reconstructs the ring interval between the end of the last
+        forward projection and this passage's arrival, so it must stop at
+        the FIRST element whose accumulated reference time reaches that
+        arrival. Every further element adds a segment of grid for ring
+        elements the beam has not traversed since the previous passage --
+        segments later replayed into the cavity envelope as elapsed time,
+        and leaving ``_reference_state_until_tracked`` (the seed of the
+        NEXT forward projection) past the beam.
+
+        Both stages of the walk -- the tail of the previous turn and the
+        wrap-around into the current one -- stop through this one test so
+        they cannot drift apart. Only the TARGET is passed in: both stages
+        advance the same ``_reference_state_until_tracked`` object, so
+        taking the walked time off the instance is what keeps the two call
+        sites comparing the same pair of clocks. A stage testing for
+        equality alone runs past the arrival whenever the two clocks
+        disagree by more than the tolerance -- exactly the situation the
+        warning below reports.
+
+        Parameters
+        ----------
+        beam_reference_time : float
+            Reference time [s] of the beam being tracked now: the end of
+            the interval the walk has to reconstruct.
+
+        Returns
+        -------
+        bool
+            True once the walked reference has reached (to within 1e-12
+            relative) or passed ``beam_reference_time``.
+
+        Warns
+        -----
+        UserWarning
+            If the walked reference lands strictly ABOVE the beam's, i.e.
+            the two clocks have diverged rather than merely met.
+        """
+        walked_time = self._reference_state_until_tracked.time
+        is_close = np.isclose(
+            walked_time, beam_reference_time, rtol=1e-12, atol=0
+        )
+        is_above = walked_time > beam_reference_time
+        if is_above and not is_close:
+            warnings.warn(
+                "Inconsistency with references, is a "
+                "delta_omega_rf applied to the rf_stations?",
+                stacklevel=2,
+            )
+        return is_close or is_above
 
     def _generate_rf_centers(
         self: IQCavityFeedbackTimingClass,

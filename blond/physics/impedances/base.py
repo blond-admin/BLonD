@@ -590,6 +590,14 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
+        # `get_t_rev_init` returns a plain float in a real Simulation, so the
+        # mock must too: solvers compare it numerically (e.g.
+        # `ContinuousMultiTurnTimeDomainSolver` requires the window to be one
+        # turn) and a bare Mock would silently disable those checks. A
+        # headless profile is by definition the whole turn it models.
+        simulation.get_t_rev_init.return_value = (
+            float(profile.profile_duration) if profile is not None else 0.0
+        )
         wf.on_init_simulation(simulation=simulation)
         wf.on_run_simulation(
             simulation=simulation,

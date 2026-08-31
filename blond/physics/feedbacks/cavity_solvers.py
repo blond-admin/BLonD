@@ -479,9 +479,11 @@ class ForwardEulerValidityGuard:
     delta_omega * dt)``, plus the beam-loading increment
     ``-I_beam * 0.5 * R_over_Q * omega * dt``. Each is only an accurate
     discretisation of the underlying ODE while it represents a small change
-    per step, so this guard tests exactly those three magnitudes: the
-    per-step decay, the per-step detuning phase, and the per-step beam kick
-    relative to the voltage it acts on.
+    per step, so this guard tests four magnitudes: the per-step decay, the
+    per-step detuning phase, the magnitude of the combined Euler multiplier
+    ``|1 - d + 1j * p|`` -- the coupled stability condition the two separate
+    caps cannot express -- and the per-step beam kick relative to the
+    voltage it acts on.
 
     It lives beside the step arithmetic it caps -- and the solvers it
     certifies -- rather than on the feedback, because it is pure numerics: it
@@ -509,8 +511,10 @@ class ForwardEulerValidityGuard:
     # Heuristic thresholds for forward-Euler validity [rad, and relative].
     #: Soft (warning) threshold for the per-step decay and detuning phase.
     max_step_angle = 0.1
-    # Hard cap on the per-step decay ``d = decay_per_step``. The forward-Euler
-    # decay factor (real part, ignoring detuning) is ``1 - d``:
+    # Hard cap on the per-step decay ``d = decay_per_step``, read at ZERO
+    # detuning: with the detuning phase ``p`` set aside, the Euler
+    # multiplier ``B = 1 - d + 1j * p`` collapses to the real factor
+    # ``1 - d``:
     #   * d < 1:      factor in (0, 1)  -- ordinary contraction.
     #   * 1 < d < 2:  factor in (-1, 0) -- the sign flips every step
     #                 (unphysical), but |factor| < 1 so the voltage still
@@ -519,9 +523,16 @@ class ForwardEulerValidityGuard:
     #                 genuinely divergent discretization.
     # The exact factor ``exp(-omega dt / (2 Q_L))`` is positive for every step
     # size, so the whole band d > 1 misrepresents the physics -- the cap
-    # deliberately sits at the sign-flip boundary d = 1, not at the divergence
-    # boundary d = 2: contracting while inverting every step is still wrong,
-    # just not explosively so.
+    # deliberately sits at the sign-flip boundary d = 1, not at the
+    # zero-detuning divergence boundary d = 2: contracting while inverting
+    # every step is still wrong, just not explosively so.
+    # BUT d = 2 is the divergence boundary ONLY at p = 0. In general the
+    # recursion diverges as soon as ``|1 - d + 1j * p| > 1``, i.e. as soon
+    # as ``p**2 > d * (2 - d)``, which for a superconducting cavity's
+    # ``d ~ 1e-6`` is already breached at ``|p| ~ 1.4e-3`` rad -- three
+    # orders of magnitude below this cap. So this cap does NOT bound
+    # divergence; the multiplier-magnitude tripwire in check_step_sizes
+    # does, and it is not implied by this one.
     #: Hard (raising) threshold for the per-step decay and detuning phase.
     max_step_angle_hard = 1.0
     #: Soft (warning) threshold for the relative per-step beam kick.
@@ -621,6 +632,39 @@ class ForwardEulerValidityGuard:
                 "cavity_response() may be inaccurate; consider decreasing "
                 "delta_omega or n_rf_periods_per_coarse_grid.",
                 stacklevel=3,
+            )
+
+        # Coupled stability condition. The two caps above bound the decay and
+        # the detuning phase *separately*, which cannot express the condition
+        # that actually decides whether the recursion converges: the Euler
+        # multiplier is B = 1 - d + 1j * p, so the step contracts only while
+        # |B| <= 1, i.e. p**2 <= d * (2 - d). At the tiny per-step decay of a
+        # superconducting cavity (d ~ 1e-6) that admits |p| only up to
+        # ~sqrt(2 d) ~ 1e-3 rad -- three orders of magnitude below
+        # max_step_angle_hard, so a divergent step sails past both caps.
+        multiplier_magnitude = abs(
+            euler_voltage_multiplier(
+                complex(-decay_per_step, detuning_phase_per_step)
+            )
+        )
+        if multiplier_magnitude > 1.0:
+            stability_limit = np.sqrt(
+                max(decay_per_step * (2.0 - decay_per_step), 0.0)
+            )
+            raise ValueError(
+                f"{multiplier_magnitude=:.6g} > 1: the forward-Euler coarse "
+                "recursion used in cavity_response() is DIVERGENT -- the "
+                "antenna voltage grows by that factor every coarse-grid "
+                "step. The Euler multiplier is B = 1 - d + 1j * p with "
+                f"{decay_per_step=:.3g} and {detuning_phase_per_step=:.3g}, "
+                "and the step contracts only while |B| <= 1, i.e. "
+                f"|p| <= sqrt(d * (2 - d)) = {stability_limit:.3g}. This "
+                "condition couples the decay and the detuning, so it is not "
+                "implied by the separate per-step caps above. Increase Q_L, "
+                "decrease delta_omega or n_rf_periods_per_coarse_grid, or "
+                "set exponential_coarse_solver_enable=True to use the exact "
+                "propagator, which is unconditionally stable and is not "
+                "subject to this check."
             )
 
     def check_beam_kick_magnitude(

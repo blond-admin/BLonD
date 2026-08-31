@@ -750,19 +750,30 @@ silently serialize the coincident arrivals one projection window apart.
 
 .. warning::
 
-   There is currently **no correct model for a station at a meeting
-   azimuth** with simultaneous coincident passages. The
+   There is **no correct model for a station at a meeting azimuth** with
+   simultaneous coincident passages, and none is planned. The
    ``MultiPassResonatorSolver`` wakefield with ``allow_delta_t_zero=True``
    permits the coincident (``delta_t = 0``) deposit but applies each beam's
    kick *inside its own track call*, before the other beam's coincident
    profile has been deposited. The beam tracked first therefore sees only
    its own self-loading ``W(0)/2`` while the beam tracked second sees
-   ``W(0)`` (self + the first beam's cross-wake): one beam is under-kicked
-   by the entire mutual beam-loading term, and swapping the track order
-   swaps which beam is affected. Do **not** rely on this path for a
-   meeting-azimuth station until the coincident cross-wake is symmetrised
-   (deposit both beams' coincident profiles before evaluating either kick).
-   Keep stations off the meeting azimuths (offset passages) instead.
+   ``W(0)`` (self + the first beam's cross-wake). For two equal coincident
+   charges the kicks come out as ``0.5`` and ``1.5`` times the correct
+   ``W(0) Q``: the *sum* survives, the *split* does not, so the artefact
+   appears as a spurious differential between the two beams -- exactly the
+   quantity a two-beam study measures -- and swapping the track order swaps
+   which beam is under-kicked.
+
+   Results from this path are therefore **wrong**, not merely
+   order-dependent. Symmetrising the coincident cross-wake (deposit both
+   beams' profiles before evaluating either kick) is a deliberate
+   **non-goal**: the case is unreachable unless ``allow_delta_t_zero=True``
+   is chosen explicitly, and the feedback refuses a meeting-azimuth station
+   outright. Instead of a fix, the situation announces itself -- the solver
+   warns at construction, and a deposit that really is coincident emits a
+   second ``UserWarning`` at that moment (once per solver) stating that the
+   induced voltage from there on is wrong. Keep stations off the meeting
+   azimuths (offset passages) instead.
 
 For the wake-solver references, ``shunt_impedances_counter_witness``
 (``R_CR``) is the shunt impedance a counter-rotating *witness* -- a test
@@ -809,10 +820,63 @@ Known limitations
 -----------------
 
 * A harmonic number that is not divisible by ``2 * n_sections`` de-aligns
-  the coarse-grid tiling from the profile's charge-free leading edge, so
-  beam charge lands in the first coarse cell and ``rf_beam_current`` raises
-  before any voltage is produced (marked as an expected failure in the
-  multi-turn comparison suite).
+  the coarse-grid tiling from the RF bucket. **Only some of those cases are
+  refused, and the rest are silently wrong** -- do not rely on this being
+  caught.
+
+  The grid seeds every segment half an RF period in, so a segment spanning
+  a fractional number of RF periods leaves a residual different from
+  ``t_rf / 2``; that residual is the demodulation frame ``dT``, and the
+  fundamental theorem of beam loading needs ``omega * dT = pi``
+  (mod ``2 pi``). Which fraction it is decides what happens:
+
+  - ``1/4`` and ``3/4`` of a period push beam charge into the first coarse
+    cell, so ``rf_beam_current`` raises before any voltage is produced.
+    That refusal -- and only that one -- is pinned as a contract by
+    ``test_multiturn_nondivisible_harmonic_is_rejected`` in the multi-turn
+    comparison suite, which asserts the ``ValueError`` and that its message
+    stays actionable.
+  - ``1/2`` of a period (``harmonic % (2 * n_sections) == n_sections``,
+    which includes every odd harmonic on a one-station ring) gives
+    ``omega * dT = 2 pi``, i.e. the demodulation factor is ``+1`` where it
+    must be ``-1``. Nothing complains: the run completes and **the
+    beam-induced voltage has the wrong sign**, so the bunch is accelerated
+    by its own wake. Measured against the ``MultiPassResonatorSolver``:
+    199.9 % relative error on the first turn.
+
+  There is currently no guard for the ``1/2`` case. Choose
+  ``harmonic % (2 * n_sections) == 0`` for the symmetric half-drift /
+  station / half-drift layout, and more generally make every stretch
+  between the ring start and an RF station, and between two consecutive RF
+  stations, span a whole number of RF periods.
+  ``muon_collider_blonder.rcs_two_beam_example`` does this itself, reducing
+  the JSON harmonic to a multiple of ``2 * n_sections``.
+
+  Sub-stepped grids (``n_rf_periods_per_coarse_grid < 1``) are exempt: they
+  tile continuously across segment boundaries instead of re-seeding at the
+  bucket phase, so ``dT`` is one previous coarse step by construction.
+* **The demodulation frame carries a stale-frequency lag under a ramp.**
+  The tail ``dT`` that sets the beam-current demodulation frame is left by
+  the *preceding* coarse segment, but is consumed against the *current*
+  segment's design carrier. Under acceleration the two frequencies differ,
+  so the frame is short (or long) by ``(omega_fwd - omega_prod) * dT``.
+  Because ``dT ~ t_rf / 2 = pi / omega``, that error expressed in ``pi`` is
+  simply the fractional per-segment frequency change::
+
+      frame lag [pi]  ~  (omega_fwd - omega_prod) / omega
+
+  This is an accepted approximation, not a defect to work around: measured
+  over the shipped programmes it is ``7.9e-8 pi`` on RCS1 -- the fastest
+  ramp, ~23 % energy gain per turn -- and ``9.4e-10 pi`` on RCS2, against
+  the ``1e-3 pi`` tolerance of the demodulation-frame guard. The margin is
+  ~1.3e4.
+
+  A substantially more violent ramp would erode it. The failure is loud
+  rather than silent -- the guard raises as soon as the lag reaches
+  ``1e-3 pi`` -- and the fix is local: ``RFCenterSegment`` already stores
+  ``omega`` beside ``residual``, so the frame can be rebuilt from the
+  carrier that actually produced the residual.
+
 * In a ring with more than one RF station the ``delta_omega_rf`` offset
   cannot be changed during the run (the station raises). The former
   lab-frame demodulation slip under an offset (an error growing with the

@@ -981,13 +981,19 @@ full config tuple
     Long-horizon guard for the shorter consistency tests: the most drift-prone
     case (2 sections, fast undriven) run for 20 turns has a bounded per-turn
     relative-error slope (~0.03 pp/turn) and an endpoint within 1 %.
-``test_multiturn_nondivisible_harmonic`` (``@expectedFailure``)
-    KNOWN LIMITATION. A harmonic not divisible by ``2 * n_sections``
-    de-aligns the coarse-grid tiling from the profile's zeroed leading edge, so
-    beam charge is downsampled into the first coarse cell and ``rf_beam_current``
-    raises before any voltage is produced -- a genuine gap versus the
-    geometry-agnostic solver. The other multi-section tests reduce the harmonic
-    to a multiple of ``2 * n_sections`` to avoid this.
+``test_multiturn_nondivisible_harmonic_is_rejected``
+    KNOWN LIMITATION, pinned as a contract. A harmonic not divisible by
+    ``2 * n_sections`` de-aligns the coarse-grid tiling from the profile's
+    zeroed leading edge, so beam charge is downsampled into the first coarse
+    cell and ``rf_beam_current`` raises before any voltage is produced -- a
+    genuine gap versus the geometry-agnostic solver. The test asserts that
+    ``ValueError``, and that its message both names the cause and stays
+    actionable (it must mention ``cut_left``), for the static and the fast
+    two-section config. It is deliberately *not* an ``expectedFailure``: an
+    xfail passes on any error, so it would survive the limitation being
+    replaced by an unrelated crash, and it would fail as an unexpected pass
+    once the geometry is generalised. The other multi-section tests reduce
+    the harmonic to a multiple of ``2 * n_sections`` to avoid this.
 ``test_multiturn_detuned_regression_lock``
     Regression-locks the proven-good static detuned-cavity regimes
     (``delta_omega`` of a few to ~10 half-bandwidths across static/fast x 1/2
@@ -1327,13 +1333,13 @@ turn), so the feedback detects the coincident opposite-direction passage
 
 ``test_single_section_two_beam_raises``
     The coincident second passage raises ``NotImplementedError``. The message
-    points to the supported fix -- move the station off the meeting azimuth.
-    It also mentions the ``MultiPassResonatorSolver`` wakefield
-    (``allow_delta_t_zero=True``), but note the caveat in the design doc's
-    *Counter-rotating beams* warning: that path deposits each coincident
-    beam's kick before the other beam's profile is registered, so it gives an
-    order-asymmetric kick and is *not* a correct model for a meeting-azimuth
-    station.
+    points to the only supported fix -- move the station off the meeting
+    azimuth -- and names the ``MultiPassResonatorSolver`` wakefield
+    (``allow_delta_t_zero=True``) explicitly as *not* a substitute: that path
+    deposits each coincident beam's kick before the other beam's profile is
+    registered, so its kicks are wrong (0.5 and 1.5 times the correct mutual
+    term, depending on track order). See the design doc's *Counter-rotating
+    beams* warning.
 ``test_single_section_convolution_reference_needs_delta_t_zero``
     Pins that the solver *can* be made to accept a coincident passage: its
     monotonic-clock assertion rejects ``delta_t = 0`` unless
@@ -2242,6 +2248,28 @@ one, including the depositing beam's rotation tag.
     ``allow_delta_t_zero=True`` already warns at construction that the kicks
     become order-dependent; a ``delta_t`` of zero must not additionally
     produce a span failure and break a case the user explicitly opted into.
+``test_coincident_passage_warns_that_the_result_is_wrong``
+    The construction-time warning fires for *every* use of the flag,
+    including the legitimate single-beam ones, so it can only say that
+    something may go wrong. A deposit that actually lands on top of an
+    earlier one at the same reference time is the broken case, and it is
+    broken unconditionally -- the earlier passage's kick was returned
+    before this profile existed, and this passage takes the earlier
+    deposit's full ``W(0)`` where the beam-loading theorem gives
+    ``W(0) / 2``. A second, runtime ``UserWarning`` therefore says the
+    result is wrong at the point that becomes true, and must name the
+    defect (``W(0)``) rather than merely assert badness.
+``test_ordinary_passage_does_not_warn_about_wrong_results``
+    The flag alone does not make every passage suspect: with a positive
+    ``delta_t`` the run stays silent.
+``test_first_passage_does_not_warn_about_wrong_results``
+    A degenerate clock with nothing deposited yet is not the broken case --
+    there is no earlier kick to have missed anything -- so it must not raise
+    a false alarm.
+``test_coincident_passage_warns_only_once_per_solver``
+    One-shot, not one per passage: a meeting-azimuth station is coincident
+    on every turn for every beam, so a per-passage warning would bury the
+    message and pay the warnings-filter machinery inside the tracking loop.
 
 
 Attach-time harmonic-slot validation

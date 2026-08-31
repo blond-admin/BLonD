@@ -111,7 +111,7 @@ check).
   Out of scope but worth knowing: the non-mucol helper
   `tests/unittests/physics/impedances/comparisons/mtw.py` hardcodes
   `DEBUG_PLOTTING = True` inside a helper function.
-- Observation tests write `last_*.npy` / `last_*.json` into the CWD — see the
+- Observation tests write `last_*.npy` / `last_*.json` into the CWD (now git-ignored at the repo root) — see the
   open item in §3.
 
 ---
@@ -709,8 +709,13 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
   multi-section SLOW-ramp pins were regenerated too: the kick-frame PI
   error shift is `V_beam·(1 − e^{iΨ})` with Ψ ~7e-6 rad/turn there, moving
   `|V_ant|` ≤ 2.4e-6 and the current response ≤ 1.7e-6 relative —
-  marginally past the 1e-6 pin tolerance, declared in the pin comments;
-  maintainer reviewed and proceeded.
+  marginally past the 1e-6 pin tolerance, declared in the pin comments.
+  **ACCEPTED by the maintainer (2026-08-13).** The shift is a real
+  modelling improvement -- the loop now regulates the frame the beam
+  actually sees -- and its magnitude was reproduced independently by
+  the verifier before acceptance. The rejected alternative was to
+  restore the pre-fix values and widen that test's `rtol` to ~5e-6,
+  which would hide future drift of exactly this size.
 
 ---
 
@@ -725,11 +730,24 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
 - **Coincident-kick asymmetry in `MultiPassResonatorSolver`.** With
   `allow_delta_t_zero=True` each beam is kicked inside its own track call, so
   the first-tracked beam sees `W(0)/2` where the second sees `W(0)`, and
-  swapping the track order swaps which beam is under-kicked. The constructor
-  now **warns** about exactly this, and the design RST carries a `..
-  warning::` instead of recommending the workaround. The real fix — deposit
-  both coincident profiles before evaluating either kick, symmetrising the
-  mutual `W(0)/2` — is **left for a decision**.
+  swapping the track order swaps which beam is under-kicked. For equal
+  coincident charges the kicks are `0.5` and `1.5` times the correct
+  `W(0)·Q` — the sum survives, the split does not — so it shows up as a
+  spurious beam-to-beam differential.
+  **DECIDED (2026-08-31): no fix.** The maintainer ruled that the case is
+  unreachable without explicitly choosing `allow_delta_t_zero=True`, so
+  symmetrising it (deposit both coincident profiles, then kick) is a
+  **non-goal**. Instead the wrongness is stated where it happens: the
+  parameter docstring, the construction warning and the feedback's
+  `NotImplementedError` all now say the results are *wrong* rather than
+  merely order-dependent (the error message no longer offers the solver as
+  a substitute), and a genuinely coincident deposit emits a runtime
+  `UserWarning` — one-shot per solver, guarded on `delta_t <= 0` *and* a
+  stored profile, so a first deposit and ordinary passages stay silent.
+  Pinned by four tests in `TestMultiPassResonatorSolver`
+  (`test_coincident_passage_warns_that_the_result_is_wrong` and the three
+  negatives/one-shot). Verified on a real meeting-azimuth two-beam run:
+  exactly one warning, at the first coincident deposit.
 - **Per-beam live profiles** under two-beam tracking clobber each other
   (tests use frozen profiles) — core gap.
   **CORRECTION (2026-07-23):** the earlier belief that a
@@ -761,31 +779,37 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
 
 ### 3.2 Housekeeping
 
-- **Observation tests write `last_*.npy` / `last_*.json` into the CWD** (the
-  repo root when pytest runs from `BLonD/`). Mechanism:
-  `ObservablesBaseClass.__init__` builds `common_filepath = folder + "last"`,
-  and every concrete observation defaults `folder: str = ""`; the mucol
-  harness (`accelerators/mucol/mucol_cav_fdbk.py`) constructs
-  `IQCavityFeedbackObservation` without a folder. There is no `.gitignore`
-  entry for them (checked). A `.gitignore` line or a `tmp_path` fixture would
-  stop them accumulating as untracked files.
-- **`_phase_offset_frwrd` / `_phase_offset_frwrd_next` are vestigial.**
-  **CORRECTION (2026-08-11):** the `delta_omega_rf` bullet below used to say
-  these "are removed entirely". They are not — both are still initialised to
-  `0.0` in `__init__` and re-zeroed in `on_run_simulation`, and
-  `_phase_offset_frwrd` is still read by one grid test
-  (`test_rf_center_grid.py`, in the expected-waveform construction, where it
-  contributes exactly 0). Nothing writes a non-zero value anywhere. They
-  should be deleted together with that test's use of them.
+- ~~Observation tests write `last_*.npy` / `last_*.json` into the CWD~~
+  **RESOLVED (2026-08-13)**: the `.gitignore` already ignored
+  `tests/last_*`, but observables default to `folder=""` and therefore
+  write relative to the CWD -- and the documented workflow runs pytest
+  from the repo *root*, so the pattern never matched. Repo-root
+  `last_*.json` / `last_*.npy` rules added alongside the `tests/` ones
+  (with the reason recorded in `.gitignore`), and the ten stray files
+  removed. Verified: a full suite run regenerates them and `git status`
+  stays clean. The deeper fix (a `tmp_path` fixture per emitting test)
+  is still open but no longer leaks into the working tree.
+- ~~`_phase_offset_frwrd` / `_phase_offset_frwrd_next` are vestigial~~
+  **RESOLVED (2026-08-13)**: both were always exactly `0.0` (initialised
+  in `__init__`, re-zeroed in `on_run_simulation`, never written
+  elsewhere). Deleted, together with the one test term that added
+  `_phase_offset_frwrd` to a `np.sin` argument where it contributed
+  zero. Grep now returns no occurrence anywhere in `blond/` or
+  `tests/`; suite unchanged.
 - **The extracted mixins** (`RFCenterGridMixin`, `GeneratorRegulationMixin`)
   are still pure moves (methods take `self: IQCavityFeedbackTimingClass`);
   promoting them to composed collaborators is the natural follow-up.
 - **P6** (RF-parameter view mixin) skipped per user.
-- **Full Sphinx doc build not yet run** for the current state of the two
-  RSTs. CI builds with `sphinx-build -W` (warnings = errors, see CLAUDE.md);
-  run `cd docs && bash create_docs.sh` **sequentially, never looped** (a
-  looped/concurrent build wipes the shared `examples/`/`_build/` dirs and
-  produces spurious warnings) before the MR. No new top-level exports were
+- ~~Full Sphinx doc build not yet run~~ **RESOLVED (2026-08-13)**: built
+  green (`build succeeded`, exit 0, zero warnings) under `-W` +
+  `nitpicky = True` for the current state of both RSTs and all docstrings.
+  One `-W` failure was found and fixed en route: a `:meth:` role on the
+  private `_compose_coarse_sum` in `cavity_response`'s docstring (a role on
+  an underscore-leading member never resolves -- use ``literal`` markup).
+  Run it **sequentially, never looped** (a looped/concurrent build wipes the
+  shared `examples/`/`_build/` dirs and produces spurious warnings); from a
+  Bash tool use the ABSOLUTE path, `cmd //c "C:\...\BLonD\docs\create_docs.bat"`,
+  because the shell cwd drifts between calls. No new top-level exports were
   added, so `ASSIGNED_CATEGORIES` needs no update.
 - ~~RST/source name drift~~ **RESOLVED (2026-08-12)**: both RSTs now use
   the backfill vocabulary throughout and `envelope_kernel.py` carries no

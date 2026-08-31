@@ -377,7 +377,7 @@ class Simulation(Preparable):
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 
-    def get_t_rev_init(self):
+    def get_t_rev_init(self) -> float:
         r"""
         Compute the initial revolution period of a reference particle, in [s].
 

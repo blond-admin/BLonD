@@ -450,6 +450,21 @@ class TestSimulation(unittest.TestCase):
         )
         mock_func.assert_called()
 
+    def test_get_t_rev_init_returns_a_plain_float(self):
+        """
+        The initial revolution period is a scalar float, never an array.
+
+        Consumers rely on this: ``ContinuousMultiTurnTimeDomainSolver``
+        compares the profile window against it directly, and an array
+        would make that comparison ambiguous instead of failing loudly.
+        The method casts with ``float()`` on its only return path, so
+        this pins the contract that lets callers skip a type check.
+        """
+        t_rev_init = self.simulation.get_t_rev_init()
+
+        self.assertIsInstance(t_rev_init, float)
+        self.assertGreater(t_rev_init, 0.0)
+
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
             SingleHarmonicRFStation, recursive=False

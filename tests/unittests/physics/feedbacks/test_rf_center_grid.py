@@ -30,6 +30,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.cavities import RFStationBaseClass
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
     RFCenterSegment,
@@ -284,7 +285,6 @@ class TestIQCavityFeedbackTimingClass:
                 np.sin(
                     cav_fdbk_timing._forward_segment_omega_design
                     * time_array[-1]
-                    + cav_fdbk_timing._phase_offset_frwrd
                 )
             )
             rf_centers_array.append(cav_fdbk_timing._rf_centers)
@@ -1796,6 +1796,78 @@ class TestBackfillWalkGuards:
         np.testing.assert_array_equal(
             feedback._backfill_segment_omega_design_list, [self.omega_rf]
         )
+
+    def test_backfill_station_remap_follows_the_walk_direction(self) -> None:
+        # The backfill re-derives an interval that has ALREADY elapsed. Its
+        # element ORDER comes from the beam whose forward projection laid
+        # down the carried state (`_last_tracked_beam_state_frwrd`), so the
+        # per-station section remap -- the second argument of
+        # `track_reference` -- must describe that same beam. Taking the
+        # order from one beam and the remap flag from the beam being tracked
+        # now walks the ring in one direction while applying the other
+        # direction's energy program.
+        #
+        # Only a two-beam run can make the two disagree, and there the walk
+        # currently early-returns on coincident reference times, so no
+        # end-to-end test can reach it: the pairing is pinned here directly.
+        feedback = self._bare_feedback(turn=3)
+        feedback._last_tracked_turn_frwrd = 3
+        feedback._reference_state_until_tracked = _ReferenceStub(10.0)
+        # Carried state was laid down by the COUNTER-ROTATING beam ...
+        feedback._last_tracked_beam_state_frwrd = True
+
+        station = Mock(RFStationBaseClass)
+        station._turn_counter = _MutableTurnCounterStub(3)
+        station.track_reference.side_effect = (
+            lambda reference, is_counter_rotating: None
+        )
+        drift = _AdvancingElementStub(time_step=2.0)
+        feedback._reference_altering_elements = (station, drift)
+        feedback._reference_altering_elements_reverse = (drift, station)
+        feedback._reference_index_until_tracked = 0
+        feedback.reference_index_until_tracked_reverse = 0
+        feedback._own_index_in_reference_list = 1
+        feedback._own_index_in_reference_list_reverse = 1
+
+        # ... while the beam being tracked now is co-rotating. The target
+        # time is two drift steps away, so the walk runs past the drift and
+        # reaches the station rather than stopping at the first element.
+        beam = _BeamStub(time=14.0)
+        beam.is_counter_rotating = False
+        feedback.get_time_omega_array_backfill(beam=beam)
+
+        station.track_reference.assert_called()
+        passed_flags = {
+            call.args[1] for call in station.track_reference.call_args_list
+        }
+        # The carried direction (True), never the current beam's (False).
+        assert passed_flags == {True}
+
+    def test_single_sample_backfill_records_a_duration(self) -> None:
+        # A backfill walk that records exactly ONE reference time must
+        # store the DURATION since the walk's start, like the multi-sample
+        # branch does (time_list[0] - start_time, then np.diff).  Storing
+        # the absolute reference time instead makes the segment length grow
+        # with the simulation clock, so the grid built from it spans the
+        # whole elapsed run rather than one inter-passage stretch.
+        feedback = self._bare_feedback(turn=3)
+        feedback._last_tracked_turn_frwrd = 3
+        # A walk that starts late in the run: the absolute time and the
+        # segment duration differ by the whole elapsed time.
+        feedback._reference_state_until_tracked = _ReferenceStub(10.0)
+        feedback._last_tracked_beam_state_frwrd = False
+        element = _AdvancingElementStub(time_step=2.0)
+        feedback._reference_altering_elements = (element,)
+        feedback._reference_altering_elements_reverse = (element,)
+        feedback._reference_index_until_tracked = 0
+        feedback._own_index_in_reference_list = 0
+        feedback._own_index_in_reference_list_reverse = 0
+
+        with pytest.warns(UserWarning, match="Inconsistency with references"):
+            feedback.get_time_omega_array_backfill(beam=_BeamStub(time=11.0))
+
+        # 12.0 (absolute) - 10.0 (start) = 2.0 s of segment, not 12.0 s.
+        np.testing.assert_allclose(feedback._backfill_time_array, [2.0])
 
 
 class _MutableTurnCounterStub:

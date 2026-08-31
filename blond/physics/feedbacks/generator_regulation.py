@@ -187,6 +187,14 @@ class GeneratorRegulationMixin:
         rotation is exactly unity without an RF-frequency offset and
         without multi-section acceleration.
 
+        It is then rotated into the ACTUATOR frame by
+        ``_pi_error_frame_rotation`` (``exp(+i * delta_phi_rf)``): the
+        controller returns a generator current, which drives the
+        design-anchored generator component, so the loop gain would
+        otherwise pick up the composition's ``exp(-i * delta_phi_rf)`` and
+        rotate without bound under an RF-frequency offset. Also exactly
+        unity when no offset ever acted.
+
         Parameters
         ----------
         omega_times_dt
@@ -200,9 +208,13 @@ class GeneratorRegulationMixin:
                 " controller needs omega_input to recover the sampling time."
             )
         idx = coarse_grid_index_to_update
-        error = self.pi_setpoint - (
-            self.antenna_voltage_coarse_grid[idx] * self._kick_frame_rotation
-        )
+        error = (
+            self.pi_setpoint
+            - (
+                self.antenna_voltage_coarse_grid[idx]
+                * self._kick_frame_rotation
+            )
+        ) * self._pi_error_frame_rotation
         delta_t = omega_times_dt / self._omega_input_for_pi
         self.generator_current_coarse_grid[idx] = (
             self._controller.update_generator_current(error, delta_t)

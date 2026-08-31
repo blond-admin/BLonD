@@ -846,17 +846,29 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
     ``track_reference``. In a single-beam run the two always agree, so the
     distinction is invisible; only a two-beam run can make them differ.
 
-    They stay safe because the interval to backfill is empty: the forward
-    projection stops at the next RF station in the tracked beam's traversal
-    order, which under ``MainloopCounterRotatingBeams`` is exactly where the
-    *other* beam next reaches this feedback. The reference times then match
-    to the bit and the early return at ``rf_center_grid.py:617`` fires before
-    the walk is entered.
+    At ``n_sections == 2`` they stay safe because the interval to backfill
+    is empty: the forward projection spans one section, ``t_rev / n``, while
+    the other beam reaches station ``i`` a gap ``|n - 2 i - 1| / n * t_rev``
+    later. The two coincide exactly when ``|n - 2 i - 1| == 1``, which for
+    ``n == 2`` holds at BOTH stations -- so the reference times match to the
+    bit and the early return at ``rf_center_grid.py:617`` fires before the
+    walk is entered.
 
-    That is a structural invariant of the projection endpoint, not something
-    the physics comparisons above can see -- they only check the grid the
-    walk produces, and the walk never runs. These tests pin the invariant
-    itself, so a future change to the projection endpoint or to the
+    That is NOT a structural invariant of the projection endpoint: it is a
+    property of two sections. ``|n - 2 i - 1|`` is odd, so beyond ``n == 2``
+    only the two middle stations (``i == n / 2 - 1`` and ``i == n / 2``)
+    satisfy it -- 2 of 16 for the muon-collider RCS1 layout, where the walk
+    is therefore entered with a mismatched direction at 14 stations every
+    turn. That is safe because the walk now derives its element order, its
+    indices and its per-station section remap from the SAME carried flag
+    (``backfill_is_counter_rotating``); it was not safe while the element
+    order came from the carried beam and the ``track_reference`` direction
+    from the current one.
+
+    These tests pin both halves: the empty-interval early return at
+    ``n == 2``, and the fact that the walk really is entered with a
+    mismatch beyond it, so a future change to the projection endpoint or to
+    the
     mainloop's element order cannot silently start walking the elements of
     one beam while tracking the reference of the other. Measured (static
     case): 10 of 12 backfill calls carry a direction mismatch and none
@@ -884,7 +896,7 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
     _records_cache: dict = {}
 
     @classmethod
-    def _recorded_two_beam_run(cls, config: str) -> dict:
+    def _recorded_two_beam_run(cls, config: str, n_sections: int = 2) -> dict:
         """
         Run (once per config) the two-beam case with the walk instrumented.
 
@@ -902,8 +914,9 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
             recorded *before* the early returns run; ``"walks"``: the same
             pair for each call that actually entered the element walk.
         """
-        if config in cls._records_cache:
-            return cls._records_cache[config]
+        cache_key = (config, n_sections)
+        if cache_key in cls._records_cache:
+            return cls._records_cache[cache_key]
 
         calls: list[tuple[bool | None, bool, float]] = []
         walks: list[tuple[bool | None, bool]] = []
@@ -946,10 +959,13 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
                 recording_walk,
             ),
         ):
-            _run_two_beam_case(2, "fb", **cls._configs[config])
+            _run_two_beam_case(n_sections, "fb", **cls._configs[config])
 
-        cls._records_cache[config] = {"calls": calls, "walks": walks}
-        return cls._records_cache[config]
+        cls._records_cache[cache_key] = {
+            "calls": calls,
+            "walks": walks,
+        }
+        return cls._records_cache[cache_key]
 
     @staticmethod
     def _mismatched(records):
@@ -973,14 +989,54 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
             if record[0] is not None and record[0] != record[1]
         ]
 
+    def test_walk_is_entered_with_a_mismatch_beyond_two_sections(self):
+        """
+        Beyond two sections the mismatched walk IS entered, and is safe.
+
+        The empty-interval coincidence needs ``|n - 2 i - 1| == 1``, which
+        every station satisfies only at ``n_sections == 2``. At four and six
+        sections most stations see the two beams a different gap apart than
+        the one section the forward projection spans, so the backfill walk
+        runs with ``_last_tracked_beam_state_frwrd`` different from the
+        beam being tracked.
+
+        This is the configuration the class docstring used to call
+        unreachable. It is reached, and it is correct: the walk takes its
+        element order, its indices and its per-station section remap from
+        the one carried flag, so the run completes and the physics
+        comparisons elsewhere in this module hold.
+        """
+        for n_sections in (4, 6):
+            with self.subTest(n_sections=n_sections):
+                records = self._recorded_two_beam_run("static", n_sections)
+                self.assertGreater(
+                    len(self._mismatched(records["calls"])),
+                    0,
+                    "no backfill call carried a direction mismatch",
+                )
+                self.assertGreater(
+                    len(self._mismatched(records["walks"])),
+                    0,
+                    "the mismatched backfill walk was never entered at "
+                    f"{n_sections} sections, so the empty-interval "
+                    "coincidence is wider than the |n - 2 i - 1| == 1 "
+                    "geometry predicts "
+                    f"(walks: {records['walks']})",
+                )
+
     def test_backfill_walk_never_entered_with_mismatched_direction(self):
         """
-        Mismatched-direction calls occur, and none of them reaches the walk.
+        At ``n_sections == 2`` no mismatched call reaches the walk.
 
         Both halves matter: the first assertion proves the two-beam run
         actually exercises the dangerous configuration (it would fail if the
-        beams stopped alternating), the second proves the guard holds. All
-        three two-beam regimes are covered.
+        beams stopped alternating), the second proves the empty-interval
+        early return holds. All three two-beam regimes are covered.
+
+        Scoped to two sections on purpose -- see
+        :meth:`test_walk_is_entered_with_a_mismatch_beyond_two_sections`
+        for why that is a property of ``n_sections == 2``, not a structural
+        invariant of the projection endpoint.
         """
         for config in self._configs:
             with self.subTest(config=config):

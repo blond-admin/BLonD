@@ -2581,6 +2581,106 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         ]
         self.assertEqual(offending, [])
 
+    def test_coincident_passage_warns_that_the_result_is_wrong(self):
+        """
+        A coincident deposit warns, when it happens, that it is wrong.
+
+        The construction-time warning fires for *every* use of
+        ``allow_delta_t_zero=True``, including the legitimate ones (a
+        single beam, or a numerical-tolerance escape for equal arrival
+        times), so it can only say that something may go wrong. A deposit
+        landing on top of an earlier one at the *same* reference time is
+        the broken case, and it is broken unconditionally: the earlier
+        passage's kick has already been returned without ever seeing this
+        profile, and this passage reads that earlier deposit as an
+        ordinary stored past one and so takes its full ``W(0)`` where the
+        beam-loading theorem gives ``W(0) / 2``. Both kicks are wrong, so
+        the warning has to say so at the point it becomes true.
+        """
+        solver, profile = self._solver_with_real_profile()
+        solver._allow_delta_t_zero = True
+        self._seed_deposit(solver, profile, deposit_time=0.0)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solver._update_past_profile_times_wake_times(current_time=0.0)
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "wrong" in str(entry.message)
+        ]
+        self.assertEqual(len(offending), 1)
+        # The message must name the defect, not merely assert badness.
+        self.assertIn("W(0)", offending[0])
+
+    def test_ordinary_passage_does_not_warn_about_wrong_results(self):
+        """
+        The flag alone does not make every passage suspect.
+
+        ``allow_delta_t_zero=True`` is a legitimate single-beam setting;
+        only a genuinely coincident deposit is wrong, so a passage with a
+        positive ``delta_t`` must stay silent even with the flag set.
+        """
+        solver, profile = self._solver_with_real_profile()
+        solver._allow_delta_t_zero = True
+        self._seed_deposit(solver, profile, deposit_time=0.0)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solver._update_past_profile_times_wake_times(
+                current_time=profile.profile_duration
+            )
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "wrong" in str(entry.message)
+        ]
+        self.assertEqual(offending, [])
+
+    def test_first_passage_does_not_warn_about_wrong_results(self):
+        """
+        A coincident clock with nothing stored yet is not the broken case.
+
+        The defect is a *second* deposit at a reference time that has
+        already been kicked. With no stored profile there is no earlier
+        kick to have missed anything, so the degenerate clock alone must
+        not raise a false alarm.
+        """
+        solver, _ = self._solver_with_real_profile()
+        solver._allow_delta_t_zero = True
+        solver._last_reference_time = 0.0
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solver._update_past_profile_times_wake_times(current_time=0.0)
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "wrong" in str(entry.message)
+        ]
+        self.assertEqual(offending, [])
+
+    def test_coincident_passage_warns_only_once_per_solver(self):
+        """
+        The runtime warning is one-shot, not one per passage.
+
+        A meeting-azimuth station is coincident on *every* turn for
+        *every* beam, so warning per passage would bury the message under
+        thousands of copies (and pay the filter machinery inside the
+        tracking loop). One warning per solver states the defect once and
+        keeps the run readable.
+        """
+        solver, profile = self._solver_with_real_profile()
+        solver._allow_delta_t_zero = True
+        self._seed_deposit(solver, profile, deposit_time=0.0)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for _ in range(3):
+                solver._update_past_profile_times_wake_times(current_time=0.0)
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "wrong" in str(entry.message)
+        ]
+        self.assertEqual(len(offending), 1)
+
 
 beam_spectrum = np.array(
     [
@@ -4332,6 +4432,10 @@ class TestHeadlessSolvers(unittest.TestCase):
         prof.cut_right = prof_.cut_right
         prof.hist_x = prof_.hist_x
         prof.hist_step = prof_.hist_step
+        # Mirrors the real profile like the geometry above: a property is a
+        # bare Mock otherwise, and `WakeField.headless` reads it to give the
+        # mocked simulation a numeric `get_t_rev_init`.
+        prof.profile_duration = prof_.profile_duration
         Q_factor = 1.76e6
         beam = Mock(BeamBaseClass)
         beam.n_macroparticles_partial.return_value = 1e6

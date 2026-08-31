@@ -787,6 +787,53 @@ class TestCoarseCellStepSizing:
         assert feedback._last_val_generator_current == last_current
         assert feedback._last_val_ant_voltage != 0
 
+    def test_backfill_cells_hold_the_last_commanded_current(self) -> None:
+        # The backfill cells replay an interval that has ALREADY elapsed,
+        # during which the klystron kept running at whatever command the
+        # controller last issued -- it did not snap back to the feedforward
+        # bias. Seeding them with the bias instead discards any standing
+        # compensation current the loop holds.
+        #
+        # Why no existing test caught this: every tracked configuration runs
+        # a matched bias at delta_omega = 0, where the compensation current
+        # the PI settles on IS the bias, so held and bias coincide. They
+        # part company exactly when the cavity is detuned, which is the
+        # combination the suite never exercised -- so the fixture below
+        # deliberately makes held != bias.
+        bias = 0.01
+        held = 0.037 + 0.011j
+        feedback = _make_bare_feedback(generator_current_bias=bias)
+        _prepare_hand_built_grid(feedback, [0.25, 0.5, 0.75, 1.0])
+        # A previous turn exists, ending on the held command.
+        feedback.generator_current_coarse_grid[-1] = held
+
+        feedback.reset_arrays(n_backfill_cells=2)
+
+        np.testing.assert_array_equal(
+            feedback.generator_current_coarse_grid[:2], [held, held]
+        )
+        np.testing.assert_array_equal(
+            feedback.generator_current_coarse_grid[2:], [bias, bias]
+        )
+        # Non-vacuous: filling the whole grid with the bias -- the
+        # behaviour before the hold was introduced -- would fail above.
+        assert held != bias
+
+    def test_without_backfill_cells_the_grid_is_all_bias(self) -> None:
+        # The default (no backfill segments this turn) must leave the whole
+        # grid on the feedforward bias, so a constant-current run without a
+        # controller stays bit-identical to the pre-hold behaviour.
+        bias = 0.01
+        feedback = _make_bare_feedback(generator_current_bias=bias)
+        _prepare_hand_built_grid(feedback, [0.25, 0.5, 0.75])
+        feedback.generator_current_coarse_grid[-1] = 0.5 + 0.25j
+
+        feedback.reset_arrays()
+
+        np.testing.assert_array_equal(
+            feedback.generator_current_coarse_grid, [bias, bias, bias]
+        )
+
     def test_vectorised_first_turn_step_matches_reference_path(self) -> None:
         # _coarse_step_sizes is the vectorised twin of the reference loop
         # and must reproduce the first-turn single-cell fallback step.

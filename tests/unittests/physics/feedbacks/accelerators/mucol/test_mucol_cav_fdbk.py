@@ -21,6 +21,7 @@ from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
 from blond.physics.feedbacks.cavity_solvers import (
+    ForwardEulerValidityGuard,
     coarse_step_exponent,
     euler_voltage_multiplier,
     exponential_drive_weight,
@@ -190,11 +191,14 @@ class TestCavityFeedback(unittest.TestCase):
 
     def test_step_size_check_warns_for_large_detuning_phase_per_step(self):
         """Warn when the per-step detuning phase exceeds the soft limit."""
-        # delta_omega * dt should clearly exceed the 0.1 threshold
+        # delta_omega * dt = 0.15 clearly exceeds the 0.1 threshold, while
+        # the decay d = 0.02 keeps it below both the 0.1 decay threshold and
+        # the coupled stability limit |p| <= sqrt(d (2 - d)) = 0.199, so the
+        # soft warning is what fires -- not the divergence error.
         omega_rf = 2 * np.pi * 1e9
         sampling_time_coarse = 1e-6
-        self.cav_fdbk.Q_L = 1e12  # avoid triggering the decay warning
-        self.cav_fdbk.delta_omega = 1e6
+        self.cav_fdbk.Q_L = 0.5 * omega_rf * sampling_time_coarse / 0.02
+        self.cav_fdbk.delta_omega = 1.5e5
 
         patch_omega, patch_dt = self._patched_step_size_props(
             omega_rf, sampling_time_coarse
@@ -1490,3 +1494,90 @@ class TestFineGridInitialConditionCausality(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestForwardEulerStabilityGuard(unittest.TestCase):
+    """The guard must reject a *divergent* forward-Euler coarse recursion.
+
+    The Euler multiplier of one coarse step is ``B = 1 + L`` with
+    ``L = -d + 1j * p``, ``d = 0.5 * omega * dt / Q_L`` the per-step decay
+    and ``p = delta_omega * dt`` the per-step detuning phase.  The recursion
+    contracts only while ``|B| <= 1``, i.e. ``p**2 <= d * (2 - d)``.  That
+    condition couples the two: checking ``d`` and ``p`` separately against a
+    common cap cannot express it, because at the small ``d`` of a
+    superconducting cavity the admissible ``p`` is ``~sqrt(2 d)``, orders of
+    magnitude below the cap.
+    """
+
+    #: RCS1's operating point: one RF period per coarse cell.
+    omega_rf = 2.0 * np.pi * 1.2957e9
+    sampling_time = 1.0 / 1.2957e9
+    Q_L = 1287601.7251526634
+
+    def _guard(self):
+        """
+        A freshly armed guard.
+
+        Returns
+        -------
+        guard
+            An enabled :class:`ForwardEulerValidityGuard`.
+        """
+        return ForwardEulerValidityGuard(enabled=True)
+
+    def _multiplier_magnitude(self, delta_omega: float) -> float:
+        """
+        ``|B|`` of one coarse step at this detuning.
+
+        Parameters
+        ----------
+        delta_omega
+            Cavity detuning [rad/s].
+
+        Returns
+        -------
+        magnitude
+            The Euler voltage multiplier's magnitude.
+        """
+        omega_times_dt = self.omega_rf * self.sampling_time
+        step_exponent = coarse_step_exponent(
+            omega_times_dt, self.Q_L, delta_omega / self.omega_rf
+        )
+        return float(abs(euler_voltage_multiplier(step_exponent)))
+
+    def test_divergent_step_is_rejected(self):
+        """A detuning that makes ``|B| > 1`` must raise, not pass silently."""
+        # 1 MHz on a 1.3 GHz cavity: far below the 1.0 rad per-step cap on
+        # the detuning phase (p = 4.85e-3 rad), but well above the stability
+        # limit sqrt(d * (2 - d)) = 2.21e-3 rad set by the decay.
+        delta_omega = 2.0 * np.pi * 1.0e6
+        self.assertGreater(self._multiplier_magnitude(delta_omega), 1.0)
+        with self.assertRaises(ValueError):
+            self._guard().check_step_sizes(
+                omega_rf=self.omega_rf,
+                sampling_time=self.sampling_time,
+                Q_L=self.Q_L,
+                delta_omega=delta_omega,
+            )
+
+    def test_contracting_step_is_accepted(self):
+        """RCS1's own operating point stays admissible."""
+        delta_omega = 2.0 * np.pi * -1040.0
+        self.assertLess(self._multiplier_magnitude(delta_omega), 1.0)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            self._guard().check_step_sizes(
+                omega_rf=self.omega_rf,
+                sampling_time=self.sampling_time,
+                Q_L=self.Q_L,
+                delta_omega=delta_omega,
+            )
+
+    def test_disabled_guard_stays_a_no_op(self):
+        """``enabled=False`` must not start raising on the new check."""
+        ForwardEulerValidityGuard(enabled=False).check_step_sizes(
+            omega_rf=self.omega_rf,
+            sampling_time=self.sampling_time,
+            Q_L=self.Q_L,
+            delta_omega=2.0 * np.pi * 1.0e6,
+        )

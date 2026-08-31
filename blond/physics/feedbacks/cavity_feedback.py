@@ -894,7 +894,18 @@ class IQCavityFeedbackTimingClass(
         docstring. Read that before indexing or differencing this array.
         """
         self._rf_centers_lengths = np.zeros(0, dtype=int)
-        self._residual_time_last_rf_centers_calculation = 0
+        # Unfilled tail [s] between the last coarse centre generated
+        # BEFORE the current passage and that passage; the
+        # demodulation frame of calculate_rf_beam_current_partial. The
+        # 0.0 here is a placeholder: the design RF period is not known
+        # yet, so on_run_simulation overwrites it with the
+        # tiling-consistent first-passage value (see
+        # _seed_initial_demodulation_frame). Without that seed a
+        # station that is the ring's FIRST reference-altering element
+        # generates no backfill on turn 0 and demodulates that turn pi
+        # out of phase -- the beam-induced voltage then comes out with
+        # the wrong sign.
+        self._residual_time_last_rf_centers_calculation = 0.0
         # Residual [s] the PREVIOUS turn's last segment ended on. The first
         # segment of a turn steps across the turn boundary from it; the live
         # scalar above cannot serve, because by the time the grid is walked
@@ -1049,6 +1060,68 @@ class IQCavityFeedbackTimingClass(
         # neutral value for direct (test) driving of the cell loops.
         self._generator_frame_rotation: complex = 1.0 + 0.0j
         self._kick_frame_rotation: complex = 1.0 + 0.0j
+        self._pi_error_frame_rotation: complex = 1.0 + 0.0j
+
+    def _seed_initial_demodulation_frame(self) -> None:
+        r"""
+        Seed the demodulation frame of the very first passage.
+
+        Notes
+        -----
+        ``_residual_time_last_rf_centers_calculation`` is the unfilled
+        tail between the last coarse centre generated before a passage
+        and that passage; :meth:`calculate_rf_beam_current_partial`
+        consumes it as the demodulation frame ``dT``. The fundamental
+        theorem of beam loading -- a bunch must LOSE energy to its own
+        wake -- holds only when the demodulation phase
+        ``omega_c * dT`` comes out to ``pi`` (mod ``2 pi``); half an
+        RF period off, and the bunch is accelerated by its own wake.
+
+        Every later passage gets that tail from the segment
+        generation. The very first one does not whenever the parent
+        station is the ring's first reference-altering element: there
+        is no elapsed span to reconstruct,
+        ``calculate_rf_centers_for_backfill`` returns without
+        generating anything, and the scalar would still hold its
+        ``__init__`` placeholder -- so turn 0 alone would be
+        demodulated exactly ``pi`` out of phase, and the wrongly
+        signed deposit then decays only over ``2 Q_L / omega``, i.e.
+        many turns.
+
+        The seeded value is the backward continuation of the segment's
+        own tiling. :meth:`_generate_rf_centers` seeds every segment at
+        the falling-edge zero ``t_rf / 2`` and steps by ``n * t_rf``,
+        so the virtual centre one full step before the first lies at
+        ``t_rf / 2 - n * t_rf`` and the tail from it to the passage is
+        ``n * t_rf - t_rf / 2``, giving ``omega_c * r_0 = 2 pi n - pi``,
+        i.e. ``pi`` (mod ``2 pi``) for integer ``n``. Turn 0 is then
+        demodulated in the same frame as every other turn.
+
+        Seeded rather than guarded against: a ring is a loop, so which
+        element the element list starts at is a bookkeeping choice and
+        no physics may depend on it.
+
+        Only the time is seeded, never
+        ``_residual_taps_last_rf_centers_calculation``: the taps carry
+        where the NEXT segment is seeded, and the first forward segment
+        must still start at the design bucket phase, which ``taps == 0``
+        encodes. The grid geometry -- and with it every ``delta_t`` the
+        coarse recursion and its numba twin consume -- therefore stays
+        bit-identical.
+
+        ORDERING: must run before the first :meth:`_track`, i.e. before
+        ``_close_previous_turn_grid`` snapshots
+        ``_residual_time_carried_into_turn`` off this scalar.
+        """
+        if self._last_segment_omega_design is not None:
+            # A segment already exists (a second run_simulation call on
+            # a feedback that has tracked): the live scalar then holds
+            # the real carried tail and must not be clobbered.
+            return
+        t_rf_design = 2.0 * np.pi / self.omega_rf_design
+        self._residual_time_last_rf_centers_calculation = (
+            self.n_rf_periods_per_coarse_grid * t_rf_design - t_rf_design / 2.0
+        )
 
     @requires(["RFStationBaseClass"])
     def _check_step_sizes(self) -> None:
@@ -1205,6 +1278,11 @@ class IQCavityFeedbackTimingClass(
         # The parent RF station is fully initialised at this point (see
         # docstring), so the step-size sanity check can read omega_rf.
         self._check_step_sizes()
+
+        # ... and so can the first passage's demodulation frame, which
+        # the segment generation cannot supply when this station is the
+        # ring's first reference-altering element (see the method).
+        self._seed_initial_demodulation_frame()
 
         # Feedforward cavity pre-fill: seed the initial antenna voltage from
         # the constant-current fill (optionally injection-matched), now that
@@ -1570,6 +1648,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 bool(self._generator_active),
                 complex(self._generator_frame_rotation),
                 complex(self._kick_frame_rotation),
+                complex(self._pi_error_frame_rotation),
                 controller_active,
                 voltage_setpoint,
                 float(omega_input),
@@ -2241,10 +2320,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 "beams). The cavity feedback cannot yet integrate two "
                 "coincident beam currents; place the station away from the "
                 "beams' meeting points (e.g. an even number of sections "
-                "with the half-drift / station / half-drift layout), or "
-                "model the beam loading of this station with the "
-                "MultiPassResonatorSolver wakefield "
-                "(allow_delta_t_zero=True) instead."
+                "with the half-drift / station / half-drift layout). The "
+                "MultiPassResonatorSolver wakefield with "
+                "allow_delta_t_zero=True runs such a station, but its "
+                "coincident kicks are wrong (0.5 and 1.5 times the "
+                "correct mutual term, depending on track order), so it is "
+                "not a substitute -- it warns about exactly this."
             )
         self._last_track_arrival_time = beam.reference.time
         self._last_track_is_counter_rotating = beam.is_counter_rotating
@@ -2573,9 +2654,21 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         error is formed there, so the loop regulates the voltage the
         station actually applies.
 
-        Both are exactly ``1 + 0j`` without an RF-frequency offset and
-        without multi-section acceleration (the zero short-circuit keeps
-        the unrotated path free of ``exp`` sign dust).
+        The PI-error rotation ``exp(+i delta_phi_rf)`` then takes that
+        error into the ACTUATOR frame. The controller returns a generator
+        current, which drives the design-anchored generator component, so
+        ``d(V_kick) / d(I_gen)`` carries the composition's
+        ``exp(-i delta_phi_rf)``; rotating the error back cancels it, and
+        the open-loop gain stays real instead of turning with the station
+        clock. Note the ``gap`` and ``Psi`` halves cancel between the two
+        rotations, which is why this third one uses ``delta_phi_rf``
+        alone.
+
+        The first two are exactly ``1 + 0j`` without an RF-frequency
+        offset and without multi-section acceleration; the third is
+        exactly ``1 + 0j`` whenever ``delta_phi_rf`` is zero, independently
+        of ``gap`` and ``Psi`` (the zero short-circuits keep the unrotated
+        path free of ``exp`` sign dust).
 
         Notes
         -----
@@ -2594,6 +2687,23 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             1.0 + 0.0j
             if self._carrier_slip_gap == 0.0
             else complex(np.exp(1j * self._carrier_slip_gap))
+        )
+        # Actuator frame of the PI error. The error is read out in the
+        # KICK frame, but the controller's output is a generator
+        # current, which drives the DESIGN-anchored generator
+        # component: the composition multiplies it by
+        # ``_generator_frame_rotation``, so ``d(V_kick) / d(I_gen)``
+        # carries ``exp(-i delta_phi_rf)``. Handing the kick-frame
+        # error straight to the controller would therefore rotate the
+        # open-loop gain by that factor, which grows without bound
+        # while an RF-frequency offset is applied (the proportional
+        # path's sign inverts past |delta_phi_rf| = pi/2). Rotating
+        # the error back cancels it exactly. Unity, so bit-identical,
+        # whenever no RF-frequency offset ever acted.
+        self._pi_error_frame_rotation = (
+            1.0 + 0.0j
+            if self.delta_phi_rf == 0.0
+            else complex(np.exp(1j * self.delta_phi_rf))
         )
 
     def _write_no_correction_readout(self) -> None:
@@ -2941,6 +3051,102 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         self.antenna_voltage_fine_grid *= self.n_cavities
 
+    def _assert_demodulation_frame_aligned(self, dT: float) -> None:
+        r"""
+        Reject a demodulation frame that would invert the beam loading.
+
+        Parameters
+        ----------
+        dT
+            The demodulation frame handed to :func:`rf_beam_current` for
+            the forward coarse grid.
+
+        Raises
+        ------
+        ValueError
+            If ``omega_c * dT`` is not an odd multiple of ``pi`` while the
+            demodulation can actually reach the beam.
+
+        Notes
+        -----
+        Working the full phase chain through (the ``-e`` charge gauge, the
+        ``-i omega_c t`` mixing, the ``+pi/2`` axis alignment, the solver's
+        ``-I_beam`` sign, and the station kick ``sin(omega_rf t + phi_rf +
+        phase_correction)``), the energy a bunch gives its own wake reduces
+        to
+
+        .. math:: \Delta E \propto (R/Q)\,\omega\,q\,\cos(\omega_c\,dT)
+
+        because ``carrier_phase_offset = -(phi_rf + _carrier_slip_gap)``
+        cancels the station phase and the readout phase identically.
+        Neither ``phi_rf_design`` nor ``delta_omega_rf`` survives -- the
+        grid geometry is design-clock only -- so ``omega_c * dT`` is the
+        ONLY free phase left in the sign of beam loading. The fundamental
+        theorem (a bunch must LOSE energy to its own wake) is therefore
+        exactly ``cos(omega_c * dT) < 0``, and the frame is aligned only at
+        ``omega_c * dT == pi`` (mod ``2 pi``) -- the value
+        :meth:`_seed_initial_demodulation_frame` already seeds turn 0 to.
+
+        Half an RF period off and the induced voltage is sign-inverted: the
+        bunch is ACCELERATED by its own wake, and the wrongly signed deposit
+        then decays only over ``2 Q_L / omega``, i.e. over many turns. This
+        is reachable from ordinary inputs -- a segment that does not span a
+        whole number of RF periods leaves ``residual = t_rf / 2 + frac *
+        t_rf`` -- and no comparison in the suite covers it, hence the check.
+
+        Gated on the demodulation being observable at all: with
+        ``R_over_Q == 0`` the beam current cannot produce any antenna
+        voltage, and with an empty profile histogram the demodulated charge
+        is identically zero. Both are common in pure grid-geometry fixtures,
+        whose off-``pi`` frames are inert and must not be rejected.
+
+        The tolerance is ``1e-3 pi``: the worst float noise measured over
+        the well-formed feedback suite is ``3.5e-6 pi`` (~290x margin),
+        while the smallest reachable real defect is ``0.2 pi``
+        (``n_rf_periods_per_coarse_grid = 0.6``), ~200x above it. The
+        outcome is unchanged for any tolerance in ``[1e-5, 1e-2] pi``.
+        """
+        omega_c = self._forward_segment_omega_design
+        if omega_c is None:
+            return
+
+        theta = omega_c * dT
+        # Signed distance from the nearest ODD multiple of pi.
+        deviation = (theta % (2 * np.pi)) - np.pi
+        if abs(deviation) <= 1e-3 * np.pi:
+            return
+
+        # Only complain when the frame can actually reach the beam.
+        if not self.R_over_Q:
+            return
+        if self.profile.hist_y is None:
+            return
+        if not np.any(copy_to_cpu(self.profile.hist_y)):
+            return
+
+        raise ValueError(
+            "The beam-current demodulation frame is not aligned with the "
+            "RF bucket. The fundamental theorem of beam loading requires "
+            "omega_c * dT == pi (mod 2 pi), but "
+            f"omega_c * dT = {theta / np.pi:.9f} pi, off by "
+            f"{deviation / np.pi:.9f} pi. With "
+            f"cos(omega_c * dT) = {np.cos(theta):+.6f} the beam-induced "
+            "voltage is rotated by that angle -- and for an offset beyond "
+            "0.5 pi it is sign-inverted, so the bunch would be ACCELERATED "
+            "by its own wake instead of losing energy to it. Usual causes: "
+            "the harmonic is not a whole number of RF periods per segment "
+            "(not divisible by the number of reference-altering elements); "
+            "n_rf_periods_per_coarse_grid < 1 with n != 0.5 (the "
+            "sub-stepped grid tiles at omega_c * dT = 2 pi n, which is an "
+            "odd multiple of pi only for n = 0.5); or a per-turn "
+            "design-frequency change so large that the residual carried "
+            "from the previous segment is stale. "
+            f"[section_index={self.section_index}, "
+            f"n_rf_periods_per_coarse_grid="
+            f"{self.n_rf_periods_per_coarse_grid}, dT={dT!r}, "
+            f"omega_c={omega_c!r}]"
+        )
+
     def calculate_rf_beam_current_partial(
         self,
         beam: BeamBaseClass,
@@ -3004,6 +3210,15 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         else:
             dT_demodulation = remaining_delta_t_from_backfill
 
+        # omega_c * dT is the only phase left in the beam-loading sign
+        # after carrier_phase_offset cancels the station and readout
+        # phases; it must be an odd multiple of pi or the bunch gains
+        # energy from its own wake. Checked here, at the coarse-grid
+        # call site, NOT inside rf_beam_current: the fine-grid-only
+        # reference calls anchor on the profile's own hist_x and pass
+        # dT = 0.0, for which 0 is the correct frame.
+        self._assert_demodulation_frame_aligned(dT_demodulation)
+
         (
             self.beam_current_fine_grid,
             self.beam_current_forward_coarse_grid,
@@ -3016,19 +3231,72 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # a within-window carrier shift (the residual intra-window
             # mismatch delta_omega_rf * hist_x is bunch-local and negligible;
             # see the class docstring).
+            #
+            # KNOWN APPROXIMATION -- stale-residual frequency lag.
+            # ``dT_demodulation`` is the tail left by the PRECEDING segment
+            # (``_preceding_segment_residual``), but it is consumed here
+            # against THIS segment's carrier. Under a ramp the two design
+            # frequencies differ, so the demodulation frame
+            # ``omega_c * dT`` is short/long by ``(omega_fwd - omega_prod) *
+            # dT``. Since ``dT ~ t_rf / 2 = pi / omega``, that error in units
+            # of pi is just the FRACTIONAL per-segment frequency change,
+            #     frame lag [pi]  ~  (omega_fwd - omega_prod) / omega .
+            # ``rf_center_grid.py`` makes the same distinction explicitly for
+            # the grid geometry, where it uses ``_last_segment_omega_design``
+            # rather than the current one; the demodulation does not.
+            #
+            # Left as-is deliberately: measured over the shipped programmes
+            # the lag is 7.9e-8 pi on RCS1 -- the FASTEST ramp at ~23 %/turn
+            # -- and 9.4e-10 pi on RCS2, against the 1e-3 pi tolerance of
+            # ``_assert_demodulation_frame_aligned``. That is ~1.3e4 of
+            # margin, i.e. the per-segment frequency step would have to grow
+            # by four orders of magnitude (to ~0.1 % per segment) before the
+            # frame is even flagged, let alone physically wrong.
+            #
+            # A MORE VIOLENT RAMP WOULD CHANGE THAT, and the failure is loud
+            # rather than silent: the guard raises once the lag reaches
+            # 1e-3 pi. If that happens, the fix is cheap and local --
+            # ``RFCenterSegment`` already stores ``omega`` beside
+            # ``residual``, so ``_preceding_segment_residual`` can return the
+            # pair and the frame can be built from the producing carrier.
+            # Do not simply rescale ``dT``: whether the residual should carry
+            # the accumulated slip is a separate question that the comment
+            # above answers in the negative, and no test pins either way.
             omega_c=self._forward_segment_omega_design,
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
             dT=dT_demodulation,
-            # Anchor the demodulation to the accumulated actual RF phase: the
-            # slip ``int delta_omega_rf dt`` at this passage, i.e. the
-            # station's kick clock (delta_phi_rf) plus the live gap since its
-            # last end-of-track tick. The readout applies the same total
-            # (station clock via phi_rf, gap via phase_correction), so the
-            # inter-turn slip cancels for every deposit, however long it is
-            # carried. Exactly 0.0 without an RF-frequency offset
-            # (bit-identical demodulation).
-            carrier_phase_offset=-(self.delta_phi_rf + self._carrier_slip_gap),
+            # Anchor the demodulation to the phase the BEAM actually
+            # sees: minus the total that the station and the readout
+            # add back on top of ``angle(V_ant)``. That total is the
+            # station's RF phase ``phi_rf = phi_rf_design +
+            # delta_phi_rf`` (applied by the kick, cavities.py) plus
+            # the live kick-clock gap and the registration phase, both
+            # carried in ``_carrier_slip_gap`` (applied via
+            # ``phase_correction``), so the inter-turn slip cancels for
+            # every deposit however long it is carried.
+            #
+            # Subtracting exactly that total is what makes a bunch LOSE
+            # energy to its own wake: with the grid seeded half an RF
+            # period into the bucket (dT = t_rf / 2, omega * dT = pi)
+            # the fundamental theorem of beam loading needs
+            # ``omega * dT + carrier_phase_offset + total == pi``,
+            # which holds only when the DESIGN RF phase is subtracted
+            # too. Omitting ``phi_rf_design`` rotates the beam-induced
+            # voltage by ``-phi_rf_design``, and at
+            # ``phi_rf_design = pi`` -- the ordinary above-transition
+            # idiom -- it inverts the beam loading outright: the bunch
+            # is accelerated by its own wake.
+            #
+            # The generator component deliberately does NOT carry
+            # ``phi_rf_design``: the klystron drive is locked to the
+            # design RF wave, which the station itself supplies through
+            # ``phi_rf``, so ``_generator_frame_rotation`` stays as it
+            # is (see :meth:`_update_frame_rotations`). Exactly -0.0,
+            # hence a bit-identical demodulation, for the shipped
+            # ``phi_rf_design = 0`` runs without an RF-frequency
+            # offset.
+            carrier_phase_offset=-(self.phi_rf + self._carrier_slip_gap),
             # The fine-grid initial antenna voltage is taken from the first
             # coarse cell (see circuit_track), so that cell must stay
             # charge-free or its beam kick would be double-counted.

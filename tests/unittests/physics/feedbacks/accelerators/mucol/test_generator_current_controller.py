@@ -265,5 +265,104 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             )
 
 
+class TestPIErrorFrame(unittest.TestCase):
+    """The PI error must reach the controller in the GENERATOR frame.
+
+    The composed coarse voltage is
+    ``V = V_beam + V_gen * exp(-i (delta_phi_rf + gap))`` and the error is
+    read out in the kick frame, ``e_kick = setpoint - V * exp(+i gap)``.
+    The controller's output is a generator current, which drives ``V_gen``
+    in the design frame, so ``dV_kick / dI_gen`` carries
+    ``exp(-i delta_phi_rf)``.  Handing ``e_kick`` straight to the controller
+    therefore multiplies the open-loop gain by that rotation, which grows
+    without bound while an RF-frequency offset is applied.  The error must
+    be rotated back by ``exp(+i delta_phi_rf)`` first.
+    """
+
+    omega_rf = 2.0 * np.pi * 1.3e9
+
+    def _feedback(self, delta_phi_rf: float, gap: float):
+        """
+        A feedback wired for a single ``_update_generator_current`` call.
+
+        Parameters
+        ----------
+        delta_phi_rf
+            Accumulated RF-frequency-offset phase of the station [rad].
+        gap
+            Live carrier slip gap of this passage [rad].
+
+        Returns
+        -------
+        feedback
+            The feedback, with a recording stub controller attached.
+        """
+        from unittest.mock import Mock, PropertyMock, patch
+
+        from blond.physics.feedbacks.cavity_feedback import (
+            IQCavityFeedbackTimingClass,
+        )
+        from blond.physics.profiles import StaticProfile
+
+        feedback = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=518.0,
+            Q_L=1e6,
+            generator_current_bias=0.0,
+            n_cavities=1,
+        )
+        # delta_phi_rf is a read-only view of the parent station's kick
+        # clock; patch it for the duration of the wiring.
+        self._delta_phi_patch = patch.object(
+            IQCavityFeedbackTimingClass,
+            "delta_phi_rf",
+            new_callable=PropertyMock,
+            return_value=delta_phi_rf,
+        )
+        self._delta_phi_patch.start()
+        self.addCleanup(self._delta_phi_patch.stop)
+        feedback._carrier_slip_gap = gap
+        feedback._update_frame_rotations()
+        feedback._omega_input_for_pi = self.omega_rf
+        feedback._voltage_setpoint = 0.0 + 0.0j
+        feedback.antenna_voltage_coarse_grid = np.array(
+            [1.0 + 0.0j], dtype=complex
+        )
+        feedback.generator_current_coarse_grid = np.zeros(1, dtype=complex)
+
+        recorded: list[complex] = []
+
+        class _RecordingController:
+            def update_generator_current(self, error, delta_t):
+                recorded.append(complex(error))
+                return 0.0 + 0.0j
+
+        feedback._controller = _RecordingController()
+        return feedback, recorded
+
+    def test_error_is_rotated_into_the_generator_frame(self):
+        """The error carries ``exp(+i delta_phi_rf)``, cancelling the gain."""
+        delta_phi_rf = 0.9
+        gap = 0.0
+        feedback, recorded = self._feedback(delta_phi_rf, gap)
+        feedback._update_generator_current(
+            omega_times_dt=2.0 * np.pi, coarse_grid_index_to_update=0
+        )
+        # setpoint 0, V = 1 (+0j), gap 0 -> e_kick = -1.  In the generator
+        # frame that is -exp(+i delta_phi_rf).
+        expected = -np.exp(1j * delta_phi_rf)
+        self.assertAlmostEqual(recorded[0].real, expected.real, places=12)
+        self.assertAlmostEqual(recorded[0].imag, expected.imag, places=12)
+
+    def test_no_offset_leaves_the_error_untouched(self):
+        """Without an RF-frequency offset the rotation is exactly unity."""
+        feedback, recorded = self._feedback(0.0, 0.0)
+        feedback._update_generator_current(
+            omega_times_dt=2.0 * np.pi, coarse_grid_index_to_update=0
+        )
+        self.assertEqual(recorded[0], -1.0 + 0.0j)
+
+
 if __name__ == "__main__":
     unittest.main()
