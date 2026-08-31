@@ -1,11 +1,11 @@
 """
-Same solver comparison as `broadband.py`, but with a Gaussian bunch.
+Solver agreement for a Gaussian bunch driving a broadband resonator.
 
-Instead of the spike comb of `broadband.py`, the profile holds a single
-Gaussian line density centred in the profile window with an rms length of
-`SIGMA_DT`. Everything else is unchanged: one resonator at `f_res`, and a
-frequency-domain, a time-domain and a pole-residue solver evaluated on the
-identical frozen profile.
+A single Gaussian bunch of rms length `SIGMA_DT` sits in the middle of a
+frozen `StaticProfile`; one broadband resonator (`f_res`, near-critically
+damped) is evaluated on that profile with three solvers:
+`PeriodicFreqSolver` (frequency domain), `TimeDomainFftSolver` (time
+domain) and `MultiPoleSparseSolve` (pole residue).
 
 Two frequencies matter:
 
@@ -13,93 +13,83 @@ Two frequencies matter:
 * ``f_cutoff`` -- the Nyquist frequency of the profile binning
   (`StaticProfile.cutoff_frequency`, ``1 / (2 * hist_step)``).
 
-The two cases keep the same bunch and resonator and only change the
-binning: ``f_res = 10 * f_cutoff`` (resonator far above the profile's
-Nyquist frequency) and ``f_cutoff = 3 * f_res`` (resolved reference).
+The bunch has no spectral content anywhere near `f_res` (a Gaussian
+spectrum falls off as ``exp(-2 * pi**2 * sigma_dt**2 * f**2)``, i.e. it is
+already negligible above ``1 / (2 * pi * sigma_dt)`` = 13 MHz here), so the
+induced voltage is driven purely by the low-frequency inductive flank of
+the resonator. The physical answer therefore does not depend on the
+binning at all, which is what these tests exploit: the frequency-domain
+solver returns the same voltage for every binning tested here, and the
+time-domain solvers must converge onto it.
 
-Note that a Gaussian of rms length `SIGMA_DT` has essentially no spectral
-content at `f_res`: its spectrum falls off as
-``exp(-2 * pi**2 * sigma_dt**2 * f**2)``, i.e. it is already negligible
-above ``1 / (2 * pi * sigma_dt)``. The induced voltage is therefore driven
-by the low-frequency (inductive) flank of the resonator, not by its peak.
+They do not, unless the binning also resolves the *wake* -- see the xfail
+in `TestResonatorAboveProfileCutoff`.
 
-This is an investigation script, not a unittest: run it directly.
+Set ``DEV_DRAW=true`` in the environment to plot the comparison.
 """
 
-from dataclasses import dataclass
+import os
+import unittest
 
-import matplotlib.pyplot as plt
 import numpy as np
+import pytest
+from matplotlib import pyplot as plt
 
 from blond import (
+    AllowPlotting,
     Beam,
-    Numpy64Bit,
     Resonators,
     StaticProfile,
     WakeField,
+    copy_to_cpu,
     proton,
 )
 from blond.core.backends.backend import backend
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import (
     MultiPoleSparseSolve,
     PeriodicFreqSolver,
     TimeDomainFftSolver,
 )
+from blond.testing.helpers import enforce_64_bit_backend
+
+_DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 
 F_RES = 1e9  # resonator centre frequency, in [Hz]
 R_SHUNT = 1e6  # shunt impedance, in [Ohm]
 AMPLITUDE_HALF_TIME = 0.2e-9  # wake amplitude halving time, in [s]
 
 SIGMA_DT = 12e-9  # rms bunch length, in [s]
-WINDOW_LENGTH = 160e-9  # profile window, in [s], as in `broadband.py`
+WINDOW_LENGTH = 160e-9  # profile window, in [s]
 BUNCH_CENTER = 0.5 * WINDOW_LENGTH  # in [s]
 
-# The amplitude decay over a time `dt` is ``exp(-pi * f_res * dt / Q)``.
+# The wake amplitude decay over a time `dt` is ``exp(-pi * f_res * dt / Q)``,
+# which gives a near-critically damped (broadband) resonator here.
 QUALITY_FACTOR = np.pi * F_RES * AMPLITUDE_HALF_TIME / np.log(2.0)
 
 BEAM_INTENSITY = 1e11
 REFERENCE_TOTAL_ENERGY = 450e9  # in [eV], only sets the beam reference frame
 N_MACROPARTICLES = 4  # irrelevant, the profile is filled by hand
 
+# Binnings that resolve the bunch itself (bin width well below `SIGMA_DT`),
+# expressed as `f_cutoff / f_res`.
+BUNCH_RESOLVING_CUTOFF_RATIOS = (0.1, 0.3, 1.0, 3.0, 10.0, 30.0)
+# Binning that also resolves the wake (bin width well below the wake's
+# `AMPLITUDE_HALF_TIME`).
+WAKE_RESOLVING_CUTOFF_RATIO = 30.0
+# Binning of interest: the resonator sits a decade above the profile cutoff.
+RESONATOR_ABOVE_CUTOFF_RATIO = 0.1
 
-@dataclass(frozen=True)
-class Case:
-    """
-    One binning of the same Gaussian bunch and resonator.
-
-    Attributes
-    ----------
-    label
-        Short description used in the figure title.
-    cutoff_frequency
-        Nyquist frequency of the profile binning, in [Hz].
-    """
-
-    label: str
-    cutoff_frequency: float
+SOLVER_AGREEMENT_RTOL = 0.1
 
 
-CASES = (
-    Case(
-        label="f_res = 10 * f_cutoff",
-        cutoff_frequency=F_RES / 10.0,
-    ),
-    Case(
-        label="f_cutoff = 3 * f_res",
-        cutoff_frequency=3.0 * F_RES,
-    ),
-)
-
-
-def make_gaussian_profile(case: Case) -> StaticProfile:
+def _make_gaussian_profile(cutoff_frequency: float) -> StaticProfile:
     """
     Static profile holding a centred Gaussian bunch, frozen for tracking.
 
     Parameters
     ----------
-    case
-        Binning to build the profile for.
+    cutoff_frequency
+        Nyquist frequency of the profile binning, in [Hz].
 
     Returns
     -------
@@ -109,25 +99,24 @@ def make_gaussian_profile(case: Case) -> StaticProfile:
     profile = StaticProfile.from_cutoff(
         cut_left=0.0,
         cut_right=WINDOW_LENGTH,
-        cutoff_frequency=case.cutoff_frequency,
+        cutoff_frequency=cutoff_frequency,
     )
-    hist_x = copy_to_cpu(profile.hist_x)
-    line_density = np.exp(
-        -0.5 * ((hist_x - BUNCH_CENTER) / SIGMA_DT) ** 2,
-    )
+    hist_x = np.asarray(copy_to_cpu(profile.hist_x))
+    line_density = np.exp(-0.5 * ((hist_x - BUNCH_CENTER) / SIGMA_DT) ** 2)
 
     profile.hist_y[:] = backend.array(line_density, dtype=backend.float)
     # Normalise so that `hist_y * hist_y_to_density_factor` sums to one,
-    # i.e. the bunch carries exactly `BEAM_INTENSITY` charges.
+    # i.e. the bunch carries exactly `BEAM_INTENSITY` charges independently
+    # of the binning.
     profile.hist_y_to_density_factor = 1.0 / float(np.sum(line_density))
     profile.active = False  # freeze: never recomputed from the beam
     profile.invalidate_cache()
     return profile
 
 
-def make_headless_beam() -> Beam:
+def _make_headless_beam() -> Beam:
     """
-    Beam that carries only intensity, particle type and a reference time.
+    Beam carrying only intensity, particle type and a reference time.
 
     The macroparticle coordinates are irrelevant: the profile is frozen and
     filled by hand, so the beam is never binned.
@@ -147,30 +136,53 @@ def make_headless_beam() -> Beam:
     return beam
 
 
-def induced_voltages(profile: StaticProfile) -> dict[str, np.ndarray]:
+def _peak_voltages(cutoff_frequency: float) -> dict[str, float]:
     """
-    Induced voltage of one resonator for each solver, in a single pass.
+    Peak absolute induced voltage per solver for one profile binning.
 
     Parameters
     ----------
-    profile
-        Frozen beam profile driving the resonator.
+    cutoff_frequency
+        Nyquist frequency of the profile binning, in [Hz].
 
     Returns
     -------
+    peak_voltages
+        Peak absolute induced voltage, in [V], per solver name.
+    """
+    return {
+        name: float(np.max(np.abs(voltage)))
+        for name, voltage in _induced_voltages(cutoff_frequency)[1].items()
+    }
+
+
+def _induced_voltages(
+    cutoff_frequency: float,
+) -> tuple[StaticProfile, dict[str, np.ndarray]]:
+    """
+    Induced voltage of the resonator for each solver, in a single pass.
+
+    Parameters
+    ----------
+    cutoff_frequency
+        Nyquist frequency of the profile binning, in [Hz].
+
+    Returns
+    -------
+    profile
+        The frozen profile the solvers were evaluated on.
     voltages
         Induced voltage in [V] per solver name.
     """
+    profile = _make_gaussian_profile(cutoff_frequency)
     solvers = {
-        "frequency domain": PeriodicFreqSolver(
-            t_periodicity=WINDOW_LENGTH,
-        ),
+        "frequency domain": PeriodicFreqSolver(t_periodicity=WINDOW_LENGTH),
         "time domain": TimeDomainFftSolver(),
         "pole residue": MultiPoleSparseSolve(),
     }
     voltages = {}
     for name, solver in solvers.items():
-        beam = make_headless_beam()
+        beam = _make_headless_beam()
         wakefield = WakeField.headless(
             beam=beam,
             sources=(
@@ -183,102 +195,192 @@ def induced_voltages(profile: StaticProfile) -> dict[str, np.ndarray]:
             solver=solver,
             profile=profile,
         )
-        voltages[name] = copy_to_cpu(wakefield.calc_induced_voltage(beam=beam))
-    return voltages
+        voltages[name] = np.asarray(
+            copy_to_cpu(wakefield.calc_induced_voltage(beam=beam))
+        )
+    return profile, voltages
 
 
-def plot_case(case: Case) -> None:
+def _draw(cutoff_ratio: float) -> None:
     """
-    Plot profile, induced voltages and profile spectrum for one binning.
+    Plot profile and induced voltages for one binning, for `DEV_DRAW`.
 
     Parameters
     ----------
-    case
-        Binning to run.
+    cutoff_ratio
+        Profile cutoff frequency, in units of `F_RES`.
     """
-    profile = make_gaussian_profile(case)
-    voltages = induced_voltages(profile)
-
-    hist_x = copy_to_cpu(profile.hist_x)
-    fig, (ax_profile, ax_voltage, ax_spectrum) = plt.subplots(
-        3, 1, figsize=(8, 9)
-    )
-    ax_voltage.sharex(ax_profile)
-    fig.suptitle(
-        f"{case.label}\n"
-        f"f_res = {F_RES / 1e9:.3f} GHz, "
-        f"f_cutoff = {case.cutoff_frequency / 1e9:.3f} GHz, "
-        f"sigma_dt = {SIGMA_DT * 1e9:.1f} ns, "
-        f"Q = {QUALITY_FACTOR:.1f}, {profile.n_bins} bins"
-    )
-    ax_profile.plot(hist_x * 1e9, copy_to_cpu(profile.hist_y), "o-", ms=3)
-    ax_profile.set_ylabel("profile [a.u.]")
-
-    print(f"--- {case.label}")
-    for name, voltage in voltages.items():
-        print(f"    {name:18s} peak |V| = {np.max(np.abs(voltage)):.3e} V")
-        ax_voltage.plot(hist_x * 1e9, voltage, label=name)
-    ax_voltage.set_ylabel("induced voltage [V]")
-    ax_voltage.set_xlabel("time [ns]")
-    ax_voltage.legend()
-
-    # Spectrum of the profile as the solvers see it: the rfft stops at the
-    # profile cutoff frequency, so a resonator beyond it is never sampled.
-    spectrum = copy_to_cpu(profile.beam_spectrum(n_fft=profile.n_bins))
-    spectrum_freq = np.fft.rfftfreq(profile.n_bins, d=profile.hist_step)
-    spectrum_style = "o-" if profile.n_bins <= 128 else "-"
-    ax_spectrum.semilogy(
-        spectrum_freq / 1e9, np.abs(spectrum), spectrum_style, ms=3, lw=0.8
-    )
-    ax_spectrum.axvline(
-        F_RES / 1e9, color="k", ls="--", label=f"f_res = {F_RES / 1e9:.3f} GHz"
-    )
-    ax_spectrum.axvline(
-        case.cutoff_frequency / 1e9,
-        color="r",
-        ls=":",
-        label=f"f_cutoff = {case.cutoff_frequency / 1e9:.3f} GHz",
-    )
-    ax_spectrum.set_xlim(0.0, 1.2 * max(F_RES, case.cutoff_frequency) / 1e9)
-    ax_spectrum.set_ylim(bottom=1e-12 * float(np.max(np.abs(spectrum))))
-    ax_spectrum.set_ylabel("|profile spectrum| [a.u.]")
-    ax_spectrum.set_xlabel("frequency [GHz]")
-    ax_spectrum.legend()
-    fig.tight_layout()
+    profile, voltages = _induced_voltages(cutoff_ratio * F_RES)
+    hist_x = np.asarray(copy_to_cpu(profile.hist_x))
+    with AllowPlotting():
+        fig, (ax_profile, ax_voltage) = plt.subplots(
+            2, 1, sharex=True, figsize=(8, 6)
+        )
+        fig.suptitle(
+            f"f_cutoff = {cutoff_ratio:g} * f_res, "
+            f"sigma_dt = {SIGMA_DT * 1e9:.1f} ns, "
+            f"Q = {QUALITY_FACTOR:.2f}, {profile.n_bins} bins"
+        )
+        ax_profile.plot(hist_x * 1e9, copy_to_cpu(profile.hist_y))
+        ax_profile.set_ylabel("profile [a.u.]")
+        for name, voltage in voltages.items():
+            ax_voltage.plot(hist_x * 1e9, voltage, label=name)
+        ax_voltage.set_ylabel("induced voltage [V]")
+        ax_voltage.set_xlabel("time [ns]")
+        ax_voltage.legend()
+        fig.tight_layout()
+        plt.show()
 
 
-def print_convergence_scan(
-    cutoff_ratios: tuple[float, ...] = (0.1, 0.3, 1.0, 3.0, 10.0, 30.0),
-) -> None:
-    """
-    Print the peak induced voltage per solver over a range of binnings.
+@pytest.mark.integration
+class TestFrequencyDomainReference(unittest.TestCase):
+    """The frequency-domain solver is the binning-independent reference."""
 
-    The bunch and the resonator are identical for every entry, so any
-    change of the peak voltage is a pure discretisation effect.
+    def setUp(self):
+        enforce_64_bit_backend()
 
-    Parameters
-    ----------
-    cutoff_ratios
-        Profile cutoff frequencies to scan, in units of `F_RES`.
-    """
-    header = f"{'f_cutoff/f_res':>14} {'n_bins':>7}"
-    print(f"{header} {'freq':>12} {'time':>12} {'pole':>12}")
-    for ratio in cutoff_ratios:
-        case = Case(label=f"{ratio}", cutoff_frequency=ratio * F_RES)
-        profile = make_gaussian_profile(case)
+    def test_frequency_domain_is_independent_of_binning(self):
+        """
+        Refining the binning must not change the frequency-domain voltage.
+
+        The bunch spectrum dies far below `f_res`, so once the binning
+        resolves the bunch there is nothing left for a finer grid to add.
+        """
         peaks = [
-            np.max(np.abs(voltage))
-            for voltage in induced_voltages(profile).values()
+            _peak_voltages(ratio * F_RES)["frequency domain"]
+            for ratio in BUNCH_RESOLVING_CUTOFF_RATIOS
         ]
-        peaks_str = " ".join(f"{peak:12.3e}" for peak in peaks)
-        print(f"{ratio:14.1f} {profile.n_bins:7d} {peaks_str}")
+        for ratio, peak in zip(
+            BUNCH_RESOLVING_CUTOFF_RATIOS[1:], peaks[1:], strict=True
+        ):
+            self.assertAlmostEqual(
+                peak / peaks[0],
+                1.0,
+                delta=SOLVER_AGREEMENT_RTOL,
+                msg=(
+                    f"frequency-domain peak voltage changed by "
+                    f"{abs(peak / peaks[0] - 1.0):.1%} when going from "
+                    f"f_cutoff = {BUNCH_RESOLVING_CUTOFF_RATIOS[0]} * f_res "
+                    f"to {ratio} * f_res, but the physical voltage cannot "
+                    f"depend on the binning"
+                ),
+            )
 
 
-if __name__ == "__main__":
-    backend.change_backend(Numpy64Bit)
-    backend.set_specials("numba")
+@pytest.mark.integration
+class TestWakeResolvedBinning(unittest.TestCase):
+    """All three solvers agree once the binning resolves the wake."""
 
-    for case_ in CASES:
-        plot_case(case_)
-    print_convergence_scan()
-    plt.show()
+    def setUp(self):
+        enforce_64_bit_backend()
+
+    def test_all_solvers_agree(self):
+        """
+        Time-domain and pole-residue must match the frequency domain.
+
+        With ``f_cutoff = 30 * f_res`` the bin width is far below the
+        wake's amplitude halving time, so every solver sees the same wake.
+        """
+        peaks = _peak_voltages(WAKE_RESOLVING_CUTOFF_RATIO * F_RES)
+        reference = peaks["frequency domain"]
+        for name in ("time domain", "pole residue"):
+            self.assertAlmostEqual(
+                peaks[name] / reference,
+                1.0,
+                delta=SOLVER_AGREEMENT_RTOL,
+                msg=(
+                    f"{name} solver gives {peaks[name]:.3e} V, "
+                    f"frequency domain gives {reference:.3e} V"
+                ),
+            )
+
+    def test_time_domain_and_pole_residue_are_equivalent(self):
+        """The two time-domain formulations must give the same voltage."""
+        peaks = _peak_voltages(WAKE_RESOLVING_CUTOFF_RATIO * F_RES)
+        self.assertAlmostEqual(
+            peaks["pole residue"] / peaks["time domain"],
+            1.0,
+            delta=1e-3,
+            msg=(
+                f"pole residue gives {peaks['pole residue']:.3e} V, "
+                f"time domain gives {peaks['time domain']:.3e} V"
+            ),
+        )
+
+
+@pytest.mark.integration
+class TestResonatorAboveProfileCutoff(unittest.TestCase):
+    """
+    Binning that resolves the bunch but not the wake.
+
+    Note
+    ----
+    KNOWN BUG (this test module deliberately fails on it): with
+    ``f_res = 10 * f_cutoff`` the bin width (5 ns) is far above the wake's
+    amplitude halving time (0.2 ns), so `TimeDomainFftSolver` and
+    `MultiPoleSparseSolve` sample a wake they cannot represent. They return
+    about 0.3 % of the correct induced voltage, i.e. they are low by a
+    factor of ~300. The bunch itself is well resolved and its spectrum dies
+    decades below `f_res`, so the physical voltage is the
+    binning-independent one that `PeriodicFreqSolver` returns (and that
+    both time-domain solvers converge to once the binning is refined -- see
+    `TestWakeResolvedBinning`).
+
+    Note that `MultiPoleSparseSolve` analytically bin-averages its poles
+    (``sinh(p * dt / 2) / (p * dt / 2)``, see
+    `MultiPoleSparseSolve._finalize_solver`), which is exactly the
+    mechanism meant to protect against an under-resolved pole -- it does
+    not rescue this case.
+
+    This binning is also the one that
+    `Resonators.get_impedance_from_wake` guards against with its
+    Nyquist `assert`. While that guard is active the solvers raise instead
+    of returning a wrong voltage, and the tests below error rather than
+    compare numbers.
+    """
+
+    def setUp(self):
+        enforce_64_bit_backend()
+
+    def test_time_domain_and_pole_residue_are_equivalent(self):
+        """
+        The two time-domain formulations fail in the same way.
+
+        Whatever the binning does to them, it does identically -- so the
+        discrepancy below is not specific to the pole-residue recursion.
+        """
+        peaks = _peak_voltages(RESONATOR_ABOVE_CUTOFF_RATIO * F_RES)
+        self.assertAlmostEqual(
+            peaks["pole residue"] / peaks["time domain"],
+            1.0,
+            delta=1e-3,
+            msg=(
+                f"pole residue gives {peaks['pole residue']:.3e} V, "
+                f"time domain gives {peaks['time domain']:.3e} V"
+            ),
+        )
+
+    def test_all_solvers_agree(self):
+        """
+        Time-domain and pole-residue must match the frequency domain.
+
+        FAILS: both return ~0.3 % of the correct induced voltage. This is
+        the bug this module is about -- see the class docstring.
+        """
+        peaks = _peak_voltages(RESONATOR_ABOVE_CUTOFF_RATIO * F_RES)
+        reference = peaks["frequency domain"]
+        for name in ("time domain", "pole residue"):
+            self.assertAlmostEqual(
+                peaks[name] / reference,
+                1.0,
+                delta=SOLVER_AGREEMENT_RTOL,
+                msg=(
+                    f"{name} solver gives {peaks[name]:.3e} V, "
+                    f"frequency domain gives {reference:.3e} V "
+                    f"({peaks[name] / reference:.1f}x)"
+                ),
+            )
+
+
+if __name__ == "__main__" and _DEV_DRAW:
+    unittest.main()
