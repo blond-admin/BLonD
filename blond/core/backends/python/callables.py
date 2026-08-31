@@ -384,6 +384,12 @@ class PythonSpecials(Specials):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
         """
         Interpolated kick method.
@@ -404,21 +410,81 @@ class PythonSpecials(Specials):
             Energy, in [eV], which is added to all particles.
             This is intended to subtract the target energy from the RF
             energy gain in one common call.
+        first_left_cut
+            Left edge of the first bucket's histogram. Pass this together
+            with the other sparse-metadata arguments below (e.g. via
+            `EquidistantMultiProfile.sparse_kick_metadata`) when
+            `bin_centers` is a gapped, multi-island array such as
+            `EquidistantMultiProfile.hist_x`. When omitted, `bin_centers`
+            must be uniformly spaced.
+        left_cut_distance
+            Distance between the left edge of each bucket's histogram.
+        cut_width
+            Distance between left and right edge of one bucket's
+            histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        filling_pattern
+            Filling pattern as a boolean array where `True` means filled
+            bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index, see
+            `_gen_array_bucket_index_to_memory_index`.
         """
+        sparse = first_left_cut is not None
         n_slices = len(bin_centers)
-        inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
-        fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
+        if sparse:
+            inv_bin_width = bins_per_profile / cut_width
+        else:
+            if n_slices >= 2:  # noqa: PLR2004
+                diffs = np.diff(bin_centers)
+                if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
+                    raise ValueError(
+                        "bin_centers is not uniformly spaced (looks like "
+                        "a sparse/multi-island "
+                        "EquidistantMultiProfile.hist_x). Either pass "
+                        "this profile's sparse metadata (first_left_cut, "
+                        "left_cut_distance, cut_width, bins_per_profile, "
+                        "filling_pattern, bucket_index_to_memory_index), "
+                        "e.g. via `profile.sparse_kick_metadata`, or use "
+                        "EquidistantMultiProfile.profiles[i].hist_x for "
+                        "a single bucket."
+                    )
+            inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
         helper2 = (
             charge * voltage[:-1] - bin_centers[:-1] * helper1
         ) + acceleration_kick
 
+        if not sparse:
+            fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(
+                np.int32
+            )
+            for i in range(len(dt)):
+                if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
+                    dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+            return
+
+        n_buckets = len(filling_pattern)
+        inv_hist_dist = 1.0 / left_cut_distance
+        bin_width = cut_width / bins_per_profile
         for i in range(len(dt)):
-            # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
-            if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
-                dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+            bucket_i = int(np.floor((dt[i] - first_left_cut) * inv_hist_dist))
+            if bucket_i < 0 or bucket_i >= n_buckets:
+                continue
+            if not filling_pattern[bucket_i]:
+                continue
+            cut_left = first_left_cut + bucket_i * left_cut_distance
+            bucket_bin_center0 = cut_left + bin_width / 2.0
+            local_bin = int(
+                np.floor((dt[i] - bucket_bin_center0) * inv_bin_width)
+            )
+            if local_bin < 0 or local_bin >= bins_per_profile - 1:
+                continue
+            fbin = bucket_index_to_memory_index[bucket_i] + local_bin
+            dE[i] += dt[i] * helper1[fbin] + helper2[fbin]
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
@@ -684,3 +750,137 @@ class PythonSpecials(Specials):
             states[pole_i] = state
 
         states[-1] = profile_dts[-1]
+
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: NumpyArray,
+        beam_dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        parameter_array: NumpyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        if multiturn:
+            # Bridge the wake from the previous turn across the rev. gap.
+            time_difference_0 = (
+                beam_dt[0] + time_since_last_track - parameter_array[2]
+            )
+            exp_term = np.exp(-alpha * time_difference_0)
+            cos_term = np.cos(omega_bar * time_difference_0)
+            sin_term = np.sin(omega_bar * time_difference_0)
+            product_first = exp_term * (
+                (cos_term + coeff1 * sin_term) * parameter_array[0]
+                + coeff2 * sin_term * parameter_array[1]
+            )
+            product_second = exp_term * (
+                coeff3 * sin_term * parameter_array[0]
+                + (cos_term + coeff4 * sin_term) * parameter_array[1]
+            )
+        else:
+            # Turn 1: no previous-turn wake to bridge.
+            product_first = 0.0
+            product_second = 0.0
+
+        induced_voltage[0] = const * (0.5 + product_first)
+        beam_dE[0] += induced_voltage[0]
+
+        input_first, input_second = _music_recurrence(
+            beam_dt,
+            beam_dE,
+            induced_voltage,
+            product_first + 1.0,
+            product_second,
+            alpha,
+            omega_bar,
+            const,
+            coeff1,
+            coeff2,
+            coeff3,
+            coeff4,
+        )
+        parameter_array[0] = input_first
+        parameter_array[1] = input_second
+        parameter_array[2] = beam_dt[len(beam_dt) - 1]
+
+
+def _music_recurrence(
+    beam_dt: NumpyArray,
+    beam_dE: NumpyArray,
+    induced_voltage: NumpyArray,
+    input_first: float,
+    input_second: float,
+    alpha: float,
+    omega_bar: float,
+    const: float,
+    coeff1: float,
+    coeff2: float,
+    coeff3: float,
+    coeff4: float,
+) -> tuple[float, float]:
+    """
+    Run the MuSiC O(n) recurrence over the sorted macro-particles.
+
+    Updates ``beam_dE`` and ``induced_voltage`` in place (from index 1
+    onwards) and returns the carried state for the next turn.
+
+    Parameters
+    ----------
+    beam_dt
+        Macro-particle time coordinates [s], sorted ascending.
+    beam_dE
+        Macro-particle energy coordinates [eV]; updated in place.
+    induced_voltage
+        Output induced voltage [V]; written from index 1 onwards.
+    input_first
+        First component of the carried state at entry.
+    input_second
+        Second component of the carried state at entry.
+    alpha
+        Resonator damping ``omega_R / (2 Q)`` [rad/s].
+    omega_bar
+        Damped resonant angular frequency [rad/s].
+    const
+        MuSiC prefactor [V].
+    coeff1
+        Recurrence coefficient.
+    coeff2
+        Recurrence coefficient.
+    coeff3
+        Recurrence coefficient.
+    coeff4
+        Recurrence coefficient.
+
+    Returns
+    -------
+    input_first
+        First component of the carried state after the loop.
+    input_second
+        Second component of the carried state after the loop.
+    """
+    for i in range(len(beam_dt) - 1):
+        time_difference = beam_dt[i + 1] - beam_dt[i]
+        exp_term = np.exp(-alpha * time_difference)
+        cos_term = np.cos(omega_bar * time_difference)
+        sin_term = np.sin(omega_bar * time_difference)
+
+        product_first = exp_term * (
+            (cos_term + coeff1 * sin_term) * input_first
+            + coeff2 * sin_term * input_second
+        )
+        product_second = exp_term * (
+            coeff3 * sin_term * input_first
+            + (cos_term + coeff4 * sin_term) * input_second
+        )
+
+        induced_voltage[i + 1] = const * (0.5 + product_first)
+        beam_dE[i + 1] += induced_voltage[i + 1]
+        input_first = product_first + 1.0
+        input_second = product_second
+    return input_first, input_second

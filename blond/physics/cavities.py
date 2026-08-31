@@ -41,6 +41,7 @@ from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
 from blond.physics.feedbacks.base import LocalFeedback
+from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -55,7 +56,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.physics.feedbacks.base import (
         LocalFeedback as LocalFeedbackExp,
     )
-    from blond.experimental.physics.feedbacks.beam_feedback import (
+    from blond.physics.feedbacks.beam_feedback import (
         BeamFeedbackBase,
     )
     from blond.physics.impedances.base import WakeField
@@ -237,6 +238,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -265,7 +272,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._add_intended_schedule(
+        self._register_schedulable_variables(
             "voltage",
             "phi_rf_design",
             "harmonic",
@@ -276,7 +283,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             LocalFeedback | LocalFeedbackExp | None
         ] = [None for _ in range(self._n_rf)]
 
-        if cavity_feedback is not None:
+        if not isinstance(cavity_feedback, list | None):
+            self.attach_cavity_feedback(
+                cavity_feedback=cavity_feedback,
+                harmonic_index=kwargs.get("main_harmonic_idx", 0),
+            )
+        elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
 
         self._beam_feedback: BeamFeedbackBase | None = (
@@ -533,6 +545,30 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         pass
 
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        pass
+
     def _get_gap_voltage_per_harmonic(
         self,
         ts: NumpyArray,
@@ -622,7 +658,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         beam_feedback
             Beam feedback to be attached to the RF station.
         """
-        from blond.experimental.physics.feedbacks.beam_feedback import (
+        from blond.physics.feedbacks.beam_feedback import (
             BeamFeedbackBase,
         )
 
@@ -885,11 +921,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change: float,
         time_axis: NumpyArray | CupyArray,
         voltage: NumpyArray | CupyArray,
+        sparse_metadata: dict | None = None,
     ):
         if self._delayed_kick is not None:
             self._delayed_kick.register(
                 time_axis=time_axis,
                 voltage=voltage - reference_energy_change,
+                sparse_metadata=sparse_metadata,
             )
         else:
             backend.specials.kick_interpolated(
@@ -899,6 +937,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 bin_centers=backend.array(time_axis, dtype=backend.float),
                 charge=beam.signed_charge_with_direction(),
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
+                **(sparse_metadata or {}),
             )
 
     def _update_delta_phi_rf_from_beam_feedback(self):
@@ -1062,6 +1101,12 @@ class SingleHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1203,6 +1248,28 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf
 
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        return self.omega_rf_design
+
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        return self.cavity_feedback_list[0]
+
     def calc_gap_voltage_without_feedbacks(
         self, ts: NumpyArray
     ) -> NumpyArray | CupyArray:
@@ -1255,6 +1322,14 @@ class SingleHarmonicRFStation(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
                 time_axis = self.cavity_feedback_list[0].profile.hist_x
+                sparse_metadata = (
+                    self.cavity_feedback_list[0].profile.sparse_kick_metadata
+                    if isinstance(
+                        self.cavity_feedback_list[0].profile,
+                        EquidistantMultiProfile,
+                    )
+                    else None
+                )
                 if self._delayed_kick is not None:
                     assert (
                         self._delayed_kick_time_axis is None
@@ -1265,6 +1340,7 @@ class SingleHarmonicRFStation(
                     reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
                     voltage=voltage,
+                    sparse_metadata=sparse_metadata,
                 )
             elif self._delayed_kick is not None:
                 assert self._delayed_kick_time_axis is not None
@@ -1382,6 +1458,13 @@ class SingleHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+            Must currently be uniformly spaced (e.g. the `hist_x` of
+            a `StaticProfile`) -- `kick_interpolated`'s
+            uniform-spacing guard raises `ValueError` on a gapped,
+            multi-bucket-island array such as
+            `EquidistantMultiProfile.hist_x`, since the sparse-profile
+            metadata needed to resolve particles to their own bucket
+            is not (yet) forwarded through this parameter.
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
 
@@ -1531,6 +1614,12 @@ class MultiHarmonicRFStation(
     delayed_kick_time_axis
         The time axis along which to interpolate the kick.
         This impacts the accuracy and range of the RF kick.
+        Must currently be uniformly spaced (e.g. the `hist_x` of a
+        `StaticProfile`) -- `kick_interpolated`'s uniform-spacing
+        guard raises `ValueError` on a gapped, multi-bucket-island
+        array such as `EquidistantMultiProfile.hist_x`, since the
+        sparse-profile metadata needed to resolve particles to their
+        own bucket is not (yet) forwarded through this parameter.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -1584,6 +1673,7 @@ class MultiHarmonicRFStation(
             name=name,
             delayed_kick=delayed_kick,
             delayed_kick_time_axis=delayed_kick_time_axis,
+            main_harmonic_idx=main_harmonic_idx,
             **kwargs,  # for MRO of fused elements
         )
 
@@ -1700,6 +1790,28 @@ class MultiHarmonicRFStation(
         assert self.omega_rf is not None
         return self.omega_rf[self.main_harmonic_idx]
 
+    def get_main_harmonic_omega_rf_design(self) -> float:
+        """
+        Return the omega_rf_design of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_design
+            The omega_rf_design of the main harmonic, in [rad/s].
+        """
+        return self.omega_rf_design[self.main_harmonic_idx]
+
+    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+        """
+        Return the LocalFeedback acting on the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_cavity_feedback
+            The cavity feedback of the main harmonic, if it exists.
+        """
+        return self.cavity_feedback_list[self.main_harmonic_idx]
+
     def calc_gap_voltage_without_feedbacks(
         self, ts: NumpyArray
     ) -> NumpyArray | CupyArray:
@@ -1786,6 +1898,14 @@ class MultiHarmonicRFStation(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
                 time_axis = self.cavity_feedback_list[0].profile.hist_x
+                sparse_metadata = (
+                    self.cavity_feedback_list[0].profile.sparse_kick_metadata
+                    if isinstance(
+                        self.cavity_feedback_list[0].profile,
+                        EquidistantMultiProfile,
+                    )
+                    else None
+                )
                 if self._delayed_kick is not None:
                     assert (
                         self._delayed_kick_time_axis is None
@@ -1795,6 +1915,7 @@ class MultiHarmonicRFStation(
                     reference_energy_change=reference_energy_change,
                     time_axis=time_axis,
                     voltage=voltage,
+                    sparse_metadata=sparse_metadata,
                 )
             elif self._delayed_kick is not None:
                 assert self._delayed_kick_time_axis is not None
@@ -1899,6 +2020,13 @@ class MultiHarmonicRFStation(
         delayed_kick_time_axis
             The time axis along which to interpolate the kick.
             This impacts the accuracy and range of the RF kick.
+            Must currently be uniformly spaced (e.g. the `hist_x` of
+            a `StaticProfile`) -- `kick_interpolated`'s
+            uniform-spacing guard raises `ValueError` on a gapped,
+            multi-bucket-island array such as
+            `EquidistantMultiProfile.hist_x`, since the sparse-profile
+            metadata needed to resolve particles to their own bucket
+            is not (yet) forwarded through this parameter.
         turn_counter
             Live turn counter; accessed as ``turn_counter.value`` each track call.
 

@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import warnings
@@ -19,17 +20,20 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
-from blond.generals.exceptions_ import ArrayCastingError
+from blond.generals.exceptions_ import ArrayCastingError, UnknownBackendMode
 from blond.generals.warnings_ import PrecisionWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
-    from typing import TYPE_CHECKING, Any, Literal
+    from typing import TYPE_CHECKING, Any, Literal, TypeVar
+
+    BackendType = TypeVar("BackendType", bound="type[BackendBaseClass]")
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.generals.typing_ import AnyArray
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +45,7 @@ ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
 # `__getattr__` below; see `_probe_available_backends`.
 
 
-def _register_backend(bd: BackendBaseClass) -> BackendBaseClass:
+def _register_backend(bd: BackendType) -> BackendType:
     ALL_BACKENDS[bd.__name__] = bd
     return bd
 
@@ -197,7 +201,62 @@ class Specials(ABC):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
+        """
+        Interpolated kick method.
+
+        With the sparse-metadata arguments omitted, `bin_centers` must be
+        uniformly spaced; implementations raise `ValueError` otherwise
+        (e.g. when handed a gapped, multi-island array such as
+        `EquidistantMultiProfile.hist_x` without its metadata). With the
+        sparse-metadata arguments given (all six together, typically via
+        `EquidistantMultiProfile.sparse_kick_metadata`), particles are
+        resolved to their own bucket before interpolation, matching
+        `histogram_sparse`'s bucket-resolution semantics.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s].
+        dE
+            Macro-particle energy coordinates, in [eV].
+        voltage
+            Array of voltages along `bin_centers`, in [V].
+        bin_centers
+            Positions of `voltage`, in [s].
+        charge
+            Particle charge, as number of elementary charges `e` [].
+        acceleration_kick
+            Energy, in [eV], which is added to all particles.
+            This is intended to subtract the target energy from the RF
+            energy gain in one common call.
+        first_left_cut
+            Left edge of the first bucket's histogram. Pass this together
+            with the other sparse-metadata arguments below (e.g. via
+            `EquidistantMultiProfile.sparse_kick_metadata`) when
+            `bin_centers` is a gapped, multi-island array such as
+            `EquidistantMultiProfile.hist_x`. When omitted, `bin_centers`
+            must be uniformly spaced.
+        left_cut_distance
+            Distance between the left edge of each bucket's histogram.
+        cut_width
+            Distance between left and right edge of one bucket's
+            histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        filling_pattern
+            Filling pattern as a boolean array where `True` means filled
+            bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index, see
+            `_gen_array_bucket_index_to_memory_index`.
+        """
         raise NotImplementedError(
             "Abstract method `kick_interpolated` is not implemented."
         )
@@ -406,6 +465,68 @@ class Specials(ABC):
             "is not implemented."
         )
 
+    # The MuSiC kernel is intentionally *not* abstract: BLonD2 only shipped
+    # it for the ``python`` and ``cpp`` backends, so those two override the
+    # method below while ``numba`` and ``cuda`` raise by default.
+    @staticmethod
+    def music_track(
+        beam_dt: NumpyArray | CupyArray,
+        beam_dE: NumpyArray | CupyArray,
+        induced_voltage: NumpyArray | CupyArray,
+        parameter_array: NumpyArray | CupyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        """
+        MuSiC induced voltage of one resonator; updates ``beam_dE`` in place.
+
+        The caller must sort the macro-particles by ``beam_dt`` (ascending)
+        beforehand. ``induced_voltage`` is filled by the kernel.
+
+        Parameters
+        ----------
+        beam_dt
+            Macro-particle time coordinates [s], sorted ascending.
+        beam_dE
+            Macro-particle energy coordinates [eV]; updated in place.
+        induced_voltage
+            Output induced voltage [V]; filled by the kernel.
+        parameter_array
+            Length-3 state vector
+            ``[input_first, input_second, last_dt]``, carried across turns
+            and written back in place. When ``multiturn`` is ``True`` it
+            must hold the state left by the previous turn.
+        alpha
+            Resonator damping ``omega_R / (2 Q)`` [rad/s].
+        omega_bar
+            Damped resonant angular frequency [rad/s].
+        const
+            MuSiC prefactor [V].
+        coeff1
+            Recurrence coefficient (see :class:`~blond.physics.impedances.music_algorithm.Music`).
+        coeff2
+            Recurrence coefficient.
+        coeff3
+            Recurrence coefficient.
+        coeff4
+            Recurrence coefficient.
+        time_since_last_track
+            Time elapsed [s] since the previous call, used to span the gap
+            to the previous turn. Ignored when ``multiturn`` is ``False``.
+        multiturn
+            If ``False`` (turn 1) the recurrence starts fresh. If ``True``
+            the wake from the previous turn is bridged across the
+            revolution gap using ``parameter_array``.
+        """
+        raise NotImplementedError("The backend for `music_track` is missing.")
+
 
 class _ModeSwitchHelper:
     """
@@ -582,17 +703,33 @@ class BackendBaseClass(ABC):
         new_backend
             One of the available backends.
         """
-        if self.__class__ == new_backend.__class__:
+        if not isinstance(new_backend, type):
+            raise TypeError(
+                f"`new_backend` must be a {BackendBaseClass.__name__} subclass "
+                f"(the class itself, not an instance), got {new_backend!r}."
+            )
+        if not issubclass(new_backend, BackendBaseClass):
+            raise TypeError(
+                f"`new_backend` must be a {BackendBaseClass.__name__} subclass, "
+                f"got {new_backend!r}."
+            )
+        if self.__class__ is new_backend:
+            # requesting the already active backend must be a no-op
             return
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
         _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
-
         _new_backend.verbose = self.verbose
+        specials_mode_org = self.specials_mode
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
-        self.set_specials(self.specials_mode)  # TODO test changing backends
+        # If the previous specials mode does not exist on the new backend
+        # family (e.g. "cuda" after changing to a CPU backend), keep the
+        # new backend's default mode instead. Suppress only that specific
+        # case so genuine failures from set_specials still propagate.
+        with contextlib.suppress(UnknownBackendMode):
+            self.set_specials(specials_mode_org)
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
@@ -721,7 +858,7 @@ class BackendBaseClass(ABC):
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
-    def _asarray_if_needed(self, arr: ArrayLike) -> NumpyArray | CupyArray:
+    def _asarray_if_needed(self, arr: AnyArray) -> NumpyArray | CupyArray:
         # Faster to check than cast, so only cast if needed
         if isinstance(arr, self.ndarray):
             return arr
@@ -769,7 +906,7 @@ class BackendBaseClass(ABC):
         return arr
 
     def _cast_arr_and_dtype(
-        self, arr: ArrayLike, dtype: type
+        self, arr: AnyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         # Catch likely errors and reraise with slightly friendlier
         # messages.  Raise from the original exception to aid
@@ -797,7 +934,7 @@ class BackendBaseClass(ABC):
         return new_arr
 
     def cast_arr_float_if_needed(
-        self, arr: ArrayLike
+        self, arr: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Convert input to backend.array with ``dtype=backend.float``.
@@ -820,7 +957,7 @@ class BackendBaseClass(ABC):
         return self._cast_arr_and_dtype(arr, self.float)
 
     def cast_arr_complex_if_needed(
-        self, arr: ArrayLike
+        self, arr: AnyArray
     ) -> NumpyArray | CupyArray:
         """
         Convert input to backend.array with ``dtype=backend.complex``.
@@ -967,7 +1104,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose and onchange:
             print(f"Set special to `{mode}`")
 
@@ -1090,7 +1229,9 @@ class CupyBackend(BackendBaseClass):
 
             self.specials = CudaSpecials()
         else:
-            raise ValueError(mode)
+            raise UnknownBackendMode(
+                f"Unknown specials mode {mode!r} for {type(self).__name__}."
+            )
         if self.verbose:
             print(f"Set special to `{mode}`")
 

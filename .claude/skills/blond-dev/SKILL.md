@@ -113,7 +113,7 @@ comparing each backend to the Python reference.
 - **Arrays may be NumPy *or* CuPy — handle both.** Backend arrays are *not* guaranteed to
   be NumPy. The conversion rules:
   - **Use `copy_to_cpu(arr)`, never `arr.get()` directly.**
-    `from blond.generals.cupy.no_cupy_import import copy_to_cpu` returns a host copy for
+    `from blond.generals.cupy_.no_cupy_import import copy_to_cpu` returns a host copy for
     any backend (`.get()` for CuPy, `.copy()` for NumPy); calling `.get()` yourself crashes
     on a NumPy array.
   - **Never call `np.array(arr)` / `np.asarray(arr)` on a backend array without converting
@@ -154,7 +154,7 @@ comparing each backend to the Python reference.
   a "correct" kernel that round-trips through host memory each turn is still a bug.
 - **Many machines have no GPU — degrade gracefully, never hard-require CuPy.** The
   default/CI path is CPU (`numba`/`cpp`/`python`); CUDA is optional. Import CuPy through
-  the `blond.generals.cupy.no_cupy_import` shims (`copy_to_cpu`, `is_cupy_array`) which
+  the `blond.generals.cupy_.no_cupy_import` shims (`copy_to_cpu`, `is_cupy_array`) which
   work whether or not CuPy is installed — never `import cupy` at module top level in code
   that must load CPU-only. Code and tests must run end-to-end with no GPU present; gate
   GPU-only tests behind the `cupy`/`cuda` markers so they skip cleanly instead of erroring.
@@ -222,6 +222,16 @@ One GitLab MR per item, each on its own branch off `blonder`
 - **Strict TDD with visible RED:** write the failing test, run it, show it failing,
   *then* implement. (User explicitly requires seeing RED.)
 - Tests mirror the `blond/` tree under `tests/unittests/`.
+- **Every test class must inherit from `unittest.TestCase` and use its
+  assertions (`assertEqual`, `assertTrue`, `assertRaises`, …) — never a bare
+  `assert` statement.** This is a different `assert` than the one in *Backend
+  conventions* above: that note is about production wrapper code, where a
+  stripped-under-`-O` `assert` is the intended fast-path guard. In test code
+  bare `assert` is a bug risk, not a convention — it gives no diagnostic on
+  failure (no expected-vs-actual) and is *also* silently stripped under
+  `python -O`, which can turn a failing test into a silent pass. Write
+  `class TestFoo(unittest.TestCase):` with `test_*` methods, not
+  module-level `def test_...():` functions with bare `assert`.
 - **Pre-commit before every `git commit`** — see the callout above; this is not
   optional.
 - Commit messages: past tense ("Fixed …", "Added …"), body explains *why*.

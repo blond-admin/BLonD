@@ -16,7 +16,7 @@ from math import sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover

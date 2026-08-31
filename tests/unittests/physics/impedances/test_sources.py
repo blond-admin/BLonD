@@ -15,7 +15,7 @@ from blond import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
     CsvReader,
@@ -296,6 +296,82 @@ class TestInductiveImpedance(unittest.TestCase):
             beam=beam,
         )
         assert hash_before == self.inductive_impedance._cache_derivative_hash
+
+    def test_get_impedance_hist_step_odd_signal(self):
+        # For an odd time-signal length the bin width cannot be
+        # reconstructed from `freq_x` (the even-length assumption of
+        # irfft's default is wrong). Passing `hist_step` must yield the
+        # exact frequency-domain equivalent of np.gradient.
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 0.8 * c0
+
+        n_time = 15  # odd on purpose
+        hist_step = 2.5e-10
+        hist_y = np.zeros(n_time)
+        hist_y[5:10] = [1, 2, 3, 2, 1]
+        freq_x = backend.array(
+            np.fft.rfftfreq(n_time, d=hist_step), dtype=backend.float
+        )
+        freq_y = self.inductive_impedance.get_impedance(
+            freq_x=freq_x,
+            simulation=simulation,
+            beam=beam,
+            hist_step=hist_step,
+        )
+        revolution_period = (
+            simulation.ring.circumference / beam.reference.velocity
+        )
+        # undo the physics factors to isolate the derivative kernel
+        kernel = (
+            copy_to_cpu(freq_y)
+            * 2
+            * np.pi
+            / (self.inductive_impedance.Z_over_n * revolution_period)
+        )
+        gradient = np.fft.irfft(kernel * np.fft.rfft(hist_y), n=n_time)
+        expected = np.gradient(hist_y, hist_step, edge_order=2)
+        np.testing.assert_allclose(
+            gradient,
+            expected,
+            atol=1e-10 * np.abs(expected).max(),
+        )
+
+    def test_get_impedance_cache_sensitive_to_hist_step(self):
+        # Same `freq_x` but different `hist_step` must not return the
+        # cached derivative kernel of the previous call.
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 0.8 * c0
+
+        freq_x = backend.array(
+            np.fft.rfftfreq(16, d=1e-9), dtype=backend.float
+        )
+        freq_y_1 = np.array(
+            copy_to_cpu(
+                self.inductive_impedance.get_impedance(
+                    freq_x=freq_x,
+                    simulation=simulation,
+                    beam=beam,
+                    hist_step=1e-9,
+                )
+            )
+        )
+        freq_y_2 = np.array(
+            copy_to_cpu(
+                self.inductive_impedance.get_impedance(
+                    freq_x=freq_x,
+                    simulation=simulation,
+                    beam=beam,
+                    hist_step=2e-9,
+                )
+            )
+        )
+        assert not np.allclose(freq_y_1, freq_y_2)
 
 
 class TestResonators(unittest.TestCase):

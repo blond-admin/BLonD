@@ -38,6 +38,7 @@ ASSIGNED_CATEGORIES = {
     "BarrierRF": Categories.LATTICE.value,
     "UserDefinedElement": Categories.LATTICE.value,
     "WakeField": Categories.LATTICE.value,
+    "Music": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
     "DynamicProfileConstNBins": Categories.LATTICE.value,
     "EquidistantMultiProfile": Categories.LATTICE.value,
@@ -48,6 +49,7 @@ ASSIGNED_CATEGORIES = {
     "InductiveImpedanceSolver": Categories.WAKE.value,
     "ImpedanceTableFreq": Categories.WAKE.value,
     "TimeDomainFftSolver": Categories.WAKE.value,
+    "MultiPoleSparseSolve": Categories.WAKE.value,
     # Cycle
     "MagneticCycleByTime": Categories.CYCLE.value,
     "MagneticCyclePerTurn": Categories.CYCLE.value,

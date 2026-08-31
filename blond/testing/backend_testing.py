@@ -25,14 +25,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends import backend
-from blond.generals.cupy import no_cupy_import as no_cupy
+from blond.generals.cupy_ import no_cupy_import as no_cupy
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-    from numpy.typing import ArrayLike
-
     from blond.core.backends.backend import BackendBaseClass
+    from blond.generals.typing_ import AnyArray
 
 try:
     import cupy  # noqa: F401
@@ -270,7 +269,7 @@ class ArrayLikeScan:
 
             yield func
 
-    def _cast_to(self, type_: type, value: ArrayLike) -> ArrayLike:
+    def _cast_to(self, type_: type, value: AnyArray) -> AnyArray:
         # Wrapper to ensure cupy arrays are first converted to numpy
         # arrays, otherwise most conversions raise an error
         # because automatic convertion (`.get()`) is not possible.

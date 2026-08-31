@@ -27,7 +27,7 @@ from blond import (
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -499,6 +499,58 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
+
+    def test_calc_induced_voltage_odd_n_time_matches_reference(self):
+        # Regression test: with an odd FFT length
+        # (n_time = t_periodicity / hist_step), irfft without `n=` returned
+        # one sample too few (its default assumes an even signal length)
+        # and the reconstructed voltage was spectrally wrong.
+        n_bins = 15
+        hist_y = np.zeros(n_bins)
+        hist_y[5:10] = [1, 2, 3, 2, 1]
+        profile = StaticProfile(cut_left=-0.5, cut_right=0.5, n_bins=n_bins)
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y_to_density_factor = 1.0
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = profile
+        z_over_n = 123.0
+        parent_wakefield.sources = (InductiveImpedance(Z_over_n=z_over_n),)
+
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 3e8
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 3e8  # revolution period = 1 s
+        beam.intensity = 1e12
+        beam.particle_type.charge = 1
+
+        solver = PeriodicFreqSolver(t_periodicity=1.0)
+        solver._parent_wakefield = parent_wakefield
+        solver._simulation = simulation
+        solver._update_internal_data()
+        assert solver._n_time % 2 == 1  # guard: odd FFT length on purpose
+
+        reference_solver = InductiveImpedanceSolver()
+        reference_solver._parent_wakefield = parent_wakefield
+        reference_solver._simulation = simulation
+        reference_solver._Z_over_n = z_over_n
+        reference = copy_to_cpu(
+            reference_solver.calc_induced_voltage(beam=beam)
+        )
+
+        # second call exercises the preallocated fft output buffer
+        for _ in range(2):
+            induced_voltage = copy_to_cpu(
+                solver.calc_induced_voltage(beam=beam)
+            )
+            self.assertEqual(induced_voltage.shape, (n_bins,))
+            np.testing.assert_allclose(
+                induced_voltage,
+                reference,
+                rtol=1e-9,
+                atol=np.abs(reference).max() * 1e-12,
+            )
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)

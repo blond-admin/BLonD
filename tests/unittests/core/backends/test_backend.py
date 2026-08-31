@@ -6,6 +6,7 @@ import warnings
 
 import numpy as np
 import pytest
+from scipy.constants import elementary_charge
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
@@ -60,6 +61,37 @@ class TestBackendBaseClass(unittest.TestCase):
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
     @pytest.mark.backend_mutation
+    def test_change_backend_same_backend_keeps_specials(self) -> None:
+        self.backend_base_class.set_specials(mode="numba")
+        specials_org = self.backend_base_class.specials
+        self.backend_base_class.change_backend(new_backend=Numpy64Bit)
+        self.assertEqual(self.backend_base_class.specials_mode, "numba")
+        # same backend requested -> must be a no-op
+        self.assertIs(self.backend_base_class.specials, specials_org)
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_rejects_instance(self) -> None:
+        # passing an instance instead of the class is the common mistake;
+        # the message must call that out explicitly
+        with self.assertRaisesRegex(TypeError, "not an instance"):
+            self.backend_base_class.change_backend(new_backend=Numpy64Bit())
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_rejects_non_backend_class(self) -> None:
+        with self.assertRaisesRegex(TypeError, "subclass"):
+            self.backend_base_class.change_backend(new_backend=int)
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_keeps_specials_mode(self) -> None:
+        class AnotherNumpy64Bit(Numpy64Bit):
+            """Different class, to force a real backend change."""
+
+        self.backend_base_class.set_specials(mode="numba")
+        self.backend_base_class.change_backend(new_backend=AnotherNumpy64Bit)
+        self.assertIs(self.backend_base_class.__class__, AnotherNumpy64Bit)
+        self.assertEqual(self.backend_base_class.specials_mode, "numba")
+
+    @pytest.mark.backend_mutation
     def test_set_specials(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
@@ -109,9 +141,13 @@ class TestBackendBaseClass(unittest.TestCase):
             some_backend._finalize()
 
     @pytest.mark.backend_mutation
-    def test_change_backend(self):
+    def test_change_backend_with_instance_is_noop(self):
+        # this method previously shadowed `test_change_backend` above
+        # by reusing its name
         some_backend = Numpy64Bit()
-        some_backend.change_backend(some_backend)  # shouldnt do anything
+        # requesting the already active backend class must be a no-op
+        some_backend.change_backend(Numpy64Bit)
+        self.assertIs(some_backend.__class__, Numpy64Bit)
 
     @pytest.mark.backend_mutation
     def test_temporary_specials_mode(self):
@@ -159,7 +195,13 @@ class TestBackendBaseClass(unittest.TestCase):
 def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     """Run a code snippet in a fresh interpreter without BLOND env vars."""
     env = os.environ.copy()
-    for key in ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS"):
+    # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
+    # TTY, so numba's colorama atexit hook writes '\x1b[0m' to it.
+    for key in (
+        "BLOND_BACKEND_MODE",
+        "BLOND_BACKEND_BITS",
+        "PYCHARM_HOSTED",
+    ):
         env.pop(key, None)
     return subprocess.run(
         [sys.executable, "-c", code],
@@ -406,6 +448,82 @@ class TestSpecials(unittest.TestCase):
                     result_python,
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_music_track(self) -> None:
+        """python/cpp backends agree; numba/cuda raise NotImplementedError."""
+        dtype = np.float64
+        R_S, omega_R, Q, n_particles = 1e6, 2 * np.pi * 1e9, 1.0, 1e11
+        reference_single = None
+        reference_multi = None
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            n = len(self.dt)  # self.dt is already sorted ascending
+            alpha = omega_R / (2 * Q)
+            omega_bar = np.sqrt(omega_R**2 - alpha**2)
+            const = -elementary_charge * R_S * omega_R * n_particles / (n * Q)
+            coeffs = (
+                alpha,
+                omega_bar,
+                const,
+                -alpha / omega_bar,
+                -R_S * omega_R / (Q * omega_bar),
+                omega_R * Q / (R_S * omega_bar),
+                alpha / omega_bar,
+            )
+
+            dE = self.dE.copy()
+            iv = backend.zeros(n, dtype=backend.float)
+            ap = backend.array([1.0, 0.0, 0.0], dtype=backend.float)
+            time_since_last_track = 10.0
+
+            if special in ("numba", "cuda"):
+                # MuSiC was not shipped for these backends in BLonD2.
+                with self.assertRaises(NotImplementedError):
+                    backend.specials.music_track(
+                        self.dt,
+                        dE,
+                        iv,
+                        ap,
+                        *coeffs,
+                        time_since_last_track,
+                        False,
+                    )
+                continue
+
+            # turn 1 (single-turn) then turn 2 (multi-turn)
+            backend.specials.music_track(
+                self.dt, dE, iv, ap, *coeffs, time_since_last_track, False
+            )
+            single = copy_to_cpu(iv)
+            iv2 = backend.zeros(n, dtype=backend.float)
+            backend.specials.music_track(
+                self.dt, dE, iv2, ap, *coeffs, time_since_last_track, True
+            )
+            multi = copy_to_cpu(iv2)
+
+            if reference_single is None:
+                reference_single = single
+                reference_multi = multi
+            else:
+                # cpp uses VDT fast math, so allow a small tolerance.
+                np.testing.assert_allclose(
+                    single,
+                    reference_single,
+                    **allclose_tolerances(reference_single, 1e-5),
+                    err_msg=f"single-turn `{special}` disagrees with python",
+                )
+                np.testing.assert_allclose(
+                    multi,
+                    reference_multi,
+                    **allclose_tolerances(reference_multi, 1e-5),
+                    err_msg=f"multi-turn `{special}` disagrees with python",
                 )
 
     @unittest.skip
@@ -922,6 +1040,386 @@ class TestSpecials(unittest.TestCase):
                     result_python,
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_rejects_non_uniform_bin_centers(self) -> None:
+        """Non-uniform bin_centers (e.g. a sparse multi-island hist_x from
+        EquidistantMultiProfile) must raise, not silently compute the wrong
+        physics by assuming a global uniform grid."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            # islands: uniform within [0, 4) and [10, 14), gap in between
+            bin_centers_np = np.concatenate(
+                [
+                    np.linspace(0, 4, 10, endpoint=False),
+                    np.linspace(10, 14, 10, endpoint=False),
+                ]
+            )
+            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
+            voltage = bin_centers**2
+            charge = backend.float(10)
+            acceleration_kick = backend.float(0.5)
+            with self.assertRaises(ValueError):
+                backend.specials.kick_interpolated(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_single_bin_skips_uniformity_check(
+        self,
+    ) -> None:
+        """A single-bin `bin_centers` cannot expose non-uniform spacing
+        (`np.diff` on it is empty), so the uniformity guard must not even
+        attempt the check -- and must not kick any particle, since there is
+        no bin width to interpolate across."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = backend.array([0.0], dtype=backend.float)
+            voltage = backend.array([1.0], dtype=backend.float)
+            charge = backend.float(10)
+            acceleration_kick = backend.float(0.5)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                np.asarray(result),
+                0.0,
+                err_msg=(
+                    "a single-bin profile has no width to interpolate "
+                    f"across, so no particle should be kicked, {special=}"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse(self) -> None:
+        """A particle sitting exactly on the first bin of the *second*
+        island must be kicked using that island's own voltage segment, not
+        misindexed into a neighboring island by a naive global floor()."""
+        dtype = np.float64
+        bins_per_profile = 4
+        # bucket 0 and 3 filled, buckets 1 and 2 empty (a real gap)
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        first_left_cut = 0.0
+        left_cut_distance = 1.0
+        cut_width = 1.0  # == profile_width, one bucket
+        bin_width = cut_width / bins_per_profile
+
+        # memory layout: [bucket0 bins..., bucket3 bins...]
+        bin_centers_np = np.concatenate(
+            [
+                first_left_cut
+                + b * left_cut_distance
+                + bin_width * (np.arange(bins_per_profile) + 0.5)
+                for b in (0, 3)
+            ]
+        )
+        voltage_np = np.array([1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0])
+
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            # particle exactly on bin_centers_np[4] == first bin of the
+            # second island; a global-uniform-grid bug maps this to
+            # memory index 5 instead of 4.
+            dt = backend.array(
+                np.array([bin_centers_np[4]]), dtype=backend.float
+            )
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            voltage = backend.array(voltage_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
+            charge = backend.float(1.0)
+            acceleration_kick = backend.float(0.0)
+
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+                first_left_cut=first_left_cut,
+                left_cut_distance=left_cut_distance,
+                cut_width=cut_width,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+
+            # Ground truth: same particle kicked against ONLY the second
+            # island's own 4-bin dense profile (island-local, no gap).
+            dt_local = backend.array(
+                np.array([bin_centers_np[4] - 3 * left_cut_distance]),
+                dtype=backend.float,
+            )
+            dE_local = backend.zeros_like(dt_local, dtype=backend.float)
+            voltage_local = backend.array(
+                voltage_np[bins_per_profile:], dtype=backend.float
+            )
+            bin_centers_local = backend.array(
+                bin_centers_np[bins_per_profile:] - 3 * left_cut_distance,
+                dtype=backend.float,
+            )
+            backend.specials.kick_interpolated(
+                dt=dt_local,
+                dE=dE_local,
+                voltage=voltage_local,
+                bin_centers=bin_centers_local,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            expected = dE_local
+            if special == "cuda":
+                expected = expected.get()
+
+            np.testing.assert_allclose(
+                result,
+                expected,
+                rtol=self.rtol,
+                err_msg=f"Failed sparse test `{special}` with {dtype}",
+            )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Cross-backend mismatch `{special}` {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse_skips_unfilled_bucket(self) -> None:
+        """A particle whose dt falls into an unfilled bucket's time window
+        must receive no kick (mirrors histogram_sparse's `continue`)."""
+        dtype = np.float64
+        bins_per_profile = 4
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(
+                np.array([1.5]), dtype=backend.float
+            )  # bucket 1, unfilled
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            voltage = backend.array(
+                np.array([1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+                dtype=backend.float,
+            )
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            bin_centers = backend.array(
+                np.arange(8) * 0.25, dtype=backend.float
+            )
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(1.0),
+                acceleration_kick=backend.float(0.0),
+                first_left_cut=0.0,
+                left_cut_distance=1.0,
+                cut_width=1.0,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_allclose(
+                result, np.zeros(1), err_msg=f"Failed `{special}` {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse_single_bucket_bit_exact(self) -> None:
+        """With exactly one filled bucket, the sparse path's per-particle
+        bucket resolution must degenerate to *bit-exact* the same
+        particle-to-bin mapping as the dense path computed directly on
+        that bucket's own `bin_centers`/`voltage` arrays.
+
+        This is stronger than the `rtol`-based
+        `test_kick_interpolated_sparse` above: the sparse path derives
+        `inv_bin_width` as `bins_per_profile / cut_width` while the dense
+        path derives it as `(n_slices - 1) / (bin_centers[-1] -
+        bin_centers[0])`. These are algebraically equal for a single
+        bucket, but different floating-point arithmetic operation orders
+        can round differently even when mathematically equal, so exact
+        equality is a meaningful internal-consistency check, not a given.
+        """
+        dtype = np.float64
+        bins_per_profile = 8
+        first_left_cut = -0.37
+        left_cut_distance = 1.0  # irrelevant with a single bucket
+        cut_width = 0.9
+        bin_width = cut_width / bins_per_profile
+
+        bin_centers_np = first_left_cut + bin_width * (
+            np.arange(bins_per_profile) + 0.5
+        )
+        voltage_np = np.array(
+            [1.0, 2.0, 5.0, 3.0, 8.0, 1.5, 4.0, 6.0], dtype=dtype
+        )
+        filling_pattern_np = np.array([True])
+        bucket_index_to_memory_index_np = np.array([0], dtype=np.int32)
+
+        # particles spanning outside-left, every bin, edges, and
+        # outside-right of the single bucket.
+        dt_np = np.linspace(
+            first_left_cut - 0.1,
+            first_left_cut + cut_width + 0.1,
+            25,
+            dtype=dtype,
+        )
+
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            dt = backend.array(dt_np, dtype=backend.float)
+            voltage = backend.array(voltage_np, dtype=backend.float)
+            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            charge = backend.float(1.0)
+            acceleration_kick = backend.float(0.0)
+
+            dE_sparse = backend.zeros_like(dt, dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE_sparse,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+                first_left_cut=first_left_cut,
+                left_cut_distance=left_cut_distance,
+                cut_width=cut_width,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=(bucket_index_to_memory_index),
+            )
+
+            dE_dense = backend.zeros_like(dt, dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE_dense,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+
+            result_sparse = dE_sparse
+            result_dense = dE_dense
+            if special == "cuda":
+                result_sparse = result_sparse.get()
+                result_dense = result_dense.get()
+
+            if special == "numba":
+                # `numba`'s dense kernel reconstructs bin spacing from
+                # `bin_centers` via subtraction
+                # (`(bin_centers[-1] - bin_centers[0]) / (n - 1)`),
+                # while its sparse kernel derives it directly from
+                # `bins_per_profile / cut_width`. These are
+                # algebraically identical for a single bucket, but not
+                # bit-identical in floating point (root-caused: see
+                # `.superpowers/sdd/2026-08-12-sparse-kick-interpolated/
+                # task-followup-bitexact-report.md`) -- a few ULPs of
+                # residual that isn't closable without either changing
+                # the dense kernel's general-purpose contract (feeding
+                # it bucket-specific scalars) or a real precision
+                # trade-off elsewhere. Use a tight tolerance instead of
+                # bit-exact equality here, still tight enough to catch
+                # a genuine bug (e.g. an off-by-one bucket index, which
+                # would produce O(1) differences, not O(1e-14)).
+                np.testing.assert_allclose(
+                    result_sparse,
+                    result_dense,
+                    rtol=1e-14,
+                    atol=1e-14,
+                    err_msg=(
+                        f"sparse/dense single-bucket mismatch `{special}` "
+                        f"{dtype}"
+                    ),
+                )
+            else:
+                np.testing.assert_array_equal(
+                    result_sparse,
+                    result_dense,
+                    err_msg=(
+                        f"sparse/dense single-bucket mismatch `{special}` "
+                        f"{dtype}"
+                    ),
+                )
+            if i == 0:
+                result_python = result_sparse
+            else:
+                # Cross-backend agreement only needs to be close: compilers
+                # may reorder floating-point operations (e.g. FMA fusion)
+                # differently than the Python reference. The bit-exact
+                # property under test above is the sparse/dense agreement
+                # *within* a single backend.
+                np.testing.assert_allclose(
+                    result_sparse,
+                    result_python,
+                    rtol=self.rtol,
+                    err_msg=f"Cross-backend mismatch `{special}` {dtype}",
                 )
 
     @pytest.mark.backend_mutation

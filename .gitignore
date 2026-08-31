@@ -6,6 +6,8 @@ logs
 /docs/build/
 /docs/examples/
 /docs/modules/*.rst
+/blond/core/backends/cpp/compiled/*
+/blond/core/backends/cuda/compiled/*
 /__EXAMPLES/*output_files/
 /__BENCHMARKS/debug.log
 /__BENCHMARKS/OTFB.png
@@ -362,3 +364,6 @@ gradle-app.setting
 # End of https://www.gitignore.io/api/c,r,git,svn,c++,java,pydev,maven,gradle,kotlin,vagrant,pycharm,eclipse,intellij,java-web,pycharm+all,pycharm+iml,intellij+iml,intellij+all
 
 tests/unittests/interfaces/rf_noise_cpp/rf-noise-cpp/
+
+# superpowers subagent-driven-development scratch workspaces
+.superpowers/
