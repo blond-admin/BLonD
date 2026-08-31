@@ -1323,6 +1323,41 @@ by linearity) is compared over five turns against the retuning convolution
     ramp as the accumulated offset slip builds, which the lone-beam and
     zero-offset tests structurally cannot catch.
 
+**Class** ``TestTwoBeamOffsetPassagesManySections`` -- the same two-beam
+comparison beyond two sections. Two sections is a special layout twice over:
+every station sees the beams exactly ``T_rev / 2`` apart, and the backfill
+interval is empty at every station, so the backfill reference walk is never
+entered. A 16-section RCS -- what ``rcs_two_beam_example`` actually runs --
+has neither property, so these tests carry the validation into the regime the
+shipped example uses. The 0.5 % gate is taken from the two-section class
+rather than fitted to the measurement.
+
+``test_arrival_spacing_is_never_half_a_turn``
+    The premise: at four sections no station sees the beams half a turn apart
+    (nor coincident), so narrowing the section counts back to the covered
+    two-section layout fails here instead of silently shrinking the coverage.
+``test_feedback_matches_two_beam_convolution``
+    Static, at four AND six sections: the beam-induced part matches the
+    two-beam convolution at every station and turn. Measured 0.128 % falling
+    to 0.039 %, essentially identical to two sections.
+``test_accelerating_feedback_matches_two_beam_convolution``
+    Fast ramp at four sections: more sections mean more mid-turn grid
+    re-seedings per turn, each at its own past-station RF frequency, so a
+    mis-composed frame-slip correction has more chances to accumulate.
+    Bounded and non-growing. This is the test that catches a backfill-walk
+    defect the whole two-section class misses -- verified by mutation
+    (dropping the last backfilled element leaves every two-section
+    comparison green and fails this one).
+``test_delta_omega_rf_feedback_matches_two_beam_convolution``
+    RF-frequency offset at four sections: the demodulation slip anchor is
+    accumulated across the stations of a turn, so a non-empty backfill
+    interval exercises it differently. Bounded and non-growing.
+``test_two_beam_loading_exceeds_single_beam``
+    Non-vacuity: the four-section two-beam convolution differs from the
+    single-beam run of the same ring by well over the gate, so the agreement
+    above cannot hold with the counter-rotating beam silently dropped.
+
+
 **Class** ``TestSimultaneousPassageGuard`` -- a station at a meeting azimuth
 (e.g. the single mid-ring station of a one-section layout) sees both beams
 at the *same* reference time. The per-passage machinery would silently
@@ -2448,3 +2483,25 @@ any other value keeps the host pin.
 The debug plots are opt-in via the ``DEBUG_PLOT`` module constant (and
 ``PLOT_DIAGNOSTICS`` in ``test_generator_current_pi_feedback.py``); both default
 to off in every module, so nothing opens in a headless/CI run.
+
+
+Mixin host contract
+^^^^^^^^^^^^^^^^^^^
+
+**Class** ``TestMixinsDeclareTheirHost``
+(``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) -- both
+feedback mixins are pure moves out of ``IQCavityFeedbackTimingClass``: their
+methods run on a host instance and read host state they do not define. The
+dependency is real either way; these tests pin that it is *stated* rather
+than left for the reader to reconstruct from the attribute accesses.
+
+``test_every_method_annotates_self_as_the_host``
+    Every method of ``RFCenterGridMixin`` and ``GeneratorRegulationMixin``
+    annotates its ``self`` as ``IQCavityFeedbackTimingClass``. Parametrised
+    over both mixins, so neither can drift from the other -- which is exactly
+    what had happened: the grid mixin carried the annotation and the
+    regulation mixin did not.
+``test_host_is_not_imported_at_runtime``
+    The annotation stays type-checking-only. The host inherits from these
+    mixins, so a runtime import of it would be a cycle; the test asserts the
+    module exposes no such name at runtime.

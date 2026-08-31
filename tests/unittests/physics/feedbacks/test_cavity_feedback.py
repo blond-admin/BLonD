@@ -5,6 +5,7 @@ tests moved to test_rf_center_grid.py and test_rf_center_segment.py when
 the grid builder and value class were split into their own modules.
 """
 
+import importlib
 import warnings
 from unittest.mock import Mock
 
@@ -27,6 +28,10 @@ from blond import (
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.generator_regulation import (
+    GeneratorRegulationMixin,
+)
+from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
 
 HARMONIC = 5
 CIRCUMFERENCE = 5
@@ -894,4 +899,88 @@ class TestCoarseCellStepSizing:
 
         np.testing.assert_array_equal(
             feedback.antenna_voltage_coarse_grid, np.zeros(3)
+        )
+
+
+class TestMixinsDeclareTheirHost:
+    """
+    Both feedback mixins declare the host class they need, machine-checkably.
+
+    ``RFCenterGridMixin`` and ``GeneratorRegulationMixin`` are pure moves out
+    of ``IQCavityFeedbackTimingClass``: their methods run on a host instance
+    and read host state they do not define. That dependency is real either
+    way -- the question is only whether it is *stated*. Annotating ``self``
+    as the host type states it in the one place a reader and a type checker
+    both look, without inventing a protocol, duplicating host attributes on
+    the mixin, or turning the mixin into a collaborator that would need the
+    same state passed to it explicitly.
+
+    The annotation is postponed (``from __future__ import annotations``) and
+    the host is imported only under ``TYPE_CHECKING``, so this costs no
+    runtime import and cannot create a cycle -- which the import check below
+    pins.
+    """
+
+    #: The mixins under contract, and the host they run on.
+    HOST = "IQCavityFeedbackTimingClass"
+
+    @staticmethod
+    def _mixin_functions(mixin) -> dict:
+        """
+        Every function a mixin defines, properties unwrapped.
+
+        Parameters
+        ----------
+        mixin
+            The mixin class to inspect.
+
+        Returns
+        -------
+        dict
+            Name to underlying function, for the members the mixin itself
+            defines (inherited ``object`` members excluded).
+        """
+        functions = {}
+        for name, member in vars(mixin).items():
+            if isinstance(member, property):
+                member = member.fget
+            if callable(member) and not isinstance(member, staticmethod):
+                functions[name] = member
+        return functions
+
+    @pytest.mark.parametrize(
+        "mixin", [RFCenterGridMixin, GeneratorRegulationMixin]
+    )
+    def test_every_method_annotates_self_as_the_host(self, mixin) -> None:
+        # A mixin method whose ``self`` is unannotated silently claims to
+        # work on anything, while it in fact reads host state; the reader
+        # has to reconstruct the requirement from the attribute accesses.
+        functions = self._mixin_functions(mixin)
+        assert functions, f"no methods found on {mixin.__name__}"
+
+        unannotated = [
+            name
+            for name, function in functions.items()
+            if function.__annotations__.get("self") != self.HOST
+        ]
+        assert not unannotated, (
+            f"{mixin.__name__} methods do not declare their host: "
+            f"{sorted(unannotated)}"
+        )
+
+    @pytest.mark.parametrize(
+        "module",
+        [
+            "blond.physics.feedbacks.rf_center_grid",
+            "blond.physics.feedbacks.generator_regulation",
+        ],
+    )
+    def test_host_is_not_imported_at_runtime(self, module) -> None:
+        # The annotation must stay type-checking-only: importing the host
+        # at runtime would be a cycle (the host imports the mixins to
+        # inherit from them).
+        source = importlib.import_module(module)
+        assert not hasattr(source, self.HOST), (
+            f"{module} imports {self.HOST} at runtime; keep it inside the "
+            "TYPE_CHECKING block so the annotation stays free"
         )

@@ -741,8 +741,16 @@ stations away from the beams' meeting azimuths. The validated case is the
 arrivals at a station are ``T_rev / 2`` apart; there the per-passage grid
 machinery handles the alternating arrivals natively and matches the two-beam
 convolution at reference accuracy. Layouts with more sections (``N >= 4``)
-can also keep stations off the meeting azimuths, but the arrival spacing is
-then not ``T_rev / 2`` and this regime is currently untested. A station
+keep stations off the meeting azimuths at a different spacing -- station
+``i`` sees the two beams ``|N - 2 i - 1| / N * T_rev`` apart, never half a
+turn at ``N = 4`` -- and they are validated too: four and six sections match
+the two-beam convolution to 0.128 % on the first turn, falling to 0.039 %,
+against the same 0.5 % gate and within 0.001 percentage points of the
+two-section numbers, in all three regimes (static, accelerating fast ramp,
+``delta_omega_rf``). That matters because two sections is also the only count
+at which the backfill interval is empty at every station, so the backfill
+reference walk is never entered; a 16-section RCS enters it at 14 stations
+every turn. A station
 *at* a meeting azimuth (both beams at the
 same reference time, e.g. the single mid-ring station of a one-section
 layout) is refused with ``NotImplementedError``: the machinery would

@@ -27,7 +27,12 @@ It is a *mixin*: those methods read and write host state
 (``_controller``, ``_voltage_setpoint``, ``n_cavities``, ``R_over_Q``,
 ``Q_L``, ``generator_current_coarse_grid``, ``antenna_voltage_coarse_grid``,
 ``generator_current_fine_grid``, ``_omega_input_for_pi``, ...) that
-``IQCavityFeedbackTimingClass`` owns.
+``IQCavityFeedbackTimingClass`` owns. Every method therefore annotates its
+``self`` as that host, exactly as ``rf_center_grid.py`` does: the dependency
+exists either way, and stating it in the signature is what lets a reader and
+a type checker resolve those attributes instead of reconstructing the
+requirement from the accesses. The import stays inside ``TYPE_CHECKING`` --
+the host inherits from this mixin, so a runtime import would be a cycle.
 
 **What this module does NOT own.** The file name promises the whole
 generator regulation; it delivers only the above. Most of the
@@ -67,12 +72,16 @@ from blond.physics.feedbacks.iq import polar_to_cartesian
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
+    from blond.physics.feedbacks.cavity_feedback import (
+        IQCavityFeedbackTimingClass,
+    )
+
 
 class GeneratorRegulationMixin:
     """Generator-current regulation mixin (see module docstring)."""
 
     @property
-    def _controller_active(self) -> bool:
+    def _controller_active(self: IQCavityFeedbackTimingClass) -> bool:
         """
         Whether a generator-current controller is attached.
 
@@ -86,7 +95,7 @@ class GeneratorRegulationMixin:
         return self._controller is not None
 
     @property
-    def pi_setpoint(self) -> complex:
+    def pi_setpoint(self: IQCavityFeedbackTimingClass) -> complex:
         """
         Per-cavity voltage setpoint of the PI controller in the IQ frame.
 
@@ -104,7 +113,8 @@ class GeneratorRegulationMixin:
         )
 
     def _validate_voltage_setpoint(
-        self, voltage_setpoint: complex | None
+        self: IQCavityFeedbackTimingClass,
+        voltage_setpoint: complex | None,
     ) -> None:
         """
         Reject an explicit voltage setpoint that is not real and positive.
@@ -144,7 +154,8 @@ class GeneratorRegulationMixin:
             )
 
     def generator_power(
-        self, generator_current: complex | NumpyArray | None = None
+        self: IQCavityFeedbackTimingClass,
+        generator_current: complex | NumpyArray | None = None,
     ) -> float | NumpyArray:
         r"""
         Klystron forward power per cavity from the generator current.
@@ -168,7 +179,7 @@ class GeneratorRegulationMixin:
         return 0.5 * self.R_over_Q * self.Q_L * np.abs(generator_current) ** 2
 
     def _update_generator_current(
-        self,
+        self: IQCavityFeedbackTimingClass,
         omega_times_dt: float,
         coarse_grid_index_to_update: int,
     ) -> None:
@@ -221,7 +232,8 @@ class GeneratorRegulationMixin:
         )
 
     def _limit_fine_grid_generator_current(
-        self, initial_generator_current_fine_grid: complex
+        self: IQCavityFeedbackTimingClass,
+        initial_generator_current_fine_grid: complex,
     ) -> complex:
         """
         Clamp the fine-grid generator current to the actuator limit.

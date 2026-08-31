@@ -723,6 +723,23 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
 
 ### 3.1 Counter-rotating / two-beam
 
+- ~~**Two-beam offset passages at `N >= 4` are not accuracy-validated.**~~
+  **CLOSED (2026-08-31).** All three two-beam comparisons ran at
+  `n_sections = 2` only, which is special twice over: every station sees the
+  beams exactly `T_rev / 2` apart, AND the backfill interval is empty at
+  every station so the backfill reference walk is never entered — while the
+  shipped `rcs_two_beam_example` runs 16 sections and enters it at 14 of
+  them every turn. `TestTwoBeamOffsetPassagesManySections` now repeats the
+  comparison at four and six sections (static) and four (fast ramp,
+  `delta_omega_rf`), against the two-section class's **pre-registered** 0.5 %
+  gate rather than a fitted one. Result: 0.128 % on turn 0 falling to
+  0.039 %, within 0.001 pp of the two-section numbers — more sections cost
+  essentially nothing. Teeth verified by mutation: dropping the last
+  backfilled element in `rf_center_grid.py` leaves the ENTIRE two-section
+  two-beam class green and fails the new four-section accelerating test.
+  (A direction-flip mutation is inert by construction — the symmetric
+  half-drift/station/half-drift ring makes element order unobservable in the
+  output, as `TestBackfillWalkDirectionConsistency` already documents.)
 - **CR-3 equal-time patch path** (deferred by user): integrating two
   coincident beam currents in the feedback (deposit-sum + envelope rewind).
   Design options recorded in the memory note. Kick-ordering fork: symmetric
@@ -796,9 +813,26 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
   `_phase_offset_frwrd` to a `np.sin` argument where it contributed
   zero. Grep now returns no occurrence anywhere in `blond/` or
   `tests/`; suite unchanged.
-- **The extracted mixins** (`RFCenterGridMixin`, `GeneratorRegulationMixin`)
-  are still pure moves (methods take `self: IQCavityFeedbackTimingClass`);
-  promoting them to composed collaborators is the natural follow-up.
+- ~~**The extracted mixins** are still pure moves; promoting them to
+  composed collaborators is the natural follow-up.~~
+  **DECIDED (2026-08-31): stay mixins, state the host instead.** Composition
+  was investigated and rejected on measurement, not taste:
+  `RFCenterGridMixin` touches 25+ distinct host attributes (14x
+  `_reference_state_until_tracked`, 11x `_parent_rf_station`, 10x
+  `_segments`) and *mutates* host state (`_segments`, `_rf_centers`,
+  `_last_tracked_*`), so a collaborator needs either a back-reference (the
+  same coupling with an extra hop) or a 25-argument call — it would
+  relocate the coupling, not remove it. That is the same argument
+  `generator_regulation.py`'s module docstring already makes for the kernel
+  marshalling. What WAS wrong was an inconsistency: the self-typing design
+  (`docs/superpowers/specs/2026-07-23-rf-center-grid-mixin-self-typing-design.md`)
+  was applied to `RFCenterGridMixin` (16 annotations) and never to
+  `GeneratorRegulationMixin` (0), and nothing pinned it. Both mixins now
+  annotate every method's `self` as `IQCavityFeedbackTimingClass`, with the
+  host imported only under `TYPE_CHECKING` (the host inherits from the
+  mixins, so a runtime import is a cycle), pinned by
+  `TestMixinsDeclareTheirHost` in `test_cavity_feedback.py` — parametrised
+  over both mixins so they cannot drift apart again.
 - **P6** (RF-parameter view mixin) skipped per user.
 - ~~Full Sphinx doc build not yet run~~ **RESOLVED (2026-08-13)**: built
   green (`build succeeded`, exit 0, zero warnings) under `-W` +
@@ -816,6 +850,33 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
   time-sense "reverse" — see the resolved-stragglers note in §1.3.
 
 ### 3.3 Resolved / decided (kept as records, not as open work)
+
+- **`_check_step_sizes` hard cap — ALREADY DONE (record corrected
+  2026-08-31).** The physics review left "tighten the 2.0 cap to 1.0 to
+  forbid the Euler sign-flip band" as an open judgment call, and the memory
+  note still said so. The tree disagrees: `max_step_angle_hard = 1.0` in
+  `cavity_solvers.py`, with the reasoning in the constant's comment (the
+  exact factor `exp(-omega dt / 2 Q_L)` is positive for every step, so the
+  whole `d > 1` band misrepresents the physics even though `|factor| < 1`
+  keeps it contracting until 2) and a pin,
+  `test_decay_hard_cap_forbids_sign_flip`. Committed, not staged. Nothing
+  to do; the stale note was the only "open" part.
+- **`MultiPassResonatorSolver` `delta_f=None` precision — NOT a solver
+  defect (2026-08-31).** With no retuning the carried-wake phase is just
+  `omega_0 x (arrival gap)` and the phase-clock rotation is identically
+  zero, so the accuracy is set entirely by how precisely the *reference
+  clock* reports arrival times. `DriftSimple.track_reference` advances it
+  with a single `beta` across the whole arc (`beta` steps only at the
+  cavity): ~0.22 `t_rf` off over five turns at 4 GeV single-section, i.e.
+  radians of wake phase. The lever already ships — `DriftSubstepped`
+  (`blond/physics/drifts.py`, committed with `TestDriftSubstepped` and
+  `TestFixedFrequencyWakeWithSubsteppedFrame`; the memory note's "staged,
+  not committed" was stale) — and matches the analytic fixed-frequency
+  reference to machine precision. The gap was **discoverability**: nothing
+  in `solvers.py` mentioned it. The `delta_f` parameter doc and a
+  *Frame-time fidelity* note in the class docstring now do, including why
+  the fundamental mode needs the opposite treatment (`delta_f=0.0` plus the
+  phase clock, not a finer frame).
 
 - ~~Beam phase loop ↔ cavity feedback coupling~~ **DECIDED (2026-08-12,
   maintainer ruling): deliberate NON-GOAL — the phase loop must not couple
