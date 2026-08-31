@@ -34,6 +34,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
+#: Maximum number of re-insertion redraw rounds before giving up.
+#: Re-insertion converges geometrically for any bucket that admits the
+#: distribution, so this only ever trips on inputs that cannot work.
+_MAX_REINSERTION_ROUNDS = 100
+
+
 def _get_dE_from_dt_core(
     beta: float,
     dt_amplitude: float,
@@ -350,9 +356,19 @@ class BiGaussian(MatchingRoutine):
             copy=False,
         )
 
-        # Re-insert if necessary
+        # Re-insert if necessary.
+        #
+        # BOUNDED on purpose. Re-insertion redraws only the particles
+        # that fell outside the separatrix, so for a bucket that admits
+        # the distribution at all it converges geometrically and needs a
+        # handful of rounds. If the bucket admits (almost) nothing --
+        # a design RF phase that degenerates it, a sigma far wider than
+        # the bucket, too little voltage -- no draw ever succeeds and an
+        # unbounded loop cannot terminate. Spinning is the worst failure
+        # mode available here: it is indistinguishable from a slow run,
+        # so it burns CPU silently instead of reporting the bad input.
         if self._reinsertion:
-            while True:
+            for _ in range(_MAX_REINSERTION_ROUNDS):
                 sel = (
                     is_in_separatrix(
                         charge=beam.particle_type.charge,
@@ -395,6 +411,21 @@ class BiGaussian(MatchingRoutine):
                         ),
                         copy=False,
                     )
+                )
+            else:
+                raise ValueError(
+                    f"BiGaussian reinsertion did not converge: {n_new} "
+                    f"of {self._n_macroparticles_local} macroparticles "
+                    f"are still outside the separatrix after "
+                    f"{_MAX_REINSERTION_ROUNDS} redraw rounds. The "
+                    "bucket cannot hold this distribution, so redrawing "
+                    "can never succeed. Check that the RF bucket is the "
+                    "one you meant -- a phi_rf_design that degenerates "
+                    "it (e.g. pi / 2 for a single-harmonic station) "
+                    "leaves nothing to match into -- and that sigma_dt "
+                    "/ sigma_dE fit inside it at this voltage and "
+                    "energy. Pass reinsertion=False to keep the "
+                    "unfiltered Gaussian instead."
                 )
         beam.setup_beam(
             dt=dt,
