@@ -22,7 +22,7 @@ from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
-from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

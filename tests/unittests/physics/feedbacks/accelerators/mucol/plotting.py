@@ -12,7 +12,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 
 def plot_generator_power_and_voltage(

@@ -25,13 +25,13 @@ import numpy as np
 
 from blond.beam_preparation import base
 from blond.core import helpers as core_help
-from blond.generals.cupy import no_cupy_import
+from blond.generals.cupy_ import no_cupy_import
 from blond.generals.distributed import helpers as mpi_help
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond.blond_typing import AnyArray
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.typing_ import AnyArray
 
 
 class Coasting(base.BeamPreparationRoutine):

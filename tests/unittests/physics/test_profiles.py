@@ -19,7 +19,7 @@ from blond import (
     uranium_29,
 )
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,

@@ -79,15 +79,27 @@ extern "C" void wake_from_pole_residue(
 {
     const real_t two_factor = real_t(2) * factor;
 
-    // Zero voltage and voltage_threaded from previous call
+    // Only the first `n_used_threads` rows of `voltage_threaded` are ever written:
+    // the pole loop is parallelised over poles, so at most one row per pole
+    // (and never more than `n_threads`) is touched. Zeroing/reducing all
+    // `n_threads` rows when `n_poles` is small wastes O(n_threads * n_bins)
+    // of memory bandwidth, which dominates the (cheap) recursion for a few
+    // poles. Size the work to what is actually used.
+    const int n_used_threads = (n_poles < n_threads) ? n_poles : n_threads;
+
+    // Zero voltage and the used rows of voltage_threaded from previous call
     memset(voltage, 0, n_bins * sizeof(real_t));
-    memset(voltage_threaded, 0, (size_t)n_threads * n_bins * sizeof(real_t));
+    memset(voltage_threaded, 0, (size_t)n_used_threads * n_bins * sizeof(real_t));
 
     // t_start from states[-1] (real part of last complex element)
     const real_t t_start = states[2 * n_poles];
 
     // Parallel over poles: each pole carries sequential state across bins,
-    // but different poles are fully independent.
+    // but different poles are fully independent. With schedule(static) and
+    // n_poles < n_threads, only threads [0, n_poles) receive iterations, so
+    // the rows written are exactly [0, n_used_threads) -- the rows we zero and reduce.
+    // (We deliberately do NOT use num_threads(n_used_threads): resizing the team each
+    // call thrashes OpenMP's thread pool and is far slower than the savings.)
 #pragma omp parallel for schedule(static)
     for (int pole_i = 0; pole_i < n_poles; pole_i++) {
         const int thread_i = omp_get_thread_num();
@@ -172,11 +184,11 @@ extern "C" void wake_from_pole_residue(
         states[2 * pole_i + 1] = state_im;
     }
 
-    // Reduce voltage_threaded into voltage (parallel over bins)
+    // Reduce the used rows of voltage_threaded into voltage (parallel over bins)
 #pragma omp parallel for schedule(static)
     for (int bin_i = 0; bin_i < n_bins; bin_i++) {
         real_t sum = 0;
-        for (int t = 0; t < n_threads; t++) {
+        for (int t = 0; t < n_used_threads; t++) {
             sum += voltage_threaded[(size_t)t * n_bins + bin_i];
         }
         voltage[bin_i] = sum;

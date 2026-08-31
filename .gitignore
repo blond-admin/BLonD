@@ -377,3 +377,6 @@ tests/last_*.npy
 # Cached matched beam distributions for the mucol feedback driver
 # (unittests/.../mucol/mucol_cav_fdbk.py; regenerate via force_rematch=True)
 tests/unittests/physics/feedbacks/accelerators/mucol/fdbk_testing/
+
+# superpowers subagent-driven-development scratch workspaces
+.superpowers/

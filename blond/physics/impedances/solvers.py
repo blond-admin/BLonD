@@ -333,6 +333,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                     freq_x=self._freq_x,
                     simulation=self._simulation,
                     beam=beam,  # FIXME
+                    hist_step=self._parent_wakefield.profile.hist_step,
                 )
                 assert not backend.any(backend.isnan(freq_y)), (
                     f"{type(source).__name__}"
@@ -378,7 +379,10 @@ class PeriodicFreqSolver(WakeFieldSolver):
             profile=self._parent_wakefield.profile,
         )
 
-        key = len(self._freq_y)  # todo
+        # `n=self._n_time` is required: the half spectrum is ambiguous
+        # about the signal length and irfft defaults to the (wrong for
+        # odd `_n_time`) even length `2 * (n_freq - 1)`.
+        key = self._n_time
         if key in self._induced_voltage_buffer:
             # use `out` variable of fft to avoid array creation
             if backend.is_gpu:
@@ -389,6 +393,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                     * self._parent_wakefield.profile.beam_spectrum(
                         n_fft=self._n_time
                     ),
+                    n=self._n_time,
                 )
             else:
                 out = self._induced_voltage_buffer[key]
@@ -397,6 +402,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                     * self._parent_wakefield.profile.beam_spectrum(
                         n_fft=self._n_time
                     ),
+                    n=self._n_time,
                     out=out,
                 )
 
@@ -409,6 +415,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 * self._parent_wakefield.profile.beam_spectrum(
                     n_fft=self._n_time
                 ),
+                n=self._n_time,
             )
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
@@ -587,14 +594,17 @@ class TimeDomainFftSolver(WakeFieldSolver):
         n_fft = 2 * len(self._parent_wakefield.profile.hist_x)
         if self._allow_next_fast_len:
             n_fft = next_fast_len(n_fft)
+        # `n=n_fft` is required: `next_fast_len` may return an odd
+        # length, which irfft cannot infer from the half spectrum.
         induced_voltage = _factor * backend.fft.irfft(
             self._impedance_from_wake_y
-            * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
+            * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft),
+            n=n_fft,
         )
 
-        # calculation in frequency domain must be with full periodicity.
-        # The profile and corresponding induced voltage is only a part of
-        # the full periodicity and must be thus truncated
+        # The convolution result is n_fft samples long; the caller
+        # (`WakeField.calc_induced_voltage`) truncates it to the
+        # `n_bins` samples covered by the profile.
         return induced_voltage
 
 

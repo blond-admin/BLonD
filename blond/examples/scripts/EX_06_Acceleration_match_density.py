@@ -28,7 +28,7 @@ from blond import (
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.experimental import ProfileMatcherAddon, SemiEmpiricMatcher
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover

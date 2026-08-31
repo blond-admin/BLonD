@@ -32,7 +32,7 @@ from blond.core.simulation.execution_models.conterrotating_beams import (
     MainloopCounterRotatingBeams,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (

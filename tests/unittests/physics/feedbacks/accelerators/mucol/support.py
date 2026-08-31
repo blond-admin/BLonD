@@ -7,7 +7,7 @@ shared across the test modules in this package.
 
 import numpy as np
 
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 
 def rel_err(a, b) -> float:
