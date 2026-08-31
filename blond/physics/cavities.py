@@ -342,6 +342,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             self.attach_beam_feedback(beam_feedback)
 
         self._local_wakefield = local_wakefield
+        #: Whether the interpolated kick has already reported particles
+        #: outside its window; the report is once per station.
+        self._interp_window_warning_issued: bool = False
         if local_wakefield is not None:
             self._local_wakefield._parent_rf_station = self
 
@@ -352,6 +355,10 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # than one station, the delta_omega_rf setter forbids changes (see
         # its docstring); None (before run start) leaves changes warn-only.
         self._n_rf_stations_in_ring: int | None = None
+        #: Whether any RF station in the ring carries a cavity feedback.
+        #: Set at run start; arms the ``delta_omega_rf`` guard together
+        #: with the station count (see the setter).
+        self._cavity_feedback_in_ring: bool = False
 
         self.omega_rf_design: NumpyArray | float | None = None
         """Design angular frequency relating to the harmonic numbers, in [rad/s]."""
@@ -474,11 +481,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
           but a mid-turn change would make the coarse-grid sampling
           inconsistent. The write itself is not blocked.
         * In a **multi-station** ring (known once ``on_run_simulation`` has
-          counted the stations) the change raises a ``RuntimeError``: the
-          cavity-feedback reference tracking spans the *other* stations'
-          sections and reconstructs past segments with the current offset, so
-          every change is effectively mid-turn for some feedback and cannot
-          be applied consistently.
+          counted the stations) AND at least one station in that ring
+          carries a cavity feedback, the change raises a ``RuntimeError``:
+          the cavity-feedback reference tracking spans the *other*
+          stations' sections and reconstructs past segments with the
+          current offset, so every change is effectively mid-turn for some
+          feedback and cannot be applied consistently. With no cavity
+          feedback in the ring there is no such reconstruction, the offset
+          stays writable, and an ordinary phase or radial loop keeps
+          working on a multi-station ring.
 
         Runtime writers should be beam feedbacks (``BeamFeedbackBase``),
         which are detected at run start to arm the phase-slip clock. Custom
@@ -495,7 +506,19 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         old = getattr(self, "_delta_omega_rf", None)
         if old is not None and np.any(value != old):
             n_stations = getattr(self, "_n_rf_stations_in_ring", None)
-            if n_stations is not None and n_stations > 1:
+            # Both conditions are required. The obstacle is a CAVITY
+            # FEEDBACK reconstructing the reference across the other
+            # stations' sections, so with no cavity feedback in the ring
+            # there is nothing a mid-run change could be inconsistent
+            # with -- and a beam feedback (phase/radial loop) must stay
+            # free to write the offset every turn, which is exactly what
+            # BeamFeedbackBase does. Arming on the station count alone
+            # made every multi-station ring with a phase loop unrunnable.
+            if (
+                n_stations is not None
+                and n_stations > 1
+                and getattr(self, "_cavity_feedback_in_ring", False)
+            ):
                 raise RuntimeError(
                     "delta_omega_rf can not be changed while the ring has "
                     "more than one RF station: the cavity-feedback reference "
@@ -625,18 +648,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         Count the RF stations in the ring and arm the delta_omega_rf guard.
 
-        Called at run start. With more than one station in the ring, the
-        ``delta_omega_rf`` setter raises on any change (see its docstring):
-        the cavity-feedback reference tracking spans the other stations'
-        sections, so a change during the run cannot be applied consistently.
+        Called at run start. The ``delta_omega_rf`` setter raises on a
+        change only when the ring holds more than one RF station *and* at
+        least one of them carries a cavity feedback (see its docstring):
+        it is that feedback's reference tracking, spanning the other
+        stations' sections, that a mid-run change would break. Both facts
+        are collected here, in one walk of the ring.
 
         Parameters
         ----------
         simulation
             `Simulation` context manager providing the ring.
         """
-        self._n_rf_stations_in_ring = len(
-            simulation.ring.elements.get_elements(RFStationBaseClass)
+        stations = simulation.ring.elements.get_elements(RFStationBaseClass)
+        self._n_rf_stations_in_ring = len(stations)
+        self._cavity_feedback_in_ring = any(
+            station.any_feedback_not_none for station in stations
         )
 
     def configure_run(
@@ -1204,6 +1231,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         voltage: NumpyArray | CupyArray,
         sparse_metadata: dict | None = None,
     ):
+        self._warn_once_if_beam_leaves_interpolation_window(
+            beam=beam, time_axis=time_axis
+        )
         if self._delayed_kick is not None:
             self._delayed_kick.register(
                 time_axis=time_axis,
@@ -1220,6 +1250,95 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
                 **(sparse_metadata or {}),
             )
+
+    def _warn_once_if_beam_leaves_interpolation_window(
+        self,
+        beam: BeamBaseClass,
+        time_axis: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Report, once, particles the interpolated kick cannot reach.
+
+        Parameters
+        ----------
+        beam
+            Beam about to be kicked.
+        time_axis
+            Bin centres the voltage is interpolated on [s].
+
+        Warns
+        -----
+        UserWarning
+            If any macroparticle lies outside ``time_axis``.
+
+        Notes
+        -----
+        ``kick_interpolated`` only kicks a particle whose bin index lands in
+        ``[0, n_slices - 1)``. A particle outside that window is skipped
+        entirely, and because ``acceleration_kick`` is folded into the same
+        per-bin term it loses the RF voltage AND the reference bookkeeping
+        in one go.
+
+        Mind the direction: ``dE`` is a deviation from the moving
+        reference and the kick applies ``V sin(...) -
+        reference_energy_change``. Skipping it leaves ``dE`` unchanged, so
+        the particle's ABSOLUTE energy follows the reference exactly -- it
+        is handed the design energy gain for free, with no RF voltage, and
+        its ``dt`` coasts. It does not fall behind the ramp; it rides it
+        without paying. Either way its trajectory past that point is not
+        physical, so statistics computed over it are model artefacts.
+
+        The exact (non-interpolated) kick has no window and applies both
+        terms to every particle, so switching paths silently changes what
+        happens to the tails.
+
+        That behaviour is deliberate and is NOT corrected here; this only
+        makes it visible. Reported once per station, because it is a
+        property of the geometry rather than of a particular turn, and a
+        per-turn repeat would drown the log.
+
+        Cost: two reductions over ``dt`` per call while the beam still fits
+        (no allocation, so it is cheap on GPU too), and nothing at all once
+        the warning has fired. Deliberately in this wrapper and not in the
+        kernel -- the per-particle loops stay guard-free by design.
+        """
+        if self._interp_window_warning_issued:
+            return
+        # A window needs two bin centres before it has any extent.
+        minimum_bin_centres = 2
+        if beam.common_array_size == 0 or len(time_axis) < minimum_bin_centres:
+            return
+
+        dt = beam.read_partial_dt()
+        window_start = float(time_axis[0])
+        window_stop = float(time_axis[-1])
+        if (
+            float(backend.min(dt)) >= window_start
+            and float(backend.max(dt)) < window_stop
+        ):
+            return
+
+        # Rare path: only now is it worth an O(N) count for the message.
+        outside = int(backend.sum((dt < window_start) | (dt >= window_stop)))
+        self._interp_window_warning_issued = True
+        warnings.warn(
+            f"{outside} of {beam.common_array_size} macroparticles are "
+            f"outside the interpolation window "
+            f"[{window_start:.6e}, {window_stop:.6e}) s of the RF station "
+            f"in section {self.section_index}. The interpolated kick skips "
+            "them entirely: they receive neither the RF voltage nor the "
+            "acceleration term. Because dE is a deviation from the moving "
+            "reference, that leaves their dE frozen -- they follow the "
+            "reference energy exactly, i.e. they are handed the design "
+            "energy gain for free while their dt coasts. Their subsequent "
+            "trajectories are model artefacts, so any statistic computed "
+            "over them (RMS bunch length, energy spread, emittance) is "
+            "not physical. Widen the profile window if those particles "
+            "matter; a station with no cavity feedback, delayed kick or "
+            "local wakefield takes the exact kick, which has no window. "
+            "Reported once per RF station.",
+            stacklevel=3,
+        )
 
     def _update_delta_phi_rf_from_beam_feedback(
         self, reference_time: float
@@ -2286,6 +2405,24 @@ class MultiHarmonicRFStation(
                 voltage = self.calc_gap_voltage_without_feedbacks(
                     ts=self._delayed_kick_time_axis,
                 )
+                self._track_interp(
+                    beam=beam,
+                    reference_energy_change=reference_energy_change,
+                    time_axis=time_axis,
+                    voltage=voltage,
+                )
+            elif self._local_wakefield is not None:
+                # Same choice as SingleHarmonicRFStation: the wakefield
+                # already maintains a profile, so interpolating the RF
+                # voltage on its grid is cheaper than one sin() per
+                # macroparticle. Mirrored here so that the identical
+                # lattice does not track through a different kick path
+                # depending only on how the RF was declared. Note the
+                # interpolated kick has a window the exact kick does not --
+                # particles outside it are skipped, which
+                # _warn_once_if_beam_leaves_interpolation_window reports.
+                time_axis = self._local_wakefield.profile.hist_x
+                voltage = self.calc_gap_voltage_without_feedbacks(ts=time_axis)
                 self._track_interp(
                     beam=beam,
                     reference_energy_change=reference_energy_change,

@@ -2,7 +2,7 @@ import unittest
 import warnings
 from copy import deepcopy
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -191,8 +191,11 @@ class TestRFStationBaseClass(unittest.TestCase):
             beam_feedback=None,
             cavity_feedback=None,
         )
-        # Simulate run start in a ring with more than one RF station.
+        # Simulate run start in a ring with more than one RF station AND a
+        # cavity feedback somewhere in it -- the reference tracking of that
+        # feedback is the whole reason the offset cannot move mid-run.
         shc._n_rf_stations_in_ring = 2
+        shc._cavity_feedback_in_ring = True
         # Re-assigning the same value stays silent.
         with warnings.catch_warnings():
             warnings.simplefilter("error")
@@ -202,6 +205,63 @@ class TestRFStationBaseClass(unittest.TestCase):
         # would be applied inconsistently across segments.
         with self.assertRaisesRegex(RuntimeError, "more than one RF station"):
             shc.delta_omega_rf = 1.0e3
+
+    def test_delta_omega_rf_change_allowed_without_cavity_feedback(self):
+        """A multi-station ring with no cavity feedback is unconstrained.
+
+        The guard exists because a cavity feedback reconstructs the reference
+        across the OTHER stations' sections, so a mid-run change cannot be
+        applied consistently.  With no cavity feedback anywhere in the ring
+        there is no such reconstruction, and a beam feedback (phase or radial
+        loop) must be free to write the offset every turn -- which is exactly
+        what ``BeamFeedbackBase`` does.
+        """
+        shc = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        shc._n_rf_stations_in_ring = 2
+        shc._cavity_feedback_in_ring = False
+
+        shc.delta_omega_rf = 1.0e3
+
+        self.assertEqual(shc.delta_omega_rf, 1.0e3)
+
+    def test_on_run_simulation_detects_cavity_feedback_in_ring(self):
+        """The guard arms off the ring's cavity feedbacks, not the count."""
+        from blond.physics.cavities import RFStationBaseClass
+
+        plain = SingleHarmonicRFStation(
+            section_index=1,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        other = SingleHarmonicRFStation(
+            section_index=2,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=None,
+        )
+        simulation = Mock()
+        simulation.ring.elements.get_elements.return_value = (plain, other)
+        plain._update_n_rf_stations_in_ring(simulation)
+        self.assertFalse(plain._cavity_feedback_in_ring)
+
+        with_feedback = SingleHarmonicRFStation(
+            section_index=2,
+            local_wakefield=None,
+            beam_feedback=None,
+            cavity_feedback=Mock(spec=LocalFeedback),
+        )
+        simulation.ring.elements.get_elements.return_value = (
+            plain,
+            with_feedback,
+        )
+        plain._update_n_rf_stations_in_ring(simulation)
+        self.assertTrue(plain._cavity_feedback_in_ring)
 
     def test_on_run_simulation_counts_rf_stations_in_ring(self):
         from blond.physics.cavities import RFStationBaseClass
@@ -1012,6 +1072,47 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         multi_harmonic_cavity.track(self.beam)
         self.assertTrue(delayed_kick_mock.register.called)
 
+    def test_local_wakefield_uses_the_interpolated_kick(self):
+        """A local wakefield selects the interpolated kick, as on SingleHarmonic.
+
+        ``SingleHarmonicRFStation`` routes a station carrying a local
+        wakefield through ``_track_interp`` -- the profile the wakefield
+        already maintains makes the interpolated kick cheaper than one
+        ``sin`` per macroparticle.  The multi-harmonic station has to make
+        the same choice: otherwise the identical lattice tracks through a
+        different kick path depending only on how the RF was declared.
+        """
+        wakefield = Mock()
+        wakefield.profile = Mock(spec=StaticProfile)
+        wakefield.profile.hist_x = np.linspace(-1e-6, 1e-6, 12)
+
+        cavity = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 5e5]),
+            phi_rf=np.array([0.1, 0.2]),
+            harmonic=np.array([5, 10]),
+            main_harmonic_idx=0,
+            circumference=456,
+            local_wakefield=wakefield,
+            cavity_feedback=None,
+            beam_reference_beta=1,
+            delayed_kick=None,
+            delayed_kick_time_axis=None,
+        )
+
+        with (
+            patch.object(cavity, "_track_interp") as interp,
+            patch.object(cavity, "_track_no_interp") as no_interp,
+        ):
+            cavity.track(self.beam)
+
+        interp.assert_called_once()
+        no_interp.assert_not_called()
+        # The wakefield's own grid is what the kick is interpolated on.
+        np.testing.assert_array_equal(
+            interp.call_args.kwargs["time_axis"], wakefield.profile.hist_x
+        )
+
     def test_delayed_kick_with_feedback(self):
         delayed_kick_mock = Mock(PooledInterpolationKick)
         cavity_feedback = Mock(spec=LocalFeedback)
@@ -1547,6 +1648,83 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         )
         multi_harmonic_cavity.track(self.beam)
         self.assertTrue(delayed_kick_mock.register.called)
+
+    def test_interpolated_kick_warns_once_outside_the_profile(self):
+        """Particles outside the interpolation window must be reported.
+
+        ``kick_interpolated`` only kicks a particle whose bin index lands in
+        ``[0, n_slices - 1)``.  Everything outside that window is skipped --
+        and because ``acceleration_kick`` is folded into the same per-bin
+        term, such a particle receives neither the RF voltage nor the
+        design energy gain, so it silently decouples from the ramp.  That
+        behaviour is deliberate (the exact kick is only available on the
+        non-interpolated path), but it must not be silent: the station warns
+        the first time it happens, once, naming how many particles are
+        affected.
+        """
+        # The fixture's beam spans dt = -1e-6 .. +1e-6 s.  A window that
+        # covers only the positive half leaves half the beam outside.
+        time_axis = np.linspace(0.0, 1e-6, 8)
+        voltage = np.zeros_like(time_axis)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.single_harmonic_cavity._track_interp(
+                beam=self.beam,
+                reference_energy_change=0.0,
+                time_axis=time_axis,
+                voltage=voltage,
+            )
+        offending = [
+            str(entry.message)
+            for entry in caught
+            if "outside the interpolation window" in str(entry.message)
+        ]
+        self.assertEqual(
+            len(offending), 1, msg=f"{[str(c.message) for c in caught]}"
+        )
+        # Actionable: say how many, and what it costs them.
+        self.assertIn("acceleration", offending[0])
+
+        # Reported ONCE: a per-turn repeat would drown the log.
+        with warnings.catch_warnings(record=True) as caught_again:
+            warnings.simplefilter("always")
+            self.single_harmonic_cavity._track_interp(
+                beam=self.beam,
+                reference_energy_change=0.0,
+                time_axis=time_axis,
+                voltage=voltage,
+            )
+        self.assertEqual(
+            [
+                str(entry.message)
+                for entry in caught_again
+                if "outside the interpolation window" in str(entry.message)
+            ],
+            [],
+        )
+
+    def test_interpolated_kick_silent_when_beam_fits(self):
+        """A beam wholly inside the window must not warn."""
+        time_axis = np.linspace(-2e-6, 2e-6, 8)
+        voltage = np.zeros_like(time_axis)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.single_harmonic_cavity._track_interp(
+                beam=self.beam,
+                reference_energy_change=0.0,
+                time_axis=time_axis,
+                voltage=voltage,
+            )
+        self.assertEqual(
+            [
+                str(entry.message)
+                for entry in caught
+                if "outside the interpolation window" in str(entry.message)
+            ],
+            [],
+        )
 
     def test_delayed_kick_with_feedback(self):
         delayed_kick_mock = Mock(PooledInterpolationKick)
