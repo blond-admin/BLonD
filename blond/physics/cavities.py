@@ -792,9 +792,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 "If no `harmonic_index` is provided, `phi_rf` needs to be a float."
             )
 
-        # The cavity feedback computes its correction on the host; bring it
-        # onto the active backend so it combines with the (possibly GPU)
-        # beam-time array below.
+        if not np.isscalar(ts):
+            ts = backend.array(ts, copy=False)
         if not np.isscalar(phase_offsets):
             phase_offsets = backend.array(phase_offsets)
         if not np.isscalar(voltage_correction_factors):
@@ -820,7 +819,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         gap_voltage = (
             voltage
             * voltage_correction_factors
-            * np.sin(omega_rf * ts + phi_rf + phase_offsets)
+            * backend.sin(omega_rf * ts + phi_rf + phase_offsets)
         )
         return backend.array(gap_voltage, backend.float)
 
