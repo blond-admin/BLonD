@@ -231,6 +231,13 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
+        # This element has now supplied the turn's gain, so anything a
+        # reframing element upstream put on the ledger has been accounted for.
+        # Clearing is what stops it accumulating across turns in a ring that
+        # mixes e.g. a barrier bucket with a `DriftSubstepped`; the base
+        # manipulation exposes no phi_s / Hamiltonian, so it has nothing to
+        # report the total to.
+        reference.pending_rf_energy_gain = 0.0
         return reference_energy_change
 
     def _track(self, beam: BeamBaseClass) -> None:
@@ -342,6 +349,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             self.attach_beam_feedback(beam_feedback)
 
         self._local_wakefield = local_wakefield
+        #: One-shot flag for the differing-feedback-profiles warning.
+        self._multi_feedback_grid_reported: bool = False
         #: Whether the interpolated kick has already reported particles
         #: outside its window; the report is once per station.
         self._interp_window_warning_issued: bool = False
@@ -402,8 +411,49 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self._delayed_kick_time_axis = delayed_kick_time_axis
 
         # Cached reference-energy change from the most recent _track call.
-        # Used by get_hamilton_symbolic to include the acceleration term.
+        # Drives the `acceleration_kick`: how much THIS element moved the
+        # reference.
         self._last_reference_energy_change: float | None = None
+        # Design energy gain the RF has to supply on this turn: this
+        # station's own reference move PLUS whatever a reframing element
+        # (DriftSubstepped, ReferenceEnergyChange) already took. The two
+        # are equal in the classic DriftSimple + station layout, and only
+        # this one describes the machine, so it is what phi_s, the
+        # synchrotron tune and the symbolic Hamiltonian must use.
+        self._last_design_energy_gain: float | None = None
+
+    @property
+    def design_energy_gain(self) -> float:
+        """
+        Design energy gain the RF supplies per turn, in [eV].
+
+        Returns
+        -------
+        design_energy_gain
+            Energy the RF must give the synchronous particle on the most
+            recently tracked turn, in [eV]. ``0.0`` before the first
+            :meth:`track_reference` and for a non-accelerating cycle.
+
+        Notes
+        -----
+        This is NOT the same quantity as the ``acceleration_kick``, which is
+        how much *this element* moved the reference and is the only thing the
+        tracking kick may use. They coincide in the classic
+        ``DriftSimple`` + station layout, but a reframing element -- a
+        :class:`~blond.physics.drifts.DriftSubstepped` or a
+        :class:`~blond.physics.energy_reference_kick.ReferenceEnergyChange`
+        -- moves the reference itself, leaving the station with a reference
+        move of exactly zero. Reading the reference move there would report a
+        stationary bucket on a ramping machine: ``phi_s`` collapses to
+        ``pi`` and the symbolic Hamiltonian loses its linear ``dt`` tilt.
+
+        The reframing elements therefore accumulate what they took into
+        ``reference.pending_rf_energy_gain``, and this property is the sum of
+        that ledger and the station's own move. Use it for ``phi_s``, the
+        synchrotron tune and the Hamiltonian; use
+        ``_last_reference_energy_change`` for the kick.
+        """
+        return float(self._last_design_energy_gain or 0.0)
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -1119,11 +1169,14 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             reference_energy_change = (
                 target_total_energy
                 - beam.reference.total_energy
+                + beam.reference.pending_rf_energy_gain
                 + energy_loss_per_turn
             )
         else:
             reference_energy_change = (
-                target_total_energy - beam.reference.total_energy
+                target_total_energy
+                - beam.reference.total_energy
+                + beam.reference.pending_rf_energy_gain
             )
 
         # Direction-signed charge, matching the tracking kick
@@ -1415,6 +1468,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # is left untouched and no acceleration kick is applied.
         if self._magnetic_cycle is None:
             self._last_reference_energy_change = 0.0
+            self._last_design_energy_gain = 0.0
             return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
@@ -1434,6 +1488,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
         self._last_reference_energy_change = reference_energy_change
+        # Add back whatever a reframing element upstream already applied,
+        # then clear the ledger so the next station on this turn only gets
+        # its own section's share.
+        self._last_design_energy_gain = float(
+            reference_energy_change + reference.pending_rf_energy_gain
+        )
+        reference.pending_rf_energy_gain = 0.0
         return reference_energy_change
 
     def calc_omega_rf_design(
@@ -1971,9 +2032,11 @@ class SingleHarmonicRFStation(
             H = \frac{q V}{\omega} \cos(\omega\, dt + \phi)
                 + \Delta E_\mathrm{ref}\, dt.
 
-        :math:`\Delta E_\mathrm{ref}` is taken from the most recent
-        ``_track`` call (``self._last_reference_energy_change``); it is
-        zero before the first track and for non-accelerating cycles.
+        :math:`\Delta E_\mathrm{ref}` is the DESIGN energy gain of the
+        most recent ``_track`` call (:attr:`design_energy_gain`), which
+        includes any share a reframing element upstream already applied
+        to the reference; it is zero before the first track and for
+        non-accelerating cycles.
 
         Parameters
         ----------
@@ -2004,7 +2067,7 @@ class SingleHarmonicRFStation(
 
         return (
             q * V / omega * sympy.cos(omega * dt + phi)
-            + float(self._last_reference_energy_change) * dt
+            + float(self.design_energy_gain) * dt
         )
 
 
@@ -2302,14 +2365,41 @@ class MultiHarmonicRFStation(
             Profile of the first non-None entry of
             ``cavity_feedback_list``.
         """
-        profile = next(
-            (
-                feedback.profile
-                for feedback in self.cavity_feedback_list
-                if feedback is not None
-            ),
-            None,
-        )
+        attached = [
+            feedback
+            for feedback in self.cavity_feedback_list
+            if feedback is not None
+        ]
+        profile = attached[0].profile if attached else None
+
+        # Every feedback's per-bin corrections are computed on ITS OWN
+        # profile, but the sum below is evaluated on this one grid, so a
+        # second feedback whose profile differs is read off the wrong bins.
+        # Not an error -- the usual multi-harmonic setup gives all
+        # feedbacks the same profile -- but silent if it ever stops being
+        # true, hence the one-shot warning.
+        if len(attached) > 1 and not self._multi_feedback_grid_reported:
+            # getattr, not attribute access: a feedback double that does
+            # not define ``profile`` is simply not evidence of a mismatch.
+            differing = [
+                feedback
+                for feedback in attached[1:]
+                if getattr(feedback, "profile", profile) is not profile
+            ]
+            if differing:
+                self._multi_feedback_grid_reported = True
+                warnings.warn(
+                    f"{len(differing) + 1} cavity feedbacks are attached to "
+                    f"the RF station in section {self.section_index} and "
+                    "they do not all share one profile. The summed gap "
+                    "voltage is evaluated on the FIRST attached feedback's "
+                    "grid, so the others' phase_correction / "
+                    "relative_voltage_correction arrays are applied "
+                    "element-wise against bins that are not their own. "
+                    "Give every feedback on a station the same profile. "
+                    "Reported once per station.",
+                    stacklevel=3,
+                )
         if profile is None:
             raise RuntimeError(
                 "No cavity feedback is attached to this "
@@ -2625,4 +2715,4 @@ class MultiHarmonicRFStation(
 
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 
-        return expr + float(self._last_reference_energy_change) * dt
+        return expr + float(self.design_energy_gain) * dt

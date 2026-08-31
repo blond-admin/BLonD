@@ -784,6 +784,223 @@ class TestDriftSubstepped(unittest.TestCase):
             beam_sub.dE.copy_as_numpy(), dE0, rtol=0, atol=1e-6
         )
 
+    def _station(self):
+        """Headless single-harmonic station on the same ramping cycle."""
+        from blond.physics.cavities import SingleHarmonicRFStation
+
+        station = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=50e6,
+            phi_rf=np.pi,
+            harmonic=self.harmonic,
+            circumference=self.orbit_length,
+            beam_reference_beta=float(
+                ReferenceCoordinates(0.0, self.E0, self.particle).beta
+            ),
+            magnetic_cycle=self._cycle_stub(),
+            turn_counter=SimpleNamespace(value=0),
+        )
+        # `headless` leaves the ring a stand-in; phi_s reads these two.
+        station._ring.radiation_integrals = None
+        station._ring.is_below_transition = lambda *, beam: False
+        return station
+
+    def _tracked_arc(self, n_substeps, alpha_0):
+        """Track one arc; return the reference-time change and the dt map."""
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=n_substeps,
+            momentum_compaction_factor=alpha_0,
+        )
+        drift.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=self._cycle_stub(),
+        )
+        beam = ProbeBeam(
+            dE=np.zeros(1),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        time_before = float(beam.reference.time)
+        drift.track(beam=beam)
+        return (
+            float(beam.reference.time) - time_before,
+            float(beam.dt.copy_as_numpy()[0]),
+        )
+
+    def test_beam_map_follows_the_reference_not_independent_of_substeps(self):
+        """The dt map moves with the clock; the two limits prove it is the frame.
+
+        ``n_substeps`` is not a pure clock knob: distributing the reference
+        re-framing through the arc leaves an entering on-momentum particle
+        off-momentum for the remainder, so its ``dt`` shifts too. The shift is
+        ``eta_0 * gamma**2`` times the clock correction, which pins it at the
+        two values where that factor is unambiguous.
+        """
+        gamma_squared = (
+            float(ReferenceCoordinates(0.0, self.E0, self.particle).gamma) ** 2
+        )
+
+        # alpha_0 = 0: eta_0 * gamma**2 = -1, so the map shift must cancel the
+        # clock shift -- an ABSOLUTE arrival time cannot depend on how finely
+        # the reference frame was integrated.
+        coarse_time, coarse_dt = self._tracked_arc(1, 0.0)
+        fine_time, fine_dt = self._tracked_arc(8192, 0.0)
+        clock_shift = fine_time - coarse_time
+        # the clock really did move, so the test is not vacuous
+        self.assertGreater(abs(clock_shift), 1e-12)
+        absolute_drift = (fine_time + fine_dt) - (coarse_time + coarse_dt)
+        self.assertLess(abs(absolute_drift / clock_shift), 0.01)
+
+        # At transition eta_0 = 0, so the map is n_substeps-independent even
+        # though the clock still converges.
+        alpha_transition = 1.0 / gamma_squared
+        _, coarse_dt_tr = self._tracked_arc(1, alpha_transition)
+        fine_time_tr, fine_dt_tr = self._tracked_arc(8192, alpha_transition)
+        map_shift = fine_dt_tr - coarse_dt_tr
+        self.assertLess(abs(map_shift / clock_shift), 0.05)
+
+    def test_station_still_sees_the_ramp_after_a_substepped_drift(self):
+        """The RF station reports the turn's design gain, not zero.
+
+        The drift moves the reference energy itself, so by the time the
+        station runs, ``target - reference.total_energy`` is already zero and
+        the station would report a non-accelerating machine. The design gain
+        the RF must supply is unchanged by *where* the reference was moved.
+        """
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSimple, DriftSubstepped
+
+        gains = {}
+        for label, drift in (
+            (
+                "simple",
+                DriftSimple(
+                    orbit_length=self.orbit_length,
+                    momentum_compaction_factor=self.alpha_0,
+                ),
+            ),
+            (
+                "substepped",
+                DriftSubstepped(
+                    orbit_length=self.orbit_length,
+                    n_substeps=8,
+                    momentum_compaction_factor=self.alpha_0,
+                ),
+            ),
+        ):
+            # DriftSimple owns no energy program; only the sub-stepped
+            # element re-samples the cycle mid-arc.
+            if isinstance(drift, DriftSubstepped):
+                drift.configure(
+                    turn_counter=SimpleNamespace(value=0),
+                    magnetic_cycle=self._cycle_stub(),
+                )
+            else:
+                drift.configure(turn_counter=SimpleNamespace(value=0))
+            beam = ProbeBeam(
+                dE=np.zeros(3),
+                particle_type=self.particle,
+                reference_total_energy=self.E0,
+            )
+            station = self._station()
+            drift.track_reference(beam.reference)
+            station.track_reference(beam.reference)
+            gains[label] = float(station.design_energy_gain)
+
+        # The plain layout is the reference truth: ~20 MeV per turn.
+        self.assertAlmostEqual(gains["simple"], 20e6, delta=1e3)
+        # The sub-stepped layout must agree -- the ramp is a property of the
+        # machine, not of how finely the arc is integrated.
+        self.assertAlmostEqual(gains["substepped"], gains["simple"], delta=1e3)
+
+    def test_phi_s_and_hamiltonian_stay_accelerating(self):
+        """phi_s is off-crest and the Hamiltonian keeps its dt tilt."""
+        import sympy
+
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=8,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        drift.configure(
+            turn_counter=SimpleNamespace(value=0),
+            magnetic_cycle=self._cycle_stub(),
+        )
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        station = self._station()
+
+        drift.track_reference(beam.reference)
+        phi_s = float(station.calc_phi_s_main_harmonic(beam=beam))
+        station.track_reference(beam.reference)
+
+        # pi is the stationary-bucket value: an accelerating machine must not
+        # land there.
+        self.assertNotAlmostEqual(phi_s, np.pi, places=3)
+
+        # The symbolic Hamiltonian must carry the linear -qV_gain * dt tilt
+        # that opens the bucket asymmetrically.
+        hamiltonian = station.get_hamilton_symbolic()
+        dt_symbol = next(
+            symbol
+            for symbol in hamiltonian.free_symbols
+            if str(symbol) == "dt"
+        )
+        tilt = float(
+            sympy.diff(hamiltonian, dt_symbol).subs(
+                dict.fromkeys(hamiltonian.free_symbols, 0.0)
+            )
+        )
+        self.assertNotAlmostEqual(tilt, 0.0, delta=1.0)
+
+    def test_ledger_splits_per_station_in_a_two_section_ring(self):
+        """Each station gets its own section's share, and they sum to the turn."""
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        drifts, stations = [], []
+        for _ in range(2):
+            drift = DriftSubstepped(
+                orbit_length=self.orbit_length / 2,
+                n_substeps=4,
+                momentum_compaction_factor=self.alpha_0,
+            )
+            drift.configure(
+                turn_counter=SimpleNamespace(value=0),
+                magnetic_cycle=self._cycle_stub(),
+            )
+            drifts.append(drift)
+            stations.append(self._station())
+
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        for drift, station in zip(drifts, stations, strict=True):
+            drift.track_reference(beam.reference)
+            station.track_reference(beam.reference)
+
+        gains = [float(station.design_energy_gain) for station in stations]
+        # Neither station swallows the whole turn: the ledger is cleared by
+        # the first, so the second only sees what accumulated after it.
+        for gain in gains:
+            self.assertAlmostEqual(gain, 10e6, delta=1e3)
+        # ... and together they account for the full turn exactly once.
+        self.assertAlmostEqual(sum(gains), 20e6, delta=1e3)
+        # Nothing is left owed at the end of the turn.
+        self.assertEqual(beam.reference.pending_rf_energy_gain, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

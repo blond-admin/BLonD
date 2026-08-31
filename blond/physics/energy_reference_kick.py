@@ -145,6 +145,10 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             target_total_energy - reference.total_energy
         )
         reference.total_energy = target_total_energy
+        # Same bookkeeping as `DriftSubstepped`: this element moved
+        # the reference, so the RF station downstream would otherwise
+        # report a non-accelerating machine.
+        reference.pending_rf_energy_gain += float(reference_energy_change)
         return reference_energy_change
 
     def _track(self, beam: BeamBaseClass):

@@ -664,10 +664,26 @@ class DriftSubstepped(DriftSimple):
     integral. Finer is more accurate but more expensive, so ``n_substeps`` trades
     accuracy for speed.
 
+    The particle map converges with the clock and is deliberately *not*
+    independent of ``n_substeps``. Distributing the reference re-framing through
+    the arc leaves a particle off-momentum for the remainder of the arc, so its
+    ``dt`` shift is ``eta_0 * gamma**2`` times the reference-clock correction --
+    identically zero at transition, and exactly cancelling the clock shift at
+    ``alpha_0 = 0``, where an absolute arrival time cannot depend on the choice
+    of reference frame. ``n_substeps`` is therefore a physics-model refinement
+    knob, not only a clock-accuracy knob.
+
     Requires a :class:`~blond.cycles.magnetic_cycle.MagneticCycleByTime`, as the
     energy is sampled as a function of reference time. The energy adaptation is
     folded into this element, so it replaces a ``DriftSimple`` plus a separate
     :class:`~blond.physics.energy_reference_kick.ReferenceEnergyChange`.
+
+    Because this element moves the reference energy itself, the RF station
+    downstream sees a reference move of zero. The design gain the RF still owes
+    is handed on via ``reference.pending_rf_energy_gain`` and read back as
+    :attr:`~blond.physics.cavities.RFStationBaseClass.design_energy_gain`, so
+    ``phi_s``, the synchrotron tune and the symbolic Hamiltonian keep describing
+    an accelerating machine. Only the *kick* uses the reference move directly.
 
     Parameters
     ----------
@@ -684,6 +700,61 @@ class DriftSubstepped(DriftSimple):
         Additional keyword arguments for the method resolution order of
         inheriting elements.
     """
+
+    @staticmethod
+    def headless(
+        momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
+        orbit_length: float,
+        section_index: int = 0,
+        turn_counter: DynamicParameter | None = None,
+        n_substeps: int = 1,
+    ) -> DriftSubstepped:
+        """
+        Build a DriftSubstepped without a simulation context.
+
+        Overrides :meth:`DriftSimple.headless`, which is a
+        ``staticmethod`` hard-coding ``DriftSimple(...)`` and so
+        silently returned a plain drift -- no sub-stepping and no
+        energy ramp -- for every headless caller of this class.
+
+        Parameters
+        ----------
+        momentum_compaction_factor
+            Momentum compaction factor, or a schedule for it.
+        orbit_length
+            Length of the drift [m].
+        section_index
+            Index of the section this drift belongs to.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value``
+            each track call.
+        n_substeps
+            Number of reference sub-steps across the arc.
+
+        Returns
+        -------
+        drift_substepped
+            DriftSubstepped object without simulation context.
+        """
+        drift = DriftSubstepped(
+            orbit_length=orbit_length,
+            n_substeps=n_substeps,
+            section_index=section_index,
+        )
+
+        if isinstance(momentum_compaction_factor, int | float):
+            drift.momentum_compaction_factor = float(
+                momentum_compaction_factor
+            )
+        else:
+            drift.schedule(
+                "momentum_compaction_factor",
+                momentum_compaction_factor,
+            )
+
+        drift.configure(turn_counter=turn_counter)
+
+        return drift
 
     def __init__(
         self,
@@ -776,6 +847,12 @@ class DriftSubstepped(DriftSimple):
         )
         energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
+        # The reference move is this element's job, but the *design
+        # gain* it represents is still owed by the RF: hand it on so
+        # the next station's phi_s / Q_s / Hamiltonian keep seeing an
+        # accelerating machine. The tracking kick is unaffected -- it
+        # uses `energy_change` directly.
+        reference.pending_rf_energy_gain += float(energy_change)
         return time_change, energy_change
 
     def track_reference(

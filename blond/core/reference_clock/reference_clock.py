@@ -48,6 +48,16 @@ class ReferenceCoordinates:
         self.time = time  # no property syntax
         self._total_energy = total_energy  # only read access
         self._particle_type = particle_type  # only read access
+        # Part of this turn's design energy gain that a *reframing*
+        # element (DriftSubstepped, ReferenceEnergyChange) has
+        # already applied to the reference, and that the RF station
+        # has therefore not seen. Accumulated by those elements and
+        # consumed (then cleared) by the next RF station, so that
+        # phi_s, the synchrotron tune and the symbolic Hamiltonian
+        # still describe an accelerating machine. Stays 0.0 for the
+        # classic DriftSimple + station layout, where the station
+        # moves the reference itself.
+        self.pending_rf_energy_gain: float = 0.0
 
     @property
     def particle_type(self) -> ParticleType:

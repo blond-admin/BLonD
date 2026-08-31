@@ -72,6 +72,10 @@ class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
         self.beam.reference = Mock(ReferenceCoordinates)
+        # `ReferenceCoordinates` carries the pending-gain ledger that
+        # reframing elements fill and the station consumes; a spec'd
+        # Mock hands back a child Mock, which is not summable.
+        self.beam.reference.pending_rf_energy_gain = 0.0
 
         self.beam.particle_type = proton
         self.beam.reference.time = 0
@@ -742,6 +746,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         # Co-rotating: direction-signed charge equals the raw charge.
         beam.signed_charge_with_direction.return_value = 2
         beam.reference = Mock(spec=ReferenceCoordinates)
+        # `ReferenceCoordinates` carries the pending-gain ledger that
+        # reframing elements fill and the station consumes; a spec'd
+        # Mock hands back a child Mock, which is not summable.
+        beam.reference.pending_rf_energy_gain = 0.0
         beam.reference.beta = 1
         beam.reference.total_energy = 1e6
         self.assertAlmostEqual(
@@ -803,6 +811,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         # Co-rotating: direction-signed charge equals the raw charge.
         beam.signed_charge_with_direction.return_value = 1
         beam.reference = Mock(spec=ReferenceCoordinates)
+        # `ReferenceCoordinates` carries the pending-gain ledger that
+        # reframing elements fill and the station consumes; a spec'd
+        # Mock hands back a child Mock, which is not summable.
+        beam.reference.pending_rf_energy_gain = 0.0
         beam.reference.beta = 1
         beam.reference.total_energy = 450e9
         self.assertAlmostEqual(
@@ -982,6 +994,10 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
+        # `ReferenceCoordinates` carries the pending-gain ledger that
+        # reframing elements fill and the station consumes; a spec'd
+        # Mock hands back a child Mock, which is not summable.
+        beam.reference.pending_rf_energy_gain = 0.0
         beam.common_array_size = 1
         beam.particle_type = proton
         beam._particle_type = beam.particle_type
@@ -1531,7 +1547,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             delayed_kick=None,
             delayed_kick_time_axis=None,
         )
-        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        # Populate ``design_energy_gain``, the tilt the Hamiltonian uses.
         rf.track(beam=beam)
 
         ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
@@ -1563,6 +1579,10 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
+        # `ReferenceCoordinates` carries the pending-gain ledger that
+        # reframing elements fill and the station consumes; a spec'd
+        # Mock hands back a child Mock, which is not summable.
+        beam.reference.pending_rf_energy_gain = 0.0
         beam.common_array_size = 1
         beam.particle_type = proton
         beam.reference.time = float(0)
@@ -1880,6 +1900,10 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
 
         positron_beam = Mock(BeamBaseClass)
         positron_beam.reference = Mock(ReferenceCoordinates)
+        # `ReferenceCoordinates` carries the pending-gain ledger that
+        # reframing elements fill and the station consumes; a spec'd
+        # Mock hands back a child Mock, which is not summable.
+        positron_beam.reference.pending_rf_energy_gain = 0.0
 
         positron_beam.particle_type = positron
         # Co-rotating: direction-signed charge equals the raw charge.
@@ -1983,7 +2007,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
             delayed_kick=None,
             delayed_kick_time_axis=None,
         )
-        # Populate ``_last_reference_energy_change`` used by the Hamiltonian.
+        # Populate ``design_energy_gain``, the tilt the Hamiltonian uses.
         rf.track(beam=beam)
 
         ham_sym = rf.get_hamilton_symbolic(replace_symbols=False)
