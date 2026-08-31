@@ -68,7 +68,7 @@ cpp_files = [
     "linear_interp_kick.cpp",
     "histogram.cpp",
     "drift_exact.cpp",
-    # "music_track.cpp",
+    "music_track.cpp",
     # "blondmath.cpp",
     "blondmath_new.cpp",
     # "fast_resonator.cpp",

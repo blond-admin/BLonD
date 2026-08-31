@@ -317,7 +317,7 @@ def music_track(
     dt: NumpyArray,
     dE: NumpyArray,
     induced_voltage: NumpyArray,
-    array_parameters: NumpyArray,
+    parameter_array: NumpyArray,
     alpha: float,
     omega_bar: float,
     const: float,
@@ -338,7 +338,7 @@ def music_track(
         Initial energies [V]
     induced_voltage : float array
         array used to store the output of the computation
-    array_parameters : float array
+    parameter_array : float array
         See documentation in music.py
     alpha, omega_bar, const, coeff1, coeff2, coeff3, coeff4 : floats
         See documentation in music.py
@@ -382,16 +382,16 @@ def music_track(
         input_first_component = product_first_component + 1.0
         input_second_component = product_second_component
 
-    array_parameters[0] = input_first_component
-    array_parameters[1] = input_second_component
-    array_parameters[3] = dt[-1]
+    parameter_array[0] = input_first_component
+    parameter_array[1] = input_second_component
+    parameter_array[3] = dt[-1]
 
 
 def music_track_multiturn(
     dt: NumpyArray,
     dE: NumpyArray,
     induced_voltage: NumpyArray,
-    array_parameters: NumpyArray,
+    parameter_array: NumpyArray,
     alpha: float,
     omega_bar: float,
     const: float,
@@ -409,7 +409,7 @@ def music_track_multiturn(
         dt (NumpyArray): _description_
         dE (NumpyArray): _description_
         induced_voltage (NumpyArray): _description_
-        array_parameters (NumpyArray): _description_
+        parameter_array (NumpyArray): _description_
         alpha (float): _description_
         omega_bar (float): _description_
         const (float): _description_
@@ -421,19 +421,19 @@ def music_track_multiturn(
     indices_sorted = np.argsort(dt)
     dt = dt[indices_sorted]
     dE = dE[indices_sorted]
-    time_difference_0 = dt[0] + array_parameters[2] - array_parameters[3]
+    time_difference_0 = dt[0] + parameter_array[2] - parameter_array[3]
     exp_term = np.exp(-alpha * time_difference_0)
     cos_term = np.cos(omega_bar * time_difference_0)
     sin_term = np.sin(omega_bar * time_difference_0)
 
     product_first_component = exp_term * (
-        (cos_term + coeff1 * sin_term) * array_parameters[0]
-        + coeff2 * sin_term * array_parameters[1]
+        (cos_term + coeff1 * sin_term) * parameter_array[0]
+        + coeff2 * sin_term * parameter_array[1]
     )
 
     product_second_component = exp_term * (
-        coeff3 * sin_term * array_parameters[0]
-        + (cos_term + coeff4 * sin_term) * array_parameters[1]
+        coeff3 * sin_term * parameter_array[0]
+        + (cos_term + coeff4 * sin_term) * parameter_array[1]
     )
 
     induced_voltage[0] = const * (0.5 + product_first_component)
@@ -466,9 +466,9 @@ def music_track_multiturn(
         input_first_component = product_first_component + 1.0
         input_second_component = product_second_component
 
-    array_parameters[0] = input_first_component
-    array_parameters[1] = input_second_component
-    array_parameters[3] = dt[-1]
+    parameter_array[0] = input_first_component
+    parameter_array[1] = input_second_component
+    parameter_array[3] = dt[-1]
 
 
 # ---------------------------------------------------

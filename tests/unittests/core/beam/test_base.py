@@ -598,5 +598,112 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
 
+class TestSortByDt(unittest.TestCase):
+    def _beam(self, dt, dE, ids, flags, is_distributed=False):
+        beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_distributed=is_distributed,
+        )
+        beam._dt = DistributedArray(backend.array(dt, dtype=backend.float))
+        beam._dE = DistributedArray(backend.array(dE, dtype=backend.float))
+        beam._ids = DistributedArray(backend.array(ids, dtype=np.int32))
+        beam._flags = DistributedArray(backend.array(flags, dtype=np.int32))
+        return beam
+
+    def test_permutes_all_arrays_consistently(self):
+        # dt order: argsort([3,1,2,5,4]) -> [1,2,0,4,3]
+        beam = self._beam(
+            dt=[3.0, 1.0, 2.0, 5.0, 4.0],
+            dE=[30.0, 10.0, 20.0, 50.0, 40.0],
+            ids=[0, 1, 2, 3, 4],
+            flags=[10, 11, 12, 13, 14],
+        )
+        beam.sort_by_dt()
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [1.0, 2.0, 3.0, 4.0, 5.0]
+        )
+        # dE must follow dt
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dE()),
+            [10.0, 20.0, 30.0, 40.0, 50.0],
+        )
+        # ids/flags must follow the *same* permutation [1,2,0,4,3]
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [1, 2, 0, 4, 3]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_flags()), [11, 12, 10, 14, 13]
+        )
+
+    def test_already_sorted_is_not_altered(self):
+        beam = self._beam(
+            dt=[1.0, 2.0, 3.0],
+            dE=[10.0, 20.0, 30.0],
+            ids=[0, 1, 2],
+            flags=[0, 0, 0],
+        )
+        beam.sort_by_dt()
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [1.0, 2.0, 3.0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [0, 1, 2]
+        )
+
+    def test_reverse_sorted(self):
+        beam = self._beam(
+            dt=[3.0, 2.0, 1.0],
+            dE=[30.0, 20.0, 10.0],
+            ids=[0, 1, 2],
+            flags=[0, 1, 2],
+        )
+        beam.sort_by_dt()
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [1.0, 2.0, 3.0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [2, 1, 0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dE()), [10.0, 20.0, 30.0]
+        )
+
+    def test_single_particle(self):
+        beam = self._beam(dt=[7.0], dE=[1.0], ids=[3], flags=[1])
+        beam.sort_by_dt()
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [7.0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [3]
+        )
+
+    def test_preserves_dtype(self):
+        beam = self._beam(
+            dt=[2.0, 1.0],
+            dE=[20.0, 10.0],
+            ids=[0, 1],
+            flags=[0, 1],
+        )
+        beam.sort_by_dt()
+        self.assertEqual(beam.read_partial_dt().dtype, backend.float)
+        self.assertEqual(beam.read_partial_dE().dtype, backend.float)
+        self.assertEqual(beam.read_partial_ids().dtype, np.int32)
+        self.assertEqual(beam.read_partial_flags().dtype, np.int32)
+
+    def test_raises_when_distributed(self):
+        beam = self._beam(
+            dt=[2.0, 1.0],
+            dE=[20.0, 10.0],
+            ids=[0, 1],
+            flags=[0, 1],
+            is_distributed=True,
+        )
+        with self.assertRaises(NotImplementedError):
+            beam.sort_by_dt()
+
+
 if __name__ == "__main__":
     unittest.main()
