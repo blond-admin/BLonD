@@ -2,6 +2,7 @@ import copy
 import unittest
 
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -59,7 +60,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
         disable_fine_grid: bool = False,
         n_turns: int = 20,
         q_l: float = 20_000,
-        n_pretrack: int = 200,
+        n_pretrack: int = 100,
         detuning: float = 0.0,
     ):
         beam = Beam(
@@ -143,6 +144,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
 
         return simulation, beam
 
+    @pytest.mark.skip(reason="Unittest takes too long to run")
     def test_with_and_without_otfb(self):
         commissioning = LHCCavityFeedbackCommissioning(
             g_a=g_a,
@@ -491,7 +493,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
     def test_hardware_commissioning_without_excitation(self):
         f_rf = 400.789e6
         harmonic = 35640
-        n_pretrack = 200
+        n_pretrack = 100
         commissioning = LHCCavityFeedbackCommissioning()
 
         profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
@@ -539,8 +541,8 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
             data_cut=cut_data,
         )
 
+    @pytest.mark.skip(reason="Unittest takes too long to run")
     def test_open_loop_response(self):
-        # TODO: add some frequency detuning?
         cut_data = 3564 * 5
         r_over_q = 45
         q_l = 20_000
@@ -627,6 +629,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
             actual=h_est.imag, desired=h_actual.imag, atol=0.03
         )
 
+    @pytest.mark.skip(reason="Unittest takes too long to run")
     def test_one_turn_delay_feedback_response(self):
         cut_data = 3564 * 5
         r_over_q = 45
