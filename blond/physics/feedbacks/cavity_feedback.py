@@ -2820,9 +2820,20 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.relative_voltage_correction /= (
-            self.get_voltage_from_parent_rf_station()
-        )  # TODO: why does this state OTFB?
+        # Guard the zero: with no programmed voltage at this harmonic there
+        # is nothing to correct RELATIVE to, and the division would make the
+        # correction inf/NaN. calc_gap_voltage_with_feedbacks multiplies the
+        # same zero back in, so the harmonic's contribution should simply be
+        # zero -- a correction factor of 0 reproduces that exactly, whereas
+        # NaN poisons the whole summed gap voltage and every particle kick
+        # taken from it.
+        parent_voltage = self.get_voltage_from_parent_rf_station()
+        if parent_voltage == 0.0:
+            self.relative_voltage_correction = np.zeros_like(
+                self.relative_voltage_correction
+            )
+        else:
+            self.relative_voltage_correction /= parent_voltage
         # The station applies its (end-of-track-lagged) kick clock via
         # phi_rf; adding the live slip gap here completes the readout to
         # the exact accumulated actual-RF phase at this passage -- the
