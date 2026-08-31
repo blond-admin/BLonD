@@ -922,6 +922,69 @@ class TestCavityPrefill(unittest.TestCase):
             rtol=1e-9,
         )
 
+    def test_detuned_fill_seed_is_an_equilibrium_of_the_coarse_step(self):
+        """The seed carries the detuning phase, so a detuned fill is flat.
+
+        At ``delta_omega = 0`` the no-beam fixed point
+        ``V* = -(R/Q) omega I_gen / lambda`` is real and positive, so a
+        seed in the wrong frame is indistinguishable from one in the right
+        frame -- the sibling test above cannot see a phase convention at
+        all.  With a detuning the fixed point acquires the phase
+        ``arg(-1 / lambda)``, and the seed has to carry it: if the fill and
+        the coarse recursion disagreed about which frame the seed is in,
+        turn 0 would open with an injection transient that relaxes over
+        ``2 Q_L / omega``.
+
+        The cavity is started exactly at the analytic fixed point, so every
+        cell must reproduce it -- magnitude AND phase.
+        """
+        n_steps = 30
+        dt = 1.0 / self.f_rf
+        # Half a bandwidth of detuning: enough to rotate the fixed point
+        # well away from the real axis (arg = -26.6 deg here).
+        delta_omega = 0.5 * self.omega_rf / (2.0 * self.Q_L)
+        cav = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            generator_current_bias=self.I_g + 0.0j,
+            n_cavities=1,
+            delta_omega=delta_omega,
+        )
+        lam = -self.omega_rf / (2.0 * self.Q_L) + 1j * delta_omega
+        v_ss = -(self.R_over_Q * self.omega_rf) * (self.I_g + 0.0j) / lam
+        # Guard the premise: the fixed point really is off the real axis.
+        self.assertGreater(abs(np.angle(v_ss)), 0.4)
+
+        cav._rf_centers = np.arange(1, n_steps + 1) * dt
+        cav._rf_centers_lengths = np.array([n_steps])
+        cav._residual_time_last_rf_centers_calculation = 0.0
+        cav._last_rf_centers_entry = None
+        cav.generator_current_coarse_grid = np.full(
+            n_steps, self.I_g, dtype=complex
+        )
+        cav._last_val_generator_current = self.I_g + 0.0j
+        cav._last_val_beam_current = 0.0 + 0.0j
+        cav._last_val_ant_voltage = v_ss
+        cav._last_val_ant_voltage_gen = v_ss
+        cav._last_val_ant_voltage_beam = 0.0 + 0.0j
+        cav.antenna_voltage_coarse_grid = np.zeros(n_steps, dtype=complex)
+        cav.antenna_voltage_gen_coarse_grid = np.zeros(n_steps, dtype=complex)
+        cav.antenna_voltage_beam_coarse_grid = np.zeros(n_steps, dtype=complex)
+
+        cav.circuit_track(
+            omega_input=self.omega_rf,
+            no_beam=True,
+            start_index=0,
+            end_index=n_steps,
+        )
+
+        np.testing.assert_allclose(
+            cav.antenna_voltage_coarse_grid,
+            v_ss * np.ones(n_steps),
+            rtol=1e-9,
+        )
+
     def test_injection_voltage_without_n_pretrack_raises(self):
         """Injection_voltage is meaningless without a pre-fill budget."""
         profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 1024, 1e-9)
