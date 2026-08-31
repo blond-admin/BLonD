@@ -4838,3 +4838,73 @@ class TestPeriodicFreqSolverBranches(unittest.TestCase):
 
         perf_warnings = [x for x in w if "Because" in str(x.message)]
         self.assertEqual(len(perf_warnings), 0)
+
+
+class TestHeadlessRevolutionPeriod(unittest.TestCase):
+    """`WakeField.headless` must not pass the profile window off as a turn."""
+
+    T_REV = 1.0e-6
+    T_PROFILE = 5.0e-9  # a single short bunch in a long ring
+
+    def _profile_and_beam(self):
+        profile = StaticProfile(
+            cut_left=0.0, cut_right=self.T_PROFILE, n_bins=128
+        )
+        profile.hist_y_to_density_factor = 1e-6
+        beam = Mock(BeamBaseClass)
+        beam.n_macroparticles_partial.return_value = 1e6
+        beam.intensity = 2.4e12
+        beam.ratio = 2.4e6
+        beam.particle_type = mu_plus
+        beam.is_counter_rotating = False
+        beam.signed_charge_with_direction.return_value = mu_plus.charge
+        return profile, beam
+
+    @staticmethod
+    def _sources():
+        return (
+            Resonators(
+                shunt_impedances=np.array([1e6]),
+                center_frequencies=np.array([2e9]),
+                quality_factors=np.array([100.0]),
+            ),
+        )
+
+    def test_t_rev_is_used_as_the_periodicity(self):
+        """A given `t_rev` reaches the solver, not the profile window."""
+        profile, beam = self._profile_and_beam()
+        solver = PeriodicFreqSolver(t_periodicity=None, warn_above_n_time=None)
+        WakeField.headless(
+            sources=self._sources(),
+            solver=solver,
+            profile=profile,
+            beam=beam,
+            t_rev=self.T_REV,
+        )
+        self.assertAlmostEqual(solver.t_periodicity, self.T_REV, delta=1e-18)
+
+    def test_missing_t_rev_raises_instead_of_using_the_window(self):
+        """Without `t_rev` the wrap-at-one-turn solver refuses to guess."""
+        profile, beam = self._profile_and_beam()
+        solver = PeriodicFreqSolver(t_periodicity=None, warn_above_n_time=None)
+        with self.assertRaisesRegex(ValueError, r"wraps the wake at one rev"):
+            WakeField.headless(
+                sources=self._sources(),
+                solver=solver,
+                profile=profile,
+                beam=beam,
+            )
+
+    def test_explicit_t_periodicity_needs_no_t_rev(self):
+        """A solver that already knows its periodicity is left alone."""
+        profile, beam = self._profile_and_beam()
+        solver = PeriodicFreqSolver(
+            t_periodicity=self.T_REV, warn_above_n_time=None
+        )
+        WakeField.headless(
+            sources=self._sources(),
+            solver=solver,
+            profile=profile,
+            beam=beam,
+        )
+        self.assertAlmostEqual(solver.t_periodicity, self.T_REV, delta=1e-18)

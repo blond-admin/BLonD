@@ -580,6 +580,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
+        t_rev: float | None = None,
     ):
         """
         Initialize the full class.
@@ -596,11 +597,28 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             Section index to group elements into sections.
         profile
             Object for calculation of beam profiles.
+        t_rev
+            Revolution period of the ring, in [s]. Required by solvers that
+            wrap the wake at one turn -- notably a
+            :class:`~blond.physics.impedances.solvers.PeriodicFreqSolver`
+            built without an explicit `t_periodicity`. When ``None``
+            (default) the mocked simulation reports the profile window
+            instead, which is only the same thing for a solver whose window
+            IS one turn (e.g.
+            :class:`~blond.physics.impedances.solvers.ContinuousMultiTurnTimeDomainSolver`,
+            which asserts exactly that); the mismatched case raises rather
+            than silently adopting the window as a revolution period.
 
         Returns
         -------
         wakefield
             Instance with lateinit methods executed.
+
+        Raises
+        ------
+        ValueError
+            If a solver needs the revolution period but `t_rev` was not
+            given.
         """
         wf = WakeField(
             sources=sources,
@@ -616,11 +634,33 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         # `get_t_rev_init` returns a plain float in a real Simulation, so the
         # mock must too: solvers compare it numerically (e.g.
         # `ContinuousMultiTurnTimeDomainSolver` requires the window to be one
-        # turn) and a bare Mock would silently disable those checks. A
-        # headless profile is by definition the whole turn it models.
-        simulation.get_t_rev_init.return_value = (
-            float(profile.profile_duration) if profile is not None else 0.0
-        )
+        # turn) and a bare Mock would silently disable those checks.
+        if t_rev is None:
+            # Fall back to the profile window. That is right only where the
+            # window IS the turn; a solver that wraps the wake at one
+            # revolution would otherwise adopt a bunch-length "turn" -- a
+            # short profile in a long ring is off by the ratio of the two,
+            # with no symptom other than wrong multi-turn wake. Refuse it.
+            from blond.physics.impedances.solvers import PeriodicFreqSolver
+
+            if isinstance(solver, PeriodicFreqSolver) and (
+                solver.t_periodicity is None
+            ):
+                raise ValueError(
+                    "`PeriodicFreqSolver` wraps the wake at one revolution, "
+                    "but this headless `WakeField` has no revolution period "
+                    "to give it: pass `t_rev=...` to `WakeField.headless`, "
+                    "or build the solver with an explicit "
+                    "`PeriodicFreqSolver(t_periodicity=...)`. Defaulting to "
+                    "the profile window would silently treat the profile "
+                    "length as the turn."
+                )
+            resolved_t_rev = (
+                float(profile.profile_duration) if profile is not None else 0.0
+            )
+        else:
+            resolved_t_rev = float(t_rev)
+        simulation.get_t_rev_init.return_value = resolved_t_rev
         wf.on_init_simulation(simulation=simulation)
         wf.on_run_simulation(
             simulation=simulation,
