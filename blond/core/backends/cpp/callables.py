@@ -794,6 +794,48 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_len(profile_dts),  # n_profile_dts
             )
 
+        @staticmethod
+        def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+            beam_dt: NumpyArray,
+            beam_dE: NumpyArray,
+            induced_voltage: NumpyArray,
+            parameter_array: NumpyArray,
+            alpha: float,
+            omega_bar: float,
+            const: float,
+            coeff1: float,
+            coeff2: float,
+            coeff3: float,
+            coeff4: float,
+            time_since_last_track: float,
+            multiturn: bool,
+        ) -> None:
+            assert beam_dt.dtype == floattype
+            assert beam_dE.dtype == floattype
+            assert induced_voltage.dtype == floattype
+            assert parameter_array.dtype == floattype
+            assert beam_dt.flags.c_contiguous
+            assert beam_dE.flags.c_contiguous
+            assert induced_voltage.flags.c_contiguous
+            assert parameter_array.flags.c_contiguous
+
+            _LIBBLOND.music_track(
+                _get_pointer(beam_dt),
+                _get_pointer(beam_dE),
+                _get_pointer(induced_voltage),
+                _get_pointer(parameter_array),
+                ct.c_int(len(beam_dt)),
+                c_real(alpha, floattype),
+                c_real(omega_bar, floattype),
+                c_real(const, floattype),
+                c_real(coeff1, floattype),
+                c_real(coeff2, floattype),
+                c_real(coeff3, floattype),
+                c_real(coeff4, floattype),
+                c_real(time_since_last_track, floattype),
+                ct.c_bool(multiturn),
+            )
+
     return CppSpecials
 
 

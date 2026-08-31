@@ -755,3 +755,137 @@ class PythonSpecials(Specials):
             states[pole_i] = state
 
         states[-1] = profile_dts[-1]
+
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: NumpyArray,
+        beam_dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        parameter_array: NumpyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        if multiturn:
+            # Bridge the wake from the previous turn across the rev. gap.
+            time_difference_0 = (
+                beam_dt[0] + time_since_last_track - parameter_array[2]
+            )
+            exp_term = np.exp(-alpha * time_difference_0)
+            cos_term = np.cos(omega_bar * time_difference_0)
+            sin_term = np.sin(omega_bar * time_difference_0)
+            product_first = exp_term * (
+                (cos_term + coeff1 * sin_term) * parameter_array[0]
+                + coeff2 * sin_term * parameter_array[1]
+            )
+            product_second = exp_term * (
+                coeff3 * sin_term * parameter_array[0]
+                + (cos_term + coeff4 * sin_term) * parameter_array[1]
+            )
+        else:
+            # Turn 1: no previous-turn wake to bridge.
+            product_first = 0.0
+            product_second = 0.0
+
+        induced_voltage[0] = const * (0.5 + product_first)
+        beam_dE[0] += induced_voltage[0]
+
+        input_first, input_second = _music_recurrence(
+            beam_dt,
+            beam_dE,
+            induced_voltage,
+            product_first + 1.0,
+            product_second,
+            alpha,
+            omega_bar,
+            const,
+            coeff1,
+            coeff2,
+            coeff3,
+            coeff4,
+        )
+        parameter_array[0] = input_first
+        parameter_array[1] = input_second
+        parameter_array[2] = beam_dt[len(beam_dt) - 1]
+
+
+def _music_recurrence(
+    beam_dt: NumpyArray,
+    beam_dE: NumpyArray,
+    induced_voltage: NumpyArray,
+    input_first: float,
+    input_second: float,
+    alpha: float,
+    omega_bar: float,
+    const: float,
+    coeff1: float,
+    coeff2: float,
+    coeff3: float,
+    coeff4: float,
+) -> tuple[float, float]:
+    """
+    Run the MuSiC O(n) recurrence over the sorted macro-particles.
+
+    Updates ``beam_dE`` and ``induced_voltage`` in place (from index 1
+    onwards) and returns the carried state for the next turn.
+
+    Parameters
+    ----------
+    beam_dt
+        Macro-particle time coordinates [s], sorted ascending.
+    beam_dE
+        Macro-particle energy coordinates [eV]; updated in place.
+    induced_voltage
+        Output induced voltage [V]; written from index 1 onwards.
+    input_first
+        First component of the carried state at entry.
+    input_second
+        Second component of the carried state at entry.
+    alpha
+        Resonator damping ``omega_R / (2 Q)`` [rad/s].
+    omega_bar
+        Damped resonant angular frequency [rad/s].
+    const
+        MuSiC prefactor [V].
+    coeff1
+        Recurrence coefficient.
+    coeff2
+        Recurrence coefficient.
+    coeff3
+        Recurrence coefficient.
+    coeff4
+        Recurrence coefficient.
+
+    Returns
+    -------
+    input_first
+        First component of the carried state after the loop.
+    input_second
+        Second component of the carried state after the loop.
+    """
+    for i in range(len(beam_dt) - 1):
+        time_difference = beam_dt[i + 1] - beam_dt[i]
+        exp_term = np.exp(-alpha * time_difference)
+        cos_term = np.cos(omega_bar * time_difference)
+        sin_term = np.sin(omega_bar * time_difference)
+
+        product_first = exp_term * (
+            (cos_term + coeff1 * sin_term) * input_first
+            + coeff2 * sin_term * input_second
+        )
+        product_second = exp_term * (
+            coeff3 * sin_term * input_first
+            + (cos_term + coeff4 * sin_term) * input_second
+        )
+
+        induced_voltage[i + 1] = const * (0.5 + product_first)
+        beam_dE[i + 1] += induced_voltage[i + 1]
+        input_first = product_first + 1.0
+        input_second = product_second
+    return input_first, input_second
