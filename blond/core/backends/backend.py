@@ -384,6 +384,15 @@ class Specials(ABC):
         """
         Apply poles based on the `profile` to generate `voltage`.
 
+        Each pole carries a state that is read, advanced by one bin and then
+        given the bin's charge, in that order. So the state a bin reads holds
+        the history referenced one bin back and *not* the bin's own charge:
+        the kernel covers lags of one bin or more, and the caller adds the
+        self-bin term. This is what lets the residues carry the
+        triangle bin-average ``((exp(p*dt) - 1) / (p*dt))**2``, whose lag
+        likewise starts at ``dt`` and which stays bounded by one at any
+        binning -- see `MultiPoleSparseSolve._finalize_solver`.
+
         Parameters
         ----------
         profile
@@ -634,6 +643,7 @@ class BackendBaseClass(ABC):
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
+        self.expm1: Callable = None  # type: ignore
         self.interp: Callable = None  # type: ignore
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
@@ -1028,6 +1038,7 @@ class NumpyBackend(BackendBaseClass):
         self.isnan = np.isnan
         self.sum = np.sum
         self.sqrt = np.sqrt
+        self.expm1 = np.expm1
         self.interp = np.interp
         self.meshgrid = np.meshgrid
         self.square = np.square
@@ -1182,6 +1193,7 @@ class CupyBackend(BackendBaseClass):
         self.isnan = cp.isnan
         self.sum = cp.sum
         self.sqrt = cp.sqrt
+        self.expm1 = cp.expm1
         self.interp = cp.interp
         self.meshgrid = cp.meshgrid
         self.square = cp.square

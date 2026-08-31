@@ -29,7 +29,7 @@ BLonD has since landed a fix for a related low-Q-resonator aliasing bug
 mismatch for low-Q resonators"): instead of point-sampling/naively
 recursing a pole's wake, ``MultiPoleSparseSolve`` bin-averages it
 analytically. That first fix averaged over the source bin only
-(``sinh(p*dt/2)/(p*dt/2)`` residue scaling) and left ~1.18x peak /
+(a single ``(exp(p*dt)-1)/(p*dt)`` residue scaling) and left ~1.18x peak /
 ~6.7% rms here; averaging over the observation bin as well (the residue
 scaling squared -- see ``solvers.py``'s
 ``MultiPoleSparseSolve._finalize_solver`` and

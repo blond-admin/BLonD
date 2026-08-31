@@ -552,7 +552,14 @@ __global__ void histogram_sparse(
 
 // Apply pole-residue (vector fitting) model to a beam profile to generate
 // induced voltage. Mirrors the CPU/OpenMP implementation in cpp/poles.cpp but
-// is parallelized one thread per pole. The per-pole state evolution is
+// is parallelized one thread per pole.
+//
+// Each pole's state is read, advanced by one bin and then given the bin's
+// charge, in that order. So the state a bin reads holds the history referenced
+// one bin back and NOT the bin's own charge: this kernel covers lags of one bin
+// or more, and the caller adds the self-bin term. That is what lets the
+// residues carry the triangle bin-average ((exp(p*dt) - 1) / (p*dt))^2, whose
+// lag likewise starts at dt and which stays bounded by one at any binning. The per-pole state evolution is
 // sequential across bins; different poles are fully independent and contend
 // only on the output `voltage` buffer via atomicAdd.
 //
@@ -581,6 +588,13 @@ extern "C" __global__ void wake_from_pole_residue(
     const real_t two_factor = real_t(2) * factor;
     const real_t t_start = states[2 * n_poles];
 
+    // The bin-averaged wake reaches one bin further back than the state's own
+    // reference (the residues carry the triangle factor
+    // ((exp(p*dt) - 1) / (p*dt))^2, whose lag starts at dt). Every bin is
+    // bin_dt wide -- a sparse profile's gaps are whole numbers of bins -- so
+    // that lag is the same everywhere.
+    const real_t bin_dt = profile_dts[1] - profile_dts[0];
+
     // `cr_pole_flip` is intentionally applied to BOTH the state injection
     // and the output amplitude: for the counter-rotating beam's own wake
     // the two factors cancel (flip * flip == 1); only contributions of
@@ -605,24 +619,13 @@ extern "C" __global__ void wake_from_pole_residue(
 
     real_t decay_re = real_t(0);
     real_t decay_im = real_t(0);
+    real_t advance_re = real_t(0);
+    real_t advance_im = real_t(0);
+    real_t res_lb_re = res_re;
+    real_t res_lb_im = res_im;
 
     for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
         if (bin_i == update_on_bin_i) {
-            const real_t t_jump = (bin_i == 0)
-                ? (profile_dts[0] - t_start)
-                : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
-
-            // state *= exp(pole * t_jump)
-            {
-                const real_t jump_abs  = exp(pole_re * t_jump);
-                const real_t jump_re   = jump_abs * cos(pole_im * t_jump);
-                const real_t jump_im   = jump_abs * sin(pole_im * t_jump);
-                const real_t new_state_re   = state_re * jump_re - state_im * jump_im;
-                const real_t new_state_imag = state_re * jump_im + state_im * jump_re;
-                state_re = new_state_re;
-                state_im = new_state_imag;
-            }
-
             // decay = exp(pole * dt)
             const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
             {
@@ -633,29 +636,62 @@ extern "C" __global__ void wake_from_pole_residue(
                 decay_im = decay_abs * sin_tmp;
             }
 
+            const real_t t_jump = (bin_i == 0)
+                ? (profile_dts[0] - t_start)
+                : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
+
+            // advance = exp(pole * t_jump)
+            {
+                const real_t jump_abs = exp(pole_re * t_jump);
+                advance_re = jump_abs * cos(pole_im * t_jump);
+                advance_im = jump_abs * sin(pole_im * t_jump);
+            }
+
+            // Read the wake one bin further back than the state's reference.
+            // The lag is clamped at zero so the exponent keeps a non-positive
+            // real part and cannot overflow: a caller that hands in a state
+            // less than one bin old (t_start > profile_dts[0] - bin_dt) has
+            // nothing to reach back to, and only a zero state may do so.
+            const real_t lag = t_jump - bin_dt;
+            if (lag > real_t(0)) {
+                const real_t lb_abs = exp(pole_re * lag);
+                const real_t lb_re  = lb_abs * cos(pole_im * lag);
+                const real_t lb_im  = lb_abs * sin(pole_im * lag);
+                res_lb_re = res_re * lb_re - res_im * lb_im;
+                res_lb_im = res_re * lb_im + res_im * lb_re;
+            } else {
+                res_lb_re = res_re;
+                res_lb_im = res_im;
+            }
+
             ++i_update;
             if (i_update < n_updates) {
                 update_on_bin_i = update_on_bin[i_update];
             }
         } else {
-            // state *= decay
-            const real_t new_state_re = state_re * decay_re - state_im * decay_im;
-            const real_t new_state_imag = state_re * decay_im + state_im * decay_re;
+            res_lb_re = res_re;
+            res_lb_im = res_im;
+            advance_re = decay_re;
+            advance_im = decay_im;
+        }
+
+        // Read before advancing and injecting: `state` holds the history
+        // referenced one bin back, which is where the triangle-averaged wake
+        // starts. The bin's own charge is not in it -- the solver
+        // (MultiPoleSparseSolve) adds the self-bin term.
+        const real_t amp = res_lb_re * state_re - res_lb_im * state_im;
+        atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
+
+        // state *= advance
+        {
+            const real_t new_state_re   = state_re * advance_re - state_im * advance_im;
+            const real_t new_state_imag = state_re * advance_im + state_im * advance_re;
             state_re = new_state_re;
             state_im = new_state_imag;
         }
 
-        const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * two_factor;
-
-        // First half of the trapezoidal rule.
-        state_re += half_step;
-
-        // amp = Re(residue * state)
-        const real_t amp = res_re * state_re - res_im * state_im;
-        atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
-
-        // Second half of the trapezoidal rule.
-        state_re += half_step;
+        // Inject this bin's charge (real part only, imag part is zero).
+        state_re += cr_pole_flip * profile[bin_i] * two_factor;
     }
 
     // Persist state for the next call.

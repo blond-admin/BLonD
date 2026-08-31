@@ -661,6 +661,15 @@ class PythonSpecials(Specials):
         """
         Apply poles based on the `profile` to generate `voltage`.
 
+        Each pole carries a state that is read, advanced by one bin and then
+        given the bin's charge, in that order. So the state a bin reads holds
+        the history referenced one bin back and *not* the bin's own charge:
+        the kernel covers lags of one bin or more, and the caller adds the
+        self-bin term. This is what lets the residues carry the
+        triangle bin-average ``((exp(p*dt) - 1) / (p*dt))**2``, whose lag
+        likewise starts at ``dt`` and which stays bounded by one at any
+        binning -- see `MultiPoleSparseSolve._finalize_solver`.
+
         Parameters
         ----------
         profile
@@ -697,6 +706,12 @@ class PythonSpecials(Specials):
         voltage_threaded[:, :] = 0
 
         t_start = states[-1]
+        # The bin-averaged wake reaches one bin further back than the state's
+        # own reference (the residues carry the triangle factor
+        # ((exp(p*dt) - 1) / (p*dt))**2, whose lag starts at dt). Every bin is
+        # `bin_dt` wide -- a sparse profile's gaps are whole numbers of bins --
+        # so that lag is the same everywhere.
+        bin_dt = profile_dts[1] - profile_dts[0]
 
         for pole_i in range(n_poles):
             # `cr_pole_flip` is intentionally applied to BOTH the state
@@ -722,31 +737,43 @@ class PythonSpecials(Specials):
             state = complex(states[pole_i])
 
             decay = 0.0 + 0j
+            advance = 0.0 + 0j
+            residue_lookback = residue
             for bin_i in range(n_bins):
-                profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
-                )
-
                 if bin_i == update_on_bin_i:
-                    if bin_i == 0:
-                        t_jump = profile_dts[0] - t_start + 0j
-                    else:
-                        t_jump = (
-                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
-                        )
-                    state *= np.exp(pole * t_jump)
                     dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
                     decay = np.exp(pole * dt)
+                    if bin_i == 0:
+                        t_jump = profile_dts[0] - t_start.real
+                    else:
+                        t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
+                    advance = np.exp(pole * t_jump)
+                    # Read the wake one bin further back than the state's
+                    # reference. The lag is clamped at zero so the exponent
+                    # keeps a non-positive real part and cannot overflow:
+                    # a caller that hands in a state less than one bin old
+                    # (`t_start > profile_dts[0] - bin_dt`) has nothing to
+                    # reach back to, and only a zero state may do so.
+                    lag = t_jump - bin_dt
+                    lookback = (
+                        np.exp(pole * lag) if lag > 0.0 else complex(1.0, 0.0)
+                    )
+                    residue_lookback = residue * lookback
 
                     i_update += 1
                     if i_update < len(update_on_bin):
                         update_on_bin_i = update_on_bin[i_update]
                 else:
-                    state *= decay
-                state += profile_i_half
-                amp = float(np.real(residue * state))
+                    residue_lookback = residue
+                    advance = decay
+                # Read before advancing and injecting: `state` holds the
+                # history referenced one bin back, which is where the
+                # triangle-averaged wake starts. The bin's own charge is not
+                # in it -- `MultiPoleSparseSolve` adds the self-bin term.
+                amp = float(np.real(residue_lookback * state))
                 voltage[bin_i] += cr_pole_flip * amp
-                state += profile_i_half
+                state *= advance
+                state += cr_pole_flip * profile[bin_i] * two_factor
             states[pole_i] = state
 
         states[-1] = profile_dts[-1]

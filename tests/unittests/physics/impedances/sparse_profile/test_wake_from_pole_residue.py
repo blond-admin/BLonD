@@ -196,6 +196,15 @@ class TestPole(unittest.TestCase):
             plt.show()
 
     def test_instable_pole(self):
+        """Pinned impulse response of the kernel for a fast, unstable pole.
+
+        A unit charge sits in bin 1, so `voltage` is the kernel itself. The
+        recursion reads its state before advancing and injecting, so the
+        response starts in bin 2 (the triangle bin-average reaches back one
+        bin) and carries the bin's full charge rather than half of it -- see
+        `Specials.wake_from_pole_residue`. The pinned values are
+        ``2 * Re(sum(residues * exp(poles * (n - 2) * dt)))``.
+        """
         n = int(256)
         hist_y = backend.zeros(n, dtype=float)
         hist_y[1] = 1
@@ -280,7 +289,15 @@ class TestPole(unittest.TestCase):
             plt.subplot(2, 1, 2)
             plt.plot(copy_to_cpu(voltage))
             plt.show()
-        # pinned_values_helper(voltage, "voltage") # use this to generate
+        # pinned_values_helper(voltage, "voltage")  # use this to generate
+        _SAVE_PINNED = False
+        if _SAVE_PINNED:
+            np.savetxt(
+                callers_relative_path(
+                    "resources/voltage_pinned.txt", stacklevel=1
+                ),
+                copy_to_cpu(voltage),
+            )
         filepath = callers_relative_path(
             "resources/voltage_pinned.txt", stacklevel=1
         )

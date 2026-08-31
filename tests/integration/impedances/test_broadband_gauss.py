@@ -344,7 +344,7 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
 
     They used to return about 0.3 % of it (low by a factor of ~300).
     Bin-averaging the wake over the source bin alone (a box,
-    ``sinc(f dt)``; for the poles ``sinh(p * dt / 2) / (p * dt / 2)``) does
+    ``sinc(f dt)``; for the poles ``(exp(p * dt) - 1) / (p * dt)``) does
     not rescue this: sampling folds the resonance from above the Nyquist
     frequency down onto the impedance's inductive low-frequency flank --
     the only part of the impedance this bunch samples -- and a single box
@@ -398,59 +398,70 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
 
 
 @pytest.mark.integration
-class TestPoleRecursionPrecisionLimit(unittest.TestCase):
-    """`MultiPoleSparseSolve` refuses a pole it cannot represent."""
+class TestExtremelyUnderResolvedPole(unittest.TestCase):
+    """Solvers stay exact when the wake dies well inside a single bin."""
 
     def setUp(self):
         enforce_64_bit_backend()
 
-    def test_convolution_solvers_survive_an_extreme_binning(self):
+    def test_all_solvers_agree_far_past_the_cutoff(self):
         """
-        The closed-form bin-average must hold up far past the cutoff.
+        Every solver must hold up decades past the profile cutoff.
 
         For a resonator 100x above `F_RES` on the same 5 ns binning the wake
-        decays by ``exp(-1733)`` within one bin. Evaluating the bin-average
-        as ``sinh(p * dt / 2)**2 * exp(p * t)`` would overflow to
-        ``inf * 0 = nan`` there, so `Resonators._wake_bin_average` folds the
-        two together; the voltage must stay finite and still match the
-        frequency domain.
+        decays by ``exp(-1733)`` within one bin. Both time-domain solvers
+        used to break there: the convolution ones would evaluate
+        ``sinh(p * dt / 2)**2 * exp(p * t)`` as ``inf * 0 = nan``, and the
+        pole recursion cancelled a residue scaled by ``exp(-p * dt)`` against
+        its self-bin term, losing the whole mantissa. Both now keep every
+        factor bounded by one -- see `Resonators._wake_bin_average` and
+        `MultiPoleSparseSolve._finalize_solver`.
         """
         peaks = _peak_voltages(
             RESONATOR_ABOVE_CUTOFF_RATIO * F_RES,
-            ("frequency domain", "time domain"),
             center_frequency=100.0 * F_RES,
         )
         reference = peaks["frequency domain"]
-        self.assertTrue(np.isfinite(peaks["time domain"]))
-        self.assertAlmostEqual(
-            peaks["time domain"] / reference,
-            1.0,
-            delta=SOLVER_AGREEMENT_RTOL,
-            msg=(
-                f"time domain solver gives {peaks['time domain']:.3e} V, "
-                f"frequency domain gives {reference:.3e} V"
-            ),
-        )
-
-    def test_pole_residue_raises_instead_of_returning_garbage(self):
-        """
-        The pole recursion must refuse a pole beyond its precision.
-
-        `MultiPoleSparseSolve` scales each residue by ``~exp(-p * dt)`` and
-        cancels it back down with the self-bin correction, which costs
-        ``~exp(-Re(p) * dt)`` of the mantissa. For a resonator 3x above
-        `F_RES` on the same 5 ns binning that is ``exp(52)``, i.e. ~1e7
-        relative error -- silent garbage, which the guard in
-        `_finalize_solver` turns into an error naming the way out.
-        """
-        with self.assertRaisesRegex(
-            RuntimeError, "cannot resolve a pole that decays"
-        ):
-            _peak_voltages(
-                RESONATOR_ABOVE_CUTOFF_RATIO * F_RES,
-                ("pole residue",),
-                center_frequency=3.0 * F_RES,
+        for name in ("time domain", "pole residue"):
+            self.assertTrue(
+                np.isfinite(peaks[name]), msg=f"{name} returned {peaks[name]}"
             )
+            self.assertAlmostEqual(
+                peaks[name] / reference,
+                1.0,
+                delta=SOLVER_AGREEMENT_RTOL,
+                msg=(
+                    f"{name} solver gives {peaks[name]:.3e} V, "
+                    f"frequency domain gives {reference:.3e} V"
+                ),
+            )
+
+    def test_pole_residue_tracks_time_domain_across_binnings(self):
+        """
+        The recursion must match the convolution at every resolution.
+
+        Sweeps the resonator from a decade below the profile cutoff to four
+        decades above it, i.e. ``-Re(p) * dt`` from 0.017 to 1.7e4. The old
+        residue scaling lost ``~eps * exp(-Re(p) * dt)`` of the mantissa over
+        that range (1e7 relative error at 52); the two must now agree to
+        round-off throughout.
+        """
+        for center_frequency_ratio in (1e-3, 1e-1, 1.0, 10.0, 100.0, 1000.0):
+            with self.subTest(f_res=center_frequency_ratio * F_RES):
+                peaks = _peak_voltages(
+                    RESONATOR_ABOVE_CUTOFF_RATIO * F_RES,
+                    ("time domain", "pole residue"),
+                    center_frequency=center_frequency_ratio * F_RES,
+                )
+                self.assertAlmostEqual(
+                    peaks["pole residue"] / peaks["time domain"],
+                    1.0,
+                    delta=1e-9,
+                    msg=(
+                        f"pole residue gives {peaks['pole residue']:.6e} V, "
+                        f"time domain gives {peaks['time domain']:.6e} V"
+                    ),
+                )
 
 
 if __name__ == "__main__" and _DEV_DRAW:

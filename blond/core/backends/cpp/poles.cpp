@@ -35,6 +35,14 @@ static inline void cmul(const real_t a_re, const real_t a_im,
 /**
  * Apply poles based on the profile to generate voltage.
  *
+ * Each pole's state is read, advanced by one bin and then given the bin's
+ * charge, in that order. So the state a bin reads holds the history
+ * referenced one bin back and NOT the bin's own charge: this kernel covers
+ * lags of one bin or more, and the caller adds the self-bin term. That is
+ * what lets the residues carry the triangle bin-average
+ * ((exp(p*dt) - 1) / (p*dt))^2, whose lag likewise starts at dt and which
+ * stays bounded by one at any binning.
+ *
  * Complex arrays (poles, residues, states) are interleaved:
  *   [re0, im0, re1, im1, ...]
  *
@@ -94,6 +102,13 @@ extern "C" void wake_from_pole_residue(
     // t_start from states[-1] (real part of last complex element)
     const real_t t_start = states[2 * n_poles];
 
+    // The bin-averaged wake reaches one bin further back than the state's own
+    // reference (the residues carry the triangle factor
+    // ((exp(p*dt) - 1) / (p*dt))^2, whose lag starts at dt). Every bin is
+    // bin_dt wide -- a sparse profile's gaps are whole numbers of bins -- so
+    // that lag is the same everywhere.
+    const real_t bin_dt = profile_dts[1] - profile_dts[0];
+
     // Parallel over poles: each pole carries sequential state across bins,
     // but different poles are fully independent. With schedule(static) and
     // n_poles < n_threads, only threads [0, n_poles) receive iterations, so
@@ -128,11 +143,17 @@ extern "C" void wake_from_pole_residue(
         int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
         real_t decay_re = 0, decay_im = 0;
+        real_t advance_re = 0, advance_im = 0;
+        real_t res_lb_re = res_re, res_lb_im = res_im;
         real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
         for (int bin_i = 0; bin_i < n_bins; bin_i++) {
 
             if (bin_i == update_on_bin_i) {
+                // decay = exp(pole * dt)
+                const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
+                fast_cexp(pole_re * dt, pole_im * dt, decay_re, decay_im);
+
                 // Compute t_jump (real scalar)
                 real_t t_jump;
                 if (bin_i == 0) {
@@ -141,42 +162,53 @@ extern "C" void wake_from_pole_residue(
                     t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1];
                 }
 
-                // state *= exp(pole * t_jump)
-                real_t e_re, e_im;
-                fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
+                // advance = exp(pole * t_jump)
+                fast_cexp(pole_re * t_jump, pole_im * t_jump, advance_re, advance_im);
 
-                real_t new_re, new_im;
-                cmul(state_re, state_im, e_re, e_im, new_re, new_im);
-                state_re = new_re;
-                state_im = new_im;
-
-                // decay = exp(pole * dt)
-                const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
-                fast_cexp(pole_re * dt, pole_im * dt, decay_re, decay_im);
+                // Read the wake one bin further back than the state's
+                // reference. The lag is clamped at zero so the exponent keeps
+                // a non-positive real part and cannot overflow: a caller that
+                // hands in a state less than one bin old
+                // (t_start > profile_dts[0] - bin_dt) has nothing to reach
+                // back to, and only a zero state may do so.
+                const real_t lag = t_jump - bin_dt;
+                if (lag > real_t(0)) {
+                    real_t lb_re, lb_im;
+                    fast_cexp(pole_re * lag, pole_im * lag, lb_re, lb_im);
+                    cmul(res_re, res_im, lb_re, lb_im, res_lb_re, res_lb_im);
+                } else {
+                    res_lb_re = res_re;
+                    res_lb_im = res_im;
+                }
 
                 i_update++;
                 if (i_update < n_updates) {
                     update_on_bin_i = update_on_bin[i_update];
                 }
             } else {
-                // state *= decay
+                res_lb_re = res_re;
+                res_lb_im = res_im;
+                advance_re = decay_re;
+                advance_im = decay_im;
+            }
+
+            // Read before advancing and injecting: `state` holds the history
+            // referenced one bin back, which is where the triangle-averaged
+            // wake starts. The bin's own charge is not in it -- the solver
+            // (MultiPoleSparseSolve) adds the self-bin term.
+            const real_t amp = res_lb_re * state_re - res_lb_im * state_im;
+            vt[bin_i] += cr_pole_flip * amp;
+
+            // state *= advance
+            {
                 real_t new_re, new_im;
-                cmul(state_re, state_im, decay_re, decay_im, new_re, new_im);
+                cmul(state_re, state_im, advance_re, advance_im, new_re, new_im);
                 state_re = new_re;
                 state_im = new_im;
             }
 
-            const real_t profile_i_half = cr_pole_flip * real_t(0.5) * profile[bin_i] * two_factor;
-
-            // real part only, imag part is zero
-            state_re +=  profile_i_half ;
-
-            // amp = Re(residue * state)
-            const real_t amp = res_re * state_re - res_im * state_im;
-            vt[bin_i] += cr_pole_flip * amp;
-
-            // second half of trapezoidal rule
-            state_re += profile_i_half;
+            // Inject this bin's charge (real part only, imag part is zero).
+            state_re += cr_pole_flip * profile[bin_i] * two_factor;
         }
 
         // Store state back
