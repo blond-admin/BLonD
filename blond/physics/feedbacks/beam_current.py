@@ -324,6 +324,25 @@ def rf_beam_current(
     #     sign flips the beam-loading sign.
     #   * carrier_phase_offset: the caller's extra demodulation-carrier
     #     phase (exactly 0.0 when unused: bit-identical demodulation).
+    #
+    # WHICH FRAME. The +pi/2 is only meaningful together with the frame
+    # the coarse-grid caller establishes, so state it here rather than
+    # leaving it to be re-derived:
+    #   * dT is the tail left by the PRECEDING coarse segment, normally
+    #     t_rf / 2, so ``dphi = omega_c * dT`` is pi (mod 2 pi);
+    #   * carrier_phase_offset is ``-(phi_rf + carrier_slip_gap)``, i.e.
+    #     minus the total the station's kick and the readout's
+    #     phase_correction add back on top of ``angle(V_ant)``;
+    #   * the readout itself is POLAR and referenced to the station
+    #     setpoint (``cartesian_to_polar`` -> ``phase_correction =
+    #     alpha_sum - mean(angle(station_voltage_coarse_grid)) +
+    #     carrier_slip_gap``), applied as ``sin(omega_rf t + phi_rf +
+    #     phase_offsets)``.
+    # Do NOT re-derive the sign from a lab-frame identity such as
+    # ``V_lab = -Im[V_ant e^{i omega_c t}]``: that form is used nowhere
+    # in this chain, and reasoning from it yields -pi/2 here, which
+    # inverts the beam loading. The check that matters is the end-to-end
+    # one -- a bunch must LOSE energy to its own wake.
     charges_fine = I_f + 1j * Q_f
     dphi = dT * omega_c
     charges_fine = charges_fine * np.exp(

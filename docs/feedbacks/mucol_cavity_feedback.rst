@@ -453,6 +453,21 @@ that is exactly ``1 + 0j`` without an RF-frequency offset and without
 multi-section acceleration, which is why undriven runs stay
 byte-identical to the former single-state recursion.
 
+.. note::
+
+   The forward-Euler description is exact for the GENERATOR term only.
+   The coarse recursion takes ``I_gen`` from cell ``c-1`` (left
+   endpoint, i.e. forward Euler) but ``I_beam`` from cell ``c`` itself,
+   so the bunch's own slice enters with weight 1. The three
+   discretisations in the code therefore disagree on that self-slice
+   weight: coarse = 1, fine first-order = 0, fine second-order = 1/2 --
+   and 1/2 is the value the fundamental theorem of beam loading calls
+   for. The difference does not move any published number (the coarse
+   voltage never kicks the beam; the kicks come from the fine grid,
+   whose second-order solver the example enables), but it is a real
+   asymmetry and the numbers are pinned bit-for-bit, so changing the
+   weights is a deliberate decision rather than a cleanup.
+
 Discretisation validity is enforced by
 :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`
 (the timing class's ``_check_step_sizes``, ``_check_beam_kicks`` and
@@ -790,9 +805,17 @@ charge integrating the wake in the reverse direction -- actually
 Its sign is a property of the mode's field symmetry, not of fundamental
 modes in general:
 
-* ``R_CR = -R`` -- an *asymmetric* fundamental mode: two beams of *opposite*
-  charge (the collider pair) add up and receive the same kick;
-* ``R_CR = +R`` -- two *same-charge* counter-rotating beams add up.
+* ``R_CR = -R`` -- two beams of *opposite* charge (the collider pair) add
+  up and receive the same kick, while same-charge beams cancel;
+* ``R_CR = +R`` -- two *same-charge* counter-rotating beams add up,
+  while opposite-charge beams cancel.
+
+Choose by that behaviour. The sign does follow from the parity of the
+mode's field under reversal of the direction of travel, but the parity
+convention is not written down anywhere in this code base -- see the
+warning under the ``shunt_impedances_counter_witness`` parameter of
+:class:`~blond.physics.impedances.sources.Resonators`, and note that
+nothing validates the sign you pass.
 
 
 Validation

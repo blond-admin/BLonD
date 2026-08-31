@@ -794,6 +794,20 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
   `test_minimal_sandwich_rejected`). The real long-term fix remains per-beam
   profile instances; this guard turns silent corruption into a loud error.
 
+### 3.1b Numerics
+
+- **Bounded secular drift, ~0.03 pp/turn.** A two-section fast *undriven*
+  carried wake drifts slowly over a long horizon
+  (`test_multiturn_secular_drift_long_horizon`, 20 turns, endpoint < 1 %);
+  the gate was relaxed from an optimistic 0.02 to 0.05 pp/turn to admit it.
+  The 300-turn closed-loop run sees the same drift past ~350 turns for BOTH
+  detuning signs, and at 5e12 even the on-resonance mid-phase goes marginal.
+  Characterised and bounded, never explained — a relaxed gate is a deferred
+  question, not an answer. **This is the only open technical item left in
+  this file that no maintainer ruling covers.** Not re-investigated blindly:
+  the closed-loop work already ruled out loop gain and delay as the driver
+  (both dynamically inert on the dipole at these sampling rates).
+
 ### 3.2 Housekeeping
 
 - ~~Observation tests write `last_*.npy` / `last_*.json` into the CWD~~
@@ -851,16 +865,6 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
 
 ### 3.3 Resolved / decided (kept as records, not as open work)
 
-- **`_check_step_sizes` hard cap — ALREADY DONE (record corrected
-  2026-08-31).** The physics review left "tighten the 2.0 cap to 1.0 to
-  forbid the Euler sign-flip band" as an open judgment call, and the memory
-  note still said so. The tree disagrees: `max_step_angle_hard = 1.0` in
-  `cavity_solvers.py`, with the reasoning in the constant's comment (the
-  exact factor `exp(-omega dt / 2 Q_L)` is positive for every step, so the
-  whole `d > 1` band misrepresents the physics even though `|factor| < 1`
-  keeps it contracting until 2) and a pin,
-  `test_decay_hard_cap_forbids_sign_flip`. Committed, not staged. Nothing
-  to do; the stale note was the only "open" part.
 - **`MultiPassResonatorSolver` `delta_f=None` precision — NOT a solver
   defect (2026-08-31).** With no retuning the carried-wake phase is just
   `omega_0 x (arrival gap)` and the phase-clock rotation is identically
@@ -958,7 +962,11 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
 - ~~Forward-Euler hard cap~~ **DECIDED + SHIPPED**: tightened from `2.0` to
   `1.0` (`ForwardEulerValidityGuard.max_step_angle_hard`), so the
   sign-flipping `1 < d < 2` band is forbidden too, not just the divergent
-  `d > 2`.
+  `d > 2`. Pinned by `test_decay_hard_cap_forbids_sign_flip`.
+  **NOTE (2026-08-31):** the memory note still described this as an open
+  judgment call long after it shipped, and it was re-reported as open on
+  that basis. Memory corrected; THIS file was right all along — check it
+  before trusting a memory note about open work.
 - ~~`phase_correction` vs `pi_setpoint` frame~~ **RESOLVED (user decision:
   error)** — the constructor rejects a non-real / non-positive explicit
   `voltage_setpoint` with `ValueError` (rotate `phi_rf` on the station
@@ -1029,14 +1037,11 @@ above.
 
 ## 5. Verification status
 
-- `tests/unittests/physics/feedbacks` **collects 525 tests** (2026-08-12,
-  collection only — this pass did not re-run the battery; up from 520
-  earlier the same day with the five split-envelope tests of §2.13:
-  `TestDrivenFeedbackIsPhaseNeutralWithoutBeam` (2),
-  `TestDesignLockedDriveWalkOffUnderRFOffset` (1) and the two
-  `test_split_components_*` kernel-identity configs; 513 on
-  2026-08-11 before the seven tests of `TestConstructorHarmonicIndexValidation`
-  and `TestAttachSetsHarmonicIndexFromSlot`).
+- `tests/unittests/physics/feedbacks` **collects 550 tests** (2026-08-31),
+  and the last full run of `tests/unittests/physics/{feedbacks,impedances}`
+  was **692 passed / 16 skipped / 147 subtests** with the N >= 4 two-beam
+  extension and the mixin host-contract tests in. (Was 525 on 2026-08-12,
+  513 on 2026-08-11.)
 - **HISTORY**: the last full battery run recorded here (mucol + LHC
   comparisons + impedances) was **492 passed**, the only failures being the
   pre-existing SPS `TestTravelingWaveCavity` ones (`test_vind`,
@@ -1046,8 +1051,10 @@ above.
 - Every production sign/gate change is **mutation-verified** (see §2.4–2.7).
 - The P1–P5 partition was **byte-identical** (pure moves), verified by the
   full battery + per-step ruff/numpydoc/import/MRO checks.
-- Docs: both RSTs are maintained; the full `-W` Sphinx build has **not** been
-  run for the current state (§3.2).
+- Docs: both RSTs are maintained, and the full `-W` + nitpicky Sphinx build
+  is **green for the current state** (last run 2026-08-31, `build
+  succeeded`, no warnings). Run it ONCE, sequentially, via the absolute
+  path — see §3.2 for why.
 
 ---
 

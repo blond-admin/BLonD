@@ -361,14 +361,34 @@ class Resonators(
         part of this parameter's definition, so with the beam-current signs
         (charge x direction) on the source and kick side:
 
-        * ``+R`` -- symmetric coupling between the directions: two
-          counter-rotating beams of the **same charge** drive the mode
-          constructively (add up);
-        * ``-R`` -- the behaviour of an **asymmetric fundamental mode**: two
-          counter-rotating beams of **opposite charge** (the collider pair)
-          add up and receive the same kick, while same-charge beams cancel.
-          The sign is a property of the mode's field symmetry, not of
-          fundamental modes in general.
+        Choose the sign by the BEHAVIOUR you require -- that statement is
+        unambiguous, and it is what the solvers implement:
+
+        * ``+R`` -- two counter-rotating beams of the **same charge** drive
+          the mode constructively (add up); opposite-charge beams cancel;
+        * ``-R`` -- two counter-rotating beams of **opposite charge** (the
+          muon-collider pair) add up and receive the same kick, while
+          same-charge beams cancel.
+
+        The sign is a property of the mode, not of fundamental modes in
+        general, and it is set by the parity of the mode's field under
+        reversal of the direction of travel. **This docstring deliberately
+        does not name that parity convention**: the previous wording called
+        ``-R`` "an asymmetric fundamental mode" without saying which field,
+        under which operation, is meant, and the answer differs depending on
+        whether one takes the parity of the scalar ``E_z(s)`` profile or of
+        ``E`` as a polar vector under the mid-plane mirror -- a flat TM010
+        fundamental is even under the first and odd under the second. Until
+        the mode-physics convention is written down, pick the sign from the
+        two behavioural bullets above.
+
+        .. warning::
+
+           Nothing validates the sign. The magnitude check only enforces
+           ``|R_CR| == |R|``, and the ``None`` guards only catch an unset
+           value, so a correctly-sized but wrongly-signed ``R_CR`` passes
+           every guard -- and turns a collider pair's coherent build-up
+           into cancellation, silently.
     shunt_impedances_counter_rotating
         Removed legacy name of ``shunt_impedances_counter_witness``.
         Passing it raises :class:`TypeError`: the rename came with a

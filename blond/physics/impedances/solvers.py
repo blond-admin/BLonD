@@ -1352,10 +1352,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         # universal factor is carried per mode by
         # ``shunt_impedances_counter_witness`` (the co/counter wake
         # selection below; the parameter is the shunt the counter-rotating
-        # witness experiences, its direction sign included -- the sign is a
-        # property of the mode's field symmetry, an *asymmetric* fundamental
-        # mode has R_CR = -R). Plain particle charge for co-rotating
-        # beams.
+        # witness experiences, its direction sign included. Pick that sign
+        # by the behaviour you need -- R_CR = -R makes an opposite-charge
+        # (collider) pair add up, R_CR = +R makes a same-charge pair add
+        # up; the underlying parity convention is NOT defined anywhere in
+        # this code base, and nothing validates the sign. See the warning
+        # on Resonators.shunt_impedances_counter_witness.) Plain particle
+        # charge for co-rotating beams.
         _charge_per_macroparticle = (
             -1 * beam.signed_charge_with_direction() * e
         ) * (

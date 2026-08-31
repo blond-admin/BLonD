@@ -3175,6 +3175,19 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             * np.pi
             / self._forward_segment_omega_design
         )
+        # Carried into the NEXT turn's cell 0. Note the asymmetry with
+        # the generator current: the forward span consumes this grid
+        # INCLUSIVE of its last element, so the sample carried here has
+        # already been used by this turn's final step and is re-consumed
+        # at the turn boundary -- the beam term does not have the
+        # generator's ``i-1`` offset. It is inert in every shipped
+        # configuration (measured exactly 0.0 over 495 demodulations
+        # across the multi-section, sub-stepped, accelerating, multibunch
+        # and counter-rotating suites): the forward coarse grid spans the
+        # whole inter-station drift while the profile window is a few RF
+        # periods at its start, so the last cell is never written. A
+        # section-filling bunch train would bias the steady-state loading
+        # by ~1/n_points, i.e. 4e-5 to 8e-5.
         self._last_val_beam_current = (
             self.beam_current_forward_coarse_grid[-1]
             if self.beam_current_forward_coarse_grid is not None
