@@ -798,6 +798,205 @@ class TestTwoBeamDeltaOmegaRfOffsetPassages(unittest.TestCase):
         )
 
 
+#: Section counts for the ``n_sections >= 4`` offset-passage extension.
+#: Four is the smallest layout whose arrival spacing is NOT ``T_rev / 2``
+#: (station ``i`` sees the two beams ``|n - 2 i - 1| / n * t_rev`` apart, so
+#: quarter- and three-quarter-turn gaps here), and six adds a layout mixing
+#: three distinct spacings (1/6, 3/6, 5/6) -- including one station pair that
+#: IS half a turn apart, so the two counts together separate "two-beam
+#: passages work" from "the half-turn spacing of two sections works".
+EXTENDED_SECTION_COUNTS = (4, 6)
+
+
+class TestTwoBeamOffsetPassagesManySections(unittest.TestCase):
+    """
+    Offset two-beam passages beyond two sections, in all three regimes.
+
+    The three classes above validate the two-section layout, where every
+    station sees the two beams exactly ``T_rev / 2`` apart. That spacing is a
+    property of two sections, not of counter-rotating tracking: at ``n``
+    sections station ``i`` sees them ``|n - 2 i - 1| / n * t_rev`` apart,
+    which is half a turn only for ``n = 2 (mod 4)`` and never at ``n = 4``.
+    Two sections is also the count at which the backfill interval is exactly
+    empty at EVERY station (see
+    :class:`TestBackfillWalkDirectionConsistency`), so the backfill reference
+    walk is not even entered -- while a real muon-collider RCS layout has 16
+    sections and enters it at 14 of them every turn. The shipped
+    ``rcs_two_beam_example`` therefore runs a regime none of the two-section
+    comparisons reach.
+
+    These tests close that gap in each regime the two-section classes cover
+    -- static, accelerating fast ramp, and ``delta_omega_rf`` -- reusing
+    their assertions and their 0.5 % gate. The gate is *pre-registered*
+    (taken from the two-section class, not fitted to what the extension
+    measures): the static extension lands at 0.128 % on turn 0 falling to
+    0.039 %, within 0.001 percentage points of the two-section numbers at
+    every turn, so more sections cost essentially nothing in accuracy.
+
+    Only the static regime is run at both four and six sections; the two
+    frequency-varying regimes use four, the count that removes the half-turn
+    spacing outright.
+    """
+
+    _cache: dict = {}
+
+    @classmethod
+    def _two_beam(
+        cls, mode: str, n_sections: int, n_turns: int = N_TURNS, **kwargs
+    ) -> list:
+        """
+        Run (once per distinct configuration) and cache a two-beam case.
+
+        Parameters
+        ----------
+        mode
+            See :func:`_build_two_beam_simulation`.
+        n_sections
+            Number of RF stations per turn.
+        n_turns
+            Turns to run.
+        **kwargs
+            Further keyword arguments for :func:`_run_two_beam_case`, e.g.
+            ``acceleration`` / ``fast_ramp`` or ``delta_omega_rf``.
+
+        Returns
+        -------
+        list
+            ``[turn][section]`` collected voltage arrays.
+        """
+        key = (mode, n_sections, n_turns, tuple(sorted(kwargs.items())))
+        if key not in cls._cache:
+            cls._cache[key] = _run_two_beam_case(
+                n_sections, mode, n_turns=n_turns, **kwargs
+            )
+        return cls._cache[key]
+
+    def _worst_error_per_turn(
+        self, n_sections: int, n_turns: int = N_TURNS, **kwargs
+    ):
+        """
+        Worst-station beam-induced error against the convolution, per turn.
+
+        The beam-induced part is the two-beam gap voltage minus the two-beam
+        zero-intensity reference (linearity of the cavity equation, which
+        also cancels the common acceleration kick). Also asserts that the
+        convolution actually carries voltage, so a silently zeroed reference
+        cannot make the comparison vacuous.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations per turn.
+        n_turns
+            Turns to run.
+        **kwargs
+            Further keyword arguments for :func:`_run_two_beam_case`.
+
+        Returns
+        -------
+        numpy.ndarray
+            One worst-over-stations relative error per turn.
+        """
+        convolution = self._two_beam("mtw", n_sections, n_turns, **kwargs)
+        gap_beam = self._two_beam("fb", n_sections, n_turns, **kwargs)
+        gap_reference = self._two_beam(
+            "fb_reference", n_sections, n_turns, **kwargs
+        )
+        self.assertGreater(float(np.max(np.abs(convolution[-1][0]))), 0.0)
+        return np.array(
+            [
+                max(
+                    rel_err(
+                        gap_beam[turn_i][sec_i] - gap_reference[turn_i][sec_i],
+                        convolution[turn_i][sec_i],
+                    )
+                    for sec_i in range(n_sections)
+                )
+                for turn_i in range(n_turns)
+            ]
+        )
+
+    def test_arrival_spacing_is_never_half_a_turn(self):
+        """
+        The extension really is a different regime, not more of the same.
+
+        Guards the premise of this class: at four sections no station sees
+        the two beams half a turn apart (nor coincident), so an edit that
+        quietly reduced ``EXTENDED_SECTION_COUNTS`` to the already-covered
+        two-section layout fails here instead of silently narrowing the
+        coverage back to what the classes above already do.
+        """
+        for station_index in range(4):
+            gap_fraction = abs(4 - 2 * station_index - 1) / 4
+            self.assertNotAlmostEqual(gap_fraction, 0.5)
+            self.assertGreater(gap_fraction, 0.0)
+
+    def test_feedback_matches_two_beam_convolution(self):
+        """
+        Static: the feedback matches the convolution at every station.
+
+        The four- and six-section counterpart of the two-section static
+        comparison, for layouts whose arrival spacing is not half a turn and
+        whose backfill walk is genuinely entered.
+        """
+        for n_sections in EXTENDED_SECTION_COUNTS:
+            with self.subTest(n_sections=n_sections):
+                worst = self._worst_error_per_turn(n_sections)
+                self.assertLess(float(worst.max()), 0.005, f"{worst}")
+
+    def test_accelerating_feedback_matches_two_beam_convolution(self):
+        """
+        Fast ramp: the accel frame-slip correction survives more sections.
+
+        The four-section counterpart of
+        :class:`TestTwoBeamAcceleratingOffsetPassages`. More sections mean
+        more mid-turn grid re-seedings per turn, each at its own past-station
+        RF frequency, so a sign or ordering error in the frame-slip
+        correction composed with the reverse traversal has more chances to
+        accumulate. Bounded *and* non-growing, as there.
+        """
+        worst = self._worst_error_per_turn(
+            4, ACCEL_N_TURNS, acceleration=True, fast_ramp=True
+        )
+        self.assertLess(float(worst.max()), 0.005, f"{worst}")
+        self.assertLessEqual(float(worst[-1]), float(worst[0]), f"{worst}")
+
+    def test_delta_omega_rf_feedback_matches_two_beam_convolution(self):
+        """
+        RF-frequency offset: the slip anchor survives more sections.
+
+        The four-section counterpart of
+        :class:`TestTwoBeamDeltaOmegaRfOffsetPassages`. The demodulation slip
+        anchor is accumulated across the stations of a turn, so a layout with
+        a non-empty backfill interval exercises it differently from two
+        sections. Bounded and non-growing.
+        """
+        worst = self._worst_error_per_turn(
+            4, DELTA_OMEGA_RF_N_TURNS, delta_omega_rf=DELTA_OMEGA_RF
+        )
+        self.assertLess(float(worst.max()), 0.005, f"{worst}")
+        self.assertLessEqual(float(worst[-1]), float(worst[0]), f"{worst}")
+
+    def test_two_beam_loading_exceeds_single_beam(self):
+        """
+        Guard against a vacuous comparison: the second beam adds loading.
+
+        The two-beam convolution must differ from the single-beam run of the
+        same four-section ring by well more than the comparison gate --
+        otherwise the agreement above could hold with the counter-rotating
+        beam silently dropped, which is exactly what a mishandled non-empty
+        backfill interval could cause.
+        """
+        convolution_two_beam = self._two_beam("mtw", 4)
+        convolution_one_beam = _base()._run_multiturn_case("mtw", 4, False)
+
+        last = N_TURNS - 1
+        difference = rel_err(
+            convolution_two_beam[last][0], convolution_one_beam[last][0]
+        )
+        self.assertGreater(difference, 0.02)
+
+
 class TestSimultaneousPassageGuard(unittest.TestCase):
     """
     A station at a meeting azimuth refuses simultaneous two-beam passages.
