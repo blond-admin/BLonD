@@ -14,9 +14,13 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
+from numpy.typing import NDArray as NumpyArray
+
 from blond import copy_to_cpu
+from blond.core.backends.backend import backend
 from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -474,6 +478,7 @@ class InducedVoltageObservationCR(
             shape,
         )
 
+        self._grid_mismatch_reported = False
         self._total_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_total_voltage",
             shape,
@@ -504,12 +509,24 @@ class InducedVoltageObservationCR(
     @property  # as readonly attributes
     def total_voltage(self):
         """
-        Induced voltage on the specified cavity object for both beams.
+        Total gap voltage on the specified cavity for both beams.
+
+        The RF gap voltage of the parent station PLUS the beam-induced
+        voltage of this wakefield, on the wakefield profile's grid -- i.e.
+        the total longitudinal voltage the beam sees, not the induced part
+        alone (that is :attr:`induced_voltage`).
+
+        The RF part INCLUDES the cavity-feedback correction when the
+        parent station carries a feedback, so a station running both a
+        feedback and a multi-turn wake records the voltage the beam
+        actually sees. With no feedback attached it is the plain RF drive.
+        A standalone wakefield with no parent station has no RF part at
+        all, and the induced voltage alone is recorded.
 
         Returns
         -------
         total_voltage
-            Induced voltage arrays for both beams.
+            Total gap voltage arrays for both beams, in [V].
         """
         return self._total_voltage.get_valid_entries()
 
@@ -536,6 +553,65 @@ class InducedVoltageObservationCR(
             Beam profile array.
         """
         return self._beam_profile.get_valid_entries()
+
+    def _rf_gap_voltage_on_profile_grid(self, parent) -> NumpyArray:
+        """
+        RF gap voltage of the parent station on this wakefield's grid.
+
+        Parameters
+        ----------
+        parent
+            The RF station the observed wakefield is attached to.
+
+        Returns
+        -------
+        gap_voltage
+            RF gap voltage sampled on ``self._wake_field.profile.hist_x``,
+            in [V], INCLUDING the cavity-feedback correction when the
+            station carries one.
+
+        Notes
+        -----
+        A station may legitimately carry both a cavity feedback and a
+        multi-turn-wake local wakefield, and then the voltage the beam
+        actually sees is the feedback-corrected one -- recording the
+        uncorrected RF drive would drop the entire generator contribution,
+        which is usually the point of the study.
+
+        ``calc_gap_voltage_with_feedbacks`` is evaluated on the FEEDBACK's
+        profile grid (its per-bin corrections are defined there), while the
+        induced voltage this is added to lives on the WAKEFIELD's. The two
+        are normally the same profile object, in which case the values are
+        used directly. When they differ the gap voltage is interpolated
+        onto the wakefield grid, which is the only way to form a sum on one
+        axis; a mismatch is reported once, because interpolating a
+        per-bin feedback correction loses detail the feedback resolved.
+        """
+        profile_grid = self._wake_field.profile.hist_x
+        if not parent.any_feedback_not_none:
+            return parent.calc_gap_voltage_without_feedbacks(profile_grid)
+
+        feedback_grid = parent.cavity_feedback_list[0].profile.hist_x
+        gap_voltage = parent.calc_gap_voltage_with_feedbacks()
+        if feedback_grid is profile_grid or (
+            len(feedback_grid) == len(profile_grid)
+            and bool(backend.all(feedback_grid == profile_grid))
+        ):
+            return gap_voltage
+
+        if not self._grid_mismatch_reported:
+            self._grid_mismatch_reported = True
+            warnings.warn(
+                "The cavity feedback and the observed wakefield use "
+                "different profile grids, so the feedback-corrected gap "
+                "voltage is interpolated onto the wakefield's grid to form "
+                "total_voltage. The per-bin feedback correction is "
+                "smoothed by that interpolation; give the two the same "
+                "profile if total_voltage has to resolve it. Reported "
+                "once.",
+                stacklevel=3,
+            )
+        return backend.interp(profile_grid, feedback_grid, gap_voltage)
 
     def _track(
         self,
@@ -567,11 +643,15 @@ class InducedVoltageObservationCR(
         except AttributeError:
             return
         self._induced_voltage.write(current_recorded)
-        self._total_voltage.write(
-            self._wake_field._parent_rf_station.calc_gap_voltage_without_feedbacks(
-                self._wake_field.profile.hist_x
+        parent = getattr(self._wake_field, "_parent_rf_station", None)
+        if parent is None:
+            # Standalone WakeField (not attached as a station's
+            # local_wakefield): there is no RF gap voltage to add, so the
+            # total is undefined. Record the induced voltage only.
+            self._total_voltage.write(current_recorded)
+        else:
+            self._total_voltage.write(
+                self._rf_gap_voltage_on_profile_grid(parent) + current_recorded
             )
-            + current_recorded
-        )
         self._beam_reference_time.write(beam.reference.time)
         self._beam_profile.write(self._wake_field.profile.hist_y)

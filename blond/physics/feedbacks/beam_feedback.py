@@ -312,6 +312,24 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         NotImplementedError
             If any rf station on the main harmonic has a cavity
             feedback attached to any of its harmonics.
+
+        Notes
+        -----
+        KNOWN OVER-BROAD GUARD, deliberately left as is. The predicate is
+        ``any_feedback_not_none``, so a feedback regulating a NON-main
+        harmonic also raises -- even though it does not perturb the
+        main-harmonic cavity voltage and so contributes nothing to this
+        sum. That rejects a physically valid configuration: an h1 phase
+        loop running alongside a regulated h2 Landau cavity.
+
+        The narrow predicate would be
+        ``get_main_harmonic_cavity_feedback() is not None``. It is not used
+        because coupling this method to the surviving per-turn-grid
+        feedback API is an open design task (see the TODO below) and is out
+        of scope here; until it is done, refusing too much fails loudly
+        rather than letting the phase loop run against an unregulated-cavity
+        assumption. Narrow the predicate together with the implementation,
+        not before.
         """
         # TODO: Couple the beam phase loop to the surviving cavity
         #   feedback (``IQCavityFeedbackTimingClass``); see the
@@ -325,8 +343,12 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             # so a feedback regulating a non-main harmonic of a
             # `MultiHarmonicRFStation` would slip through unnoticed.
             # It is also the predicate the LHC/SPS beam controls use to
-            # demand `current_thres` at run start, so both guards now
-            # fire for exactly the same configurations.
+            # demand `current_thres` at run start. NB those guards test
+            # only `self._main_cavities[0]` while this one scans all of
+            # them, so the two do NOT fire for exactly the same
+            # configurations -- a ring whose first main cavity is
+            # unequipped but whose second is will trip this guard and not
+            # the run-start one.
             if not cav.any_feedback_not_none:
                 continue
             raise NotImplementedError(
@@ -418,6 +440,14 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         # station's gap voltage, so ``any_feedback_not_none`` -- and not
         # the main-harmonic-only ``get_main_harmonic_cavity_feedback``
         # -- decides whether a station carries a cavity feedback model.
+        #
+        # KNOWN MISMATCH: the warning text below is about the cavity SUM
+        # PHASE, which is a main-harmonic quantity, so for THAT purpose a
+        # station whose only feedback sits on a non-main harmonic is
+        # unequipped and a genuinely mixed main-harmonic ring can be
+        # reported as uniform. Left aligned with ``cavity_sum_phase``'s
+        # equally over-broad predicate on purpose -- narrow both together
+        # when that method is implemented, not one of them now.
         has_cavity_feedback = self.get_from_all_rf_stations(
             accessor=lambda rf: rf.any_feedback_not_none,
             rf_station_list=self._main_cavities,

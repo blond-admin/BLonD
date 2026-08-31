@@ -339,7 +339,14 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             is treated as no passage at all. Defaults to one histogram
             bin (`hist_step`), so a window built to match `span` exactly
             -- e.g. the full-turn profile a multi-turn wake requires --
-            is accepted despite floating-point noise.
+            is accepted despite floating-point noise. One bin is also the
+            exact allowance the *storing* consumer needs, so the same
+            default serves both families: `profile_duration` is the
+            outer-edge span, one `hist_step` wider than the
+            first-to-last-bin-centre extent the stored deposits actually
+            carry charge over, so two consecutive deposits separated by
+            `span` first coincide in absolute time at
+            ``profile_duration == span + hist_step``.
         consumer
             Name of the calling element, quoted in the message so the
             user can tell which consumer is affected.
