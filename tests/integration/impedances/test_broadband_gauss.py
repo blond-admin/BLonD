@@ -22,8 +22,8 @@ binning at all, which is what these tests exploit: the frequency-domain
 solver returns the same voltage for every binning tested here, and the
 time-domain solvers must converge onto it.
 
-They do not, unless the binning also resolves the *wake* -- see the xfail
-in `TestResonatorAboveProfileCutoff`.
+They now do at every binning that resolves the bunch -- see
+`TestResonatorAboveProfileCutoff`, which pins the case that used to fail.
 
 Set ``DEV_DRAW=true`` in the environment to plot the comparison.
 """
@@ -136,7 +136,11 @@ def _make_headless_beam() -> Beam:
     return beam
 
 
-def _peak_voltages(cutoff_frequency: float) -> dict[str, float]:
+def _peak_voltages(
+    cutoff_frequency: float,
+    solver_names: tuple[str, ...] | None = None,
+    center_frequency: float = F_RES,
+) -> dict[str, float]:
     """
     Peak absolute induced voltage per solver for one profile binning.
 
@@ -144,6 +148,10 @@ def _peak_voltages(cutoff_frequency: float) -> dict[str, float]:
     ----------
     cutoff_frequency
         Nyquist frequency of the profile binning, in [Hz].
+    solver_names
+        Solvers to evaluate; all of them when ``None``.
+    center_frequency
+        Resonator centre frequency, in [Hz].
 
     Returns
     -------
@@ -152,12 +160,16 @@ def _peak_voltages(cutoff_frequency: float) -> dict[str, float]:
     """
     return {
         name: float(np.max(np.abs(voltage)))
-        for name, voltage in _induced_voltages(cutoff_frequency)[1].items()
+        for name, voltage in _induced_voltages(
+            cutoff_frequency, solver_names, center_frequency
+        )[1].items()
     }
 
 
 def _induced_voltages(
     cutoff_frequency: float,
+    solver_names: tuple[str, ...] | None = None,
+    center_frequency: float = F_RES,
 ) -> tuple[StaticProfile, dict[str, np.ndarray]]:
     """
     Induced voltage of the resonator for each solver, in a single pass.
@@ -166,6 +178,10 @@ def _induced_voltages(
     ----------
     cutoff_frequency
         Nyquist frequency of the profile binning, in [Hz].
+    solver_names
+        Solvers to evaluate; all of them when ``None``.
+    center_frequency
+        Resonator centre frequency, in [Hz].
 
     Returns
     -------
@@ -180,6 +196,8 @@ def _induced_voltages(
         "time domain": TimeDomainFftSolver(),
         "pole residue": MultiPoleSparseSolve(),
     }
+    if solver_names is not None:
+        solvers = {name: solvers[name] for name in solver_names}
     voltages = {}
     for name, solver in solvers.items():
         beam = _make_headless_beam()
@@ -188,7 +206,7 @@ def _induced_voltages(
             sources=(
                 Resonators(
                     shunt_impedances=R_SHUNT,
-                    center_frequencies=F_RES,
+                    center_frequencies=center_frequency,
                     quality_factors=QUALITY_FACTOR,
                 ),
             ),
@@ -315,28 +333,25 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
 
     Note
     ----
-    KNOWN BUG (this test module deliberately fails on it): with
-    ``f_res = 10 * f_cutoff`` the bin width (5 ns) is far above the wake's
-    amplitude halving time (0.2 ns), so `TimeDomainFftSolver` and
-    `MultiPoleSparseSolve` sample a wake they cannot represent. They return
-    about 0.3 % of the correct induced voltage, i.e. they are low by a
-    factor of ~300. The bunch itself is well resolved and its spectrum dies
-    decades below `f_res`, so the physical voltage is the
-    binning-independent one that `PeriodicFreqSolver` returns (and that
-    both time-domain solvers converge to once the binning is refined -- see
-    `TestWakeResolvedBinning`).
+    REGRESSION GUARD: with ``f_res = 10 * f_cutoff`` the bin width (5 ns)
+    is far above the wake's amplitude halving time (0.2 ns), so
+    `TimeDomainFftSolver` and `MultiPoleSparseSolve` sample a wake they
+    cannot represent. The bunch itself is well resolved and its spectrum
+    dies decades below `f_res`, so the physical voltage is the
+    binning-independent one that `PeriodicFreqSolver` returns -- and both
+    time-domain solvers must return it here too, without the binning ever
+    resolving the wake.
 
-    Note that `MultiPoleSparseSolve` analytically bin-averages its poles
-    (``sinh(p * dt / 2) / (p * dt / 2)``, see
-    `MultiPoleSparseSolve._finalize_solver`), which is exactly the
-    mechanism meant to protect against an under-resolved pole -- it does
-    not rescue this case.
-
-    This binning is also the one that
-    `Resonators.get_impedance_from_wake` guards against with its
-    Nyquist `assert`. While that guard is active the solvers raise instead
-    of returning a wrong voltage, and the tests below error rather than
-    compare numbers.
+    They used to return about 0.3 % of it (low by a factor of ~300).
+    Bin-averaging the wake over the source bin alone (a box,
+    ``sinc(f dt)``; for the poles ``sinh(p * dt / 2) / (p * dt / 2)``) does
+    not rescue this: sampling folds the resonance from above the Nyquist
+    frequency down onto the impedance's inductive low-frequency flank --
+    the only part of the impedance this bunch samples -- and a single box
+    suppresses that fold only to first order in ``f * dt``, so it very
+    nearly cancels the flank. Averaging over the observation bin as well
+    (the triangle, ``sinc(f dt)**2``) suppresses it to second order and
+    leaves the flank intact; see `Resonators._wake_bin_average`.
     """
 
     def setUp(self):
@@ -364,8 +379,8 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
         """
         Time-domain and pole-residue must match the frequency domain.
 
-        FAILS: both return ~0.3 % of the correct induced voltage. This is
-        the bug this module is about -- see the class docstring.
+        Both used to return ~0.3 % of the correct induced voltage -- this
+        is the case this module is about, see the class docstring.
         """
         peaks = _peak_voltages(RESONATOR_ABOVE_CUTOFF_RATIO * F_RES)
         reference = peaks["frequency domain"]
@@ -379,6 +394,62 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
                     f"frequency domain gives {reference:.3e} V "
                     f"({peaks[name] / reference:.1f}x)"
                 ),
+            )
+
+
+@pytest.mark.integration
+class TestPoleRecursionPrecisionLimit(unittest.TestCase):
+    """`MultiPoleSparseSolve` refuses a pole it cannot represent."""
+
+    def setUp(self):
+        enforce_64_bit_backend()
+
+    def test_convolution_solvers_survive_an_extreme_binning(self):
+        """
+        The closed-form bin-average must hold up far past the cutoff.
+
+        For a resonator 100x above `F_RES` on the same 5 ns binning the wake
+        decays by ``exp(-1733)`` within one bin. Evaluating the bin-average
+        as ``sinh(p * dt / 2)**2 * exp(p * t)`` would overflow to
+        ``inf * 0 = nan`` there, so `Resonators._wake_bin_average` folds the
+        two together; the voltage must stay finite and still match the
+        frequency domain.
+        """
+        peaks = _peak_voltages(
+            RESONATOR_ABOVE_CUTOFF_RATIO * F_RES,
+            ("frequency domain", "time domain"),
+            center_frequency=100.0 * F_RES,
+        )
+        reference = peaks["frequency domain"]
+        self.assertTrue(np.isfinite(peaks["time domain"]))
+        self.assertAlmostEqual(
+            peaks["time domain"] / reference,
+            1.0,
+            delta=SOLVER_AGREEMENT_RTOL,
+            msg=(
+                f"time domain solver gives {peaks['time domain']:.3e} V, "
+                f"frequency domain gives {reference:.3e} V"
+            ),
+        )
+
+    def test_pole_residue_raises_instead_of_returning_garbage(self):
+        """
+        The pole recursion must refuse a pole beyond its precision.
+
+        `MultiPoleSparseSolve` scales each residue by ``~exp(-p * dt)`` and
+        cancels it back down with the self-bin correction, which costs
+        ``~exp(-Re(p) * dt)`` of the mantissa. For a resonator 3x above
+        `F_RES` on the same 5 ns binning that is ``exp(52)``, i.e. ~1e7
+        relative error -- silent garbage, which the guard in
+        `_finalize_solver` turns into an error naming the way out.
+        """
+        with self.assertRaisesRegex(
+            RuntimeError, "cannot resolve a pole that decays"
+        ):
+            _peak_voltages(
+                RESONATOR_ABOVE_CUTOFF_RATIO * F_RES,
+                ("pole residue",),
+                center_frequency=3.0 * F_RES,
             )
 
 

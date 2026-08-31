@@ -154,22 +154,29 @@ class TimeDomain(ABC):
         self, time: NumpyArray | CupyArray, counter_rotating: bool = False
     ) -> NumpyArray | CupyArray:
         """
-        Wake averaged over each sample bin ``[t - dt/2, t + dt/2]``.
+        Wake averaged over the source bin and the observation bin.
 
         A profile is a histogram, so its induced voltage is the wake
         integrated over each bin, not the wake sampled at the bin centre.
         Point-sampling aliases badly when the wake oscillates several times
-        within a bin (the low-Q / broadband resonator bug); bin-averaging
-        removes it. Time-domain solvers use this instead of
+        within a bin (the low-Q / broadband resonator bug). Averaging over
+        *both* bins -- equivalently, weighting the wake with the triangle
+        ``max(0, 1 - |tau| / dt) / dt``, the bin box convolved with itself --
+        is what removes it: a single box suppresses the sampling aliases only
+        to first order in ``f * dt``, which is the order that carries a
+        resonator's inductive low-frequency flank, so a resonance above the
+        profile's Nyquist frequency folds down and cancels most of that flank.
+        The triangle suppresses them to second order and leaves it intact.
+        Time-domain solvers use this instead of
         :func:`get_wake_per_particle`.
 
-        The default here bin-averages the piecewise-linear interpolant
+        The default here triangle-averages the piecewise-linear interpolant
         through :func:`get_wake_per_particle`, which on a uniform grid
-        reduces to the stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (edges
+        reduces to the stencil ``(w[n-1] + 4 w[n] + w[n+1]) / 6`` (edges
         extrapolate the boundary value). Exact for a tabulated wake; sources
         with an analytic wake (e.g.
         :class:`~blond.physics.impedances.sources.Resonators`) override this
-        with the exact closed-form bin-average instead.
+        with the exact closed-form result instead.
 
         Parameters
         ----------
@@ -187,7 +194,7 @@ class TimeDomain(ABC):
         w = self.get_wake_per_particle(time, counter_rotating)
         wake_prev = backend.concatenate((w[:1], w[:-1]))
         wake_next = backend.concatenate((w[1:], w[-1:]))
-        return (wake_prev + 6.0 * w + wake_next) / 8.0
+        return (wake_prev + 4.0 * w + wake_next) / 6.0
 
     def _assert_wake_time_resolves_resonances(  # noqa: B027
         self, time: NumpyArray | CupyArray

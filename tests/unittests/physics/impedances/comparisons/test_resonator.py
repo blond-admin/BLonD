@@ -439,7 +439,7 @@ class TestResonatorImpedances(unittest.TestCase):
 
         Same regression, exercising ``MultiPoleSparseSolve``. This solver does
         not build the wake via ``get_wake_per_bin``; it bin-averages each pole
-        analytically (residue scaled by ``sinh(p*dt/2)/(p*dt/2)``) plus a
+        analytically (residue scaled by ``(sinh(p*dt/2)/(p*dt/2))**2``) plus a
         causal self-bin correction. Without those corrections it is
         O((p*dt)^2) off the other solvers (~2.8 relative deviation here), so
         this pins the correction against the independent frequency-domain

@@ -1274,6 +1274,12 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         return induced_voltage
 
 
+# Largest relative accuracy loss `MultiPoleSparseSolve` accepts from the
+# bin-average cancellation of an under-resolved pole (see `_finalize_solver`).
+# 1e-3 corresponds to a wake decaying by ~exp(29) within a single bin.
+_POLE_PRECISION_LOSS_LIMIT = 1e-3
+
+
 class MultiPoleSparseSolve(WakeFieldSolver):
     """
     Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
@@ -1361,37 +1367,70 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             spacings, n_bins_per_spacing
         ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
 
-        # Bin-average each pole's wake so this solver matches the others on
-        # under-resolved resonators: averaging exp(p*t) over a centred bin
-        # scales its residue by sinh(p*dt/2)/(p*dt/2) (-> 1 as p -> 0). See
-        # TimeDomain.get_wake_per_bin.
-        half_p_dt = self._poles * (bin_dt / 2.0)
+        # Bin-average each pole's wake over the source bin AND the
+        # observation bin, so this solver matches the others on
+        # under-resolved resonators: weighting exp(p*t) with the triangle
+        # (the bin box convolved with itself) scales its residue by
+        # (sinh(p*dt/2) / (p*dt/2))**2 (-> 1 as p -> 0). Averaging over only
+        # one bin leaves the aliases of an above-Nyquist pole cancelling the
+        # inductive flank of the impedance -- see TimeDomain.get_wake_per_bin.
+        p_dt = self._poles * bin_dt
+        half_p_dt = p_dt / 2.0
         # p = 0 (a pole at zero frequency, which resonators never have) is a
         # removable singularity; guard the division and use the p -> 0 limit.
-        nonzero_pole = half_p_dt != 0
-        half_p_dt_safe = backend.ones_like(half_p_dt)
-        half_p_dt_safe[nonzero_pole] = half_p_dt[nonzero_pole]
-        bin_average_factor = backend.ones_like(half_p_dt)
+        nonzero_pole = p_dt != 0
+        p_dt_safe = backend.ones_like(p_dt)
+        p_dt_safe[nonzero_pole] = p_dt[nonzero_pole]
+        bin_average_factor = backend.ones_like(p_dt)
         bin_average_factor[nonzero_pole] = (
-            backend.exp(half_p_dt) - backend.exp(-half_p_dt)
-        )[nonzero_pole] / (2.0 * half_p_dt_safe[nonzero_pole])
+            (backend.exp(half_p_dt) - backend.exp(-half_p_dt))[nonzero_pole]
+            / p_dt_safe[nonzero_pole]
+        ) ** 2
 
-        # Self-bin correction: the symmetric bin-average above is exact for
-        # lag >= 1, but a bin's contribution to its own voltage must be the
-        # CAUSAL half-bin average (the wake is zero for negative lag). Add the
-        # residual term (applied in calc_induced_voltage); without it the
-        # solver stays O((p*dt)^2) off the convolution solvers.
+        # Self-bin correction: the symmetric triangle average above is exact
+        # for lag >= 1, but a bin's contribution to its own voltage is only
+        # the CAUSAL half of the triangle (the wake is zero for negative lag),
+        # and the recursion reads the self-bin at half weight. The residual
+        # between the two, applied in `calc_induced_voltage`, is
+        # ``r * (exp(p*dt) - exp(-p*dt) - 2*p*dt) / (p*dt)**2``; it vanishes
+        # as O(p*dt) once the bin resolves the pole.
         self._self_bin_correction = float(
             backend.sum(
                 backend.where(
                     nonzero_pole,
                     self._residues
-                    * (backend.exp(half_p_dt) + backend.exp(-half_p_dt) - 2.0)
-                    / (2.0 * half_p_dt_safe),
-                    backend.zeros_like(half_p_dt),
+                    * (backend.exp(p_dt) - backend.exp(-p_dt) - 2.0 * p_dt)
+                    / p_dt_safe**2,
+                    backend.zeros_like(p_dt),
                 )
             ).real
         )
+
+        # The bin-average scales each residue up by ~exp(-p*dt), and the
+        # self-bin correction cancels that back down to O(residue / (p*dt)).
+        # For a pole whose wake decays by many orders of magnitude within one
+        # bin that cancellation eats the whole double-precision mantissa: the
+        # measured relative error of the induced voltage is ~eps *
+        # exp(-Re(p)*dt) (1e-8 at -Re(p)*dt = 17, 1e7 at 52, 1e60 at 173).
+        # Unlike the convolution solvers -- which handle any binning since
+        # they evaluate the bin-averaged wake in closed form -- this recursion
+        # simply cannot represent such a pole, so refuse it rather than return
+        # silent garbage.
+        worst_decay_per_bin = -float(backend.min(self._poles.real)) * bin_dt
+        precision_loss = float(np.exp(worst_decay_per_bin)) * float(
+            np.finfo(backend.float).eps
+        )
+        if precision_loss > _POLE_PRECISION_LOSS_LIMIT:
+            raise RuntimeError(
+                f"MultiPoleSparseSolve cannot resolve a pole that decays by "
+                f"exp({worst_decay_per_bin:.3g}) within one profile bin of "
+                f"{bin_dt:.3g} s: the bin-average cancellation would leave "
+                f"only ~{precision_loss:.1e} relative accuracy. Refine the "
+                f"profile binning, drop or cap the offending pole, or use a "
+                f"convolution solver (e.g. `TimeDomainFftSolver`), which "
+                f"evaluates the bin-averaged wake in closed form and is "
+                f"accurate at any binning."
+            )
 
         self._residues = self._residues * bin_average_factor
         # Initialise to the LEFT EDGE of the first bin so that t_jump = 0

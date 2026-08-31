@@ -27,25 +27,20 @@ cap during fitting).
 BLonD has since landed a fix for a related low-Q-resonator aliasing bug
 (commit ``b4d2d9e3``, "Fixed InducedVoltageTime/InducedVoltageFreq
 mismatch for low-Q resonators"): instead of point-sampling/naively
-recursing a pole's wake, ``MultiPoleSparseSolve`` now analytically
-bin-averages it (``sinh(p*dt/2)/(p*dt/2)`` residue scaling, plus a causal
-self-bin correction -- see ``solvers.py``'s
-``MultiPoleSparseSolve._finalize_solver``). That's exactly the mechanism
-that used to alias/blow up for a pole this fast.
+recursing a pole's wake, ``MultiPoleSparseSolve`` bin-averages it
+analytically. That first fix averaged over the source bin only
+(``sinh(p*dt/2)/(p*dt/2)`` residue scaling) and left ~1.18x peak /
+~6.7% rms here; averaging over the observation bin as well (the residue
+scaling squared -- see ``solvers.py``'s
+``MultiPoleSparseSolve._finalize_solver`` and
+``Resonators._wake_bin_average``) removes the first-order aliasing of the
+above-Nyquist pole onto the impedance's inductive flank and brings this
+down to ~0.94x peak / ~1.5% rms.
 
 This test reproduces the *exact* runaway resonator above directly against
 ``blond.physics.impedances.sources.Resonators`` (BLonD's own source, not
-this project's fitter) and checks whether ``MultiPoleSparseSolve`` still
-disagrees with the frequency-domain reference by orders of magnitude, or
-whether the fix above resolved it.
-
-As measured against this branch, the fix brings the discrepancy down from
-the original ~3700x blow-up to ~1.18x peak / ~6.7% rms -- a real
-improvement, but not full agreement. So this only asserts the coarse
-"not catastrophically broken" bound (no orders-of-magnitude blow-up);
-it is **not** a claim that the two solvers agree to within a few percent
-for this pole. Tighten the threshold once the remaining ~7% discrepancy
-is understood and closed.
+this project's fitter) and checks that ``MultiPoleSparseSolve`` tracks the
+frequency-domain reference for it.
 
 Set ``DEV_DRAW=true`` in the environment to plot the induced-voltage
 comparison and residual for visual inspection.
@@ -149,8 +144,8 @@ def test_sparse_solver_matches_freq_domain_for_unresolvable_pole():
     reference (``PeriodicFreqSolver``) for a resonator whose pole is ~3x
     past the "well below 1" resolvability limit relative to the profile's
     bin width (see module docstring). Before the fix this diverged by
-    orders of magnitude (measured up to 3700x); after the fix it is down
-    to ~1.18x peak / ~6.7% rms -- much improved, but not full agreement.
+    orders of magnitude (measured up to 3700x); with the double
+    bin-average it is down to ~0.94x peak / ~1.5% rms.
     """
     t_rev = ConstantMagneticCycle(
         reference_particle=proton, value=SYNC_MOMENTUM, in_unit="momentum"
@@ -227,17 +222,16 @@ def test_sparse_solver_matches_freq_domain_for_unresolvable_pole():
             plt.show()
 
     # Before the low-Q-resonator fix this diverged by orders of magnitude
-    # (measured up to 3700x). As of this branch, the fix brings it down to
-    # ~1.18x peak / ~6.7% rms -- not full agreement, so this only guards
-    # the coarse "not catastrophically broken" bound, not a few-percent
-    # match (see module docstring).
-    assert rms_err < 0.5, (
+    # (measured up to 3700x); the double bin-average brings it to ~0.94x
+    # peak / ~1.5% rms (see module docstring). The bounds keep a ~3x margin
+    # on that, so they track the physics rather than the exact numbers.
+    assert rms_err < 0.05, (
         f"MultiPoleSparseSolve disagrees with the frequency-domain "
         f"reference by {100 * rms_err:.2f}% rms (peak ratio "
         f"{peak_ratio:.3g}x) for a pole with |p|*bin_dt = "
         f"{resolvability:.3g}"
     )
-    assert 1 / 3 < peak_ratio < 3, (
+    assert 0.8 < peak_ratio < 1.25, (
         f"MultiPoleSparseSolve peak induced voltage is {peak_ratio:.3g}x "
         f"the frequency-domain reference for a pole with |p|*bin_dt = "
         f"{resolvability:.3g}"
