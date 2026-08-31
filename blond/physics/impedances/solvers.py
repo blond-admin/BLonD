@@ -780,7 +780,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Static frequency offset [Hz] applied on top of the parent RF
         station's design frequency to retune the resonator each pass. If
         ``None`` (default, i.e. not given), no retuning is performed and the
-        resonator keeps its configured centre frequency.
+        resonator keeps its configured centre frequency -- the
+        fixed-frequency (higher-order-mode) case. Under a fast ramp that
+        path has a residual against an analytic fixed-frequency reference
+        which is NOT a solver error; see the *Frame-time fidelity* note
+        below for the lever that removes it.
 
     Attributes
     ----------
@@ -798,6 +802,27 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     Notes
     -----
+    **Frame-time fidelity (fixed-frequency wakes under a fast ramp).** With
+    ``delta_f=None`` the resonator does not retune, so the carried-wake phase
+    is just ``omega_0`` times the gap between arrival times and the
+    accumulated-phase rotation below is identically zero: the only thing
+    that sets the accuracy is how precisely the *reference clock* reports
+    those arrival times. That clock is advanced by the drifts, and
+    :class:`~blond.physics.drifts.DriftSimple` advances it with a single
+    ``beta`` across the whole arc (``beta`` steps only at the cavity). That
+    is self-consistent with the localised-energy model, but coarse once
+    ``beta`` moves within a turn: at 4 GeV single-section it is off by
+    ~0.22 ``t_rf`` over five turns, which is radians of wake phase, and the
+    solver faithfully reproduces the wake of the times it is given. The fix
+    is a finer frame, not a resonator change -- use
+    :class:`~blond.physics.drifts.DriftSubstepped`, which adapts the
+    reference energy several times across each arc; with enough sub-steps
+    this solver matches the analytic fixed-frequency reference to machine
+    precision every turn. Negligible wherever ``beta`` is effectively
+    constant. The *fundamental* mode is the other case: it follows the RF, so
+    it needs the retuning path (``delta_f=0.0``) and its phase-clock
+    rotation, not a finer frame.
+
     A cross-direction wake interaction -- a counter-rotating pass crossing an
     opposite-direction pass in the stored history -- requires every source to
     define its counter-rotating shunt ``R_CR``
