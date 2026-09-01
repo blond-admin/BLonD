@@ -29,6 +29,8 @@ class TestPytestActiveOutsideRunningTest(unittest.TestCase):
             key: value
             for key, value in os.environ.items()
             if not key.startswith("PYTEST_")
+            and not key.startswith("COV_")
+            and not key.startswith("COVERAGE_")
         }
         completed = subprocess.run(
             [sys.executable, "-c", code],
