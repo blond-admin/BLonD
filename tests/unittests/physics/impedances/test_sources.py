@@ -148,15 +148,17 @@ class TestImpedanceTableTime(unittest.TestCase):
                 backend.array(np.linspace(1, 5, 8)), counter_rotating=True
             )
 
-    def test_get_wake_per_bin_default_is_triangle_bin_average(self):
+    def test_get_wake_per_bin_default_is_bspline_bin_average(self):
         """The generic TimeDomain.get_wake_per_bin default bin-averages.
 
-        The kernel averages over the source bin and the observation bin, i.e.
-        it weights the wake with the triangle of half-width dt. A table wake
-        is piecewise-linear (interp), so that weighting is exactly the
-        (w[n-1] + 4 w[n] + w[n+1]) / 6 stencil on the interior samples. This
-        is the general fix shared by every time-domain source that does not
-        have an analytic closed form.
+        The kernel weights the wake with the quadratic B-spline
+        ``box * box * box`` (source bin, observation bin, and the third box
+        that turns the staircase line density into a piecewise-linear one and
+        so removes the half-bin lag). A table wake is piecewise-linear
+        (interp), so that weighting is exactly the
+        (w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384 stencil on
+        the interior samples. This is the general fix shared by every
+        time-domain source that does not have an analytic closed form.
         """
         dt = 1e-11
         t = np.arange(64) * dt
@@ -167,12 +169,16 @@ class TestImpedanceTableTime(unittest.TestCase):
         time = backend.array(t)
 
         binned = table.get_wake_per_bin(time)
-        w_prev = np.concatenate((w[:1], w[:-1]))
-        w_next = np.concatenate((w[1:], w[-1:]))
-        expected = (w_prev + 4 * w + w_next) / 6
+        expected = (
+            np.roll(w, 2)
+            + 76 * np.roll(w, 1)
+            + 230 * w
+            + 76 * np.roll(w, -1)
+            + np.roll(w, -2)
+        ) / 384
 
         np.testing.assert_allclose(
-            copy_to_cpu(binned)[1:-1], expected[1:-1], rtol=1e-12
+            copy_to_cpu(binned)[2:-2], expected[2:-2], rtol=1e-12
         )
         # and it genuinely differs from point-sampling get_wake_per_particle
         self.assertFalse(
@@ -938,12 +944,15 @@ class TestResonators(unittest.TestCase):
         dt = 0.18e-9  # f_res * dt = 0.18 -> heavily undersampled wake
         time = backend.array(np.arange(256) * dt)
 
-        # Averaging over the source bin AND the observation bin weights the
-        # point wake with the triangle max(0, 1 - |s| / dt) over (-dt, dt),
-        # integrated here with a fine midpoint rule.
-        n_sub = 4000
-        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 2.0 - 1.0) * dt
-        weights = 1.0 - np.abs(shifts) / dt
+        # Averaging over the source bin, the observation bin and the third
+        # box weights the point wake with the quadratic B-spline over
+        # (-1.5 dt, 1.5 dt), integrated here with a fine midpoint rule.
+        n_sub = 6000
+        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 3.0 - 1.5) * dt
+        scaled = np.abs(shifts) / dt
+        weights = np.where(
+            scaled <= 0.5, 0.75 - scaled**2, 0.5 * (1.5 - scaled) ** 2
+        )
         wake_avg = backend.zeros(len(time), dtype=backend.float)
         for shift, weight in zip(shifts, weights, strict=True):
             wake_avg = wake_avg + weight * local_res.get_wake_per_particle(
@@ -992,20 +1001,29 @@ class TestResonators(unittest.TestCase):
         time = backend.array(np.arange(256) * dt)
         n_fft = 512
 
-        # reference: fine midpoint-rule average of the point wake over each bin
-        # Averaging over the source bin AND the observation bin weights the
-        # point wake with the triangle max(0, 1 - |s| / dt) over (-dt, dt),
-        # integrated here with a fine midpoint rule.
-        n_sub = 4000
-        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 2.0 - 1.0) * dt
-        weights = 1.0 - np.abs(shifts) / dt
+        # reference: fine midpoint-rule average of the point wake over each
+        # bin, sampled from `time - dt` because the kernel has one non-causal
+        # tap (see TimeDomain.get_wake_per_bin), and advanced by one sample
+        # again the way get_impedance_from_wake does.
+        shifted_time = time - dt
+        # Averaging over the source bin, the observation bin and the third
+        # box weights the point wake with the quadratic B-spline over
+        # (-1.5 dt, 1.5 dt), integrated here with a fine midpoint rule.
+        n_sub = 6000
+        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 3.0 - 1.5) * dt
+        scaled = np.abs(shifts) / dt
+        weights = np.where(
+            scaled <= 0.5, 0.75 - scaled**2, 0.5 * (1.5 - scaled) ** 2
+        )
         wake_avg = backend.zeros(len(time), dtype=backend.float)
         for shift, weight in zip(shifts, weights, strict=True):
             wake_avg = wake_avg + weight * local_res.get_wake_per_particle(
-                time + shift
+                shifted_time + shift
             )
         wake_avg = wake_avg / np.sum(weights)
-        expected = backend.fft.rfft(wake_avg, n=n_fft)
+        expected = backend.fft.rfft(wake_avg, n=n_fft) * np.exp(
+            2j * np.pi * np.arange(n_fft // 2 + 1) / n_fft
+        )
 
         actual = local_res.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=n_fft
@@ -1177,11 +1195,11 @@ class TestResonators(unittest.TestCase):
 
         ``get_impedance_from_wake`` returns the FFT of the *bin-averaged*
         wake, i.e. the wake convolved with a normalised box of width ``dt``
-        once for the source bin and once for the observation bin (the
-        histogram-beam model). The exact frequency response of those two
-        boxes is ``sinc(f dt)**2``, so the analytic point impedance is
-        multiplied by that factor before comparison -- without it the
-        roll-off alone is ``1 - sinc(f_r dt)**2 ~ 3.3 %`` at ``f_r dt = 0.1``
+        three times -- source bin, observation bin, and the third box that
+        makes the line density piecewise linear. The exact frequency response
+        of those boxes is ``sinc(f dt)**3``, so the analytic point impedance
+        is multiplied by that factor before comparison -- without it the
+        roll-off alone is ``1 - sinc(f_r dt)**3 ~ 4.9 %`` at ``f_r dt = 0.1``
         and would swamp the decay/shape check. Compensating for it isolates
         the wake's decay and shape (residual ~ 3e-4, set by DFT aliasing and
         window truncation).
@@ -1219,13 +1237,13 @@ class TestResonators(unittest.TestCase):
         )
         self.assertEqual(len(freq), len(imp_from_wake))
         # Analytic point impedance, folded with the exact frequency response
-        # of the two width-dt bin-average boxes (sinc(f dt)**2) so it
+        # of the three width-dt bin-average boxes (sinc(f dt)**3) so it
         # describes the same bin-averaged wake as imp_from_wake.
         imp_analytic = (
             copy_to_cpu(
                 res.get_impedance(backend.array(freq), simulation, beam)
             )
-            * np.sinc(freq * dt) ** 2
+            * np.sinc(freq * dt) ** 3
         )
 
         # Compare in a band around the resonance where |Z| is significant.

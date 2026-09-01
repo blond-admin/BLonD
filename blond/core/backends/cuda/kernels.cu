@@ -617,26 +617,34 @@ extern "C" __global__ void wake_from_pole_residue(
     int i_update = 0;
     int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
+    // `state_prev` lags `state` by one bin. At a call boundary the two
+    // coincide: everything the previous call saw is at least two bins in the
+    // past by the time this one starts.
+    real_t state_prev_re = state_re;
+    real_t state_prev_im = state_im;
+
     real_t decay_re = real_t(0);
     real_t decay_im = real_t(0);
     real_t advance_re = real_t(0);
     real_t advance_im = real_t(0);
     real_t res_lb_re = res_re;
     real_t res_lb_im = res_im;
+    real_t chunk_dt = real_t(0);
+    real_t jump_prev = real_t(0);
+    int bins_since_jump = 2;  // force the lag factor on the first two bins
 
     for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
+        real_t t_jump;
         if (bin_i == update_on_bin_i) {
-            // decay = exp(pole * dt)
-            const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
+            // decay = exp(pole * chunk_dt)
+            chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
             {
-                const real_t decay_abs   = exp(pole_re * dt);
-                const real_t cos_tmp     = cos(pole_im * dt);
-                const real_t sin_tmp     = sin(pole_im * dt);
-                decay_re = decay_abs * cos_tmp;
-                decay_im = decay_abs * sin_tmp;
+                const real_t decay_abs = exp(pole_re * chunk_dt);
+                decay_re = decay_abs * cos(pole_im * chunk_dt);
+                decay_im = decay_abs * sin(pole_im * chunk_dt);
             }
 
-            const real_t t_jump = (bin_i == 0)
+            t_jump = (bin_i == 0)
                 ? (profile_dts[0] - t_start)
                 : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
 
@@ -646,13 +654,26 @@ extern "C" __global__ void wake_from_pole_residue(
                 advance_re = jump_abs * cos(pole_im * t_jump);
                 advance_im = jump_abs * sin(pole_im * t_jump);
             }
+            bins_since_jump = 0;
 
-            // Read the wake one bin further back than the state's reference.
-            // The lag is clamped at zero so the exponent keeps a non-positive
-            // real part and cannot overflow: a caller that hands in a state
-            // less than one bin old (t_start > profile_dts[0] - bin_dt) has
-            // nothing to reach back to, and only a zero state may do so.
-            const real_t lag = t_jump - bin_dt;
+            ++i_update;
+            if (i_update < n_updates) {
+                update_on_bin_i = update_on_bin[i_update];
+            }
+        } else {
+            t_jump = chunk_dt;
+            advance_re = decay_re;
+            advance_im = decay_im;
+        }
+
+        if (bins_since_jump < 2) {
+            // `state_prev` is referenced two bins back only when the last two
+            // steps were both one bin wide; otherwise reach across whatever
+            // they actually were. The lag is clamped at zero so the exponent
+            // keeps a non-positive real part and cannot overflow -- a caller
+            // handing in a state less than two bins old has nothing to reach
+            // back to, and only a zero state may do so.
+            const real_t lag = t_jump + jump_prev - real_t(2) * bin_dt;
             if (lag > real_t(0)) {
                 const real_t lb_abs = exp(pole_re * lag);
                 const real_t lb_re  = lb_abs * cos(pole_im * lag);
@@ -663,24 +684,21 @@ extern "C" __global__ void wake_from_pole_residue(
                 res_lb_re = res_re;
                 res_lb_im = res_im;
             }
-
-            ++i_update;
-            if (i_update < n_updates) {
-                update_on_bin_i = update_on_bin[i_update];
-            }
+            ++bins_since_jump;
         } else {
             res_lb_re = res_re;
             res_lb_im = res_im;
-            advance_re = decay_re;
-            advance_im = decay_im;
         }
 
-        // Read before advancing and injecting: `state` holds the history
-        // referenced one bin back, which is where the triangle-averaged wake
-        // starts. The bin's own charge is not in it -- the solver
-        // (MultiPoleSparseSolve) adds the self-bin term.
-        const real_t amp = res_lb_re * state_re - res_lb_im * state_im;
+        // Read the state that lags by two bins: the bin-averaged wake starts
+        // three half-bins back, so this recursion covers lags of two bins and
+        // more. The nearer three lags -- the previous bin, this one and the
+        // next -- are added by the solver.
+        const real_t amp = res_lb_re * state_prev_re - res_lb_im * state_prev_im;
         atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
+
+        state_prev_re = state_re;
+        state_prev_im = state_im;
 
         // state *= advance
         {
@@ -692,6 +710,7 @@ extern "C" __global__ void wake_from_pole_residue(
 
         // Inject this bin's charge (real part only, imag part is zero).
         state_re += cr_pole_flip * profile[bin_i] * two_factor;
+        jump_prev = t_jump;
     }
 
     // Persist state for the next call.

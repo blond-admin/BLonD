@@ -43,7 +43,11 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.impedances.sources import (
+    InductiveImpedance,
+    Resonators,
+    causal_third_antiderivative_factor,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -1181,7 +1185,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         total_bins = (
             self._n_wakes_full_turn * self._parent_wakefield.profile.n_bins
         )
-        time_axis = backend.linspace(0, t_max, total_bins + 1)
+        # From -dt, not from 0: the bin-averaged wake has one non-causal tap
+        # (see TimeDomain.get_wake_per_bin), so index 0 of the kernel is lag
+        # -1. `calc_induced_voltage` shifts its slices by one bin to match.
+        hist_step = self._parent_wakefield.profile.hist_step
+        time_axis = backend.linspace(0, t_max, total_bins + 1) - hist_step
 
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
@@ -1260,9 +1268,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         bins_per_profile = self._parent_wakefield.profile.n_bins
 
         def sel_current_profile(i: int) -> slice:
+            # +1 because the kernel starts at lag -1 (see
+            # `_update_wake_kernel`), so convolution index n holds bin n - 1.
             return slice(
-                i * bins_per_profile,  # start
-                (i + 1) * bins_per_profile,  # stop
+                i * bins_per_profile + 1,  # start
+                (i + 1) * bins_per_profile + 1,  # stop
             )
 
         i = 0
@@ -1274,9 +1284,81 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         return induced_voltage
 
 
-# Below this |p * dt| the closed form of the self-bin term loses accuracy to
-# cancellation and its Taylor series is used instead (see `_finalize_solver`).
-_POLE_SERIES_LIMIT = 1e-2
+def _bin_averaged_kernel(
+    lags: NumpyArray | CupyArray,
+    poles: NumpyArray | CupyArray,
+    residues: NumpyArray | CupyArray,
+    bin_dt: float,
+) -> NumpyArray | CupyArray:
+    r"""
+    Bin-averaged wake of a pole-residue model at arbitrary lags.
+
+    Sums ``2 * Re(residue * ...)`` over the poles of the wake weighted with
+    the quadratic B-spline ``box * box * box`` of bin width ``bin_dt`` -- the
+    same kernel
+    :func:`~blond.physics.impedances.sources.Resonators.get_wake_per_bin`
+    returns, but evaluated at lags that need not lie on a uniform grid.
+    :class:`MultiPoleSparseSolve` uses it for the three lags its recursion
+    does not cover, at the profile's actual bin spacings, so that the gaps of
+    a sparse profile are handled exactly.
+
+    Parameters
+    ----------
+    lags
+        Time lags at which to evaluate the kernel, in [s]. May be negative:
+        the kernel reaches back to ``-1.5 * bin_dt``.
+    poles
+        Complex poles of the model, in [rad/s].
+    residues
+        Complex residues of the model.
+    bin_dt
+        Profile bin width, in [s].
+
+    Returns
+    -------
+    kernel
+        Bin-averaged wake at each lag, in [V].
+    """
+    out = backend.zeros(len(lags), dtype=backend.float, order="C")
+    resolved = lags > 1.5 * bin_dt
+    onset = ~resolved
+    onset_lags = lags[onset]
+    for pole_entry, residue_entry in zip(poles, residues, strict=True):
+        pole = complex(pole_entry)
+        residue = complex(residue_entry)
+        pole_dt = pole * bin_dt
+        out[resolved] += (
+            2.0
+            * (
+                residue
+                * (np.expm1(pole_dt) / pole_dt) ** 3
+                * backend.exp(pole * (lags[resolved] - 1.5 * bin_dt))
+            ).real
+        )
+        out[onset] += (
+            2.0
+            / bin_dt**3
+            * (
+                residue
+                * (
+                    causal_third_antiderivative_factor(
+                        onset_lags + 1.5 * bin_dt, pole
+                    )
+                    - 3.0
+                    * causal_third_antiderivative_factor(
+                        onset_lags + 0.5 * bin_dt, pole
+                    )
+                    + 3.0
+                    * causal_third_antiderivative_factor(
+                        onset_lags - 0.5 * bin_dt, pole
+                    )
+                    - causal_third_antiderivative_factor(
+                        onset_lags - 1.5 * bin_dt, pole
+                    )
+                )
+            ).real
+        )
+    return out
 
 
 class MultiPoleSparseSolve(WakeFieldSolver):
@@ -1299,7 +1381,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self.last_reference_time: float | None = None
 
         self._charge_per_macroparticle: float | None = None  # in Coulomb
-        self._self_bin_voltage_factor: float | None = None
+        self._lag_zero_factor: float | None = None
+        self._lag_prev_factors: NumpyArray | CupyArray | None = None
+        self._lag_next_factors: NumpyArray | CupyArray | None = None
 
         # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
@@ -1366,22 +1450,17 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             spacings, n_bins_per_spacing
         ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
 
-        # Bin-average each pole's wake over the source bin AND the
-        # observation bin, so this solver matches the convolution solvers on
-        # under-resolved resonators: weighting exp(p*t) with the triangle
-        # (the bin box convolved with itself) scales its residue by
-        # ((exp(p*dt) - 1) / (p*dt))**2 and starts the kernel one bin late,
-        # which is why `wake_from_pole_residue` reads its state before
-        # advancing it. Averaging over only one bin leaves the aliases of an
-        # above-Nyquist pole cancelling the inductive flank of the impedance
-        # -- see TimeDomain.get_wake_per_bin.
-        #
-        # This form is used rather than the equivalent
-        # (sinh(p*dt/2) / (p*dt/2))**2 with the kernel read in step: that one
-        # grows like exp(-p*dt) and has to be cancelled back down by the
-        # self-bin term, which costs ~eps*exp(-Re(p)*dt) of the mantissa (1e7
-        # relative error at -Re(p)*dt = 52, nan past ~1400). Every factor here
-        # stays bounded by one instead, at any binning.
+        # Bin-average each pole's wake over the source bin, the observation
+        # bin and the third box that makes the line density piecewise linear
+        # instead of a staircase -- otherwise the solvers carry a half-bin lag
+        # that inflates the loss factor (see
+        # `Resonators._wake_bin_average`). Weighting exp(p*t) with the
+        # resulting quadratic B-spline scales the residue by
+        # ((exp(p*dt) - 1) / (p*dt))**3 and starts the kernel three half-bins
+        # late, so `wake_from_pole_residue` reads a state referenced two bins
+        # back; the extra exp(p*dt/2) here is the half bin between that
+        # reference and where the kernel begins. Every factor stays bounded by
+        # one, at any binning.
         p_dt = self._poles * bin_dt
         # p = 0 (a pole at zero frequency, which resonators never have) is a
         # removable singularity; guard the division and use the p -> 0 limit.
@@ -1390,40 +1469,43 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         p_dt_safe[nonzero_pole] = p_dt[nonzero_pole]
         bin_average_factor = backend.ones_like(p_dt)
         bin_average_factor[nonzero_pole] = (
-            backend.expm1(p_dt_safe) / p_dt_safe
-        )[nonzero_pole] ** 2
+            (backend.expm1(p_dt_safe) / p_dt_safe) ** 3
+            * backend.exp(p_dt_safe / 2.0)
+        )[nonzero_pole]
 
-        # Self-bin term: the kernel above only covers lags of a bin or more,
-        # so a bin's contribution to its own voltage -- the causal part of the
-        # triangle, `residue * (exp(p*dt) - 1 - p*dt) / (p*dt)**2` -- is added
-        # separately in `calc_induced_voltage`. It tends to residue / 2 (the
-        # beam-loading factor of one half) as p -> 0, where the subtraction
-        # cancels; use the series there.
-        self_bin_factor = (backend.expm1(p_dt_safe) - p_dt_safe) / p_dt_safe**2
-        resolved_pole = backend.abs(p_dt) < _POLE_SERIES_LIMIT
-        self_bin_series = (
-            0.5
-            + p_dt / 6.0
-            + p_dt**2 / 24.0
-            + p_dt**3 / 120.0
-            + p_dt**4 / 720.0
+        # The recursion covers lags of two bins and more. The remaining three
+        # -- the previous bin, the bin itself and the *next* one, which the
+        # kernel's non-causal tap reaches -- are added in
+        # `calc_induced_voltage`. They are evaluated at the profile's actual
+        # bin spacings, so a sparse profile's gaps come out exactly right:
+        # a neighbour a gap away lands in the closed-form branch, and the
+        # non-causal tap across a gap evaluates to zero on its own.
+        bin_spacings = profile_hist_x[1:] - profile_hist_x[:-1]
+        n_bins = len(profile_hist_x)
+        self._lag_zero_factor = float(
+            _bin_averaged_kernel(
+                backend.zeros(1, dtype=backend.float),
+                self._poles,
+                self._residues,
+                bin_dt,
+            )[0]
         )
-        # `resolved_pole` also covers p = 0, where the series gives the
-        # removable-singularity value 1/2 directly.
-        self_bin_factor = backend.where(
-            resolved_pole, self_bin_series, self_bin_factor
+        self._lag_prev_factors = backend.zeros(n_bins, dtype=backend.float)
+        self._lag_prev_factors[1:] = _bin_averaged_kernel(
+            bin_spacings, self._poles, self._residues, bin_dt
         )
-        self._self_bin_voltage_factor = float(
-            2.0 * backend.sum(self._residues * self_bin_factor).real
+        self._lag_next_factors = backend.zeros(n_bins, dtype=backend.float)
+        self._lag_next_factors[:-1] = _bin_averaged_kernel(
+            -bin_spacings, self._poles, self._residues, bin_dt
         )
 
         self._residues = self._residues * bin_average_factor
-        # Initialise one full bin before the first bin centre: the kernel
-        # reads its state one bin back, so it evaluates
-        # `exp(pole * (t_jump - bin_dt))` and needs `t_jump >= bin_dt` to stay
-        # bounded. The state is zero on the first call, so the value only has
-        # to keep that exponent non-positive.
-        self._states[-1] = profile_hist_x[0] - bin_dt
+        # Initialise two full bins before the first bin centre: the kernel
+        # reads a state referenced two bins back, so it evaluates
+        # `exp(pole * (t_jump - 2 * bin_dt))` and needs `t_jump >= 2 * bin_dt`
+        # to stay bounded. The state is zero on the first call, so the value
+        # only has to keep that exponent non-positive.
+        self._states[-1] = profile_hist_x[0] - 2.0 * bin_dt
 
         self._voltage_threaded = backend.zeros(
             (backend.specials.get_max_threads(), len(self._voltage))
@@ -1476,7 +1558,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
             bin_dt = float(profile_dts[1] - profile_dts[0])
-            assert self._states[-1].real <= (profile_dts[0] - bin_dt)
+            assert self._states[-1].real <= (profile_dts[0] - 2.0 * bin_dt)
 
         self._charge_per_macroparticle = (
             -(1 * beam.particle_type.charge * e)
@@ -1497,13 +1579,16 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             update_on_bin=self._update_on_bin,
             factor=self._charge_per_macroparticle,
         )
-        # Self-bin term (see _finalize_solver): the recursion only covers
-        # lags of a bin or more, so a bin's contribution to its own voltage --
-        # the causal part of the triangle bin-average -- is added here.
-        self._voltage += (
-            profile_hist_y
-            * self._charge_per_macroparticle
-            * self._self_bin_voltage_factor
+        # Near-diagonal terms (see _finalize_solver): the recursion covers
+        # lags of two bins and more, so the previous bin, the bin itself and
+        # the next one -- the kernel's non-causal tap -- are added here.
+        factor = self._charge_per_macroparticle
+        self._voltage += (factor * self._lag_zero_factor) * profile_hist_y
+        self._voltage[1:] += (
+            factor * self._lag_prev_factors[1:] * profile_hist_y[:-1]
+        )
+        self._voltage[:-1] += (
+            factor * self._lag_next_factors[:-1] * profile_hist_y[1:]
         )
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

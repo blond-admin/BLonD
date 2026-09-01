@@ -276,6 +276,60 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         return impedance_from_wake
 
 
+# Terms summed for the series form of `Resonators._wake_third_antiderivative_factor`
+# (|p t| < 1, so the omitted tail is below 1 / 23! ~ 4e-23).
+_PHI3_SERIES_TERMS = 20
+_FACTORIAL_3 = 6.0
+
+
+def causal_third_antiderivative_factor(
+    t: NumpyArray | CupyArray, pole: complex
+) -> NumpyArray | CupyArray:
+    r"""
+    Causal factor :math:`\varphi_3(t)` of a pole's third antiderivative.
+
+    :math:`\varphi_3(t) = (e^{p t} - 1 - p t - (p t)^2 / 2) / p^3` for
+    :math:`t > 0` and :math:`\varphi_3(t \le 0) = 0`, so that the third
+    antiderivative of the wake :math:`2 \,\mathrm{Re}[\rho e^{p t}]` is
+    :math:`A_3(t) = 2 \,\mathrm{Re}[\rho \varphi_3(t)]`. Three box averages of
+    the wake are a third difference of :math:`A_3`; see
+    ``Resonators._wake_bin_average``.
+
+    Written as above the numerator cancels to :math:`O((p t)^3)` -- three
+    digits lost for every decade :math:`|p t|` falls below one -- so for
+    :math:`|p t| < 1` the equivalent series
+    :math:`t^3 \sum_k (p t)^k / (k + 3)!` is summed instead, which has no
+    cancellation at all.
+
+    Parameters
+    ----------
+    t
+        Time array at which to evaluate :math:`\varphi_3`, in [s].
+    pole
+        Pole :math:`p = -\alpha + i \bar\omega`, in [rad/s].
+
+    Returns
+    -------
+    phi_3
+        :math:`\varphi_3(t)`, in [s^3].
+    """
+    causal = t > 0.0  # (and phi_3(0) = 0 anyway)
+    t_causal = backend.where(causal, t, 0.0)
+    pole_t = pole * t_causal
+    direct = (backend.exp(pole_t) - 1.0 - pole_t - 0.5 * pole_t**2) / pole**3
+    # t**3 * sum_k (p t)**k / (k + 3)!, by Horner on the ratio of successive
+    # coefficients (a_(k+1) / a_k = 1 / (k + 4)).
+    series_factor = backend.ones_like(pole_t)
+    for k in range(_PHI3_SERIES_TERMS - 2, -1, -1):
+        series_factor = 1.0 + pole_t * series_factor / (k + 4)
+    series = t_causal**3 * series_factor / _FACTORIAL_3
+    return backend.where(
+        (backend.abs(pole_t) < 1.0) & causal,
+        series,
+        backend.where(causal, direct, 0.0),
+    )
+
+
 class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
     r"""
     Multiple resonances of RLC circuits for impedance calculations.
@@ -451,71 +505,71 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         shunt_impedances: NumpyArray | CupyArray,
     ) -> NumpyArray | CupyArray:
         r"""
-        Exact double bin-average of the resonator wake.
+        Exact triple bin-average of the resonator wake.
 
-        A BLonD profile is a histogram: the source charge is
-        piecewise-constant over each bin, and the induced voltage returned on
-        that same grid is the voltage averaged over each bin. The discrete
-        kernel is therefore the wake averaged over the source bin **and**
-        over the observation bin, i.e. the wake weighted with the triangle
+        A BLonD profile is a histogram, so the induced voltage of a bin is the
+        wake averaged over the source bin and over the observation bin. Doing
+        only that -- weighting the wake with the box of one bin twice, i.e.
+        multiplying the impedance by :math:`\mathrm{sinc}^2(\pi f \Delta t)` --
+        removes the *amplitude* error of an above-Nyquist resonance but leaves
+        a **half-bin lag**: it models the beam as a staircase, whose
+        derivative is a train of deltas sitting exactly on the bin edges, and
+        a causal wake assigns each of those edges wholly to the following bin.
+        For an inductive impedance that turns the exact answer into a backward
+        difference of the line density, late by :math:`\Delta t / 2`.
 
-        .. math::
-            \Lambda(\tau) = \frac{1}{\Delta t}
-                \max\!\left(0,\, 1 - \frac{|\tau|}{\Delta t}\right),
+        The lag matters more than it looks. A reactive impedance must do no
+        net work on the beam; a phase error turns it resistive, and for a
+        12 ns Gaussian against a broadband 1 GHz resonator binned at
+        ``f_cutoff = f_res / 10`` the two-box average inflates the loss factor
+        **14-fold** (4.7-fold at ``f_res / 3``).
 
-        which is the box of one bin convolved with itself.
+        Averaging over a third box -- equivalently, reconstructing the line
+        density as piecewise linear through the bin centres instead of as a
+        staircase -- fixes it. The wake is weighted with the quadratic
+        B-spline :math:`B_2 = \mathrm{box} * \mathrm{box} * \mathrm{box}`
+        (:math:`\mathrm{sinc}^3(\pi f \Delta t)`), whose support
+        :math:`(-3\Delta t / 2,\, 3\Delta t / 2)` straddles the causal onset
+        symmetrically, so the sampled kernel is symmetric about it. That drops
+        the lag to 0.002 bins and the loss factor to within 2 % of the
+        continuum answer, at the cost of about 1 % more amplitude damping.
+        A fourth box gains nothing further.
 
-        Averaging over only one of the two bins (a single box, i.e.
-        multiplying the impedance by :math:`\mathrm{sinc}(\pi f \Delta t)`)
-        is *not* enough. Sampling at :math:`\Delta t` folds every alias
-        :math:`f + k / \Delta t` onto :math:`f`, and a single box suppresses
-        those aliases only as :math:`O(f \Delta t / k)` -- first order in
-        :math:`f`, which is exactly the order carrying the inductive
-        low-frequency flank :math:`Z \approx i \omega R / (Q \omega_r)` that a
-        long bunch actually samples. A resonator above the profile's Nyquist
-        frequency then has its aliased peak cancel most of that flank: for a
-        12 ns Gaussian and a broadband 1 GHz resonator binned at
-        ``f_cutoff = f_res / 10`` a single average returns 0.3 % of the
-        correct induced voltage. The triangle's
-        :math:`\mathrm{sinc}^2(\pi f \Delta t)` suppresses the aliases as
-        :math:`O((f \Delta t / k)^2)` and leaves the inductive term intact, so
-        the time-domain solvers reproduce the frequency-domain result at any
-        binning that resolves the *bunch* -- the wake itself no longer has to
-        be resolved.
+        The price is one **non-causal tap**: the kernel is non-zero from
+        :math:`-3\Delta t / 2`, so the voltage of a bin depends on the charge
+        of the *next* one. That is an artefact of interpolating the line
+        density, not acausality -- the profile of the whole turn is known
+        before the voltage is applied -- but callers must sample ``time``
+        from ``-dt`` rather than from zero to pick the tap up.
 
-        Writing the resonator wake (including the linac ``R/Q`` factor of two)
-        with the pole :math:`p = -\alpha + i \bar\omega` and the residue
-        :math:`\rho = R \alpha (1 + i \alpha / \bar\omega)` as
+        Writing the wake with the pole :math:`p = -\alpha + i \bar\omega` and
+        the residue :math:`\rho = R \alpha (1 + i \alpha / \bar\omega)` as
         :math:`W(t) = 2 \,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`, the
-        causal second antiderivative is
-        :math:`G(t) = 2 \,\mathrm{Re}[\rho \varphi(t)]` with
-        :math:`\varphi(t) = (e^{p t} - 1 - p t) / p^2` for :math:`t > 0` and
-        :math:`\varphi(t \le 0) = 0`. The triangle-weighted average is the
-        second difference
-        :math:`(G(t + \Delta t) - 2 G(t) + G(t - \Delta t)) / \Delta t^2`.
-
-        Once the whole triangle is causal (:math:`t \ge \Delta t`) the
-        :math:`-1 - p t` parts of the three :math:`\varphi` cancel
-        *analytically*, leaving
+        causal third antiderivative is
+        :math:`A_3(t) = 2 \,\mathrm{Re}[\rho \varphi_3(t)]` with
+        :math:`\varphi_3(t) = (e^{p t} - 1 - p t - (p t)^2 / 2) / p^3` for
+        :math:`t > 0` and :math:`\varphi_3(t \le 0) = 0`. Three box averages
+        are the third difference
 
         .. math::
-            W_\mathrm{avg}(t) = 2 \,\mathrm{Re}\!\left[\rho\,
-                \left(\frac{\sinh(p \Delta t / 2)}{p \Delta t / 2}\right)^{2}
-                e^{p t}\right] .
+            \frac{A_3(t + \tfrac{3}{2}\Delta t)
+                  - 3 A_3(t + \tfrac{1}{2}\Delta t)
+                  + 3 A_3(t - \tfrac{1}{2}\Delta t)
+                  - A_3(t - \tfrac{3}{2}\Delta t)}{\Delta t^3} .
 
-        That form is used there rather than the second difference itself:
-        :math:`G` tends to the resonator's low-frequency inductance
-        :math:`R / (Q \omega)` while the second difference of it is smaller by
-        :math:`(\omega \Delta t)^2`, so differencing loses that many digits to
-        cancellation (4e-7 relative at :math:`\omega \Delta t \sim 10^{-5}`),
-        whereas the expression above stays accurate to machine precision at
-        any binning. Only the two bins straddling the causal onset, where no
-        such cancellation occurs, are evaluated from :math:`\varphi` directly.
+        Once the whole B-spline is causal (:math:`t \ge 3\Delta t / 2`) the
+        polynomial parts of the four :math:`\varphi_3` cancel *analytically*,
+        leaving
 
-        The kernel is zero for :math:`t \le -\Delta t`, i.e. it stays causal
-        on the sampling grid, and the self-bin :math:`t = 0` automatically
-        picks up the beam-loading factor of one half,
-        :math:`W_\mathrm{avg}(0) \to W(0) / 2` for a resolved wake.
+        .. math::
+            W_\mathrm{avg}(t) = 2 \,\mathrm{Re}\!\left[\rho
+                \left(\frac{e^{p \Delta t} - 1}{p \Delta t}\right)^{3}
+                e^{p (t - 3\Delta t / 2)}\right] ,
+
+        which is what is evaluated there -- differencing :math:`A_3` itself
+        would lose the digits by which the difference is smaller than
+        :math:`A_3`. Only the samples straddling the onset, where no such
+        cancellation occurs, come from :math:`\varphi_3` directly.
 
         Parameters
         ----------
@@ -535,9 +589,7 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         """
         dt = float(time[1] - time[0])
         out = backend.zeros(len(time), dtype=backend.float, order="C")
-        # Where the whole triangle [t - dt, t + dt] is causal the closed form
-        # below is exact; the remaining two bins straddle the onset.
-        fully_causal = time >= dt
+        fully_causal = time > 1.5 * dt
         onset = ~fully_causal
         for res_ind in range(self._n_resonators):
             # Scalars, so plain complex arithmetic (this is setup code, not
@@ -553,27 +605,29 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
             out[fully_causal] += (
                 2.0
                 * (
-                    residue
-                    * self._triangle_averaged_pole(
-                        time[fully_causal], pole, dt
-                    )
+                    residue * self._smoothed_pole(time[fully_causal], pole, dt)
                 ).real
             )
+            onset_time = time[onset]
             out[onset] += (
                 2.0
-                / dt**2
+                / dt**3
                 * (
                     residue
                     * (
-                        self._wake_second_antiderivative_factor(
-                            time[onset] + dt, pole
+                        self._wake_third_antiderivative_factor(
+                            onset_time + 1.5 * dt, pole
                         )
-                        - 2.0
-                        * self._wake_second_antiderivative_factor(
-                            time[onset], pole
+                        - 3.0
+                        * self._wake_third_antiderivative_factor(
+                            onset_time + 0.5 * dt, pole
                         )
-                        + self._wake_second_antiderivative_factor(
-                            time[onset] - dt, pole
+                        + 3.0
+                        * self._wake_third_antiderivative_factor(
+                            onset_time - 0.5 * dt, pole
+                        )
+                        - self._wake_third_antiderivative_factor(
+                            onset_time - 1.5 * dt, pole
                         )
                     )
                 ).real
@@ -581,31 +635,31 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         return out
 
     @staticmethod
-    def _triangle_averaged_pole(
+    def _smoothed_pole(
         t: NumpyArray | CupyArray, pole: complex, dt: float
     ) -> NumpyArray | CupyArray:
         r"""
-        Triangle-averaged :math:`e^{p t}`, for lags of a bin or more.
+        B-spline-averaged :math:`e^{p t}`, for lags past the causal onset.
 
         The value is
-        :math:`(\sinh(p \Delta t / 2) / (p \Delta t / 2))^2 e^{p t}`, i.e. the
-        factor multiplying the residue in :func:`_wake_bin_average` once the
-        whole triangle :math:`[t - \Delta t, t + \Delta t]` is causal.
+        :math:`((e^{p \Delta t} - 1) / (p \Delta t))^3 e^{p (t - 3\Delta t/2)}`,
+        i.e. the factor multiplying the residue in :func:`_wake_bin_average`
+        once the whole smoothing B-spline
+        :math:`(t - 3\Delta t/2,\, t + 3\Delta t/2)` is causal.
 
-        Which of two algebraically identical forms is evaluated depends on
-        how well the bin resolves the pole. For
-        :math:`|p \Delta t| \ge 1` the ``sinh`` factor on its own overflows as
-        soon as the wake decays by more than :math:`e^{709}` within a bin,
-        while :math:`e^{p t}` underflows to zero -- ``inf * 0 = nan``. Folding
-        the two together into the second difference of :math:`e^{p t}` keeps
-        every term bounded by one; its cancellation is only
-        :math:`O(|p \Delta t|^2)`, which is harmless there and exactly what
-        rules that form out for a resolved pole.
+        Which of the two algebraically identical forms is evaluated depends on
+        how well the bin resolves the pole. For :math:`|p \Delta t| \ge 1` the
+        cubed factor on its own overflows as soon as the wake decays by more
+        than :math:`e^{709}` within a bin, while :math:`e^{p t}` underflows to
+        zero -- ``inf * 0 = nan``. Expanding it into the third difference of
+        :math:`e^{p t}` keeps every exponent non-positive; its cancellation is
+        only :math:`O(|p \Delta t|^3)`, which is harmless there and exactly
+        what rules that form out for a resolved pole.
 
         Parameters
         ----------
         t
-            Time array, in [s]. Every entry must be at least ``dt``.
+            Time array, in [s]. Every entry must exceed ``1.5 * dt``.
         pole
             Resonator pole :math:`p = -\alpha + i \bar\omega`, in [rad/s].
         dt
@@ -613,52 +667,46 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
 
         Returns
         -------
-        averaged_pole
-            The triangle-averaged pole, dimensionless.
+        smoothed_pole
+            The B-spline-averaged pole, dimensionless.
         """
         pole_dt = pole * dt
         if abs(pole_dt) < 1.0:
-            # Resolved pole: |Re(pole_dt)| < 1, so sinh cannot overflow.
-            half_pole_dt = pole_dt / 2.0
-            return (np.sinh(half_pole_dt) / half_pole_dt) ** 2 * backend.exp(
-                pole * t
+            # Resolved pole: |Re(pole_dt)| < 1, so nothing can overflow.
+            return (np.expm1(pole_dt) / pole_dt) ** 3 * backend.exp(
+                pole * (t - 1.5 * dt)
             )
         return (
-            backend.exp(pole * (t + dt))
-            - 2.0 * backend.exp(pole * t)
-            + backend.exp(pole * (t - dt))
-        ) / pole_dt**2
+            backend.exp(pole * (t + 1.5 * dt))
+            - 3.0 * backend.exp(pole * (t + 0.5 * dt))
+            + 3.0 * backend.exp(pole * (t - 0.5 * dt))
+            - backend.exp(pole * (t - 1.5 * dt))
+        ) / pole_dt**3
 
     @staticmethod
-    def _wake_second_antiderivative_factor(
+    def _wake_third_antiderivative_factor(
         t: NumpyArray | CupyArray, pole: complex
     ) -> NumpyArray | CupyArray:
         r"""
-        Causal factor :math:`\varphi(t)` of the wake's second antiderivative.
+        Causal factor :math:`\varphi_3(t)` of the wake's third antiderivative.
 
-        See :func:`_wake_bin_average`:
-        :math:`\varphi(t) = (e^{p t} - 1 - p t) / p^2` for :math:`t > 0` and
-        :math:`\varphi(t \le 0) = 0`, so that the second antiderivative of the
-        wake is :math:`G(t) = 2 \,\mathrm{Re}[\rho \varphi(t)]`.
+        Thin wrapper over :func:`causal_third_antiderivative_factor`, which
+        :class:`~blond.physics.impedances.solvers.MultiPoleSparseSolve` also
+        uses to build its lag -1, 0 and +1 terms from the same formula.
 
         Parameters
         ----------
         t
-            Time array at which to evaluate :math:`\varphi`, in [s].
+            Time array at which to evaluate :math:`\varphi_3`, in [s].
         pole
             Resonator pole :math:`p = -\alpha + i \bar\omega`, in [rad/s].
 
         Returns
         -------
-        phi
-            :math:`\varphi(t)`, in [s^2].
+        phi_3
+            :math:`\varphi_3(t)`, in [s^3].
         """
-        causal = t > 0.0  # (and phi(0) = 0 anyway)
-        pole_t = pole * backend.where(causal, t, 0.0)
-        return (
-            backend.where(causal, backend.exp(pole_t) - 1.0 - pole_t, 0.0)
-            / pole**2
-        )
+        return causal_third_antiderivative_factor(t, pole)
 
     def get_wake_per_particle(
         self,

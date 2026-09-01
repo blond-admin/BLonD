@@ -199,11 +199,13 @@ class TestPole(unittest.TestCase):
         """Pinned impulse response of the kernel for a fast, unstable pole.
 
         A unit charge sits in bin 1, so `voltage` is the kernel itself. The
-        recursion reads its state before advancing and injecting, so the
-        response starts in bin 2 (the triangle bin-average reaches back one
-        bin) and carries the bin's full charge rather than half of it -- see
+        recursion reads a state that lags by two bins (the B-spline
+        bin-average starts three half-bins back), so the response starts in
+        bin 3 and carries the bin's full charge rather than half of it -- see
         `Specials.wake_from_pole_residue`. The pinned values are
-        ``2 * Re(sum(residues * exp(poles * (n - 2) * dt)))``.
+        ``2 * Re(sum(residues * exp(poles * (n - 3) * dt)))``; the three lags
+        the recursion does not cover are added by `MultiPoleSparseSolve`, not
+        by the kernel.
         """
         n = int(256)
         hist_y = backend.zeros(n, dtype=float)

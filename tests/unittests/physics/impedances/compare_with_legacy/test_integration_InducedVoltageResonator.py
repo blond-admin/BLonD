@@ -222,10 +222,17 @@ class TestBothBlonds(unittest.TestCase):
                     blond2_ind_volt, self.blond3.induced_voltage
                 )
             except AssertionError:
+                # BLonD 2 point-samples the resonator wake; BLonD 3
+                # bin-averages it over the source bin, the observation bin
+                # and the box that makes the line density piecewise linear
+                # (see `Resonators._wake_bin_average`). The two therefore
+                # differ systematically by a little, and BLonD 3 is the
+                # better of the two -- this only guards against a gross
+                # divergence, not against that difference.
                 np.testing.assert_allclose(
                     blond2_ind_volt,
                     self.blond3.induced_voltage,
-                    atol=20,  # of 120000
+                    atol=50,  # of 120000
                 )
 
     @pytest.mark.backend_mutation

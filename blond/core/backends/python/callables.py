@@ -70,6 +70,12 @@ def _move_flagged_elements_to_end_py(
     return j + 1
 
 
+# How far behind the current bin the state read by `wake_from_pole_residue`
+# lags: the B-spline bin-averaged wake starts three half-bins back, so the
+# recursion covers lags of two bins and more.
+_STATE_LAG_BINS = 2
+
+
 class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
 
@@ -643,7 +649,7 @@ class PythonSpecials(Specials):
             out[sel] = hist
 
     @staticmethod
-    def wake_from_pole_residue(
+    def wake_from_pole_residue(  # NOQA PLR0915
         # read
         profile: NumpyArray,
         profile_dts: NumpyArray,
@@ -736,44 +742,58 @@ class PythonSpecials(Specials):
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
 
+            # `state_prev` lags `state` by one bin. At a call boundary the
+            # two coincide: everything the previous call saw is at least two
+            # bins in the past by the time this one starts.
+            state_prev = state
             decay = 0.0 + 0j
             advance = 0.0 + 0j
+            chunk_dt = 0.0
+            jump_prev = 0.0
             residue_lookback = residue
+            bins_since_jump = _STATE_LAG_BINS  # lag factor on the first bins
             for bin_i in range(n_bins):
                 if bin_i == update_on_bin_i:
-                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
-                    decay = np.exp(pole * dt)
+                    chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * chunk_dt)
                     if bin_i == 0:
                         t_jump = profile_dts[0] - t_start.real
                     else:
                         t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
                     advance = np.exp(pole * t_jump)
-                    # Read the wake one bin further back than the state's
-                    # reference. The lag is clamped at zero so the exponent
-                    # keeps a non-positive real part and cannot overflow:
-                    # a caller that hands in a state less than one bin old
-                    # (`t_start > profile_dts[0] - bin_dt`) has nothing to
-                    # reach back to, and only a zero state may do so.
-                    lag = t_jump - bin_dt
-                    lookback = (
-                        np.exp(pole * lag) if lag > 0.0 else complex(1.0, 0.0)
-                    )
-                    residue_lookback = residue * lookback
+                    bins_since_jump = 0
 
                     i_update += 1
                     if i_update < len(update_on_bin):
                         update_on_bin_i = update_on_bin[i_update]
                 else:
-                    residue_lookback = residue
+                    t_jump = chunk_dt
                     advance = decay
-                # Read before advancing and injecting: `state` holds the
-                # history referenced one bin back, which is where the
-                # triangle-averaged wake starts. The bin's own charge is not
-                # in it -- `MultiPoleSparseSolve` adds the self-bin term.
-                amp = float(np.real(residue_lookback * state))
+                if bins_since_jump < _STATE_LAG_BINS:
+                    # `state_prev` is referenced two bins back only when the
+                    # last two steps were both one bin wide; otherwise reach
+                    # across whatever they actually were. The lag is clamped
+                    # at zero so the exponent keeps a non-positive real part
+                    # and cannot overflow -- a caller handing in a state less
+                    # than two bins old has nothing to reach back to, and only
+                    # a zero state may do so.
+                    lag = t_jump + jump_prev - _STATE_LAG_BINS * bin_dt
+                    residue_lookback = (
+                        residue * np.exp(pole * lag) if lag > 0.0 else residue
+                    )
+                    bins_since_jump += 1
+                else:
+                    residue_lookback = residue
+                # Read the state that lags by two bins: the bin-averaged wake
+                # starts three half-bins back, so the recursion covers lags of
+                # two bins and more. The nearer three lags -- the previous
+                # bin, this one and the next -- are added by the solver.
+                amp = float(np.real(residue_lookback * state_prev))
                 voltage[bin_i] += cr_pole_flip * amp
-                state *= advance
+                state_prev = state
+                state = state * advance
                 state += cr_pole_flip * profile[bin_i] * two_factor
+                jump_prev = t_jump
             states[pole_i] = state
 
         states[-1] = profile_dts[-1]

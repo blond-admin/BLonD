@@ -83,6 +83,12 @@ RESONATOR_ABOVE_CUTOFF_RATIO = 0.1
 
 SOLVER_AGREEMENT_RTOL = 0.1
 
+# `TestNoHalfBinLag`: how finely the binning-independent continuum reference
+# is sampled, and how far the solvers may sit from it.
+_OVERSAMPLING = 400
+_MAX_LAG_BINS = 0.1
+_MAX_LOSS_FACTOR_ERROR = 0.05
+
 
 def _make_gaussian_profile(cutoff_frequency: float) -> StaticProfile:
     """
@@ -384,14 +390,16 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
 
     They used to return about 0.3 % of it (low by a factor of ~300).
     Bin-averaging the wake over the source bin alone (a box,
-    ``sinc(f dt)``; for the poles ``(exp(p * dt) - 1) / (p * dt)``) does
-    not rescue this: sampling folds the resonance from above the Nyquist
-    frequency down onto the impedance's inductive low-frequency flank --
-    the only part of the impedance this bunch samples -- and a single box
-    suppresses that fold only to first order in ``f * dt``, so it very
-    nearly cancels the flank. Averaging over the observation bin as well
-    (the triangle, ``sinc(f dt)**2``) suppresses it to second order and
-    leaves the flank intact; see `Resonators._wake_bin_average`.
+    ``sinc(f dt)``) does not rescue this: sampling folds the resonance from
+    above the Nyquist frequency down onto the impedance's inductive
+    low-frequency flank -- the only part of the impedance this bunch samples
+    -- and a single box suppresses that fold only to first order in
+    ``f * dt``, so it very nearly cancels the flank. Averaging over the
+    observation bin as well (``sinc(f dt)**2``) suppresses it to second order
+    and restores the amplitude; the third box the kernel actually uses
+    (``sinc(f dt)**3``) additionally removes the half-bin lag the staircase
+    beam model leaves behind -- see `Resonators._wake_bin_average` and
+    `TestNoHalfBinLag`.
     """
 
     def setUp(self):
@@ -506,6 +514,166 @@ class TestExtremelyUnderResolvedPole(unittest.TestCase):
                         f"time domain gives {peaks['time domain']:.6e} V"
                     ),
                 )
+
+
+@pytest.mark.integration
+class TestNoHalfBinLag(unittest.TestCase):
+    """
+    The solvers must put the induced voltage at the right *time*.
+
+    Peak-amplitude comparisons are blind to a shift, and a shift is what a
+    two-box bin-average leaves behind: it models the beam as a staircase,
+    whose derivative is a train of deltas sitting exactly on the bin edges,
+    so a causal wake assigns each edge wholly to the following bin and the
+    answer comes out half a bin late. The third box in
+    `Resonators._wake_bin_average` is what removes it.
+
+    A lag matters more than its size suggests. A reactive impedance does no
+    net work on the beam; a phase error turns it resistive, and the half-bin
+    lag inflated the loss factor 14-fold at the coarsest binning here.
+    """
+
+    def setUp(self):
+        enforce_64_bit_backend()
+
+    def _continuum_voltage(self, profile: StaticProfile) -> np.ndarray:
+        """
+        Induced voltage of the true (smooth) bunch, bin-averaged.
+
+        Evaluated on a grid `_OVERSAMPLING` times finer than the profile, so
+        it does not depend on the binning under test, then averaged over each
+        profile bin -- which is what the solvers are supposed to return.
+
+        Parameters
+        ----------
+        profile
+            The profile whose binning the reference is produced for.
+
+        Returns
+        -------
+        voltage
+            Bin-averaged continuum induced voltage, in [V] up to the beam's
+            charge scaling (only ratios and zero crossings are used).
+        """
+        n_bins = profile.n_bins
+        n_fine = n_bins * _OVERSAMPLING
+        fine_step = WINDOW_LENGTH / n_fine
+        fine_time = (np.arange(n_fine) + 0.5) * fine_step
+        line_density = np.exp(
+            -0.5 * ((fine_time - BUNCH_CENTER) / SIGMA_DT) ** 2
+        )
+        line_density /= line_density.sum()
+        frequency = np.fft.rfftfreq(n_fine, fine_step)
+        impedance = np.zeros_like(frequency, dtype=complex)
+        positive = frequency > 0.0
+        impedance[positive] = R_SHUNT / (
+            1.0
+            + 1j
+            * QUALITY_FACTOR
+            * (frequency[positive] / F_RES - F_RES / frequency[positive])
+        )
+        voltage = np.fft.irfft(np.fft.rfft(line_density) * impedance, n=n_fine)
+        return voltage.reshape(n_bins, _OVERSAMPLING).mean(axis=1)
+
+    @staticmethod
+    def _zero_crossing(time: np.ndarray, voltage: np.ndarray) -> float:
+        """
+        Sub-bin position of the zero crossing nearest the bunch centre.
+
+        Parameters
+        ----------
+        time
+            Bin centres, in [s].
+        voltage
+            Induced voltage on those bins, in [V].
+
+        Returns
+        -------
+        crossing
+            Time of the zero crossing, in [s].
+        """
+        centre = int(np.argmin(np.abs(time - BUNCH_CENTER)))
+        low = max(centre - 60, 0)
+        high = min(centre + 60, len(voltage) - 1)
+        crossings = [
+            index
+            for index in range(low, high)
+            if np.sign(voltage[index]) != np.sign(voltage[index + 1])
+        ]
+        index = min(crossings, key=lambda i: abs(time[i] - BUNCH_CENTER))
+        slope = voltage[index + 1] - voltage[index]
+        return time[index] - voltage[index] / slope * (
+            time[index + 1] - time[index]
+        )
+
+    def test_every_solver_is_on_time(self):
+        """
+        No solver may shift the voltage against the continuum answer.
+
+        The two-box average put the time-domain solvers 0.47 bins late at
+        ``f_cutoff = f_res / 10`` and 0.39 bins late at ``f_res / 3``; the
+        frequency-domain solver was always on time. All three must now agree
+        with the continuum to well inside a tenth of a bin.
+        """
+        for ratio in (0.1, 0.3, 1.0):
+            profile, voltages = _induced_voltages(ratio * F_RES)
+            hist_x = np.asarray(copy_to_cpu(profile.hist_x))
+            bin_step = float(hist_x[1] - hist_x[0])
+            reference = self._zero_crossing(
+                hist_x, self._continuum_voltage(profile)
+            )
+            for name, voltage in voltages.items():
+                with self.subTest(f_cutoff_over_f_res=ratio, solver=name):
+                    lag = (
+                        self._zero_crossing(hist_x, np.asarray(voltage))
+                        - reference
+                    ) / bin_step
+                    self.assertLess(
+                        abs(lag),
+                        _MAX_LAG_BINS,
+                        msg=(
+                            f"{name} puts the induced voltage {lag:+.3f} "
+                            f"bins away from the continuum answer at "
+                            f"f_cutoff = {ratio} * f_res"
+                        ),
+                    )
+
+    def test_reactive_impedance_does_no_spurious_work(self):
+        """
+        A lag would show up as a resistive component, i.e. as energy loss.
+
+        The bunch only samples the resonator's inductive flank, so the loss
+        factor ``sum(V * lambda)`` is small and any phase error inflates it.
+        The two-box average made it 14x too large at
+        ``f_cutoff = f_res / 10``; the time-domain solvers must now stay
+        within a few percent of the frequency-domain reference, which carries
+        no phase error at any binning.
+        """
+        for ratio in (0.1, 0.3, 1.0):
+            profile, voltages = _induced_voltages(ratio * F_RES)
+            hist_x = np.asarray(copy_to_cpu(profile.hist_x))
+            line_density = np.exp(
+                -0.5 * ((hist_x - BUNCH_CENTER) / SIGMA_DT) ** 2
+            )
+            line_density /= line_density.sum()
+            loss_factors = {
+                name: float(np.sum(np.asarray(voltage) * line_density))
+                for name, voltage in voltages.items()
+            }
+            reference = loss_factors["frequency domain"]
+            for name in ("time domain", "pole residue"):
+                with self.subTest(f_cutoff_over_f_res=ratio, solver=name):
+                    self.assertAlmostEqual(
+                        loss_factors[name] / reference,
+                        1.0,
+                        delta=_MAX_LOSS_FACTOR_ERROR,
+                        msg=(
+                            f"{name} loses "
+                            f"{loss_factors[name] / reference:.3f}x the "
+                            f"energy the frequency domain does at "
+                            f"f_cutoff = {ratio} * f_res"
+                        ),
+                    )
 
 
 if __name__ == "__main__":
