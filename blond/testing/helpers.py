@@ -67,11 +67,16 @@ def pytest_active():
     pytest_is_active
         `True``, if pytest is active.
     """
-    testing = os.environ.get("PYTEST_CURRENT_TEST", None) is not None
-    if testing is None:
-        return False
-    else:
-        return bool(testing)
+    # `PYTEST_VERSION` is exported by pytest (>=8) for the whole session,
+    # collection included, and is the only reliable marker of a session.
+    # `PYTEST_CURRENT_TEST` exists only while a test is *executing*: module
+    # level code guarded by `if not pytest_active()` runs at import time,
+    # i.e. during collection, when that variable is still absent, so the
+    # guard would not hold and the module would mutate global state for the
+    # rest of the session. `"pytest" in sys.modules` has the opposite flaw,
+    # being true for any script that merely imports pytest (e.g. a test file
+    # run directly with `python`), where no session is running at all.
+    return os.environ.get("PYTEST_VERSION") is not None
 
 
 def allclose_tolerances(
