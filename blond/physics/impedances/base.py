@@ -181,8 +181,13 @@ class TimeDomain(ABC):
         The default here B-spline-averages the piecewise-linear interpolant
         through :func:`get_wake_per_particle`, which on a uniform grid reduces
         to the stencil ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1]
-        + w[n+2]) / 384`` (edges extrapolate the boundary value). Exact for a
-        tabulated wake; sources with an analytic wake (e.g.
+        + w[n+2]) / 384`` (edges extrapolate the boundary value). It is
+        therefore exact only where the wake really is piecewise linear
+        between the samples spanned by the stencil -- e.g. for a tabulated
+        wake sampled on the same grid, away from any step. Across a
+        discontinuity, in particular the causal onset of a resonator wake, the
+        stencil smears the step over its support and the result is off by a
+        few percent of the wake amplitude. Sources with an analytic wake (e.g.
         :class:`~blond.physics.impedances.sources.Resonators`) override this
         with the exact closed-form result instead.
 
@@ -214,9 +219,10 @@ class TimeDomain(ABC):
         """
         No-op hook consulted by :func:`get_impedance_from_wake` before FFT-ing the wake.
 
-        Sources whose bin-averaged wake can alias if the sampling grid is too
-        coarse (e.g. :class:`~blond.physics.impedances.sources.Resonators`)
-        override this to raise instead.
+        Extension point for a source that wants to reject a sampling grid it
+        cannot represent (e.g. one too coarse for its bin-averaged wake, which
+        would alias). No source currently overrides it, so the call is
+        unconditionally a no-op.
 
         Parameters
         ----------

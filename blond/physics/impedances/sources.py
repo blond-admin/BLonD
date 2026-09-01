@@ -238,6 +238,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
+        counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:
         """
         Get impedance equivalent to the partial wake in time domain.
@@ -252,12 +253,29 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             Simulation `Beam` object.
         n_fft
             Number of FFT points.
+        counter_rotating
+            Not supported; must be ``False``.
 
         Returns
         -------
         impedance_from_wake
             Wake impedance.
+
+        Raises
+        ------
+        TypeError
+            If ``counter_rotating`` is ``True``.
         """
+        if counter_rotating:
+            # The inductive model has no counter-rotating form: its wake is
+            # the (odd) derivative of a delta, i.e. a purely local, reactive
+            # interaction that stores no field for a beam passing the other
+            # way. Returning the co-rotating impedance would silently claim
+            # a counter-rotating interaction that this model does not
+            # describe, so refuse instead of guessing a sign.
+            raise TypeError(
+                "InductiveImpedance has no counter-rotating impedance."
+            )
         # Recalculate only if `time` is changed
 
         hash_ = hash_linspace(time)
@@ -1130,10 +1148,22 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         """
         Point-sampled tabulated wake, interpolated onto ``time``.
 
+        Below the first tabulated time the wake is zero, not the clamped
+        boundary value: a wake table is causal, so ``W`` vanishes before the
+        table starts. Clamping there would fabricate a spurious term of order
+        ``W(wake_x[0])`` whenever the caller samples below the table -- which
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_impedance_from_wake`
+        always does, since it shifts the axis by one bin to pick up the
+        bin-average kernel's non-causal tap. Above the last tabulated time the
+        value is still clamped (see the warning below): where the wake
+        continues is unknown once the table ends.
+
         The bin-averaged version used by the solvers is obtained through the
         generic
         :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`
-        default (exact here, as the table is piecewise-linear).
+        default, which is exact wherever the tabulated wake is well described
+        by the piecewise-linear interpolant through its samples -- everywhere
+        except across a step, such as the causal onset of a resonator wake.
 
         Parameters
         ----------
@@ -1165,7 +1195,9 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
                 "Interpolation of wake outside boundaries",
                 stacklevel=1,
             )
-        return backend.interp(time, self._wake_x, self._wake_y)
+        # `left=0.0` enforces causality below the table; the right side keeps
+        # the interpolator's default clamp, guarded by the warning above.
+        return backend.interp(time, self._wake_x, self._wake_y, left=0.0)
 
 
 # TODO rework docstring

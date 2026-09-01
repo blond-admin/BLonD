@@ -225,6 +225,66 @@ class TestImpedanceTableTime(unittest.TestCase):
             )
         )
 
+    def test_get_wake_per_bin_is_causal_below_table_start(self):
+        """A causal table must not fabricate a wake before it starts.
+
+        ``TimeDomain.get_impedance_from_wake`` samples the bin-averaged wake
+        from ``time - dt`` to pick up the kernel's one non-causal tap. For a
+        table that starts at ``t = 0`` -- the normal case for a causal wake --
+        the interpolation must return zero below the table, not the clamped
+        boundary value ``wake_y[0]``: clamping fabricates a spurious term of
+        order ``W(0)`` in *every* bin. Tabulating an analytic resonator wake
+        and comparing against ``Resonators.get_wake_per_bin`` on the same grid
+        pins that down.
+
+        The residual tolerance at lag ``-dt`` is loose on purpose: the wake of
+        a resonator steps from 0 to ``2 * alpha * R`` at ``t = 0``, and the
+        5-point stencil smears that step over its support, so the tabulated
+        result cannot reproduce the closed form there to better than a few
+        percent of the wake peak. What it must not do is be off by half the
+        peak.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        time = backend.array(np.arange(400) * bin_step)
+        wake_points = resonator.get_wake_per_particle(time)
+        table = ImpedanceTableTime(wake_x=time, wake_y=wake_points)
+
+        # sampled from `time - bin_step`, the way `get_impedance_from_wake`
+        # does: index 0 is lag -dt (before the table starts), index 1 is lag 0
+        shifted_time = time - bin_step
+        tabulated = copy_to_cpu(table.get_wake_per_bin(shifted_time))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(shifted_time))
+        peak = np.max(np.abs(analytic))
+
+        # lag -dt: only the tail of the stencil reaches over the causal onset
+        self.assertLess(abs(tabulated[0] - analytic[0]), 0.2 * peak)
+        # lag 0
+        self.assertLess(abs(tabulated[1] - analytic[1]), 0.02 * peak)
+        # away from the onset the piecewise-linear table is faithful
+        np.testing.assert_allclose(
+            tabulated[4:], analytic[4:], atol=1e-2 * peak
+        )
+
+    def test_get_wake_per_particle_vanishes_below_table_start(self):
+        """The tabulated wake is zero before the table, not clamped."""
+        table = ImpedanceTableTime(
+            wake_x=backend.array(np.arange(5) * 1e-11),
+            wake_y=backend.array(np.array([7.0, 6.0, 5.0, 4.0, 3.0])),
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wake = copy_to_cpu(
+                table.get_wake_per_particle(
+                    backend.array(np.array([-2e-11, -1e-11, 0.0, 1e-11]))
+                )
+            )
+        np.testing.assert_allclose(wake, np.array([0.0, 0.0, 7.0, 6.0]))
+
     def test_get_impedance_from_wake_within_bounds_no_warning(self):
         impedance_table = ImpedanceTableTime.from_file(
             filepath=callers_relative_path(
@@ -347,6 +407,28 @@ class TestInductiveImpedance(unittest.TestCase):
         # It should just allow to change internals of `get_impedance`
         # and guarantee that the result did not change
         np.testing.assert_allclose(copy_to_cpu(freq_y), pinned_freq_y)
+
+    def test_get_impedance_from_wake_cr_raises(self):
+        """The inductive model has no counter-rotating impedance.
+
+        The override must accept the `counter_rotating` keyword the base class
+        declares, and refuse the counter-rotating case rather than silently
+        returning the co-rotating impedance.
+        """
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 0.8 / c0
+
+        with self.assertRaises(TypeError):
+            self.inductive_impedance.get_impedance_from_wake(
+                time=backend.array([0.5, 1.5]),
+                n_fft=5,
+                simulation=simulation,
+                beam=beam,
+                counter_rotating=True,
+            )
 
     def test_hashing(self):
         simulation = Mock(Simulation)
