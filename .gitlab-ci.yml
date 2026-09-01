@@ -73,6 +73,14 @@ workflow:
 
 .before:
   before_script:
+    # Size the thread pools from the runner's real CPU entitlement.
+    # libgomp (and numba) see the *host* core count, not the cgroup quota
+    # this job runs under, so they would start one worker per host core and
+    # then have them all contend for a handful of entitled CPUs at every
+    # barrier. See dev_tools/ci_omp_threads.py.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -96,6 +104,14 @@ workflow:
 
 .before_no_gpu:
   before_script:
+    # Size the thread pools from the runner's real CPU entitlement.
+    # libgomp (and numba) see the *host* core count, not the cgroup quota
+    # this job runs under, so they would start one worker per host core and
+    # then have them all contend for a handful of entitled CPUs at every
+    # barrier. See dev_tools/ci_omp_threads.py.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
     # Verify installation
     - gcc --version
     # Create and activate a virtual environment
@@ -124,7 +140,7 @@ workflow:
     # ordering can desync the ranks (one rank enters a collective while the
     # other does not), deadlocking on the unmatched MPI call. A fixed seed is
     # not enough: --cov on rank 0 alone perturbs the shuffle between ranks.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
@@ -168,7 +184,7 @@ workflow:
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
     # they can desync on an MPI collective and deadlock (see .main for details).
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - pip uninstall -y cupy-cuda12x
@@ -191,7 +207,7 @@ workflow:
     # ordering can desync the ranks (one rank enters a collective while the
     # other does not), deadlocking on the unmatched MPI call. A fixed seed is
     # not enough: --cov on rank 0 alone perturbs the shuffle between ranks.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
@@ -411,6 +427,14 @@ test_minimum:
 
   # Replace .before to use uv
   before_script:
+    # Size the thread pools from the runner's real CPU entitlement.
+    # libgomp (and numba) see the *host* core count, not the cgroup quota
+    # this job runs under, so they would start one worker per host core and
+    # then have them all contend for a handful of entitled CPUs at every
+    # barrier. See dev_tools/ci_omp_threads.py.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
     # Create venv to avoid permission error when installing packages
     - python3 -m venv .venv
     - . .venv/bin/activate
