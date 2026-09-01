@@ -552,16 +552,17 @@ __global__ void histogram_sparse(
 
 // Apply pole-residue (vector fitting) model to a beam profile to generate
 // induced voltage. Mirrors the CPU/OpenMP implementation in cpp/poles.cpp but
-// is parallelized one thread per pole.
-//
-// Each pole's state is read, advanced by one bin and then given the bin's
-// charge, in that order. So the state a bin reads holds the history referenced
-// one bin back and NOT the bin's own charge: this kernel covers lags of one bin
-// or more, and the caller adds the self-bin term. That is what lets the
-// residues carry the triangle bin-average ((exp(p*dt) - 1) / (p*dt))^2, whose
-// lag likewise starts at dt and which stays bounded by one at any binning. The per-pole state evolution is
+// is parallelized one thread per pole. The per-pole state evolution is
 // sequential across bins; different poles are fully independent and contend
 // only on the output `voltage` buffer via atomicAdd.
+//
+// Each pole's state is advanced by one bin and then given the bin's charge, in
+// that order. A bin's output is read from the state two bins back, so this
+// kernel covers lags of two bins and more, and the caller adds the nearer three
+// -- the previous bin, the bin itself and the next one, which the bin-averaged
+// wake's non-causal tap reaches. That is what lets the residues carry the
+// B-spline bin-average ((exp(p*dt) - 1) / (p*dt))^3 * exp(p*dt/2), which stays
+// bounded by one at any binning.
 //
 // Complex arrays (poles, residues, states) are stored as interleaved real/imag:
 //   [re0, im0, re1, im1, ...]
@@ -588,11 +589,11 @@ extern "C" __global__ void wake_from_pole_residue(
     const real_t two_factor = real_t(2) * factor;
     const real_t t_start = states[2 * n_poles];
 
-    // The bin-averaged wake reaches one bin further back than the state's own
-    // reference (the residues carry the triangle factor
-    // ((exp(p*dt) - 1) / (p*dt))^2, whose lag starts at dt). Every bin is
-    // bin_dt wide -- a sparse profile's gaps are whole numbers of bins -- so
-    // that lag is the same everywhere.
+    // The state a bin reads is referenced two bins back, while the
+    // bin-averaged wake starts three half-bins back (the residues carry
+    // ((exp(p*dt) - 1) / (p*dt))^3 * exp(p*dt/2)). Every bin is bin_dt wide
+    // -- a sparse profile's gaps are whole numbers of bins -- so that
+    // lookback is the same everywhere.
     const real_t bin_dt = profile_dts[1] - profile_dts[0];
 
     // `cr_pole_flip` is intentionally applied to BOTH the state injection

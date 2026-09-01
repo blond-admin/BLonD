@@ -439,8 +439,11 @@ class TestResonatorImpedances(unittest.TestCase):
 
         Same regression, exercising ``MultiPoleSparseSolve``. This solver does
         not build the wake via ``get_wake_per_bin``; it bin-averages each pole
-        analytically (residue scaled by ``((exp(p*dt)-1)/(p*dt))**2``) plus a
-        causal self-bin term. Without those corrections it is
+        analytically (residue scaled by
+        ``((exp(p*dt)-1)/(p*dt))**3 * exp(p*dt/2)``) plus the three near lags
+        its recursion does not cover -- the previous bin, the bin itself and
+        the next one, which the bin-averaged wake's non-causal tap reaches.
+        Without those corrections it is
         O((p*dt)^2) off the other solvers (~2.8 relative deviation here), so
         this pins the correction against the independent frequency-domain
         reference in the regime where it actually matters.

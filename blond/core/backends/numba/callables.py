@@ -831,14 +831,15 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         """
         Apply poles based on the `profile` to generate `voltage`.
 
-        Each pole carries a state that is read, advanced by one bin and then
-        given the bin's charge, in that order. So the state a bin reads holds
-        the history referenced one bin back and *not* the bin's own charge:
-        the kernel covers lags of one bin or more, and the caller adds the
-        self-bin term. This is what lets the residues carry the
-        triangle bin-average ``((exp(p*dt) - 1) / (p*dt))**2``, whose lag
-        likewise starts at ``dt`` and which stays bounded by one at any
-        binning -- see `MultiPoleSparseSolve._finalize_solver`.
+        Each pole carries a state that is advanced by one bin and then given
+        the bin's charge, in that order. A bin's output is read from the
+        state two bins back, so the kernel covers lags of two bins and more,
+        and the caller adds the nearer three -- the previous bin, the bin
+        itself and the next one, which the bin-averaged wake's non-causal
+        tap reaches. This is what lets the residues carry the B-spline
+        bin-average ``((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)``, which
+        stays bounded by one at any binning -- see
+        `MultiPoleSparseSolve._finalize_solver`.
 
         Parameters
         ----------
@@ -871,11 +872,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         n_poles = len(poles)
         two_factor = 2 * factor
         n_bins = len(profile)
-        # The bin-averaged wake reaches one bin further back than the state's
-        # own reference (the residues carry the triangle factor
-        # ((exp(p*dt) - 1) / (p*dt))**2, whose lag starts at dt). Every bin is
-        # `bin_dt` wide -- a sparse profile's gaps are whole numbers of bins --
-        # so that lag is the same everywhere.
+        # The state a bin reads is referenced two bins back, while the
+        # bin-averaged wake starts three half-bins back (the residues carry
+        # ((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)). Every bin is `bin_dt`
+        # wide -- a sparse profile's gaps are whole numbers of bins -- so
+        # that lookback is the same everywhere.
         bin_dt = profile_dts[1] - profile_dts[0]
 
         voltage[:] = 0  # reset to zero from previous call
