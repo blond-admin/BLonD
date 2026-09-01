@@ -29,6 +29,7 @@ __all__ = [
     "MagneticCyclePerTurn",
     "MagneticCyclePerTurnAllRFStations",
     "AllowPlotting",
+    "DerivativeInterpolator",
     "BeamObservationOncePerTurn",
     "RFStationPhaseObservation",
     "StaticProfileObservation",
@@ -91,6 +92,7 @@ from blond.cycles.magnetic_cycle import (
 )
 from blond.generals import typing_ as typing
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
+from blond.generals.interpolators import DerivativeInterpolator
 from blond.handle_results.observables import (
     BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,

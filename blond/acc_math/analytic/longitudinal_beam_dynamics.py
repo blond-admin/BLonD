@@ -18,7 +18,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.constants import e
 
 from blond.generals.function_helpers import raise_on_uneven_array_sizes
 
@@ -32,9 +31,22 @@ def get_small_amplitude_angular_synchrotron_tune(
     harmonic_number: float | NumpyArray,
     synchronous_phase: float | NumpyArray,
     phase_slip_factor: float | NumpyArray,
+    beta: float | NumpyArray,
+    charge: float = 1.0,
 ) -> float | NumpyArray:
-    """
-    Calculation of the small amplitude synchrotron angular tune.
+    r"""
+    Calculation of the small amplitude synchrotron tune.
+
+    Uses the single-harmonic synchrotron tune
+
+    .. math::
+
+        Q_s = \sqrt{\frac{h\,|q|\,V\,|\eta_0 \cos\phi_s|}
+                          {2\pi\,\beta^2\,E}}
+
+    where :math:`E` is the total energy in [eV] and :math:`V` the RF voltage in
+    [V], so that :math:`|q|\,V` is an energy in [eV] and the expression is
+    dimensionless (no elementary-charge factor is required).
 
     Parameters
     ----------
@@ -48,11 +60,20 @@ def get_small_amplitude_angular_synchrotron_tune(
         Phase of the synchronous particle, in [rad].
     phase_slip_factor
         Phase slip factor, [dimensionless].
+    beta
+        Relativistic beta factor, [dimensionless].
+    charge
+        Particle charge, i.e. number of elementary charges `e`.
+        Example: For an electron ``charge=-1``. Default is ``1.0``.
 
     Returns
     -------
     small_amplitude_angular_synchrotron_tune
-        Small amplitude angular synchrotron tune, [dimensionless].
+        Small amplitude synchrotron tune, [dimensionless].
+
+    See Also
+    --------
+    blond.acc_math.analytic.hamilton.calc_synchrotron_tune_single_harmonic : Equivalent single-harmonic synchrotron tune.
     """
     raise_on_uneven_array_sizes(
         energy,
@@ -65,11 +86,11 @@ def get_small_amplitude_angular_synchrotron_tune(
     small_amplitude_angular_synchrotron_tune = np.sqrt(
         (
             harmonic_number
-            * e
+            * np.abs(charge)
             * voltage
             * np.abs(phase_slip_factor * np.cos(synchronous_phase))
         )
-        / (2 * np.pi * energy)
+        / (2 * np.pi * beta**2 * energy)
     )
     return small_amplitude_angular_synchrotron_tune
 
@@ -81,6 +102,8 @@ def get_small_amplitude_angular_synchrotron_frequency(
     synchronous_phase: float | NumpyArray,
     phase_slip_factor: float | NumpyArray,
     revolution_frequency: float | NumpyArray,
+    beta: float | NumpyArray,
+    charge: float = 1.0,
 ) -> float | NumpyArray:
     """
     Calculation of the small amplitude synchrotron angular frequency.
@@ -99,6 +122,11 @@ def get_small_amplitude_angular_synchrotron_frequency(
         Phase slip factor, [dimensionless].
     revolution_frequency
         Revolution frequency, in [Hz].
+    beta
+        Relativistic beta factor, [dimensionless].
+    charge
+        Particle charge, i.e. number of elementary charges `e`.
+        Example: For an electron ``charge=-1``. Default is ``1.0``.
 
     Returns
     -------
@@ -121,6 +149,8 @@ def get_small_amplitude_angular_synchrotron_frequency(
             harmonic_number=harmonic_number,
             synchronous_phase=synchronous_phase,
             phase_slip_factor=phase_slip_factor,
+            beta=beta,
+            charge=charge,
         )
     )
 
@@ -139,6 +169,8 @@ def get_angular_synchrotron_tune(
     harmonic_number: float | NumpyArray,
     synchronous_phase: float | NumpyArray,
     phase_slip_factor: float | NumpyArray,
+    beta: float | NumpyArray,
+    charge: float = 1.0,
 ) -> float | NumpyArray:
     """
     Calculation of the synchrotron angular tune.
@@ -155,6 +187,11 @@ def get_angular_synchrotron_tune(
         Phase of the synchronous particle, in [rad].
     phase_slip_factor
         Phase slip factor, [dimensionless].
+    beta
+        Relativistic beta factor, [dimensionless].
+    charge
+        Particle charge, i.e. number of elementary charges `e`.
+        Example: For an electron ``charge=-1``. Default is ``1.0``.
 
     Returns
     -------
@@ -176,6 +213,8 @@ def get_angular_synchrotron_tune(
             harmonic_number=harmonic_number,
             synchronous_phase=synchronous_phase,
             phase_slip_factor=phase_slip_factor,
+            beta=beta,
+            charge=charge,
         )
     )
     angular_synchrotron_tune = (
@@ -195,6 +234,8 @@ def get_angular_synchrotron_frequency(
     synchronous_phase: float | NumpyArray,
     phase_slip_factor: float | NumpyArray,
     revolution_frequency: float | NumpyArray,
+    beta: float | NumpyArray,
+    charge: float = 1.0,
 ) -> float | NumpyArray:
     """
     Calculation of the synchrotron angular frequency.
@@ -213,6 +254,11 @@ def get_angular_synchrotron_frequency(
         Phase slip factor, [dimensionless].
     revolution_frequency
         Revolution frequency, in [Hz].
+    beta
+        Relativistic beta factor, [dimensionless].
+    charge
+        Particle charge, i.e. number of elementary charges `e`.
+        Example: For an electron ``charge=-1``. Default is ``1.0``.
 
     Returns
     -------
@@ -234,6 +280,8 @@ def get_angular_synchrotron_frequency(
         harmonic_number=harmonic_number,
         synchronous_phase=synchronous_phase,
         phase_slip_factor=phase_slip_factor,
+        beta=beta,
+        charge=charge,
     )
     angular_synchrotron_frequency = (
         2 * np.pi * revolution_frequency * angular_synchrotron_tune
