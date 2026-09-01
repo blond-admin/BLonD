@@ -236,7 +236,7 @@ class TestSinglePassMultiBunch(unittest.TestCase):
             quality_factors=self.Q_L,
         )
         solver = MultiPassResonatorSolver(
-            decay_fraction_threshold=1e-12, delta_f=0.0
+            decay_fraction_threshold=1e-12, retune_to_rf=True
         )
         wakefield = WakeField(
             sources=(resonator,),
@@ -479,8 +479,9 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
             If True, run with the accelerating cycle.
         fast_ramp
             If True, run the transition-adjacent fast frame-slip regime (implies
-            acceleration); the convolution reference then retunes with the RF
-            (``delta_f = 0``), matching the feedback's on-resonance cavity.
+            acceleration); the convolution reference then retunes
+            with the RF (``retune_to_rf=True``, zero offset),
+            matching the feedback's on-resonance cavity.
 
         Returns
         -------
@@ -504,11 +505,12 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
         profile.active = False  # keep the histogram static (no particles)
 
         if mode == "mtw":
-            solver_kwargs = {"decay_fraction_threshold": 1e-12}
-            if fast_ramp:
+            solver_kwargs = {
+                "decay_fraction_threshold": 1e-12,
                 # Retuning solver: follows the RF frequency turn by turn,
                 # matching the feedback's always-on-resonance cavity.
-                solver_kwargs["delta_f"] = 0.0
+                "retune_to_rf": fast_ramp,
+            }
             local_wf = WakeField(
                 sources=(
                     Resonators(
@@ -737,8 +739,9 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
         At ~4 GeV (gamma_t ~ 31) the RF frame slips ~0.09 t_rf per turn, so the
         coarse grid is rebuilt each turn and the two populated cells shift
         relative to it. The convolution reference retunes with the RF
-        (``delta_f = 0``). The trailing-bunch beam loading still tracks the
-        convolution locally to < 2 % across all turns.
+        (``retune_to_rf=True``). The trailing-bunch beam loading
+        still tracks the convolution locally to < 2 % across all
+        turns.
         """
         self._assert_trailing_bunch_consistency(
             acceleration=True, fast_ramp=True

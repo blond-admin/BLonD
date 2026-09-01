@@ -566,7 +566,7 @@ class TestSolverPhaseUnderAcceleration(unittest.TestCase):
 
     Reuses the matched-beam, just-above-transition setup of
     :class:`TestFeedbackPhaseUnderAcceleration` and asserts the retuning solver
-    (``delta_f=0.0``) reproduces the same integrated-phase reference the
+    (``retune_to_rf=True``) reproduces the same integrated-phase reference the
     feedback does -- i.e. that the solver also accumulates the carried-wake
     phase as ``integral of omega dt`` rather than re-deriving it from the
     current frequency each pass.
@@ -612,7 +612,7 @@ class TestSolverPhaseUnderAcceleration(unittest.TestCase):
                 Resonators(base.R_OVER_Q * base.Q_L, 1.0 / t_rf, base.Q_L),
             ),
             solver=MultiPassResonatorSolver(
-                decay_fraction_threshold=1e-12, delta_f=0.0
+                decay_fraction_threshold=1e-12, retune_to_rf=True
             ),
             profile=profile,
         )
@@ -796,8 +796,8 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
         """
         profile = self._fixed_profile()
         solver = MultiPassResonatorSolver(
-            decay_fraction_threshold=1e-12
-        )  # delta_f=None -> fixed frequency
+            decay_fraction_threshold=1e-12, retune_to_rf=False
+        )  # fixed frequency, no per-pass retuning
         wakefield = WakeField(
             sources=(
                 Resonators(self.R_over_Q * self.Q_L, self.f_res, self.Q_L),

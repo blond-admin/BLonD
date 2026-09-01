@@ -1532,11 +1532,13 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
 
         Each row records the feedback's ``antenna_voltage_coarse_grid``,
         the demodulation-frame sum of the beam- and generator-sourced
-        envelope components -- so in a driven run under an accumulated RF
-        phase slip the complex values appear rotated by minus that slip
-        while their magnitude is invariant, and a driven readout must be
-        compared in the kick frame (or by magnitude), not naively against
-        the complex setpoint.
+        envelope components. Only the generator-sourced part carries the
+        frame rotation, so under an accumulated RF phase slip it is that
+        part alone which appears rotated by minus the slip: a beam-free
+        driven run therefore shows a pure rotation at constant magnitude,
+        while with beam loading present the sum's magnitude moves too. A
+        driven readout must be compared in the kick frame, not naively
+        against the complex setpoint.
 
         Returns
         -------

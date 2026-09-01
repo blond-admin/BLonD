@@ -445,7 +445,8 @@ class TestInducedVoltageResonatorComparison(unittest.TestCase):
                     local_wakefield=WakeField(
                         sources=(local_res,),
                         solver=MultiPassResonatorSolver(
-                            decay_fraction_threshold=1e-12
+                            decay_fraction_threshold=1e-12,
+                            retune_to_rf=False,
                         ),
                         profile=profile,
                         section_index=sec_ind,

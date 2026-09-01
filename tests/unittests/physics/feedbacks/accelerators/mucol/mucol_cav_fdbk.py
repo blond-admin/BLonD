@@ -327,6 +327,7 @@ def setup_and_run(  # noqa: PLR0915
                 solver=MultiPassResonatorSolver(
                     decay_fraction_threshold=1e-12,
                     allow_delta_t_zero=False,
+                    retune_to_rf=True,
                     delta_f=f_det,
                 ),
                 profile=profile_list[-1],

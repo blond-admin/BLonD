@@ -23,7 +23,8 @@ Both rings are one ``DriftSimple`` + one ``SingleHarmonicRFStation`` at
 started from the identical matched bunch.  The *only* difference is how the
 beam-induced voltage is produced:
 
-* ring **A** (wake): a ``MultiPassResonatorSolver(delta_f=0.0)`` with
+* ring **A** (wake): a retuning ``MultiPassResonatorSolver``
+  (``retune_to_rf=True``) with
   ``R_s = R_over_Q * Q_L``, ``f_r = 1 / t_rf``, ``Q = Q_L`` -- the retuning
   multi-pass resonator convolution, applied as a separate wake kick on top of
   the clean design voltage;
@@ -238,7 +239,7 @@ class TestWakeVsFeedbackDynamics(unittest.TestCase):
                     Resonators(cls.R_OVER_Q * cls.Q_L, 1.0 / t_rf, cls.Q_L),
                 ),
                 solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12, delta_f=0.0
+                    decay_fraction_threshold=1e-12, retune_to_rf=True
                 ),
                 profile=profile,
             )

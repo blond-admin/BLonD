@@ -926,24 +926,28 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
     # 1.8e-2 relative and the current response by up to ~9 % here.
     # ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the fixed
     # zero-intensity behaviour these numbers now build on.
+    # Regenerated again for the registration-phase reference fix (the
+    # increment is now referred to the PREVIOUS passage's design carrier;
+    # see ``_accumulate_registration_phase``). See
+    # ``test_pinned_trajectories`` for the size of that move.
     PIN_V_MIN = np.array(
         [
-            [29587394.54086683, 29543774.540832333],
-            [29676468.31671796, 29553403.276575282],
-            [29624356.981359284, 29496297.608280458],
-            [29580726.649029866, 29555686.28042151],
-            [29735746.97591483, 29825765.17887941],
-            [29969674.09771953, 29941278.22053024],
+            [29587394.540866826, 29543774.540832337],
+            [29678129.205798406, 29555053.199261077],
+            [29627477.73357503, 29499079.47193191],
+            [29584617.57014105, 29559592.346322853],
+            [29740572.811188616, 29830678.500964876],
+            [29968731.54672198, 29939952.509557907],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.682189929467, 56.7590343761462],
-            [55.93044248155129, 55.58787727483113],
-            [53.1462008548574, 52.87825223329836],
-            [50.2186915900871, 51.274645770223536],
-            [50.28424633707266, 53.22012677798405],
-            [54.379862842346625, 58.098186870389405],
+            [56.68218992946697, 56.759034376146204],
+            [55.92315280173732, 55.577947695569684],
+            [53.11742774683469, 52.84886586314592],
+            [50.16944593673603, 51.23515554182409],
+            [50.235855986531725, 53.1933393487553],
+            [54.35525103113203, 58.0982032950765],
         ]
     )
 
@@ -990,7 +994,36 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
         self.assertLess(float(sigma[-1]), 3.0 * float(sigma[0]))
 
     def test_pinned_trajectories(self):
-        """Characterization: the exact recorded trajectories."""
+        """
+        Characterization: the exact recorded trajectories.
+
+        MOVED by the registration-phase reference fix. The per-passage
+        increment of ``_accumulate_registration_phase`` is now referred to
+        the PREVIOUS passage's forward-segment design carrier,
+        ``sum_k (omega_prev - omega_k) T_seg,k``, instead of to this
+        passage's carrier with the opposite sign. This configuration --
+        DRIVEN, two sections, accelerating on the fast ramp -- is exactly
+        the one that change acts on, so the trajectories really do differ:
+        the two expressions agree only to first order in the design-
+        frequency programme (they differ by its second difference, which
+        vanishes identically for a linear ramp), and the surviving
+        curvature term feeds through the demodulation/readout carrier into
+        the beam-loading sag the PI then regulates against.
+
+        Measured size of the move: ``v_min`` shifted by at most 4913.32 V
+        on ~2.98e7 V (1.65e-4 relative; worst at turn 4 / section 1,
+        29825765.18 -> 29830678.50 V) and ``i_max_dev`` by at most
+        0.0492457 A on ~50.2 A (9.81e-4 relative; worst at turn 3 /
+        section 0, 50.21869159 -> 50.16944594 A). Turn 0 is unchanged to
+        roundoff (1.3e-16 relative) in both, as it must be: the first
+        passage of a station has no previous carrier and so contributes
+        exactly zero.
+
+        The physics gates in this class (sag, loop response, setpoint
+        recovery, bounded bunch) all still hold at their existing
+        thresholds -- this is a bookkeeping-phase correction, not a change
+        of regime.
+        """
         if PRINT_PINS or self.PIN_V_MIN is None:
             self.skipTest("pins not recorded yet")
         np.testing.assert_allclose(

@@ -142,7 +142,8 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
     wf = WakeField(
         sources=(local_res,),
         solver=MultiPassResonatorSolver(
-            decay_fraction_threshold=decay_fraction_threshold
+            decay_fraction_threshold=decay_fraction_threshold,
+            retune_to_rf=False,
         )
         if multi_turn_wake
         else SingleTurnResonatorConvolutionSolver(),

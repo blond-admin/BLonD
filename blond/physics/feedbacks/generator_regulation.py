@@ -43,9 +43,11 @@ look there:
 - **The compiled envelope scan** (``_circuit_track_cells_kernel``) marshals
   the controller's own compiled kernel, tuning and carried state into one
   call and writes the returned state back through
-  ``absorb_envelope_scan_state``. It is not moved because it reads both
-  coarse grids and all three values carried across the turn boundary
-  (``_last_val_ant_voltage``, ``_last_val_generator_current``,
+  ``absorb_envelope_scan_state``. It is not moved because it reads every
+  coarse grid (the summed, generator- and beam-sourced antenna voltages
+  and the generator current) and all five values carried across the turn
+  boundary (``_last_val_ant_voltage``, ``_last_val_ant_voltage_gen``,
+  ``_last_val_ant_voltage_beam``, ``_last_val_generator_current``,
   ``_last_val_beam_current``), and because it depends on ``pi_setpoint``
   staying **unevaluated** on a span the controller sits out -- that property
   may reach through to the parent rf station, which a no-beam backfill span

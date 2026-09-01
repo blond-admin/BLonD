@@ -238,8 +238,12 @@ class IQCavityFeedbackBase(LocalFeedback):
         antenna_voltage_gen_coarse_grid * generator frame rotation``
         (see ``IQCavityFeedbackTimingClass._update_frame_rotations``). The
         components are the propagated state; this sum is (re)composed from
-        them with the CURRENT passage's rotation. For an undriven feedback
-        (zero generator current for the whole run) it equals the beam
+        them with the CURRENT passage's rotation. While the generator
+        component is inactive -- no controller, zero
+        ``generator_current_bias``, and neither a carried generator
+        current nor a carried generator-sourced voltage (the
+        ``_generator_active`` gate set in ``reset_arrays``, which an
+        initial or pre-fill voltage also trips) -- it equals the beam
         component bit-for-bit.
         """
         self.antenna_voltage_gen_coarse_grid: NumpyArray | None = None
@@ -272,8 +276,9 @@ class IQCavityFeedbackBase(LocalFeedback):
         subtracted the accumulated actual-RF slip and the registration
         phase) and the readout adds the identical total back, closing
         the chain for every carried deposit exactly as before the split.
-        For an undriven feedback this component IS the former single
-        state, bit-for-bit.
+        While the generator component is inactive (the
+        ``_generator_active`` gate above) this component IS the former
+        single state, bit-for-bit.
         """
         self.antenna_voltage_fine_grid: NumpyArray | None = None
         """Antenna voltage on the fine grid, in [V], times ``n_cavities``.
@@ -669,7 +674,7 @@ class IQCavityFeedbackTimingClass(
         :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`)
         that converts the antenna-voltage error into the generator current.
         If None, the generator current stays at the constant value
-        ``generator_current``.
+        ``generator_current_bias``.
     voltage_setpoint
         Explicit **per-cavity** voltage setpoint in the IQ frame [V] used to
         form the error the controller acts on. Reachable as ``pi_setpoint``;
@@ -1125,9 +1130,12 @@ class IQCavityFeedbackTimingClass(
         simultaneous counter-rotating passage detection (the arrival time
         and direction of the previous ``_track`` call, plus the
         coarse-cell width of its forward grid as the coincidence
-        tolerance) and the live tail of the RF-frequency-offset phase
+        tolerance), the live tail of the RF-frequency-offset phase
         slip (the slip accumulated since the station kick clock's last
-        end-of-track tick; ``0.0`` without an offset).
+        end-of-track tick; ``0.0`` without an offset), and the
+        registration-phase bookkeeping -- its running total plus the
+        previous passage's design carrier the next increment is referred
+        to (see :meth:`_accumulate_registration_phase`).
         """
         self._last_track_arrival_time: float | None = None
         self._last_track_is_counter_rotating: bool | None = None
@@ -1138,10 +1146,19 @@ class IQCavityFeedbackTimingClass(
         self._kick_clock_slip_gap: float = 0.0
         self._carrier_slip_gap: float = 0.0
         # Running total of the multi-section grid-vs-carrier registration
-        # phase ``sum_k (omega_k - omega_0) T_seg,k`` (see ``_track``);
-        # the other constituent of ``_carrier_slip_gap``.
+        # phase ``sum_k (omega_prev - omega_k) T_seg,k``, referred to the
+        # PREVIOUS passage's forward design carrier (see
+        # ``_accumulate_registration_phase``); the other constituent of
+        # ``_carrier_slip_gap``.
         # Stays exactly 0.0 for a single section and without acceleration.
         self._grid_carrier_phase: float = 0.0
+        # The PREVIOUS passage's forward-segment design frequency [rad/s] --
+        # the carrier the envelope carried into this passage was demodulated
+        # against, and hence the reference the registration-phase increment
+        # of this passage is built from (see
+        # ``_accumulate_registration_phase``). ``None`` before the first
+        # passage of this station has taken its snapshot.
+        self._previous_forward_segment_omega_design: float | None = None
         # Per-passage frame rotations (see ``_update_frame_rotations``);
         # exactly unity until a passage computes them, which is also the
         # neutral value for direct (test) driving of the cell loops.
@@ -2432,10 +2449,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ``self._kick_clock_slip_gap = ...`` makes visible that it is RESET
         at every passage rather than accumulated. ``_carrier_slip_gap`` is
         then formed as this gap plus the multi-section registration phase
-        (see :meth:`_accumulate_registration_phase`); the two constituents
-        stay separately available because the generator-component frame
-        rotation needs the kick-clock part with the station clock on top
-        (see :meth:`_update_frame_rotations`).
+        (see :meth:`_accumulate_registration_phase`), and it is that SUM
+        which :meth:`_update_frame_rotations` folds together with the
+        station clock ``delta_phi_rf`` -- the generator-component rotation
+        uses the full gap, not the kick-clock part alone.
+        ``_kick_clock_slip_gap`` is retained only as the named intermediate
+        of that sum.
         """
         # Live tail of the RF-frequency-offset phase slip: the station's
         # kick clock (delta_phi_rf) is accumulated only at the END of each
@@ -2621,12 +2640,37 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         Returns
         -------
         grid_carrier_phase
-            The RUNNING TOTAL ``sum_k (omega_k - omega_0) T_seg,k`` [rad]
-            after this passage's contribution -- not the increment. Exactly
-            ``+0.0`` for a single section and for an unaccelerated ring.
+            The RUNNING TOTAL of the per-passage increments
+            ``sum_k (omega_prev - omega_k) T_seg,k`` [rad] after this
+            passage's contribution -- not the increment. Exactly ``+0.0``
+            for a single section and for an unaccelerated ring.
 
         Notes
         -----
+        ``omega_prev`` is this station's PREVIOUS passage's forward-segment
+        design frequency, held in ``_previous_forward_segment_omega_design``
+        -- NOT the frequency of the passage that ends the interval. The
+        backfill segments reconstruct the interval since the previous
+        passage, and the envelope they carry across it was demodulated
+        against the carrier in force when that interval STARTED, so that is
+        the carrier the correction must be referenced to. The very first
+        passage of a station has no predecessor and therefore contributes
+        exactly ``+0.0``; it only takes the snapshot.
+
+        The former expression, ``sum_k (omega_k - omega_0) T_seg,k`` with
+        ``omega_0`` the CURRENT forward carrier, referred to the wrong end
+        of the interval and with the wrong sign. It differs from the exact
+        increment by a second difference of the design-frequency programme,
+        which vanishes identically for a linear ramp -- which is why the
+        error stayed invisible in first order and the residual multi-turn
+        drift scaled as the square of the registration phase (pure
+        curvature of the programme). On a two-section fast ramp it drove a
+        secular drift of ``+0.032`` percentage points per turn against the
+        multi-pass convolution; with the corrected reference the drift is
+        ``-0.0025`` pp/turn. The regression guard is
+        ``test_multiturn_secular_drift_long_horizon`` of
+        ``TestMultiTurnFeedbackVsConvolution``.
+
         ORDERING: must run after :meth:`_rebuild_per_turn_grid` (it reads
         the backfill segment list that call generated) and before
         :meth:`_update_frame_rotations` -- the per-passage frame rotations
@@ -2636,22 +2680,39 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         subtracts the identical total via ``_carrier_slip_gap``. Like the
         backfill replay it reads the segment records themselves --
         ``RFCenterSegment.omega`` is omega_k and
-        ``RFCenterSegment.duration`` is T_seg,k.
+        ``RFCenterSegment.duration`` is T_seg,k. The carrier snapshot is
+        taken UNCONDITIONALLY at the end, outside the gate, so a passage
+        the gate skips still leaves the next one a reference.
         """
         # Multi-section grid-vs-carrier registration phase. A multi-section
         # passage builds its coarse grid piecewise: each backfill segment k
-        # spans T_seg,k on its own (past-station) design frequency omega_k,
-        # then the forward segment runs at omega_0. Over the passage the grid
-        # therefore accumulates RF phase sum_k omega_k * T_seg,k, whereas the
-        # beam-current demodulation and the readout both reference the single
-        # forward carrier omega_0 (i.e. omega_0 * T_total). The two differ by
+        # spans T_seg,k on its own (past-station) design frequency omega_k.
+        # The backfill segments reconstruct the interval since this station's
+        # PREVIOUS passage, and the envelope carried across that interval was
+        # demodulated against the carrier in force when the interval started,
+        # omega_prev (the previous passage's forward-segment design
+        # frequency). Over the interval the grid accumulates RF phase
+        # sum_k omega_k * T_seg,k while the carried envelope references
+        # omega_prev * T_total. The two differ by the per-passage increment
         #
-        #     Psi = sum_k (omega_k - omega_0) * T_seg,k ,
+        #     dPsi = sum_k (omega_prev - omega_k) * T_seg,k ,
         #
-        # a pure bookkeeping mismatch between the piecewise grid clock and the
-        # single readout carrier. A single section builds the whole passage
-        # from one segment at omega_0, so Psi is identically zero there -- and
-        # that is exactly why single-section runs need no correction at all.
+        # a pure bookkeeping mismatch between the piecewise grid clock and
+        # the single carrier the envelope was demodulated against; Psi is the
+        # running total of those increments. A single section builds the
+        # whole passage from one segment at the same design frequency, so
+        # every increment is identically zero there -- and that is exactly
+        # why single-section runs need no correction at all.
+        #
+        # The reference is the PREVIOUS passage's carrier, not this one's:
+        # the former expression, sum_k (omega_k - omega_0) * T_seg,k with the
+        # CURRENT forward carrier omega_0, took the wrong end of the interval
+        # and the wrong sign. It differs from the exact increment by a second
+        # difference of the design-frequency programme, which vanishes for a
+        # linear ramp -- so the first-order compensation looked right and
+        # only a curvature-driven residual survived, growing as Psi^2 and
+        # showing up as a slow secular drift on the fast (transition-
+        # adjacent) ramp. Do not "simplify" this back to the current carrier.
         #
         # This is SEPARATE from the cavity's resonance detuning: circuit_track
         # passes relative_detuning = delta_omega / omega_input on every
@@ -2685,24 +2746,34 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # all-empty backfill span would otherwise permanently drop its Psi
         # from the running total. Do not relax the invariant without
         # revisiting this gate.
-        if self._n_rf_stations_in_ring > 1 and n_backfill_centers > 0:
+        omega_held = self._previous_forward_segment_omega_design
+        if (
+            self._n_rf_stations_in_ring > 1
+            and n_backfill_centers > 0
+            and omega_held is not None
+        ):
             # Same records the replay walks: the backfill segments are
             # ``_segments[:-1]``, each carrying its own omega_k and the
             # T_seg,k it was generated over (see _replay_backfill_span).
             backfill_segments = self._segments[:-1]
-            self._grid_carrier_phase += float(
-                np.sum(
-                    (
-                        np.array(
-                            [segment.omega for segment in backfill_segments]
-                        )
-                        - self._forward_segment_omega_design
-                    )
-                    * np.array(
-                        [segment.duration for segment in backfill_segments]
-                    )
-                )
+            segment_omegas = np.array(
+                [segment.omega for segment in backfill_segments]
             )
+            segment_durations = np.array(
+                [segment.duration for segment in backfill_segments]
+            )
+            self._grid_carrier_phase += float(
+                np.sum((omega_held - segment_omegas) * segment_durations)
+            )
+        # UNCONDITIONAL, and deliberately outside the gate: the carrier this
+        # passage demodulates against is what the NEXT passage's carried
+        # envelope will have to be corrected from, whether or not this
+        # passage itself had an increment to add. Taken from the live design
+        # scalar (what the demodulation and the readout actually reference),
+        # not from ``_segments[-1].omega``.
+        self._previous_forward_segment_omega_design = (
+            self._forward_segment_omega_design
+        )
         # Exactly +0.0 for a single section and for an unaccelerated ring, so
         # both stay bit-identical.
         return self._grid_carrier_phase
@@ -2828,10 +2899,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         PRECONDITION: ``self._carrier_slip_gap`` must already include
         ``_grid_carrier_phase`` --
         :meth:`calculate_rf_beam_current_partial` reads the attribute
-        directly (``carrier_phase_offset = -(delta_phi_rf +
-        _carrier_slip_gap)``) and :meth:`_write_station_readout` adds the
-        identical total back, or the demodulation/readout chain no longer
-        closes.
+        directly (``carrier_phase_offset = -(phi_rf +
+        _carrier_slip_gap)``, with ``phi_rf = phi_rf_design +
+        delta_phi_rf``) and :meth:`_write_station_readout` adds
+        ``_carrier_slip_gap`` back on top of the ``phi_rf`` the station
+        itself applies -- the identical total -- or the
+        demodulation/readout chain no longer closes.
         """
         # default behavior
         self.calculate_rf_beam_current_partial(
@@ -2878,22 +2951,27 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ``sin(omega_rf ts + phi_rf_design + delta_phi_rf +
         phase_correction)`` with ``phase_correction = angle(V) +
         carrier_slip_gap``, so each component nets, relative to the
-        design carrier:
+        design RF wave ``omega_rf ts + phi_rf_design``:
 
-        - beam component: ``angle(V_beam) + delta_phi_rf + g + Psi`` --
-          exactly the total its demodulation subtracted
-          (``carrier_phase_offset = -(delta_phi_rf + g + Psi)``, see
-          :meth:`calculate_rf_beam_current_partial`); the chain closes
-          for every carried deposit, byte-for-byte as before the split;
+        - beam component: ``angle(V_beam) + delta_phi_rf + g + Psi``
+          against that wave, i.e. ``angle(V_beam) + phi_rf + g + Psi``
+          in absolute phase -- exactly the total its demodulation
+          subtracted (``carrier_phase_offset = -(phi_rf +
+          _carrier_slip_gap)``, with ``phi_rf = phi_rf_design +
+          delta_phi_rf``; see
+          :meth:`calculate_rf_beam_current_partial`); the station
+          supplies the ``phi_rf`` half and this readout the ``g + Psi``
+          half, so the chain closes for every carried deposit,
+          byte-for-byte as before the split;
         - generator component: ``angle(V_gen) + 0`` -- design-locked, as
           the klystron drive follows the design frequency. Relative to
           the ACTUAL RF (which leads the design carrier by the kick-clock
           slip ``delta_phi_rf + g``) the driven field therefore appears at
           MINUS that slip: the physical walk-off of a design-locked drive
           under an RF-frequency offset. Without an offset and without
-          multi-section acceleration every phase above is zero and a
-          driven, beam-free cavity on its setpoint reads out
-          ``phase_correction == 0`` -- the feedback is a no-op.
+          multi-section acceleration ``delta_phi_rf``, ``g`` and ``Psi``
+          are all zero, and a driven, beam-free cavity on its setpoint
+          reads out ``phase_correction == 0`` -- the feedback is a no-op.
         """
         # Convert to amplitude and phase
         self.relative_voltage_correction, alpha_sum = cartesian_to_polar(

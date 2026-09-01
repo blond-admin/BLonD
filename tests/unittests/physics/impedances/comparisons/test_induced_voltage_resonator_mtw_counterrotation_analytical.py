@@ -184,6 +184,7 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
                         solver=MultiPassResonatorSolver(
                             decay_fraction_threshold=1e-12,
                             allow_delta_t_zero=True,
+                            retune_to_rf=False,
                         )
                         if solver == "Convolution"
                         else MultiPoleSparseSolve(),

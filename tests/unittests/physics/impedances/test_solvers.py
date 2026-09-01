@@ -1294,7 +1294,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             # parameter; an asymmetric fundamental mode has R_CR = -R).
             shunt_impedances_counter_witness=np.array([1, 2, 3]),
         )
-        self.multi_pass_resonator_solver = MultiPassResonatorSolver()
+        self.multi_pass_resonator_solver = MultiPassResonatorSolver(
+            retune_to_rf=False
+        )
         self.hist_step, self.hist_x = (
             1e-10,
             backend.arange(-1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float),
@@ -2371,7 +2373,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             quality_factors=np.array([10e5]),
         )
 
-        local_res = MultiPassResonatorSolver()
+        local_res = MultiPassResonatorSolver(retune_to_rf=False)
 
         sigma_z = 40e-3
         sigma_length = 15
@@ -2482,7 +2484,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             bunch = backend.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
             local_res = MultiPassResonatorSolver(
-                decay_fraction_threshold=0.999
+                decay_fraction_threshold=0.999, retune_to_rf=False
             )
 
             local_res._parent_wakefield = Mock(WakeField)
@@ -2543,7 +2545,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         tracking order -- the user must be told.
         """
         with self.assertWarnsRegex(UserWarning, "order-dependent"):
-            MultiPassResonatorSolver(allow_delta_t_zero=True)
+            MultiPassResonatorSolver(
+                allow_delta_t_zero=True, retune_to_rf=False
+            )
 
     def test_default_construction_does_not_warn_about_delta_t_zero(self):
         """
@@ -2554,7 +2558,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         """
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            MultiPassResonatorSolver()
+            MultiPassResonatorSolver(retune_to_rf=False)
         offending = [
             str(entry.message)
             for entry in caught
@@ -2707,7 +2711,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.assertEqual(solver._previous_passage_time(False), 1.0)
         self.assertEqual(solver._previous_passage_time(True), 2.0)
         self.assertIsNone(
-            MultiPassResonatorSolver()._previous_passage_time(False)
+            MultiPassResonatorSolver(
+                retune_to_rf=False
+            )._previous_passage_time(False)
         )
 
     def test_profile_shorter_than_the_passage_interval_stays_silent(self):
@@ -4059,6 +4065,7 @@ class TestCounterRotatingBeamKickSymmetry(unittest.TestCase):
         solver = MultiPassResonatorSolver(
             decay_fraction_threshold=1e-12,
             allow_delta_t_zero=allow_delta_t_zero,
+            retune_to_rf=False,
         )
         wakefield = WakeField(
             sources=(resonator,), solver=solver, profile=profile
@@ -4399,7 +4406,9 @@ class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
             shunt_impedances_counter_witness=shunt_counter_rotating,
         )
         if solver_kind == "multipass":
-            solver = MultiPassResonatorSolver(decay_fraction_threshold=1e-12)
+            solver = MultiPassResonatorSolver(
+                decay_fraction_threshold=1e-12, retune_to_rf=False
+            )
         else:
             solver = MultiPoleSparseSolve()
         wakefield = WakeField(
@@ -5037,3 +5046,330 @@ class TestHeadlessRevolutionPeriod(unittest.TestCase):
             beam=beam,
         )
         self.assertAlmostEqual(solver.t_periodicity, self.T_REV, delta=1e-18)
+
+
+class _RetuningRfStationStub:
+    """
+    Minimal RF-station stand-in for the resonator retuning path.
+
+    ``MultiPassResonatorSolver`` retunes by tracking a throwaway copy of
+    the beam reference through its parent RF station and asking that
+    station for the design angular frequency. Only those two calls are
+    needed here. The design frequency is stepped on every tracked
+    reference, standing in for a frequency ramp, so that a retuning
+    solver is distinguishable from a fixed-frequency one after a single
+    passage.
+
+    Parameters
+    ----------
+    omega_rf_design
+        Initial design angular frequency, in [rad/s].
+    step_factor
+        Factor the design angular frequency is multiplied by on every
+        ``track_reference`` call.
+    """
+
+    def __init__(self, omega_rf_design, step_factor=1.001):
+        self.omega_rf_design = omega_rf_design
+        self._step_factor = step_factor
+        self.n_track_reference_calls = 0
+
+    def track_reference(self, reference, is_counter_rotating=False):
+        """
+        Advance a (throwaway) reference, ramping the design frequency.
+
+        Parameters
+        ----------
+        reference
+            Reference coordinates the solver handed over; unused.
+        is_counter_rotating
+            Rotation direction of the depositing beam; unused.
+        """
+        self.n_track_reference_calls += 1
+        self.omega_rf_design *= self._step_factor
+
+    def calc_omega_rf_design(self, beam_beta, ring_circumference):
+        """
+        Design angular frequency after the last tracked reference.
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the tracked reference; unused.
+        ring_circumference
+            Ring circumference, in [m]; unused.
+
+        Returns
+        -------
+        omega_rf_design
+            Design angular frequency, in [rad/s].
+        """
+        return self.omega_rf_design
+
+
+class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
+    """
+    ``retune_to_rf`` states the mode that ``delta_f`` used to imply.
+
+    ``delta_f`` is documented as a static frequency offset, but it also
+    used to be the only switch between the two physically distinct modes
+    of the solver: ``None`` kept the resonator at its constructed centre
+    frequency (fixed-frequency / higher-order mode, phase-clock rotation
+    off), while ``0.0`` re-centred it on the parent RF station's design
+    frequency every pass (accelerating fundamental mode, phase-clock
+    rotation on). ``retune_to_rf`` says which mode is wanted and leaves
+    ``delta_f`` a pure offset.
+    """
+
+    OMEGA_RF_DESIGN = 2 * np.pi * 500e6
+    STEP_FACTOR = 1.001
+    N_PASSAGES = 3
+    PASSAGE_INTERVAL = 2e-9
+
+    def setUp(self):
+        enforce_64_bit_backend()
+
+    def _make_solver(self, **kwargs):
+        """
+        A solver wired to a mocked wakefield and a stub RF station.
+
+        Parameters
+        ----------
+        kwargs
+            Passed straight to ``MultiPassResonatorSolver``.
+
+        Returns
+        -------
+        solver
+            The solver under test, late-initialised and ready to be
+            driven with :meth:`_drive`.
+        """
+        solver = MultiPassResonatorSolver(
+            decay_fraction_threshold=1e-3, **kwargs
+        )
+        resonators = Resonators(
+            shunt_impedances=np.array([1e6]),
+            center_frequencies=np.array([self.OMEGA_RF_DESIGN / (2 * np.pi)]),
+            quality_factors=np.array([1e3]),
+        )
+        hist_x = backend.arange(
+            -1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float
+        )
+        hist_y = backend.zeros_like(hist_x)
+        hist_y[9:12] = 1.0
+        hist_y /= backend.sum(hist_y)
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = Mock(StaticProfile)
+        parent_wakefield.profile.hist_step = 1e-10
+        parent_wakefield.profile.hist_x = hist_x
+        parent_wakefield.profile.hist_y = hist_y
+        parent_wakefield.profile.hist_y_to_density_factor = 1.0
+        parent_wakefield.sources = (resonators,)
+        parent_wakefield._parent_rf_station = _RetuningRfStationStub(
+            self.OMEGA_RF_DESIGN, step_factor=self.STEP_FACTOR
+        )
+
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 100.0
+        solver.on_wakefield_init_simulation(
+            simulation=simulation, parent_wakefield=parent_wakefield
+        )
+        return solver
+
+    def _make_beam(self, time):
+        """
+        A mocked beam depositing at the given reference time.
+
+        Parameters
+        ----------
+        time
+            Reference time of the passage, in [s].
+
+        Returns
+        -------
+        beam
+            Mocked beam carrying a real ``ReferenceCoordinates``, which
+            the retuning path deep-copies.
+        """
+        beam = Mock(BeamBaseClass)
+        beam.reference = ReferenceCoordinates(
+            time=time, total_energy=5e9, particle_type=mu_plus
+        )
+        beam.intensity = 1e2
+        _set_mock_beam_charge(beam)
+        beam.n_macroparticles_partial.return_value = int(1e2)
+        return beam
+
+    def _drive(self, solver):
+        """
+        Deposit ``N_PASSAGES`` passages and return the last voltage.
+
+        Parameters
+        ----------
+        solver
+            Solver built by :meth:`_make_solver`.
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage of the last passage, in [V], on the host.
+        """
+        induced_voltage = None
+        for passage in range(self.N_PASSAGES):
+            induced_voltage = solver.calc_induced_voltage(
+                beam=self._make_beam(passage * self.PASSAGE_INTERVAL + 1e-12)
+            )
+        return copy_to_cpu(induced_voltage)
+
+    @staticmethod
+    def _center_frequency(solver):
+        """
+        Current centre frequency of the solver's single resonator.
+
+        Parameters
+        ----------
+        solver
+            Solver built by :meth:`_make_solver`.
+
+        Returns
+        -------
+        center_frequency
+            Centre frequency of the resonator, in [Hz].
+        """
+        return float(
+            solver._parent_wakefield.sources[0]._center_frequencies[0]
+        )
+
+    @staticmethod
+    def _n_retunings(solver):
+        """
+        How often the solver asked its parent RF station to retune.
+
+        Parameters
+        ----------
+        solver
+            Solver built by :meth:`_make_solver`.
+
+        Returns
+        -------
+        n_retunings
+            Number of ``track_reference`` calls the stub station saw.
+        """
+        station = solver._parent_wakefield._parent_rf_station
+        return station.n_track_reference_calls
+
+    def test_retune_to_rf_true_retunes_every_pass(self):
+        """
+        ``retune_to_rf=True`` follows the RF, with no offset by default.
+
+        The resonator ends up exactly on the station's design frequency
+        -- an unset ``delta_f`` means a zero offset, not "no retuning" --
+        the station is asked once per passage, and the phase clock is
+        armed so the carried-wake rotation runs.
+        """
+        solver = self._make_solver(retune_to_rf=True)
+        self._drive(solver)
+        station = solver._parent_wakefield._parent_rf_station
+        self.assertEqual(self._n_retunings(solver), self.N_PASSAGES)
+        self.assertEqual(
+            self._center_frequency(solver),
+            station.omega_rf_design / (2 * np.pi),
+        )
+        self.assertIsNotNone(solver._active_omega)
+
+    def test_retune_to_rf_true_treats_delta_f_as_a_pure_offset(self):
+        """With retuning on, ``delta_f`` only shifts the design value."""
+        offset = 1234.5
+        solver = self._make_solver(retune_to_rf=True, delta_f=offset)
+        self._drive(solver)
+        station = solver._parent_wakefield._parent_rf_station
+        self.assertEqual(
+            self._center_frequency(solver),
+            station.omega_rf_design / (2 * np.pi) + offset,
+        )
+
+    def test_retune_to_rf_false_never_retunes(self):
+        """
+        ``retune_to_rf=False`` keeps the constructed centre frequency.
+
+        The parent RF station is never consulted and the phase clock
+        stays disarmed, whatever ``delta_f`` would have implied.
+        """
+        solver = self._make_solver(retune_to_rf=False, delta_f=None)
+        self._drive(solver)
+        self.assertEqual(self._n_retunings(solver), 0)
+        self.assertEqual(
+            self._center_frequency(solver),
+            self.OMEGA_RF_DESIGN / (2 * np.pi),
+        )
+        self.assertIsNone(solver._active_omega)
+
+    def test_retune_to_rf_false_with_offset_raises(self):
+        """
+        An offset that can never be applied is a contradiction.
+
+        The message must name both parameters, so the caller can see
+        which of the two they meant to change.
+        """
+        with self.assertRaises(ValueError) as caught:
+            MultiPassResonatorSolver(retune_to_rf=False, delta_f=1e3)
+        message = str(caught.exception)
+        self.assertIn("retune_to_rf", message)
+        self.assertIn("delta_f", message)
+
+    def test_retune_to_rf_false_with_zero_offset_is_allowed(self):
+        """``delta_f=0.0`` adds nothing, so it does not contradict."""
+        solver = self._make_solver(retune_to_rf=False, delta_f=0.0)
+        self._drive(solver)
+        self.assertEqual(self._n_retunings(solver), 0)
+        self.assertIsNone(solver._active_omega)
+
+    def test_omitting_retune_to_rf_warns_and_keeps_delta_f_none(self):
+        """
+        Legacy ``delta_f=None`` still means "do not retune".
+
+        The ``DeprecationWarning`` must name the replacement spelling
+        that reproduces exactly this behaviour.
+        """
+        with self.assertWarns(DeprecationWarning) as caught:
+            solver = self._make_solver(delta_f=None)
+        message = str(caught.warning)
+        self.assertIn("retune_to_rf=False", message)
+        self._drive(solver)
+        self.assertEqual(self._n_retunings(solver), 0)
+        self.assertIsNone(solver._active_omega)
+
+    def test_omitting_retune_to_rf_warns_and_keeps_delta_f_zero(self):
+        """
+        Legacy ``delta_f=0.0`` still means "retune every pass".
+
+        The ``DeprecationWarning`` must name the replacement spelling
+        that reproduces exactly this behaviour.
+        """
+        with self.assertWarns(DeprecationWarning) as caught:
+            solver = self._make_solver(delta_f=0.0)
+        message = str(caught.warning)
+        self.assertIn("retune_to_rf=True", message)
+        self._drive(solver)
+        self.assertEqual(self._n_retunings(solver), self.N_PASSAGES)
+        self.assertIsNotNone(solver._active_omega)
+
+    def test_explicit_spelling_is_numerically_neutral(self):
+        """
+        The neutrality pin: renaming the concept moved no numbers.
+
+        Both legacy spellings and their explicit translations must give
+        bit-identical induced voltage.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            legacy_fixed = self._drive(self._make_solver(delta_f=None))
+            legacy_retuned = self._drive(self._make_solver(delta_f=0.0))
+        explicit_fixed = self._drive(self._make_solver(retune_to_rf=False))
+        explicit_retuned = self._drive(self._make_solver(retune_to_rf=True))
+        np.testing.assert_array_equal(explicit_fixed, legacy_fixed)
+        np.testing.assert_array_equal(explicit_retuned, legacy_retuned)
+        # The two modes are genuinely different physics, so the pins
+        # above are not trivially satisfied by everything being equal.
+        self.assertFalse(np.array_equal(legacy_fixed, legacy_retuned))

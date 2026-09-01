@@ -624,7 +624,6 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         self._wake_function_time: NumpyArray | None = None
         self._wake_function_vals_needs_update = True  # initialization
 
-        self._simulation: Simulation | None = None
         self._parent_wakefield: WakeField | None = None
 
     def on_wakefield_init_simulation(
@@ -640,7 +639,6 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to.
         """
-        self._simulation = simulation
         if parent_wakefield.profile is None:
             raise ValueError("Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
@@ -777,17 +775,41 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Constructing with ``True`` emits a ``UserWarning``.
         Default is False.
     delta_f
-        Static frequency offset [Hz] applied on top of the parent RF
-        station's design frequency to retune the resonator each pass. If
-        ``None`` (default, i.e. not given), no retuning is performed and the
-        resonator keeps its configured centre frequency -- the
-        fixed-frequency (higher-order-mode) case. Under a fast ramp that
-        path has a residual against an analytic fixed-frequency reference
-        which is NOT a solver error; see the *Frame-time fidelity* note
-        below for the lever that removes it.
+        Static frequency offset [Hz] added on top of the parent RF
+        station's design frequency whenever the resonator is retuned. It
+        is a pure offset, so it only has an effect together with
+        ``retune_to_rf=True``; ``None`` (default) means no offset and is
+        treated as ``0.0``. Combining ``retune_to_rf=False`` with a
+        nonzero offset raises ``ValueError``, because that offset could
+        never be applied.
+    retune_to_rf
+        Whether the resonator is re-centred on the parent RF station's
+        current design frequency on every pass. ``True`` is the
+        accelerating *fundamental* mode: the resonator follows the RF and
+        the carried-wake phase-clock rotation is enabled. ``False`` is the
+        fixed-frequency (higher-order-mode) case: the resonator keeps its
+        configured centre frequency, no parent RF station is required, and
+        the phase-clock rotation stays off. Under a fast ramp that
+        fixed-frequency path has a residual against an analytic
+        fixed-frequency reference which is NOT a solver error; see the
+        *Frame-time fidelity* note below for the lever that removes it.
+        Omitting it (``None``, the default) falls back to the legacy
+        inference -- retune if and only if ``delta_f`` was given -- and
+        emits a ``DeprecationWarning``, because that inference makes
+        ``delta_f=None`` and ``delta_f=0.0`` two different physics modes
+        rather than two offsets.
 
     Attributes
     ----------
+    retune_to_rf
+        Whether the resonator is re-centred on the parent RF station's
+        design frequency at every pass. Set from the constructor argument
+        of the same name, or inferred from ``delta_f`` for a legacy call.
+    delta_f
+        The frequency offset in [Hz], as a plain float -- a legacy
+        ``delta_f=None`` is stored here as ``0.0``, because "no offset"
+        and "do not retune" are now separate statements. Only applied
+        when ``retune_to_rf`` is true.
     _wake_function_vals
         List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
@@ -803,8 +825,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     Notes
     -----
     **Frame-time fidelity (fixed-frequency wakes under a fast ramp).** With
-    ``delta_f=None`` the resonator does not retune, so the carried-wake phase
-    is just ``omega_0`` times the gap between arrival times and the
+    ``retune_to_rf=False`` the resonator does not retune, so the carried-wake
+    phase is just ``omega_0`` times the gap between arrival times and the
     accumulated-phase rotation below is identically zero: the only thing
     that sets the accuracy is how precisely the *reference clock* reports
     those arrival times. That clock is advanced by the drifts, and
@@ -820,7 +842,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     this solver matches the analytic fixed-frequency reference to machine
     precision every turn. Negligible wherever ``beta`` is effectively
     constant. The *fundamental* mode is the other case: it follows the RF, so
-    it needs the retuning path (``delta_f=0.0``) and its phase-clock
+    it needs the retuning path (``retune_to_rf=True``) and its phase-clock
     rotation, not a finer frame.
 
     A cross-direction wake interaction -- a counter-rotating pass crossing an
@@ -840,6 +862,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         decay_fraction_threshold: float = 0.001,
         allow_delta_t_zero: bool = False,
         delta_f: float | None = None,
+        retune_to_rf: bool | None = None,
     ):
         # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
@@ -847,7 +870,39 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         super().__init__()
 
-        self.delta_f = delta_f
+        # ``delta_f`` used to carry the retuning MODE as well as the
+        # offset: given (even as 0.0) meant "follow the RF design
+        # frequency every pass, phase-clock rotation on", omitted meant
+        # "keep the constructed centre frequency forever, rotation off".
+        # Those are different physics, which no reader expects from a
+        # parameter documented as an offset, so the mode is now stated by
+        # ``retune_to_rf`` and ``delta_f`` is only ever an offset.
+        if retune_to_rf is None:
+            retune_to_rf = delta_f is not None
+            warnings.warn(
+                "MultiPassResonatorSolver infers whether to retune the"
+                " resonator onto the parent RF station's design frequency"
+                " from whether `delta_f` was given, so `delta_f=None` and"
+                " `delta_f=0.0` select different physics rather than two"
+                " offsets. Pass `retune_to_rf` explicitly instead:"
+                f" `retune_to_rf={retune_to_rf}` reproduces the behaviour"
+                " of this call. `delta_f` is then a pure frequency offset"
+                " in [Hz] on top of the design frequency.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        elif not retune_to_rf and delta_f is not None and delta_f != 0.0:
+            raise ValueError(
+                "retune_to_rf=False keeps the resonator at its"
+                " constructed centre frequency, so the offset"
+                f" delta_f={delta_f} Hz could never be applied. Pass"
+                " retune_to_rf=True to centre the resonator on the parent"
+                " RF station's design frequency offset by delta_f, or drop"
+                " delta_f to keep a fixed-frequency resonator."
+            )
+
+        self.retune_to_rf: bool = bool(retune_to_rf)
+        self.delta_f: float = 0.0 if delta_f is None else delta_f
 
         self._last_reference_time: float | None = None
 
@@ -936,8 +991,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to.
         """
-        # Ring circumference [m], read only by the ``delta_f`` retuning
-        # path. Deliberately created here and not defaulted in
+        # Ring circumference [m], read only by the ``retune_to_rf``
+        # retuning path. Deliberately created here and not defaulted in
         # ``__init__``: a solver driven by hand-wired scaffolding that
         # skips late-init must fail loudly on the missing attribute
         # rather than silently retune against a ``None`` circumference.
@@ -1206,7 +1261,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
             # now that everything is initialized, same operation for all arrays
             need_rotation = (
-                self.delta_f is not None and self._active_omega is not None
+                self.retune_to_rf and self._active_omega is not None
             )
             wake_quadrature = (
                 backend.zeros_like(self._wake_function_vals[prof_ind])
@@ -1304,10 +1359,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profile_deposit_phase.appendleft(self._phase_clock)
         self._past_profile_deposit_time.appendleft(current_time)
         # Retune the resonator to track the (accelerating) beam's RF design
-        # frequency, offset by delta_f. Only done when delta_f was explicitly
-        # given; otherwise the resonator keeps its configured centre frequency
+        # frequency, offset by delta_f. Only done in the retuning mode;
+        # otherwise the resonator keeps its configured centre frequency
         # (and no parent RF station is required).
-        if self.delta_f is not None:
+        if self.retune_to_rf:
             dummy_reference = deepcopy(beam.reference)
             self._parent_wakefield._parent_rf_station.track_reference(
                 dummy_reference, is_counter_rotating=beam.is_counter_rotating

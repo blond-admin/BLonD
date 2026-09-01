@@ -181,7 +181,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
             quality_factors=self.Q_L,
         )
         solver = MultiPassResonatorSolver(
-            decay_fraction_threshold=1e-12, delta_f=0.0
+            decay_fraction_threshold=1e-12, retune_to_rf=True
         )
         wakefield = WakeField(
             sources=(resonator,),
@@ -576,8 +576,9 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         fast_ramp
             If True, run the transition-adjacent fast frame-slip regime
             (implies acceleration, ``FAST_N_TURNS`` turns). The convolution
-            reference then uses the retuning solver (``delta_f = 0.0``), the
-            counterpart of the feedback's always-on-resonance cavity.
+            reference then uses the retuning solver
+            (``retune_to_rf=True``), the counterpart of the
+            feedback's always-on-resonance cavity.
         delta_omega
             Static cavity detuning [rad/s]. The feedback is built with
             ``delta_omega=delta_omega`` and the convolution reference resonator
@@ -658,20 +659,30 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                 # Reference resonator centre frequency [Hz]: the RF frequency
                 # plus the static cavity detuning ``delta_omega``.
                 f_res = 1.0 / t_rf + delta_omega / (2 * np.pi)
-                # Per-pass retuning offset [Hz] the solver adds on top of the
-                # parent RF *design* frequency. ``fast_ramp`` retunes on
-                # resonance (delta_f = 0); a nonzero ``delta_omega_rf`` makes
-                # the resonator follow the actual (offset) RF; and whenever the
-                # solver retunes, the static cavity detuning folds into the
-                # offset too (the retune overwrites the centre frequency, so it
-                # cannot be carried by ``f_res`` alone).
-                delta_f = 0.0 if fast_ramp else None
+                # Whether the solver retunes onto the parent RF *design*
+                # frequency each pass, and the static offset [Hz] it adds on
+                # top when it does. ``fast_ramp`` retunes on resonance (zero
+                # offset); a nonzero ``delta_omega_rf`` makes the resonator
+                # follow the actual (offset) RF, which needs retuning too; and
+                # whenever the solver retunes, the static cavity detuning folds
+                # into the offset as well (the retune overwrites the centre
+                # frequency, so it cannot be carried by ``f_res`` alone).
+                # KNOWN ISSUE, deliberately preserved here: a slow accelerating
+                # run (``fast_ramp`` false, no ``delta_omega_rf``) gets a fixed
+                # resonator while its RF keeps slipping. Changing it moves the
+                # reference values of this module, so it is a separate task.
+                retune_to_rf = fast_ramp
+                delta_f = 0.0
                 if delta_omega_rf != 0.0:
+                    retune_to_rf = True
                     delta_f = delta_omega_rf / (2 * np.pi)
-                if delta_omega != 0.0 and delta_f is not None:
+                if delta_omega != 0.0 and retune_to_rf:
                     delta_f += delta_omega / (2 * np.pi)
-                solver_kwargs = {"decay_fraction_threshold": 1e-12}
-                if delta_f is not None:
+                solver_kwargs = {
+                    "decay_fraction_threshold": 1e-12,
+                    "retune_to_rf": retune_to_rf,
+                }
+                if retune_to_rf:
                     solver_kwargs["delta_f"] = delta_f
                 local_wf = WakeField(
                     sources=(
@@ -1061,7 +1072,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         slips ~0.09 t_rf per turn -- orders of magnitude more than at the
         63 GeV operating point of ``test_multiturn_with_acceleration`` --
         over 5 turns, single section. The convolution reference retunes
-        with the RF (``delta_f = 0``), matching the feedback's
+        with the RF (``retune_to_rf=True``), matching the feedback's
         always-on-resonance cavity. The carried wake agrees to ~0.1 %.
         """
         self._assert_multiturn_consistency(
@@ -1317,17 +1328,38 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         turns and fits the per-turn relative error against the turn number,
         skipping the turn 0/1 transient before the carried wake settles.
 
-        Measured behaviour (deterministic, both sections agree): the error rises
-        essentially linearly from ~0.14 % at turn 2 to ~0.67 % at turn 19, a
-        slope of ~0.032 percentage-points/turn. So a real, slow secular drift
-        does exist -- the growing trend the short tests miss -- but it stays
-        well inside the 1 % budget over 20 turns. The guard therefore enforces
-        two things: the final-turn error < 1 % (the hard budget) and the fitted
-        slope < 0.05 pp/turn (bounded drift, comfortably above the measured
-        ~0.032 so it still fires on a real drift regression). The originally
-        envisioned 0.02 pp/turn gate was optimistic -- the healthy drift is
-        ~0.032 -- so it is relaxed to a value that keeps this a live regression
-        guard rather than a permanent expected-failure.
+        This is the regression guard for the registration-phase reference
+        fix (``_accumulate_registration_phase``). While that phase was
+        referenced to the CURRENT passage's carrier instead of the previous
+        one, a real secular drift existed here: the error rose essentially
+        linearly from ~0.14 % at turn 2 to 0.66788 % at turn 19, a slope of
+        +0.03184 pp/turn, and it saturated with section count (+0.04275 at
+        4 sections, +0.04690 at 8, +0.04853 at 16). Referencing the
+        increment to the previous passage's carrier removes it: the drift is
+        now NEGATIVE and the endpoint error is 30x smaller.
+
+        Measured after the fix (deterministic, both sections agree):
+
+        ==========  ================  ==================
+        config      slope [pp/turn]   turn-19 error [%]
+        ==========  ================  ==================
+        2 sections  -0.00255          0.02149
+        1 section   -0.00225          0.02618
+        ==========  ================  ==================
+
+        The two-section number now sits at the single-section level, i.e.
+        what is left is the generic multi-turn residual and not a
+        registration artefact at all.
+
+        The gates are therefore tightened from the values the old drift
+        forced (slope < 0.05, endpoint < 1 %) to slope < 0.005 pp/turn and
+        endpoint < 0.05 %. Both are chosen to fail the old bug loudly --
+        by 6.4x on the slope and 13x on the endpoint -- while leaving
+        ordinary headroom above the measured behaviour: the slope gate
+        still admits a mildly positive drift (the measurement is negative,
+        so the useful bound is "not growing"), and the endpoint gate sits
+        2.3x above the measured 0.02149 % and comfortably above the
+        single-section 0.02618 % that bounds the residual from below.
 
         Runtime note: this is the most expensive test in the module (three
         20-turn simulations, ~20 s total here); it uses a unique turn count and
@@ -1361,14 +1393,36 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         slope_pp_per_turn = np.polyfit(turns[2:], 100.0 * rel_errors[2:], 1)[0]
         self.assertLess(
             slope_pp_per_turn,
-            0.05,
+            0.005,
             f"secular slope {slope_pp_per_turn:.4g} pp/turn "
             f"(rel_errors={rel_errors})",
         )
         self.assertLess(
             rel_errors[-1],
-            0.01,
+            0.0005,
             f"endpoint rel_err {rel_errors[-1]:.4g}",
+        )
+        # Non-degeneracy: both gates above are one-sided, so a comparison
+        # that collapsed to nothing -- a reference that stopped carrying
+        # voltage, a feedback readout of all zeros -- would pass them
+        # spectacularly. Pin that there is still a signal on both sides
+        # and that the errors are real numbers, so "excellent agreement"
+        # cannot be manufactured by having nothing to disagree about.
+        self.assertTrue(
+            np.all(np.isfinite(rel_errors)),
+            f"non-finite errors: {rel_errors}",
+        )
+        self.assertGreater(
+            float(np.max(np.abs(convolution[-1][0]))),
+            0.0,
+            "the convolution reference carries no voltage, so the "
+            "agreement above is vacuous",
+        )
+        self.assertGreater(
+            float(np.max(np.abs(feedback[-1][0]))),
+            0.0,
+            "the feedback beam-induced voltage is identically zero, so "
+            "the agreement above is vacuous",
         )
 
     def test_multiturn_nondivisible_harmonic_is_rejected(self):

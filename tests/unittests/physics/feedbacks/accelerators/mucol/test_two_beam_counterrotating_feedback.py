@@ -115,8 +115,9 @@ def _build_two_beam_simulation(
         If True, use the transition-adjacent fast frame-slip regime
         (implies acceleration): the injection energy and per-turn gain of
         ``TestMultiTurnFeedbackVsConvolution``. The ``"mtw"`` convolution
-        then retunes on resonance each pass (``delta_f = 0``), the two-beam
-        counterpart of the single-beam retuning convolution.
+        then retunes on resonance each pass (``retune_to_rf=True``),
+        the two-beam counterpart of the single-beam retuning
+        convolution.
     n_turns
         Number of turns the accelerating cycle is built for (must match the
         run length). Ignored for the static cycle.
@@ -144,21 +145,21 @@ def _build_two_beam_simulation(
     half_drift = _base().MULTITURN_CIRCUMFERENCE / n_sections / 2
 
     # ``mtw`` solver options: on the fast ramp retune on resonance each pass
-    # (delta_f = 0), mirroring the single-beam fast-ramp convolution
+    # (zero offset), mirroring the single-beam fast-ramp convolution
     # reference and the feedback's always-on-resonance cavity. On the static
-    # cycle no retuning (delta_f absent) reproduces the baseline exactly.
+    # cycle no retuning reproduces the baseline exactly.
     solver_kwargs = {
         "decay_fraction_threshold": 1e-12,
         "allow_delta_t_zero": allow_delta_t_zero,
+        "retune_to_rf": fast_ramp,
     }
-    if fast_ramp:
-        solver_kwargs["delta_f"] = 0.0
     # A static RF-frequency offset enters the convolution reference as a
     # resonator retuning delta_f = delta_omega_rf / (2 pi) (the same mapping
     # the single-beam delta_omega_rf tests validate against this solver), and
     # the feedback side as ``station.delta_omega_rf`` below. Not combined with
     # fast_ramp here (the two frequency mechanisms are tested separately).
     if delta_omega_rf != 0.0:
+        solver_kwargs["retune_to_rf"] = True
         solver_kwargs["delta_f"] = delta_omega_rf / (2 * np.pi)
 
     ring = Ring(
@@ -466,8 +467,8 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
     gap voltage minus the two-beam zero-intensity reference, by linearity of
     the cavity equation, which also cancels the common acceleration kick)
     must track the two-beam multi-pass **retuning** convolution
-    (``delta_f = 0``, the accelerating counterpart of the static reference)
-    with no per-turn-growing error.
+    (``retune_to_rf=True``, the accelerating counterpart of the static
+    reference) with no per-turn-growing error.
 
     Measured (deterministic, both sections identical): 0.13 % on turn 0
     falling to 0.025 % on turn 4 -- the relative error *shrinks* as the

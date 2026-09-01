@@ -118,7 +118,9 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         stub_beam = StubBeam(self.intensity)
 
         if method == "convolution":
-            solver = MultiPassResonatorSolver(decay_fraction_threshold=1e-12)
+            solver = MultiPassResonatorSolver(
+                decay_fraction_threshold=1e-12, retune_to_rf=False
+            )
             wakefield = WakeField(
                 sources=(
                     Resonators(self.R_over_Q * self.Q_L, self.f_res, self.Q_L),

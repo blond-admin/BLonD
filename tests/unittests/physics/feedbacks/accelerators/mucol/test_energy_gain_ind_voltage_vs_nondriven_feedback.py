@@ -154,7 +154,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                     ),
                 ),
                 solver=MultiPassResonatorSolver(
-                    decay_fraction_threshold=1e-12
+                    decay_fraction_threshold=1e-12, retune_to_rf=False
                 ),
                 profile=profile,
             )
