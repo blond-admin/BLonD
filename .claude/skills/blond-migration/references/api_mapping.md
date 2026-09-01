@@ -364,10 +364,26 @@ Induced-voltage classes → solvers:
 |---|---|
 | `InducedVoltageTime(...)` | `TimeDomainFftSolver()` — for profiles short compared with `t_rev` |
 | `InducedVoltageFreq(..., frequency_resolution=Δf)` | `PeriodicFreqSolver(t_periodicity=1/Δf)` |
-| `InducedVoltageResonator(...)` | `blond.physics.impedances.solvers.SingleTurnResonatorConvolutionSolver()` / `blond.physics.impedances.solvers.MultiPassResonatorSolver()` |
-| `multi_turn_wake=True`, `mtw_mode=...` | `blond.physics.impedances.solvers.ContinuousMultiTurnTimeDomainSolver(n_turns=...)` / `blond.physics.impedances.solvers.MultiPassResonatorSolver()`; see `EX_09_Multi_turn_wake.py` |
+| `InducedVoltageResonator(...)` | `blond.physics.impedances.solvers.SingleTurnResonatorConvolutionSolver()` / `blond.physics.impedances.solvers.MultiPassResonatorSolver(retune_to_rf=...)` |
+| `multi_turn_wake=True`, `mtw_mode=...` | `blond.physics.impedances.solvers.ContinuousMultiTurnTimeDomainSolver(n_turns=...)` / `blond.physics.impedances.solvers.MultiPassResonatorSolver(retune_to_rf=...)`; see `EX_09_Multi_turn_wake.py` |
 | `InductiveImpedance` | `InductiveImpedanceSolver()` |
 | `TotalInducedVoltage([...])` combining several | either several sources in one `WakeField`, or several `WakeField` elements added to the ring (`EX_23` does both) |
+
+!!! note "`MultiPassResonatorSolver` needs `retune_to_rf`"
+    Pass `retune_to_rf` explicitly. It selects the *physics*, not a
+    formatting detail:
+
+    * `retune_to_rf=True` re-centres the resonator on the RF station's
+      design frequency every pass, and enables the carried-wake phase
+      clock. This is the accelerating **fundamental** mode.
+    * `retune_to_rf=False` keeps the resonator at its constructed centre
+      frequency. This is the fixed-frequency **higher-order-mode** case.
+
+    `delta_f` is then a pure offset in [Hz] on top of the design
+    frequency. Omitting `retune_to_rf` still works, but infers the mode
+    from whether `delta_f` was given and warns -- the old spelling where
+    `delta_f=None` and `delta_f=0.0` meant different physics.
+
 
 Note `frequency_resolution` [Hz] → `t_periodicity = 1 / frequency_resolution`
 [s]; the quantity is inverted, not renamed. This inversion is the single most

@@ -1023,17 +1023,59 @@ keeps a beam's clock alive.
 
 ### 3.1b Numerics
 
-- **Bounded secular drift, ~0.03 pp/turn.** A two-section fast *undriven*
-  carried wake drifts slowly over a long horizon
-  (`test_multiturn_secular_drift_long_horizon`, 20 turns, endpoint < 1 %);
-  the gate was relaxed from an optimistic 0.02 to 0.05 pp/turn to admit it.
-  The 300-turn closed-loop run sees the same drift past ~350 turns for BOTH
-  detuning signs, and at 5e12 even the on-resonance mid-phase goes marginal.
-  Characterised and bounded, never explained — a relaxed gate is a deferred
-  question, not an answer. **This is the only open technical item left in
-  this file that no maintainer ruling covers.** Not re-investigated blindly:
-  the closed-loop work already ruled out loop gain and delay as the driver
-  (both dynamically inert on the dipole at these sampling rates).
+- ~~**Bounded secular drift, ~0.03 pp/turn.**~~ **FIXED (2026-09-01) — it was
+  a sign-and-reference error in the registration phase, not a tolerance.**
+  `_accumulate_registration_phase` computed the increment as
+  `sum_k (w_k - w_0^(N)) * T_k`, referencing the carrier of the passage that
+  ENDS the interval, with the wrong sign. The carried envelope it must
+  correct was demodulated against the carrier of the passage that STARTED
+  it, so the exact increment is `sum_k (w_prev - w_k) * T_k`. The fix holds
+  the previous passage's `_forward_segment_omega_design` in
+  `_previous_forward_segment_omega_design` (snapshotted UNCONDITIONALLY,
+  outside the gate — inside it, the held carrier goes stale on any passage
+  with no backfill centres).
+  **Why it hid for weeks:** the old and correct forms differ by a *second
+  difference* of the design-frequency programme, which vanishes identically
+  for a linear ramp. Only the curvature term survived, so the first-order
+  compensation looked right and the residual scaled as `Psi^2.2` — it read
+  as an inherent second-order artefact rather than a bug. The derivation
+  predicted the residual as `3*(dE_kick/E)*|dPsi|` and matched the running
+  code to 1 % (7.437e-3 measured vs 7.5e-3 predicted).
+  **Measured (fast ramp, 20 turns, feedback beam-induced vs the multi-pass
+  convolution):**
+
+  | n | slope before | slope after | endpoint before | endpoint after |
+  |---|---|---|---|---|
+  | 2 | +0.03184 | **-0.00255** | 0.668 % | **0.021 %** |
+  | 4 | +0.04275 | **-0.00219** | 0.869 % | **0.028 %** |
+  | 8 | +0.04690 | **-0.00175** | 0.933 % | **0.036 %** |
+  | 16 | +0.04853 | **-0.00145** | 0.951 % | **0.042 %** |
+
+  Before, the slope saturated UPWARD with section count; after, it is
+  negative at every `n` and its magnitude SHRINKS with `n`. The n=2
+  residual (0.0215 %) now sits BELOW the single-section control (0.0262 %),
+  which is the clean statement that no registration artefact is left.
+  **Invariants bit-identical**, verified at full float64 repr: n=1 fast
+  ramp and n=2 static reproduce their pre-fix values character-for-
+  character, because Psi is exactly 0.0 in both.
+  **Exactly one pin moved** in the whole feedbacks+impedances suite:
+  `TestPIFullTrackingMultiSectionFastRamp::test_pinned_trajectories`
+  (driven, two-section, accelerating — the path the fix acts on), by
+  4913 V on ~2.98e7 V = 1.65e-4 relative. Regenerated, with the magnitude
+  and cause in the test docstring; the reviewer independently re-ran the
+  pin generator and confirmed the committed arrays match digit-for-digit.
+  **Regression guard:** `test_multiturn_secular_drift_long_horizon` gates
+  tightened from `slope < 0.05` / `endpoint < 1 %` to `slope < 0.005` /
+  `endpoint < 0.05 %`, plus a non-degeneracy guard (both gates are
+  one-sided, so a collapsed comparison would otherwise pass
+  spectacularly). Proven to fire: re-introducing the old expression makes
+  it fail at 0.03184 against the 0.005 gate.
+  **Still open (small):** the counter-rotating two-beam path shares one
+  feedback instance between two beams, so `_previous_forward_segment_
+  omega_design` is snapshotted by one beam's passage and read by the
+  other's. That is believed correct — the cavity does not care which beam
+  last passed it — and the two-beam accelerating comparison passes
+  unchanged, but the semantics are untested and undocumented.
 
 ### 3.2 Housekeeping
 

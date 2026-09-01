@@ -38,9 +38,15 @@ classes that the feedback depends on live with the subsystems they belong to
 (profiles, resonator solvers, RF stations); they are documented under
 `Guards tested outside the feedbacks tree`_ with their home paths.
 
+The concepts these tests exercise -- the coarse and fine grids, the
+demodulation frame, backfill versus reverse traversal, the kick frame and
+the multi-section registration phase -- are defined in
+:ref:`mucol_cavity_feedback_overview`; this page assumes them, and adds only
+the recurring test-side conventions of `Common physics context`_ below.
+
 .. contents:: Contents
    :local:
-   :depth: 2
+   :depth: 3
 
 
 Common physics context
@@ -70,8 +76,27 @@ Lab-frame projection
     The feedback works with the complex I/Q envelope of the antenna voltage,
     whereas the resonator solvers return a real, lab-frame induced voltage.
     The envelope is projected back with
-    ``-Im[V_ant * exp(i omega_rf t)]`` (or ``-Re[...]``); see
-    ``support.lab_frame_voltage``.
+    ``-Im[V_ant * exp(i omega_rf t)]`` -- the ``+pi/2`` demodulation
+    convention of ``rf_beam_current``, and the only convention
+    ``support.lab_frame_voltage`` implements.
+
+Gap voltage
+    The fine-grid (per-profile) accelerating voltage the bunch actually sees
+    at the cavity gap: the feedback's fine-grid antenna voltage scaled by
+    ``n_cavities``. Distinct from the coarse ``antenna_voltage_coarse_grid``,
+    which is the envelope the loop regulates and which never kicks the beam.
+
+Retuning reference
+    ``MultiPassResonatorSolver`` can either hold its resonance fixed or
+    follow the RF as the ring accelerates. The comparisons on this page use
+    the *retuning* form, ``retune_to_rf=True``, with ``delta_f`` a pure
+    frequency offset in Hz on top of the design frequency: no ``delta_f`` at
+    all for a plain ramp, ``delta_f = delta_omega_rf / (2 pi)`` when the
+    station carries an RF-frequency offset. (``delta_f`` used to carry the
+    mode as well as the offset, so ``delta_f=0.0`` meant "retune"; passing it
+    without ``retune_to_rf`` now takes a deprecated inference path.) The
+    fixed-frequency form, ``retune_to_rf=False``, is the higher-order-mode
+    wake of ``TestFixedFrequencyWakeWithSubsteppedFrame``.
 
 Accumulated phase under acceleration
     When the beam accelerates, the RF frequency slips turn to turn, so the
@@ -91,12 +116,14 @@ Unit tests for the I/Q cavity-feedback timing class
 single-turn benchmark of the beam-loading response, the cavity pre-fill /
 injection matching, the exponential coarse solver, the shared coarse-step
 arithmetic behind both propagator paths, the constructor validation of an
-explicit ``voltage_setpoint`` and the causality of the fine-grid initial
-condition.
+explicit ``voltage_setpoint``, the causality of the fine-grid initial
+condition and the coupled forward-Euler stability guard.
 
-**Class** ``TestCavityFeedback`` -- step-size sanity checks. ``setUp`` builds a
-feedback instance with RCS1 four-station parameters on a mocked
-``StaticProfile``.
+``TestCavityFeedback``
+~~~~~~~~~~~~~~~~~~~~~~
+
+Step-size sanity checks. ``setUp`` builds a feedback instance with RCS1
+four-station parameters on a mocked ``StaticProfile``.
 
 ``test_circuit_track_applies_delta_omega_phase_shift``
     Drives ``circuit_track`` with zero generator/beam current and a constant
@@ -136,10 +163,12 @@ feedback instance with RCS1 four-station parameters on a mocked
     naming the sign inversion and ``exponential_coarse_solver_enable=True``
     as the sanctioned option for such steps.
 
-**Class** ``TestFineGridResonatorBenchmark`` -- benchmarks the single-turn
-(fine-grid) beam-loading response, with the generator current zeroed, against
-an independent ``Resonators`` induced-voltage model
-(``SingleTurnResonatorConvolutionSolver``) on a real Gaussian-plus-noise
+``TestFineGridResonatorBenchmark``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Benchmarks the single-turn (fine-grid) beam-loading response, with the
+generator current zeroed, against an independent ``Resonators`` induced-voltage
+model (``SingleTurnResonatorConvolutionSolver``) on a real Gaussian-plus-noise
 ``mu_plus`` beam. Agreement is checked on shape (correlation > 0.999),
 amplitude scale (~1) and waveform (NRMSE < 1 %).
 
@@ -151,13 +180,15 @@ amplitude scale (~1) and waveform (NRMSE < 1 %).
 ``test_fine_grid_matches_resonator_negative_detuning``
     Negative detuning (``delta_omega = -2e7``).
 
-**Class** ``TestCavityPrefill`` -- the feedforward cavity pre-fill / injection
-matching. The no-beam, constant-current cavity fills from cold as
-``V(t) = V_ss (1 - exp(lambda t))``; the helper
-``blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`` returns the complex
-seed antenna voltage, and ``n_pretrack`` / ``injection_voltage`` on
-``IQCavityFeedbackTimingClass`` route it through ``on_run_simulation``. The PI
-controller (if any) does not act during the fill.
+``TestCavityPrefill``
+~~~~~~~~~~~~~~~~~~~~~
+
+The feedforward cavity pre-fill / injection matching. The no-beam,
+constant-current cavity fills from cold as ``V(t) = V_ss (1 - exp(lambda t))``;
+the helper ``blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage``
+returns the complex seed antenna voltage, and ``n_pretrack`` /
+``injection_voltage`` on ``IQCavityFeedbackTimingClass`` route it through
+``on_run_simulation``. The PI controller (if any) does not act during the fill.
 
 ``test_steady_state_fill_on_resonance_matches_two_r_q_ql_ig``
     Without ``injection_voltage`` the fill converges to
@@ -169,6 +200,14 @@ controller (if any) does not act during the fill.
 ``test_fill_seed_is_an_equilibrium_of_the_coarse_step``
     A no-beam cavity started at the fill seed does not drift (the seed is the
     exact fixed point of the coarse Euler step).
+``test_detuned_fill_seed_is_an_equilibrium_of_the_coarse_step``
+    The phase companion of the test above. On resonance the fixed point is
+    real and positive, so a seed in the wrong frame is indistinguishable from
+    one in the right frame; with half a bandwidth of detuning it acquires
+    ``arg(-1 / lambda)`` (~-27 deg here) and the seed must carry it, or turn
+    0 opens with the injection transient the pre-fill exists to remove.
+    Thirty no-beam coarse steps must reproduce the analytic fixed point in
+    magnitude *and* phase to ``1e-9``.
 ``test_n_pretrack_seeds_init_voltage_with_the_fill``
     ``on_run_simulation`` replaces ``_init_voltage`` with the pre-fill seed.
 ``test_injection_voltage_without_n_pretrack_raises``
@@ -187,13 +226,16 @@ controller (if any) does not act during the fill.
     that the two clocks really disagree), 300 no-beam coarse steps must
     leave the voltage at the seed to ``1e-9`` relative.
 
-**Class** ``TestExponentialCoarseSolver`` -- the optional exact exponential
-coarse-grid propagator. ``_advance_coarse_voltage`` integrates one coarse step
-of the cavity-envelope ODE with either forward-Euler (the default,
-bit-unchanged) or, with ``exponential_coarse_solver_enable=True``, the exact
-``V_{n+1} = e^L V_n + src (e^L - 1)/L`` (``L = -omega dt / (2 Q_L) +
-1j delta_omega dt``). The exponential form is the accurate alternative to
-sub-stepping when the per-step decay/detuning phase is not small.
+``TestExponentialCoarseSolver``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The optional exact exponential coarse-grid propagator.
+``_advance_coarse_voltage`` integrates one coarse step of the cavity-envelope
+ODE with either forward-Euler (the default, bit-unchanged) or, with
+``exponential_coarse_solver_enable=True``, the exact ``V_{n+1} = e^L V_n + src
+(e^L - 1)/L`` (``L = -omega dt / (2 Q_L) + 1j delta_omega dt``). The
+exponential form is the accurate alternative to sub-stepping when the per-step
+decay/detuning phase is not small.
 
 ``test_euler_branch_matches_the_forward_euler_formula``
     The default branch reproduces the forward-Euler update exactly.
@@ -220,18 +262,20 @@ sub-stepping when the per-step decay/detuning phase is not small.
 ``test_beam_kicks_kernel_guard_skipped_for_exponential_solver``
     Same skip for the kernel-path per-cell guard (``_check_beam_kicks``).
 
-**Class** ``TestSharedCoarseStepArithmetic`` -- the per-cell and the
-vectorised coarse step must be *one* spelling. The recursion exists twice --
-``_advance_coarse_voltage`` (per cell, the reference) and
-``_kernel_step_multipliers`` (vectorised, feeding the numba kernel) -- and
+``TestSharedCoarseStepArithmetic``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The per-cell and the vectorised coarse step must be *one* spelling. The
+recursion exists twice -- ``_advance_coarse_voltage`` (per cell, the reference)
+and ``_kernel_step_multipliers`` (vectorised, feeding the numba kernel) -- and
 both must be built from the module-level helpers in
 ``blond.physics.feedbacks.cavity_solvers`` (``coarse_step_exponent``,
 ``euler_voltage_multiplier``, ``exponential_voltage_multiplier``,
 ``exponential_drive_weight``), beside the ``ForwardEulerValidityGuard`` that
 caps them. Two independent spellings are exactly how the two paths drifted
-apart before (the vectorised one lacked the scalar zero-step guard), so
-these tests pin them to the shared functions **bit-for-bit**, not to within
-a tolerance.
+apart before (the vectorised one lacked the scalar zero-step guard), so these
+tests pin them to the shared functions **bit-for-bit**, not to within a
+tolerance.
 
 ``test_step_exponent_is_shape_agnostic``
     A scalar step and a one-element array give the identical exponent
@@ -257,13 +301,16 @@ a tolerance.
 ``test_zero_step_leaves_the_voltage_untouched``
     Both branches advance a zero-length step to exactly the input voltage.
 
-**Class** ``TestVoltageSetpointValidation`` -- constructor validation of the
-explicit ``voltage_setpoint``. The RF station's phase correction is formed
-against the parent-derived ``station_voltage_coarse_grid``, whose phase is 0 by
-construction, so an explicit setpoint with a non-zero phase would be regulated
-by the PI controller but never reflected in the applied kick. The constructor
-therefore accepts only real, positive setpoints (phase 0; rotate ``phi_rf``
-on the station instead) rather than silently splitting the two frames.
+``TestVoltageSetpointValidation``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Constructor validation of the explicit ``voltage_setpoint``. The RF station's
+phase correction is formed against the parent-derived
+``station_voltage_coarse_grid``, whose phase is 0 by construction, so an
+explicit setpoint with a non-zero phase would be regulated by the PI controller
+but never reflected in the applied kick. The constructor therefore accepts only
+real, positive setpoints (phase 0; rotate ``phi_rf`` on the station instead)
+rather than silently splitting the two frames.
 
 ``test_real_positive_setpoint_accepted``
     A real, positive setpoint is stored unchanged, both as a plain float
@@ -277,17 +324,19 @@ on the station instead) rather than silently splitting the two frames.
 ``test_negative_setpoint_raises``
     A negative (phase pi) setpoint raises ``ValueError``.
 
-**Class** ``TestFineGridInitialConditionCausality`` -- causality of the
-fine-grid initial condition in ``circuit_track``. The fine solve is seeded
-with the coarse envelope at the **first forward coarse centre** ``c0`` and
-then integrates the beam current over
-``[profile.cut_left, profile.cut_right]``. Both times live in the same
-segment-local frame, so the seed is causal only when ``c0 <= cut_left``:
-otherwise the coarse cell that produced the seed already sits *after* the
-start of the fine window and any charge there would be integrated twice.
-A charge-free window has nothing to be causal about, so the guard is gated
-on the beam current the fine solve actually consumes. Driven on a
-hand-built 8-cell constant-step grid whose centres are ``(k + 0.5) t_rf``.
+``TestFineGridInitialConditionCausality``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Causality of the fine-grid initial condition in ``circuit_track``. The fine
+solve is seeded with the coarse envelope at the **first forward coarse centre**
+``c0`` and then integrates the beam current over ``[profile.cut_left,
+profile.cut_right]``. Both times live in the same segment-local frame, so the
+seed is causal only when ``c0 <= cut_left``: otherwise the coarse cell that
+produced the seed already sits *after* the start of the fine window and any
+charge there would be integrated twice. A charge-free window has nothing to be
+causal about, so the guard is gated on the beam current the fine solve actually
+consumes. Driven on a hand-built 8-cell constant-step grid whose centres are
+``(k + 0.5) t_rf``.
 
 ``test_charge_before_first_coarse_centre_raises``
     A window starting at ``0.5 pi`` (left of ``c0``) *with* charge raises
@@ -300,6 +349,31 @@ hand-built 8-cell constant-step grid whose centres are ``(k + 0.5) t_rf``.
     The physical geometry (``cut_left = 1.5 pi >= c0``) with charge stays
     accepted.
 
+``TestForwardEulerStabilityGuard``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The guard must reject a *divergent* recursion, not merely a large step. The
+Euler multiplier of one coarse step is ``B = 1 + L`` with ``L = -d + 1j p``,
+``d`` the per-step decay and ``p`` the per-step detuning phase, so the
+recursion contracts only while ``p**2 <= d (2 - d)``. Separate caps on ``d``
+and ``p`` cannot express that coupling: at a superconducting ``Q_L`` the
+admissible ``p`` is ``~sqrt(2 d)``, orders of magnitude below the ``1.0`` cap.
+Driven on RCS1's own operating point (1.3 GHz, one RF period per coarse cell,
+``Q_L ~ 1.29e6``).
+
+``test_divergent_step_is_rejected``
+    1 MHz of detuning gives ``p = 4.85e-3`` rad -- far below the ``1.0``
+    per-step cap on the detuning phase, but well above the stability limit
+    ``sqrt(d (2 - d)) = 2.21e-3`` rad that the decay sets. ``|B| > 1`` is
+    asserted first, then ``check_step_sizes`` must raise ``ValueError``.
+``test_contracting_step_is_accepted``
+    RCS1's own operating point (``delta_omega = -2 pi * 1040`` rad/s) has
+    ``|B| < 1`` and must pass in silence (checked under
+    ``warnings.simplefilter("error")``).
+``test_disabled_guard_stays_a_no_op``
+    ``ForwardEulerValidityGuard(enabled=False)`` must not start raising on
+    the new check.
+
 
 ``test_generator_current_controller.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -307,12 +381,15 @@ hand-built 8-cell constant-step grid whose centres are ``(k + 0.5) t_rf``.
 Unit tests for the standalone generator-current controller
 (``blond.physics.feedbacks.generator_current_controller``): the
 phase-preserving magnitude clamp, the klystron-power-to-current conversion, the
-abstract controller interface and the saturating PI control law. The controller
-is pure signal processing, so these tests drive it with plain numbers -- no
-cavity, profile or ``Simulation``.
+abstract controller interface, the saturating PI control law, the
+construction-time fixing of the loop delay and the frame the PI error is handed
+over in. The controller is pure signal processing, so all but the last of these
+drive it with plain numbers -- no cavity, profile or ``Simulation``.
 
-**Class** ``TestClampMagnitude`` -- the phase-preserving magnitude clamp
-``clamp_magnitude``.
+``TestClampMagnitude``
+~~~~~~~~~~~~~~~~~~~~~~
+
+The phase-preserving magnitude clamp ``clamp_magnitude``.
 
 ``test_preserves_phase_and_clamps_magnitude``
     Clamping sets the magnitude to the limit and keeps the phase.
@@ -323,14 +400,18 @@ cavity, profile or ``Simulation``.
 ``test_none_limit_is_a_no_op``
     With no limit the input is returned unchanged.
 
-**Class** ``TestCurrentLimitFromPower`` -- the klystron-power-to-current-limit
-conversion ``current_limit_from_power``.
+``TestCurrentLimitFromPower``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The klystron-power-to-current-limit conversion ``current_limit_from_power``.
 
 ``test_matched_generator_relation``
     ``I_max = sqrt(2 P / ((R/Q) Q_L))``.
 
-**Class** ``TestAbstractController`` -- the ``GeneratorCurrentController``
-interface.
+``TestAbstractController``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``GeneratorCurrentController`` interface.
 
 ``test_cannot_instantiate_abstract_base``
     The interface has an abstract ``update_generator_current`` and cannot be
@@ -346,8 +427,10 @@ interface.
     to the wrong controller fails loudly instead of running a
     half-implemented scan.
 
-**Class** ``TestGeneratorCurrentPIController`` -- the saturating PI control law
-mapping a voltage error to a generator current.
+``TestGeneratorCurrentPIController``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The saturating PI control law mapping a voltage error to a generator current.
 
 ``test_constant_current_passthrough_with_zero_gains``
     With zero gains the output is the constant current bias, for any error.
@@ -370,6 +453,46 @@ mapping a voltage error to a generator current.
 ``test_negative_delay_is_rejected``
     A negative loop delay raises.
 
+``TestLoopDelayIsFixedAtConstruction``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``n_delay`` is read-only. The delay-line deque keeps the ``maxlen`` it was
+built with, so a post-construction write used to be silently ignored: a user
+retuning the loop delay got neither a delay change nor a complaint.
+
+``test_n_delay_reads_back_the_constructor_value``
+    The documented read surface is unchanged, for ``n_delay`` 0, 1 and 7.
+``test_n_delay_is_a_property_over_private_storage``
+    The value lives on ``_n_delay``; ``n_delay`` is a ``property``.
+``test_assigning_n_delay_raises``
+    A post-construction retune raises ``AttributeError`` instead of being
+    dropped.
+``test_delay_line_length_tracks_the_constructor_value``
+    The deque is sized ``n_delay + 1`` from the constructor value (both
+    ``len`` and ``maxlen``).
+``test_int_coercion_still_applies``
+    A float loop delay is still coerced to ``int``.
+
+``TestPIErrorFrame``
+~~~~~~~~~~~~~~~~~~~~
+
+The error must reach the controller in the frame the generator current acts in.
+The composed coarse voltage is ``V = V_beam + V_gen exp(-i (delta_phi_rf +
+gap))`` and the error is read out in the kick frame, ``e_kick = V_set - V
+exp(+i gap)``; the controller's output is a generator current driving ``V_gen``
+in the design frame, so ``d(V_kick) / d(I_gen)`` carries ``exp(-i
+delta_phi_rf)``. Handing ``e_kick`` over unrotated would multiply the open-loop
+gain by that rotation, which grows without bound while an RF-frequency offset
+is applied. This is the one class in the module that builds a feedback -- with
+a recording stub controller -- rather than driving the controller alone.
+
+``test_error_is_rotated_into_the_generator_frame``
+    With ``delta_phi_rf = 0.9``, a unit antenna voltage, a zero setpoint and
+    no gap, the recorded error is exactly ``-exp(+i delta_phi_rf)``.
+``test_no_offset_leaves_the_error_untouched``
+    Without an RF-frequency offset the rotation is exactly unity, so the
+    error is ``-1 + 0j``.
+
 
 ``test_generator_current_pi_feedback.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -384,7 +507,10 @@ switch ``PLOT_DIAGNOSTICS`` (``None`` disables them, the CI default; ``"save"``
 writes a PNG next to the file; ``"show"`` also opens a window), so the
 ``test_plot_*`` methods below skip unless it is set.
 
-**Class** ``TestGeneratorPower`` -- klystron power from the generator current.
+``TestGeneratorPower``
+~~~~~~~~~~~~~~~~~~~~~~
+
+Klystron power from the generator current.
 
 ``test_generator_power_formula``
     Checks ``P = 0.5 (R/Q) Q_L |I|^2``.
@@ -393,8 +519,10 @@ writes a PNG next to the file; ``"show"`` also opens a window), so the
     ``generator_current_coarse_grid`` -- equal element-wise to passing that
     array explicitly, and carrying real watts (non-vacuous).
 
-**Class** ``TestFeedbackControllerDelegation`` -- the feedback delegates the
-error-to-current conversion to its controller.
+``TestFeedbackControllerDelegation``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The feedback delegates the error-to-current conversion to its controller.
 
 ``test_update_delegates_error_and_step_to_controller``
     The controller update receives the correct antenna-voltage error and
@@ -408,10 +536,12 @@ error-to-current conversion to its controller.
 ``test_no_controller_keeps_constant_current``
     Without a controller the generator current stays at the constant bias.
 
-**Class** ``TestHighIntensityBunchTransient`` -- one transient is run in
-``setUpClass`` and shared. A constant RF beam current switches on mid-turn; the
-beam loading sags the voltage, then after the loop delay the PI controller
-restores it.
+``TestHighIntensityBunchTransient``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One transient is run in ``setUpClass`` and shared. A constant RF beam current
+switches on mid-turn; the beam loading sags the voltage, then after the loop
+delay the PI controller restores it.
 
 ``test_steady_state_before_the_bunch``
     Voltage and current are stationary before the bunch arrives.
@@ -430,8 +560,11 @@ restores it.
 ``test_plot_coarse_power_and_voltage``
     Opt-in diagnostic plot of the coarse power/voltage transient.
 
-**Class** ``TestKlystronPowerLimit`` -- with the current clamped below the
-required compensation value, the loop saturates.
+``TestKlystronPowerLimit``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With the current clamped below the required compensation value, the loop
+saturates.
 
 ``test_generator_current_never_exceeds_the_limit``
     ``|I_gen|`` stays at or below the configured maximum.
@@ -442,9 +575,11 @@ required compensation value, the loop saturates.
 ``test_plot_coarse_power_and_voltage``
     Opt-in diagnostic plot of the power-limited (saturated) transient.
 
-**Class** ``TestSinglePulseBunchTransient`` -- a single bunch passage (the
-beam current switched on and then off again) contrasted with sustained loading,
-both with a clamped generator current.
+``TestSinglePulseBunchTransient``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A single bunch passage (the beam current switched on and then off again)
+contrasted with sustained loading, both with a clamped generator current.
 
 ``test_clamp_is_active_during_the_passage``
     While the bunch is present the generator current saturates.
@@ -457,25 +592,30 @@ both with a clamped generator current.
 ``test_plot_single_pulse_vs_sustained``
     Opt-in diagnostic plot contrasting a bunch passage with sustained load.
 
-**Class** ``TestLoopDelaySampleSemantics`` -- ``n_delay`` counts coarse-grid
-*samples*, not time: with a sub-stepped grid the physical loop delay is
-``n_delay * n_rf_periods_per_coarse_grid * t_rf`` and shrinks with the
-sub-step.
+``TestLoopDelaySampleSemantics``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``n_delay`` counts coarse-grid *samples*, not time: with a sub-stepped grid the
+physical loop delay is ``n_delay * n_rf_periods_per_coarse_grid * t_rf`` and
+shrinks with the sub-step.
 
 ``test_delay_is_counted_in_samples_not_time``
     The generator current first reacts at the same *sample* offset after
     beam-on for the standard (``n = 1``) and sub-stepped (``n = 0.5``) grid.
 
-**Class** ``TestResponseMatrixClamping``
+``TestResponseMatrixClamping``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_fine_grid_solve_uses_clamped_generator_current``
     The fine-grid response-matrix solve (``cavity_response_sparse_matrix``)
     sees the clamped generator current, and the stored fine-grid current is
     clamped in place.
 
-**Class** ``TestPerProfileVoltageOverTurns`` -- a multi-turn transient run once
-in ``setUpClass`` and shared; checks the per-profile (fine-grid) gap voltage
-turn over turn.
+``TestPerProfileVoltageOverTurns``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A multi-turn transient run once in ``setUpClass`` and shared; checks the
+per-profile (fine-grid) gap voltage turn over turn.
 
 ``test_no_distortion_before_the_bunch``
     Before the bunch, the per-profile voltage sits at the setpoint.
@@ -509,21 +649,24 @@ Setting the ``PI_TRACKING_PRINT_PINS`` environment variable prints the
 recorded trajectories instead (used to regenerate the pins); while the pins
 are unrecorded (``None``) the pin tests skip.
 
-**Class** ``TestDrivenSteadyStateFastRamp`` -- a driven, beam-free cavity
-holds its steady state on the fast ramp. With the matched generator bias
-and no beam the coarse recursion has the exact fixed point
-``V_ss = 2 (R/Q) Q_L I_gen = V_design``, independent of the RF frequency
+``TestDrivenSteadyStateFastRamp``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A driven, beam-free cavity holds its steady state on the fast ramp. With the
+matched generator bias and no beam the coarse recursion has the exact fixed
+point ``V_ss = 2 (R/Q) Q_L I_gen = V_design``, independent of the RF frequency
 and of the step size, so an on-resonance constant-drive cavity
-(``use_controller=False``, zero intensity) must sit at ``V_ss`` however
-fast the ramp moves and however many stations the ring has. Multi-section
-used to rotate the carried antenna-voltage *state* by the per-turn
-grid-vs-carrier registration phase ``sum_k (omega_k - omega_0) T_seg,k``,
-which also hit the generator-driven field and dragged ``|V_ant|`` off
-``V_ss`` by ~0.6 % per turn; the phase is now carried on the
-demodulation/readout carrier, leaving the driven steady state exact. Each
-test gates the end-of-turn ``|V_ant|`` at ``1e-8`` relative over five
-fast-ramp turns -- far above the ~2e-12 single-section floor and far
-below the ~3e-2 the state rotation produced.
+(``use_controller=False``, zero intensity) must sit at ``V_ss`` however fast
+the ramp moves and however many stations the ring has. Multi-section used to
+rotate the carried antenna-voltage *state* by the per-turn grid-vs-carrier
+registration phase (per passage ``dPsi = sum_k (omega_prev - omega_k)
+T_seg,k``, with ``omega_prev`` the previous passage's forward-segment design
+frequency), which also hit the generator-driven field and dragged ``|V_ant|``
+off ``V_ss`` by ~0.6 % per turn; the phase is now carried on the
+demodulation/readout carrier, leaving the driven steady state exact. Each test
+gates the end-of-turn ``|V_ant|`` at ``1e-8`` relative over five fast-ramp
+turns -- far above the ~2e-12 single-section floor and far below the ~3e-2 the
+state rotation produced.
 
 ``test_single_section_holds_steady_state``
     Control: one station holds ``V_ss`` on the fast ramp (the ~2e-12
@@ -533,32 +676,35 @@ below the ~3e-2 the state rotation produced.
 ``test_four_sections_hold_steady_state``
     Four stations: three backfill segments per passage.
 
-**Class** ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` -- a driven,
-beam-free cavity on its setpoint must hand the station NO phase: the
-zero-intensity phase-neutrality guarantee of the split coarse envelope,
-and the in-repo counterpart of the RCS example's
-``test_feedback_is_a_no_op_without_beam``. Two-section fast ramp
-(4 GeV + 20 MeV/turn), zero intensity, matched generator bias, six
-turns; each test gates ``max |phase_correction|`` over all turns at
-``1e-12`` rad -- FP dust of the fine-grid solve, against the ~0.3
-rad/turn the fixed bug produced on this ring (the registration phase
-``Psi`` handed to the design-locked generator drive at readout).
+``TestDrivenFeedbackIsPhaseNeutralWithoutBeam``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A driven, beam-free cavity on its setpoint must hand the station NO phase: the
+zero-intensity phase-neutrality guarantee of the split coarse envelope, and the
+in-repo counterpart of the RCS example's
+``test_feedback_is_a_no_op_without_beam``. Two-section fast ramp (4 GeV + 20
+MeV/turn), zero intensity, matched generator bias, six turns; each test gates
+``max |phase_correction|`` over all turns at ``1e-12`` rad -- FP dust of the
+fine-grid solve, against the ~0.3 rad/turn the fixed bug produced on this ring
+(the registration phase ``Psi`` handed to the design-locked generator drive at
+readout).
 
 ``test_matched_bias_applies_no_phase``
     Constant matched drive: the headline zero-intensity no-op.
 ``test_pi_loop_applies_no_phase``
     A PI loop holding the same setpoint must be phase-neutral too.
 
-**Class** ``TestDesignLockedDriveWalkOffUnderRFOffset`` -- under a station
-RF-frequency offset the design-locked drive walks off the actual RF.
-The klystron drive follows the DESIGN frequency, so with
-``delta_omega_rf`` set the actual RF accumulates the kick-clock slip
-relative to the design clock and the driven (generator) field must
-appear at MINUS that slip relative to the actual RF -- real physics,
-not a bookkeeping artefact. Single section, constant 63 GeV, beam-free,
-constant matched bias, offset ``1e-7 * omega_rf`` (~0.016 rad of slip
-per turn -- far above the readout's FP floor, far below a wrap), six
-turns.
+``TestDesignLockedDriveWalkOffUnderRFOffset``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Under a station RF-frequency offset the design-locked drive walks off the
+actual RF. The klystron drive follows the DESIGN frequency, so with
+``delta_omega_rf`` set the actual RF accumulates the kick-clock slip relative
+to the design clock and the driven (generator) field must appear at MINUS that
+slip relative to the actual RF -- real physics, not a bookkeeping artefact.
+Single section, constant 63 GeV, beam-free, constant matched bias, offset
+``1e-7 * omega_rf`` (~0.016 rad of slip per turn -- far above the readout's FP
+floor, far below a wrap), six turns.
 
 ``test_driven_field_appears_at_minus_the_kick_clock_slip``
     Per turn, ``phase_correction == -delta_phi_rf`` to ``atol=1e-9``
@@ -566,26 +712,27 @@ turns.
     (``|delta_phi_rf|`` really accumulates past 0.05 rad by the last
     turn).
 
-**Class** ``TestDetunedLoopHoldsSetpointAcrossBackfillSpan`` -- a detuned,
-PI-regulated cavity must hold its setpoint for the *whole* turn, backfill
-span included. With ``delta_omega != 0`` the matched no-beam drive is
-no longer the feedforward bias but ``I_0 (1 - i tan psi)``,
-``tan psi = 2 Q_L delta_omega / omega_rf``: cancelling the detuning
-precession needs a reactive standing current, which the PI finds on the
-forward span. A multi-section ring then replays the remaining
-``(N - 1) / N`` of the turn as no-beam backfill segments, and
-``reset_arrays`` seeds that span with the **last commanded** generator
-current rather than the constant feedforward bias -- a zero-order hold
-over an interval in which the loop issued no new command. Replaying it
+``TestDetunedLoopHoldsSetpointAcrossBackfillSpan``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A detuned, PI-regulated cavity must hold its setpoint for the *whole* turn,
+backfill span included. With ``delta_omega != 0`` the matched no-beam drive is
+no longer the feedforward bias but ``I_0 (1 - i tan psi)``, ``tan psi = 2 Q_L
+delta_omega / omega_rf``: cancelling the detuning precession needs a reactive
+standing current, which the PI finds on the forward span. A multi-section ring
+then replays the remaining ``(N - 1) / N`` of the turn as no-beam backfill
+segments, and ``reset_arrays`` seeds that span with the **last commanded**
+generator current rather than the constant feedforward bias -- a zero-order
+hold over an interval in which the loop issued no new command. Replaying it
 with the bias instead lets the antenna voltage precess by the analytic
 excursion ``|dV| / V_set ~ delta_omega * T`` (independent of ``Q_L`` and
-``R/Q``) -- ``3.2e-2`` per turn for the two-section case -- on the very
-sample that seeds the fine grid the bunch is solved on, so it is not
-self-correcting. No beam is tracked on purpose: without beam loading the
-correct answer is exactly the setpoint on every coarse sample, so the
-assertion has no tolerance budget to hide in. Constant energy (63 GeV, no
-ramp and no frame slip), five turns, turn 1 skipped while the loop
-converges from ``initial_voltage``, gate ``1e-6`` relative.
+``R/Q``) -- ``3.2e-2`` per turn for the two-section case -- on the very sample
+that seeds the fine grid the bunch is solved on, so it is not self-correcting.
+No beam is tracked on purpose: without beam loading the correct answer is
+exactly the setpoint on every coarse sample, so the assertion has no tolerance
+budget to hide in. Constant energy (63 GeV, no ramp and no frame slip), five
+turns, turn 1 skipped while the loop converges from ``initial_voltage``, gate
+``1e-6`` relative.
 
 ``test_detuned_loop_holds_setpoint_over_the_whole_turn``
     Two sections, one half-bandwidth of detuning: the half-turn backfill
@@ -605,8 +752,10 @@ converges from ``initial_voltage``, gate ``1e-6`` relative.
     against "fixing" the above by writing a matched current into the grid
     unconditionally.
 
-**Class** ``TestPIFullTrackingSingleSectionFastRamp`` -- one section on the
-fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
+``TestPIFullTrackingSingleSectionFastRamp``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One section on the fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -621,22 +770,24 @@ fast (transition-adjacent, 4 GeV + 20 MeV/turn) ramp.
 ``test_pinned_trajectories``
     Characterization pin of the exact recorded trajectories.
 
-**Class** ``TestPIFullTrackingMultiSectionSlowRamp`` -- two sections on the
-operating-point (63 GeV, slow) ramp, so the pinned trajectories
-characterise a representative production regime; the transition-adjacent
-fast ramp is covered by ``TestPIFullTrackingMultiSectionFastRamp``. The
-pins were last regenerated when the coarse envelope was split into its
-generator- and beam-sourced components and the PI error moved to the
-KICK-frame sum: the loop now regulates the applied kick, whose
-difference from the former raw state is ``V_beam (1 - e^{i Psi})`` with
-this slow ramp's registration phase ``Psi ~ 7e-6`` rad/turn. That moved
-``|V_ant|`` by <= 2.4e-6 relative and the current response by
-<= 1.7e-6 -- marginally beyond the 1e-6 pin tolerance, a real
-(declared) modelling shift, not FP noise; the behavioural tests below
-independently assert that both stations still hold the setpoint and
-respond to the loading. (An earlier regeneration moved the
-registration phase from a rotation of the antenna-voltage state onto
-the demodulation/readout carrier; see ``TestDrivenSteadyStateFastRamp``.)
+``TestPIFullTrackingMultiSectionSlowRamp``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two sections on the operating-point (63 GeV, slow) ramp, so the pinned
+trajectories characterise a representative production regime; the
+transition-adjacent fast ramp is covered by
+``TestPIFullTrackingMultiSectionFastRamp``. The pins were last regenerated when
+the coarse envelope was split into its generator- and beam-sourced components
+and the PI error moved to the KICK-frame sum: the loop now regulates the
+applied kick, whose difference from the former raw state is ``V_beam (1 - e^{i
+Psi})`` with this slow ramp's registration phase ``Psi ~ 7e-6`` rad/turn. That
+moved ``|V_ant|`` by <= 2.4e-6 relative and the current response by <= 1.7e-6
+-- marginally beyond the 1e-6 pin tolerance, a real (declared) modelling shift,
+not FP noise; the behavioural tests below independently assert that both
+stations still hold the setpoint and respond to the loading. (An earlier
+regeneration moved the registration phase from a rotation of the
+antenna-voltage state onto the demodulation/readout carrier; see
+``TestDrivenSteadyStateFastRamp``.)
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -649,13 +800,15 @@ the demodulation/readout carrier; see ``TestDrivenSteadyStateFastRamp``.)
 ``test_pinned_trajectories``
     Characterization pin of the exact recorded trajectories.
 
-**Class** ``TestPIBackfillSpanFrameConsistency`` -- the PI loop must act only
-on the forward (real-beam) coarse cells, never on the ``no_beam`` backfill
-reconstruction segments that rebuild the previous turn. Stepping the
-controller on the backfill cells would double-advance its delay line and
-integrator on frame-rotated errors; the fix gates the controller update on
-``not no_beam``. The tests instrument the controller call count against the
-recorded per-turn forward and total cell counts.
+``TestPIBackfillSpanFrameConsistency``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The PI loop must act only on the forward (real-beam) coarse cells, never on the
+``no_beam`` backfill reconstruction segments that rebuild the previous turn.
+Stepping the controller on the backfill cells would double-advance its delay
+line and integrator on frame-rotated errors; the fix gates the controller
+update on ``not no_beam``. The tests instrument the controller call count
+against the recorded per-turn forward and total cell counts.
 
 ``test_controller_stepped_only_on_forward_cells``
     Two-section fast ramp: the controller is stepped on exactly the forward
@@ -665,23 +818,42 @@ recorded per-turn forward and total cell counts.
     backfill (``n_total > n_forward`` on turn 0), and the gate skips those
     backfill cells too.
 
-**Class** ``TestPIFullTrackingMultiSectionFastRamp`` -- two sections on the
-transition-adjacent fast (4 GeV + 20 MeV/turn) ramp -- 5x steeper at 1/16
-the energy of the slow-ramp pins. Previously excluded: the grid-vs-carrier
-registration phase, applied as a rotation of the antenna-voltage state,
+``TestPIFullTrackingMultiSectionFastRamp``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two sections on the transition-adjacent fast (4 GeV + 20 MeV/turn) ramp -- 5x
+steeper at 1/16 the energy of the slow-ramp pins. What the pins characterise
+**now**: the split coarse envelope with a design-anchored generator component,
+the PI regulating the kick-frame sum, and the registration-phase increment
+referred to the PREVIOUS passage's design carrier (see
+``_accumulate_registration_phase``). The pin runs at ``rtol=1e-6``; the four
+physics gates in the class -- sag, loop response, setpoint recovery, bounded
+bunch -- are independent of it and sit at their own thresholds.
+``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the zero-intensity
+behaviour these numbers build on.
+
+This is the only pin in the whole feedback suite that the registration-phase
+reference fix moved: a driven, accelerating, two-section fast ramp is exactly
+the path that fix acts on, and the surviving curvature term feeds through the
+demodulation/readout carrier into the beam-loading sag the PI regulates
+against. The shift is small -- ``v_min`` by at most ``4913 V`` on
+~``2.98e7 V`` (``1.65e-4`` relative), ``i_max_dev`` by at most ``0.049 A``
+on ~``50 A`` (``9.81e-4`` relative) -- and **turn 0 is unchanged to
+roundoff** (``1.3e-16`` relative in both), which is an independent
+confirmation from a tracked run that a station's first passage contributes
+exactly zero registration phase.
+
+The states the pins passed through before that, for anyone reading an older
+recording: the configuration was excluded outright while the registration
+phase was applied as a rotation of the antenna-voltage *state*, because it
 dragged the driven field off its steady state (see
-``TestDrivenSteadyStateFastRamp``), so a pinned PI trajectory would have
-characterised that drift rather than the loop; with the phase carried on
-the demodulation/readout carrier the fast ramp behaves like the slow one.
-The pins were then regenerated once more with the split coarse envelope:
-the previous set still encoded the driven readout-phase artefact this
-configuration exists to expose (``Psi ~ 0.14`` rad/turn/station handed
-to the generator-driven field too, with the PI partially fighting that
-bookkeeping rotation). With the generator component design-anchored and
-the PI regulating the kick-frame sum, ``|V_ant|`` moved by up to 1.8e-2
-relative and the current response by up to ~9 % here;
-``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the fixed
-zero-intensity behaviour these numbers now build on.
+``TestDrivenSteadyStateFastRamp``) and a pinned trajectory would have
+characterised that drift rather than the loop; the first pins taken after
+that still encoded the driven readout-phase artefact this configuration
+exists to expose (``Psi ~ 0.14`` rad/turn/station handed to the
+generator-driven field too, with the PI partially fighting the bookkeeping
+rotation), and design-anchoring the generator component moved ``|V_ant|`` by
+up to 1.8e-2 relative and the current response by up to ~9 %.
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -696,10 +868,13 @@ zero-intensity behaviour these numbers now build on.
 ``test_pinned_trajectories``
     Characterization pin of the exact recorded fast-ramp trajectories.
 
-**Class** ``TestKernelMatchesReferenceEndToEnd`` -- the numba coarse-envelope
-kernel (the default path) must reproduce the pure-Python reference
-recursion bit-for-bit through a full tracked ``Simulation``, not just on
-the isolated hand-built grids of ``test_envelope_kernel.py``.
+``TestKernelMatchesReferenceEndToEnd``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The numba coarse-envelope kernel (the default path) must reproduce the
+pure-Python reference recursion bit-for-bit through a full tracked
+``Simulation``, not just on the isolated hand-built grids of
+``test_envelope_kernel.py``.
 
 ``test_multi_section_kernel_vs_python_bit_identical``
     A two-section, four-turn fast-ramp PI run on the default numba kernel
@@ -718,10 +893,13 @@ beam-current demodulation in ``blond.physics.feedbacks.beam_current``. The
 solvers are driven directly on a static profile -- no ``Beam`` tracking and
 no full ``Simulation``.
 
-**Class** ``TestCavityResponseSolverConvergence`` -- first-order forward Euler
-(``cavity_response_sparse_matrix``) versus second-order Crank-Nicolson
-(``cavity_response_sparse_matrix_second_order``), both integrating the same
-cavity-envelope ODE and converging to the multi-turn resonator convolution.
+``TestCavityResponseSolverConvergence``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+First-order forward Euler (``cavity_response_sparse_matrix``) versus
+second-order Crank-Nicolson (``cavity_response_sparse_matrix_second_order``),
+both integrating the same cavity-envelope ODE and converging to the multi-turn
+resonator convolution.
 
 ``test_second_order_more_accurate_at_low_binning``
     At coarse binning the Crank-Nicolson solver beats Euler by orders of
@@ -740,14 +918,17 @@ cavity-envelope ODE and converging to the multi-turn resonator convolution.
 An opt-in debug plot (``DEBUG_PLOT``, ``_plot_convergence``) shows the
 convergence slopes and the residual against the convolution solver.
 
-**Class** ``TestRfBeamCurrentDownsampling`` -- charge conservation of the
-coarse-grid downsampling in ``rf_beam_current``, plus the argument and
-geometry guards around it. Regression test for a dropped remainder that used
-to silently discard demodulated charge past the last coarse-cell boundary (up
-to the whole bunch, depending on its phase), and for the span/index guards
-that replaced the ``% n_points`` wrap: every write index must now land inside
-the coarse grid, or the call raises. The sweep positions the bunch at 0.08,
-0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like 25900-cell grid.
+``TestRfBeamCurrentDownsampling``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Charge conservation of the coarse-grid downsampling in ``rf_beam_current``,
+plus the argument and geometry guards around it. Regression test for a dropped
+remainder that used to silently discard demodulated charge past the last
+coarse-cell boundary (up to the whole bunch, depending on its phase), and for
+the span/index guards that replaced the ``% n_points`` wrap: every write index
+must now land inside the coarse grid, or the call raises. The sweep positions
+the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
+25900-cell grid.
 
 ``test_downsampling_conserves_demodulated_charge``
     Re-binning the fine-grid demodulated charge onto the coarse grid conserves
@@ -833,14 +1014,16 @@ the coarse grid, or the call raises. The sweep positions the bunch at 0.08,
     0.62 -- the widest legitimate one in the suite), so the threshold may
     not creep below it.
 
-**Class** ``TestRfBeamCurrentCounterRotating`` -- direction-signed charge in
-the RF beam current. In the symmetric muon-collider ring the counter-rotating
-mu-minus beam has opposite charge *and* opposite direction, so its gap current
-has the **same sign** as the co-rotating mu-plus beam. The source side of
-``rf_beam_current`` uses
+``TestRfBeamCurrentCounterRotating``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Direction-signed charge in the RF beam current. In the symmetric muon-collider
+ring the counter-rotating mu-minus beam has opposite charge *and* opposite
+direction, so its gap current has the **same sign** as the co-rotating mu-plus
+beam. The source side of ``rf_beam_current`` uses
 ``beam.signed_charge_with_direction()`` (charge negated for a counter-rotating
-beam), matching the RF-kick and wake-kick conventions; for co-rotating beams
-it equals the plain particle charge, so co-rotating behaviour is unchanged.
+beam), matching the RF-kick and wake-kick conventions; for co-rotating beams it
+equals the plain particle charge, so co-rotating behaviour is unchanged.
 
 ``test_counter_rotating_mu_minus_matches_co_rotating_mu_plus``
     CR mu-minus current is bit-identical to the mu-plus current on both the
@@ -856,16 +1039,18 @@ it equals the plain particle charge, so co-rotating behaviour is unchanged.
     For any co-rotating beam the signed charge reduces to the plain particle
     charge, so the direction handling leaves co-rotating results bit-unchanged.
 
-**Class** ``TestUnifiedRfBeamCurrentMigrationPin`` -- migration pin of the
-unified ``rf_beam_current`` coarse path. The recorded values were produced by
-driving the pre-merge ``rf_beam_current_partial`` (the timing-class
-forward-pass variant that was folded into ``rf_beam_current``) on this exact
-fixture -- mid-window Gaussian, 1024 bins -- with ``dT`` and
+``TestUnifiedRfBeamCurrentMigrationPin``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Migration pin of the unified ``rf_beam_current`` coarse path. The recorded
+values were produced by driving the pre-merge ``rf_beam_current_partial`` (the
+timing-class forward-pass variant that was folded into ``rf_beam_current``) on
+this exact fixture -- mid-window Gaussian, 1024 bins -- with ``dT`` and
 ``carrier_phase_offset`` both nonzero and
 ``forbid_charge_in_first_coarse_cell=True``. The unified function must
-reproduce them byte-exactly, pinning the merged coarse path (bin-centre
-offset ``sampling_time / 2``, carrier-phase rotation, downsampling loop,
-remainder handling) to the pre-merge behaviour.
+reproduce them byte-exactly, pinning the merged coarse path (bin-centre offset
+``sampling_time / 2``, carrier-phase rotation, downsampling loop, remainder
+handling) to the pre-merge behaviour.
 
 ``test_unified_coarse_path_matches_recorded_partial_output``
     Exact equality (no tolerance) against the recorded outputs: the fine-grid
@@ -882,8 +1067,11 @@ Compares the same single cavity modelled as a ``MultiPassResonatorSolver``
 only excitation, is the beam-induced voltage. ``make_noisy_profile`` builds the
 shared noisy-Gaussian static profile (edge bins zeroed).
 
-**Class** ``TestSinglePassInducedVoltage`` -- single pass, mock-driven, no
-``Simulation``; the lab-frame induced voltages agree to < 1 %.
+``TestSinglePassInducedVoltage``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Single pass, mock-driven, no ``Simulation``; the lab-frame induced voltages
+agree to < 1 %.
 
 ``test_induced_voltage_matches_non_driven_feedback``
     Pointwise (within 1 % of peak), shape (relative L2 < 1 %) and peak
@@ -893,16 +1081,18 @@ shared noisy-Gaussian static profile (edge bins zeroed).
 ``test_feedback_without_beam_or_generator_is_silent``
     A non-driven feedback with zero initial voltage induces nothing.
 
-**Class** ``TestMultiTurnFeedbackVsConvolution`` -- full ``Simulation`` with a
-dummy particle-less beam driving static profiles over several turns. The
-feedback's coarse grid is propagated turn over turn through the
-backfill/forward reference tracking, and its beam-induced gap voltage (minus
-a no-beam reference run) is compared per turn and per section against the
-accumulating convolution voltage. Uses a high ``Q_L = 1.29e6`` so the
-previous-pass wake survives (~88 % per turn). Results are cached per the
-full config tuple
-(``n_sections``, ``acceleration``, ``n_rf_periods``, ``fast_ramp``,
-``delta_omega``, ``delta_omega_rf`` and the turn/harmonic overrides).
+``TestMultiTurnFeedbackVsConvolution``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Full ``Simulation`` with a dummy particle-less beam driving static profiles
+over several turns. The feedback's coarse grid is propagated turn over turn
+through the backfill/forward reference tracking, and its beam-induced gap
+voltage (minus a no-beam reference run) is compared per turn and per section
+against the accumulating convolution voltage. Uses a high ``Q_L = 1.29e6`` so
+the previous-pass wake survives (~88 % per turn). Results are cached per the
+full config tuple (``n_sections``, ``acceleration``, ``n_rf_periods``,
+``fast_ramp``, ``delta_omega``, ``delta_omega_rf`` and the turn/harmonic
+overrides).
 
 ``test_multiturn_wake_accumulates_over_turns``
     The multi-pass wake genuinely builds up turn over turn (peaks ~1, 1.9, 2.8)
@@ -925,9 +1115,10 @@ full config tuple
     retuning convolution in the fast frame-slip regime.
 ``test_multiturn_fast_ramp_multisection``
     Multi-section (2 and 4 stations) on the fast ramp matches the retuning
-    convolution: the grid-vs-carrier registration phase
-    ``Psi = sum_k (omega_k - omega_0) T_seg,k``, which the other stations'
-    mid-turn grid re-seeding accumulates in
+    convolution: the grid-vs-carrier registration phase ``Psi``, the
+    running total of the per-passage increments
+    ``dPsi = sum_k (omega_prev - omega_k) T_seg,k`` which the other
+    stations' mid-turn grid re-seeding accumulates in
     ``_accumulate_registration_phase``, is carried on the
     demodulation/readout carrier -- *not* applied as a rotation of the
     antenna-voltage state (see ``TestDrivenSteadyStateFastRamp`` in
@@ -959,8 +1150,10 @@ full config tuple
     carrier was anchored to the accumulated actual RF phase this failed
     within two turns (the former lab-frame slip grew by
     ``delta_omega_rf * t_rev``, ~4 % vector error, per turn); anchored, the
-    residual sits at the discretization floor (measured net carrier-phase
-    error <= 2e-5 rad per turn, offset-independent).
+    residual sits at the discretization floor. (The test itself asserts only
+    the 2 % per-turn gate; the net carrier-phase error of <= 2e-5 rad per
+    turn, offset-independent, was measured off-line while the anchor was
+    validated and is not regression-guarded.)
 ``test_multiturn_delta_omega_rf_differential``
     Difference-of-differences at the small offset: the offset-induced move
     ``fb(offset) - fb(no offset)`` matches the convolution's move to
@@ -974,21 +1167,45 @@ full config tuple
 ``test_multiturn_delta_omega_rf_multisection``
     The large offset also holds with two RF stations: backfill-tracked
     segments, per-station kick clocks and the multi-section frame
-    correction stay consistent with the carrier anchoring. All four
-    offset tests are mutation-verified (flipping the anchor sign fails
-    every one).
+    correction stay consistent with the carrier anchoring. All four offset
+    tests were mutation-checked off-line while the anchor was validated
+    (flipping its sign failed every one); nothing in the module records
+    that, so it is a one-off measurement and not a standing guard.
 ``test_multiturn_secular_drift_long_horizon``
     Long-horizon guard for the shorter consistency tests: the most drift-prone
-    case (2 sections, fast undriven) run for 20 turns has a bounded per-turn
-    relative-error slope (~0.03 pp/turn) and an endpoint within 1 %.
+    case (2 sections, fast undriven) run for 20 turns must have a bounded
+    per-turn relative-error slope and a bounded endpoint. This is now also the
+    regression guard for the registration-phase reference fix. The
+    ``~0.03 pp/turn`` this test used to document as a healthy bounded drift
+    **was the bug** -- the registration-phase increment referenced to the
+    current passage's carrier instead of the previous one -- and it is gone:
+    slope ``+0.03184`` -> ``-0.00255`` pp/turn, turn-19 error ``0.66788 %``
+    -> ``0.02149 %``, which is below the single-section control
+    (``0.02618 %``, slope ``-0.00225``). Both gates were therefore tightened
+    from the values the old drift forced: slope ``0.05`` -> ``0.005``
+    pp/turn, endpoint ``1 %`` -> ``0.05 %``. The new gates fail the old
+    expression loudly -- by 6.4x on the slope and 13x on the endpoint,
+    against the pre-fix numbers recorded in the test's own docstring --
+    while keeping ordinary headroom: the
+    slope gate still admits a mildly *positive* drift, since the measurement
+    is negative and the meaningful bound is "not growing", and the endpoint
+    gate sits 2.3x above the measured value and above the single-section
+    control that bounds the irreducible residual from below.
 ``test_multiturn_nondivisible_harmonic_is_rejected``
     KNOWN LIMITATION, pinned as a contract. A harmonic not divisible by
-    ``2 * n_sections`` de-aligns the coarse-grid tiling from the profile's
-    zeroed leading edge, so beam charge is downsampled into the first coarse
-    cell and ``rf_beam_current`` raises before any voltage is produced -- a
-    genuine gap versus the geometry-agnostic solver. The test asserts that
-    ``ValueError``, and that its message both names the cause and stays
-    actionable (it must mention ``cut_left``), for the static and the fast
+    ``2 * n_sections`` leaves a quarter-period residual per half-drift, so
+    ``omega_c * dT`` lands away from ``pi``: the beam-induced voltage would
+    be rotated by that angle and, past ``0.5 pi``, sign-inverted -- the bunch
+    accelerated by its own wake. The configuration is **refused** rather than
+    computed. ``_assert_demodulation_frame_aligned`` (in
+    ``cavity_feedback.py``, called unconditionally before every coarse
+    demodulation) raises ``ValueError`` before any voltage is produced, one
+    step earlier than -- and by root cause rather than by symptom of -- the
+    first-coarse-cell charge check the same geometry would otherwise trip.
+    The gap versus the geometry-agnostic solver is real, but it is a refusal,
+    not a silently wrong answer. The test asserts that ``ValueError`` and
+    that its message stays actionable (it must still name ``omega_c * dT``
+    and ``not divisible by the number of``), for the static and the fast
     two-section config. It is deliberately *not* an ``expectedFailure``: an
     xfail passes on any error, so it would survive the limitation being
     replaced by an unrelated crash, and it would fail as an unexpected pass
@@ -1025,17 +1242,19 @@ full config tuple
     anchor would surface here while the zero-offset invariant stayed
     green. Single section, static cycle.
 
-**Class** ``TestExponentialSolverEndToEnd`` -- end-to-end validation of the
-exact exponential coarse-grid propagator
-(``exponential_coarse_solver_enable=True``; the unit-level closed-form
-checks live in ``TestExponentialCoarseSolver`` under
-``test_mucol_cav_fdbk.py``). Reuses the full-``Simulation`` harness of
-``TestMultiTurnFeedbackVsConvolution`` -- convolution reference, beam
-feedback and no-beam feedback reference per config -- with the feedback
-switched from forward Euler to the exponential coarse propagator; like the
-counter-rotating runs, the extra feedback runs call ``_run_multiturn_case``
-directly (the flag and the ``q_l_override`` are deliberately not part of
-the ``_feedback_vs_convolution`` cache key).
+``TestExponentialSolverEndToEnd``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+End-to-end validation of the exact exponential coarse-grid propagator
+(``exponential_coarse_solver_enable=True``; the unit-level closed-form checks
+live in ``TestExponentialCoarseSolver`` under ``test_mucol_cav_fdbk.py``).
+Reuses the full-``Simulation`` harness of
+``TestMultiTurnFeedbackVsConvolution`` -- convolution reference, beam feedback
+and no-beam feedback reference per config -- with the feedback switched from
+forward Euler to the exponential coarse propagator; like the counter-rotating
+runs, the extra feedback runs call ``_run_multiturn_case`` directly (the flag
+and the ``q_l_override`` are deliberately not part of the
+``_feedback_vs_convolution`` cache key).
 
 ``test_exponential_solver_matches_convolution_standard_q_l``
     At the standard operating point (``Q_L = 1.29e6``, per-step decay
@@ -1081,7 +1300,8 @@ kick) or from the operating-point feedback (beam-induced part isolated by the
 zero-intensity reference run). Runs for a stationary ``ConstantMagneticCycle``
 and an accelerating ``MagneticCyclePerTurn``.
 
-**Class** ``TestEnergyGainMTWvsNonDrivenFeedback``
+``TestEnergyGainMTWvsNonDrivenFeedback``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_feedback_runs_in_full_simulation``
     The feedback tracks through a full ``Simulation`` (regression for the
@@ -1102,6 +1322,74 @@ against arrival time; its file output is commented out (see
 `Data and assets`_).
 
 
+``test_beam_loading_sign_vs_design_rf_phase.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The fundamental theorem of beam loading, pinned against the design RF phase
+and against the demodulation frame. The feedback demodulates the beam current
+at the design carrier with an explicit ``carrier_phase_offset``, while the
+station kicks at ``sin(omega_rf ts + phi_rf + phase_correction)`` with
+``phi_rf = phi_rf_design + delta_phi_rf``; the demodulation must therefore
+subtract the *whole* phase the readout and the station add back --
+``phi_rf + _carrier_slip_gap``. Leaving ``phi_rf_design`` out rotates the
+beam-induced voltage by ``-phi_rf_design`` and, at ``phi_rf_design = pi``,
+inverts the loading outright.
+
+Ring, cavity and bunch are those of
+``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``, which pins the
+same induced kick against the independent ``MultiPassResonatorSolver`` at
+``phi_rf_design = 0`` -- so here that already-validated case is the reference
+the other design phases must reproduce. The beam-induced part is isolated
+exactly, by linearity, as nominal-intensity minus zero-intensity on the same
+operating-point cavity.
+
+``TestBeamLoadingSignVsDesignRfPhase``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The bunch must lose energy to its own wake at every design phase. Measured on
+this fixture: the induced kick is negative for every macroparticle (mean
+``-7.8483e5`` eV) and is the same array for ``phi_rf_design`` in ``{0, pi/2,
+pi, -0.7}`` to ``2.6e-7`` eV, i.e. ``2e-13`` of the peak.
+
+``test_bunch_loses_energy_to_its_own_wake_at_zero_design_phase``
+    Control: at ``phi_rf_design = 0`` every particle is decelerated.
+``test_bunch_loses_energy_to_its_own_wake_at_pi_design_phase``
+    The sign flip: at ``phi_rf_design = pi`` every particle must still be
+    decelerated (before the fix the mean was ``+7.8483e5`` eV -- a *gain*).
+``test_induced_kick_does_not_depend_on_the_design_rf_phase``
+    Shifting ``phi_rf_design`` shifts the design wave and the induced field
+    together, so the induced kick is the same array for
+    ``pi``/``-0.7``/``0.7`` as for 0, to ``1e-9`` of the peak.
+``test_design_rf_phase_flips_the_beam_free_kick_at_pi``
+    Readout-side guard: a driven, beam-free cavity on its setpoint still
+    reproduces ``V sin(omega_rf ts + phi_rf)``, so the ``pi`` kick is the
+    exact negative of the ``0`` one (holds to ``4e-15``). The fix belongs on
+    the demodulation side only and must not be "balanced" by rotating the
+    generator frame.
+
+``TestDemodulationFrameGuard``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The demodulation frame must be an odd multiple of ``pi``. With
+``carrier_phase_offset`` cancelling the station and readout phases, ``omega_c *
+dT`` is the only phase left in the sign of beam loading, and the bunch loses
+energy only while ``cos(omega_c * dT) < 0``. The coarse grid delivers that by
+seeding every segment half an RF period in, but a sub-stepped grid tiles at
+``omega_c * dT = 2 pi n``, which is an odd multiple of ``pi`` **only** for ``n
+= 0.5``. So ``n = 0.9`` is an ordinary-looking input that would invert the
+loading (measured on this fixture: the bunch would GAIN ``+8.43e4`` eV instead
+of losing ``-7.87e4``), and ``_assert_demodulation_frame_aligned`` -- called
+unconditionally before every coarse demodulation -- refuses it.
+
+``test_aligned_steps_decelerate_the_bunch``
+    ``n = 0.5`` and ``n = 1`` are both aligned: both decelerate, and they
+    agree to within 1 eV.
+``test_misaligned_sub_step_is_rejected``
+    ``n = 0.9`` raises ``ValueError``, and the message must still name
+    ``demodulation frame is not aligned with the RF bucket`` and
+    ``n_rf_periods_per_coarse_grid``.
+
+
 ``test_feedback_phase_under_acceleration.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1118,7 +1406,8 @@ accumulated phase ``Phi = theta(t_o) - theta(t_e)``. The ``fixed_freq`` flag
 selects the *wrong* fixed-frequency phase clock and is used only to show the
 test is sensitive to the accumulated-phase handling.
 
-**Class** ``TestFeedbackPhaseUnderAcceleration``
+``TestFeedbackPhaseUnderAcceleration``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_feedback_matches_analytic_multipass_reference``
     The feedback reproduces the integrated-phase reference to < 5 % on every
@@ -1130,18 +1419,23 @@ test is sensitive to the accumulated-phase handling.
     Guard: the frame slips meaningfully (> 0.2 ``t_rf``) and the bunch stays
     in-window.
 
-**Class** ``TestSolverPhaseUnderAcceleration``
+``TestSolverPhaseUnderAcceleration``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_solver_matches_analytic_multipass_reference``
-    Reusing the same matched-beam setup, the retuning ``MultiPassResonatorSolver``
-    (``delta_f=0.0``) also reproduces the integrated-phase reference, i.e. it
+    Reusing the same matched-beam setup, the retuning
+    ``MultiPassResonatorSolver`` (``retune_to_rf=True``, no ``delta_f``
+    offset) also reproduces the integrated-phase reference, i.e. it
     accumulates the carried-wake phase as ``integral of omega dt``.
 
-**Class** ``TestFixedFrequencyWakeWithSubsteppedFrame`` -- a fixed-frequency
-(higher-order-mode) wake does not retune with the RF, so its carried-wake
-phase-clock rotation is identically zero and the only acceleration error left
-is the frame (arrival) time. The solver is driven on a fixed profile while the
-reference frame is advanced by ``DriftSubstepped`` (no beam tracking).
+``TestFixedFrequencyWakeWithSubsteppedFrame``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A fixed-frequency (higher-order-mode) wake does not retune with the RF, so its
+carried-wake phase-clock rotation is identically zero and the only acceleration
+error left is the frame (arrival) time. The solver is driven on a fixed profile
+while the reference frame is advanced by ``DriftSubstepped`` (no beam
+tracking).
 
 ``test_substepped_frame_makes_fixed_frequency_wake_exact``
     A single-beta frame (``n_substeps = 1``) diverges from the analytic
@@ -1162,9 +1456,10 @@ reference frame is advanced by ``DriftSubstepped`` (no beam tracking).
 A self-consistent multi-turn *dynamics* twin: the same matched ``BiGaussian``
 ``mu_plus`` bunch is tracked through two full ``Simulation`` rings that differ
 **only** in the beam-induced-voltage model -- one uses the multi-pass resonator
-wake (``MultiPassResonatorSolver``, ``delta_f = 0``), the other a matched-bias
-non-driven ``IQCavityFeedbackTimingClass`` (``delta_omega = 0``). Where the
-neighbouring modules pin one slice of the equivalence (one turn of applied
+wake (``MultiPassResonatorSolver``, ``retune_to_rf=True``), the other a
+matched-bias non-driven ``IQCavityFeedbackTimingClass``
+(``delta_omega = 0``). Where the neighbouring modules pin one slice of the
+equivalence (one turn of applied
 ``dE``; the induced voltage against an analytic reference), this closes the loop
 and compares the *self-consistent bunch evolution* many turns deep on the
 transition-adjacent fast ramp (~4 GeV, ~0.09 ``t_rf``/turn frame slip, strong
@@ -1173,7 +1468,8 @@ beam loading). It borrows the matched-beam constants and ``_t_rf`` /
 ``test_feedback_phase_under_acceleration.py`` via an uncollected ``_MatchedBeam``
 shim.
 
-**Class** ``TestWakeVsFeedbackDynamics``
+``TestWakeVsFeedbackDynamics``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_centroid_tracks_between_wake_and_feedback``
     The coherent centroid of the two twin bunches stays far inside ``sigma_dt``
@@ -1216,8 +1512,11 @@ The local gates are anchored a few x above the measured feedback-vs-solver
 discretization floor (trailing/leading/global ~0.19 %/0.46 %/0.11 %), not a
 loose 2 %, so a sub-percent error in the carried inter-cell wake fails.
 
-**Class** ``TestSinglePassMultiBunch`` -- solver vs non-driven feedback on one
-static multi-bunch profile (no ``Beam`` tracking, no ``Simulation``).
+``TestSinglePassMultiBunch``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Solver vs non-driven feedback on one static multi-bunch profile (no ``Beam``
+tracking, no ``Simulation``).
 
 ``test_two_bunch_trailing_matches_solver``
     Two bunches (2 and 6 ``t_rf``): feedback vs solver agree at the trailing
@@ -1232,11 +1531,14 @@ static multi-bunch profile (no ``Beam`` tracking, no ``Simulation``).
     cell carries negligible charge -- the actual invariant, not a re-read of
     the builder's zeroed fine bins.
 
-**Class** ``TestMultiBunchMultiTurn`` -- full ``Simulation`` (a macroparticle-less
-dummy beam holds the static multi-bunch profile); the coarse grid propagates
-turn over turn and the beam-induced part (minus a no-beam reference) is compared
-per turn against the convolution. Per-turn gates are parametrised and default to
-a few x above the measured floors (trailing 0.6 %, leading 1.0 %, global 0.3 %).
+``TestMultiBunchMultiTurn``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Full ``Simulation`` (a macroparticle-less dummy beam holds the static
+multi-bunch profile); the coarse grid propagates turn over turn and the
+beam-induced part (minus a no-beam reference) is compared per turn against the
+convolution. Per-turn gates are parametrised and default to a few x above the
+measured floors (trailing 0.6 %, leading 1.0 %, global 0.3 %).
 
 ``test_multibunch_static``
     Static single section: the coarse grid carries the leading-bunch wake
@@ -1256,12 +1558,15 @@ turn; ``beams[1]`` traverses the elements in reverse order). Two regimes,
 split by the station azimuth -- with the offset-passage regime covered on
 the static cycle, under acceleration and with an RF-frequency offset:
 
-**Class** ``TestTwoBeamOffsetPassages`` -- stations away from the beams'
-meeting points (two sections: arrivals ``T_rev / 2`` apart, the true pattern
-of counter-rotating beams in the symmetric ring). The per-passage grid
-machinery handles the alternating arrivals natively: each ``_track`` spans
-the half turn to that beam's next passage, so the envelope paces at the
-physical rate and carries each beam's loading into the other's passage.
+``TestTwoBeamOffsetPassages``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Stations away from the beams' meeting points (two sections: arrivals ``T_rev /
+2`` apart, the true pattern of counter-rotating beams in the symmetric ring).
+The per-passage grid machinery handles the alternating arrivals natively: each
+``_track`` spans the half turn to that beam's next passage, so the envelope
+paces at the physical rate and carries each beam's loading into the other's
+passage.
 
 ``test_feedback_matches_two_beam_convolution``
     The two-beam beam-induced part (two-beam gap voltage minus the two-beam
@@ -1275,16 +1580,18 @@ physical rate and carries each beam's loading into the other's passage.
     Symmetric ring: both stations see the full two-beam loading (peaks agree
     to a few percent; profiles differ only by their noise seed).
 
-**Class** ``TestTwoBeamAcceleratingOffsetPassages`` -- offset two-beam
-passages under acceleration (two sections on the transition-adjacent fast
-ramp, ~4 GeV, ``gamma_t ~ 31``: the RF frame slips ~0.09 ``t_rf`` per
-turn). Covers the composition the static class never exercises: the
-single-beam accelerating multi-section frame-slip correction composed with
-the per-beam **reverse** traversal of the two-beam mainloop. The
+``TestTwoBeamAcceleratingOffsetPassages``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Offset two-beam passages under acceleration (two sections on the
+transition-adjacent fast ramp, ~4 GeV, ``gamma_t ~ 31``: the RF frame slips
+~0.09 ``t_rf`` per turn). Covers the composition the static class never
+exercises: the single-beam accelerating multi-section frame-slip correction
+composed with the per-beam **reverse** traversal of the two-beam mainloop. The
 beam-induced part (two-beam gap voltage minus the two-beam zero-intensity
-reference, which by linearity also cancels the common acceleration kick)
-is compared over five turns against the two-beam multi-pass **retuning**
-convolution (``delta_f = 0``).
+reference, which by linearity also cancels the common acceleration kick) is
+compared over five turns against the two-beam multi-pass **retuning**
+convolution (``retune_to_rf=True``, no ``delta_f`` offset).
 
 ``test_accel_feedback_matches_two_beam_convolution``
     After a non-degeneracy guard (the last-turn convolution carries real
@@ -1299,17 +1606,19 @@ convolution (``delta_f = 0``).
     last-turn error is no larger than turn 0. A mis-composed frame-slip x
     reverse-traversal correction would instead ramp several pp/turn.
 
-**Class** ``TestTwoBeamDeltaOmegaRfOffsetPassages`` -- offset two-beam
-passages with a static RF-frequency offset (``delta_omega_rf = 2000``
-rad/s, two sections, static cycle -- no acceleration, isolating the
-offset's frame slip from the ramp slip covered above). The last untested
-corner of the ``delta_omega_rf`` demodulation slip anchor: a lone beam is
-tracked *forward* by ``MainloopSingleBeam`` regardless of direction, so
-only the two-beam mainloop's **reverse** element order exercises the
-anchor's sign/value for the reverse stream. The beam-induced part (both
-runs carry the offset, so its rotation of the empty-cavity voltage cancels
-by linearity) is compared over five turns against the retuning convolution
-(``delta_f = delta_omega_rf / (2 pi)``).
+``TestTwoBeamDeltaOmegaRfOffsetPassages``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Offset two-beam passages with a static RF-frequency offset (``delta_omega_rf =
+2000`` rad/s, two sections, static cycle -- no acceleration, isolating the
+offset's frame slip from the ramp slip covered above). The last untested corner
+of the ``delta_omega_rf`` demodulation slip anchor: a lone beam is tracked
+*forward* by ``MainloopSingleBeam`` regardless of direction, so only the
+two-beam mainloop's **reverse** element order exercises the anchor's sign/value
+for the reverse stream. The beam-induced part (both runs carry the offset, so
+its rotation of the empty-cavity voltage cancels by linearity) is compared over
+five turns against the retuning convolution (``retune_to_rf=True``, ``delta_f =
+delta_omega_rf / (2 pi)``).
 
 ``test_delta_omega_rf_feedback_matches_two_beam_convolution``
     After a non-degeneracy guard (the last-turn convolution carries real
@@ -1323,14 +1632,16 @@ by linearity) is compared over five turns against the retuning convolution
     ramp as the accumulated offset slip builds, which the lone-beam and
     zero-offset tests structurally cannot catch.
 
-**Class** ``TestTwoBeamOffsetPassagesManySections`` -- the same two-beam
-comparison beyond two sections. Two sections is a special layout twice over:
-every station sees the beams exactly ``T_rev / 2`` apart, and the backfill
-interval is empty at every station, so the backfill reference walk is never
-entered. A 16-section RCS -- what ``rcs_two_beam_example`` actually runs --
-has neither property, so these tests carry the validation into the regime the
-shipped example uses. The 0.5 % gate is taken from the two-section class
-rather than fitted to the measurement.
+``TestTwoBeamOffsetPassagesManySections``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The same two-beam comparison beyond two sections. Two sections is a special
+layout twice over: every station sees the beams exactly ``T_rev / 2`` apart,
+and the backfill interval is empty at every station, so the backfill reference
+walk is never entered. A 16-section RCS -- what ``rcs_two_beam_example``
+actually runs -- has neither property, so these tests carry the validation into
+the regime the shipped example uses. The 0.5 % gate is taken from the
+two-section class rather than fitted to the measurement.
 
 ``test_arrival_spacing_is_never_half_a_turn``
     The premise: at four sections no station sees the beams half a turn apart
@@ -1345,9 +1656,9 @@ rather than fitted to the measurement.
     re-seedings per turn, each at its own past-station RF frequency, so a
     mis-composed frame-slip correction has more chances to accumulate.
     Bounded and non-growing. This is the test that catches a backfill-walk
-    defect the whole two-section class misses -- verified by mutation
-    (dropping the last backfilled element leaves every two-section
-    comparison green and fails this one).
+    defect the whole two-section class misses: dropping the last backfilled
+    element leaves every two-section comparison green and fails this one --
+    a mutation check made off-line, not a standing guard in the module.
 ``test_delta_omega_rf_feedback_matches_two_beam_convolution``
     RF-frequency offset at four sections: the demodulation slip anchor is
     accumulated across the stations of a turn, so a non-empty backfill
@@ -1358,13 +1669,15 @@ rather than fitted to the measurement.
     above cannot hold with the counter-rotating beam silently dropped.
 
 
-**Class** ``TestSimultaneousPassageGuard`` -- a station at a meeting azimuth
-(e.g. the single mid-ring station of a one-section layout) sees both beams
-at the *same* reference time. The per-passage machinery would silently
-serialize the coincident arrivals one full projection window apart (envelope
-at twice the physical rate; measured ~47 % L2 waveform error on the first
-turn), so the feedback detects the coincident opposite-direction passage
-(within half a coarse cell) and refuses it.
+``TestSimultaneousPassageGuard``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A station at a meeting azimuth (e.g. the single mid-ring station of a
+one-section layout) sees both beams at the *same* reference time. The
+per-passage machinery would silently serialize the coincident arrivals one full
+projection window apart (envelope at twice the physical rate; measured ~47 % L2
+waveform error on the first turn), so the feedback detects the coincident
+opposite-direction passage (within half a coarse cell) and refuses it.
 
 ``test_single_section_two_beam_raises``
     The coincident second passage raises ``NotImplementedError``. The message
@@ -1389,60 +1702,87 @@ turn), so the feedback detects the coincident opposite-direction passage
    known open extension; the offset-passage regime above is the physically
    relevant one for even section counts.
 
-**Class** ``TestBackfillWalkDirectionConsistency`` -- a structural invariant
-the physics comparisons above cannot see. Note the two directions this
-module mixes: *backfill* is the time direction (reconstructing the already
-elapsed stretch of grid), *reverse* is the space direction (the
-counter-rotating beam's element traversal). The test is about their
-interaction. ``get_time_omega_array_backfill`` takes its element *order*
-from the previously tracked beam (``_last_tracked_beam_state_frwrd``) but
-hands ``beam.is_counter_rotating`` -- the *current* beam -- to
-``track_reference``. In a single-beam run the two always agree, so only a
-two-beam run can make them differ. They stay safe because the interval to
-backfill is empty: the forward projection stops at the next RF station in
-the tracked beam's traversal order, which under
-``MainloopCounterRotatingBeams`` is exactly where the *other* beam next
-reaches this feedback, so the reference times match to the bit and the
-early return in ``calculate_rf_centers_for_backfill`` fires
-before the walk is entered. Both tests share one instrumented run per
-regime: they patch ``calculate_rf_centers_for_backfill`` and
-``get_time_omega_array_backfill`` to record every call, and cover
-all three two-beam regimes of this module as subtests (static,
-accelerating fast ramp, ``delta_omega_rf``), each run once and cached,
-because each moves the reference clock differently. Measured in the static
-case: 10 of 12 backfill calls carry a direction mismatch and none
-reaches the walk; with the early return removed all 10 do. The *outcome*
-cannot be compared instead -- the symmetric half-drift / station /
-half-drift layout yields identical arrays for the matched and the
-mismatched element order -- so the "never entered" property and its gate
-are what is asserted.
+``TestBackfillWalkDirectionConsistency``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A structural invariant the physics comparisons above cannot see. Note the two
+directions this module mixes: *backfill* is the time direction (reconstructing
+the already elapsed stretch of grid), *reverse* is the space direction (the
+counter-rotating beam's element traversal). The tests are about their
+interaction. ``get_time_omega_array_backfill`` derives its element *order*, its
+start index and the per-station section remap it hands ``track_reference`` from
+ONE carried flag (``_last_tracked_beam_state_frwrd``), not from the beam being
+tracked now; ``beam.is_counter_rotating`` is consulted only on the very first
+turn, when nothing has been projected yet. Mixing the two -- the former
+behaviour -- walked the ring in one beam's direction while applying the other's
+energy program. In a single-beam run they always agree, so only a two-beam run
+can make them differ, and the pairing itself is pinned directly by
+``test_backfill_station_remap_follows_the_walk_direction`` in
+``test_rf_center_grid.py``.
+
+At ``n_sections == 2`` the walk is never even entered, because the interval
+to backfill is exactly empty at every station: the forward projection spans
+one section, ``t_rev / n``, while the other beam reaches station ``i`` a gap
+``|n - 2 i - 1| / n * t_rev`` later, and the two coincide exactly when
+``|n - 2 i - 1| == 1``. The reference times then match to the bit and the
+early return in ``calculate_rf_centers_for_backfill`` fires before the walk.
+That is a property of two sections, not a structural invariant of the
+projection endpoint: ``|n - 2 i - 1|`` is odd, so beyond ``n == 2`` only the
+two middle stations satisfy it -- 2 of 16 on the muon-collider RCS1 layout,
+where the walk is therefore entered with a mismatched direction at 14
+stations every turn, and is correct there. Both halves are pinned: the
+empty-interval early return at two sections, and the fact that the
+mismatched walk really is reached beyond it.
+
+The three tests share the instrumented runs, cached per
+``(regime, section count)``: they patch
+``calculate_rf_centers_for_backfill`` and ``get_time_omega_array_backfill``
+to record every call. The two-section tests cover all three two-beam regimes
+of this module as subtests (static, accelerating fast ramp,
+``delta_omega_rf``), because each moves the reference clock differently; the
+beyond-two-sections test adds static runs at 4 and 6 sections. Measured in
+the static two-section case: 10 of 12 backfill calls carry a direction
+mismatch and none reaches the walk; with the early return removed all 10 do.
+The *outcome* cannot be compared instead -- the symmetric half-drift /
+station / half-drift layout yields identical arrays for the matched and the
+mismatched element order -- so at two sections the "never entered" property
+and its gate are what is asserted.
 
 ``test_backfill_walk_never_entered_with_mismatched_direction``
-    Both halves matter: mismatched-direction calls must actually occur
-    (otherwise the beams stopped alternating and the test no longer
-    exercises the configuration it guards), and none of them may reach the
-    element walk.
+    Two sections. Both halves matter: mismatched-direction calls must
+    actually occur (otherwise the beams stopped alternating and the test no
+    longer exercises the configuration it guards), and none of them may reach
+    the element walk.
+``test_walk_is_entered_with_a_mismatch_beyond_two_sections``
+    The complement, at four and six sections: mismatched calls occur *and*
+    reach the walk. This is the configuration the class docstring used to
+    call unreachable; it is reached, and it is correct. The assertion fails
+    if the empty-interval coincidence ever turns out to be wider than the
+    ``|n - 2 i - 1| == 1`` geometry predicts.
 ``test_mismatched_calls_are_gated_by_exact_time_equality``
-    Pins the mechanism behind it: every mismatched call carries a
-    **bit-exact** zero backfill gap. The assertion is ``gap == 0.0``, not
-    ``assertAlmostEqual`` -- the production early return uses ``==``, so a
-    merely-approximate equality would not be safe. A companion assertion
-    shows the measurement is live: at least one first passage (nothing
-    projected yet) has a genuinely nonzero gap and legitimately walks.
+    Pins the mechanism behind the two-section case: every mismatched call
+    carries a **bit-exact** zero backfill gap. The assertion is
+    ``gap == 0.0``, not ``assertAlmostEqual`` -- the production early return
+    uses ``==``, so a merely-approximate equality would not be safe. A
+    companion assertion shows the measurement is live: at least one first
+    passage (nothing projected yet) has a genuinely nonzero gap and
+    legitimately walks.
 
 
 ``test_envelope_kernel.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Class** ``TestEnvelopeKernelBitIdentity`` -- the numba coarse-envelope
-kernel (``envelope_pi_scan``) must reproduce the pure-Python coarse
-recursion bit-for-bit. Each test drives both paths with identical inputs
-and asserts exact equality across the regimes the kernel must cover.
-The compared snapshot covers the whole coarse state: the two
+``TestEnvelopeKernelBitIdentity``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The numba coarse-envelope kernel (``envelope_pi_scan``) must reproduce the
+pure-Python coarse recursion bit-for-bit. Each test drives both paths with
+identical inputs and asserts exact equality across the regimes the kernel must
+cover. The compared snapshot covers the whole coarse state: the two
 source-split component grids (``antenna_voltage_gen_coarse_grid`` and
-``antenna_voltage_beam_coarse_grid``) alongside the composed
-demodulation-frame sum, the generator-current grid and, when a
-controller is attached, its integral and delay line.
+``antenna_voltage_beam_coarse_grid``) alongside the composed demodulation-frame
+sum, the generator-current grid and, when a controller is attached, its
+integral and delay line.
 
 ``test_no_beam_constant_current``
     Backfill-style segment: no beam, no controller.
@@ -1486,14 +1826,16 @@ controller is attached, its integral and delay line.
     Two segments with off-bias / nonzero carried state, reproducing the
     live multi-section turn >= 1 condition end to end.
 
-**Class** ``TestDegenerateCoarseSteps`` -- first-cell seeding, coincident
-points and empty segments. The per-cell reference loop
-(``_circuit_track_cells_python``) and its vectorised twin
+``TestDegenerateCoarseSteps``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+First-cell seeding, coincident points and empty segments. The per-cell
+reference loop (``_circuit_track_cells_python``) and its vectorised twin
 (``_coarse_step_sizes``) share the first-cell special cases, and a degenerate
-(coincident / zero-step) grid must make the kernel path defer to the
-reference loop -- the only one that duplicates the previous cell into the
-coincident one. The shared fixture is a four-centre no-beam grid whose third
-centre repeats the second (optionally offset by a few ULPs).
+(coincident / zero-step) grid must make the kernel path defer to the reference
+loop -- the only one that duplicates the previous cell into the coincident one.
+The shared fixture is a four-centre no-beam grid whose third centre repeats the
+second (optionally offset by a few ULPs).
 
 ``test_first_turn_single_cell_segment_uses_own_period_step``
     A one-cell first-ever segment has no next centre to take the step proxy
@@ -1523,10 +1865,12 @@ centre repeats the second (optionally offset by a few ULPs).
     ``start_index == end_index`` leaves both coarse grids untouched (checked
     against a sentinel-filled voltage grid).
 
-**Class** ``TestControllerAbstractionContract`` -- the compiled path must
-honour the ``GeneratorCurrentController`` *interface*, not a concrete PI
-class. Driven by ``_ProportionalOnlyController``, a minimal non-PI
-implementation with no compiled scan, over one 32-cell forward segment.
+``TestControllerAbstractionContract``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The compiled path must honour the ``GeneratorCurrentController`` *interface*,
+not a concrete PI class. Driven by ``_ProportionalOnlyController``, a minimal
+non-PI implementation with no compiled scan, over one 32-cell forward segment.
 
 ``test_non_pi_controller_runs_on_the_default_path``
     The default (kernel) path steps the controller once per cell and
@@ -1538,12 +1882,68 @@ implementation with no compiled scan, over one 32-cell forward segment.
     reference exactly (``np.array_equal`` on both coarse grids).
 
 
+``test_station_readout_edge_cases.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Three station-readout behaviours that were added or changed without a test
+pinning them. Nothing here is about the cavity physics: it is the boundary
+between a feedback and the station (or observable) that consumes its
+correction.
+
+``TestZeroParentVoltageGuard``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A harmonic driven at ``V = 0`` must not poison the summed gap voltage with
+``NaN``. The readout divides the raw correction by the parent station's
+voltage.
+
+``test_zero_voltage_gives_a_zero_correction_not_nan``
+    With the parent reporting no voltage the correction is finite and
+    exactly zero.
+``test_non_zero_voltage_still_divides``
+    The guard must not disturb the ordinary path: a nonzero voltage still
+    gives the plain ``raw / V``, reproducibly and non-vacuously.
+
+``TestMultipleFeedbackGridWarning``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every feedback's per-bin corrections are applied on the **first** feedback's
+grid, so a station carrying several feedbacks on differing profile grids has to
+say so -- once, not every turn.
+
+``test_same_grid_is_silent``
+    Feedbacks sharing one profile need no warning.
+``test_different_grid_warns_exactly_once``
+    A differing grid is reported on the first turn only (driven five turns).
+``test_single_feedback_is_silent``
+    One feedback cannot disagree with itself.
+
+``TestTotalVoltageGridResolution``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``InducedVoltageObservationCR.total_voltage`` now *includes* the feedback
+correction instead of refusing the configuration, so all three grids it can
+meet are pinned.
+
+``test_no_feedback_uses_the_plain_rf_drive``
+    Without a feedback the uncorrected gap voltage is recorded.
+``test_same_grid_uses_the_feedback_values_directly``
+    A shared grid needs no interpolation and emits no warning.
+``test_different_grid_interpolates_and_warns_once``
+    A differing grid is interpolated onto the wakefield's grid (checked on a
+    straight line, so the assertion is about the grid and not about
+    interpolation error) and reported exactly once over four turns.
+
+
 ``test_closed_loop_stability.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Class** ``TestClosedLoopRobinsonStability`` -- closed-loop (Robinson-style)
-certification that the *driven* feedback is stable over many synchrotron
-periods, not merely that two induced-voltage models agree.
+``TestClosedLoopRobinsonStability``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Closed-loop (Robinson-style) certification that the *driven* feedback is stable
+over many synchrotron periods, not merely that two induced-voltage models
+agree.
 
 ``test_setup_spans_many_synchrotron_periods``
     Guards that the run is long enough for a dipole oscillation to develop.
@@ -1563,8 +1963,10 @@ periods, not merely that two induced-voltage models agree.
 Energy/power self-consistency of the generator drive and the beam-loading
 compensation.
 
-**Class** ``TestBeamLoadingCompensationSustainsSetpoint`` -- the
-compensation ``I_gen = I_ff + I_beam / 2`` is a fixed point of the coarse
+``TestBeamLoadingCompensationSustainsSetpoint``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The compensation ``I_gen = I_ff + I_beam / 2`` is a fixed point of the coarse
 step, in the real cavity solver.
 
 ``test_compensation_is_a_fixed_point_for_all_detunings``
@@ -1575,10 +1977,12 @@ step, in the real cavity solver.
     compensation holds ``V_SET`` (residual at floating noise) while the raw
     over-compensation drifts by many volts.
 
-**Class** ``TestGeneratorPowerBeamPowerBalance`` -- the incremental klystron
-forward power against the power the beam extracts. The expected beam power
-is derived analytically from the phasors, not mirrored from the
-implementation.
+``TestGeneratorPowerBeamPowerBalance``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The incremental klystron forward power against the power the beam extracts. The
+expected beam power is derived analytically from the phasors, not mirrored from
+the implementation.
 
 ``test_balance_closes_to_one_on_resonance``
     Beam power uses the *physical* fundamental current ``I_beam / 2``, so
@@ -1593,13 +1997,56 @@ implementation.
     ``delta Q_L Im[V conj(I_beam / 2)]``; the real-power normalization is
     unchanged, so detuning smuggles in no spurious factor.
 
-**Class** ``TestPowerCurrentRoundTrip`` -- ``current_limit_from_power``
-inverts ``generator_power`` in watts.
+``TestPowerCurrentRoundTrip``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``current_limit_from_power`` inverts ``generator_power`` in watts.
 
 ``test_power_to_current_to_power_is_identity``
     Power to current back to power returns the same watts.
 ``test_current_to_power_to_current_is_identity``
     Current to power back to current returns the same amps.
+
+
+``test_backend_equivalence_numba_vs_cuda.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Whole-feedback equivalence of the numba and CUDA backends. The modules under
+``tests/unittests/core/backends`` pin the backends against each other kernel
+by kernel; nothing else checks that a *cavity feedback in a tracking loop*
+produces the same physics on the GPU. The cheapest end-to-end fixture in the
+package -- the one-section RCS1-like ring of
+``test_beam_loading_sign_vs_design_rf_phase.py``, shrunk to 2000
+macroparticles and run five turns so the loop (profile -> beam current ->
+cavity -> kick -> profile) closes several times -- is built and tracked twice
+in one process from bit-identical initial coordinates: once on ``Numpy64Bit``
+with the ``numba`` specials, once on ``Cupy64Bit`` with the ``cuda`` ones. The
+entry backend is restored in ``tearDownClass``. Requires CuPy
+(``@pytest.mark.cupy``, skipped otherwise).
+
+Bit identity of the *results* is deliberately not asserted: the numba kick
+evaluates BLonD's ``fast_sin`` Cody-Waite polynomial (< 2 ULP) while the CUDA
+kick calls libdevice ``sin``, and the two histogram kernels accumulate in a
+different order. ``TOLERANCE = 1e-11`` keeps roughly four orders of margin
+over the worst measured value (``dE`` at ``1.6e-15``) while still failing hard
+on any real divergence -- a sign error reads 2.0e0 and even a 1 ppm scale
+error reads 1.0e-6. Swept in turns, the error is flat, i.e. float64 round-off
+rather than accumulation.
+
+Scope: three of the five compared arrays -- the beam current and both antenna
+voltages -- are host ``numpy`` arrays even during the CUDA run, because the
+mucol feedback's signal processing is host-only by design and there is no CUDA
+feedback kernel to compare against. What is pinned is the closed loop
+*through* the device: GPU tracking, the GPU histogram that builds
+``profile.hist_y``, and the transfers between them.
+
+``TestCavityFeedbackNumbaVsCudaEquivalence``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``test_gpu_reproduces_the_cpu_feedback_and_beam``
+    One subtest per recorded quantity (``dt``, ``dE``, the fine-grid beam
+    current, the coarse antenna voltage and the beam-induced antenna
+    voltage): each must agree between the backends to below ``TOLERANCE``.
 
 
 Shared feedback-machinery tests
@@ -1632,19 +2079,24 @@ helpers.
 What is left of the original cavity-feedback test module after the grid
 builder and the segment value class moved out (to ``test_rf_center_grid.py``
 and ``test_rf_center_segment.py``): the diagnostic flags, the
-multi-harmonic-station support and the coarse-cell step sizing. The
+multi-harmonic-station support, the coarse-cell step sizing and two
+attribute contracts (documented under `Mixin host contract`_ and
+`Attribute visibility contracts`_). The
 full-tracking tests use a tiny ring (harmonic 5, circumference 5 m, one
 station plus one ``DriftSimple``) at 63 GeV/c.
 ``TestIQCavityFeedbackObservationClass`` is an empty placeholder and
 collects nothing.
 
-**Class** ``TestDiagnosticsDoNotDisableTheFeedback`` -- the debug flags must
-not switch the physics off. Three flags used to look alike; only one of them
-disables the correction, and it now says so in its name. The helper
-``_run_one_turn`` tracks one turn of an undriven, beam-loading-free cavity
-(``R_over_Q = 0``, zero generator bias) that simply decays from
-``initial_voltage``, which is enough to tell a real readout (relative voltage
-correction ~6) from the neutral one (exactly 1 with zero phase).
+``TestDiagnosticsDoNotDisableTheFeedback``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The debug flags must not switch the physics off. Three flags used to look
+alike; only one of them disables the correction, and it now says so in its
+name. The helper ``_run_one_turn`` tracks one turn of an undriven,
+beam-loading-free cavity (``R_over_Q = 0``, zero generator bias) that simply
+decays from ``initial_voltage``, which is enough to tell a real readout
+(relative voltage correction ~6) from the neutral one (exactly 1 with zero
+phase).
 
 ``test_default_applies_a_real_correction``
     The baseline readout is not the neutral one.
@@ -1662,12 +2114,14 @@ correction ~6) from the neutral one (exactly 1 with zero phase).
     physics off: the readout is neutral, yet the grid is still built
     (``_rf_centers`` non-empty) -- which is the point of the mode.
 
-**Class** ``TestConstructorHarmonicIndexValidation`` -- ``harmonic_index``
-handling at feedback construction, mirroring the attach-time rules of
-``TestAttachCavityFeedbackIndexValidation`` (both entry points share
-``_coerce_harmonic_index``): plain ``int``, ``np.integer`` and integral
-floats are accepted silently; a fractional value is a hard error, because
-a harmonic index is a list slot, not a physical quantity to be rounded.
+``TestConstructorHarmonicIndexValidation``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``harmonic_index`` handling at feedback construction, mirroring the attach-time
+rules of ``TestAttachCavityFeedbackIndexValidation`` (both entry points share
+``_coerce_harmonic_index``): plain ``int``, ``np.integer`` and integral floats
+are accepted silently; a fractional value is a hard error, because a harmonic
+index is a list slot, not a physical quantity to be rounded.
 
 ``test_fractional_harmonic_index_raises``
     ``harmonic_index=1.5`` raises ``ValueError`` naming the value.
@@ -1680,11 +2134,14 @@ a harmonic index is a list slot, not a physical quantity to be rounded.
 ``test_non_numeric_harmonic_index_raises``
     A string index raises ``TypeError``.
 
-**Class** ``TestMultiHarmonicParentResolution`` -- the RF-parameter accessors
-when the parent is a multi-harmonic station. A stub parent carrying
-per-harmonic arrays is assigned directly (``set_parent_rf_station`` accepts
-only the real station classes, and only the ``isinstance`` dispatch of
-``_resolve_main_harmonic`` is under test), with ``harmonic_index = 1``.
+``TestMultiHarmonicParentResolution``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The RF-parameter accessors when the parent is a multi-harmonic station. A stub
+parent carrying per-harmonic arrays is assigned directly
+(``set_parent_rf_station`` accepts only the real station classes, and only the
+``isinstance`` dispatch of ``_resolve_main_harmonic`` is under test), with
+``harmonic_index = 1``.
 
 ``test_harmonic_indexes_the_per_harmonic_array``
     ``feedback.harmonic`` picks slot 1 out of ``[3.0, 7.0]``.
@@ -1697,9 +2154,11 @@ only the real station classes, and only the ``isinstance`` dispatch of
 ``test_delta_phi_rf_indexes_the_per_harmonic_array``
     Once the parent carries a slip array, slot 1 is returned.
 
-**Class** ``TestDegenerateMultiHarmonicMatchesSingleHarmonic`` -- the physics
-anchor of the multi-harmonic support. A two-harmonic station whose second
-harmonic has zero voltage *is* a single-harmonic station, so a feedback
+``TestDegenerateMultiHarmonicMatchesSingleHarmonic``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The physics anchor of the multi-harmonic support. A two-harmonic station whose
+second harmonic has zero voltage *is* a single-harmonic station, so a feedback
 regulating slot 0 must reproduce the equivalent ``SingleHarmonicRFStation``
 run. Both three-turn runs are built once in ``setup_class`` and compared at
 ``rtol = 1e-12``.
@@ -1714,10 +2173,13 @@ run. Both three-turn runs are built once in ``setup_class`` and compared at
     Guards the anchor against passing vacuously with a switched-off
     feedback.
 
-**Class** ``TestNonMainHarmonicAttachment`` -- a feedback attached *only* at a
-non-zero slot must run end to end. Slot 0 stays empty, so every former
-``cavity_feedback_list[0]`` hardcode in ``MultiHarmonicRFStation`` would
-crash with ``'NoneType' object has no attribute 'profile'``.
+``TestNonMainHarmonicAttachment``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A feedback attached *only* at a non-zero slot must run end to end. Slot 0 stays
+empty, so every former ``cavity_feedback_list[0]`` hardcode in
+``MultiHarmonicRFStation`` would crash with ``'NoneType' object has no
+attribute 'profile'``.
 
 ``test_runs_and_applies_a_real_correction``
     Two tracked turns produce a non-neutral readout.
@@ -1727,11 +2189,13 @@ crash with ``'NoneType' object has no attribute 'profile'``.
     per-harmonic array, whose slot 0 is the main harmonic) and equals
     ``calc_omega_rf_design(...)[1]``.
 
-**Class** ``TestAttachSetsHarmonicIndexFromSlot`` -- the blessed convenience
-case of slot-authoritative attachment: a feedback constructed with the
-DEFAULT ``harmonic_index`` (0) and attached at slot 1 must have its index
-overwritten from the slot, run end to end, and read harmonic 1's RF
-parameters -- no construct-time index bookkeeping is required of the user.
+``TestAttachSetsHarmonicIndexFromSlot``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The blessed convenience case of slot-authoritative attachment: a feedback
+constructed with the DEFAULT ``harmonic_index`` (0) and attached at slot 1 must
+have its index overwritten from the slot, run end to end, and read harmonic 1's
+RF parameters -- no construct-time index bookkeeping is required of the user.
 
 ``test_attach_overwrites_the_constructor_index``
     After the attach the feedback's ``harmonic_index`` is 1.
@@ -1742,17 +2206,18 @@ parameters -- no construct-time index bookkeeping is required of the user.
     design frequency, not the constructor default's (slot 0, the main
     harmonic).
 
-**Class** ``TestHarmonicSlotAgreementIsEnforcedAtRunStart`` -- a feedback's
-``harmonic_index`` must equal its list slot.
-``calc_gap_voltage_with_feedbacks``
-applies each feedback's corrections at its LIST index while the feedback
-computes them from the RF parameters at its OWN ``harmonic_index``, so a
-disagreement silently applies harmonic A's corrections to harmonic B.
-``attach_cavity_feedback`` SETS the feedback's index from the slot (see
-``TestAttachCavityFeedbackIndexValidation`` below), so a mismatch cannot
-arise through the attach; the run-start guard is reached only by tampering
-with ``cavity_feedback_list`` *after* the attach -- which is what these
-tests set up, and what the attach path cannot see.
+``TestHarmonicSlotAgreementIsEnforcedAtRunStart``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A feedback's ``harmonic_index`` must equal its list slot.
+``calc_gap_voltage_with_feedbacks`` applies each feedback's corrections at its
+LIST index while the feedback computes them from the RF parameters at its OWN
+``harmonic_index``, so a disagreement silently applies harmonic A's corrections
+to harmonic B. ``attach_cavity_feedback`` SETS the feedback's index from the
+slot (see ``TestAttachCavityFeedbackIndexValidation`` below), so a mismatch
+cannot arise through the attach; the run-start guard is reached only by
+tampering with ``cavity_feedback_list`` *after* the attach -- which is what
+these tests set up, and what the attach path cannot see.
 
 ``test_feedback_harmonic_1_in_slot_0_raises``
     ``on_run_simulation`` raises ``ValueError`` naming ``harmonic_index=1``
@@ -1768,9 +2233,11 @@ tests set up, and what the attach path cannot see.
     A parent whose ``cavity_feedback_list`` does not contain this feedback at
     all (an identity check) raises, naming ``cavity_feedback_list``.
 
-**Class** ``TestCoarseCellStepSizing`` -- per-cell step sizing of the coarse
-recursion, driven on hand-built grids with ``omega = 2 pi`` (so an RF period
-is 1 s and the centre times read directly).
+``TestCoarseCellStepSizing``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Per-cell step sizing of the coarse recursion, driven on hand-built grids with
+``omega = 2 pi`` (so an RF period is 1 s and the centre times read directly).
 
 ``test_single_cell_first_turn_uses_own_coarse_step``
     The first centre ever tracked *and* the only centre of the segment: there
@@ -1796,6 +2263,18 @@ is 1 s and the centre times read directly).
     ``reset_arrays`` carries the last coarse cell into the next turn, so a
     coincident *last* cell must hold the real voltage and current, not the
     prefill, or the whole next turn starts from a dead cavity.
+``test_backfill_cells_hold_the_last_commanded_current``
+    ``reset_arrays(n_backfill_cells=...)`` seeds the backfill cells with the
+    **last commanded** generator current, not the feedforward bias: the
+    interval they replay has already elapsed, and the klystron ran through it
+    at whatever the controller last issued. Every tracked configuration runs
+    a matched bias at ``delta_omega = 0``, where held and bias coincide --
+    which is why nothing caught this -- so the fixture deliberately makes
+    them differ, and the cells past the backfill must still be the bias.
+``test_without_backfill_cells_the_grid_is_all_bias``
+    The default (no backfill segments this turn) leaves the whole grid on the
+    bias, keeping a constant-current run without a controller bit-identical
+    to the pre-hold behaviour.
 ``test_vectorised_first_turn_step_matches_reference_path``
     ``_coarse_step_sizes``, the vectorised twin, reproduces the first-turn
     single-cell fallback step.
@@ -1815,25 +2294,31 @@ is 1 s and the centre times read directly).
 
 Coarse-grid (``rf_centers``) construction for the timing class, moved here
 alongside the ``RFCenterGridMixin`` extraction. By collected count this is
-the largest module of the whole feedback tree (192 tests), almost all of them
-parametrisations of the geometry sweeps in the first class.
+the largest module of the whole feedback tree (196 tests), 185 of them
+parametrisations of the geometry sweeps in the first class -- re-derive the
+total whenever tests are added.
 
 ``test_rf_center_grid_mixin_self_is_typed_as_timing_class`` (module level)
     Every function in ``RFCenterGridMixin.__dict__`` must annotate ``self``
     as ``"IQCavityFeedbackTimingClass"``, so the mixin keeps exposing its
     concrete host type.
 
-**Class** ``TestIQCavityFeedbackTimingClass`` -- grid geometry, end to end
-through a real ``Simulation``. Thirteen methods expand to 185 collected tests
-through two shared sweeps: ``test_data_discontinuity`` (phase shift x
-``delta_omega_factor`` in ``{0, +0.13, -0.13}`` x six
-``(n_rf_periods_per_coarse_grid, Q_L)`` settings, covering integer ``n`` of
-1/2/3 and the sub-stepping cases 0.25/0.4/0.6, whose low ``Q_L`` puts the
-Euler decay past the hard cap and therefore switches the exponential coarse
-solver on), and a section-count sweep. The coarse-grid *geometry* stays on
-the design RF clock under an RF-frequency offset -- the offset enters only as
-explicit carrier/kick-clock phases -- so the distance checks compare against
-the design period regardless of ``delta_omega_factor``.
+``TestIQCavityFeedbackTimingClass``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Grid geometry, end to end through a real ``Simulation``. Thirteen methods
+expand to 185 collected tests through two shared sweeps:
+``test_data_discontinuity`` (phase shift x ``delta_omega_factor`` in ``{0,
++0.13, -0.13}`` x six ``(n_rf_periods_per_coarse_grid, Q_L)`` settings,
+covering integer ``n`` of 1/2/3 and the sub-stepping cases 0.25/0.4/0.6), and a
+section-count sweep. Each ``Q_L`` is picked only to keep the per-step Euler
+decay ``n * pi / Q_L`` under the hard cap -- worst case 0.785 at ``n = 0.25``
+-- so the sweep runs on plain forward Euler throughout, with the exponential
+coarse solver armed as an escape (``n * pi / Q_L > 1.0``) that no current
+parametrisation trips. The coarse-grid *geometry* stays on the design RF clock
+under an RF-frequency offset -- the offset enters only as explicit
+carrier/kick-clock phases -- so the distance checks compare against the design
+period regardless of ``delta_omega_factor``.
 
 ``test_fractional_n_below_one_is_supported_without_warning``
     ``n`` in ``(0, 1)`` is the deliberate sub-stepping mode, so construction
@@ -1895,9 +2380,12 @@ the design period regardless of ``delta_omega_factor``.
     the co-rotating stream equals the one its mirror station builds for the
     counter-rotating stream, turn by turn.
 
-**Class** ``TestBackfillWalkGuards`` -- error and warning guards of the
-backfill reference walk. Driven directly on the mixin with stub
-station/reference/element/beam objects, so no ``Simulation`` is needed.
+``TestBackfillWalkGuards``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Error and warning guards of the backfill reference walk. Driven directly on the
+mixin with stub station/reference/element/beam objects, so no ``Simulation`` is
+needed.
 
 ``test_skipped_turn_is_rejected``
     The station's turn counter must never be *behind* the turn the last
@@ -1912,8 +2400,26 @@ station/reference/element/beam objects, so no ``Simulation`` is needed.
     warning rather than silently accepted -- while the walk still completes
     and records the overshot interval in ``_backfill_time_array`` and
     ``_backfill_segment_omega_design_list``.
+``test_backfill_station_remap_follows_the_walk_direction``
+    The element order and the per-station section remap must describe the
+    *same* beam: with the carried state laid down by a counter-rotating beam
+    and a co-rotating beam tracked now, every ``track_reference`` call must
+    receive the carried flag, never the current beam's. Only a two-beam run
+    can make the two disagree, and there the walk early-returns on coincident
+    reference times, so no end-to-end test can reach it -- hence the direct
+    pin on stubs here. This is the contract
+    ``TestBackfillWalkDirectionConsistency`` in
+    ``test_two_beam_counterrotating_feedback.py`` reasons about.
+``test_single_sample_backfill_records_a_duration``
+    A walk that records exactly one reference time must store the *duration*
+    since the walk's start, as the multi-sample branch does. Storing the
+    absolute reference time instead makes the segment length grow with the
+    simulation clock, so the grid built from it spans the whole elapsed run
+    rather than one inter-passage stretch (2.0 s, not 12.0 s, on the
+    fixture).
 
-**Class** ``TestBackfillWalkRestoresForeignTurnCounter``
+``TestBackfillWalkRestoresForeignTurnCounter``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_turn_counter_restored_when_track_reference_raises``
     The walk temporarily decrements the turn counter of a **foreign** RF
@@ -1924,9 +2430,11 @@ station/reference/element/beam objects, so no ``Simulation`` is needed.
     error into cascading mis-tracking. The test injects a raising
     ``track_reference`` and asserts the counter is back at its original value.
 
-**Class** ``TestPrecedingSegmentResidualFallback`` -- the live-scalar
-fall-through of ``_preceding_segment_residual`` is legal only when there are
-no segments at all.
+``TestPrecedingSegmentResidualFallback``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The live-scalar fall-through of ``_preceding_segment_residual`` is legal only
+when there are no segments at all.
 
 ``test_hand_built_grid_without_segments_uses_live_scalar``
     Documented fall-back: hand-built grids (tests, direct ``circuit_track``
@@ -1938,7 +2446,8 @@ no segments at all.
     hand back this turn's forward tail -- a plausible-but-wrong coarse step
     -- so it raises ``AssertionError`` naming ``start_index``.
 
-**Class** ``TestGenerateRfCentersDegenerateSegment``
+``TestGenerateRfCentersDegenerateSegment``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``test_zero_centre_interval_warns_and_returns_empty``
     The first centre sits half an RF period into a segment, so a segment
@@ -1957,11 +2466,13 @@ The ``RFCenterSegment`` value class, the flat arrays derived from it, and the
 two per-segment quantities the walks read out of it. ``rf_centers`` are
 segment-**local** times, which is what makes all of this delicate.
 
-**Class** ``TestRFCenterSegment`` -- field guards and derived arrays. The
-flat ``rf_centers`` / ``rf_centers_lengths`` are now *derived* from the
-segment list, so length consistency holds by construction and only needs a
-focused check here (it used to be reconstructed inside the timing-class
-integration tests).
+``TestRFCenterSegment``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Field guards and derived arrays. The flat ``rf_centers`` /
+``rf_centers_lengths`` are now *derived* from the segment list, so length
+consistency holds by construction and only needs a focused check here (it used
+to be reconstructed inside the timing-class integration tests).
 
 ``test_rejects_non_positive_omega``
     ``omega <= 0`` raises (``omega must be > 0``).
@@ -1998,17 +2509,19 @@ integration tests).
     segments before it, the absolute centre times are strictly increasing --
     even when the raw local values repeat across segments.
 
-**Class** ``TestSegmentBoundaryStep`` -- the coarse step across a segment
-boundary is a **per-segment** quantity. Because centres are segment-local,
-the step into the first cell of segment ``j`` is that cell's local time plus
-the *preceding* segment's residual. ``_track`` generates the whole per-turn
-grid before walking any of it, so the live
-``_residual_time_last_rf_centers_calculation`` scalar holds the
-last-generated (forward) segment's residual by the time the loop reads it --
-a value from the *future* of the walk. The fixture builds a
-backfill + forward grid whose three residuals (previous turn 0.30, backfill
-0.40, forward 0.50 ``t_rf``) deliberately all differ, and the comparisons are
-made in the loop's own ``omega * delta_t`` units so no ULP is lost.
+``TestSegmentBoundaryStep``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The coarse step across a segment boundary is a **per-segment** quantity.
+Because centres are segment-local, the step into the first cell of segment
+``j`` is that cell's local time plus the *preceding* segment's residual.
+``_track`` generates the whole per-turn grid before walking any of it, so the
+live ``_residual_time_last_rf_centers_calculation`` scalar holds the
+last-generated (forward) segment's residual by the time the loop reads it -- a
+value from the *future* of the walk. The fixture builds a backfill + forward
+grid whose three residuals (previous turn 0.30, backfill 0.40, forward 0.50
+``t_rf``) deliberately all differ, and the comparisons are made in the loop's
+own ``omega * delta_t`` units so no ULP is lost.
 
 ``test_segment_boundary_step_vectorised``
     Into the forward segment, ``_coarse_step_sizes`` uses the **backfill**
@@ -2031,12 +2544,14 @@ made in the loop's own ``omega * delta_t`` units so no ULP is lost.
     Byte-compat guard for the direct-call tests: a grid built by hand, with
     no segments at all, must keep reading the live host scalar.
 
-**Class** ``TestGuardCellWidthInvariant`` -- the coincidence-guard tolerance
-``rf_centers[-1] - rf_centers[-2]``. The simultaneous-passage guard compares
-arrival times against half a forward coarse-cell width taken from the last
-two flat entries, so both must lie inside the forward segment for that
-difference to be a genuine cell width -- which the ">= 2 centres" invariant
-guarantees.
+``TestGuardCellWidthInvariant``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The coincidence-guard tolerance ``rf_centers[-1] - rf_centers[-2]``. The
+simultaneous-passage guard compares arrival times against half a forward
+coarse-cell width taken from the last two flat entries, so both must lie inside
+the forward segment for that difference to be a genuine cell width -- which the
+">= 2 centres" invariant guarantees.
 
 ``test_single_center_forward_segment_is_unconstructible``
     Appending a single-centre forward segment after a 3-centre backfill one
@@ -2048,17 +2563,31 @@ guarantees.
     the forward segment's own cell spacing -- even when that differs from the
     backfill segment's.
 
-**Class** ``TestBackfillSpanWalksSegments`` -- the per-passage walks read the
-segment records rather than parallel arrays. ``RFCenterSegment`` carries the
-frequency and the time span its centres were generated over, so the backfill
-replay and the multi-section registration phase take ``omega_k`` and
-``T_seg,k`` from the segments themselves. The backfill segments of a passage
-are ``_segments[:-1]``: the grid is cleared at the start of every passage,
-the backfill generation appends exactly one segment per elapsed frequency
-span, and the forward generation then appends exactly one more. The fixture
-holds three backfill segments at different frequencies (the middle one at the
-two-centre minimum) plus the forward one, with ``circuit_track`` recorded
-instead of executed.
+``TestBackfillSpanWalksSegments``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The per-passage walks read the segment records rather than parallel arrays.
+``RFCenterSegment`` carries the frequency and the time span its centres were
+generated over, so the backfill replay and the multi-section registration phase
+take ``omega_k`` and ``T_seg,k`` from the segments themselves. The backfill
+segments of a passage are ``_segments[:-1]``: the grid is cleared at the start
+of every passage, the backfill generation appends exactly one segment per
+elapsed frequency span, and the forward generation then appends exactly one
+more. The fixture holds three backfill segments at different frequencies (the
+middle one at the two-centre minimum) plus the forward one, with
+``circuit_track`` recorded instead of executed. The class inherits
+``unittest.TestCase`` and uses its assertions throughout.
+
+The registration-phase tests span **two passages**: the increment corrects an
+envelope that was demodulated against the carrier of the passage which
+STARTED the reconstructed interval, so a single passage cannot exercise the
+contract at all. The fixture is therefore loaded twice into the same feedback
+through ``_load_passage``, with the second passage given different backfill
+frequencies *and* a different forward frequency so the two candidate
+references are cleanly separated. (This replaced a single-passage test that
+pinned the former expression ``sum_k (omega_k - omega_0) T_seg,k``; under the
+corrected contract that call returns exactly ``+0.0`` and only snapshots the
+carrier, leaving it nothing to pin. The class grew from three tests to seven.)
 
 ``test_replay_walks_backfill_segments_only``
     ``_replay_backfill_span`` makes exactly one no-beam pass per backfill
@@ -2068,11 +2597,37 @@ instead of executed.
 ``test_replay_is_a_no_op_without_backfill_centers``
     The gate: a passage that generated no backfill centre must not walk
     anything (a stale frequency list used to re-run the whole grid).
-``test_registration_phase_sums_segment_omega_times_duration``
-    ``_accumulate_registration_phase`` returns
-    ``Psi = sum_k (omega_k - omega_0) T_seg,k`` over the backfill segments,
-    both factors taken from the segment records -- and the result is checked
-    to be non-zero, so the segments really do differ from ``omega_0``.
+``test_registration_phase_uses_previous_passage_carrier``
+    The contract test for the reference fix. Passage 1 returns exactly
+    ``+0.0`` -- there is no previous carrier, so there is nothing to correct
+    -- and only records its carrier; passage 2 must add exactly
+    ``dPsi = sum_k (omega_prev - omega_k) T_seg,k``, with ``omega_k`` and
+    ``T_seg,k`` taken from the segment records and ``omega_prev`` from
+    passage 1. Two further assertions keep the pin from being satisfied by
+    accident: the increment must be non-zero, and it must differ from the
+    former expression ``-sum_k (omega_0 - omega_k) T_seg,k`` by more than
+    10 %. The second one is the point -- the two forms agree exactly for a
+    linear frequency programme, which is what hid the defect, so the fixture
+    deliberately puts curvature between them.
+``test_registration_phase_accumulates_a_running_total``
+    Three passages: the method returns the running total, so passage 3
+    equals passage 2's total plus passage 3's own increment (built from
+    passage 2's carrier).
+``test_registration_phase_snapshot_is_the_live_design_carrier``
+    Pins the *source* of the snapshot: the instance scalar
+    ``_forward_segment_omega_design`` -- the live design clock the
+    demodulation and the readout reference -- and not ``_segments[-1].omega``.
+    The fixture pulls the two apart, so a segment-sourced snapshot gives a
+    different second passage.
+``test_registration_phase_snapshot_is_taken_outside_the_gate``
+    Pins that the snapshot is unconditional: a passage the gate skips
+    (``n_backfill_centers == 0``) still records its carrier, so the next
+    passage has a reference. Inside the gate, a skipped passage would
+    silently drop the following increment.
+``test_registration_phase_is_zero_for_a_single_station_ring``
+    With ``_n_rf_stations_in_ring == 1`` the phase stays exactly ``+0.0``
+    over repeated passages -- ``assertEqual``, not ``assertAlmostEqual``.
+    This is the invariant that keeps single-section runs bit-identical.
 
 
 ``test_beam_feedback.py``
@@ -2087,14 +2642,16 @@ while a feedback is regulating. The module was previously a stub. A minimal
 concrete subclass supplies the two abstract per-turn hooks as no-ops and the
 guards are called directly, so nothing is tracked.
 
-**Class** ``TestCavitySumPhaseGuard`` -- ``cavity_sum_phase`` must not skip
-its own ``NotImplementedError``. Coupling the phase loop to the cavity
-feedback is a deliberate non-goal -- the two must not couple at all -- so
-the raise is the permanent contract whenever a station carries any cavity
-feedback, not a stub awaiting an implementation. Every raise is checked to
-still name both APIs involved (``I_BEAM_COARSE``,
-``antenna_voltage_coarse_grid``); the message's ``open design task``
-phrasing, also pinned verbatim, predates that ruling.
+``TestCavitySumPhaseGuard``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``cavity_sum_phase`` must not skip its own ``NotImplementedError``. Coupling
+the phase loop to the cavity feedback is a deliberate non-goal -- the two must
+not couple at all -- so the raise is the permanent contract whenever a station
+carries any cavity feedback, not a stub awaiting an implementation. The message
+is pinned on every raise but the later-station scan case: it must still name
+both APIs involved (``I_BEAM_COARSE``, ``antenna_voltage_coarse_grid``) and
+carry the ``open design task`` phrasing, which predates that ruling.
 
 ``test_raises_for_feedback_on_a_non_main_harmonic``
     The silent skip that motivated the guard: with the feedback on slot 1 the
@@ -2112,10 +2669,12 @@ phrasing, also pinned verbatim, predates that ruling.
     unconditionally every turn, and a station without a cavity feedback is a
     normal supported setup, so the call must return ``None`` quietly.
 
-**Class** ``TestMixedCavityFeedbackWarning`` --
-``check_main_rf_stations_with_cavity_feedback`` warns only on genuine
-mixtures. The helper filters the caught warnings down to the
-``do not have a cavity feedback model`` fragment.
+``TestMixedCavityFeedbackWarning``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``check_main_rf_stations_with_cavity_feedback`` warns only on genuine mixtures.
+The helper filters the caught warnings down to the ``do not have a cavity
+feedback model`` fragment.
 
 ``test_no_warning_when_no_station_has_a_feedback``
     All-bare is a uniform setup, not a mixture.
@@ -2129,11 +2688,35 @@ mixtures. The helper filters the caught warnings down to the
     A genuine mixture emits exactly one warning.
 
 
+Mixin host contract
+^^^^^^^^^^^^^^^^^^^
+
+``TestMixinsDeclareTheirHost``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) Both
+feedback mixins are pure moves out of ``IQCavityFeedbackTimingClass``: their
+methods run on a host instance and read host state they do not define. The
+dependency is real either way; these tests pin that it is *stated* rather than
+left for the reader to reconstruct from the attribute accesses.
+
+``test_every_method_annotates_self_as_the_host``
+    Every method of ``RFCenterGridMixin`` and ``GeneratorRegulationMixin``
+    annotates its ``self`` as ``IQCavityFeedbackTimingClass``. Parametrised
+    over both mixins, so neither can drift from the other -- which is exactly
+    what had happened: the grid mixin carried the annotation and the
+    regulation mixin did not.
+``test_host_is_not_imported_at_runtime``
+    The annotation stays type-checking-only. The host inherits from these
+    mixins, so a runtime import of it would be a cycle; the test asserts the
+    module exposes no such name at runtime.
+
+
 Neighbouring modules in the same directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These sit beside the four above but test different code, so they are named
-here rather than documented:
+These sit beside the four module sections above but test different code, so
+they are named here rather than documented:
 
 ``test_base.py``
     ``TestLocalFeedbackBase`` and ``TestGlobalFeedbackBase`` -- parent-station
@@ -2189,16 +2772,18 @@ separate guards that used to disagree by one bin. The mucol-side consumer --
 the coarse-grid re-binning in ``rf_beam_current`` -- is covered on this page
 under ``TestRfBeamCurrentDownsampling``.
 
-**Class** ``TestProfileWindowFitsInSpan``
-(``tests/unittests/physics/test_profiles.py``) -- one check for every
-consumer that has to place a profile window inside a time span it does not
-control, and the span means the same thing for both consumers: the interval
-between two consecutive passages of the consuming element. A re-binning
-consumer (the feedback's coarse grid) folds the window onto a fixed grid
-covering that interval, so a window longer than the span puts two parts of
-the beam on the same cell and one replaces the other; a per-passage consumer
-(``MultiPassResonatorSolver``) shifts its stored deposits by that interval,
-so an over-long window overlaps the previous deposit and the same charge is
+``TestProfileWindowFitsInSpan``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(``tests/unittests/physics/test_profiles.py``) One check for every consumer
+that has to place a profile window inside a time span it does not control, and
+the span means the same thing for both consumers: the interval between two
+consecutive passages of the consuming element. A re-binning consumer (the
+feedback's coarse grid) folds the window onto a fixed grid covering that
+interval, so a window longer than the span puts two parts of the beam on the
+same cell and one replaces the other; a per-passage consumer
+(``MultiPassResonatorSolver``) shifts its stored deposits by that interval, so
+an over-long window overlaps the previous deposit and the same charge is
 deposited twice. Both destroy charge, so the guard raises for both.
 
 ``test_window_duration``
@@ -2243,7 +2828,7 @@ deposited twice. Both destroy charge, so the guard raises for both.
 The solver call site
 ^^^^^^^^^^^^^^^^^^^^^
 
-Seven methods on **Class** ``TestMultiPassResonatorSolver``
+Eleven methods of ``TestMultiPassResonatorSolver``
 (``tests/unittests/physics/impedances/test_solvers.py``) cover the
 per-passage consumer of the same guard; the class's other tests are the
 ordinary solver suite and are out of scope here. The shared helpers build the
@@ -2311,25 +2896,41 @@ one, including the depositing beam's rotation tag.
     on every turn for every beam, so a per-passage warning would bury the
     message and pay the warnings-filter machinery inside the tracking loop.
 
+One further method of the same class has nothing to do with the span guard
+but is the other place the feedback leans on this solver:
+
+``test_calc_induced_voltage_past_deques_stay_parallel``
+    Guards a fixed memory leak. ``_past_charge_per_macroparticle`` is one
+    of eight parallel deques but was the only one never popped when
+    decayed profiles were evicted, so it grew without bound over a long
+    run. Results were never wrong -- ``appendleft`` keeps the front
+    indices aligned with the surviving profiles, so only unreachable tail
+    entries accumulated. Note the eight are parallel *between* passages,
+    not during one: ``calc_induced_voltage`` appends the charge entry
+    after ``_update_potential_sources`` has already appended the other
+    seven and run the eviction, so at pop time the charge deque is
+    legitimately one shorter.
+
 
 Attach-time harmonic-slot validation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Class** ``TestAttachCavityFeedbackIndexValidation``
-(``tests/unittests/physics/test_cavities.py``) -- the attach-time half of the
+``TestAttachCavityFeedbackIndexValidation``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(``tests/unittests/physics/test_cavities.py``) The attach-time half of the
 slot agreement whose run-start half is
 ``TestHarmonicSlotAgreementIsEnforcedAtRunStart`` above. The station applies
 each feedback's corrections at its LIST slot while a feedback computes them
 from the RF parameters at its own ``harmonic_index``, so a disagreement is
 silently wrong physics rather than a crash. The slot is authoritative:
-attaching SETS the feedback's ``harmonic_index`` from the slot it is placed
-at, silently overriding any constructor value, so the two cannot disagree
-through this path. A slot that does not exist is rejected, and a fractional
-slot is a hard error -- a harmonic index is a list slot, not a physical
-quantity to be rounded. The fixture is a three-harmonic station and a
-mocked ``LocalFeedback`` that optionally declares a ``harmonic_index``;
-every rejection additionally asserts that nothing was attached
-(``any_feedback_not_none`` is false).
+attaching SETS the feedback's ``harmonic_index`` from the slot it is placed at,
+silently overriding any constructor value, so the two cannot disagree through
+this path. A slot that does not exist is rejected, and a fractional slot is a
+hard error -- a harmonic index is a list slot, not a physical quantity to be
+rounded. The fixture is a three-harmonic station and a mocked ``LocalFeedback``
+that optionally declares a ``harmonic_index``; every rejection additionally
+asserts that nothing was attached (``any_feedback_not_none`` is false).
 
 ``test_negative_harmonic_index_raises``
     ``-1`` passes the ``> n_rf - 1`` bound check and would write to the LAST
@@ -2363,6 +2964,70 @@ every rejection additionally asserts that nothing was attached
     The matching whole-list form attaches.
 
 
+Attribute visibility contracts
+------------------------------
+
+An audit of every attribute of the feedback classes (171 attributes, ten
+modules) found six whose declared visibility no longer matched their real
+consumers -- the three coarse-grid accessors, the reverse walk index, the
+recorder width and the solver circumference -- plus
+``GeneratorCurrentPIController.n_delay``, demoted the same way in the mucol
+controller suite and outside the audit's count. The moves are pinned so they
+cannot silently regress, and one deletion is pinned beside them.
+
+``TestCoarseGridAccessorsAreStatedPublic``
+    (``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) The
+    coarse grid was read across a class boundary through private names:
+    ``IQCavityFeedbackObservation`` computed the forward offset from the
+    feedback's ``_rf_centers`` and ``_rf_centers_lengths``. That made them
+    public API in everything but name, so the class now exposes read-only
+    ``rf_centers``, ``rf_centers_lengths`` and ``forward_offset``
+    properties. The storage stays private and unrenamed deliberately: the
+    flat arrays are derived from ``_segments`` (the grid's source of
+    truth), so a writable accessor could desync them. The tests pin that
+    each property returns the stored value, that ``forward_offset`` equals
+    the expression it replaced, and that all three reject assignment.
+``TestForwardWalkReverseIndexIsPrivate``
+    (``tests/unittests/physics/feedbacks/test_rf_center_grid.py``)
+    ``reference_index_until_tracked_reverse`` was a missed underscore --
+    its sibling ``_reference_index_until_tracked`` is assigned two lines
+    earlier and was already private, and the only reader is the backfill
+    walk's own start-index selection. Writing it between the forward
+    projection and the backfill would start the counter-rotating walk at
+    the wrong element. The test pins the private name and that the old
+    public one is gone.
+``test_len_coarse_max_is_readable_but_not_assignable``
+    (``tests/unittests/handle_results/test_observables.py``) The recorder
+    width is derived once in ``on_run_simulation`` and the buffers are
+    allocated from it, so a later write would disagree with the arrays
+    already in memory. It is now private storage behind a read-only
+    property.
+``test_on_wakefield_init_stores_circumference_privately``
+    (``tests/unittests/physics/impedances/test_solvers.py``)
+    ``MultiPassResonatorSolver.circumference`` is derived late-init state
+    with a single in-class reader, now ``_circumference``. It has no
+    ``__init__`` default on purpose: the attribute exists only once the
+    wakefield-init hook has run, so a hand-wired solver that never got
+    that hook fails loudly instead of retuning against a silent ``None``.
+``TestLoopDelayIsFixedAtConstruction``
+    (``tests/.../mucol/test_generator_current_controller.py``, documented
+    with its module above) ``GeneratorCurrentPIController.n_delay`` is read
+    exactly once, inside ``__init__``, to size the delay-line deque, so a
+    post-construction write was silently ignored. The read-only property
+    makes that mistake raise.
+``TestVestigialPhaseOffsetsStayDeleted``
+    (``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) The
+    deletion contract rather than a visibility move:
+    ``_phase_offset_frwrd`` and ``_phase_offset_frwrd_next`` were
+    write-only vestige -- every statement that ever mentioned them stored
+    exactly ``0`` and nothing read them back. They were deleted once
+    before and a later branch merge silently resurrected both writes, so
+    absence is now pinned twice: as an absent *instance attribute* (which
+    catches a restored constructor declaration) and as an absent *name in
+    the module source* (which catches a write reintroduced anywhere else,
+    ``on_run_simulation`` being where the merge put the second one).
+
+
 Support modules
 ---------------
 
@@ -2380,8 +3045,9 @@ themselves.
 ``support.py``
     Numeric helpers shared across the test modules: ``rel_err`` (relative L2
     error ``||a - b|| / ||b||``) and ``lab_frame_voltage`` (projects the
-    complex antenna-voltage envelope back to the real lab frame, with both
-    demodulation-sign conventions).
+    complex antenna-voltage envelope back to the real lab frame as
+    ``-Im[V_ant exp(i omega_rf t)]``, the ``+pi/2`` demodulation convention
+    of ``rf_beam_current``; it takes no convention argument).
 ``mucol_cav_fdbk.py``
     Not a ``pytest`` module: a standalone driver for the full muon-collider
     RCS cavity-feedback simulation. ``setup_and_run`` builds an RCS
@@ -2488,84 +3154,3 @@ any other value keeps the host pin.
 The debug plots are opt-in via the ``DEBUG_PLOT`` module constant (and
 ``PLOT_DIAGNOSTICS`` in ``test_generator_current_pi_feedback.py``); both default
 to off in every module, so nothing opens in a headless/CI run.
-
-
-Mixin host contract
-^^^^^^^^^^^^^^^^^^^
-
-**Class** ``TestMixinsDeclareTheirHost``
-(``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) -- both
-feedback mixins are pure moves out of ``IQCavityFeedbackTimingClass``: their
-methods run on a host instance and read host state they do not define. The
-dependency is real either way; these tests pin that it is *stated* rather
-than left for the reader to reconstruct from the attribute accesses.
-
-``test_every_method_annotates_self_as_the_host``
-    Every method of ``RFCenterGridMixin`` and ``GeneratorRegulationMixin``
-    annotates its ``self`` as ``IQCavityFeedbackTimingClass``. Parametrised
-    over both mixins, so neither can drift from the other -- which is exactly
-    what had happened: the grid mixin carried the annotation and the
-    regulation mixin did not.
-``test_host_is_not_imported_at_runtime``
-    The annotation stays type-checking-only. The host inherits from these
-    mixins, so a runtime import of it would be a cycle; the test asserts the
-    module exposes no such name at runtime.
-
-
-Attribute visibility contracts
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-An audit of every attribute of the feedback classes (171 attributes, ten
-modules) found six whose declared visibility no longer matched their real
-consumers. The moves are pinned so they cannot silently regress.
-
-``TestCoarseGridAccessorsAreStatedPublic``
-    (``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) The
-    coarse grid was read across a class boundary through private names:
-    ``IQCavityFeedbackObservation`` computed the forward offset from the
-    feedback's ``_rf_centers`` and ``_rf_centers_lengths``. That made them
-    public API in everything but name, so the class now exposes read-only
-    ``rf_centers``, ``rf_centers_lengths`` and ``forward_offset``
-    properties. The storage stays private and unrenamed deliberately: the
-    flat arrays are derived from ``_segments`` (the grid's source of
-    truth), so a writable accessor could desync them. The tests pin that
-    each property returns the stored value, that ``forward_offset`` equals
-    the expression it replaced, and that all three reject assignment.
-``TestForwardWalkReverseIndexIsPrivate``
-    (``tests/unittests/physics/feedbacks/test_rf_center_grid.py``)
-    ``reference_index_until_tracked_reverse`` was a missed underscore --
-    its sibling ``_reference_index_until_tracked`` is assigned two lines
-    earlier and was already private, and the only reader is the backfill
-    walk's own start-index selection. Writing it between the forward
-    projection and the backfill would start the counter-rotating walk at
-    the wrong element. The test pins the private name and that the old
-    public one is gone.
-``test_len_coarse_max_is_readable_but_not_assignable``
-    (``tests/unittests/handle_results/test_observables.py``) The recorder
-    width is derived once in ``on_run_simulation`` and the buffers are
-    allocated from it, so a later write would disagree with the arrays
-    already in memory. It is now private storage behind a read-only
-    property.
-``test_on_wakefield_init_stores_circumference_privately``
-    (``tests/unittests/physics/impedances/test_solvers.py``)
-    ``MultiPassResonatorSolver.circumference`` is derived late-init state
-    with a single in-class reader, now ``_circumference``. It has no
-    ``__init__`` default on purpose: the attribute exists only once the
-    wakefield-init hook has run, so a hand-wired solver that never got
-    that hook fails loudly instead of retuning against a silent ``None``.
-``test_calc_induced_voltage_past_deques_stay_parallel``
-    Guards a fixed memory leak. ``_past_charge_per_macroparticle`` is one
-    of eight parallel deques but was the only one never popped when
-    decayed profiles were evicted, so it grew without bound over a long
-    run. Results were never wrong -- ``appendleft`` keeps the front
-    indices aligned with the surviving profiles, so only unreachable tail
-    entries accumulated. Note the eight are parallel *between* passages,
-    not during one: ``calc_induced_voltage`` appends the charge entry
-    after ``_update_potential_sources`` has already appended the other
-    seven and run the eviction, so at pop time the charge deque is
-    legitimately one shorter.
-
-``GeneratorCurrentPIController.n_delay`` was demoted the same way, in the
-mucol controller suite: it is read exactly once, inside ``__init__``, to
-size the delay-line deque, so a post-construction write was silently
-ignored. The read-only property makes that mistake raise.

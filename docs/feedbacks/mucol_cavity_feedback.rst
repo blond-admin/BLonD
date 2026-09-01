@@ -44,6 +44,11 @@ beam loading
     The change in cavity voltage caused by that beam current. Left
     uncompensated it shifts the voltage every bunch sees; cancelling it is
     the feedback's main job.
+gap voltage
+    The accelerating voltage the bunch actually *sees* at the cavity gap:
+    the fine-grid antenna voltage scaled by ``n_cavities``. Distinct from
+    the coarse ``antenna_voltage_coarse_grid``, which is the envelope the
+    loop regulates and which never kicks the beam.
 kick
     The energy (and phase) change the cavity imparts to the beam on one
     passage -- the model's ultimate output, applied by the parent RF station.
@@ -93,8 +98,9 @@ repeat it.
 PI controller
     Proportional-Integral controller: commands ``I_gen`` from the voltage
     error ``V_set - V_ant`` (a term proportional to the error plus a term
-    integrating it). Here the error is formed in the *kick frame*; see
-    *Signal path of one turn*.
+    integrating it). Here the error is formed in the *kick frame* (see the
+    frames table below) and then rotated into the *actuator frame* before
+    it reaches the controller; both are defined there.
 anti-windup
     Freezes the integrator while the actuator is saturated, so the integral
     does not "wind up" to an unrecoverable value.
@@ -124,6 +130,22 @@ appear:
        applied to the kick.
    * - segment frame
      - The phase reference of one reconstructed coarse-grid segment (below).
+   * - kick frame
+     - The frame the station's applied kick lives in: the demodulation
+       frame rotated by ``exp(+i (gap + Psi))`` (the live kick-clock gap
+       plus the multi-section registration phase). The PI error is formed
+       here, so the loop regulates the applied voltage rather than a
+       bookkeeping frame. Exactly the demodulation frame without an
+       RF-frequency offset and without multi-section acceleration. Not the
+       same thing as the *kick clock* above.
+   * - actuator frame
+     - The frame the commanded generator current acts in: the kick frame
+       rotated by ``exp(+i delta_phi_rf)``. The PI error is taken here
+       because the controller drives the design-anchored generator
+       component, so ``d(V_kick)/d(I_gen)`` carries ``exp(-i
+       delta_phi_rf)`` and rotating the error back keeps the open-loop
+       gain real. Exactly the kick frame whenever ``delta_phi_rf`` is
+       zero.
 
 **Coarse-grid construction primitives**
 
@@ -153,18 +175,22 @@ residual
     centre and the segment's end. Coarse centre times are
     segment-*local*, so the coarse step into the first cell of a segment
     is that cell's local time plus the *preceding* segment's residual.
-    It is read back from the segment list
-    (``_preceding_segment_residual``), not from the live accumulator,
-    which by the time the grid is walked already holds the last-generated
-    (forward) segment's value; the first segment of a turn steps across
-    the turn boundary and takes the residual the previous turn ended on.
-    That live scalar survives only as the fall-back for a segment-less
-    hand-built grid (tests, direct ``circuit_track`` callers): on a real
-    per-turn grid a start index that is not a segment boundary trips an
-    assertion instead of silently returning this turn's forward tail.
-    The same quantity is the demodulation frame of the forward segment --
-    under ``validate_grid_each_turn`` an assertion ties the two together
-    so they cannot silently drift apart.
+    The *same* residual, snapshotted between the backfill and the forward
+    generation, is the demodulation frame of the forward segment (next
+    entry). Which reader takes it from where, and why the snapshot has to
+    exist, is in step 3 of *Signal path of one turn*.
+demodulation frame (``dT``)
+    The time offset the beam current is demodulated against: the residual
+    left by the coarse segment preceding the forward one, carried on the
+    span as ``residual_from_backfill_span``. The fundamental theorem of
+    beam loading requires ``omega * dT = pi`` (mod ``2 pi``) -- a bunch
+    must *lose* energy to its own wake -- which is why the grid seeds
+    every segment half an RF period into the bucket. Everything that can
+    perturb ``dT`` (a harmonic not divisible by ``2 * n_sections``, a
+    sub-step other than ``0.5``, a stale segment frequency under a
+    violent ramp) rotates the beam-induced voltage, and past a quarter
+    period inverts it; any frame more than ``1e-3 pi`` off an odd
+    multiple of ``pi`` is refused outright (see *Known limitations*).
 carried deposit
     Beam-induced voltage laid onto the grid on one turn that must then be
     propagated ("carried") consistently across later turns and segments.
@@ -237,10 +263,11 @@ Classes at a glance
     boundary.
 
 :mod:`blond.physics.feedbacks.beam_current`
-    The beam-current demodulation: the single function
+    The beam-current demodulation:
     :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` (fine-grid
     demodulation, optionally re-binned onto the coarse grid when
-    ``sampling_time``/``n_points`` are given).
+    ``sampling_time``/``n_points`` are given) and the ``low_pass_filter``
+    it applies under ``use_lowpass_filter``.
 
 :mod:`blond.physics.feedbacks.cavity_solvers`
     The muon-collider-only numerics: the first-order (forward-Euler)
@@ -260,8 +287,9 @@ Classes at a glance
     -- and
     :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`,
     the tripwires that decide whether the forward-Euler discretisation is
-    admissible at all (per-step decay, detuning phase and beam kick) -- pure
-    numerics kept beside the solvers they certify. The feedback owns one
+    admissible at all (per-step decay, detuning phase, the coupled
+    Euler-multiplier magnitude they do not imply, and the beam kick) --
+    pure numerics kept beside the solvers they certify. The feedback owns one
     instance and passes the cavity parameters per call; it is constructed
     disabled for the exact exponential propagator, which is subject to none
     of these caps.
@@ -310,9 +338,10 @@ Each turn the timing class runs:
    assigned to ``_kick_clock_slip_gap``, which makes visible that the
    value is reset at every passage rather than accumulated. It is one of
    the two constituents of ``_carrier_slip_gap`` -- the other is the
-   multi-section registration phase of step 4 -- and the two are held
-   separately because the generator-component frame rotation needs the
-   kick-clock part with the station clock on top (step 4).
+   multi-section registration phase of step 4, and step 4 sums them. The
+   split is presentational: ``_kick_clock_slip_gap`` has exactly that one
+   consumer, and exists so that the reset-per-passage semantics of the
+   gap stay visible against the running total ``Psi`` it is added to.
 
 3. ``_rebuild_per_turn_grid`` -- rebuilds this passage's coarse grid
    (``rf_centers``), sizes the coarse state and returns a frozen
@@ -334,21 +363,50 @@ Each turn the timing class runs:
    is the last statement of this phase -- it can neither precede the grid
    generation it takes its size from, nor follow any ``circuit_track``.
 
+   Two readers want a residual out of this phase, and they must not be
+   confused. The coarse step into a segment's first cell reads it back
+   from the segment list (``_preceding_segment_residual``), not from the
+   live accumulator, which by the time the grid is walked already holds
+   the last-generated (forward) segment's value; the first segment of a
+   turn steps across the turn boundary and takes the residual the
+   previous turn ended on. That live scalar survives only as the
+   fall-back for a segment-less hand-built grid (tests, direct
+   ``circuit_track`` callers): on a real per-turn grid a start index that
+   is not a segment boundary trips an assertion instead of silently
+   returning this turn's forward tail. The *demodulation frame* is the
+   same tail, but it has to be snapshotted onto the span between the
+   backfill and the forward generation, because the forward generation
+   overwrites the live scalar; under ``validate_grid_each_turn`` an
+   assertion ties the snapshot and the segment-list lookup together so
+   they cannot silently drift apart.
+
 4. ``_accumulate_registration_phase`` -- accumulates the multi-section
-   grid-vs-carrier registration phase
-   ``Psi = sum_k (omega_k - omega_0) T_seg,k`` (explained under *Interplay
-   with the RF station* below) and returns the running total; exactly
-   ``+0.0`` for a single section and for an unaccelerated ring.
-   ``_carrier_slip_gap`` is then formed as the kick-clock gap of step 2
-   plus this total, and ``_update_frame_rotations`` derives the two
-   per-passage frame rotations every later cell update reads: the
-   *generator* frame rotation ``exp(-i (delta_phi_rf + gap + Psi))``,
-   which rotates the design-anchored generator component into the
-   demodulation frame when the sum is composed, and the *kick* frame
-   rotation ``exp(+i (gap + Psi))``, in which the PI error is formed.
-   Both are exactly ``1 + 0j`` without an RF-frequency offset and
-   without multi-section acceleration, so those paths stay
-   bit-identical.
+   grid-vs-carrier registration phase. Each passage adds the increment
+   ``dPsi = sum_k (omega_prev - omega_k) T_seg,k``, and the method
+   returns ``Psi``, the running total of those increments. Why the
+   reference ``omega_prev`` is this station's *previous* passage's
+   forward-segment design frequency, and why ``Psi`` is exactly ``+0.0``
+   for a single section, for an unaccelerated ring and on a station's
+   very first passage, is under *Multi-section registration phase*
+   below. ``_carrier_slip_gap`` is then formed as the kick-clock gap of
+   step 2 plus this total, and ``_update_frame_rotations`` derives the
+   three per-passage frame rotations every later cell update reads:
+
+   * the *generator* frame rotation ``exp(-i (delta_phi_rf + gap +
+     Psi))``, which rotates the design-anchored generator component into
+     the demodulation frame when the sum is composed;
+   * the *kick* frame rotation ``exp(+i (gap + Psi))``, in which the PI
+     error is formed;
+   * the *actuator* (PI-error) rotation ``exp(+i delta_phi_rf)``, which
+     takes that error into the frame the commanded generator current
+     acts in. The ``gap`` and ``Psi`` halves cancel between the first
+     two rotations, which is why this third one carries the station
+     clock alone.
+
+   The first two are exactly ``1 + 0j`` without an RF-frequency offset
+   and without multi-section acceleration; the third is exactly
+   ``1 + 0j`` whenever ``delta_phi_rf`` is zero, independently of
+   ``gap`` and ``Psi``. Those paths therefore stay bit-identical.
 
 5. ``_replay_backfill_span`` -- re-walks this passage's backfill segments
    with ``no_beam=True``, one ``circuit_track`` per backfill segment at
@@ -378,12 +436,18 @@ Each turn the timing class runs:
    convert the beam profile into the complex IQ beam-current envelope at
    the *design* carrier (factor-2 single-sideband demodulation), rotate it
    by the reference-frame phase and by the constant
-   ``-(delta_phi_rf + _carrier_slip_gap)``, and re-bin the fine-grid
-   charge onto the coarse cells charge-conservingly. The demodulation
-   frame is the span's ``residual_from_backfill_span``, snapshotted before
-   the forward generation overwrote the host scalar; re-reading that
-   scalar here would silently shift the frame. Several guards protect this
-   path, all of them raising rather than correcting:
+   ``-(phi_rf + _carrier_slip_gap)``, and re-bin the fine-grid charge
+   onto the coarse cells charge-conservingly. That constant is the
+   *full* station phase ``phi_rf = phi_rf_design + delta_phi_rf`` plus
+   the kick-clock gap and the registration phase, not the slip alone:
+   dropping ``phi_rf_design`` would rotate the beam-induced voltage by
+   ``-phi_rf_design``, and at the ordinary above-transition
+   ``phi_rf_design = pi`` that inverts the beam loading outright. The
+   demodulation frame is the span's ``residual_from_backfill_span``
+   (step 3), and ``_assert_demodulation_frame_aligned`` refuses the
+   passage unless ``omega_c * dT`` is an odd multiple of ``pi`` (see
+   *Known limitations*). Several further guards protect this path, all
+   of them raising rather than correcting:
 
    * charge in the *first* coarse cell -- that cell seeds the fine-grid
      initial condition, so its kick would be double-counted;
@@ -429,8 +493,11 @@ Each turn the timing class runs:
    ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam``). These two arrays
    are what the parent RF station applies to its kick.
 
-**Coarse-grid cavity update** (inside ``circuit_track``). The antenna
-voltage is advanced cell by cell with the forward-Euler discretisation of
+Coarse-grid cavity update
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Inside ``circuit_track``. The antenna voltage is advanced cell by cell
+with the forward-Euler discretisation of
 the cavity-envelope ODE: generator drive ``I_gen (R/Q) omega dt``,
 decay/detuning multiplier ``1 - 0.5 omega dt / Q_L + i delta_omega dt``
 and beam loading ``-0.5 I_beam (R/Q) omega dt``. The ODE is linear, so
@@ -464,9 +531,12 @@ byte-identical to the former single-state recursion.
    and 1/2 is the value the fundamental theorem of beam loading calls
    for. The difference does not move any published number (the coarse
    voltage never kicks the beam; the kicks come from the fine grid,
-   whose second-order solver the example enables), but it is a real
-   asymmetry and the numbers are pinned bit-for-bit, so changing the
-   weights is a deliberate decision rather than a cleanup.
+   whose second-order solver the shipped example enables), but it is a
+   real asymmetry. Note the scope of that dismissal: the fine grid is
+   *first* order -- weight 0 -- by default, and the 1/2 weight requires
+   ``second_order_fine_grid_solver_enable=True``. The numbers are pinned
+   bit-for-bit, so changing the weights, or the default, is a deliberate
+   decision rather than a cleanup.
 
 Discretisation validity is enforced by
 :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`
@@ -476,10 +546,18 @@ parameters): it warns above a per-step decay/rotation of 0.1 and raises
 above 1.0 -- there the Euler decay factor ``1 - 0.5 omega dt / Q_L`` turns
 negative and the discretised voltage flips sign every step, which the
 exact (always positive) decay never does; use
-``exponential_coarse_solver_enable=True`` for larger steps. An analogous
-check warns/raises when the per-step beam kick is large relative to the
-antenna voltage. With ``exponential_coarse_solver_enable=True`` the exact
-exponential propagator ``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces
+``exponential_coarse_solver_enable=True`` for larger steps. A third,
+*coupled* tripwire raises whenever the Euler multiplier itself grows,
+``|1 - d + i p| > 1`` (equivalently ``p**2 > d (2 - d)``, for a per-step
+decay ``d`` and detuning phase ``p``). It is not implied by the two
+separate caps, which bound ``d`` and ``p`` independently: at a
+superconducting cavity's ``d ~ 1e-6`` it admits a detuning phase of only
+``|p| ~ 1.4e-3`` rad -- three orders of magnitude below the ``1.0`` cap
+-- so there it, and not the cap, is what a divergent step trips. A
+fourth check warns/raises when the per-step beam kick is large relative
+to the antenna voltage. With ``exponential_coarse_solver_enable=True``
+the exact exponential propagator
+``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces
 the Euler step: it is exact in decay and detuning rotation (a pure
 detuning becomes a pure rotation instead of growing ``|V|`` by
 ``sqrt(1 + (delta_omega dt)^2)`` per step) and is the accurate alternative
@@ -499,16 +577,24 @@ of turns. Duplication also keeps the two downstream readers honest, since
 solve seeds from the *first* forward cell. The controller is still not
 stepped there: no time elapsed, so there is no new sample to regulate on.
 
-**Optional generator-current control.** With a ``controller`` attached,
-each coarse step forms the error in the KICK frame,
+Optional generator-current control
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With a ``controller`` attached, each coarse step forms the error in the
+KICK frame,
 ``V_set - V_ant[n] * exp(+i (gap + Psi))`` -- the envelope of the kick
 the station actually applies against ``phi_rf``, so the loop regulates
-the applied voltage rather than a bookkeeping frame; the rotation is
-exactly unity without an RF-frequency offset and without multi-section
-acceleration, and the pure-Python path and the numba kernel form it
-identically -- and lets the
-controller produce ``I_gen[n]``, which drives the next step; without one,
-the generator current stays at the constant feedforward value
+the applied voltage rather than a bookkeeping frame -- and then rotates
+that error into the ACTUATOR frame by ``exp(+i delta_phi_rf)`` before
+handing it to the controller: the controller drives the design-anchored
+generator component, so ``d(V_kick)/d(I_gen)`` carries
+``exp(-i delta_phi_rf)``, and rotating the error back cancels it and
+keeps the open-loop gain real instead of turning it with the station
+clock. All three rotations are exactly unity without an RF-frequency
+offset and without multi-section acceleration, and the pure-Python path
+and the numba kernel form them identically. The controller then produces
+``I_gen[n]``, which drives the next step; without one, the generator
+current stays at the constant feedforward value
 ``generator_current_bias``. The controller is stepped only on the real
 forward passage, never on the backfill reconstruction segments (those
 carry a per-segment frame phase, so stepping there would integrate
@@ -520,13 +606,18 @@ and during which the loop issued no new command, so the generator kept
 running at whatever it was last told rather than snapping back to the
 bias. Resetting them to the bias was a real defect, not a cosmetic one:
 with a detuned cavity the PI holds a reactive standing current, which the
-old reset discarded once per turn (measured setpoint errors of 3.1e-2 and
-4.6e-2 relative at 2 and 4 sections). Without a controller the held value
-*is* the bias, so the constant-current path is bit-unchanged. The klystron
+old reset discarded once per turn (setpoint errors of 3.1e-2 and 4.6e-2
+relative at 2 and 4 sections -- a one-off measurement taken when the
+defect was found, not a regression-guarded number). Without a controller
+the held value *is* the bias, so the constant-current path is
+bit-unchanged. The klystron
 limit is enforced on the fine grid as well before the response solve.
 
-**Fine-grid solve** (``_resolve_fine_grid_voltage``). The generator current
-is interpolated onto the profile grid and the cavity response is solved as
+Fine-grid solve
+~~~~~~~~~~~~~~~
+
+In ``_resolve_fine_grid_voltage`` the generator current is interpolated
+onto the profile grid and the cavity response is solved as
 a sparse bidiagonal system -- first order by default, or the second-order
 (Crank-Nicolson) solver with ``second_order_fine_grid_solver_enable=True``,
 whose truncation error scales with the bin size squared. The result is
@@ -586,7 +677,8 @@ typically already holds about half the bunch and therefore its beam-induced
 voltage step, so interpolating from cell 0 towards cell 1 drags up to ~10 %
 of the beam-induced voltage *backwards* in time, into an initial condition
 that predates the charge which produced it -- and the fine grid then
-re-integrates that same current. Trying it broke 57 tests, including the
+re-integrates that same current. Trying it broke 57 tests at the time --
+a one-off count, not a regression-guarded number -- including the
 independent comparisons against the multi-pass wake solver. Do not
 "improve" it.
 
@@ -639,20 +731,36 @@ Two distinct frequency knobs exist and must not be confused:
 For low loaded quality factors the per-RF-period Euler step can violate the
 step-size limits; the sub-stepping mode
 (``n_rf_periods_per_coarse_grid < 1``) subdivides the RF period, with the
-coarse centres tiling continuously across turn boundaries.
+coarse centres tiling continuously across turn boundaries. ``n = 0.5`` is
+the only usable sub-step: that tiling makes the demodulation frame one
+previous coarse step, ``omega_c * dT = 2 pi n``, which is an odd multiple
+of ``pi`` only there, so ``n = 0.25`` or ``0.9`` is rejected by
+``_assert_demodulation_frame_aligned`` (see *Known limitations*).
 
-**Multi-section registration phase.** A ring with several RF stations
-builds each passage's grid piecewise: every backfill segment ``k`` spans
-``T_seg,k`` at the past station's design frequency ``omega_k``, while the
-forward segment and *both* the demodulation and the readout reference the
-single carrier ``omega_0``. The grid therefore accumulates
-``sum_k omega_k T_seg,k`` where the carrier accumulates
-``omega_0 T_total``, and the difference
+Multi-section registration phase
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   ``Psi = sum_k (omega_k - omega_0) T_seg,k``
+A ring with several RF stations builds each passage's grid piecewise:
+the backfill segments reconstruct the interval since *this station's
+previous passage*, every segment ``k``
+spanning ``T_seg,k`` at the past station's design frequency ``omega_k``,
+while the envelope carried across that interval was demodulated against
+a single carrier -- the one in force when the interval STARTED, i.e. the
+forward-segment design frequency ``omega_prev`` of the previous passage.
+The grid therefore accumulates ``sum_k omega_k T_seg,k`` where the
+carried envelope's frame accumulated ``omega_prev T_total``, and the
+difference is the per-passage increment
 
-is a pure bookkeeping mismatch -- identically zero for a single section,
-which is why single-section rings need no correction at all. It is
+   ``dPsi = sum_k (omega_prev - omega_k) T_seg,k``
+
+whose running total over passages is ``Psi``. It is a pure bookkeeping
+mismatch -- identically zero for a single section, which is why
+single-section rings need no correction at all, and zero on a station's
+first passage, which has no previous carrier. The reference is the
+previous passage's carrier and not the current one because the quantity
+being corrected is an envelope that already exists: it was demodulated
+before the interval, and nothing that happened during the interval can
+retroactively change the frame it was written in. It is
 *separate* from the cavity resonance detuning ``delta_omega``, whose
 physical precession the coarse recursion already applies on every step.
 ``Psi`` is carried as an explicit *carrier* phase, exactly the idiom the
@@ -663,6 +771,27 @@ the antenna-voltage state -- that would also rotate the generator-driven
 field, which carries no registration error, turning a phase error into an
 amplitude drift. See ``_accumulate_registration_phase`` for the
 implementation.
+
+*Why the wrong reference survived so long.* The increment used to be
+referenced to the carrier of the passage that ENDS the interval, with the
+opposite sign: ``sum_k (omega_k - omega_0) T_seg,k``, with ``omega_0``
+the forward frequency of the passage doing the correcting. The two forms
+differ by
+
+   ``sum_k (omega_prev - 2 omega_k + omega_0) T_seg,k``
+
+which is a *second* difference of the design-frequency programme, and it
+vanishes identically when ``omega`` varies linearly in time. Every
+first-order check therefore agreed: on a linear ramp the wrong expression
+is numerically the right one, and only the curvature of the programme
+survived. What that left was a small residual scaling as the *square* of
+the registration phase, which read exactly like an accepted second-order
+discretisation artefact rather than a sign-and-reference mistake, and it
+was carried as a known limitation for that reason. The lesson generalises:
+a bookkeeping term validated only against a linear programme has not been
+validated against its own reference choice at all -- pick a test case with
+curvature, or compare the two candidate forms directly, as
+``test_registration_phase_uses_previous_passage_carrier`` now does.
 
 The source-split coarse state (see *Signal path of one turn*) is what
 lets ``Psi`` reach exactly the signal that needs it: the beam-sourced
@@ -681,14 +810,35 @@ are pinned by ``TestDrivenSteadyStateFastRamp``,
 ``TestPIFullTrackingMultiSectionFastRamp``).
 
 One reading rule follows for driven runs: ``antenna_voltage_coarse_grid``
-is the demodulation-frame sum, so under an accumulated slip its complex
-value appears rotated by minus that slip while ``|V|`` is invariant -- a
-naive complex comparison against the setpoint is the wrong check;
-compare in the kick frame (as the PI does), or compare magnitudes.
+is the demodulation-frame sum, so under an accumulated slip its
+*generator-sourced* part appears rotated by minus that slip. A
+beam-free driven run is therefore a pure rotation at constant ``|V|``,
+but a run with beam loading is not -- the beam component carries no such
+rotation, so the magnitude moves too. Either way a naive complex
+comparison against the setpoint is the wrong check; compare in the kick
+frame, as the PI does.
 
-**Multi-harmonic stations.** The feedback is not restricted to the main
-harmonic: it can be attached to a
-:class:`~blond.physics.cavities.MultiHarmonicRFStation`, and the
+Referencing the increment to the previous passage's carrier is also what
+removed the former secular drift of the undriven multi-section fast-ramp
+carried wake against the convolution. Over 20 turns the per-turn error
+slope went from ``+0.03184`` to ``-0.00255`` pp/turn at two sections
+(turn-19 error ``0.66788 %`` -> ``0.02149 %``) and from ``+0.04275`` to
+``-0.00219`` pp/turn at four. What is left is negative at every section
+count and bounded: at two sections the endpoint residual sits *below*
+the single-section control (``0.02618 %``, slope ``-0.00225``) that
+bounds the irreducible multi-turn discretisation residual from below, so
+there is no registration artefact left to attribute it to.
+``test_multiturn_secular_drift_long_horizon`` records the two- and
+single-section post-fix numbers and gates them at slope ``< 0.005``
+pp/turn and endpoint ``< 0.05 %``. Single-section rings and
+unaccelerated multi-section rings are bit-identical across the fix,
+because ``Psi`` is exactly ``0.0`` on both paths.
+
+Multi-harmonic stations
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The feedback is not restricted to the main harmonic: it can be attached
+to a :class:`~blond.physics.cavities.MultiHarmonicRFStation`, and the
 constructor argument ``harmonic_index`` (default ``0``) selects which
 harmonic it regulates. Every RF parameter it reads -- ``omega_rf``,
 ``phi_rf``, ``delta_omega_rf``, the harmonic number, the station voltage --
@@ -743,10 +893,11 @@ its sign flipped for a counter-rotating beam. The collider pair has
 *opposite* charges but travels in *opposite* directions, and the two sign
 flips cancel: both beams present the **same-sign gap current** to the cavity.
 (This is why the two statements below are consistent -- opposite *charges*,
-same-sign *currents*.) For an asymmetric fundamental mode their loading then
-adds constructively and both receive the same kick. A counter-rotating mu-
-beam alone reproduces the co-rotating mu+ run bit-for-bit, through the
-feedback and through the convolution reference alike.
+same-sign *currents*.) For a mode with ``R_CR = -R`` (see below) their
+loading then adds constructively and both receive the same kick. A
+counter-rotating mu- beam alone reproduces the co-rotating mu+ run
+bit-for-bit, through the feedback and through the convolution reference
+alike.
 
 With two simultaneous beams (``MainloopCounterRotatingBeams``: each station
 is tracked once per beam per turn, the counter-rotating beam traversing the
@@ -758,11 +909,13 @@ machinery handles the alternating arrivals natively and matches the two-beam
 convolution at reference accuracy. Layouts with more sections (``N >= 4``)
 keep stations off the meeting azimuths at a different spacing -- station
 ``i`` sees the two beams ``|N - 2 i - 1| / N * T_rev`` apart, never half a
-turn at ``N = 4`` -- and they are validated too: four and six sections match
-the two-beam convolution to 0.128 % on the first turn, falling to 0.039 %,
-against the same 0.5 % gate and within 0.001 percentage points of the
-two-section numbers, in all three regimes (static, accelerating fast ramp,
-``delta_omega_rf``). That matters because two sections is also the only count
+turn at ``N = 4`` -- and they are validated too, against the same 0.5 %
+gate: on the static cycle four and six sections match the two-beam
+convolution to 0.128 % on the first turn, falling to 0.039 %, within
+0.001 percentage points of the two-section numbers. The accelerating
+fast ramp and the ``delta_omega_rf`` regimes are carried to four
+sections only, where the error is likewise bounded and non-growing.
+That matters because two sections is also the only count
 at which the backfill interval is empty at every station, so the backfill
 reference walk is never entered; a 16-section RCS enters it at 14 stations
 every turn. A station
@@ -851,41 +1004,62 @@ Known limitations
 -----------------
 
 * A harmonic number that is not divisible by ``2 * n_sections`` de-aligns
-  the coarse-grid tiling from the RF bucket. **Only some of those cases are
-  refused, and the rest are silently wrong** -- do not rely on this being
-  caught.
+  the coarse-grid tiling from the RF bucket. **Every such case is
+  refused**: ``_assert_demodulation_frame_aligned``
+  (``cavity_feedback.py``, called unconditionally before every coarse
+  demodulation) raises a ``ValueError`` whenever ``omega_c * dT`` is more
+  than ``1e-3 pi`` from an odd multiple of ``pi``. Its only gate is
+  whether the demodulation is observable at all -- ``R_over_Q != 0`` and
+  a populated profile histogram -- so that the inert frames of pure
+  grid-geometry fixtures are not rejected. This is a *configuration*
+  limitation, not an uncaught defect: the run stops, it does not produce
+  a wrong number.
 
-  The grid seeds every segment half an RF period in, so a segment spanning
-  a fractional number of RF periods leaves a residual different from
-  ``t_rf / 2``; that residual is the demodulation frame ``dT``, and the
-  fundamental theorem of beam loading needs ``omega * dT = pi``
-  (mod ``2 pi``). Which fraction it is decides what happens:
+  Why it has to be refused. The grid seeds every segment half an RF
+  period in, so a segment spanning a fractional number of RF periods
+  leaves a residual different from ``t_rf / 2``; that residual is the
+  demodulation frame ``dT``, and the fundamental theorem of beam loading
+  needs ``omega * dT = pi`` (mod ``2 pi``). Which fraction it is decides
+  what the run *would* have done:
 
-  - ``1/4`` and ``3/4`` of a period push beam charge into the first coarse
-    cell, so ``rf_beam_current`` raises before any voltage is produced.
-    That refusal -- and only that one -- is pinned as a contract by
-    ``test_multiturn_nondivisible_harmonic_is_rejected`` in the multi-turn
-    comparison suite, which asserts the ``ValueError`` and that its message
-    stays actionable.
+  - ``1/4`` and ``3/4`` of a period leave ``omega * dT`` a quarter turn
+    off ``pi``, which rotates the beam-induced voltage by that angle.
+    Such a geometry also pushes beam charge into the first coarse cell,
+    which ``rf_beam_current`` refuses on its own -- but the
+    demodulation-frame guard catches it one step earlier, and by root
+    cause rather than by symptom. That refusal is pinned as a contract
+    by ``test_multiturn_nondivisible_harmonic_is_rejected`` in the
+    multi-turn comparison suite, which asserts the ``ValueError`` and
+    that its message still names ``omega_c * dT`` and the divisibility
+    cause.
   - ``1/2`` of a period (``harmonic % (2 * n_sections) == n_sections``,
     which includes every odd harmonic on a one-station ring) gives
-    ``omega * dT = 2 pi``, i.e. the demodulation factor is ``+1`` where it
-    must be ``-1``. Nothing complains: the run completes and **the
-    beam-induced voltage has the wrong sign**, so the bunch is accelerated
-    by its own wake. Measured against the ``MultiPassResonatorSolver``:
-    199.9 % relative error on the first turn.
+    ``omega * dT = 2 pi``, i.e. the demodulation factor would be ``+1``
+    where it must be ``-1``: the beam-induced voltage would be
+    sign-inverted, the bunch would be **accelerated by its own wake**,
+    and the wrongly signed deposit would then decay only over
+    ``2 Q_L / omega``, i.e. over many turns. The guard raises before any
+    voltage is produced. (Historically this case was unguarded and did
+    complete, at 199.9 % relative error against the
+    ``MultiPassResonatorSolver`` on the first turn. That is what the
+    guard now prevents, not what it currently does.)
 
-  There is currently no guard for the ``1/2`` case. Choose
-  ``harmonic % (2 * n_sections) == 0`` for the symmetric half-drift /
-  station / half-drift layout, and more generally make every stretch
-  between the ring start and an RF station, and between two consecutive RF
-  stations, span a whole number of RF periods.
-  ``muon_collider_blonder.rcs_two_beam_example`` does this itself, reducing
-  the JSON harmonic to a multiple of ``2 * n_sections``.
+  To satisfy the guard, choose ``harmonic % (2 * n_sections) == 0`` for
+  the symmetric half-drift / station / half-drift layout, and more
+  generally make every stretch between the ring start and an RF station,
+  and between two consecutive RF stations, span a whole number of RF
+  periods. ``muon_collider_blonder.rcs_two_beam_example`` does this
+  itself, reducing the JSON harmonic to a multiple of
+  ``2 * n_sections``.
 
-  Sub-stepped grids (``n_rf_periods_per_coarse_grid < 1``) are exempt: they
-  tile continuously across segment boundaries instead of re-seeding at the
-  bucket phase, so ``dT`` is one previous coarse step by construction.
+  Sub-stepped grids (``n_rf_periods_per_coarse_grid < 1``) do not re-seed
+  at the bucket phase: they tile continuously across segment boundaries,
+  so ``dT`` is one previous coarse step by construction. That step is
+  ``omega_c * dT = 2 pi n``, an odd multiple of ``pi`` only at
+  ``n = 0.5`` -- so ``0.5`` is the only usable sub-step, and ``n = 0.25``
+  or ``0.9`` is rejected by the same guard
+  (``TestDemodulationFrameGuard.test_misaligned_sub_step_is_rejected``
+  pins that raise).
 * **The demodulation frame carries a stale-frequency lag under a ramp.**
   The tail ``dT`` that sets the beam-current demodulation frame is left by
   the *preceding* coarse segment, but is consumed against the *current*
@@ -915,9 +1089,20 @@ Known limitations
   to the accumulated actual RF phase and validated at the discretization
   floor for offsets beyond the cavity half-bandwidth
   (``test_multiturn_delta_omega_rf_*``).
-* The undriven two-section fast-ramp carried wake shows a slow bounded
-  secular drift (~0.03 percentage points per turn over 20 turns) against
-  the convolution.
+* A bounded multi-turn residual remains on the undriven multi-section
+  fast ramp. The per-turn error against the convolution is *negative*
+  (converging toward flat, not accumulating) at every section count, and
+  its endpoint after 20 turns grows only weakly with that count:
+  ``0.02149``, ``0.02816``, ``0.03621`` and ``0.04169 %`` at 2, 4, 8 and
+  16 sections -- one-off measurements, of which only the two-section and
+  single-section figures are regression-guarded (by
+  ``test_multiturn_secular_drift_long_horizon``, gates slope
+  ``< 0.005`` pp/turn and endpoint ``< 0.05 %``). At two sections the
+  endpoint already sits *below* the single-section control, so what is
+  left is the generic multi-turn discretisation residual, with no
+  registration artefact to attribute it to. The secular drift this
+  replaced, and the reference fix that removed it, are described under
+  *Multi-section registration phase*.
 * Two counter-rotating beams passing a station *simultaneously* (station at
   a meeting azimuth) are refused rather than integrated; see
   *Counter-rotating beams* above for the guard and the workaround.
