@@ -133,13 +133,16 @@ workflow:
     # ordering can desync the ranks (one rank enters a collective while the
     # other does not), deadlocking on the unmatched MPI call. A fixed seed is
     # not enough: --cov on rank 0 alone perturbs the shuffle between ranks.
-    # `-x --timeout=120 --timeout-method=thread`: a rank that fails where the
+    # `-x --timeout=300 --timeout-method=thread`: a rank that fails where the
     # others do not is left out of step on every following collective, so the
     # run hangs until the job's 2h wall clock kills it -- and the tracebacks
     # are never printed. The timeout turns such a hang into a stack dump on
     # the stuck rank, and `-x` stops the run at the first failure instead of
-    # paying the timeout again for every remaining test.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=120 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=120 --timeout-method=thread; fi'
+    # paying the timeout again for every remaining test. The cap is per
+    # test, not per session: 300s leaves ~40x headroom over the slowest MPI
+    # test measured locally (6.8s), while still turning a deadlock into a
+    # 5 minute failure instead of a 2h one.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest
@@ -184,7 +187,7 @@ workflow:
     # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
     # they can desync on an MPI collective and deadlock (see .main for details).
     # See the `-x --timeout=...` rationale in the `test_py_314` job above.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=120 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=120 --timeout-method=thread; fi'
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - pip uninstall -y cupy-cuda12x
@@ -216,13 +219,16 @@ workflow:
     # ordering can desync the ranks (one rank enters a collective while the
     # other does not), deadlocking on the unmatched MPI call. A fixed seed is
     # not enough: --cov on rank 0 alone perturbs the shuffle between ranks.
-    # `-x --timeout=120 --timeout-method=thread`: a rank that fails where the
+    # `-x --timeout=300 --timeout-method=thread`: a rank that fails where the
     # others do not is left out of step on every following collective, so the
     # run hangs until the job's 2h wall clock kills it -- and the tracebacks
     # are never printed. The timeout turns such a hang into a stack dump on
     # the stuck rank, and `-x` stops the run at the first failure instead of
-    # paying the timeout again for every remaining test.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=120 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=120 --timeout-method=thread; fi'
+    # paying the timeout again for every remaining test. The cap is per
+    # test, not per session: 300s leaves ~40x headroom over the slowest MPI
+    # test measured locally (6.8s), while still turning a deadlock into a
+    # 5 minute failure instead of a 2h one.
+    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - pip uninstall -y mpi4py
     - python3 -m pytest

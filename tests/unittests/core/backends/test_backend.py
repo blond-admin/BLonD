@@ -3,6 +3,7 @@ import subprocess
 import sys
 import unittest
 import warnings
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -101,8 +102,14 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_apply_environment_variables(self):
-        import os
+        # `patch.dict` restores the process environment on exit. Without it
+        # the loop below leaves BLOND_BACKEND_MODE/BITS at "fail", which
+        # breaks every later test that reads them -- and any subprocess that
+        # inherits them cannot even import blond.
+        with mock.patch.dict(os.environ):
+            self._apply_environment_variables_for_every_mode()
 
+    def _apply_environment_variables_for_every_mode(self):
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["64", "fail"]
         try:
