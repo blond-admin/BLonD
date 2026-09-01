@@ -148,7 +148,15 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         # Same bookkeeping as `DriftSubstepped`: this element moved
         # the reference, so the RF station downstream would otherwise
         # report a non-accelerating machine.
-        reference.pending_rf_energy_gain += float(reference_energy_change)
+        # NOTE, direction: the consume side (`RFStationBaseClass`) flips
+        # `section_i` for a counter-rotating beam, this accumulate side
+        # does not -- it has no `is_counter_rotating` to flip with. Inert
+        # today because the only cycle this element accepts,
+        # `MagneticCycleByTime`, ignores `section_i` entirely. It would
+        # start to matter for a section-dependent energy program.
+        reference.add_pending_rf_energy_gain(
+            reference_energy_change, self._turn_counter.value
+        )
         return reference_energy_change
 
     def _track(self, beam: BeamBaseClass):

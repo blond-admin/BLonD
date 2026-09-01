@@ -1243,6 +1243,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         self._phi_corr: DenseArrayRecorder | None = None
 
         self._n_samples_fine: float | None = None
+        self._len_coarse_max: int | None = None
 
     @requires(["IQCavityFeedbackBase"])
     def on_run_simulation(
@@ -1295,7 +1296,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         # harmless -- unwritten columns stay NaN-masked -- while an
         # under-allocation would abort the run in `_update`.
         n_stations = self._feedback.n_rf_stations_in_ring
-        self.len_coarse_max = (
+        self._len_coarse_max = (
             int(
                 np.ceil(
                     (1 + 1 / n_stations)
@@ -1307,7 +1308,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             + 1
         )
 
-        shape_coarse = (n_entries, self.len_coarse_max)
+        shape_coarse = (n_entries, self._len_coarse_max)
         shape_fine = (n_entries, self._n_samples_fine)
 
         self._v_ant_fine = DenseArrayRecorder(
@@ -1363,25 +1364,22 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
         # The beam current is forward-segment-local (see the class Notes);
         # its columns are shifted by the forward offset so that they line
         # up with the whole-grid antenna voltage / generator current.
-        forward_offset = int(
-            len(self._feedback._rf_centers)
-            - self._feedback._rf_centers_lengths[-1]
-        )
+        forward_offset = int(self._feedback.forward_offset)
         n_forward = len(self._feedback.beam_current_forward_coarse_grid)
         n_needed = max(n_grid, forward_offset + n_forward)
-        if n_needed > self.len_coarse_max:
+        if n_needed > self._len_coarse_max:
             raise RuntimeError(
                 f"IQCavityFeedbackObservation of {self._feedback}: the "
                 f"coarse grid of turn {self._simulation.turn_counter.value} "
-                f"has {n_needed} cells, but only {self.len_coarse_max} "
+                f"has {n_needed} cells, but only {self._len_coarse_max} "
                 f"columns were allocated (analytic prediction plus one "
                 f"cell per segment). The np.arange grid walk produced "
                 f"more cells than that upper bound -- increase the "
-                f"per-segment margin added to `len_coarse_max` in "
+                f"per-segment margin added to `_len_coarse_max` in "
                 f"`IQCavityFeedbackObservation.on_run_simulation`."
             )
 
-        coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
+        coarse_mask = np.zeros(self._len_coarse_max, dtype=bool)
         coarse_mask[:n_grid] = True
 
         self._v_ant_coarse.write(
@@ -1393,7 +1391,7 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
             mask=coarse_mask,
         )
 
-        coarse_mask = np.zeros(self.len_coarse_max, dtype=bool)
+        coarse_mask = np.zeros(self._len_coarse_max, dtype=bool)
         coarse_mask[forward_offset : forward_offset + n_forward] = True
 
         self._i_beam_coarse.write(
@@ -1403,6 +1401,29 @@ class IQCavityFeedbackObservation(ObservablesOncePerTurnBase):
 
         self._v_corr.write(self._feedback.relative_voltage_correction)
         self._phi_corr.write(self._feedback.phase_correction)
+
+    @property  # as readonly attributes
+    def len_coarse_max(self) -> int | None:
+        """
+        Allocated column count of the coarse matrices, in [1].
+
+        The per-turn coarse grid is padded to this width (see the Notes
+        of this class); ``on_run_simulation`` derives it once from the
+        feedback's harmonic, coarse step and station count, plus a margin
+        of one cell per possible segment. Like the recorders it sizes, it
+        is ``None`` until then.
+
+        Read-only: every coarse recorder is allocated with this width and
+        ``_update`` masks its rows against it, so a later write would
+        disagree with the buffers already in place.
+
+        Returns
+        -------
+        len_coarse_max
+            Number of columns allocated per coarse-matrix row, or
+            ``None`` before ``on_run_simulation``.
+        """
+        return self._len_coarse_max
 
     @property  # as readonly attributes
     def v_corr(self) -> NumpyArray:

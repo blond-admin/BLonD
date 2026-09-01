@@ -792,7 +792,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
     _wake_function_time
-        Time axes corresponding to _wake_function_time.
+        Time axes corresponding to _wake_function_vals.
 
     _past_profiles
         List of previously passed profiles: 0th entry being from the current pass,
@@ -854,7 +854,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._maximum_storage_time: float | None = None
         self._decay_fraction_threshold = decay_fraction_threshold
 
-        self._simulation: Simulation | None = None
         self._parent_wakefield: WakeField | None = None
 
         # define wake function values and corresponding time axis
@@ -937,14 +936,18 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to.
         """
-        self.circumference = simulation.ring.circumference
+        # Ring circumference [m], read only by the ``delta_f`` retuning
+        # path. Deliberately created here and not defaulted in
+        # ``__init__``: a solver driven by hand-wired scaffolding that
+        # skips late-init must fail loudly on the missing attribute
+        # rather than silently retune against a ``None`` circumference.
+        self._circumference = simulation.ring.circumference
 
         if backend.float(0).dtype.itemsize * 8 < 64:  # noqa: PLR2004
             raise RuntimeError(
                 "MultiPassResonatorSolver does only run with 64 bit backends."
             )  # pragma: no cover (only 64 bit backends now available)
 
-        self._simulation = simulation
         if parent_wakefield.profile is None:
             raise ValueError("Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
@@ -999,6 +1002,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._wake_function_vals.pop()
                 self._past_profile_deposit_phase.pop()
                 self._past_profile_deposit_time.pop()
+                self._past_charge_per_macroparticle.pop()
             else:
                 return
 
@@ -1311,7 +1315,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             self._parent_wakefield.sources[0]._center_frequencies[0] = (
                 self._parent_wakefield._parent_rf_station.calc_omega_rf_design(
                     beam_beta=dummy_reference.beta,
-                    ring_circumference=self.circumference,
+                    ring_circumference=self._circumference,
                 )
                 / (2 * np.pi)
                 + self.delta_f

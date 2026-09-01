@@ -784,13 +784,13 @@ class TestDriftSubstepped(unittest.TestCase):
             beam_sub.dE.copy_as_numpy(), dE0, rtol=0, atol=1e-6
         )
 
-    def _station(self):
+    def _station(self, voltage=50e6):
         """Headless single-harmonic station on the same ramping cycle."""
         from blond.physics.cavities import SingleHarmonicRFStation
 
         station = SingleHarmonicRFStation.headless(
             section_index=0,
-            voltage=50e6,
+            voltage=voltage,
             phi_rf=np.pi,
             harmonic=self.harmonic,
             circumference=self.orbit_length,
@@ -853,7 +853,13 @@ class TestDriftSubstepped(unittest.TestCase):
         # the clock really did move, so the test is not vacuous
         self.assertGreater(abs(clock_shift), 1e-12)
         absolute_drift = (fine_time + fine_dt) - (coarse_time + coarse_dt)
-        self.assertLess(abs(absolute_drift / clock_shift), 0.01)
+        # Measured 0.00498 -- the residual is the beam kernel's
+        # linearisation in dE, not a real frame dependence. 0.01 left
+        # only a factor 2 of margin, so a partial weakening of the
+        # coupling would have slipped through; 0.02 of the FULL clock
+        # shift is still 50x below the 1.0 a pure-clock-knob drift
+        # would produce.
+        self.assertLess(abs(absolute_drift / clock_shift), 0.0075)
 
         # At transition eta_0 = 0, so the map is n_substeps-independent even
         # though the clock still converges.
@@ -1000,6 +1006,229 @@ class TestDriftSubstepped(unittest.TestCase):
         self.assertAlmostEqual(sum(gains), 20e6, delta=1e3)
         # Nothing is left owed at the end of the turn.
         self.assertEqual(beam.reference.pending_rf_energy_gain, 0.0)
+
+    def _ramping_pair(self, turn_counter, n_substeps=8):
+        """A sub-stepped drift and a station sharing one turn counter."""
+        from blond.physics.drifts import DriftSubstepped
+
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=n_substeps,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        drift.configure(
+            turn_counter=turn_counter, magnetic_cycle=self._cycle_stub()
+        )
+        station = self._station()
+        station._turn_counter = turn_counter
+        return drift, station
+
+    def test_ledger_is_bounded_to_one_turn_when_no_station_consumes_it(self):
+        """An idle station must not let the design gain pile up across turns.
+
+        The design gain is a PER-TURN quantity. A station that is
+        deactivated, runs only every n-th turn, or is absent altogether
+        leaves nobody to consume the ledger; without per-turn scoping it
+        grows linearly and the next station to run reports a design gain
+        that many turns too large.
+        """
+        from blond.core.beam.beams import ProbeBeam
+
+        turn_counter = SimpleNamespace(value=0)
+        drift, station = self._ramping_pair(turn_counter)
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+
+        # six turns during which the station never runs ...
+        for turn in range(6):
+            turn_counter.value = turn
+            drift.track_reference(beam.reference)
+            self.assertAlmostEqual(
+                beam.reference.pending_rf_energy_gain, 20e6, delta=1e4
+            )
+
+        # ... and when it finally does, it owes ONE turn, not six.
+        turn_counter.value = 6
+        drift.track_reference(beam.reference)
+        station.track_reference(beam.reference)
+        self.assertAlmostEqual(station.design_energy_gain, 20e6, delta=1e4)
+
+    def test_phi_s_does_not_depend_on_when_it_is_asked(self):
+        """phi_s must agree with design_energy_gain before and after tracking.
+
+        Derived from the live reference alone, a query issued after the
+        station moved the reference sees ``target - total_energy == 0`` and
+        an already-consumed ledger, so it reports a stationary bucket on a
+        ramping machine.
+        """
+        from blond.core.beam.beams import ProbeBeam
+
+        turn_counter = SimpleNamespace(value=0)
+        drift, station = self._ramping_pair(turn_counter)
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+
+        drift.track_reference(beam.reference)
+        before = float(station.calc_phi_s_main_harmonic(beam=beam))
+        station.track_reference(beam.reference)
+        after = float(station.calc_phi_s_main_harmonic(beam=beam))
+
+        self.assertNotAlmostEqual(before, np.pi, places=3)
+        self.assertAlmostEqual(before, after, places=12)
+
+    def test_bare_rf_manipulation_does_not_destroy_the_ledger(self):
+        """A barrier bucket between drift and station must not eat the gain.
+
+        `RFManipulationBaseClass` reports no phi_s and no Hamiltonian, so
+        consuming the ledger there would discard a reframing element's
+        design gain before any real station could report it.
+        """
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.cavities import RFManipulationBaseClass
+
+        turn_counter = SimpleNamespace(value=0)
+        drift, manipulation = self._ramping_pair(turn_counter)
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+
+        drift.track_reference(beam.reference)
+        owed = beam.reference.pending_rf_energy_gain
+        self.assertAlmostEqual(owed, 20e6, delta=1e4)
+
+        # the BASE implementation is the barrier-bucket path
+        RFManipulationBaseClass.track_reference(
+            manipulation, beam.reference, False
+        )
+        self.assertAlmostEqual(
+            beam.reference.pending_rf_energy_gain, owed, delta=1.0
+        )
+
+    def test_substepped_drift_does_not_double_count_the_kick(self):
+        """Absolute energy E_ref + dE is conserved with no RF on a ramp.
+
+        Guards the other direction of the ledger: `design_energy_gain` must
+        never leak into the acceleration kick, which may only ever use this
+        element's OWN reference move.
+        """
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        turn_counter = SimpleNamespace(value=0)
+        drift = DriftSubstepped(
+            orbit_length=self.orbit_length,
+            n_substeps=8,
+            momentum_compaction_factor=self.alpha_0,
+        )
+        drift.configure(
+            turn_counter=turn_counter, magnetic_cycle=self._cycle_stub()
+        )
+        # A ZERO-voltage station: it still moves the reference and applies its
+        # acceleration kick, but adds no RF energy, so absolute energy has to
+        # be conserved exactly. The station must be in the loop -- the leak
+        # this guards against lives on the station side, not the drift side.
+        station = self._station(voltage=0.0)
+        station._turn_counter = turn_counter
+        beam = ProbeBeam(
+            dE=np.array([0.0, 5e6, -5e6]),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        absolute_before = beam.reference.total_energy + beam.dE.copy_as_numpy()
+
+        for turn in range(20):
+            turn_counter.value = turn
+            drift.track(beam=beam)
+            station.track(beam=beam)
+
+        # the machine really ramped, so the test is not vacuous ...
+        self.assertGreater(beam.reference.total_energy, self.E0 + 1e8)
+        # ... yet no particle gained or lost absolute energy
+        absolute_after = beam.reference.total_energy + beam.dE.copy_as_numpy()
+        np.testing.assert_allclose(absolute_after, absolute_before, rtol=1e-12)
+
+    def test_headless_builds_a_working_substepped_drift(self):
+        """`headless` returns a real DriftSubstepped that sub-steps and ramps.
+
+        The inherited `DriftSimple.headless` is a staticmethod hard-coding
+        the base class, so without the override this silently returned a
+        plain drift: no sub-stepping and no energy ramp.
+        """
+        from blond.core.beam.beams import ProbeBeam
+        from blond.physics.drifts import DriftSubstepped
+
+        turn_counter = SimpleNamespace(value=0)
+        drift = DriftSubstepped.headless(
+            momentum_compaction_factor=self.alpha_0,
+            orbit_length=self.orbit_length,
+            section_index=3,
+            turn_counter=turn_counter,
+            n_substeps=17,
+        )
+        self.assertIsInstance(drift, DriftSubstepped)
+        self.assertEqual(drift.n_substeps, 17)
+        self.assertEqual(drift.momentum_compaction_factor, self.alpha_0)
+        self.assertEqual(drift.section_index, 3)
+
+        # `headless` takes no magnetic_cycle, so the caller supplies one --
+        # and must re-pass the turn counter, because configure() rebinds it.
+        drift.configure(
+            turn_counter=turn_counter, magnetic_cycle=self._cycle_stub()
+        )
+        beam = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        drift.track(beam=beam)
+        # it really ramped; a plain DriftSimple would not have
+        self.assertGreater(beam.reference.total_energy, self.E0)
+
+    def test_phi_s_cache_does_not_leak_between_beams(self):
+        """Two beams share every station object; the cache must not.
+
+        `calc_phi_s_main_harmonic` reuses what `track_reference` computed for
+        the current turn. Keyed by turn alone that cache is station-global,
+        so a second beam -- a counter-rotating one is at the opposite
+        azimuth and owes a different amount -- would be handed the first
+        beam's design gain.
+        """
+        from blond.core.beam.beams import ProbeBeam
+
+        turn_counter = SimpleNamespace(value=0)
+        drift, station = self._ramping_pair(turn_counter)
+
+        tracked = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+        untracked = ProbeBeam(
+            dE=np.zeros(3),
+            particle_type=self.particle,
+            reference_total_energy=self.E0,
+        )
+
+        drift.track_reference(tracked.reference)
+        station.track_reference(tracked.reference)
+
+        phi_tracked = float(station.calc_phi_s_main_harmonic(beam=tracked))
+        phi_untracked = float(station.calc_phi_s_main_harmonic(beam=untracked))
+
+        # the beam that went through the ramp is off-crest ...
+        self.assertNotAlmostEqual(phi_tracked, np.pi, places=3)
+        # ... and the one that has not owes nothing yet, so it is not handed
+        # the other beam's answer
+        self.assertNotAlmostEqual(phi_untracked, phi_tracked, places=6)
+        self.assertAlmostEqual(phi_untracked, np.pi, places=9)
 
 
 if __name__ == "__main__":

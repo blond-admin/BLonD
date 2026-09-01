@@ -852,7 +852,15 @@ class DriftSubstepped(DriftSimple):
         # the next station's phi_s / Q_s / Hamiltonian keep seeing an
         # accelerating machine. The tracking kick is unaffected -- it
         # uses `energy_change` directly.
-        reference.pending_rf_energy_gain += float(energy_change)
+        # NOTE, direction: the consume side (`RFStationBaseClass`) flips
+        # `section_i` for a counter-rotating beam, this accumulate side
+        # does not -- it has no `is_counter_rotating` to flip with. Inert
+        # today because the only cycle this element accepts,
+        # `MagneticCycleByTime`, ignores `section_i` entirely. It would
+        # start to matter for a section-dependent energy program.
+        reference.add_pending_rf_energy_gain(
+            energy_change, self._turn_counter.value
+        )
         return time_change, energy_change
 
     def track_reference(

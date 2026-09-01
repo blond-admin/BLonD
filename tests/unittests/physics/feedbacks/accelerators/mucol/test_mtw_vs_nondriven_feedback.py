@@ -192,7 +192,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
         # Wire up the bits normally set in on_wakefield_init_simulation so the
         # solver can run without a full Simulation.
         solver._parent_wakefield = wakefield
-        solver.circumference = self.circumference
+        solver._circumference = self.circumference
         solver._maximum_storage_time = 1.0  # >> t_rf, keeps the single pass
         solver._last_reference_time = -np.finfo(float).eps
 

@@ -265,6 +265,71 @@ class TestGeneratorCurrentPIController(unittest.TestCase):
             )
 
 
+class TestLoopDelayIsFixedAtConstruction(unittest.TestCase):
+    """``n_delay`` is read-only: the delay line is sized once, in __init__.
+
+    The deque keeps the ``maxlen`` it was built with, so a write after
+    construction used to be silently ignored -- a user retuning the loop
+    delay got no delay change and no complaint.  The attribute is exposed
+    as a read-only property so that mistake fails loudly instead.
+    """
+
+    def _controller(self, n_delay: int = 3):
+        """
+        Build a PI controller with the given loop delay.
+
+        Parameters
+        ----------
+        n_delay
+            Loop delay in coarse-grid samples.
+
+        Returns
+        -------
+        controller
+            The controller under test.
+        """
+        return GeneratorCurrentPIController(
+            gain_proportional=1e-8,
+            gain_integral=0.0,
+            generator_current_bias=0.02,
+            n_delay=n_delay,
+        )
+
+    def test_n_delay_reads_back_the_constructor_value(self):
+        """The documented read surface is unchanged."""
+        for n_delay in (0, 1, 7):
+            with self.subTest(n_delay=n_delay):
+                self.assertEqual(
+                    self._controller(n_delay=n_delay).n_delay, n_delay
+                )
+
+    def test_n_delay_is_a_property_over_private_storage(self):
+        """The value lives on ``_n_delay``; ``n_delay`` is a property."""
+        controller = self._controller(n_delay=4)
+        self.assertEqual(controller._n_delay, 4)
+        self.assertIsInstance(type(controller).__dict__["n_delay"], property)
+
+    def test_assigning_n_delay_raises(self):
+        """A post-construction retune fails loudly instead of silently."""
+        controller = self._controller(n_delay=3)
+        with self.assertRaises(AttributeError):
+            controller.n_delay = 5
+
+    def test_delay_line_length_tracks_the_constructor_value(self):
+        """The deque is sized ``n_delay + 1`` from the constructor value."""
+        for n_delay in (0, 1, 7):
+            with self.subTest(n_delay=n_delay):
+                controller = self._controller(n_delay=n_delay)
+                self.assertEqual(len(controller._delay_line), n_delay + 1)
+                self.assertEqual(controller._delay_line.maxlen, n_delay + 1)
+
+    def test_int_coercion_still_applies(self):
+        """A float loop delay is coerced to ``int``, as before."""
+        controller = self._controller(n_delay=2.0)
+        self.assertIsInstance(controller.n_delay, int)
+        self.assertEqual(controller.n_delay, 2)
+
+
 class TestPIErrorFrame(unittest.TestCase):
     """The PI error must reach the controller in the GENERATOR frame.
 

@@ -128,7 +128,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
                 parent_rf_station=StubRFStation(self.omega_rf),
             )
             solver._parent_wakefield = wakefield
-            solver.circumference = self.circumference
+            solver._circumference = self.circumference
             solver._maximum_storage_time = 1.0
             solver._last_reference_time = -np.finfo(float).eps
             return copy_to_cpu(solver.calc_induced_voltage(stub_beam)), t

@@ -2140,9 +2140,14 @@ here rather than documented:
     conformance and the cavity list of ``blond.physics.feedbacks.base``.
 ``test_helpers.py``
     ``TestLowPass``, ``TestIQ`` and ``TestACSSparseModel`` -- the LHC-side
-    first-order solver and I/Q helpers in
-    ``blond.physics.feedbacks.helpers`` (the mucol suite's own
-    ``test_helpers.py`` under ``accelerators/mucol/`` is a different module).
+    first-order solver and I/Q helpers. The module it was named after,
+    ``blond.physics.feedbacks.helpers``, no longer exists: its re-export
+    shims were dissolved, so these tests now import ``low_pass_filter``
+    from ``blond.physics.feedbacks.beam_current``,
+    ``cavity_response_sparse_matrix`` from
+    ``blond.physics.feedbacks.cavity_solvers`` and the I/Q conversions from
+    ``blond.physics.feedbacks.iq``. (The mucol suite's own
+    ``test_helpers.py`` under ``accelerators/mucol/`` is a different module.)
 ``test_cavity_feedback_requires.py``
     One module-level test,
     ``test_timing_on_run_simulation_carries_own_requires``: the timing class
@@ -2505,3 +2510,62 @@ than left for the reader to reconstruct from the attribute accesses.
     The annotation stays type-checking-only. The host inherits from these
     mixins, so a runtime import of it would be a cycle; the test asserts the
     module exposes no such name at runtime.
+
+
+Attribute visibility contracts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An audit of every attribute of the feedback classes (171 attributes, ten
+modules) found six whose declared visibility no longer matched their real
+consumers. The moves are pinned so they cannot silently regress.
+
+``TestCoarseGridAccessorsAreStatedPublic``
+    (``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) The
+    coarse grid was read across a class boundary through private names:
+    ``IQCavityFeedbackObservation`` computed the forward offset from the
+    feedback's ``_rf_centers`` and ``_rf_centers_lengths``. That made them
+    public API in everything but name, so the class now exposes read-only
+    ``rf_centers``, ``rf_centers_lengths`` and ``forward_offset``
+    properties. The storage stays private and unrenamed deliberately: the
+    flat arrays are derived from ``_segments`` (the grid's source of
+    truth), so a writable accessor could desync them. The tests pin that
+    each property returns the stored value, that ``forward_offset`` equals
+    the expression it replaced, and that all three reject assignment.
+``TestForwardWalkReverseIndexIsPrivate``
+    (``tests/unittests/physics/feedbacks/test_rf_center_grid.py``)
+    ``reference_index_until_tracked_reverse`` was a missed underscore --
+    its sibling ``_reference_index_until_tracked`` is assigned two lines
+    earlier and was already private, and the only reader is the backfill
+    walk's own start-index selection. Writing it between the forward
+    projection and the backfill would start the counter-rotating walk at
+    the wrong element. The test pins the private name and that the old
+    public one is gone.
+``test_len_coarse_max_is_readable_but_not_assignable``
+    (``tests/unittests/handle_results/test_observables.py``) The recorder
+    width is derived once in ``on_run_simulation`` and the buffers are
+    allocated from it, so a later write would disagree with the arrays
+    already in memory. It is now private storage behind a read-only
+    property.
+``test_on_wakefield_init_stores_circumference_privately``
+    (``tests/unittests/physics/impedances/test_solvers.py``)
+    ``MultiPassResonatorSolver.circumference`` is derived late-init state
+    with a single in-class reader, now ``_circumference``. It has no
+    ``__init__`` default on purpose: the attribute exists only once the
+    wakefield-init hook has run, so a hand-wired solver that never got
+    that hook fails loudly instead of retuning against a silent ``None``.
+``test_calc_induced_voltage_past_deques_stay_parallel``
+    Guards a fixed memory leak. ``_past_charge_per_macroparticle`` is one
+    of eight parallel deques but was the only one never popped when
+    decayed profiles were evicted, so it grew without bound over a long
+    run. Results were never wrong -- ``appendleft`` keeps the front
+    indices aligned with the surviving profiles, so only unreachable tail
+    entries accumulated. Note the eight are parallel *between* passages,
+    not during one: ``calc_induced_voltage`` appends the charge entry
+    after ``_update_potential_sources`` has already appended the other
+    seven and run the eviction, so at pop time the charge deque is
+    legitimately one shorter.
+
+``GeneratorCurrentPIController.n_delay`` was demoted the same way, in the
+mucol controller suite: it is read exactly once, inside ``__init__``, to
+size the delay-line deque, so a post-construction write was silently
+ignored. The read-only property makes that mistake raise.

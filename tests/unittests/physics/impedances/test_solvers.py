@@ -1331,6 +1331,31 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.n_macroparticles_partial.return_value = int(1e2)
         self.beam.reference.time = 0
 
+    @staticmethod
+    def _drive_one_passage(solver, beam) -> None:
+        """
+        Deposit one passage the way ``calc_induced_voltage`` does.
+
+        ``_update_potential_sources`` appends the new deposit to seven of
+        the eight parallel deques and evicts decayed ones from all eight;
+        ``calc_induced_voltage`` appends the eighth,
+        ``_past_charge_per_macroparticle``, immediately afterwards. A
+        test that drives ``_update_potential_sources`` alone must do the
+        same, or it builds an invalid solver whose eighth deque runs out
+        from under the eviction. The charge value is never read back by
+        the tests using this helper -- only the deque depth matters -- so
+        a unit placeholder stands in for the real signed charge.
+
+        Parameters
+        ----------
+        solver
+            Solver to deposit one passage on.
+        beam
+            Beam supplying the reference time of the passage.
+        """
+        solver._update_potential_sources(beam)
+        solver._past_charge_per_macroparticle.appendleft(1.0)
+
     def test_info_string_with_RF_station(self):
         shc = SingleHarmonicRFStation(
             section_index=0,
@@ -1344,6 +1369,29 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             ),
         )
         assert "WakeField" in shc.info_string()
+
+    def test_on_wakefield_init_stores_circumference_privately(self):
+        """
+        The ring circumference is internal, late-init solver state.
+
+        It is derived from the simulation at late-init and read only by
+        the ``delta_f`` retuning path inside the class, so it carries a
+        leading underscore instead of being part of the public surface.
+        """
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 5990.0
+        local_solv = deepcopy(self.multi_pass_resonator_solver)
+        local_solv.on_wakefield_init_simulation(
+            simulation=simulation,
+            parent_wakefield=(
+                self.multi_pass_resonator_solver._parent_wakefield
+            ),
+        )
+        self.assertEqual(local_solv._circumference, 5990.0)
+        self.assertFalse(
+            hasattr(local_solv, "circumference"),
+            "public `circumference` should be gone after the demotion",
+        )
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
@@ -1452,6 +1500,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
             [0.0, 1.0, 2.0]
         )
+        # Eighth parallel deque: one charge per stored deposit,
+        # matching the profile amplitudes above. Populating it keeps
+        # this hand-built solver a valid object, so eviction can pop
+        # all eight deques in step.
+        self.multi_pass_resonator_solver._past_charge_per_macroparticle = (
+            deque([1.0, 2.0, 3.0])
+        )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 1.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1541,6 +1596,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
             [0.0, 1.0, 2.0]
         )
+        # Eighth parallel deque: one charge per stored deposit,
+        # matching the profile amplitudes above. Populating it keeps
+        # this hand-built solver a valid object, so eviction can pop
+        # all eight deques in step.
+        self.multi_pass_resonator_solver._past_charge_per_macroparticle = (
+            deque([1.0, 2.0, 3.0])
+        )
 
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
             indexes_to_check=2
@@ -1608,6 +1670,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
             [0.0, 1.0, 2.0]
+        )
+        # Eighth parallel deque: one charge per stored deposit,
+        # matching the profile amplitudes above. Populating it keeps
+        # this hand-built solver a valid object, so eviction can pop
+        # all eight deques in step.
+        self.multi_pass_resonator_solver._past_charge_per_macroparticle = (
+            deque([1.0, 2.0, 3.0])
         )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 2.0
@@ -1702,6 +1771,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         self.multi_pass_resonator_solver._past_profile_deposit_time = deque(
             [0.0, 1.0, 2.0]
+        )
+        # Eighth parallel deque: one charge per stored deposit,
+        # matching the profile amplitudes above. Populating it keeps
+        # this hand-built solver a valid object, so eviction can pop
+        # all eight deques in step.
+        self.multi_pass_resonator_solver._past_charge_per_macroparticle = (
+            deque([1.0, 2.0, 3.0])
         )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 0.0
@@ -1936,14 +2012,14 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim,
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
-        local_res._update_potential_sources(self.beam)
+        self._drive_one_passage(local_res, self.beam)
 
         local_res._wake_function_vals_needs_update = True
         tsteps = backend.array([0.5, 1.0, 1.6])
         local_res._maximum_storage_time = 1.5
         beam = deepcopy(self.beam)
         beam.reference.time = tsteps[0]
-        local_res._update_potential_sources(beam=beam)
+        self._drive_one_passage(local_res, beam)
 
         assert (
             len(local_res._wake_function_time)
@@ -1968,7 +2044,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         # repeat another time, first array should be kicked out due to delay
         local_res._wake_function_vals_needs_update = True
         beam.reference.time = tsteps[1]
-        local_res._update_potential_sources(beam=beam)
+        self._drive_one_passage(local_res, beam)
         assert (
             len(local_res._wake_function_time)
             == len(local_res._wake_function_vals)
@@ -1996,7 +2072,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         # kick out oldest profile
         local_res._wake_function_vals_needs_update = True
         beam.reference.time = tsteps[2]
-        local_res._update_potential_sources(beam=beam)
+        self._drive_one_passage(local_res, beam)
         assert (
             len(local_res._wake_function_time)
             == len(local_res._wake_function_vals)
@@ -2055,7 +2131,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
         beam = deepcopy(self.beam)
-        local_res._update_potential_sources(beam)
+        self._drive_one_passage(local_res, beam)
 
         local_res._maximum_storage_time = 1.5
 
@@ -2084,9 +2160,62 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._wake_function_vals_needs_update = True
         beam = deepcopy(self.beam)
         beam.reference.time = 1
-        local_res._update_potential_sources(beam=beam)
+        self._drive_one_passage(local_res, beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
+    def test_calc_induced_voltage_past_deques_stay_parallel(self):
+        """
+        Decayed-out deposits must be dropped from *all* stored deques.
+
+        ``_past_charge_per_macroparticle`` is the eighth deque holding
+        one entry per stored deposit. It is appended on every passage
+        but was never popped when a profile decayed past
+        ``_maximum_storage_time``, so it grew without bound over a long
+        run while the seven others stayed at the storage depth.
+        """
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=(
+                self.multi_pass_resonator_solver._parent_wakefield
+            ),
+        )
+        local_res._maximum_storage_time = 1.5
+
+        beam = deepcopy(self.beam)
+        n_passages = 12
+        for passage in range(n_passages):
+            beam.reference.time = float(passage)
+            local_res.calc_induced_voltage(beam=beam)
+
+        n_stored = len(local_res._past_profiles)
+        self.assertLess(
+            n_stored,
+            n_passages,
+            "test is meaningless unless profiles actually decayed out",
+        )
+        self.assertEqual(
+            len(local_res._past_charge_per_macroparticle),
+            n_stored,
+            "_past_charge_per_macroparticle keeps decayed-out tail"
+            " entries: it leaks one float per passage",
+        )
+        for name in (
+            "_past_profile_times",
+            "_past_profiles_counter_rotation_flag",
+            "_wake_function_time",
+            "_wake_function_vals",
+            "_past_profile_deposit_phase",
+            "_past_profile_deposit_time",
+        ):
+            self.assertEqual(
+                len(getattr(local_res, name)),
+                n_stored,
+                f"{name} is out of step with _past_profiles",
+            )
 
     def test_calc_induced_voltage_two_passages(self):
         sim = Mock(Simulation)
@@ -2104,7 +2233,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._wake_function_vals_needs_update = True
         beam = deepcopy(self.beam)
         beam.reference.time = 1
-        local_res._update_potential_sources(beam=beam)
+        self._drive_one_passage(local_res, beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
 

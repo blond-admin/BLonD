@@ -51,13 +51,58 @@ class ReferenceCoordinates:
         # Part of this turn's design energy gain that a *reframing*
         # element (DriftSubstepped, ReferenceEnergyChange) has
         # already applied to the reference, and that the RF station
-        # has therefore not seen. Accumulated by those elements and
-        # consumed (then cleared) by the next RF station, so that
-        # phi_s, the synchrotron tune and the symbolic Hamiltonian
-        # still describe an accelerating machine. Stays 0.0 for the
-        # classic DriftSimple + station layout, where the station
-        # moves the reference itself.
+        # has therefore not seen. Accumulated by those elements via
+        # `add_pending_rf_energy_gain` and consumed (then cleared) by
+        # the next RF station, so that phi_s, the synchrotron tune and
+        # the symbolic Hamiltonian still describe an accelerating
+        # machine. Stays 0.0 for the classic DriftSimple + station
+        # layout, where the station moves the reference itself.
         self.pending_rf_energy_gain: float = 0.0
+        # Turn the pending gain was accumulated for. The design gain is a
+        # PER-TURN quantity, so a contribution left over from an earlier
+        # turn -- because the station was inactive, ran every n-th turn,
+        # or the ring has no station at all -- must be dropped rather than
+        # added to this turn's. Without this the ledger grows linearly
+        # with the number of unconsumed turns and the next station reports
+        # a design gain that many times too large.
+        self._pending_rf_energy_gain_turn: int | None = None
+
+    def add_pending_rf_energy_gain(
+        self, energy_change: float, turn_i: int | None
+    ) -> None:
+        """
+        Accumulate design energy gain owed by the RF, scoped to one turn.
+
+        Parameters
+        ----------
+        energy_change
+            Reference total-energy change this element applied, in [eV].
+        turn_i
+            Turn the change belongs to. A change tagged with a different
+            turn than the standing total replaces it instead of adding to
+            it. ``None`` disables the scoping (headless use, where there
+            is no turn counter).
+        """
+        if turn_i is not None and turn_i != self._pending_rf_energy_gain_turn:
+            self.pending_rf_energy_gain = 0.0
+            self._pending_rf_energy_gain_turn = turn_i
+        self.pending_rf_energy_gain += float(energy_change)
+
+    def take_pending_rf_energy_gain(self) -> float:
+        """
+        Consume the pending design energy gain, clearing the ledger.
+
+        Returns
+        -------
+        pending
+            Design energy gain owed by the RF and not yet reported, in
+            [eV]. Zero when no reframing element ran since the last RF
+            station.
+        """
+        pending = self.pending_rf_energy_gain
+        self.pending_rf_energy_gain = 0.0
+        self._pending_rf_energy_gain_turn = None
+        return pending
 
     @property
     def particle_type(self) -> ParticleType:

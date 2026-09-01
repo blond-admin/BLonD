@@ -76,6 +76,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         # reframing elements fill and the station consumes; a spec'd
         # Mock hands back a child Mock, which is not summable.
         self.beam.reference.pending_rf_energy_gain = 0.0
+        self.beam.reference.take_pending_rf_energy_gain.return_value = 0.0
 
         self.beam.particle_type = proton
         self.beam.reference.time = 0
@@ -750,6 +751,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         # reframing elements fill and the station consumes; a spec'd
         # Mock hands back a child Mock, which is not summable.
         beam.reference.pending_rf_energy_gain = 0.0
+        beam.reference.take_pending_rf_energy_gain.return_value = 0.0
         beam.reference.beta = 1
         beam.reference.total_energy = 1e6
         self.assertAlmostEqual(
@@ -815,6 +817,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         # reframing elements fill and the station consumes; a spec'd
         # Mock hands back a child Mock, which is not summable.
         beam.reference.pending_rf_energy_gain = 0.0
+        beam.reference.take_pending_rf_energy_gain.return_value = 0.0
         beam.reference.beta = 1
         beam.reference.total_energy = 450e9
         self.assertAlmostEqual(
@@ -998,6 +1001,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         # reframing elements fill and the station consumes; a spec'd
         # Mock hands back a child Mock, which is not summable.
         beam.reference.pending_rf_energy_gain = 0.0
+        beam.reference.take_pending_rf_energy_gain.return_value = 0.0
         beam.common_array_size = 1
         beam.particle_type = proton
         beam._particle_type = beam.particle_type
@@ -1583,6 +1587,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         # reframing elements fill and the station consumes; a spec'd
         # Mock hands back a child Mock, which is not summable.
         beam.reference.pending_rf_energy_gain = 0.0
+        beam.reference.take_pending_rf_energy_gain.return_value = 0.0
         beam.common_array_size = 1
         beam.particle_type = proton
         beam.reference.time = float(0)
@@ -1904,6 +1909,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         # reframing elements fill and the station consumes; a spec'd
         # Mock hands back a child Mock, which is not summable.
         positron_beam.reference.pending_rf_energy_gain = 0.0
+        positron_beam.reference.take_pending_rf_energy_gain.return_value = 0.0
 
         positron_beam.particle_type = positron
         # Co-rotating: direction-signed charge equals the raw charge.

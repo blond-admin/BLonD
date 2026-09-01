@@ -17,7 +17,8 @@ segment is generated at, the segment generation itself, and the derived flat
 ``rf_centers`` / ``rf_centers_lengths`` arrays the tracking loop indexes.
 
 It is a *mixin*: its methods read and write state that the host feedback class
-owns and initialises in ``__init__`` / ``on_run_simulation``.
+owns and -- with the one exception flagged under "Reference bookkeeping"
+below -- initialises in ``__init__`` / ``on_run_simulation``.
 
 - Grid state: ``_segments`` (the single source of truth) and the derived
   ``_rf_centers`` / ``_rf_centers_lengths``.
@@ -39,18 +40,22 @@ owns and initialises in ``__init__`` / ``on_run_simulation``.
   ``_forward_segment_omega_design`` and ``_tracked_forward_until_element``,
   which the tracking loop consumes.
 - Reference bookkeeping: ``_reference_state_until_tracked``,
-  ``_reference_index_until_tracked``,
-  ``reference_index_until_tracked_reverse``, ``_reference_turn_offset``,
   ``_reference_altering_elements`` / ``..._reverse``,
   ``_own_index_in_reference_list`` / ``..._reverse``,
   ``_last_tracked_turn_frwrd`` and ``_last_tracked_beam_state_frwrd``.
+  The two until-tracked indices ``_reference_index_until_tracked`` and
+  ``_reference_index_until_tracked_reverse`` are the exception: nothing
+  initialises them up front -- they come into existence on the first
+  ``RFCenterGridMixin.get_passed_time_forward_direction`` projection, and
+  every read is gated on ``_last_tracked_beam_state_frwrd is not None``.
 - Plain host configuration: ``n_rf_periods_per_coarse_grid``,
   ``section_index``, ``_parent_rf_station``, ``_ring_circumference`` and
   ``_debug`` -- the last of which additionally gates the inspection-only
   ``current_slice_elements_forward`` / ``reference_time_after_backfill`` /
   ``reference_energy_after_backfill`` / ``current_beam_reference_time`` /
-  ``current_beam_reference_energy`` diagnostics written here (nothing reads
-  them back).
+  ``current_beam_reference_energy`` diagnostics written here (nothing in
+  BLonD reads them back; they are the debug feature's assertion interface,
+  consumed by ``tests/unittests/physics/feedbacks/test_rf_center_grid.py``).
 
 Two independent notions share the word "backwards" here, and the names keep
 them apart. *Backfill* is a TIME direction: the feedback only runs at its own
@@ -189,7 +194,6 @@ class RFCenterGridMixin:
                 self._last_tracked_turn_frwrd = deepcopy(
                     self._parent_rf_station._turn_counter.value
                 )
-                self._reference_turn_offset = -1
                 break
             element: AltersReference
             if isinstance(element, RFStationBaseClass):
@@ -218,7 +222,6 @@ class RFCenterGridMixin:
                         self._last_tracked_turn_frwrd = deepcopy(
                             self._parent_rf_station._turn_counter.value + 1
                         )
-                        self._reference_turn_offset = 0
                         break
             else:
                 next_reference_altering_element_index = -1
@@ -263,7 +266,7 @@ class RFCenterGridMixin:
                 self._tracked_forward_until_element
             )
         )
-        self.reference_index_until_tracked_reverse = (
+        self._reference_index_until_tracked_reverse = (
             self._reference_altering_elements_reverse.index(
                 self._tracked_forward_until_element
             )
@@ -342,7 +345,7 @@ class RFCenterGridMixin:
             # beam's direction.
             backfill_is_counter_rotating = self._last_tracked_beam_state_frwrd
             start_index = (
-                self.reference_index_until_tracked_reverse
+                self._reference_index_until_tracked_reverse
                 if self._last_tracked_beam_state_frwrd
                 else self._reference_index_until_tracked
             )

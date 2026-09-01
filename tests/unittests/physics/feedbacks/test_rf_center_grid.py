@@ -3,6 +3,7 @@ timing class -- moved from test_cavity_feedback.py alongside the
 RFCenterGridMixin extraction (blond/physics/feedbacks/rf_center_grid.py)."""
 
 import inspect
+import unittest
 import warnings
 from copy import deepcopy
 from unittest.mock import Mock
@@ -10,7 +11,6 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from _pytest import unittest
 
 from blond import (
     Beam,
@@ -1502,7 +1502,7 @@ class TestIQCavityFeedbackTimingClass:
                         )
                         % len(fdbk._reference_altering_elements)
                     )
-                    assert fdbk.reference_index_until_tracked_reverse == (
+                    assert fdbk._reference_index_until_tracked_reverse == (
                         len(fdbk._reference_altering_elements)
                         - (fdbk._own_index_in_reference_list + 3 + 1)
                     ) % len(fdbk._reference_altering_elements)
@@ -1511,7 +1511,7 @@ class TestIQCavityFeedbackTimingClass:
                     assert fdbk._reference_index_until_tracked == (
                         fdbk._own_index_in_reference_list - 3
                     ) % len(fdbk._reference_altering_elements)
-                    assert fdbk.reference_index_until_tracked_reverse == (
+                    assert fdbk._reference_index_until_tracked_reverse == (
                         len(fdbk._reference_altering_elements)
                         - (fdbk._own_index_in_reference_list - 3 + 1)
                     ) % len(fdbk._reference_altering_elements)
@@ -1825,7 +1825,7 @@ class TestBackfillWalkGuards:
         feedback._reference_altering_elements = (station, drift)
         feedback._reference_altering_elements_reverse = (drift, station)
         feedback._reference_index_until_tracked = 0
-        feedback.reference_index_until_tracked_reverse = 0
+        feedback._reference_index_until_tracked_reverse = 0
         feedback._own_index_in_reference_list = 1
         feedback._own_index_in_reference_list_reverse = 1
 
@@ -1868,6 +1868,85 @@ class TestBackfillWalkGuards:
 
         # 12.0 (absolute) - 10.0 (start) = 2.0 s of segment, not 12.0 s.
         np.testing.assert_allclose(feedback._backfill_time_array, [2.0])
+
+
+class TestForwardWalkReverseIndexIsPrivate(unittest.TestCase):
+    """The reversed until-tracked index is family-only bookkeeping."""
+
+    omega_rf = 2 * np.pi * 1.3e9
+
+    def _feedback_after_forward_walk(
+        self,
+    ) -> tuple[IQCavityFeedbackTimingClass, Mock]:
+        """
+        Run one forward projection over a three-element ring.
+
+        Returns
+        -------
+        tuple
+            The feedback after the walk and the station the walk stops at.
+        """
+        feedback = IQCavityFeedbackTimingClass(
+            profile=Mock(StaticProfile),
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current_bias=0,
+            n_cavities=1,
+        )
+        feedback._parent_rf_station = _ParentStationStub(self.omega_rf, 0)
+        feedback._ring_circumference = 5.0
+
+        own_station = Mock(RFStationBaseClass)
+        own_station.track_reference.side_effect = (
+            lambda reference, is_counter_rotating: None
+        )
+        next_station = Mock(RFStationBaseClass)
+        next_station.track_reference.side_effect = (
+            lambda reference, is_counter_rotating: None
+        )
+        drift = _AdvancingElementStub(time_step=2.0)
+
+        # Co-rotating order (own, drift, next); the counter-rotating beam
+        # meets the very same elements in the reversed order.
+        feedback._reference_altering_elements = (
+            own_station,
+            drift,
+            next_station,
+        )
+        feedback._reference_altering_elements_reverse = (
+            next_station,
+            drift,
+            own_station,
+        )
+        feedback._own_index_in_reference_list = 0
+        feedback._own_index_in_reference_list_reverse = 2
+
+        feedback.get_passed_time_forward_direction(beam=_BeamStub(time=0.0))
+        return feedback, next_station
+
+    def test_forward_walk_writes_the_private_reverse_index(self) -> None:
+        # The walk stops at `next_station`: index 2 in the co-rotating
+        # element order, index 0 in the reversed one.
+        feedback, next_station = self._feedback_after_forward_walk()
+
+        self.assertIs(feedback._tracked_forward_until_element, next_station)
+        self.assertEqual(feedback._reference_index_until_tracked, 2)
+        self.assertEqual(feedback._reference_index_until_tracked_reverse, 0)
+
+    def test_public_reverse_index_name_is_gone(self) -> None:
+        # The reversed until-tracked index is consumed only by the backfill
+        # walk in the same mixin, exactly like its co-rotating sibling
+        # `_reference_index_until_tracked`. Re-publishing it would invite a
+        # write between the forward projection and the backfill, which
+        # starts the counter-rotating backfill walk at the wrong element
+        # and corrupts the grid.
+        feedback, _ = self._feedback_after_forward_walk()
+
+        self.assertFalse(
+            hasattr(feedback, "reference_index_until_tracked_reverse"),
+            "the reversed until-tracked index must stay private",
+        )
 
 
 class _MutableTurnCounterStub:
@@ -1919,7 +1998,9 @@ class TestBackfillWalkRestoresForeignTurnCounter:
         )
         feedback._parent_rf_station = _ParentStationStub(self.omega_rf, turn=4)
         feedback._ring_circumference = 5.0
-        feedback._last_tracked_turn_frwrd = 3  # -> reference_turn_offset = -1
+        # One turn behind the parent counter, so the walk takes its
+        # "previous turn" branch (its local reference_turn_offset = -1).
+        feedback._last_tracked_turn_frwrd = 3
         feedback._reference_state_until_tracked = _ReferenceStub(0.0)
         feedback._last_tracked_beam_state_frwrd = False
 

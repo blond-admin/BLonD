@@ -212,7 +212,7 @@ Renames applied (no old name survives in `blond/` or `tests/`):
 **Space-sense "reverse" deliberately KEPT** (all in `cavity_feedback.py`
 `__init__` / `on_run_simulation` and `rf_center_grid.py`):
 `_reference_altering_elements_reverse`, `_own_index_in_reference_list_reverse`,
-`reference_index_until_tracked_reverse`, and the two selector helpers that
+`_reference_index_until_tracked_reverse`, and the two selector helpers that
 dispatch on them, `_reference_list_for_direction` /
 `_own_index_for_direction`.
 
@@ -821,12 +821,52 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
   stays clean. The deeper fix (a `tmp_path` fixture per emitting test)
   is still open but no longer leaks into the working tree.
 - ~~`_phase_offset_frwrd` / `_phase_offset_frwrd_next` are vestigial~~
-  **RESOLVED (2026-08-13)**: both were always exactly `0.0` (initialised
-  in `__init__`, re-zeroed in `on_run_simulation`, never written
-  elsewhere). Deleted, together with the one test term that added
-  `_phase_offset_frwrd` to a `np.sin` argument where it contributed
-  zero. Grep now returns no occurrence anywhere in `blond/` or
-  `tests/`; suite unchanged.
+  **RESOLVED (2026-09-01) — and the previous entry here was FALSE.**
+  Both were always exactly `0.0` (declared in `__init__`, re-zeroed in
+  `on_run_simulation`, never read anywhere). This bullet previously read
+  "RESOLVED (2026-08-13) ... Deleted ... Grep now returns no occurrence
+  anywhere in `blond/` or `tests/`". **That claim was untrue when it was
+  written.** Git history (`git log -S"_phase_offset_frwrd" --all`) shows
+  the occurrence count in `cavity_feedback.py` was 4 at *every* commit
+  from `d3beab88` (2026-07-16, which introduced them) through `ed2cddbe`
+  — the source lines were never removed. What actually happened on
+  2026-08-13 was that the entry was written; the only real deletion was
+  the single test term (`np.sin` argument), and that landed on
+  2026-08-31 in `afd5d96a`. The four source lines were deleted for real
+  on 2026-09-01, verified by a zero-reader sweep over `blond/`,
+  `tests/`, both muon-collider packages and `docs/`.
+  A **merge was NOT the vector** — an explicit audit cleared `e8d978ce`
+  (does not touch the file at all) and `e411428b` (its only change under
+  `blond/physics/feedbacks/` is a `cupy` → `cupy_` import rename), and
+  neither appears in `git log -G"_phase_offset_frwrd"`.
+  **The failure mode to learn from:** a resolution was recorded in this
+  file without the deletion having been executed, and nothing detected
+  it for three weeks. The deletion is therefore now pinned by
+  `TestVestigialPhaseOffsetsStayDeleted` in `test_cavity_feedback.py`
+  (two `hasattr` assertions plus a scan of the module source), so a
+  re-introduction fails loudly instead of quietly landing. **When you
+  record something here as deleted, verify it with a grep in the same
+  breath — this entry is the proof that the note alone is not evidence.**
+  The same audit checked the other 55 absence claims in this file
+  against the tree: all of them hold.
+- **`_reference_turn_offset` was write-only — DELETED (2026-09-01).**
+  Set to `-1` / `0` in `RFCenterGridMixin.get_passed_time_forward_direction`
+  and defaulted in `__init__`, read nowhere. The backfill walk that would
+  logically consume it instead computes a *local* variable of the same
+  name (`rf_center_grid.py`, `get_time_omega_array_backfill`) and reads
+  only that — the local is live and was deliberately left untouched, so
+  do not "restore" the attribute if you meet the local. Removed from the
+  module docstring's state list too.
+- **`MultiPassResonatorSolver._simulation` was unused — DELETED
+  (2026-09-01).** Assigned in `__init__` and in the wakefield-init hook,
+  never read by that class. NOTE the trap: `_simulation` is genuinely
+  live on the *sibling* solver classes in the same file
+  (`InductiveImpedanceSolver`, `PeriodicFreqSolver`,
+  `TimeDomainFftSolver`, `ContinuousMultiTurnTimeDomainSolver`), so any
+  future sweep must attribute hits by receiver before concluding
+  anything. **Still open:** the same audit found
+  `SingleTurnResonatorConvolutionSolver._simulation` is dead in the same
+  way (assigned, never read); it was out of scope and is untouched.
 - ~~**The extracted mixins** are still pure moves; promoting them to
   composed collaborators is the natural follow-up.~~
   **DECIDED (2026-08-31): stay mixins, state the host instead.** Composition

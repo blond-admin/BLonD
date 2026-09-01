@@ -282,7 +282,10 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         counts coarse-grid *samples*, not time: driven by a sub-stepped
         feedback (``n_rf_periods_per_coarse_grid < 1``) the physical delay
         is ``n_delay * n_rf_periods_per_coarse_grid * t_rf``, i.e. it
-        shrinks with the sub-step.
+        shrinks with the sub-step. Fixed at construction: the delay line is
+        sized once from this value, so :attr:`n_delay` is read-only and the
+        loop delay cannot be retuned afterwards. Build a new controller
+        instead.
     max_output
         Maximum generator-current magnitude [A] (klystron limit). If None,
         the output is not limited and the integrator never saturates.
@@ -300,17 +303,34 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         self.gain_proportional = gain_proportional
         self.gain_integral = gain_integral
         self.generator_current_bias = generator_current_bias
-        self.n_delay = int(n_delay)
+        self._n_delay = int(n_delay)
         self.max_output = max_output
 
         self._integral: complex = 0.0 + 0.0j
         # Zero-prefilled so the first n_delay updates act on a null error.
         self._delay_line: collections.deque[complex] = collections.deque(
-            [0.0 + 0.0j] * (self.n_delay + 1), maxlen=self.n_delay + 1
+            [0.0 + 0.0j] * (self._n_delay + 1), maxlen=self._n_delay + 1
         )
 
     #: The PI law has a compiled counterpart (see :meth:`envelope_scan_kernel`).
     supports_envelope_scan: bool = True
+
+    @property
+    def n_delay(self) -> int:
+        """
+        Loop delay in coarse-grid samples, fixed at construction.
+
+        Read-only: the delay line is sized once, in ``__init__``, so a write
+        here could never change the delay. Rejecting it makes an attempted
+        retune fail loudly instead of being silently ignored; construct a
+        new controller to change the loop delay.
+
+        Returns
+        -------
+        n_delay
+            The loop delay this controller was built with [samples].
+        """
+        return self._n_delay
 
     @property
     def integral(self) -> complex:

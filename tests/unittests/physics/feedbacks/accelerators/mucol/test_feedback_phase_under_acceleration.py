@@ -806,7 +806,7 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
             profile=profile,
         )
         solver._parent_wakefield = wakefield
-        solver.circumference = self.circumference
+        solver._circumference = self.circumference
         solver._maximum_storage_time = 1.0  # >> run time, keeps every pass
         solver._last_reference_time = -np.finfo(float).eps
         drift = DriftSubstepped(

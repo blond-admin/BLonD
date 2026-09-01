@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import warnings
+import weakref
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING
@@ -231,13 +232,13 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
         reference_energy_change = target_total_energy - reference.total_energy
         reference.total_energy = target_total_energy
-        # This element has now supplied the turn's gain, so anything a
-        # reframing element upstream put on the ledger has been accounted for.
-        # Clearing is what stops it accumulating across turns in a ring that
-        # mixes e.g. a barrier bucket with a `DriftSubstepped`; the base
-        # manipulation exposes no phi_s / Hamiltonian, so it has nothing to
-        # report the total to.
-        reference.pending_rf_energy_gain = 0.0
+        # Deliberately does NOT touch `pending_rf_energy_gain`. This base
+        # manipulation reports no phi_s and no Hamiltonian, so consuming the
+        # ledger here would destroy a reframing element's design gain before
+        # the next real RF station could report it -- measured as a barrier
+        # bucket between a `DriftSubstepped` and a station driving the
+        # station's design gain to zero. Unbounded growth is prevented by
+        # the per-turn scoping in `add_pending_rf_energy_gain`, not here.
         return reference_energy_change
 
     def _track(self, beam: BeamBaseClass) -> None:
@@ -421,6 +422,19 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # this one describes the machine, so it is what phi_s, the
         # synchrotron tune and the symbolic Hamiltonian must use.
         self._last_design_energy_gain: float | None = None
+        # Turn `_last_design_energy_gain` was computed for, so a phi_s
+        # query AFTER this station has tracked can reuse it instead of
+        # re-deriving zero from an already-moved reference.
+        self._last_design_energy_gain_turn: int | None = None
+        # ... and WHOSE reference it was computed for. Every beam in a
+        # ring shares one station object, so a cache keyed by turn alone
+        # would hand a counter-rotating beam the co-rotating beam's
+        # design gain -- the two are at opposite azimuths and owe
+        # different amounts. A weak reference so the station never keeps
+        # a beam's reference clock alive.
+        self._last_design_energy_gain_reference: (
+            weakref.ReferenceType[ReferenceCoordinates] | None
+        ) = None
 
     @property
     def design_energy_gain(self) -> float:
@@ -1160,6 +1174,32 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             reference_time=float(beam.reference.time),
             particle_type=beam.particle_type,
         )
+        # The live reference gives the design gain only while this station
+        # has NOT yet moved the reference on this turn -- afterwards
+        # ``target - reference.total_energy`` is zero and the ledger has been
+        # consumed, so the live expression would report a stationary bucket on
+        # a ramping machine. Reuse what `track_reference` already computed for
+        # this turn, so a phi_s query is order-independent and always agrees
+        # with :attr:`design_energy_gain`.
+        cached_reference = (
+            self._last_design_energy_gain_reference()
+            if self._last_design_energy_gain_reference is not None
+            else None
+        )
+        already_tracked_this_turn = (
+            self._last_design_energy_gain is not None
+            and self._turn_counter is not None
+            and self._last_design_energy_gain_turn == self._turn_counter.value
+            and cached_reference is beam.reference
+        )
+        if already_tracked_this_turn:
+            reference_energy_change = float(self._last_design_energy_gain)
+        else:
+            reference_energy_change = (
+                target_total_energy
+                - beam.reference.total_energy
+                + beam.reference.pending_rf_energy_gain
+            )
         if self._ring.radiation_integrals is not None:
             energy_loss_per_turn = calculate_energy_loss_per_turn(
                 energy=target_total_energy,
@@ -1167,16 +1207,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 particle_type=beam.particle_type,
             )
             reference_energy_change = (
-                target_total_energy
-                - beam.reference.total_energy
-                + beam.reference.pending_rf_energy_gain
-                + energy_loss_per_turn
-            )
-        else:
-            reference_energy_change = (
-                target_total_energy
-                - beam.reference.total_energy
-                + beam.reference.pending_rf_energy_gain
+                reference_energy_change + energy_loss_per_turn
             )
 
         # Direction-signed charge, matching the tracking kick
@@ -1469,6 +1500,12 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._magnetic_cycle is None:
             self._last_reference_energy_change = 0.0
             self._last_design_energy_gain = 0.0
+            self._last_design_energy_gain_turn = (
+                self._turn_counter.value
+                if self._turn_counter is not None
+                else None
+            )
+            self._last_design_energy_gain_reference = weakref.ref(reference)
             return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
@@ -1492,9 +1529,14 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # then clear the ledger so the next station on this turn only gets
         # its own section's share.
         self._last_design_energy_gain = float(
-            reference_energy_change + reference.pending_rf_energy_gain
+            reference_energy_change + reference.take_pending_rf_energy_gain()
         )
-        reference.pending_rf_energy_gain = 0.0
+        self._last_design_energy_gain_turn = (
+            self._turn_counter.value
+            if self._turn_counter is not None
+            else None
+        )
+        self._last_design_energy_gain_reference = weakref.ref(reference)
         return reference_energy_change
 
     def calc_omega_rf_design(

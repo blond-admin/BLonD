@@ -8,7 +8,6 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from _pytest import unittest
 
 from blond import (
     Beam,

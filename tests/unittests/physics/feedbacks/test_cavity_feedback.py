@@ -6,12 +6,13 @@ the grid builder and value class were split into their own modules.
 """
 
 import importlib
+import inspect
+import unittest
 import warnings
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from _pytest import unittest
 
 from blond import (
     Beam,
@@ -27,6 +28,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.physics.feedbacks import cavity_feedback as cavity_feedback_module
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
@@ -984,3 +986,131 @@ class TestMixinsDeclareTheirHost:
             f"{module} imports {self.HOST} at runtime; keep it inside the "
             "TYPE_CHECKING block so the annotation stays free"
         )
+
+
+class TestCoarseGridAccessorsAreStatedPublic(unittest.TestCase):
+    """The coarse grid has a public read surface, and only a read one.
+
+    ``IQCavityFeedbackObservation`` -- a different class family -- has to
+    translate the forward-segment-local beam-current columns into
+    whole-turn columns, so it needs the flat grid and the offset between
+    the two index origins. It used to reach into ``_rf_centers`` /
+    ``_rf_centers_lengths``, i.e. the read was public in everything but
+    name. The properties state it.
+
+    They stay read-only: ``_segments`` is the recorded source of truth of
+    the grid and ``_rebuild_grid_arrays`` derives the flat arrays from
+    it, so a write here would desync the arrays the tracking loop indexes
+    from the segment list.
+    """
+
+    @staticmethod
+    def _feedback_with_backfill() -> IQCavityFeedbackTimingClass:
+        """
+        A feedback holding a 12-cell grid split 8 backfill + 4 forward.
+
+        Returns
+        -------
+        feedback
+            Feedback whose forward offset is a non-trivial 8.
+        """
+        feedback = _make_bare_feedback()
+        _prepare_hand_built_grid(feedback, np.arange(12) * 0.1)
+        feedback._rf_centers_lengths = np.array([8, 4])
+        return feedback
+
+    def test_rf_centers_returns_the_stored_array(self) -> None:
+        feedback = self._feedback_with_backfill()
+
+        self.assertIs(feedback.rf_centers, feedback._rf_centers)
+
+    def test_rf_centers_lengths_returns_the_stored_array(self) -> None:
+        feedback = self._feedback_with_backfill()
+
+        self.assertIs(
+            feedback.rf_centers_lengths, feedback._rf_centers_lengths
+        )
+
+    def test_forward_offset_equals_the_open_coded_expression(self) -> None:
+        # The offset every physics consumer open-coded before: whole-turn
+        # coarse index minus it is the forward-segment-local index.
+        feedback = self._feedback_with_backfill()
+
+        lengths = feedback._rf_centers_lengths
+        expected = len(feedback._rf_centers) - lengths[-1]
+        self.assertEqual(feedback.forward_offset, expected)
+        # Non-vacuous: the grid really does carry a backfill span.
+        self.assertEqual(feedback.forward_offset, 8)
+
+    def test_forward_offset_is_a_numpy_integer(self) -> None:
+        # The documented return type: subtracting an entry of the
+        # integer rf_centers_lengths array yields a NumPy scalar, not a
+        # Python int. Callers wanting an int cast it themselves.
+        feedback = self._feedback_with_backfill()
+
+        self.assertIsInstance(feedback.forward_offset, np.integer)
+
+    def test_forward_offset_raises_before_the_grid_is_built(self) -> None:
+        # The documented Raises: rf_centers_lengths is empty until the
+        # first passage fills it, so there is no last segment yet.
+        feedback = _make_bare_feedback()
+
+        self.assertEqual(len(feedback.rf_centers_lengths), 0)
+        with self.assertRaises(IndexError):
+            _ = feedback.forward_offset
+
+    def test_accessor_rejects_assignment(self) -> None:
+        # Writing the flat arrays would desync them from _segments;
+        # forward_offset is derived from both of them.
+        feedback = self._feedback_with_backfill()
+
+        for name in ("rf_centers", "rf_centers_lengths", "forward_offset"):
+            with self.subTest(accessor=name):
+                with self.assertRaises(AttributeError):
+                    setattr(feedback, name, np.zeros(3))
+
+
+class TestVestigialPhaseOffsetsStayDeleted(unittest.TestCase):
+    """``_phase_offset_frwrd``/``_phase_offset_frwrd_next`` are gone.
+
+    Both were pure vestige: the only statements that ever mentioned them
+    were writes, in the constructor and again in ``on_run_simulation``,
+    and every one of those writes stored exactly ``0``. Nothing in
+    ``blond``, the test suite or the downstream muon-collider packages
+    ever read either name back, so the pair carried no state and
+    influenced no result -- the last live read, a ``np.sin`` argument
+    they contributed a constant zero to, had already been removed.
+
+    Absence is pinned rather than merely achieved because the pair was
+    deleted once before, on 2026-08-13, and a later branch merge
+    resurrected both writes without any test noticing. A silently
+    restored write-only attribute is exactly the kind of change that
+    re-teaches readers that a phase offset is being tracked here when it
+    is not, so the second deletion gets a guard: if the names come back,
+    this fails loudly instead of returning green.
+
+    The instance checks catch a resurrected constructor declaration; the
+    module-source check additionally catches a write reintroduced
+    anywhere else in the module (``on_run_simulation`` being where the
+    merge put the second one), which no bare instance would execute.
+    """
+
+    def test_phase_offset_frwrd_is_not_an_instance_attribute(self) -> None:
+        feedback = _make_bare_feedback()
+
+        self.assertFalse(hasattr(feedback, "_phase_offset_frwrd"))
+
+    def test_phase_offset_frwrd_next_is_not_an_instance_attribute(
+        self,
+    ) -> None:
+        feedback = _make_bare_feedback()
+
+        self.assertFalse(hasattr(feedback, "_phase_offset_frwrd_next"))
+
+    def test_module_source_never_mentions_the_names(self) -> None:
+        # Catches a write restored outside __init__ -- on_run_simulation
+        # needs a full simulation to run, so no hasattr check would see
+        # it. Matching the shorter name covers the _next one too.
+        source = inspect.getsource(cavity_feedback_module)
+
+        self.assertNotIn("_phase_offset_frwrd", source)

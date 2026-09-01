@@ -436,6 +436,11 @@ class InducedVoltageObservationCR(
         self.beam_state: bool | None = None
         self.last_turn: int | None = None
         self.turn_counter: DynamicParameter | None = None
+        # One-shot latch for the feedback/wakefield grid-mismatch
+        # warning. Lives here rather than with the recorders so it
+        # exists before the first track and is not re-armed by a
+        # second `on_run_simulation`.
+        self._grid_mismatch_reported = False
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -478,7 +483,6 @@ class InducedVoltageObservationCR(
             shape,
         )
 
-        self._grid_mismatch_reported = False
         self._total_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_total_voltage",
             shape,

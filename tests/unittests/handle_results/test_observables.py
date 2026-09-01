@@ -955,6 +955,32 @@ class TestSimulationObservation(unittest.TestCase):
         self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
 
 
+class _DerivedForwardOffsetFeedback(Mock):
+    """``Mock`` feedback whose ``forward_offset`` is derived, not preset.
+
+    ``IQCavityFeedbackObservation._update`` reads only
+    ``feedback.forward_offset``. A stub that stores a precomputed number
+    there would make the column-alignment test assert against its own
+    arithmetic, so the offset is recomputed from the stub's own
+    ``_rf_centers`` / ``_rf_centers_lengths`` exactly as
+    ``IQCavityFeedbackBase.forward_offset`` does. A property on the
+    class wins over ``Mock.__getattr__``, which only runs when normal
+    attribute lookup fails.
+    """
+
+    @property
+    def forward_offset(self) -> int:
+        """
+        Number of coarse cells before the forward segment, in [1].
+
+        Returns
+        -------
+        forward_offset
+            Backfill cell count preceding the forward segment.
+        """
+        return len(self._rf_centers) - self._rf_centers_lengths[-1]
+
+
 class TestIQCavityFeedbackObservation(unittest.TestCase):
     def test_coarse_recorder_filepaths_are_pairwise_distinct(self):
         # Regression: _v_ant_coarse, _i_beam_coarse and _i_gen_coarse were
@@ -1017,6 +1043,38 @@ class TestIQCavityFeedbackObservation(unittest.TestCase):
             int(np.ceil(1.5 * 8.0)) + 2 + 1,
         )
 
+    def test_len_coarse_max_is_readable_but_not_assignable(self):
+        """The allocation width is a read-only view on private storage.
+
+        Every coarse recorder shape and the overflow guard are built from
+        it in ``on_run_simulation``; a later write would silently
+        disagree with the buffers already allocated. The documented read
+        surface stays, backed by ``_len_coarse_max``.
+        """
+        feedback = self._feedback_stub(rf_centers_lengths=(8, 4))
+        observation = self._observation_for(feedback)
+
+        self.assertEqual(
+            observation.len_coarse_max, observation._len_coarse_max
+        )
+        with self.assertRaises(AttributeError):
+            observation.len_coarse_max = 999
+
+    def test_len_coarse_max_is_none_before_run_simulation(self):
+        """Before allocation the width reads like its sibling attributes.
+
+        ``on_run_simulation`` derives it; until then it must read as
+        ``None``, the way every recorder attribute initialised in
+        ``__init__`` does, rather than raising an ``AttributeError`` that
+        leaks the private storage name.
+        """
+        observation = IQCavityFeedbackObservation(
+            each_turn_i=1,
+            feedback=self._feedback_stub(rf_centers_lengths=(8, 4)),
+        )
+
+        self.assertIsNone(observation.len_coarse_max)
+
     @staticmethod
     def _feedback_stub(
         rf_centers_lengths: tuple[int, ...],
@@ -1024,11 +1082,13 @@ class TestIQCavityFeedbackObservation(unittest.TestCase):
         n_stations: int = 1,
         i_beam_forward: np.ndarray | None = None,
         v_ant: np.ndarray | None = None,
-    ) -> Mock:
+    ) -> _DerivedForwardOffsetFeedback:
         """Stub feedback exposing exactly what ``_update`` consumes."""
         n_bins = 4
         total = int(sum(rf_centers_lengths))
-        feedback = Mock()
+        # Not a bare Mock: `forward_offset` must be derived from the two
+        # flat arrays below, the way the real property derives it.
+        feedback = _DerivedForwardOffsetFeedback()
         feedback.profile.n_bins = n_bins
         feedback.harmonic = harmonic
         feedback.n_rf_periods_per_coarse_grid = 1
@@ -1102,14 +1162,29 @@ class TestIQCavityFeedbackObservation(unittest.TestCase):
         ):
             observation._update()
 
+    def test_overflow_error_names_the_attribute_to_widen(self):
+        """The remedy in the message points at a real attribute.
+
+        The error tells the maintainer to increase the margin added to
+        an attribute of ``on_run_simulation``; naming the public
+        read-only property instead of the private storage that method
+        assigns makes the instruction unfollowable.
+        """
+        feedback = self._feedback_stub(rf_centers_lengths=(36, 4))
+        observation = self._observation_for(feedback)
+        with self.assertRaises(RuntimeError) as caught:
+            observation._update()
+
+        self.assertIn("`_len_coarse_max`", str(caught.exception))
+        self.assertTrue(hasattr(observation, "_len_coarse_max"))
+
     def test_beam_current_columns_align_with_voltage_columns(self):
         """``i_beam_coarse`` columns mean the same cell as ``v_ant_coarse``.
 
         ``beam_current_forward_coarse_grid`` is forward-segment-local while
         the voltage/current spans the whole per-turn grid; the recorder
-        must translate by the forward offset
-        ``len(_rf_centers) - _rf_centers_lengths[-1]`` like every physics
-        consumer does.
+        must translate by the feedback's ``forward_offset`` like every
+        physics consumer does.
         """
         i_beam = np.array([0.0, 5.0, 0.0, 0.0], dtype=complex)
         v_ant = np.ones(12, dtype=complex)

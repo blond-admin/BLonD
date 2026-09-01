@@ -39,6 +39,15 @@ error is essentially flat -- it is float64 round-off, not accumulation::
 ``fast_sin`` is not the dominant term: numba vs the plain ``python``
 specials is 1.2e-15 on ``dE``, the same order as CUDA vs numba (1.1e-15).
 
+SCOPE. Three of the five compared arrays -- the beam current and both
+antenna voltages -- are host ``numpy`` arrays even during the CUDA run:
+the mucol feedback's signal processing is host-only by design and there
+is no CUDA feedback kernel to compare. What this test pins is the
+closed loop *through* the device: GPU tracking, the GPU histogram that
+builds ``profile.hist_y``, and the transfers between them. The beam
+current in particular is formed before the cavity response, so that one
+subtest is only sensitive to divergence upstream of the cavity.
+
 ``TOLERANCE = 1e-11`` therefore keeps roughly four orders of margin over
 the worst observed value, while still failing hard on any real
 divergence. On this metric a sign error is 2.0e0, a one-sample shift of

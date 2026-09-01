@@ -939,14 +939,10 @@ class IQCavityFeedbackTimingClass(
         self._backfill_segment_omega_design_list: NumpyArray | None = None
 
         self._reference_state_until_tracked: ReferenceCoordinates | None = None
-        self._reference_turn_offset: int = 0
         self._last_tracked_turn_frwrd: int = 0
         self._last_tracked_beam_state_frwrd: bool | None = None
 
         self._init_passage_tracking_state()
-
-        self._phase_offset_frwrd_next: float = 0.0
-        self._phase_offset_frwrd: float = 0.0
 
         self._init_turn_boundary_carries()
 
@@ -1005,6 +1001,97 @@ class IQCavityFeedbackTimingClass(
                 "injection_voltage requires n_pretrack (the cavity fill "
                 "budget in turns); set n_pretrack or drop injection_voltage."
             )
+
+    @property
+    def rf_centers(self) -> NumpyArray:
+        """
+        Flat coarse-grid centre times of the current passage, in [s].
+
+        The stated read surface of ``_rf_centers``: the concatenation of
+        the per-segment ``centers`` of ``_segments``. The whole-turn
+        coarse quantities of this class are indexed by it; the one
+        coarse array that is not is
+        ``beam_current_forward_coarse_grid``, which is
+        forward-segment-local and has to be reached through
+        :attr:`forward_offset` (see the INDEX ORIGIN paragraph of that
+        attribute's docstring). Its own two counter-intuitive
+        properties -- the entries are segment-LOCAL times (the array is
+        not globally monotonic) and the step is the design ``t_rf`` of
+        the segment an entry belongs to (the spacing is not one constant
+        ``dt``) -- must be read in "The coarse grid" under Notes in the
+        class docstring before indexing or differencing it.
+
+        Read-only on purpose: ``_segments`` is the source of truth of the
+        grid and ``_rebuild_grid_arrays`` derives this array from it.
+        Assigning here would write the flat array alone and desync it
+        from the segment list the recorded grid is reconstructed from.
+
+        Returns
+        -------
+        rf_centers
+            Coarse-grid centre times of the current passage, in [s].
+        """
+        return self._rf_centers
+
+    @property
+    def rf_centers_lengths(self) -> NumpyArray:
+        """
+        Number of coarse cells each grid segment contributed.
+
+        The stated read surface of ``_rf_centers_lengths``: entry ``j``
+        is the length of segment ``j`` of :attr:`rf_centers`, in grid
+        order, so the last entry is the forward (real passage) segment
+        and the entries before it are the backfill reconstruction.
+
+        Read-only for the same reason as :attr:`rf_centers`: both flat
+        arrays are derived from ``_segments`` by ``_rebuild_grid_arrays``,
+        and writing one here would desync it from that source of truth.
+
+        Returns
+        -------
+        rf_centers_lengths
+            Cell count per segment of the current passage's coarse grid.
+        """
+        return self._rf_centers_lengths
+
+    @property
+    def forward_offset(self) -> np.integer:
+        """
+        Index origin conversion, whole-turn to forward-segment index.
+
+        ``len(rf_centers) - rf_centers_lengths[-1]``, i.e. the number of
+        backfill cells preceding the forward segment. A whole-turn coarse
+        index minus this offset is the matching index into the
+        forward-segment-local ``beam_current_forward_coarse_grid`` (see
+        the INDEX ORIGIN paragraph of that attribute's docstring), which
+        is the one coarse array that is not whole-turn indexed.
+
+        Read-only: it is derived from the two flat arrays, which are
+        themselves derived from ``_segments``.
+
+        Returns
+        -------
+        forward_offset
+            Number of coarse cells before the forward segment, as a
+            ``numpy.integer`` and NOT a Python ``int``:
+            :attr:`rf_centers_lengths` is an integer array, so
+            subtracting its last entry yields a NumPy scalar. That is
+            deliberate -- the value stays bit-for-bit the expression its
+            callers used to open-code. It indexes and slices exactly
+            like an ``int``; a caller that needs a true Python ``int``
+            (a JSON payload, a type-checked signature) should cast it,
+            the way ``observables.py`` does with ``int(...)``.
+
+        Raises
+        ------
+        IndexError
+            If the coarse grid has not been built yet:
+            ``_rf_centers_lengths`` stays empty until the first passage
+            fills it, and there is then no last segment to subtract.
+            The other coarse readers of this class fail the same way, so
+            read this only once the feedback has tracked a passage.
+        """
+        return len(self._rf_centers) - self._rf_centers_lengths[-1]
 
     def _init_turn_boundary_carries(self) -> None:
         """
@@ -1272,8 +1359,6 @@ class IQCavityFeedbackTimingClass(
         )
 
         self._reference_state_until_tracked = deepcopy(beam.reference)
-        self._phase_offset_frwrd_next = 0
-        self._phase_offset_frwrd = 0
 
         # The parent RF station is fully initialised at this point (see
         # docstring), so the step-size sanity check can read omega_rf.
@@ -1951,11 +2036,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             if no_beam:
                 beam_current = 0
             else:
-                forward_offset = (
-                    len(self._rf_centers) - self._rf_centers_lengths[-1]
-                )
                 beam_current = self.beam_current_forward_coarse_grid[
-                    index - forward_offset
+                    index - self.forward_offset
                 ]
             self._check_beam_kick_magnitude(
                 beam_current=beam_current,
@@ -2054,11 +2136,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             beam_current[0] = self._last_val_beam_current
         if no_beam:
             return beam_current
-        forward_offset = len(self._rf_centers) - self._rf_centers_lengths[-1]
         global_indices = np.arange(start_index, end_index)
         local_start = 1 if start_index == 0 else 0
         beam_current[local_start:] = self.beam_current_forward_coarse_grid[
-            global_indices[local_start:] - forward_offset
+            global_indices[local_start:] - self.forward_offset
         ]
         return beam_current
 
