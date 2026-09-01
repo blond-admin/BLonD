@@ -46,12 +46,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=9",          # test runner
-  "pre-commit",         # automatic checks before `git commit`
-  "pytest-cov>=6",      # test coverage reporting
-  "mpmath>=1",          # part of the testing against blond2
-  "pytest-randomly>=4", # randomizes test order via `randomly-seed=...`
-  "nbconvert>=6",       # notebook execution in tests
+  "pytest>=9",           # test runner
+  "pre-commit",          # automatic checks before `git commit`
+  "pytest-cov>=6",       # test coverage reporting
+  "mpmath>=1",           # part of the testing against blond2
+  "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
+  "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
+  "nbconvert>=6",        # notebook execution in tests
 ]
 doc = [
   "sphinx>=6",                   # documentation generator
