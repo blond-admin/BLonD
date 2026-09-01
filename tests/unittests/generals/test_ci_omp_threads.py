@@ -8,6 +8,7 @@
 
 """Tests for the CI thread-count helper (``dev_tools/ci_omp_threads.py``)."""
 
+import contextlib
 import importlib.util
 import os
 import tempfile
@@ -26,6 +27,17 @@ _SCRIPT = os.path.join(
 _spec = importlib.util.spec_from_file_location("ci_omp_threads", _SCRIPT)
 ci_omp_threads = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ci_omp_threads)
+
+
+@contextlib.contextmanager
+def _patched_quota(quota):
+    """Pretend the cgroup reports ``quota`` CPUs for the duration."""
+    original = ci_omp_threads.cgroup_cpu_quota
+    ci_omp_threads.cgroup_cpu_quota = lambda *args, **kwargs: quota
+    try:
+        yield
+    finally:
+        ci_omp_threads.cgroup_cpu_quota = original
 
 
 def _write(path, text):
@@ -92,6 +104,25 @@ class TestOmpNumThreads(unittest.TestCase):
             ),
             8,
         )
+
+    def test_explicit_none_quota_means_no_quota(self):
+        # Regression: `None` used to mean "detect", so a caller could not
+        # say "this machine has no quota" -- and the detected quota of the
+        # container silently overrode the argument.
+        with _patched_quota(6.0):
+            self.assertEqual(
+                ci_omp_threads.omp_num_threads(
+                    visible_cpus=64, quota=None, max_threads=8
+                ),
+                8,
+            )
+
+    def test_quota_is_detected_when_not_given(self):
+        with _patched_quota(6.0):
+            self.assertEqual(
+                ci_omp_threads.omp_num_threads(visible_cpus=64, max_threads=8),
+                6,
+            )
 
     def test_visible_cpus_limit_below_cap(self):
         self.assertEqual(

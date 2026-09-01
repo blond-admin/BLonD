@@ -29,9 +29,17 @@ try:
 except ModuleNotFoundError:
     cupy_available = False
 
+from numba import config as numba_config
 from numba import set_num_threads
 
 from blond.testing.helpers import allclose_tolerances
+
+#: Thread count used to exercise the multi-threaded kernel paths (several
+#: kernels shard a scratch buffer per thread, so one thread would not test
+#: them). `set_num_threads` rejects anything above numba's own maximum --
+#: the core count, or NUMBA_NUM_THREADS when set -- so the request is
+#: clamped: hardcoding 8 fails on any machine or CPU quota below that.
+N_TEST_THREADS = min(8, numba_config.NUMBA_NUM_THREADS)
 
 backend_org = backend.__class__
 backend_specials_mode_org = backend.specials_mode
@@ -348,7 +356,7 @@ class TestSpecials(unittest.TestCase):
         ]
         if cupy_available:
             self.special_modes.append("cuda")
-        set_num_threads(8)
+        set_num_threads(N_TEST_THREADS)
         self.original_backend = type(backend)
         self.original_backend_specials_mode = backend.specials_mode
 
@@ -2493,7 +2501,7 @@ class TestSpecials(unittest.TestCase):
             except (FileNotFoundError, OSError):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
-            set_num_threads(8)
+            set_num_threads(N_TEST_THREADS)
             array_write = backend.ones(21, dtype=backend.float)
             backend.specials.histogram(
                 array_read=backend.array(

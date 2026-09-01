@@ -36,6 +36,10 @@ DEFAULT_MAX_THREADS = 8
 #: Where the cgroup filesystem is mounted. Overridable for testing.
 CGROUP_ROOT = "/sys/fs/cgroup"
 
+#: Sentinel for an argument that should be detected from the environment.
+#: Distinct from ``None``, which is a real answer ("there is no quota").
+DETECT: object = object()
+
 
 def _read(path: str) -> str | None:
     """Return the stripped content of ``path``, or ``None`` if unreadable."""
@@ -110,7 +114,7 @@ def visible_cpu_count() -> int:
 
 def omp_num_threads(
     visible_cpus: int | None = None,
-    quota: float | None = None,
+    quota: float | None | object = DETECT,
     max_threads: int | None = None,
     divide: int = 1,
 ) -> int:
@@ -126,8 +130,8 @@ def omp_num_threads(
     visible_cpus
         CPUs the process may run on. Detected when ``None``.
     quota
-        cgroup CPU quota in CPUs. Detected when ``None``; a detected
-        absence of a quota simply leaves this bound out.
+        cgroup CPU quota in CPUs. Detected when left at :data:`DETECT`;
+        pass ``None`` to state that no quota applies.
     max_threads
         Upper bound. Defaults to ``BLOND_CI_MAX_OMP_THREADS``, else
         :data:`DEFAULT_MAX_THREADS`.
@@ -142,7 +146,7 @@ def omp_num_threads(
     """
     if visible_cpus is None:
         visible_cpus = visible_cpu_count()
-    if quota is None:
+    if quota is DETECT:
         quota = cgroup_cpu_quota()
     if max_threads is None:
         max_threads = int(
