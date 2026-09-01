@@ -32,17 +32,17 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-  "setuptools>=60",    # packaging utilities
-  "numpy>=2",          # array computing
-  "scipy>=1.15,<1.18", # scientific computing algorithms
-  "pyfftw>=0.15",      # threaded/plan-cached FFTW3 bindings for backend.fft_parallel
-  "matplotlib>=3.9",   # plotting and visualization
-  "numba>=0.61",       # simple computing backend that compiles everywhere out of the box
-  "tqdm>4",            # nice loading bar
-  "mpi4py>=4",         # distributed computing
-  "mpmath>=1",         # for numba fastmath replacement
-  "sympy>=1.9",        # symbolic math for separatrix calculations, etc.
-  "scikit-rf>1",       # pole fitting of impedances
+  "setuptools>=60",       # packaging utilities
+  "numpy>=2",             # array computing
+  "scipy>=1.15,!=1.18.0", # scientific computing algorithms
+  "pyfftw>=0.15",         # threaded/plan-cached FFTW3 bindings for backend.fft_parallel
+  "matplotlib>=3.9",      # plotting and visualization
+  "numba>=0.61",          # simple computing backend that compiles everywhere out of the box
+  "tqdm>4",               # nice loading bar
+  "mpi4py>=4",            # distributed computing
+  "mpmath>=1",            # for numba fastmath replacement
+  "sympy>=1.9",           # symbolic math for separatrix calculations, etc.
+  "scikit-rf>1",          # pole fitting of impedances
 ]
 
 [project.optional-dependencies]
@@ -72,10 +72,10 @@ mpi = [
   "mpi4py>=4", # MPI bindings for distributed computing
 ]
 gpu_cuda12 = [
-  "cupy-cuda12x", # GPU array computing (CUDA 12)
+  "cupy-cuda12x!=14.0.0,!=14.2.0", # GPU array computing (CUDA 12)
 ]
 gpu_cuda13 = [
-  "cupy-cuda13x", # GPU array computing (CUDA 13)
+  "cupy-cuda13x!=14.0.0,!=14.2.0", # GPU array computing (CUDA 13)
 ]
 xsuite = [
   "xpart>=0.23.9, !=0.23.16", # particle objects
