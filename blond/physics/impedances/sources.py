@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import math
 import numbers
 import warnings
 from abc import abstractmethod
@@ -994,6 +995,109 @@ class Resonators(WakeFieldSource, TimeDomain, FreqDomain):
         return poles1, residues1, cr_signs
 
 
+# Number of bins the bin-average axis is extended by on either side before
+# the 5-point stencil is applied, so that every returned sample sees its real
+# neighbours instead of edge-clamped ones, and so that an onset falling near
+# the first requested bin still has a cell below it.
+_BIN_AVERAGE_PAD = 3
+
+# Knots of the quadratic B-spline `box * box * box`, in units of the bin
+# width: it is a different quadratic on each of (-3/2, -1/2), (-1/2, 1/2)
+# and (1/2, 3/2), and zero outside.
+_BSPLINE_KNOTS = (-1.5, -0.5, 0.5, 1.5)
+
+
+def quadratic_bspline(x: float) -> float:
+    r"""
+    Quadratic B-spline :math:`box * box * box` of unit width, at ``x``.
+
+    The kernel every time-domain source is bin-averaged with (see
+    :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`),
+    normalised to unit integral and expressed in units of the bin width, so
+    that its support is :math:`(-3/2,\, 3/2)`.
+
+    Parameters
+    ----------
+    x
+        Position in units of the bin width.
+
+    Returns
+    -------
+    weight
+        :math:`B_2(x)`, in units of one over the bin width.
+    """
+    abs_x = abs(x)
+    if abs_x >= 1.5:  # NOQA PLR2004
+        return 0.0
+    if abs_x <= 0.5:  # NOQA PLR2004
+        return 0.75 - x * x
+    return 0.5 * (1.5 - abs_x) ** 2
+
+
+def bspline_window_moments(offset: float, width: float) -> tuple[float, float]:
+    r"""
+    The two B-spline moments over a window of ``width`` bins.
+
+    The moments are
+
+    .. math::
+        I_0 = \int_0^{w} B_2(v + \eta) \,\mathrm{d}\eta , \qquad
+        I_1 = \int_0^{w} (w - \eta) B_2(v + \eta) \,\mathrm{d}\eta
+
+    with :math:`v` = ``offset`` and :math:`w` = ``width``, both in units of
+    the bin width. :math:`I_0` is the B-spline average of the box that spans
+    the window, and :math:`I_1 / w` is the B-spline average of the ramp that
+    rises linearly from 0 to 1 across it, both evaluated at ``offset`` past
+    the window's upper end.
+
+    The integrands are a quadratic and a cubic, so splitting the window at
+    the B-spline's knots and applying Simpson's rule -- exact up to cubics --
+    on each piece evaluates them exactly. Written as an integral of a
+    non-negative integrand there is no cancellation, which a divided
+    difference of the B-spline's antiderivatives would suffer from as
+    ``width`` goes to zero.
+
+    Parameters
+    ----------
+    offset
+        Lower end of the integration window, in units of the bin width.
+    width
+        Width of the integration window, in units of the bin width.
+
+    Returns
+    -------
+    moments
+        The pair :math:`(I_0,\, I_1)`, dimensionless.
+    """
+    if width <= 0.0:
+        return 0.0, 0.0
+    edges = [0.0]
+    edges += [
+        knot - offset for knot in _BSPLINE_KNOTS if 0.0 < knot - offset < width
+    ]
+    edges += [width]
+    zeroth = first = 0.0
+    for lower, upper in zip(edges[:-1], edges[1:], strict=True):
+        middle = 0.5 * (lower + upper)
+        span = upper - lower
+        weight_lower = quadratic_bspline(offset + lower)
+        weight_middle = quadratic_bspline(offset + middle)
+        weight_upper = quadratic_bspline(offset + upper)
+        zeroth += (
+            span / 6.0 * (weight_lower + 4.0 * weight_middle + weight_upper)
+        )
+        first += (
+            span
+            / 6.0
+            * (
+                (width - lower) * weight_lower
+                + 4.0 * (width - middle) * weight_middle
+                + (width - upper) * weight_upper
+            )
+        )
+    return zeroth, first
+
+
 class ImpedanceTable(WakeFieldSource):
     """Base class to manage impedance tables."""
 
@@ -1153,6 +1257,78 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 
+    def _warn_if_outside_table(self, time: NumpyArray | CupyArray) -> None:
+        """
+        Warn when ``time`` reaches outside the tabulated range.
+
+        ``TimeDomain.get_impedance_from_wake`` samples one bin below the axis
+        it was handed, to pick up the bin-average kernel's non-causal tap
+        (see :meth:`get_wake_per_bin`). That much undershoot is the kernel
+        doing its job, not the table being too short, so only warn beyond it.
+
+        Parameters
+        ----------
+        time
+            Time array the wake was requested on, in [s].
+        """
+        bin_step = (time[1] - time[0]) if len(time) > 1 else 0.0
+        if time.min() < (self._wake_x.min() - bin_step):
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
+        if time.max() > self._wake_x.max():
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
+
+    def _wake_with_resolved_onset(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        r"""
+        Tabulated wake with the causal jump at the table start resolved.
+
+        A causal wake table is zero below its first time and non-zero at it,
+        so ``wake_x[0]`` carries a jump. BLonD samples a jump at its own
+        midpoint -- both :meth:`Resonators.get_wake_per_particle` and
+        :meth:`TravelingWaveCavity.wake_calc` build their wake from
+        ``sign(t) + 1``, which is *half* the jump at ``t = 0`` (the
+        beam-loading theorem: a particle sees half of its own wake). A table
+        sampled that way therefore stores :math:`W(0^+) / 2` in
+        ``wake_y[0]``, and the function it represents rises to
+        :math:`2 \, \mathrm{wake\_y}[0]` immediately above ``wake_x[0]``.
+
+        This returns the piecewise-linear table with that first segment
+        replaced by the line from :math:`(x_0,\, 2 y_0)` to
+        :math:`(x_1,\, y_1)`; everywhere else it is plain interpolation.
+        For a table whose first sample is zero -- a wake that starts
+        continuously -- it changes nothing at all.
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Wake of the resolved model, in [V].
+        """
+        wake = backend.interp(time, self._wake_x, self._wake_y, left=0.0)
+        onset_value = 2.0 * float(self._wake_y[0])
+        first_time = float(self._wake_x[0])
+        if len(self._wake_x) < 2 or onset_value == 0.0:  # NOQA PLR2004
+            return wake
+        second_time = float(self._wake_x[1])
+        if second_time <= first_time:
+            return wake
+        first_segment = onset_value + (
+            float(self._wake_y[1]) - onset_value
+        ) * (time - first_time) / (second_time - first_time)
+        inside_first_segment = (time >= first_time) & (time <= second_time)
+        return backend.where(inside_first_segment, first_segment, wake)
+
     def get_wake_per_particle(
         self,
         time: NumpyArray | CupyArray,
@@ -1171,12 +1347,12 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         value is still clamped (see the warning below): where the wake
         continues is unknown once the table ends.
 
-        The bin-averaged version used by the solvers is obtained through the
-        generic
-        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`
-        default, which is exact wherever the tabulated wake is well described
-        by the piecewise-linear interpolant through its samples -- everywhere
-        except across a step, such as the causal onset of a resonator wake.
+        This is a point sample of the tabulated values themselves, so at
+        ``wake_x[0]`` it returns ``wake_y[0]``, i.e. the midpoint of the
+        causal jump under BLonD's sampling convention. The bin-averaged
+        version, :meth:`get_wake_per_bin`, integrates the *function* that
+        sampling represents and therefore resolves the jump; see
+        :meth:`_wake_with_resolved_onset`.
 
         Parameters
         ----------
@@ -1192,25 +1368,147 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         """
         if counter_rotating:
             raise TypeError("ImpedanceTableTime has no counter-rotating wake.")
-        # `TimeDomain.get_impedance_from_wake` samples one bin below the axis
-        # it was handed, to pick up the bin-average kernel's non-causal tap
-        # (see `TimeDomain.get_wake_per_bin`). That much undershoot is the
-        # kernel doing its job, not the table being too short, so only warn
-        # beyond it.
-        bin_step = (time[1] - time[0]) if len(time) > 1 else 0.0
-        if time.min() < (self._wake_x.min() - bin_step):
-            warnings.warn(
-                "Interpolation of wake outside boundaries",
-                stacklevel=1,
-            )
-        if time.max() > self._wake_x.max():
-            warnings.warn(
-                "Interpolation of wake outside boundaries",
-                stacklevel=1,
-            )
+        self._warn_if_outside_table(time)
         # `left=0.0` enforces causality below the table; the right side keeps
         # the interpolator's default clamp, guarded by the warning above.
         return backend.interp(time, self._wake_x, self._wake_y, left=0.0)
+
+    def get_wake_per_bin(
+        self,
+        time: NumpyArray | CupyArray,
+        counter_rotating: bool = False,
+    ) -> NumpyArray | CupyArray:
+        r"""
+        Exact bin-average of the tabulated wake, jump included.
+
+        Overrides
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`.
+        The generic default there B-spline-averages the piecewise-linear
+        interpolant through the *query* samples, which turns the causal jump
+        at ``wake_x[0]`` into a one-bin ramp. The residual that leaves is of
+        order :math:`(76 / 384)\, W(0)` at the samples straddling the onset,
+        and -- unlike every other error of the stencil -- it does **not**
+        shrink when the table is refined, because the stencil only ever sees
+        the wake at the query points.
+
+        What is integrated here instead is the model the table really
+        represents: zero below ``wake_x[0]``, the causal jump at
+        ``wake_x[0]`` (resolved as in :meth:`_wake_with_resolved_onset`), and
+        piecewise linear above it. Writing that model as the query-grid
+        interpolant :math:`g` plus a difference supported on the single cell
+        :math:`[t_{m-1},\, t_m]` that contains the onset -- with
+        :math:`t_m` the first grid point at or above the onset,
+        :math:`w = (t_m - \tau) / \Delta t \in [0, 1)` the width of the part
+        of that cell above the onset :math:`\tau`, :math:`Y` the jump and
+        :math:`W_m` the model at :math:`t_m` -- the difference is
+
+        .. math::
+            f - g = Y \, D_w + W_m \, (U_w - U_1) ,
+
+        where :math:`U_w` is the ramp rising from 0 to 1 over the last
+        :math:`w` bins before :math:`t_m` and :math:`D_w = \mathrm{box}_w
+        - U_w` its descending mirror. Since :math:`D_w` and :math:`U_w`
+        integrate against the B-spline in closed form (see
+        :func:`bspline_window_moments`), the correction to the stencil at the
+        grid point :math:`t_m + v \Delta t` is exactly
+
+        .. math::
+            Y \, I_0(v, w) + (W_m - Y) \frac{I_1(v, w)}{w}
+            - W_m \, I_1(v, 1) ,
+
+        which is non-zero only for :math:`v \in \{-2, ..., 2\}`, the support
+        of the kernel. Everywhere else the stencil is untouched, so away from
+        the onset the accuracy is unchanged: the only error left is the
+        piecewise-linear representation of a smooth wake, which *is* second
+        order in the bin width.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres) at which the wake is evaluated, in [s].
+        counter_rotating
+            Not supported; must be ``False``.
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        if counter_rotating:
+            raise TypeError("ImpedanceTableTime has no counter-rotating wake.")
+        self._warn_if_outside_table(time)
+        bin_step = float(time[1] - time[0])
+        n_bins = len(time)
+        index = backend.arange(
+            -_BIN_AVERAGE_PAD,
+            n_bins + _BIN_AVERAGE_PAD,
+            dtype=backend.float,
+        )
+        time_extended = float(time[0]) + index * bin_step
+        wake = self._wake_with_resolved_onset(time_extended)
+        # The (1, 76, 230, 76, 1) / 384 stencil of
+        # `TimeDomain.get_wake_per_bin`, on the padded axis so that no
+        # returned sample has to fall back on an edge-clamped neighbour.
+        stencil = (
+            wake[:-4]
+            + 76.0 * wake[1:-3]
+            + 230.0 * wake[2:-2]
+            + 76.0 * wake[3:-1]
+            + wake[4:]
+        ) / 384.0
+        binned = stencil[1 : 1 + n_bins]
+        self._add_onset_correction(binned, wake, time_extended, bin_step)
+        return binned
+
+    def _add_onset_correction(
+        self,
+        binned: NumpyArray | CupyArray,
+        wake: NumpyArray | CupyArray,
+        time_extended: NumpyArray | CupyArray,
+        bin_step: float,
+    ) -> None:
+        """
+        Add the closed-form jump correction of :meth:`get_wake_per_bin`.
+
+        Modifies ``binned`` in place at the at most five samples the
+        B-spline reaches over the causal onset from.
+
+        Parameters
+        ----------
+        binned
+            Stencil result to correct, in [V].
+        wake
+            Wake of the resolved model on ``time_extended``, in [V].
+        time_extended
+            Padded, uniform time axis the stencil was evaluated on, in [s].
+        bin_step
+            Bin width, in [s].
+        """
+        onset_time = float(self._wake_x[0])
+        first_above = math.ceil(
+            (onset_time - float(time_extended[0])) / bin_step
+        )
+        if not 1 <= first_above <= len(time_extended) - 1:
+            # The onset is outside the padded axis, so no returned sample
+            # can see it.
+            return
+        width = (float(time_extended[first_above]) - onset_time) / bin_step
+        width = min(max(width, 0.0), 1.0)
+        jump = 2.0 * float(self._wake_y[0])
+        node_value = float(wake[first_above])
+        for index in range(first_above - 2, first_above + 3):
+            out_index = index - _BIN_AVERAGE_PAD
+            if not 0 <= out_index < len(binned):
+                continue
+            offset = float(index - first_above)
+            box_average, ramp_moment = bspline_window_moments(offset, width)
+            onset_ramp = ramp_moment / width if width > 0.0 else 0.0
+            grid_ramp = bspline_window_moments(offset, 1.0)[1]
+            binned[out_index] += (
+                jump * box_average
+                + (node_value - jump) * onset_ramp
+                - node_value * grid_ramp
+            )
 
 
 # TODO rework docstring

@@ -237,12 +237,10 @@ class TestImpedanceTableTime(unittest.TestCase):
         and comparing against ``Resonators.get_wake_per_bin`` on the same grid
         pins that down.
 
-        The residual tolerance at lag ``-dt`` is loose on purpose: the wake of
-        a resonator steps from 0 to ``2 * alpha * R`` at ``t = 0``, and the
-        5-point stencil smears that step over its support, so the tabulated
-        result cannot reproduce the closed form there to better than a few
-        percent of the wake peak. What it must not do is be off by half the
-        peak.
+        The tolerances here only pin down causality and are deliberately
+        loose; how closely the tabulated wake now reproduces the closed form
+        across the onset is asserted by
+        ``test_get_wake_per_bin_is_exact_across_the_causal_onset``.
         """
         resonator = Resonators(
             shunt_impedances=np.array([1.0e4]),
@@ -269,6 +267,142 @@ class TestImpedanceTableTime(unittest.TestCase):
         np.testing.assert_allclose(
             tabulated[4:], analytic[4:], atol=1e-2 * peak
         )
+
+    def test_get_wake_per_bin_is_exact_across_the_causal_onset(self):
+        """A tabulated wake must bin-average exactly across its own step.
+
+        The generic ``TimeDomain.get_wake_per_bin`` stencil B-spline-averages
+        the piecewise-linear interpolant through the *query* samples, which
+        models the causal onset of a wake table as a one-bin ramp instead of
+        a step. The residual is of order ``(76 / 384) * W(0)`` -- about 8 % of
+        the wake peak -- and it does **not** shrink when the table is
+        refined, because the stencil only ever sees the wake at the query
+        points.
+
+        ``ImpedanceTableTime`` therefore integrates the model the table
+        really represents (zero below ``wake_x[0]``, piecewise linear above
+        it) against the same ``box * box * box`` kernel. On a densely
+        tabulated resonator wake the only error left is the piecewise-linear
+        representation of a smooth function, so every sample -- including the
+        two straddling the onset -- must match the analytic closed form of
+        :meth:`Resonators.get_wake_per_bin`.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        time = backend.array(np.arange(400) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=time, wake_y=resonator.get_wake_per_particle(time)
+        )
+
+        # sampled from `time - bin_step`, the way `get_impedance_from_wake`
+        # does: index 0 is lag -dt (before the table starts), index 1 is lag 0
+        shifted_time = time - bin_step
+        tabulated = copy_to_cpu(table.get_wake_per_bin(shifted_time))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(shifted_time))
+        peak = np.max(np.abs(analytic))
+
+        # The last two samples are excluded: there the analytic wake keeps
+        # going while the table has run out and clamps.
+        np.testing.assert_allclose(
+            tabulated[:-2], analytic[:-2], atol=1e-3 * peak
+        )
+
+    def test_get_wake_per_bin_without_a_step_is_the_plain_stencil(self):
+        """No step at the table start means no correction to the stencil.
+
+        A table whose first sample is zero, laid out on the query grid, is
+        exactly the piecewise-linear interpolant the generic stencil already
+        integrates, so the override must reproduce it bit for bit. Same for a
+        table that only starts long after the query axis does, where the wake
+        has already decayed away.
+        """
+        bin_step = 1e-11
+        t = np.arange(64) * bin_step
+        # genuinely piecewise linear, zero at the table start
+        w = np.concatenate(
+            (np.linspace(0.0, 5.0, 32), np.linspace(5.0, 1.0, 32))
+        )
+        table = ImpedanceTableTime(
+            wake_x=backend.array(t), wake_y=backend.array(w)
+        )
+        binned = copy_to_cpu(table.get_wake_per_bin(backend.array(t)))
+        stencil = (
+            np.roll(w, 2)
+            + 76 * np.roll(w, 1)
+            + 230 * w
+            + 76 * np.roll(w, -1)
+            + np.roll(w, -2)
+        ) / 384
+        np.testing.assert_allclose(binned[2:-2], stencil[2:-2], rtol=1e-12)
+
+    def test_get_wake_per_bin_is_exact_for_an_off_grid_onset(self):
+        """The onset need not land on a query point.
+
+        The correction integrates the part of the cell that lies above the
+        onset, so it must stay exact -- and free of any cliff -- for every
+        sub-bin position of the onset, including the two degenerate ends
+        where the onset all but coincides with a grid point.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        table_time = backend.array(np.arange(600) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=table_time,
+            wake_y=resonator.get_wake_per_particle(table_time),
+        )
+
+        for onset_offset in (0.0, 0.13, 0.5, 0.87, 0.999):
+            with self.subTest(onset_offset=onset_offset):
+                query = backend.array(
+                    (np.arange(-2, 500) + onset_offset) * bin_step
+                )
+                tabulated = copy_to_cpu(table.get_wake_per_bin(query))
+                analytic = copy_to_cpu(resonator.get_wake_per_bin(query))
+                peak = np.max(np.abs(analytic))
+                np.testing.assert_allclose(
+                    tabulated, analytic, atol=1e-3 * peak
+                )
+
+    def test_get_wake_per_bin_away_from_the_onset_is_untouched(self):
+        """A table whose onset is out of reach keeps the plain stencil.
+
+        The correction has the kernel's support, so a query axis that starts
+        well above the table's first time never sees it -- the result must
+        still track the analytic closed form to the accuracy of the
+        piecewise-linear representation alone.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        table_time = backend.array(np.arange(300, 1000) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=table_time,
+            wake_y=resonator.get_wake_per_particle(table_time),
+        )
+        query = backend.array(np.arange(320, 900) * bin_step)
+        tabulated = copy_to_cpu(table.get_wake_per_bin(query))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(query))
+        peak = np.max(
+            np.abs(
+                copy_to_cpu(
+                    resonator.get_wake_per_bin(
+                        backend.array(np.arange(1000) * bin_step)
+                    )
+                )
+            )
+        )
+        np.testing.assert_allclose(tabulated, analytic, atol=1e-3 * peak)
 
     def test_get_wake_per_particle_vanishes_below_table_start(self):
         """The tabulated wake is zero before the table, not clamped."""

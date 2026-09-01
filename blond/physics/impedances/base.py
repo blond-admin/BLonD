@@ -183,13 +183,24 @@ class TimeDomain(ABC):
         to the stencil ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1]
         + w[n+2]) / 384`` (edges extrapolate the boundary value). It is
         therefore exact only where the wake really is piecewise linear
-        between the samples spanned by the stencil -- e.g. for a tabulated
-        wake sampled on the same grid, away from any step. Across a
-        discontinuity, in particular the causal onset of a resonator wake, the
-        stencil smears the step over its support and the result is off by a
-        few percent of the wake amplitude. Sources with an analytic wake (e.g.
-        :class:`~blond.physics.impedances.sources.Resonators`) override this
-        with the exact closed-form result instead.
+        between the samples spanned by the stencil -- away from any step.
+        Across a discontinuity, in particular the causal onset of a wake, the
+        stencil smears the step over its support and the result is off by
+        order ``(76 / 384) * W(0)``, a few percent of the wake amplitude.
+        That error does not shrink when the grid is refined, because the
+        stencil only ever sees the wake at the query points.
+
+        Sources that know where their wake steps therefore override this with
+        the exact closed-form result:
+        :meth:`~blond.physics.impedances.sources.Resonators.get_wake_per_bin`
+        integrates the analytic resonator wake, and
+        :meth:`~blond.physics.impedances.sources.ImpedanceTableTime.get_wake_per_bin`
+        integrates the tabulated model (zero below the table, causal jump at
+        its first time, piecewise linear above it). Sources that still use
+        the default -- notably
+        :class:`~blond.physics.impedances.sources.TravelingWaveCavity`, whose
+        wake also steps at ``t = 0`` -- keep the smearing error at their
+        onset.
 
         Parameters
         ----------
