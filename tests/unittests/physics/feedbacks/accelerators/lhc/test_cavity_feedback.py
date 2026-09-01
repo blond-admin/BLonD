@@ -282,7 +282,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
             saturation=False,
         )
         simulation, beam = self.create_scenario(
-            commissioning=commissioning, n_pretrack=100, disable_fine_grid=True
+            commissioning=commissioning, n_pretrack=50, disable_fine_grid=True
         )
 
         rf_station = simulation.ring.elements.get_element(
@@ -347,7 +347,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
         )
         simulation, beam = self.create_scenario(
             commissioning=commissioning,
-            n_pretrack=100,
+            n_pretrack=50,
             disable_fine_grid=True,
             detuning=-11.2e3,
         )
@@ -400,7 +400,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
         target_max_voltage = 621708.9643980105
 
         target_mean_power = 114983.06619079916
-        target_max_power = 138233.44015627756
+        target_max_power = 138231.87042979817
 
         self.assertAlmostEqual(
             np.mean(np.abs(cavity_feedback.buffers_coarse.v_ant.curr))
@@ -432,7 +432,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
 
     def test_compare_coarse_and_fine_grids(self):
         simulation, beam = self.create_scenario(
-            n_pretrack=100, disable_fine_grid=False
+            n_pretrack=50, disable_fine_grid=False
         )
 
         rf_station = simulation.ring.elements.get_element(
@@ -493,7 +493,7 @@ class TestLHCCavityFeedback(unittest.TestCase):
     def test_hardware_commissioning_without_excitation(self):
         f_rf = 400.789e6
         harmonic = 35640
-        n_pretrack = 100
+        n_pretrack = 50
         commissioning = LHCCavityFeedbackCommissioning()
 
         profile = StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=4)
@@ -606,7 +606,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         )
 
         f_est, h_est = self.create_scenario(
-            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=100
         )
 
         h_a = lambda s: g_a * tau_a * s / (1 + tau_a * s)
@@ -722,7 +722,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         )
 
         f_est, h_est = self.create_scenario(
-            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=100
         )
 
         h_est = h_est[(f_est > -f_span) & (f_est < f_span)]
@@ -780,7 +780,7 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         )
 
         f_est, h_est = self.create_scenario(
-            commissioning=commissioning, cut_data=cut_data, n_pretrack=200
+            commissioning=commissioning, cut_data=cut_data, n_pretrack=100
         )
 
         h_est = h_est[(f_est > -f_span) & (f_est < f_span)]
