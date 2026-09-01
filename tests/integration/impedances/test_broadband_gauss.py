@@ -616,6 +616,7 @@ class TestNoHalfBinLag(unittest.TestCase):
         with the continuum to well inside a tenth of a bin.
         """
         for ratio in (0.1, 0.3, 1.0):
+            _maybe_draw(ratio)
             profile, voltages = _induced_voltages(ratio * F_RES)
             hist_x = np.asarray(copy_to_cpu(profile.hist_x))
             bin_step = float(hist_x[1] - hist_x[0])
@@ -650,6 +651,7 @@ class TestNoHalfBinLag(unittest.TestCase):
         no phase error at any binning.
         """
         for ratio in (0.1, 0.3, 1.0):
+            _maybe_draw(ratio)
             profile, voltages = _induced_voltages(ratio * F_RES)
             hist_x = np.asarray(copy_to_cpu(profile.hist_x))
             line_density = np.exp(
