@@ -282,7 +282,7 @@ def main():
             plt.title("Pole Attenuation per Turn")
             plt.xlabel("Turn")
             plt.ylabel(r"$\mathcal{Re}(r \cdot W)$")
-        states = solver_._states[:-1]
+        states = solver_._states[: len(solver_._residues)]
         residues = solver_._residues
         with AllowPlotting():  # handle GPU gracefully
             plt.scatter(

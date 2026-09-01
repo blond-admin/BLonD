@@ -2545,10 +2545,14 @@ class TestSpecials(unittest.TestCase):
         centers = backend.array(centers_np, dtype=backend.float)
         poles = backend.array(poles_np, dtype=backend.complex)
         residues = backend.array(residues_np, dtype=backend.complex)
-        states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
-        # non-zero state so decay handling is observable in the output
+        # Two state generations per pole plus their two reference times,
+        # see `Specials.wake_from_pole_residue`.
+        states = backend.zeros(2 * len(poles_np) + 2, dtype=backend.complex)
+        # non-zero states so decay handling is observable in the output
         states[0] = 0.3 + 0.1j
+        states[len(poles_np)] = 0.3 + 0.1j
         states[-1] = centers_np[0] - bin_dt
+        states[-2] = centers_np[0] - 2 * bin_dt
         voltage = backend.zeros(n, dtype=backend.float)
         for _ in range(n_calls):
             backend.specials.wake_from_pole_residue(
@@ -3253,7 +3257,7 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
                 (_nb.get_num_threads(), n_bins), dtype=backend.float
@@ -3355,7 +3359,7 @@ class TestSpecials(unittest.TestCase):
                         cr_flags = backend.ones(n_poles, dtype=backend.float)
                         cr_flags[-1] *= cr_flags_sign
                         states = backend.zeros(
-                            n_poles + 1, dtype=np.complex128
+                            2 * n_poles + 2, dtype=np.complex128
                         )
                         voltage = backend.zeros(n_bins, dtype=backend.float)
                         voltage_threaded = backend.zeros(
@@ -3438,7 +3442,7 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.array(flags_np, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
                 (_nb.get_num_threads(), n_bins), dtype=backend.float
@@ -3534,7 +3538,7 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
                 (_nb.get_num_threads(), n_bins), dtype=backend.float

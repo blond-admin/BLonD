@@ -32,6 +32,13 @@ if TYPE_CHECKING:  # pragma: no cover
 # cleared wholesale once it grows past this to keep memory bounded.
 _PTR_CACHE_MAX_SIZE = 4096
 
+# How far behind the current bin the state read by `wake_from_pole_residue`
+# lags (must match the compiled kernel): the B-spline bin-averaged wake starts
+# three half-bins back, so the recursion covers lags of two bins and more. It
+# is also the number of state generations `states` carries, one per bin of
+# that lag.
+_STATE_LAG_BINS = 2
+
 
 def c_real(
     scalar: float, floattype: type[np.float64]
@@ -743,6 +750,16 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bounded by one at any binning -- see
             `MultiPoleSparseSolve._finalize_solver`.
 
+            Because a bin reads the state of two bins ago, `states` carries
+            both the newest state and its one-bin-older twin, each with its
+            own reference time. That is what lets the next call start from a
+            state that is really two bins old even when consecutive calls
+            are only one bin apart -- a profile spanning the full
+            revolution period. The last bin's charge is in the newest state
+            only, so the first bin of the next call does not see it through
+            the recursion; the caller adds it as a near lag, like any other
+            neighbouring bin.
+
             Parameters
             ----------
             profile
@@ -765,12 +782,20 @@ def reload_cpp_backend(  # NOQA: PLR0915
             factor
                 To convert `profile` to current per bin [A].
             states
-                Complex state vector, initially ``(0 + 0j)``.
+                Complex state vector of length ``2 * n_poles + 2``,
+                initially ``(0 + 0j)``. ``states[:n_poles]`` holds each
+                pole's state through the last bin, referenced at the time in
+                ``states[-1]``; ``states[n_poles:2 * n_poles]`` holds the
+                same state one bin earlier, referenced at ``states[-2]``.
+                Both reference times live in the real part and are written
+                by this function.
             voltage
                 Output voltage, in [V].
             voltage_threaded
                 Cached `voltage` array per thread. For speedup.
             """
+            assert len(profile) >= _STATE_LAG_BINS
+            assert len(states) == _STATE_LAG_BINS * (len(poles) + 1)
             assert _is_valid(
                 (profile, floattype),
                 (profile_dts, floattype),
@@ -802,7 +827,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_len(poles),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads
                 _get_len(update_on_bin),  # n_updates
-                _get_len(profile_dts),  # n_profile_dts
             )
 
         @staticmethod

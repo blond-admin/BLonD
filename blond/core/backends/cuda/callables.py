@@ -31,6 +31,13 @@ _compute_capability = cp.cuda.Device(0).compute_capability
 
 FLOAT = np.float64
 
+# How far behind the current bin the state read by `wake_from_pole_residue`
+# lags (must match the compiled kernel): the B-spline bin-averaged wake starts
+# three half-bins back, so the recursion covers lags of two bins and more. It
+# is also the number of state generations `states` carries, one per bin of
+# that lag.
+_STATE_LAG_BINS = 2
+
 folder = os.path.dirname(os.path.abspath(__file__))
 
 # Same toolchain-aware directory the compiler writes to.
@@ -802,6 +809,15 @@ class CudaSpecials(Specials):  # NOQA: D101
         stays bounded by one at any binning -- see
         `MultiPoleSparseSolve._finalize_solver`.
 
+        Because a bin reads the state of two bins ago, `states` carries both
+        the newest state and its one-bin-older twin, each with its own
+        reference time. That is what lets the next call start from a state
+        that is really two bins old even when consecutive calls are only one
+        bin apart -- a profile spanning the full revolution period. The last
+        bin's charge is in the newest state only, so the first bin of the
+        next call does not see it through the recursion; the caller adds it
+        as a near lag, like any other neighbouring bin.
+
         Parameters
         ----------
         profile
@@ -824,8 +840,12 @@ class CudaSpecials(Specials):  # NOQA: D101
         factor
             To convert `profile` to current per bin [A].
         states
-            Complex state vector, length ``n_poles + 1``.
-            The last element stores ``t_start`` in its real part.
+            Complex state vector, length ``2 * n_poles + 2``.
+            ``states[:n_poles]`` holds each pole's state through the last
+            bin, referenced at the time in ``states[-1]``;
+            ``states[n_poles:2 * n_poles]`` holds the same state one bin
+            earlier, referenced at ``states[-2]``. Both reference times live
+            in the real part and are written by this function.
         voltage
             Output voltage, in [V].
         voltage_threaded
@@ -880,10 +900,11 @@ class CudaSpecials(Specials):  # NOQA: D101
         n_bins = int(profile.shape[0])
         n_poles = int(poles.shape[0])
         n_updates = int(update_on_bin.shape[0])
-        n_profile_dts = int(profile_dts.shape[0])
 
-        # states has length n_poles + 1; last entry stores t_start.
-        assert states.shape[0] == n_poles + 1
+        # states holds both state generations plus their two reference
+        # times; see the docstring.
+        assert states.shape[0] == _STATE_LAG_BINS * (n_poles + 1)
+        assert n_bins >= _STATE_LAG_BINS
         assert residues.shape[0] == n_poles
         assert counterrotating_pole_signs.shape[0] == n_poles
         assert voltage.shape[0] == n_bins
@@ -921,7 +942,6 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(n_bins),
                 np.int32(n_poles),
                 np.int32(n_updates),
-                np.int32(n_profile_dts),
             ),
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),

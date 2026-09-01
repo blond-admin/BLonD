@@ -1361,6 +1361,13 @@ def _bin_averaged_kernel(
     return out
 
 
+# Slack on the turn-boundary check below, as a fraction of a bin. A profile
+# spanning the whole revolution period satisfies the check with equality, and
+# its two sides are computed along different routes (the profile cuts versus
+# the reference clock), so they may differ in the last bits.
+_TURN_BOUNDARY_TOLERANCE = 1e-6
+
+
 class MultiPoleSparseSolve(WakeFieldSolver):
     """
     Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
@@ -1384,6 +1391,14 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._lag_zero_factor: float | None = None
         self._lag_prev_factors: NumpyArray | CupyArray | None = None
         self._lag_next_factors: NumpyArray | CupyArray | None = None
+
+        # Handover of the trailing bin across a call boundary, see
+        # `calc_induced_voltage`.
+        self._trailing_hist_y: NumpyArray | CupyArray | None = None
+        self._trailing_bin_amplitude: float = 0.0
+        self._first_profile_dt: float | None = None
+        self._bin_dt: float | None = None
+        self._residues_unaveraged: NumpyArray | CupyArray | None = None
 
         # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
@@ -1439,8 +1454,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             len(profile_hist_x),
             dtype=backend.float,
         )
-        self._states = backend.zeros(len(self._poles) + 1, complex)
+        # Two state generations per pole -- the newest one and the same one
+        # bin earlier -- plus their two reference times, see
+        # `Specials.wake_from_pole_residue`.
+        self._states = backend.zeros(2 * len(self._poles) + 2, complex)
         bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
+        self._bin_dt = bin_dt
+        self._first_profile_dt = float(profile_hist_x[0])
         # Every bin must be bin_dt wide; a sparse profile
         # (EquidistantMultiProfile) may have charge-free gaps between
         # bunches, but each gap must be a whole number of bins.
@@ -1499,13 +1519,26 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             -bin_spacings, self._poles, self._residues, bin_dt
         )
 
+        # The near lags above need the residues as the model gives them; the
+        # kernel needs them scaled by the bin average. Keep both: the lag of
+        # the bin that a *previous* call left behind is only known once that
+        # call has happened, so it cannot be tabulated here.
+        self._residues_unaveraged = self._residues
         self._residues = self._residues * bin_average_factor
-        # Initialise two full bins before the first bin centre: the kernel
-        # reads a state referenced two bins back, so it evaluates
-        # `exp(pole * (t_jump - 2 * bin_dt))` and needs `t_jump >= 2 * bin_dt`
-        # to stay bounded. The state is zero on the first call, so the value
-        # only has to keep that exponent non-positive.
-        self._states[-1] = profile_hist_x[0] - 2.0 * bin_dt
+        # Initialise both reference times one and two full bins before the
+        # first bin centre: the kernel reads a state referenced two bins
+        # back, so it evaluates `exp(pole * (t_jump - 2 * bin_dt))` and needs
+        # `t_jump >= 2 * bin_dt` to stay bounded. Both states are zero on the
+        # first call, so the values only have to keep that exponent
+        # non-positive.
+        self._states[-1] = profile_hist_x[0] - bin_dt
+        self._states[-2] = profile_hist_x[0] - 2.0 * bin_dt
+
+        # Charge of the bin the previous call ended on; zero until there has
+        # been one. `_trailing_bin_amplitude` stays 0.0 for the first call,
+        # so the handover term below vanishes on its own.
+        self._trailing_hist_y = backend.zeros(1, dtype=backend.float)
+        self._trailing_bin_amplitude = 0.0
 
         self._voltage_threaded = backend.zeros(
             (backend.specials.get_max_threads(), len(self._voltage))
@@ -1551,14 +1584,48 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 "`profile_dts[update_bin + 1]`."
             )
         else:
-            # The last entry of `_states` is not a pole state but the running
-            # reference time of the convolution (real part only). Each turn it
-            # is shifted back by the time elapsed since the previous call, so
-            # the pole decays are computed relative to the current profile.
-            passed_time = beam.reference.time - self.last_reference_time
-            self._states[-1] -= complex(passed_time)
-            bin_dt = float(profile_dts[1] - profile_dts[0])
-            assert self._states[-1].real <= (profile_dts[0] - 2.0 * bin_dt)
+            # The last two entries of `_states` are not pole states but the
+            # running reference times of the two state generations (real part
+            # only). Each turn they are shifted back by the time elapsed
+            # since the previous call, so the pole decays are computed
+            # relative to the current profile.
+            passed_time = complex(
+                beam.reference.time - self.last_reference_time
+            )
+            self._states[-1] -= passed_time
+            self._states[-2] -= passed_time
+            bin_dt = self._bin_dt
+            # The kernel reads the older generation for the first bin, so it
+            # is that one -- not the newer -- which has to sit two bins before
+            # it. A profile spanning the whole revolution period meets this
+            # with equality; a longer one would let the bins of consecutive
+            # turns overlap and count the same charge twice.
+            assert self._states[-2].real <= (
+                self._first_profile_dt
+                - 2.0 * bin_dt
+                + _TURN_BOUNDARY_TOLERANCE * bin_dt
+            ), (
+                "The profile must not be longer than the time between two "
+                "calls of the solver."
+            )
+            # The newer generation carries the charge of the previous call's
+            # trailing bin, which this profile's first bin therefore does not
+            # see through the recursion. That charge is a near lag, and gets
+            # the same treatment `_lag_prev_factors` gives a neighbour inside
+            # a call -- at its true lag, so a gap between the two calls comes
+            # out exactly right as well.
+            trailing_lag = self._first_profile_dt - self._states[-1].real
+            self._trailing_bin_amplitude = (
+                self._charge_per_macroparticle
+                * float(
+                    _bin_averaged_kernel(
+                        backend.array([trailing_lag], dtype=backend.float),
+                        self._poles,
+                        self._residues_unaveraged,
+                        bin_dt,
+                    )[0]
+                )
+            )
 
         self._charge_per_macroparticle = (
             -(1 * beam.particle_type.charge * e)
@@ -1590,5 +1657,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage[:-1] += (
             factor * self._lag_next_factors[:-1] * profile_hist_y[1:]
         )
+        # The one neighbour left: the trailing bin of the previous call, one
+        # step before this profile's first bin. Its mirror image -- the tap
+        # from this profile's first bin back onto the previous call's last
+        # bin -- cannot be paid: that voltage has already been applied to the
+        # beam. It is dropped, exactly as `_lag_next_factors` drops the tap
+        # beyond the last bin of the profile.
+        self._voltage[:1] += (
+            self._trailing_bin_amplitude * self._trailing_hist_y
+        )
+        self._trailing_hist_y[:] = profile_hist_y[-1:]
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

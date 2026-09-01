@@ -394,6 +394,15 @@ class Specials(ABC):
         stays bounded by one at any binning -- see
         `MultiPoleSparseSolve._finalize_solver`.
 
+        Because a bin reads the state of two bins ago, `states` carries both
+        the newest state and its one-bin-older twin, each with its own
+        reference time. That is what lets the next call start from a state
+        that is really two bins old even when consecutive calls are only one
+        bin apart -- a profile spanning the full revolution period. The last
+        bin's charge is in the newest state only, so the first bin of the
+        next call does not see it through the recursion; the caller adds it
+        as a near lag, like any other neighbouring bin.
+
         Parameters
         ----------
         profile
@@ -416,7 +425,12 @@ class Specials(ABC):
         factor
             To convert `profile` to current per bin [A].
         states
-            Complex state vector, initially ``(0 + 0j)``.
+            Complex state vector of length ``2 * n_poles + 2``, initially
+            ``(0 + 0j)``. ``states[:n_poles]`` holds each pole's state
+            through the last bin, referenced at the time in ``states[-1]``;
+            ``states[n_poles:2 * n_poles]`` holds the same state one bin
+            earlier, referenced at ``states[-2]``. Both reference times live
+            in the real part and are written by this function.
         voltage
             Output voltage, in [V].
         voltage_threaded

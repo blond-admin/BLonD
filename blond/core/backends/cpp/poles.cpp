@@ -44,20 +44,35 @@ static inline void cmul(const real_t a_re, const real_t a_im,
  * ((exp(p*dt) - 1) / (p*dt))^3 * exp(p*dt/2), which stays bounded by one at
  * any binning.
  *
+ * Because a bin reads the state of two bins ago, `states` carries both the
+ * newest state and its one-bin-older twin, each with its own reference time.
+ * That is what lets the next call start from a state that is really two bins
+ * old even when consecutive calls are only one bin apart -- a profile
+ * spanning the full revolution period. The last bin's charge is in the newest
+ * state only, so the first bin of the next call does not see it through the
+ * recursion; the caller adds it as a near lag, like any other neighbour.
+ *
  * Complex arrays (poles, residues, states) are interleaved:
  *   [re0, im0, re1, im1, ...]
  *
  * Parameters
  * ----------
  * profile        : Beam profile histogram, length n_bins.
- * profile_dts    : Time step base, length n_profile_dts (>= n_bins + 1).
+ * profile_dts    : Time step base, length n_bins (>= 2); the centre of every
+ *                  bin, so the last two entries are the reference times the
+ *                  two persisted states are stored with.
  * poles          : Complex poles, interleaved, length 2 * n_poles.
  * residues       : Complex residues, interleaved, length 2 * n_poles.
  * is_counterrotating_beam : If true, the current beam is counter-rotating.
  * counterrotating_pole_signs :  Array per pole, -1 if the sign of the
  *                               impedance is flipped for a counter-rotating beam.
- * states         : Complex state vector, interleaved, length 2 * (n_poles + 1).
- *                  Last complex element stores t_start (real part only).
+ * states         : Complex state vector, interleaved, length 2 * (2 * n_poles + 2).
+ *                  states[0 .. n_poles) hold each pole's state through the
+ *                  last bin, referenced at the time in the last complex
+ *                  element; states[n_poles .. 2 * n_poles) hold the same
+ *                  state one bin earlier, referenced at the second to last
+ *                  complex element. Both reference times are stored in the
+ *                  real part only and are written by this function.
  * voltage        : Output voltage [V], length n_bins.
  * voltage_threaded : Per-thread voltage buffer, length n_threads * n_bins.
  * update_on_bin  : Bin indices triggering dt update, length n_updates.
@@ -66,7 +81,6 @@ static inline void cmul(const real_t a_re, const real_t a_im,
  * n_poles        : Number of poles.
  * n_threads      : Size of first dimension of voltage_threaded (>= omp_get_max_threads()).
  * n_updates      : Length of update_on_bin.
- * n_profile_dts  : Length of profile_dts.
  */
 extern "C" void wake_from_pole_residue(
     const real_t *__restrict__ profile,
@@ -83,8 +97,7 @@ extern "C" void wake_from_pole_residue(
     const int n_bins,
     const int n_poles,
     const int n_threads,
-    const int n_updates,
-    const int n_profile_dts)
+    const int n_updates)
 {
     const real_t two_factor = real_t(2) * factor;
 
@@ -100,8 +113,11 @@ extern "C" void wake_from_pole_residue(
     memset(voltage, 0, n_bins * sizeof(real_t));
     memset(voltage_threaded, 0, (size_t)n_used_threads * n_bins * sizeof(real_t));
 
-    // t_start from states[-1] (real part of last complex element)
-    const real_t t_start = states[2 * n_poles];
+    // Reference times of the two incoming states (real parts of the last two
+    // complex elements): `t_state` belongs to states[pole_i], `t_state_prev`
+    // to the one-bin-older states[n_poles + pole_i].
+    const real_t t_state_prev = states[2 * (2 * n_poles)];
+    const real_t t_state = states[2 * (2 * n_poles + 1)];
 
     // The state a bin reads is referenced two bins back, while the
     // bin-averaged wake starts three half-bins back (the residues carry
@@ -137,23 +153,26 @@ extern "C" void wake_from_pole_residue(
         const real_t res_re = residues[pole_n];
         const real_t res_im = residues[pole_n + 1];
 
+        const int pole_prev_n = 2 * (n_poles + pole_i);
         real_t state_re = states[pole_n];
         real_t state_im = states[pole_n + 1];
 
         int i_update = 0;
         int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
-        // `state_prev` lags `state` by one bin. At a call boundary the two
-        // coincide: everything the previous call saw is at least two bins in
-        // the past by the time this one starts.
-        real_t state_prev_re = state_re;
-        real_t state_prev_im = state_im;
+        // `state_prev` lags `state` by one bin, across the call boundary as
+        // well: the previous call left both states behind, so the first bin
+        // here still reads one that is genuinely two bins old.
+        real_t state_prev_re = states[pole_prev_n];
+        real_t state_prev_im = states[pole_prev_n + 1];
 
         real_t decay_re = 0, decay_im = 0;
         real_t advance_re = 0, advance_im = 0;
         real_t res_lb_re = res_re, res_lb_im = res_im;
         real_t chunk_dt = 0;
-        real_t jump_prev = 0;
+        // The step the previous call took from `state_prev` to `state`; the
+        // lag correction of the first bin reaches across it.
+        real_t jump_prev = t_state - t_state_prev;
         int bins_since_jump = 2;  // force the lag factor on the first two bins
         real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
@@ -166,7 +185,7 @@ extern "C" void wake_from_pole_residue(
                 fast_cexp(pole_re * chunk_dt, pole_im * chunk_dt, decay_re, decay_im);
 
                 if (bin_i == 0) {
-                    t_jump = profile_dts[0] - t_start;
+                    t_jump = profile_dts[0] - t_state;
                 } else {
                     t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1];
                 }
@@ -230,9 +249,11 @@ extern "C" void wake_from_pole_residue(
             jump_prev = t_jump;
         }
 
-        // Store state back
-        states[2 * pole_i] = state_re;
-        states[2 * pole_i + 1] = state_im;
+        // Store both states back
+        states[pole_n] = state_re;
+        states[pole_n + 1] = state_im;
+        states[pole_prev_n] = state_prev_re;
+        states[pole_prev_n + 1] = state_prev_im;
     }
 
     // Reduce the used rows of voltage_threaded into voltage (parallel over bins)
@@ -245,7 +266,9 @@ extern "C" void wake_from_pole_residue(
         voltage[bin_i] = sum;
     }
 
-    // Store last profile_dts value into states[-1] for next call
-    states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-    states[2 * n_poles + 1] = 0;
+    // Store the reference times of both states for the next call
+    states[2 * (2 * n_poles)] = profile_dts[n_bins - 2];
+    states[2 * (2 * n_poles) + 1] = 0;
+    states[2 * (2 * n_poles + 1)] = profile_dts[n_bins - 1];
+    states[2 * (2 * n_poles + 1) + 1] = 0;
 }

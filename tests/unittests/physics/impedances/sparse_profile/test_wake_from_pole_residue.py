@@ -105,8 +105,9 @@ class TestPole(unittest.TestCase):
         n = len(hist_y)
 
         voltage = backend.zeros(n, dtype=float)
-        state = backend.zeros(len(poles_b) + 1, dtype=complex)
+        state = backend.zeros(2 * len(poles_b) + 2, dtype=complex)
         state[-1] -= dt
+        state[-2] -= 2 * dt
         backend.specials.wake_from_pole_residue(
             profile=hist_y_b,
             profile_dts=centers_b,
@@ -131,7 +132,7 @@ class TestPole(unittest.TestCase):
         stop = int(0.25 * n)
         sel = slice(start, stop)
         voltage = backend.zeros(n, dtype=float)
-        state = backend.zeros(len(poles_b) + 1, dtype=complex)
+        state = backend.zeros(2 * len(poles_b) + 2, dtype=complex)
         mask_np = np.ones(n, bool)
         mask_np[sel] = False
         mask_b = backend.array(mask_np)
@@ -266,7 +267,7 @@ class TestPole(unittest.TestCase):
             )
         )
 
-        state = backend.zeros(len(poles) + 1, dtype=complex)
+        state = backend.zeros(2 * len(poles) + 2, dtype=complex)
         backend.specials.wake_from_pole_residue(
             profile=hist_y,
             profile_dts=centers,
@@ -326,11 +327,14 @@ class TestWakeFromPoleResidueBranches(unittest.TestCase):
 
         def _run(t_start) -> np.ndarray:
             voltage = backend.zeros(n, dtype=float)
-            state = backend.zeros(len(poles) + 1, dtype=complex)
-            # Non-zero initial pole state so the `state *= exp(pole * t_jump)`
-            # multiplication actually depends on `t_jump = dts[0] - t_start`.
+            state = backend.zeros(2 * len(poles) + 2, dtype=complex)
+            # Non-zero initial pole states so the
+            # `state *= exp(pole * t_jump)` multiplication actually depends
+            # on `t_jump = dts[0] - t_start`.
             state[0] = 1.0 + 0.5j
+            state[len(poles)] = 1.0 + 0.5j
             state[-1] = t_start
+            state[-2] = t_start - bin_dt
             backend.specials.wake_from_pole_residue(
                 profile=hist_y,
                 profile_dts=centers,
@@ -388,8 +392,9 @@ class TestWakeFromPoleResidueBranches(unittest.TestCase):
 
         # Single call with one update_on_bin entry
         v_single = backend.zeros(n, dtype=float)
-        state_single = backend.zeros(len(poles) + 1, dtype=complex)
+        state_single = backend.zeros(2 * len(poles) + 2, dtype=complex)
         state_single[-1] = centers[0] - bin_dt
+        state_single[-2] = centers[0] - 2 * bin_dt
         backend.specials.wake_from_pole_residue(
             profile=hist_y,
             profile_dts=centers,
@@ -412,8 +417,9 @@ class TestWakeFromPoleResidueBranches(unittest.TestCase):
         # `i_update < len(update_on_bin)` True branch.
         k = n // 2
         v_split = backend.zeros(n, dtype=float)
-        state_split = backend.zeros(len(poles) + 1, dtype=complex)
+        state_split = backend.zeros(2 * len(poles) + 2, dtype=complex)
         state_split[-1] = centers[0] - bin_dt
+        state_split[-2] = centers[0] - 2 * bin_dt
         backend.specials.wake_from_pole_residue(
             profile=hist_y,
             profile_dts=centers,

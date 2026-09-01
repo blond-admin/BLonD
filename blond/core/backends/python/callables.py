@@ -72,7 +72,8 @@ def _move_flagged_elements_to_end_py(
 
 # How far behind the current bin the state read by `wake_from_pole_residue`
 # lags: the B-spline bin-averaged wake starts three half-bins back, so the
-# recursion covers lags of two bins and more.
+# recursion covers lags of two bins and more. It is also the number of state
+# generations `states` carries, one per bin of that lag.
 _STATE_LAG_BINS = 2
 
 
@@ -677,6 +678,15 @@ class PythonSpecials(Specials):
         stays bounded by one at any binning -- see
         `MultiPoleSparseSolve._finalize_solver`.
 
+        Because a bin reads the state of two bins ago, `states` carries both
+        the newest state and its one-bin-older twin, each with its own
+        reference time. That is what lets the next call start from a state
+        that is really two bins old even when consecutive calls are only one
+        bin apart -- a profile spanning the full revolution period. The last
+        bin's charge is in the newest state only, so the first bin of the
+        next call does not see it through the recursion; the caller adds it
+        as a near lag, like any other neighbouring bin.
+
         Parameters
         ----------
         profile
@@ -699,7 +709,12 @@ class PythonSpecials(Specials):
         factor
             To convert `profile` to current per bin [A].
         states
-            Complex state vector, initially ``(0 + 0j)``.
+            Complex state vector of length ``2 * n_poles + 2``, initially
+            ``(0 + 0j)``. ``states[:n_poles]`` holds each pole's state
+            through the last bin, referenced at the time in ``states[-1]``;
+            ``states[n_poles:2 * n_poles]`` holds the same state one bin
+            earlier, referenced at ``states[-2]``. Both reference times live
+            in the real part and are written by this function.
         voltage
             Output voltage, in [V].
         voltage_threaded
@@ -709,10 +724,17 @@ class PythonSpecials(Specials):
         two_factor = 2 * factor
         n_bins = len(profile)
 
+        assert len(states) == _STATE_LAG_BINS * (n_poles + 1)
+        assert n_bins >= _STATE_LAG_BINS
+
         voltage[:] = 0
         voltage_threaded[:, :] = 0
 
-        t_start = states[-1]
+        # Reference times of the two incoming states: `t_state` belongs to
+        # `states[pole_i]`, `t_state_prev` to the one-bin-older
+        # `states[n_poles + pole_i]`.
+        t_state = states[-1].real
+        t_state_prev = states[-2].real
         # The state a bin reads is referenced two bins back, while the
         # bin-averaged wake starts three half-bins back (the residues carry
         # ((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)). Every bin is `bin_dt`
@@ -743,14 +765,16 @@ class PythonSpecials(Specials):
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
 
-            # `state_prev` lags `state` by one bin. At a call boundary the
-            # two coincide: everything the previous call saw is at least two
-            # bins in the past by the time this one starts.
-            state_prev = state
+            # `state_prev` lags `state` by one bin, across the call boundary
+            # as well: the previous call left both states behind, so the
+            # first bin here still reads one that is genuinely two bins old.
+            state_prev = complex(states[n_poles + pole_i])
             decay = 0.0 + 0j
             advance = 0.0 + 0j
             chunk_dt = 0.0
-            jump_prev = 0.0
+            # The step the previous call took from `state_prev` to `state`;
+            # the lag correction of the first bin reaches across it.
+            jump_prev = t_state - t_state_prev
             residue_lookback = residue
             bins_since_jump = _STATE_LAG_BINS  # lag factor on the first bins
             for bin_i in range(n_bins):
@@ -758,7 +782,7 @@ class PythonSpecials(Specials):
                     chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
                     decay = np.exp(pole * chunk_dt)
                     if bin_i == 0:
-                        t_jump = profile_dts[0] - t_start.real
+                        t_jump = profile_dts[0] - t_state
                     else:
                         t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
                     advance = np.exp(pole * t_jump)
@@ -796,8 +820,10 @@ class PythonSpecials(Specials):
                 state += cr_pole_flip * profile[bin_i] * two_factor
                 jump_prev = t_jump
             states[pole_i] = state
+            states[n_poles + pole_i] = state_prev
 
-        states[-1] = profile_dts[-1]
+        states[-1] = profile_dts[n_bins - 1]
+        states[-2] = profile_dts[n_bins - 2]
 
     @staticmethod
     def music_track(  # NOQA: D102 inherited from `Specials.music_track`
