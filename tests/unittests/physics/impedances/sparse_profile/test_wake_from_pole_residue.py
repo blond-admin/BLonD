@@ -292,14 +292,6 @@ class TestPole(unittest.TestCase):
             plt.plot(copy_to_cpu(voltage))
             plt.show()
         # pinned_values_helper(voltage, "voltage")  # use this to generate
-        _SAVE_PINNED = False
-        if _SAVE_PINNED:
-            np.savetxt(
-                callers_relative_path(
-                    "resources/voltage_pinned.txt", stacklevel=1
-                ),
-                copy_to_cpu(voltage),
-            )
         filepath = callers_relative_path(
             "resources/voltage_pinned.txt", stacklevel=1
         )

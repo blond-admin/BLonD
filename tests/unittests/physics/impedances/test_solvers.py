@@ -208,7 +208,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf_design = 0
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(42)
         dt = backend.array(rng.standard_normal(1000), dtype=backend.float)
 
         # truncate and shift center to 1
@@ -612,7 +612,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         cavity.voltage = 0
         cavity.phi_rf_design = 0
 
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(42)
         dt = rng.standard_normal(1000)
 
         # truncate and shift center to 1
