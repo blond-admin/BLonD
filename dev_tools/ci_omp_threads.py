@@ -95,6 +95,9 @@ def _divide(quota: str, period: str) -> float | None:
     return quota_value / period_value
 
 
+_DETECT = object()
+
+
 def visible_cpu_count() -> int:
     """
     Return the number of CPUs this process may actually run on.
@@ -110,7 +113,7 @@ def visible_cpu_count() -> int:
 
 def omp_num_threads(
     visible_cpus: int | None = None,
-    quota: float | None = None,
+    quota: float | None | object = _DETECT,
     max_threads: int | None = None,
     divide: int = 1,
 ) -> int:
@@ -126,8 +129,8 @@ def omp_num_threads(
     visible_cpus
         CPUs the process may run on. Detected when ``None``.
     quota
-        cgroup CPU quota in CPUs. Detected when ``None``; a detected
-        absence of a quota simply leaves this bound out.
+        cgroup CPU quota in CPUs, or ``None`` when unlimited. Detected
+        when omitted.
     max_threads
         Upper bound. Defaults to ``BLOND_CI_MAX_OMP_THREADS``, else
         :data:`DEFAULT_MAX_THREADS`.
@@ -142,7 +145,7 @@ def omp_num_threads(
     """
     if visible_cpus is None:
         visible_cpus = visible_cpu_count()
-    if quota is None:
+    if quota is _DETECT:
         quota = cgroup_cpu_quota()
     if max_threads is None:
         max_threads = int(

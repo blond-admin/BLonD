@@ -29,8 +29,6 @@ try:
 except ModuleNotFoundError:
     cupy_available = False
 
-from numba import set_num_threads
-
 from blond.testing.helpers import allclose_tolerances
 
 backend_org = backend.__class__
@@ -348,7 +346,6 @@ class TestSpecials(unittest.TestCase):
         ]
         if cupy_available:
             self.special_modes.append("cuda")
-        set_num_threads(8)
         self.original_backend = type(backend)
         self.original_backend_specials_mode = backend.specials_mode
 
@@ -2493,7 +2490,6 @@ class TestSpecials(unittest.TestCase):
             except (FileNotFoundError, OSError):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
-            set_num_threads(8)
             array_write = backend.ones(21, dtype=backend.float)
             backend.specials.histogram(
                 array_read=backend.array(
