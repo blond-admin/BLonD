@@ -92,11 +92,12 @@ Retuning reference
     the *retuning* form, ``retune_to_rf=True``, with ``delta_f`` a pure
     frequency offset in Hz on top of the design frequency: no ``delta_f`` at
     all for a plain ramp, ``delta_f = delta_omega_rf / (2 pi)`` when the
-    station carries an RF-frequency offset. (``delta_f`` used to carry the
-    mode as well as the offset, so ``delta_f=0.0`` meant "retune"; passing it
-    without ``retune_to_rf`` now takes a deprecated inference path.) The
+    station carries an RF-frequency offset. The two arguments are
+    orthogonal: ``retune_to_rf`` alone decides whether the resonator
+    follows the RF, and no spelling of ``delta_f`` switches it on. The
     fixed-frequency form, ``retune_to_rf=False``, is the higher-order-mode
-    wake of ``TestFixedFrequencyWakeWithSubsteppedFrame``.
+    wake of ``TestFixedFrequencyWakeWithSubsteppedFrame``; it also accepts
+    a ``delta_f``, which offsets the constructed centre frequency once.
 
 Accumulated phase under acceleration
     When the beam accelerates, the RF frequency slips turn to turn, so the

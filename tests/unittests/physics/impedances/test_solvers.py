@@ -5109,16 +5109,20 @@ class _RetuningRfStationStub:
 
 class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
     """
-    ``retune_to_rf`` states the mode that ``delta_f`` used to imply.
+    ``retune_to_rf`` and ``delta_f`` are orthogonal.
 
-    ``delta_f`` is documented as a static frequency offset, but it also
-    used to be the only switch between the two physically distinct modes
-    of the solver: ``None`` kept the resonator at its constructed centre
-    frequency (fixed-frequency / higher-order mode, phase-clock rotation
-    off), while ``0.0`` re-centred it on the parent RF station's design
-    frequency every pass (accelerating fundamental mode, phase-clock
-    rotation on). ``retune_to_rf`` says which mode is wanted and leaves
-    ``delta_f`` a pure offset.
+    ``retune_to_rf`` alone decides whether the resonator follows the
+    parent RF station (retuning fundamental mode, phase-clock rotation
+    on) or keeps its constructed centre frequency (fixed-frequency /
+    higher-order mode, rotation off). ``delta_f`` is only ever a
+    frequency offset in [Hz], and it is meaningful in both modes: on top
+    of the design frequency of every pass when retuning, on top of the
+    constructed centre frequency -- once -- when not.
+
+    ``delta_f`` used to imply the mode as well (``None`` meant "do not
+    retune", ``0.0`` meant "retune"). That reading is gone entirely --
+    there is no compatibility path and no inference, so a call is read
+    only under the current definitions.
     """
 
     OMEGA_RF_DESIGN = 2 * np.pi * 500e6
@@ -5129,9 +5133,15 @@ class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
     def setUp(self):
         enforce_64_bit_backend()
 
-    def _make_solver(self, **kwargs):
+    CONSTRUCTED_CENTER_FREQUENCY = OMEGA_RF_DESIGN / (2 * np.pi)
+
+    def _parts(self, **kwargs):
         """
-        A solver wired to a mocked wakefield and a stub RF station.
+        A not-yet-late-initialised solver and the scaffolding it needs.
+
+        Split out of :meth:`_make_solver` so a test can look at the
+        resonator *before* the late-init hook has touched it, and can
+        run that hook more than once on the same solver.
 
         Parameters
         ----------
@@ -5141,15 +5151,19 @@ class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
         Returns
         -------
         solver
-            The solver under test, late-initialised and ready to be
-            driven with :meth:`_drive`.
+            The solver under test, before late init.
+        parent_wakefield
+            Mocked wakefield carrying the resonator, the profile and the
+            stub RF station.
+        simulation
+            Mocked simulation carrying the ring circumference.
         """
         solver = MultiPassResonatorSolver(
             decay_fraction_threshold=1e-3, **kwargs
         )
         resonators = Resonators(
             shunt_impedances=np.array([1e6]),
-            center_frequencies=np.array([self.OMEGA_RF_DESIGN / (2 * np.pi)]),
+            center_frequencies=np.array([self.CONSTRUCTED_CENTER_FREQUENCY]),
             quality_factors=np.array([1e3]),
         )
         hist_x = backend.arange(
@@ -5172,6 +5186,24 @@ class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
 
         simulation = Mock(Simulation)
         simulation.ring.circumference = 100.0
+        return solver, parent_wakefield, simulation
+
+    def _make_solver(self, **kwargs):
+        """
+        A solver wired to a mocked wakefield and a stub RF station.
+
+        Parameters
+        ----------
+        kwargs
+            Passed straight to ``MultiPassResonatorSolver``.
+
+        Returns
+        -------
+        solver
+            The solver under test, late-initialised and ready to be
+            driven with :meth:`_drive`.
+        """
+        solver, parent_wakefield, simulation = self._parts(**kwargs)
         solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=parent_wakefield
         )
@@ -5294,82 +5326,142 @@ class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
         ``retune_to_rf=False`` keeps the constructed centre frequency.
 
         The parent RF station is never consulted and the phase clock
-        stays disarmed, whatever ``delta_f`` would have implied.
+        stays disarmed.
         """
-        solver = self._make_solver(retune_to_rf=False, delta_f=None)
+        solver = self._make_solver(retune_to_rf=False)
         self._drive(solver)
         self.assertEqual(self._n_retunings(solver), 0)
         self.assertEqual(
             self._center_frequency(solver),
-            self.OMEGA_RF_DESIGN / (2 * np.pi),
+            self.CONSTRUCTED_CENTER_FREQUENCY,
         )
         self.assertIsNone(solver._active_omega)
 
-    def test_retune_to_rf_false_with_offset_raises(self):
+    def test_retune_to_rf_false_offsets_the_constructed_frequency(self):
         """
-        An offset that can never be applied is a contradiction.
+        A fixed-frequency resonator may be deliberately detuned.
 
-        The message must name both parameters, so the caller can see
-        which of the two they meant to change.
+        ``retune_to_rf=False`` with a nonzero ``delta_f`` -- the
+        combination that used to raise -- is an ordinary configuration:
+        the resonator sits at its constructed centre frequency plus the
+        offset, still without ever consulting the parent RF station.
         """
-        with self.assertRaises(ValueError) as caught:
-            MultiPassResonatorSolver(retune_to_rf=False, delta_f=1e3)
-        message = str(caught.exception)
-        self.assertIn("retune_to_rf", message)
-        self.assertIn("delta_f", message)
-
-    def test_retune_to_rf_false_with_zero_offset_is_allowed(self):
-        """``delta_f=0.0`` adds nothing, so it does not contradict."""
-        solver = self._make_solver(retune_to_rf=False, delta_f=0.0)
+        offset = 1e3
+        solver = self._make_solver(retune_to_rf=False, delta_f=offset)
         self._drive(solver)
         self.assertEqual(self._n_retunings(solver), 0)
         self.assertIsNone(solver._active_omega)
+        self.assertEqual(
+            self._center_frequency(solver),
+            self.CONSTRUCTED_CENTER_FREQUENCY + offset,
+        )
 
-    def test_omitting_retune_to_rf_warns_and_keeps_delta_f_none(self):
+    def test_fixed_frequency_offset_is_applied_exactly_once(self):
         """
-        Legacy ``delta_f=None`` still means "do not retune".
+        Re-running the late-init hook must not double the offset.
 
-        The ``DeprecationWarning`` must name the replacement spelling
-        that reproduces exactly this behaviour.
+        The offset is computed from a snapshot of the constructed centre
+        frequency, not added to whatever the resonator currently holds,
+        so a second hook call is a no-op rather than a second shift.
         """
-        with self.assertWarns(DeprecationWarning) as caught:
-            solver = self._make_solver(delta_f=None)
-        message = str(caught.warning)
-        self.assertIn("retune_to_rf=False", message)
+        offset = 1e3
+        solver, parent_wakefield, simulation = self._parts(
+            retune_to_rf=False, delta_f=offset
+        )
+        solver.on_wakefield_init_simulation(
+            simulation=simulation, parent_wakefield=parent_wakefield
+        )
+        after_first = self._center_frequency(solver)
+        solver.on_wakefield_init_simulation(
+            simulation=simulation, parent_wakefield=parent_wakefield
+        )
+        after_second = self._center_frequency(solver)
+        self.assertEqual(
+            after_first, self.CONSTRUCTED_CENTER_FREQUENCY + offset
+        )
+        self.assertEqual(after_second, after_first)
+
+    def test_retune_to_rf_false_zero_offset_leaves_frequency_untouched(self):
+        """
+        A zero offset is a short circuit, not an addition of ``0.0``.
+
+        ``delta_f=0.0`` must leave the resonator exactly as constructed,
+        so no arithmetic may touch the centre-frequency array at all.
+        """
+        solver, parent_wakefield, simulation = self._parts(
+            retune_to_rf=False, delta_f=0.0
+        )
+        resonators = parent_wakefield.sources[0]
+        as_constructed = copy_to_cpu(resonators._center_frequencies).copy()
+        solver.on_wakefield_init_simulation(
+            simulation=simulation, parent_wakefield=parent_wakefield
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(resonators._center_frequencies), as_constructed
+        )
         self._drive(solver)
+        np.testing.assert_array_equal(
+            copy_to_cpu(resonators._center_frequencies), as_constructed
+        )
         self.assertEqual(self._n_retunings(solver), 0)
         self.assertIsNone(solver._active_omega)
 
-    def test_omitting_retune_to_rf_warns_and_keeps_delta_f_zero(self):
+    def test_zero_offset_is_bit_identical_to_omitting_delta_f(self):
         """
-        Legacy ``delta_f=0.0`` still means "retune every pass".
+        Stating the zero offset changes nothing numerically.
 
-        The ``DeprecationWarning`` must name the replacement spelling
-        that reproduces exactly this behaviour.
+        ``retune_to_rf=False, delta_f=0.0`` and ``retune_to_rf=False``
+        alone must give bit-identical induced voltage, and both must
+        differ from the retuning mode -- otherwise the pin above would
+        be satisfied by everything being equal.
         """
-        with self.assertWarns(DeprecationWarning) as caught:
-            solver = self._make_solver(delta_f=0.0)
-        message = str(caught.warning)
-        self.assertIn("retune_to_rf=True", message)
+        stated = self._drive(
+            self._make_solver(retune_to_rf=False, delta_f=0.0)
+        )
+        omitted = self._drive(self._make_solver(retune_to_rf=False))
+        retuned = self._drive(self._make_solver(retune_to_rf=True))
+        np.testing.assert_array_equal(stated, omitted)
+        self.assertFalse(np.array_equal(omitted, retuned))
+
+    def test_retuning_happens_if_and_only_if_retune_to_rf_is_true(self):
+        """
+        No spelling of ``delta_f`` switches retuning on or off.
+
+        The two parameters are orthogonal: whatever the offset, the mode
+        is read from ``retune_to_rf`` alone.
+        """
+        for delta_f_kwargs in ({}, {"delta_f": 0.0}, {"delta_f": 1e3}):
+            with self.subTest(delta_f_kwargs=delta_f_kwargs):
+                fixed = self._make_solver(retune_to_rf=False, **delta_f_kwargs)
+                self._drive(fixed)
+                self.assertEqual(self._n_retunings(fixed), 0)
+                self.assertIsNone(fixed._active_omega)
+
+                retuned = self._make_solver(
+                    retune_to_rf=True, **delta_f_kwargs
+                )
+                self._drive(retuned)
+                self.assertEqual(self._n_retunings(retuned), self.N_PASSAGES)
+                self.assertIsNotNone(retuned._active_omega)
+
+    def test_omitting_both_is_silent_and_means_no_retuning(self):
+        """
+        The default is the fixed-frequency resonator, stated silently.
+
+        Omitting both parameters is the one call that cannot flip
+        physics -- it meant "do not retune, no offset" before and means
+        the same now -- so it must not warn at all.
+        """
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            solver = self._make_solver()
+        self.assertEqual([str(entry.message) for entry in caught], [])
+        self.assertFalse(solver.retune_to_rf)
+        self.assertEqual(solver.delta_f, 0.0)
         self._drive(solver)
-        self.assertEqual(self._n_retunings(solver), self.N_PASSAGES)
-        self.assertIsNotNone(solver._active_omega)
-
-    def test_explicit_spelling_is_numerically_neutral(self):
-        """
-        The neutrality pin: renaming the concept moved no numbers.
-
-        Both legacy spellings and their explicit translations must give
-        bit-identical induced voltage.
-        """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            legacy_fixed = self._drive(self._make_solver(delta_f=None))
-            legacy_retuned = self._drive(self._make_solver(delta_f=0.0))
-        explicit_fixed = self._drive(self._make_solver(retune_to_rf=False))
-        explicit_retuned = self._drive(self._make_solver(retune_to_rf=True))
-        np.testing.assert_array_equal(explicit_fixed, legacy_fixed)
-        np.testing.assert_array_equal(explicit_retuned, legacy_retuned)
-        # The two modes are genuinely different physics, so the pins
-        # above are not trivially satisfied by everything being equal.
-        self.assertFalse(np.array_equal(legacy_fixed, legacy_retuned))
+        self.assertEqual(self._n_retunings(solver), 0)
+        self.assertIsNone(solver._active_omega)
+        self.assertEqual(
+            self._center_frequency(solver),
+            self.CONSTRUCTED_CENTER_FREQUENCY,
+        )

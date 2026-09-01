@@ -775,41 +775,51 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Constructing with ``True`` emits a ``UserWarning``.
         Default is False.
     delta_f
-        Static frequency offset [Hz] added on top of the parent RF
-        station's design frequency whenever the resonator is retuned. It
-        is a pure offset, so it only has an effect together with
-        ``retune_to_rf=True``; ``None`` (default) means no offset and is
-        treated as ``0.0``. Combining ``retune_to_rf=False`` with a
-        nonzero offset raises ``ValueError``, because that offset could
-        never be applied.
+        Static frequency offset in [Hz]. A pure offset, in *both* modes,
+        and never the thing that decides whether the resonator retunes:
+
+        * with ``retune_to_rf=True`` the centre frequency is the design
+          frequency of that pass plus ``delta_f``, recomputed on every
+          pass;
+        * with ``retune_to_rf=False`` the centre frequency is the
+          **constructed** centre frequency plus ``delta_f``, applied
+          exactly once at late init. A fixed-frequency resonator
+          deliberately offset from nominal -- a detuned higher-order
+          mode, say -- is an ordinary configuration.
+
+        Default is ``0.0``, no offset.
     retune_to_rf
         Whether the resonator is re-centred on the parent RF station's
-        current design frequency on every pass. ``True`` is the
-        accelerating *fundamental* mode: the resonator follows the RF and
-        the carried-wake phase-clock rotation is enabled. ``False`` is the
+        current design frequency on every pass. Retuning happens if and
+        only if this is ``True``; nothing about ``delta_f`` switches it
+        on or off. ``True`` is the accelerating *fundamental* mode: the
+        resonator follows the RF and the carried-wake phase-clock
+        rotation is enabled. ``False`` (the default) is the
         fixed-frequency (higher-order-mode) case: the resonator keeps its
-        configured centre frequency, no parent RF station is required, and
-        the phase-clock rotation stays off. Under a fast ramp that
-        fixed-frequency path has a residual against an analytic
-        fixed-frequency reference which is NOT a solver error; see the
-        *Frame-time fidelity* note below for the lever that removes it.
-        Omitting it (``None``, the default) falls back to the legacy
-        inference -- retune if and only if ``delta_f`` was given -- and
-        emits a ``DeprecationWarning``, because that inference makes
-        ``delta_f=None`` and ``delta_f=0.0`` two different physics modes
-        rather than two offsets.
+        constructed centre frequency, offset once by ``delta_f``, no
+        parent RF station is required, and the phase-clock rotation stays
+        off. Under a fast ramp that fixed-frequency path has a residual
+        against an analytic fixed-frequency reference which is NOT a
+        solver error; see the *Frame-time fidelity* note below for the
+        lever that removes it.
 
     Attributes
     ----------
     retune_to_rf
         Whether the resonator is re-centred on the parent RF station's
         design frequency at every pass. Set from the constructor argument
-        of the same name, or inferred from ``delta_f`` for a legacy call.
+        of the same name, and from nothing else.
     delta_f
-        The frequency offset in [Hz], as a plain float -- a legacy
-        ``delta_f=None`` is stored here as ``0.0``, because "no offset"
-        and "do not retune" are now separate statements. Only applied
-        when ``retune_to_rf`` is true.
+        The frequency offset in [Hz], as a plain float. Applied on every
+        pass when ``retune_to_rf`` is true, once at late init when it is
+        false.
+    _constructed_center_frequency
+        Centre frequency in [Hz] of the offset resonance *as
+        constructed*, snapshotted the first time the fixed-frequency
+        offset is applied and ``None`` until (and unless) that happens.
+        The offset is always computed from this snapshot rather than
+        added to the resonator's current value, so re-running the
+        late-init hook cannot accumulate it.
     _wake_function_vals
         List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
@@ -824,6 +834,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     Notes
     -----
+    **``retune_to_rf`` and ``delta_f`` are orthogonal.** The first states
+    the tracking mode, the second is a frequency offset that is
+    meaningful in either mode; neither is inferred from the other. In the
+    fixed-frequency mode the offset is applied to the resonance the
+    solver manages -- ``sources[0]._center_frequencies[0]``, the same
+    entry the retuning path writes -- once, in
+    :meth:`on_wakefield_init_simulation`, before the storage time is
+    derived from the resulting decay time.
+
     **Frame-time fidelity (fixed-frequency wakes under a fast ramp).** With
     ``retune_to_rf=False`` the resonator does not retune, so the carried-wake
     phase is just ``omega_0`` times the gap between arrival times and the
@@ -861,8 +880,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self,
         decay_fraction_threshold: float = 0.001,
         allow_delta_t_zero: bool = False,
-        delta_f: float | None = None,
-        retune_to_rf: bool | None = None,
+        delta_f: float = 0.0,
+        retune_to_rf: bool = False,
     ):
         # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
@@ -870,39 +889,18 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         super().__init__()
 
-        # ``delta_f`` used to carry the retuning MODE as well as the
-        # offset: given (even as 0.0) meant "follow the RF design
-        # frequency every pass, phase-clock rotation on", omitted meant
-        # "keep the constructed centre frequency forever, rotation off".
-        # Those are different physics, which no reader expects from a
-        # parameter documented as an offset, so the mode is now stated by
-        # ``retune_to_rf`` and ``delta_f`` is only ever an offset.
-        if retune_to_rf is None:
-            retune_to_rf = delta_f is not None
-            warnings.warn(
-                "MultiPassResonatorSolver infers whether to retune the"
-                " resonator onto the parent RF station's design frequency"
-                " from whether `delta_f` was given, so `delta_f=None` and"
-                " `delta_f=0.0` select different physics rather than two"
-                " offsets. Pass `retune_to_rf` explicitly instead:"
-                f" `retune_to_rf={retune_to_rf}` reproduces the behaviour"
-                " of this call. `delta_f` is then a pure frequency offset"
-                " in [Hz] on top of the design frequency.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        elif not retune_to_rf and delta_f is not None and delta_f != 0.0:
-            raise ValueError(
-                "retune_to_rf=False keeps the resonator at its"
-                " constructed centre frequency, so the offset"
-                f" delta_f={delta_f} Hz could never be applied. Pass"
-                " retune_to_rf=True to centre the resonator on the parent"
-                " RF station's design frequency offset by delta_f, or drop"
-                " delta_f to keep a fixed-frequency resonator."
-            )
-
+        # ``retune_to_rf`` states the MODE and nothing else: the
+        # resonator is re-centred on the parent RF station's design
+        # frequency on every pass if and only if it is True. ``delta_f``
+        # states the OFFSET and nothing else, and applies in either mode
+        # -- on top of the design frequency when retuning, on top of the
+        # constructed centre frequency (once, at wakefield init) when
+        # not. The two are orthogonal; neither is inferred from the other.
         self.retune_to_rf: bool = bool(retune_to_rf)
-        self.delta_f: float = 0.0 if delta_f is None else delta_f
+        self.delta_f: float = float(delta_f)
+        # Snapshot of the constructed centre frequency, taken lazily by
+        # ``_apply_fixed_frequency_offset``; see the class Attributes.
+        self._constructed_center_frequency: float | None = None
 
         self._last_reference_time: float | None = None
 
@@ -1021,7 +1019,38 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     f"Expected `Resonators` and not source.is_dynamic, but got {type(source)=}."
                 )
 
+        self._apply_fixed_frequency_offset()
+
         self._determine_storage_time()
+
+    def _apply_fixed_frequency_offset(self) -> None:
+        """
+        Offset the non-retuning resonator by ``delta_f``, exactly once.
+
+        Only for ``retune_to_rf=False``: the retuning path re-derives the
+        centre frequency (design frequency plus ``delta_f``) on every
+        pass and needs no help here. The offset is written to the same
+        entry that path writes, ``sources[0]._center_frequencies[0]``,
+        and is always computed from
+        ``_constructed_center_frequency`` -- a snapshot of the value the
+        resonator was built with -- so running this hook again cannot
+        stack a second offset on top of the first.
+
+        A zero offset short-circuits before any arithmetic touches the
+        centre frequency, so ``delta_f=0.0`` leaves the resonator exactly
+        as constructed rather than as "constructed + 0.0".
+        """
+        if self.retune_to_rf or self.delta_f == 0.0:
+            return
+
+        resonators = self._parent_wakefield.sources[0]
+        if self._constructed_center_frequency is None:
+            self._constructed_center_frequency = float(
+                resonators._center_frequencies[0]
+            )
+        resonators._center_frequencies[0] = (
+            self._constructed_center_frequency + self.delta_f
+        )
 
     def _remove_fully_decayed_wake_profiles(
         self, indexes_to_check: int = 2

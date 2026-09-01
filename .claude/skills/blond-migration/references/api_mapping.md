@@ -371,18 +371,23 @@ Induced-voltage classes → solvers:
 
 !!! note "`MultiPassResonatorSolver` needs `retune_to_rf`"
     Pass `retune_to_rf` explicitly. It selects the *physics*, not a
-    formatting detail:
+    formatting detail, and it is the **only** thing that does:
 
     * `retune_to_rf=True` re-centres the resonator on the RF station's
       design frequency every pass, and enables the carried-wake phase
       clock. This is the accelerating **fundamental** mode.
-    * `retune_to_rf=False` keeps the resonator at its constructed centre
-      frequency. This is the fixed-frequency **higher-order-mode** case.
+    * `retune_to_rf=False` (the default) keeps the resonator at its
+      constructed centre frequency. This is the fixed-frequency
+      **higher-order-mode** case.
 
-    `delta_f` is then a pure offset in [Hz] on top of the design
-    frequency. Omitting `retune_to_rf` still works, but infers the mode
-    from whether `delta_f` was given and warns -- the old spelling where
-    `delta_f=None` and `delta_f=0.0` meant different physics.
+    `delta_f` is orthogonal to it: a pure frequency offset in [Hz],
+    added to the design frequency of every pass when retuning, and to
+    the constructed centre frequency once, at late init, when not. No
+    spelling of `delta_f` switches retuning on. Passing `delta_f`
+    *without* `retune_to_rf` raises `ValueError`, because `delta_f=0.0`
+    used to mean "retune" and now means "no offset" -- the same call,
+    the opposite physics -- so the mode has to be stated. `None` is no
+    longer accepted for either argument.
 
 
 Note `frequency_resolution` [Hz] → `t_periodicity = 1 / frequency_resolution`

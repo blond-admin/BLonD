@@ -1194,8 +1194,8 @@ keeps a beam's clock alive.
 
 ### 3.3 Resolved / decided (kept as records, not as open work)
 
-- **`MultiPassResonatorSolver` `delta_f=None` precision — NOT a solver
-  defect (2026-08-31).** With no retuning the carried-wake phase is just
+- **`MultiPassResonatorSolver` fixed-frequency (`retune_to_rf=False`)
+  precision — NOT a solver defect (2026-08-31).** With no retuning the carried-wake phase is just
   `omega_0 x (arrival gap)` and the phase-clock rotation is identically
   zero, so the accuracy is set entirely by how precisely the *reference
   clock* reports arrival times. `DriftSimple.track_reference` advances it
@@ -1209,8 +1209,15 @@ keeps a beam's clock alive.
   reference to machine precision. The gap was **discoverability**: nothing
   in `solvers.py` mentioned it. The `delta_f` parameter doc and a
   *Frame-time fidelity* note in the class docstring now do, including why
-  the fundamental mode needs the opposite treatment (`delta_f=0.0` plus the
-  phase clock, not a finer frame).
+  the fundamental mode needs the opposite treatment (`retune_to_rf=True`
+  plus the phase clock, not a finer frame).
+  **API note (2026-09-01):** retuning is now stated by the explicit
+  `retune_to_rf` boolean, defaulting to `False`; `delta_f` is a pure
+  frequency offset in [Hz] that applies in BOTH modes (on the design
+  frequency of every pass when retuning, on the constructed centre
+  frequency once when not). Neither is inferred from the other, and
+  `None` is not accepted for either — the old `delta_f=None` /
+  `delta_f=0.0` mode encoding is gone with no compatibility path.
 
 - ~~Beam phase loop ↔ cavity feedback coupling~~ **DECIDED (2026-08-12,
   maintainer ruling): deliberate NON-GOAL — the phase loop must not couple
