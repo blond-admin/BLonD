@@ -3,6 +3,7 @@ import subprocess
 import sys
 import unittest
 import warnings
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -112,26 +113,54 @@ class TestBackendBaseClass(unittest.TestCase):
         except ModuleNotFoundError:
             pass
         print(f"{backend_modes=}")
-        for backend_mode in backend_modes:
-            os.environ["BLOND_BACKEND_MODE"] = backend_mode
-            for backend_bit in backend_bits:
-                os.environ["BLOND_BACKEND_BITS"] = backend_bit
-                if (backend_mode == "fail") or (backend_bit == "fail"):
-                    with self.assertRaises(ValueError):
-                        self.backend_base_class.apply_environment_variables()
-                else:
-                    try:
-                        self.backend_base_class.apply_environment_variables()
-                    except FileNotFoundError as error:
-                        # Compiled backends might not be available locally --> skip.
-                        # On the CI, these will always be available, as the before_script builds them
-                        # or otherwise fails the CI
-                        if backend_mode == "cpp":  # TODO better handling
-                            warnings.warn(
-                                f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
-                            )
-                        else:
-                            raise error
+        # The probe values below (notably "fail") must not survive this
+        # test: tests run in random order, so anything left in the
+        # process environment poisons an arbitrary later test.
+        # `mock.patch.dict` restores os.environ wholesale on exit,
+        # including keys that were originally unset.
+        with mock.patch.dict(os.environ):
+            for backend_mode in backend_modes:
+                os.environ["BLOND_BACKEND_MODE"] = backend_mode
+                for backend_bit in backend_bits:
+                    os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                    if (backend_mode == "fail") or (backend_bit == "fail"):
+                        with self.assertRaises(ValueError):
+                            self.backend_base_class.apply_environment_variables()
+                    else:
+                        try:
+                            self.backend_base_class.apply_environment_variables()
+                        except FileNotFoundError as error:
+                            # Compiled backends might not be available locally --> skip.
+                            # On the CI, these will always be available, as the before_script builds them
+                            # or otherwise fails the CI
+                            if backend_mode == "cpp":  # TODO better handling
+                                warnings.warn(
+                                    f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
+                                )
+                            else:
+                                raise error
+
+    @pytest.mark.backend_mutation
+    def test_apply_environment_variables_restores_environment(self):
+        """`test_apply_environment_variables` must leak no env state.
+
+        It sets `BLOND_BACKEND_MODE` / `BLOND_BACKEND_BITS` to probe
+        values (including "fail"). Leaving those behind poisons every
+        later test in the session -- tests run in random order, so the
+        victim varies with the seed.
+        """
+        import os
+
+        env_keys = ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS")
+        before = {key: os.environ.get(key) for key in env_keys}
+
+        result = unittest.TestResult()
+        type(self)("test_apply_environment_variables").run(result)
+        self.assertEqual(result.errors, [])
+        self.assertEqual(result.failures, [])
+
+        after = {key: os.environ.get(key) for key in env_keys}
+        self.assertEqual(after, before)
 
     @pytest.mark.backend_mutation
     def test__finalize(self):
