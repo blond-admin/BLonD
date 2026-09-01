@@ -80,6 +80,16 @@ BUNCH_RESOLVING_CUTOFF_RATIOS = (0.1, 0.3, 1.0, 3.0, 10.0, 30.0)
 WAKE_RESOLVING_CUTOFF_RATIO = 30.0
 # Binning of interest: the resonator sits a decade above the profile cutoff.
 RESONATOR_ABOVE_CUTOFF_RATIO = 0.1
+# Same regime, but with `f_res * hist_step` off the integers: the triple
+# bin-average's `sinc(f dt)**3` has exact zeros there, which would hide any
+# alias of the resonance that leaks through. `TestResonatorAboveProfileCutoff`
+# sweeps the quality factor at this ratio.
+RESONATOR_ABOVE_CUTOFF_OFFGRID_RATIO = 1.0 / 10.6
+# Quality factors from broadband to narrowband, all with the resonance a
+# decade above the cutoff.
+QUALITY_FACTOR_SWEEP = (0.55, 1.0, 10.0, 100.0, 1e3, 1e4)
+# How much the time-domain/frequency-domain ratio may drift across the sweep.
+_MAX_QUALITY_FACTOR_SPREAD = 0.02
 
 SOLVER_AGREEMENT_RTOL = 0.1
 
@@ -148,6 +158,7 @@ def _peak_voltages(
     cutoff_frequency: float,
     solver_names: tuple[str, ...] | None = None,
     center_frequency: float = F_RES,
+    quality_factor: float = QUALITY_FACTOR,
 ) -> dict[str, float]:
     """
     Peak absolute induced voltage per solver for one profile binning.
@@ -160,6 +171,8 @@ def _peak_voltages(
         Solvers to evaluate; all of them when ``None``.
     center_frequency
         Resonator centre frequency, in [Hz].
+    quality_factor
+        Resonator quality factor.
 
     Returns
     -------
@@ -169,7 +182,7 @@ def _peak_voltages(
     return {
         name: float(np.max(np.abs(voltage)))
         for name, voltage in _induced_voltages(
-            cutoff_frequency, solver_names, center_frequency
+            cutoff_frequency, solver_names, center_frequency, quality_factor
         )[1].items()
     }
 
@@ -178,6 +191,7 @@ def _induced_voltages(
     cutoff_frequency: float,
     solver_names: tuple[str, ...] | None = None,
     center_frequency: float = F_RES,
+    quality_factor: float = QUALITY_FACTOR,
 ) -> tuple[StaticProfile, dict[str, np.ndarray]]:
     """
     Induced voltage of the resonator for each solver, in a single pass.
@@ -190,6 +204,8 @@ def _induced_voltages(
         Solvers to evaluate; all of them when ``None``.
     center_frequency
         Resonator centre frequency, in [Hz].
+    quality_factor
+        Resonator quality factor.
 
     Returns
     -------
@@ -215,7 +231,7 @@ def _induced_voltages(
                 Resonators(
                     shunt_impedances=R_SHUNT,
                     center_frequencies=center_frequency,
-                    quality_factors=QUALITY_FACTOR,
+                    quality_factors=quality_factor,
                 ),
             ),
             solver=solver,
@@ -251,7 +267,11 @@ def _use_blocking_backend() -> None:
     )
 
 
-def _maybe_draw(cutoff_ratio: float, center_frequency: float = F_RES) -> None:
+def _maybe_draw(
+    cutoff_ratio: float,
+    center_frequency: float = F_RES,
+    quality_factor: float = QUALITY_FACTOR,
+) -> None:
     """
     Plot profile and induced voltages for one binning, for `DEV_DRAW`.
 
@@ -264,12 +284,16 @@ def _maybe_draw(cutoff_ratio: float, center_frequency: float = F_RES) -> None:
         Profile cutoff frequency, in units of `F_RES`.
     center_frequency
         Resonator centre frequency, in [Hz].
+    quality_factor
+        Resonator quality factor.
     """
     if not _DEV_DRAW:
         return
     _use_blocking_backend()
     profile, voltages = _induced_voltages(
-        cutoff_ratio * F_RES, center_frequency=center_frequency
+        cutoff_ratio * F_RES,
+        center_frequency=center_frequency,
+        quality_factor=quality_factor,
     )
     hist_x = np.asarray(copy_to_cpu(profile.hist_x))
     with AllowPlotting():
@@ -280,7 +304,7 @@ def _maybe_draw(cutoff_ratio: float, center_frequency: float = F_RES) -> None:
             f"f_cutoff = {cutoff_ratio:g} * f_res, "
             f"f_res = {center_frequency / 1e9:g} GHz, "
             f"sigma_dt = {SIGMA_DT * 1e9:.1f} ns, "
-            f"Q = {QUALITY_FACTOR:.2f}, {profile.n_bins} bins"
+            f"Q = {quality_factor:.3g}, {profile.n_bins} bins"
         )
         ax_profile.plot(hist_x * 1e9, copy_to_cpu(profile.hist_y))
         ax_profile.set_ylabel("profile [a.u.]")
@@ -442,6 +466,70 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
                     f"{name} solver gives {peaks[name]:.3e} V, "
                     f"frequency domain gives {reference:.3e} V "
                     f"({peaks[name] / reference:.1f}x)"
+                ),
+            )
+
+    def test_agreement_is_independent_of_quality_factor(self):
+        """
+        Raising the quality factor must not let the binning ring the pole.
+
+        The worry: the triple bin-average excites an above-cutoff pole with
+        a weight ``sinc(f_res dt)**3`` that does not depend on Q, while the
+        physical response -- the inductive flank the bunch actually samples
+        -- shrinks as ``1 / Q``. A narrowband resonator would then be rung
+        by the bin edges rather than by the beam, and the time-domain
+        solvers would drift away from the frequency domain as Q grows.
+
+        It does not happen for a resolved bunch: sampling folds ``f_res``
+        onto ``f_res mod 1/dt``, inside ``[-f_cutoff, f_cutoff]``, where the
+        bunch spectrum has already died -- and a fold near zero, where it
+        has not, lands on a zero of ``sinc(f_res dt)**3``. The product is
+        orders of magnitude below the flank at every Q. The sweep runs at
+        `RESONATOR_ABOVE_CUTOFF_OFFGRID_RATIO`, off those zeros, so the
+        alias is not hidden by the choice of ``f_res``.
+
+        Two checks: every solver still agrees with the frequency domain at
+        every Q, and the ratio does not drift across the sweep (the
+        Q-independent part of the ratio is the kernel's smoothing of the
+        bunch, which this test does not judge).
+        """
+        center_frequency = F_RES
+        cutoff_frequency = RESONATOR_ABOVE_CUTOFF_OFFGRID_RATIO * F_RES
+        ratios = {"time domain": [], "pole residue": []}
+        for quality_factor in QUALITY_FACTOR_SWEEP:
+            _maybe_draw(
+                RESONATOR_ABOVE_CUTOFF_OFFGRID_RATIO,
+                center_frequency=center_frequency,
+                quality_factor=quality_factor,
+            )
+            peaks = _peak_voltages(
+                cutoff_frequency,
+                center_frequency=center_frequency,
+                quality_factor=quality_factor,
+            )
+            reference = peaks["frequency domain"]
+            for name, ratio_list in ratios.items():
+                ratio = peaks[name] / reference
+                ratio_list.append(ratio)
+                self.assertAlmostEqual(
+                    ratio,
+                    1.0,
+                    delta=SOLVER_AGREEMENT_RTOL,
+                    msg=(
+                        f"Q={quality_factor:g}: {name} solver gives "
+                        f"{peaks[name]:.3e} V, frequency domain gives "
+                        f"{reference:.3e} V ({ratio:.3f}x)"
+                    ),
+                )
+        for name, ratio_list in ratios.items():
+            spread = max(ratio_list) - min(ratio_list)
+            self.assertLess(
+                spread,
+                _MAX_QUALITY_FACTOR_SPREAD,
+                msg=(
+                    f"{name} solver's ratio to the frequency domain drifts "
+                    f"by {spread:.3f} across Q={QUALITY_FACTOR_SWEEP}: "
+                    f"{[f'{r:.3f}' for r in ratio_list]}"
                 ),
             )
 
