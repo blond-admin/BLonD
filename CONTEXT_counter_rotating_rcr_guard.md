@@ -124,7 +124,11 @@ in the banner above; nothing further is owed here.
 
 ## Regression tests
 
-Run from `BLonD/` with `.venv\Scripts\python.exe` and `MPLBACKEND=Agg`.
+Run from the BLonD checkout with `MPLBACKEND=Agg`. There is no
+`BLonD/.venv`: BLonD is a submodule of the outer muon-collider-blonder
+repo and shares that repo's venv -- `../.venv/Scripts/python.exe` on
+Windows, `../.venv/bin/python` on Linux/macOS. (A standalone BLonD clone
+has neither; create your own venv and install per CLAUDE.md.)
 Both live in `tests/unittests/physics/impedances/test_solvers.py`:
 
 - `test_counter_rotating_without_shunt_cr_raises_both_solvers` — added by
