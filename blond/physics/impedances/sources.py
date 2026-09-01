@@ -1149,7 +1149,13 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         """
         if counter_rotating:
             raise TypeError("ImpedanceTableTime has no counter-rotating wake.")
-        if time.min() < self._wake_x.min():
+        # `TimeDomain.get_impedance_from_wake` samples one bin below the axis
+        # it was handed, to pick up the bin-average kernel's non-causal tap
+        # (see `TimeDomain.get_wake_per_bin`). That much undershoot is the
+        # kernel doing its job, not the table being too short, so only warn
+        # beyond it.
+        bin_step = (time[1] - time[0]) if len(time) > 1 else 0.0
+        if time.min() < (self._wake_x.min() - bin_step):
             warnings.warn(
                 "Interpolation of wake outside boundaries",
                 stacklevel=1,

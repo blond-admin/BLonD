@@ -66,6 +66,43 @@ class TestImpedanceTableFreq(unittest.TestCase):
         # TODO: implement test for `get_freq_y`
         self.impedance_table_freq.get_freq_y(freq_x=None, sim=None)
 
+    def test_no_boundary_warning_for_the_non_causal_tap(self):
+        """A table exactly spanning the requested axis must not warn.
+
+        ``get_impedance_from_wake`` samples one bin below the axis it is
+        given, to pick up the bin-average kernel's non-causal tap. That is
+        the kernel doing its job, so it must not be reported as the table
+        being too short -- while a query that really does undershoot still
+        is.
+        """
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        time = backend.array(np.arange(64) * 1e-11)
+        table = ImpedanceTableTime(
+            wake_x=time,
+            wake_y=backend.array(
+                np.sin(2 * np.pi * 3e9 * np.arange(64) * 1e-11)
+            ),
+        )
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            table.get_impedance_from_wake(
+                time=time, simulation=simulation, beam=beam, n_fft=128
+            )
+        self.assertEqual(
+            [w for w in caught if "outside boundaries" in str(w.message)], []
+        )
+
+        # ... but a query that genuinely undershoots still warns.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            table.get_wake_per_particle(time - 5e-11)
+        self.assertEqual(
+            len([w for w in caught if "outside boundaries" in str(w.message)]),
+            1,
+        )
+
     def test_hashing(self):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
