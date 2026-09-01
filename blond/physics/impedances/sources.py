@@ -1352,7 +1352,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         causal jump under BLonD's sampling convention. The bin-averaged
         version, :meth:`get_wake_per_bin`, integrates the *function* that
         sampling represents and therefore resolves the jump; see
-        :meth:`_wake_with_resolved_onset`.
+        ``_wake_with_resolved_onset``.
 
         Parameters
         ----------
@@ -1393,7 +1393,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
         What is integrated here instead is the model the table really
         represents: zero below ``wake_x[0]``, the causal jump at
-        ``wake_x[0]`` (resolved as in :meth:`_wake_with_resolved_onset`), and
+        ``wake_x[0]`` (resolved as in ``_wake_with_resolved_onset``), and
         piecewise linear above it. Writing that model as the query-grid
         interpolant :math:`g` plus a difference supported on the single cell
         :math:`[t_{m-1},\, t_m]` that contains the onset -- with
