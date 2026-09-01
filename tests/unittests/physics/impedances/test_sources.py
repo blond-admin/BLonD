@@ -618,6 +618,32 @@ class TestResonators(unittest.TestCase):
                 quality_factors=0.49,
             )
 
+    def test___init___quality_factor_exactly_one_half_raises(self):
+        """Q = 0.5 is critically damped and must be rejected.
+
+        At exactly Q = 0.5 the resonator is critically damped:
+        ``omega_bar = sqrt(omega**2 - alpha**2)`` is exactly zero, so the
+        residue ``R * alpha * complex(1, alpha / omega_bar)`` of the
+        closed-form bin average divides by zero. Rather than implement the
+        degenerate-pole limit, the input is rejected up front.
+        """
+        with self.assertRaisesRegex(RuntimeError, "greater than 0.5"):
+            Resonators(
+                shunt_impedances=1e6,
+                center_frequencies=1e9,
+                quality_factors=0.5,
+            )
+
+    def test___init___quality_factor_just_above_one_half_is_accepted(self):
+        """The bound is strict, so anything above 0.5 still constructs."""
+        resonators = Resonators(
+            shunt_impedances=1e6,
+            center_frequencies=1e9,
+            quality_factors=0.5000001,
+        )
+        self.assertEqual(len(resonators._quality_factors), 1)
+        self.assertGreater(float(resonators._omega_bar[0]), 0.0)
+
     def test_init_mixed_input(self):
         r_shunt = [1]
         f = 400e6
