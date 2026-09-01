@@ -30,7 +30,9 @@ Set ``DEV_DRAW=true`` in the environment to plot the comparison.
 
 import os
 import unittest
+import warnings
 
+import matplotlib
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
@@ -219,16 +221,50 @@ def _induced_voltages(
     return profile, voltages
 
 
-def _draw(cutoff_ratio: float) -> None:
+def _use_blocking_backend() -> None:
+    """
+    Switch to an interactive matplotlib backend, if there is one.
+
+    Other test modules call ``matplotlib.use("agg")`` at import time, which
+    leaks into this process under pytest -- with a non-interactive backend
+    `plt.show` returns immediately and draws nothing.
+    """
+    if not matplotlib.get_backend().lower().endswith("agg"):
+        return
+    for backend_name in ("qtagg", "tkagg", "gtk4agg", "gtk3agg", "macosx"):
+        try:
+            matplotlib.use(backend_name, force=True)
+            return
+        except Exception:  # backend not installed, try the next one
+            continue
+    warnings.warn(
+        "DEV_DRAW is set but no interactive matplotlib backend is "
+        f"available (backend is {matplotlib.get_backend()!r}); "
+        "the plots cannot be shown",
+        stacklevel=2,
+    )
+
+
+def _maybe_draw(cutoff_ratio: float, center_frequency: float = F_RES) -> None:
     """
     Plot profile and induced voltages for one binning, for `DEV_DRAW`.
+
+    Does nothing unless ``DEV_DRAW=true`` is set in the environment; when
+    it is, the plot window blocks until it is closed.
 
     Parameters
     ----------
     cutoff_ratio
         Profile cutoff frequency, in units of `F_RES`.
+    center_frequency
+        Resonator centre frequency, in [Hz].
     """
-    profile, voltages = _induced_voltages(cutoff_ratio * F_RES)
+    if not _DEV_DRAW:
+        return
+    _use_blocking_backend()
+    profile, voltages = _induced_voltages(
+        cutoff_ratio * F_RES, center_frequency=center_frequency
+    )
     hist_x = np.asarray(copy_to_cpu(profile.hist_x))
     with AllowPlotting():
         fig, (ax_profile, ax_voltage) = plt.subplots(
@@ -236,6 +272,7 @@ def _draw(cutoff_ratio: float) -> None:
         )
         fig.suptitle(
             f"f_cutoff = {cutoff_ratio:g} * f_res, "
+            f"f_res = {center_frequency / 1e9:g} GHz, "
             f"sigma_dt = {SIGMA_DT * 1e9:.1f} ns, "
             f"Q = {QUALITY_FACTOR:.2f}, {profile.n_bins} bins"
         )
@@ -247,7 +284,7 @@ def _draw(cutoff_ratio: float) -> None:
         ax_voltage.set_xlabel("time [ns]")
         ax_voltage.legend()
         fig.tight_layout()
-        plt.show()
+        plt.show(block=True)
 
 
 @pytest.mark.integration
@@ -264,6 +301,8 @@ class TestFrequencyDomainReference(unittest.TestCase):
         The bunch spectrum dies far below `f_res`, so once the binning
         resolves the bunch there is nothing left for a finer grid to add.
         """
+        for ratio in BUNCH_RESOLVING_CUTOFF_RATIOS:
+            _maybe_draw(ratio)
         peaks = [
             _peak_voltages(ratio * F_RES)["frequency domain"]
             for ratio in BUNCH_RESOLVING_CUTOFF_RATIOS
@@ -299,6 +338,7 @@ class TestWakeResolvedBinning(unittest.TestCase):
         With ``f_cutoff = 30 * f_res`` the bin width is far below the
         wake's amplitude halving time, so every solver sees the same wake.
         """
+        _maybe_draw(WAKE_RESOLVING_CUTOFF_RATIO)
         peaks = _peak_voltages(WAKE_RESOLVING_CUTOFF_RATIO * F_RES)
         reference = peaks["frequency domain"]
         for name in ("time domain", "pole residue"):
@@ -382,6 +422,7 @@ class TestResonatorAboveProfileCutoff(unittest.TestCase):
         Both used to return ~0.3 % of the correct induced voltage -- this
         is the case this module is about, see the class docstring.
         """
+        _maybe_draw(RESONATOR_ABOVE_CUTOFF_RATIO)
         peaks = _peak_voltages(RESONATOR_ABOVE_CUTOFF_RATIO * F_RES)
         reference = peaks["frequency domain"]
         for name in ("time domain", "pole residue"):
@@ -417,6 +458,9 @@ class TestExtremelyUnderResolvedPole(unittest.TestCase):
         factor bounded by one -- see `Resonators._wake_bin_average` and
         `MultiPoleSparseSolve._finalize_solver`.
         """
+        _maybe_draw(
+            RESONATOR_ABOVE_CUTOFF_RATIO, center_frequency=100.0 * F_RES
+        )
         peaks = _peak_voltages(
             RESONATOR_ABOVE_CUTOFF_RATIO * F_RES,
             center_frequency=100.0 * F_RES,
@@ -464,5 +508,5 @@ class TestExtremelyUnderResolvedPole(unittest.TestCase):
                 )
 
 
-if __name__ == "__main__" and _DEV_DRAW:
+if __name__ == "__main__":
     unittest.main()
