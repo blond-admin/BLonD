@@ -19,6 +19,46 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
     from pathlib import Path
+    from typing import Any
+
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
+
+
+def hash_linspace(array1d: NumpyArray | CupyArray, *, salt: Any = None) -> int:
+    """
+    Lightweight, approximate hash of a 1D array, for cache invalidation.
+
+    Samples the first, second, middle and last elements plus the array
+    length, and hashes that tuple. Not collision-resistant and not stable
+    across sessions (Python's ``hash`` is randomized); only meant to detect
+    "the input array probably changed" between calls, e.g. to invalidate a
+    memoized result derived from ``array1d``.
+
+    Parameters
+    ----------
+    array1d
+        One-dimensional array of numeric values.
+    salt
+        Additional value folded into the hash, e.g. to distinguish two
+        otherwise-identical arrays used in different contexts.
+
+    Returns
+    -------
+    hash_
+        An integer hash value derived from selected elements of the array.
+    """
+    len_ = len(array1d)
+    return hash(
+        (
+            float(array1d[0]),
+            float(array1d[1]),
+            float(array1d[int(len_ // 2)]),
+            float(array1d[-1]),
+            len_,
+            salt,
+        )
+    )
 
 
 def hash_files(file_paths: list[str], base_folder: str | None = None) -> str:

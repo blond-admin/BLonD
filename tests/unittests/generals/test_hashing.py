@@ -6,18 +6,41 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Tests for the build-environment-aware hashing used by the cache keys."""
+"""Tests for the hashing helpers used to build cache keys."""
 
 import shutil
 from unittest import mock
 
+import numpy as np
 import pytest
 
 from blond.generals.hashing_ import (
     hash_build_target,
     hash_files,
     hash_in_folder,
+    hash_linspace,
 )
+
+
+class TestHashLinspace:
+    def test_deterministic(self):
+        arr = np.linspace(0, 1, 100)
+        assert hash_linspace(arr) == hash_linspace(arr.copy())
+
+    def test_sensitive_to_length(self):
+        assert hash_linspace(np.linspace(0, 1, 100)) != hash_linspace(
+            np.linspace(0, 1, 101)
+        )
+
+    def test_sensitive_to_boundary_values(self):
+        arr = np.linspace(0, 1, 100)
+        shifted = arr + 1e-3
+        assert hash_linspace(arr) != hash_linspace(shifted)
+
+    def test_salt_distinguishes_otherwise_equal_arrays(self):
+        arr = np.linspace(0, 1, 100)
+        assert hash_linspace(arr, salt=1) != hash_linspace(arr, salt=2)
+        assert hash_linspace(arr, salt=None) == hash_linspace(arr)
 
 
 def _write_sources(folder):
