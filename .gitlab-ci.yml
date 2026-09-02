@@ -153,6 +153,14 @@ workflow:
 
 .before:
   before_script:
+    # Size the thread pools from the runner's real CPU entitlement.
+    # libgomp (and numba) see the *host* core count, not the cgroup quota
+    # this job runs under, so they would start one worker per host core and
+    # then have them all contend for a handful of entitled CPUs at every
+    # barrier. See dev_tools/ci_omp_threads.py.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -174,6 +182,14 @@ workflow:
 
 .before_no_gpu:
   before_script:
+    # Size the thread pools from the runner's real CPU entitlement.
+    # libgomp (and numba) see the *host* core count, not the cgroup quota
+    # this job runs under, so they would start one worker per host core and
+    # then have them all contend for a handful of entitled CPUs at every
+    # barrier. See dev_tools/ci_omp_threads.py.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
     # Verify installation
     - gcc --version
     - python3 --version && gcc --version && mpirun --version
@@ -221,7 +237,7 @@ workflow:
     # test, not per session: 300s leaves ~40x headroom over the slowest MPI
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     - python3 -m pytest
@@ -268,7 +284,7 @@ workflow:
     # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
     # they can desync on an MPI collective and deadlock (see .main for details).
     # See the `-x --timeout=...` rationale in the `test_py_314` job above.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     # cupy is not part of all_no_cuda; uninstalling a missing package is a
@@ -312,7 +328,7 @@ workflow:
     # test, not per session: 300s leaves ~40x headroom over the slowest MPI
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
-    - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     - python3 -m pytest
@@ -538,6 +554,15 @@ test_minimum:
   # Replaces .before: same uv setup, but resolve the OLDEST allowed version
   # of every direct dependency to check the lower bounds in pyproject.toml.
   before_script:
+    # Size the thread pools from the runner's real CPU entitlement.
+    # libgomp (and numba) see the *host* core count, not the cgroup quota
+    # this job runs under, so they would start one worker per host core and
+    # then have them all contend for a handful of entitled CPUs at every
+    # barrier. See dev_tools/ci_omp_threads.py.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Create venv to avoid permission error when installing packages
     - *uv_setup
     - uv venv ./.venv
     - source ./.venv/bin/activate
