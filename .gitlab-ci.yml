@@ -600,7 +600,11 @@ test_documentation_building:
     - *uv_setup
     - uv venv ./.venv
     - source ./.venv/bin/activate  # puts sphinx-build/sphinx-apidoc on PATH
-    - uv pip install ${project_root}[doc]
+    # xsuite + cupy are needed too: sphinx_autodoc_typehints imports the
+    # guarded type hints, and with `-W` a missing module fails the build.
+    # (The old pip --user install saw the copies baked into the CI image;
+    # the uv venv is isolated from the system site-packages.)
+    - uv pip install ${project_root}[doc,xsuite,gpu_cuda12]
     - cd ${project_root}/docs
     - . ./create_docs.sh
   artifacts:
@@ -620,7 +624,11 @@ pages:
     - *uv_setup
     - uv venv ./.venv
     - source ./.venv/bin/activate  # puts sphinx-build/sphinx-apidoc on PATH
-    - uv pip install ${project_root}[doc]
+    # xsuite + cupy are needed too: sphinx_autodoc_typehints imports the
+    # guarded type hints, and with `-W` a missing module fails the build.
+    # (The old pip --user install saw the copies baked into the CI image;
+    # the uv venv is isolated from the system site-packages.)
+    - uv pip install ${project_root}[doc,xsuite,gpu_cuda12]
     - cd ./docs
     - ./create_docs.sh
     - cd ..
