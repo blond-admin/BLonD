@@ -245,16 +245,12 @@ workflow:
 
 precommit-check:
 
-  image: gitlab-registry.cern.ch/blond/blond/python314 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  image: python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
   variables:
     SKIP: no-commit-to-branch
   before_script:
-    - which pandoc
-    - apt-cache rdepends --installed pandoc
-    - apt-cache policy pandoc
-    - dpkg -S /usr/bin/pandoc
     - pip install pre-commit
   script:
     - pre-commit run --all-files
