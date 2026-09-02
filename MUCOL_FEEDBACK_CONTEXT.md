@@ -459,12 +459,82 @@ covered).
 
 ### 2.3 P2 — PI on the forward passage only
 
-The controller is stepped only on the real forward passage
-(`if self._controller_active and not no_beam`), never on the backfill
-reconstruction segments (which carry a per-segment frame phase). Still true
-2026-08-11, in `cavity_response`. The structural call-count tests must set
-`use_numba_envelope_kernel=False` — the kernel inlines the control law, so
-there is no call to count.
+**SUPERSEDED (2026-09-02, maintainer ruling).** The controller is now
+stepped on EVERY tracked coarse cell, the `no_beam` backfill reconstruction
+segments included — all three gates (`cavity_response`, the
+`_circuit_track_cells` dispatcher, the kernel glue) read
+`self._controller_active` alone. Rationale: a real LLRF regulates
+continuously; confined to the forward passage the loop was open-loop for
+`(N - 1) / N` of every turn (a 6 % duty cycle on 16-section RCS1) and
+merely held the last forward command, which was what pinned the generator
+at the klystron limit for 100 % of the recorded cells. The error on a
+backfill cell is formed with the passage's frame rotations, which
+`_update_frame_rotations` sets BEFORE `_replay_backfill_span`; they are
+exactly unity without an RF-frequency offset and without multi-section
+acceleration (verified: n=2/4 constant energy, `Psi = gap = 0`, all three
+rotations `1+0j` on every passage). The ramped-case per-segment frame
+residual (`Psi ~ 7e-5` rad on the test ramp) was MEASURED to have no
+footprint: on a beam-free driven run (`_run_config`, intensity 0) the
+readout phase is `|phi_corr| ~ 1e-12 deg` on both the pre- and
+post-change engine for the 2/4-section fast ramp and the slow ramp, the
+ramped `v_dev_grid` is identical to 4 digits between the two engines
+(0.6687 / 0.9814 / 0.1407 -- a PRE-EXISTING harness property: a fixed
+`V_DESIGN` setpoint held against a ramping carrier, gated by the
+multi-section classes only on `v_last`, never on the whole grid), and the
+constant-energy hold got TIGHTER (`1.4e-12 -> 6.2e-16`). Per-segment
+rotations are therefore not needed for the no-op guarantee; a Phase 2 is
+only warranted if a ramped multi-section pin is later found to need
+sub-1e-6 agreement over the backfill span. Consequences elsewhere:
+`TestPIFullTrackingMultiSection{Slow,Fast}Ramp::test_pinned_trajectories`
+move (slow: max rel 1.76e-6, just over the 1e-6 rtol, frame-residual
+scale; fast: ~0.75 %, the physics) and were REGENERATED 2026-09-02,
+programmatically rather than by transcription, with the reason recorded in
+each class's pin comment; that module is 32 passed and the pins are stable
+across 6 random-order seeds;
+`TestClosedLoopRobinsonStability` was RE-SCOPED 2026-09-02 (maintainer
+ruling: rewrite it at a lower gain where the effect still holds). Its two
+growth assertions failed because their premise no longer held -- with the
+loop acting all turn both detuning signs damp identically at -1.8e-4/turn
+and the gap collapses from 2.55e-3 to 6.7e-8, while the detuning still
+reaches the physics (`i_max_dev` differs by 2.84 A, 2.6 %). A 61-point
+parameter search established what the operative knobs are, contradicting
+that module's own claim that "loop gain and loop delay are dynamically
+inert on the dipole": ONLY gain and delay TOGETHER work. Measured inert:
+integral time (five orders of magnitude, and pure-P), detuning magnitude
+(three orders, gap < 6e-7). Gain alone either leaves the gap at 7e-8,
+INVERTS its sign (x1e-3), or loses the bunch (x1e-4 and below,
+in_window 0.53/0.20). Delay alone is inert to N_DELAY=11 and numerically
+divergent from 12 (forward-Euler blow-up of the controller, unbounded
+because `max_output=None`); a realistic ~1 us latency (N_DELAY ~ 1300) is
+~120x past that cliff and unreachable even with the gain cut 1e-3, so
+modelling a real LLRF here needs a current limit AND a longer integral
+time first -- logged as an open item.
+The test now runs at `LOOP_AUTHORITY = 5e-3`, `N_DELAY = 25` (19.3 ns) and
+asserts the DAMPING DIFFERENTIAL, not growth. Nine adversarial probes
+(three lenses x three candidates) rejected every "perturbed grows"
+formulation: the perturbed envelope is not exponential but beats with a
+~200-turn period and net-decays over 400 turns (log-fit r^2 = 0.15..0.17
+vs 0.96..0.98 nominal), so its fitted sign is set by where the horizon
+stops -- negative at 200 and 400 turns, positive only in roughly
+[285, 365] -- and ~1/5 of seeds fail a >5e-4 gate. Independently
+confirmed over 4 seeds x 3 fit windows x 2 horizons: nominal spans
+-6.16e-3..-4.34e-3 (always damped), gap +4.05e-3..+6.81e-3 (always
+positive, ~15x the seed scatter), perturbed -2.00e-3..+2.26e-3 (SIGN
+FLIPS). Thresholds sit ~1.3x inside the worst case. Teeth verified: the
+assertion FAILS at full authority (gap 6.7e-8), at full gain with this
+delay (-6.1e-16) and at this gain with N_DELAY=2 (2.5e-5), so both knobs
+are load-bearing. Headline effect on the outer example, RCS1 default config:
+generator saturated fraction 100 % -> 30.95 %, `|V_ant|` reaching the
+setpoint every turn (0.9546..1.0000 vs 0.9128..1.0965). Pinned by
+`TestPIStepsOnEveryTrackedCell` (replaces the inverted
+`TestPIBackfillSpanFrameConsistency`), which counts controller calls
+against `n_total` and asserts a non-constant backfill-span current. The
+structural call-count tests still need `use_numba_envelope_kernel=False`.
+
+HISTORY (2026-07..09-01): the controller was stepped only on the real
+forward passage (`if self._controller_active and not no_beam`), never on
+the backfill segments, on the grounds that they carry a per-segment frame
+phase.
 
 ### 2.4–2.7 Coverage, audits, counter-rotating work, five-dimension review
 
@@ -1443,7 +1513,7 @@ sizes.
 | `rf_center_segment.py` | The two value classes: `RFCenterSegment` (all four fields load-bearing — see the correction in §2.11 — with the ≥ 2-centres and `residual ∈ [0, duration]` validation) and `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`). Both are imported by `cavity_feedback.py` |
 | `cavity_solvers.py` | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the coarse-step arithmetic `coarse_step_exponent`, `euler_voltage_multiplier`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`; and `ForwardEulerValidityGuard` — the discretisation tripwires, beside the solvers they certify. Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
 | `envelope_kernel.py` | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Since §2.13 it advances the two source-split components, composes the demod-frame sum per cell and forms the PI error in the kick frame; the signature carries the component in/out arrays, the `generator_active` gate and the **three** per-passage rotation scalars (`_generator_frame_rotation`, `_kick_frame_rotation`, `_pi_error_frame_rotation` — this row said two until 2026-09-02). Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
-| `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current` (forms the PI error in the KICK frame via `_kick_frame_rotation`, §2.13), `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need **every** coarse grid (the summed, generator- and beam-sourced antenna voltages plus the generator current) and **all five** values carried across the turn boundary (`_last_val_ant_voltage`, `_last_val_ant_voltage_gen`, `_last_val_ant_voltage_beam`, `_last_val_generator_current`, `_last_val_beam_current` — this row said "both coarse grids and the three values" until 2026-09-02, a pre-envelope-split count the module docstring had already outgrown), and because the scan depends on `pi_setpoint` staying *unevaluated* on a span the controller sits out (that property may reach through to the parent station, which a no-beam backfill span must not require) |
+| `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current` (forms the PI error in the KICK frame via `_kick_frame_rotation`, §2.13), `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need **every** coarse grid (the summed, generator- and beam-sourced antenna voltages plus the generator current) and **all five** values carried across the turn boundary (`_last_val_ant_voltage`, `_last_val_ant_voltage_gen`, `_last_val_ant_voltage_beam`, `_last_val_generator_current`, `_last_val_beam_current` — this row said "both coarse grids and the three values" until 2026-09-02, a pre-envelope-split count the module docstring had already outgrown), and because the scan depends on `pi_setpoint` staying *unevaluated* on a span with no controller attached (that property may reach through to the parent station). Since 2026-09-02 the controller runs on every tracked span, the no-beam backfill segments included (§2.3) |
 | `generator_current_controller.py` | `GeneratorCurrentController` ABC + `GeneratorCurrentPIController`; the envelope-scan capability hooks (`supports_envelope_scan`, `envelope_scan_kernel`, `envelope_scan_state`, `absorb_envelope_scan_state`); `current_limit_from_power`, `clamp_magnitude` |
 | `beam_current.py` | `low_pass_filter`, `rf_beam_current` (unified; keyword-only coarse args; no wrap-around; `check_fits_in_span` + `hist_step`/`sampling_time` + `_check_coarse_index_bounds` guards) |
 | `beam_feedback.py` | the surviving phase loop (`BeamFeedbackBase`), incl. `cavity_sum_phase`, whose `NotImplementedError` guard is the permanent contract — coupling is a deliberate non-goal (§3.3) |
@@ -1486,6 +1556,27 @@ above.
 
 ## 5. Verification status
 
+- **Post-change, 2026-09-02, AFTER the PI-on-every-cell change (§2.3),
+  working tree on top of `142b8e0c`**, `.venv_312`, numba, no GPU. Two
+  independent full runs agree: `tests/unittests/` **1621 passed / 86
+  skipped / 176 subtests / 4 failed** (223.9 s and 213.8 s). The four are
+  exactly the two moved multi-section pins and the two Robinson-premise
+  tests named in §2.3 -- nothing else moved. After the pins were
+  regenerated the residue was **2 failed** (the Robinson pair only),
+  confirmed on 7 further random-order seeds (2 through 8), each showing
+  those two and nothing else. With the Robinson class then re-scoped
+  (§2.3) `physics/feedbacks` is **573 passed / 8 skipped / 142 subtests /
+  0 failed**. The `-2` on the skip count
+  against the pre-change row below is two previously-skipped tests now
+  running and passing. `physics/feedbacks` alone: 570 passed / 4 failed /
+  8 skipped / 142 subtests. Kernel-vs-reference bit-identity
+  (`test_envelope_kernel.py`): 22 passed. Outer
+  `test_rcs_two_beam_example.py`: **19 passed before and after** (the
+  outer suite has grown since the "14 passed" in the table below; that
+  row is stale). Hooks on every edited Python file: ruff-format,
+  ruff-check, isort, numpydoc-validation all pass; `check copyright`
+  fails with the bare-`python` 9009 but `precommit_check_copyright.py`
+  run with the venv interpreter exits 0 on all of them.
 - **Re-measured 2026-09-02 at tip `ec159a87`**, `.venv_312` (Python
   3.12.8), numba backend, no GPU present. Every number below was run for
   this entry, not carried over:
@@ -1555,12 +1646,24 @@ above.
   `docs/tests/mucol_cavity_feedback_tests.rst` (+1786) wholesale and
   rewrote docstrings across `cavity_feedback.py`, `generator_regulation.py`,
   `observables.py` and `solvers.py`. None of that has been through `-W` +
-  nitpicky. The blocker is the environment, not the tree: `.venv_312` has
-  **no sphinx and no numpydoc** installed (§0), so `create_docs.sh` cannot
-  run in it at all — `graphviz`/`dot` *is* on PATH, so that prerequisite is
-  satisfied. **Do not treat the green above as covering the current tip.**
-  Someone must `pip install -e ".[doc]"` and run the build once before the
-  MR; on this much new RST it is the single most likely thing to fail.
+  nitpicky. **CORRECTED later on 2026-09-02:** `.venv_312` DOES have
+  sphinx and numpydoc -- `sphinx-build` and the `numpydoc-validation`
+  hook both ran from it for the §2.3 pass -- so the previous sentence's
+  "no sphinx and no numpydoc … cannot run in it at all" was a stale
+  absence claim (§0's own warning applies). What actually blocks a
+  `-W` pass on this box is ENVIRONMENT, twice over: `nbsphinx` needs
+  pandoc to convert the four tracked `blond/examples/notebooks/*.ipynb`
+  (`PandocMissing`, before any RST is reached), and in-process
+  intersphinx reports "failed to reach any of the inventories" so 30
+  `scipy.interpolate` cross-refs in `magnetic_cycle.py` stay
+  unresolved -- even though the inventory URL answers HTTP 200 to curl.
+  Proven not to be the RST edits: a scratch build with the notebooks
+  removed yields an IDENTICAL 35-warning set (30 scipy + 1 inventory + 4
+  notebook-toctree, 0 from the mucol RSTs) whether the two mucol RSTs
+  are at `142b8e0c` or carry the §2.3 edits. `graphviz`/`dot` is on
+  PATH. **Do not treat the 2026-09-01 green as covering the current
+  tip.** Run the build once on a machine with pandoc and working
+  intersphinx before the MR.
 
 ---
 

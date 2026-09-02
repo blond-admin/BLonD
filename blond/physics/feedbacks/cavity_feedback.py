@@ -1485,10 +1485,11 @@ class IQCavityFeedbackTimingClass(
         # The compiled scan runs the control law inside the loop, so it needs
         # the controller to supply a compiled form of itself. A controller
         # that does not (and any custom implementation of the interface) is
-        # driven cell-by-cell on the reference path instead. A span the
-        # controller sits out (a no-beam backfill segment) never consults it,
-        # so it can still take the compiled path.
-        controller_runs = self._controller_active and not no_beam
+        # driven cell-by-cell on the reference path instead. The controller
+        # runs on every tracked span, backfill segments included; only a
+        # feedback with no controller attached takes the compiled path
+        # unconditionally.
+        controller_runs = self._controller_active
         if self.use_numba_envelope_kernel and (
             not controller_runs or self._controller.supports_envelope_scan
         ):
@@ -1705,11 +1706,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 start_index - 1
             ]
 
-        controller_active = self._controller_active and not no_beam
+        controller_active = self._controller_active
         # The controller owns its compiled law and marshals its own tuning and
         # state; this class passes the result straight through without
-        # inspecting it. On a span the controller sits out, the neutral state
-        # keeps the generator current constant.
+        # inspecting it. It runs on every tracked span, the no-beam backfill
+        # segments included (see ``cavity_response``); only when no
+        # controller is attached does the neutral state keep the generator
+        # current constant.
         if controller_active:
             envelope_scan = self._controller.envelope_scan_kernel()
             controller_state = self._controller.envelope_scan_state()
@@ -1717,7 +1720,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         else:
             envelope_scan = envelope_pi_scan
             controller_state = inactive_controller_scan_state()
-            # No regulation on this span, so the error is never formed and the
+            # No controller attached, so the error is never formed and the
             # setpoint stays unevaluated (it may need the parent RF station).
             voltage_setpoint = 0.0 + 0.0j
 
@@ -2102,13 +2105,19 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # With the PI control active, regulate the generator current of this
         # coarse-grid index from the antenna-voltage error just computed; it
         # then drives the next step. Inactive by default (constant current).
-        # Only on the real forward pass (not the no_beam backfill
-        # reconstruction segments): the backfill cells carry a per-segment
-        # frame phase (corrected only on the last sample), so stepping the
-        # controller there would integrate frame-rotated errors and
-        # double-advance its delay line / integrator. Single-section rings
-        # have no backfill segments, so this is a no-op there.
-        if self._controller_active and not no_beam:
+        # Stepped on EVERY tracked cell, the no_beam backfill reconstruction
+        # segments included: a real LLRF regulates continuously, and a loop
+        # confined to the forward passage would be open-loop for
+        # (N - 1) / N of every turn on an N-section ring, merely holding the
+        # current the forward pass last commanded. The error on a backfill
+        # cell is formed with this passage's frame rotations
+        # (``_update_frame_rotations`` runs before the backfill replay);
+        # those are exactly unity without an RF-frequency offset and without
+        # multi-section acceleration. Under a ramp the backfill cells carry
+        # a small per-segment frame residual (see the registration phase
+        # ``Psi``) that this per-passage rotation does not resolve; that is
+        # a second-order correction, not a reason to leave the loop open.
+        if self._controller_active:
             self._update_generator_current(
                 omega_times_dt=omega_times_dt,
                 coarse_grid_index_to_update=coarse_grid_index_to_update,
@@ -2244,15 +2253,17 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         The generator grid is seeded with the feedforward bias, except over
         the leading ``n_backfill_cells`` no-beam backfill-reconstruction
         cells,
-        which are seeded with the last commanded generator current (a
-        zero-order hold). Those cells replay an interval that has already
-        elapsed and during which the loop issued no new command: the
-        generator kept running at whatever it was last told, it did not snap
-        back to the feedforward value. :meth:`cavity_response` already drives
-        the *first* backfill cell from ``_last_val_generator_current``; this
-        extends the same held value over the rest of the span. Without a
-        controller the held value *is* the bias, so the constant-current path
-        is bit-unchanged.
+        which are seeded with the last commanded generator current. That is
+        the initial condition of the span the controller then regulates
+        over: those cells replay an interval that began with the generator
+        running at whatever it was last told, not snapped back to the
+        feedforward value, and the loop steps on every one of them
+        (:meth:`cavity_response`), overwriting the seed cell by cell.
+        :meth:`cavity_response` drives the *first* backfill cell from
+        ``_last_val_generator_current``; this seeds the rest of the span
+        consistently. Without a controller nothing overwrites the seed and
+        the held value *is* the bias, so the constant-current path is
+        bit-unchanged.
 
         Parameters
         ----------

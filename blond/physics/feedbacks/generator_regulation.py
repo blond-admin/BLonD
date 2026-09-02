@@ -49,14 +49,17 @@ look there:
   boundary (``_last_val_ant_voltage``, ``_last_val_ant_voltage_gen``,
   ``_last_val_ant_voltage_beam``, ``_last_val_generator_current``,
   ``_last_val_beam_current``), and because it depends on ``pi_setpoint``
-  staying **unevaluated** on a span the controller sits out -- that property
-  may reach through to the parent rf station, which a no-beam backfill span
-  must not require. Moving it would relocate that coupling, not remove it.
+  staying **unevaluated** on a span with no controller attached -- that
+  property may reach through to the parent rf station. Moving it would
+  relocate that coupling, not remove it.
 - **The per-cell stepping decision** -- ``_circuit_track_cells`` choosing the
-  compiled or the reference path, and ``cavity_response`` gating
-  ``_update_generator_current`` on "forward cells only, never a no-beam
-  backfill segment". That gate is a statement about the segment structure of
-  the coarse grid, which is the timing class's business.
+  compiled or the reference path, and ``cavity_response`` stepping
+  ``_update_generator_current`` on every tracked cell, the ``no_beam``
+  backfill reconstruction segments included (a real LLRF regulates
+  continuously; a loop confined to the forward passage is open-loop for
+  ``(N - 1) / N`` of each turn). Which cells exist, and in which frame, is
+  a statement about the segment structure of the coarse grid, which is the
+  timing class's business.
 
 So: this module owns the control *law's* interface to the feedback (setpoint,
 error step, limits, power); the timing class owns *when and over which cells*

@@ -182,10 +182,9 @@ def _run_config(
             # stepped on forward cells only". That call structure is specific
             # to the pure-Python reference path; the numba envelope kernel
             # inlines the PI (never calling the controller method), so drive the
-            # reference path here. The kernel's equivalent forward-only stepping
-            # is pinned instead by the byte-identical coarse grids in
-            # test_envelope_kernel (a kernel stepping the PI on the backfill
-            # segments would diverge there).
+            # reference path here. The kernel steps the PI on the same cells
+            # (backfill segments included); that equivalence is pinned by the
+            # byte-identical coarse grids in test_envelope_kernel.
             feedback.use_numba_envelope_kernel = False
         station = SingleHarmonicRFStation(
             voltage=V_DESIGN,
@@ -262,6 +261,7 @@ def _run_config(
         "sigma_dt": [],
         "n_forward": [],
         "n_total": [],
+        "i_backfill_ptp": [],
     }
 
     def callback(_sim, b):
@@ -269,6 +269,26 @@ def _run_config(
             [int(f._rf_centers_lengths[-1]) for f in feedbacks]
         )
         rec["n_total"].append([int(len(f._rf_centers)) for f in feedbacks])
+        # Peak-to-peak generator-current magnitude over the BACKFILL span
+        # (everything before the forward segment). A controller that only
+        # steps on the forward segment leaves a zero-order hold here, so
+        # this is exactly 0.0; one that regulates the whole turn does not.
+        rec["i_backfill_ptp"].append(
+            [
+                float(
+                    np.ptp(
+                        np.abs(
+                            f.generator_current_coarse_grid[
+                                : -int(f._rf_centers_lengths[-1])
+                            ]
+                        )
+                    )
+                )
+                if len(f._rf_centers) > int(f._rf_centers_lengths[-1])
+                else 0.0
+                for f in feedbacks
+            ]
+        )
         # Only the forward segment of this turn (the last
         # rf_centers_lengths[-1] samples) -- the backfill part repeats the
         # previous turn's no-beam propagation.
@@ -333,46 +353,41 @@ def _run_config(
     return rec
 
 
-class TestPIBackfillSpanFrameConsistency(unittest.TestCase):
+class TestPIStepsOnEveryTrackedCell(unittest.TestCase):
     """
-    The PI loop must not act on the backfill reconstruction segments.
+    The PI loop must act on every tracked coarse cell, backfill included.
 
-    A multi-section feedback rebuilds the previous turn each turn as
-    ``no_beam`` backfill segments before the forward pass. The controller
-    must be stepped only on the forward (real, current-turn) segment: the
-    backfill cells carry a per-segment frame phase (corrected only on the
-    last sample), so a controller stepped there under a fast ramp
-    integrates frame-rotated errors and injects spurious quadrature
-    current.
+    A multi-section feedback rebuilds the interval since its previous
+    passage as ``no_beam`` backfill segments before the forward pass. A
+    real LLRF regulates continuously, so the controller has to be stepped
+    on those cells too -- otherwise it is open-loop for ``(N - 1) / N`` of
+    every turn, holding whatever current the forward pass last commanded,
+    and the "regulation" of a 16-section ring runs at a 6 % duty cycle.
 
-    Isolation: rather than measuring the (small) frame drift, these tests
-    pin the fix *structurally* by counting controller updates. A
-    frame-consistent loop must step the controller once per forward
-    (real-passage) coarse cell and never on a backfill reconstruction cell,
-    so ``controller-call count == sum(n_forward)`` while ``n_total`` is
-    strictly larger (the backfill cells exist but must be skipped). This is
-    independent of beam loading, so the tests run with a full-intensity
-    beam and assert the call count, not a voltage trajectory.
+    Pinned two ways. Structurally, the controller-call count must equal
+    the TOTAL number of coarse cells, not just the forward ones. Physically,
+    the generator current over the backfill span must not be a constant
+    hold: a stepped loop varies it there.
+
+    Both are asserted in the regime where the per-passage frame rotations
+    are exactly unity (multi-section, constant energy, no RF-frequency
+    offset -- ``Psi = gap = delta_phi_rf = 0``), so stepping the controller
+    on the backfill segments needs no per-segment frame treatment and the
+    expectation is unambiguous. Under a ramp the backfill cells carry a
+    small per-segment frame residual; that is a separate concern and not
+    what these tests pin.
     """
 
     ENERGY = 4.0e9
-    DELTA_E_TURN = 20.0e6
     N_TURNS = 3
 
-    def test_controller_stepped_only_on_forward_cells(self):
-        """
-        Two-section fast ramp: controller calls == forward cells, not total.
-
-        With the bug the controller is stepped on every coarse cell,
-        including the backfill reconstruction segments (n_total per station),
-        double-advancing its delay line / integrator on frame-rotated
-        errors; the fix restricts it to the forward segment (n_forward).
-        """
+    def test_controller_stepped_on_every_cell_two_sections(self):
+        """Two sections, constant energy: calls == total cells."""
         counter = {"count": 0}
         rec = _run_config(
             2,
             self.ENERGY,
-            self.DELTA_E_TURN,
+            0.0,
             self.N_TURNS,
             controller_call_counter=counter,
         )
@@ -382,33 +397,64 @@ class TestPIBackfillSpanFrameConsistency(unittest.TestCase):
         self.assertGreater(n_total, 1.5 * n_forward)
         self.assertEqual(
             counter["count"],
-            n_forward,
+            n_total,
             f"controller stepped {counter['count']} times, expected "
-            f"{n_forward} (forward cells); {n_total} total cells exist -- "
-            "it is being stepped on the backfill reconstruction segments",
+            f"{n_total} (every tracked cell); only {n_forward} forward "
+            "cells were stepped -- the loop is open-loop on the backfill "
+            "span",
         )
 
-    def test_single_section_controller_skips_turn0_backfill(self):
-        """
-        Control: single section is stepped only on forward cells too.
+    def test_controller_stepped_on_every_cell_four_sections(self):
+        """Four sections: the backfill span is 3/4 of the turn."""
+        counter = {"count": 0}
+        rec = _run_config(
+            4,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            controller_call_counter=counter,
+        )
+        self.assertEqual(counter["count"], int(np.sum(rec["n_total"])))
 
-        Single-section rings still reconstruct the very first turn by
-        backfill (n_total > n_forward on turn 0), so the gate must skip
-        that backfill span here as well -- the controller count equals the
-        forward cells, not the total.
+    def test_single_section_turn0_backfill_is_stepped_too(self):
+        """
+        Single section: the turn-0 backfill cells are stepped as well.
+
+        A single-section ring reconstructs its very first turn by backfill
+        (``n_total > n_forward`` on turn 0); those cells are tracked, so the
+        controller must step on them like on any other.
         """
         counter = {"count": 0}
         rec = _run_config(
             1,
             self.ENERGY,
-            self.DELTA_E_TURN,
+            0.0,
             self.N_TURNS,
             controller_call_counter=counter,
         )
         self.assertGreater(
             int(np.sum(rec["n_total"])), int(np.sum(rec["n_forward"]))
-        )  # turn-0 backfill exists
-        self.assertEqual(counter["count"], int(np.sum(rec["n_forward"])))
+        )
+        self.assertEqual(counter["count"], int(np.sum(rec["n_total"])))
+
+    def test_generator_current_is_regulated_on_the_backfill_span(self):
+        """
+        The backfill-span generator current is not a zero-order hold.
+
+        With the beam loading of the forward passage still decaying into
+        the backfill span, a loop that steps there must move the current;
+        a forward-only loop leaves it constant, so the peak-to-peak
+        magnitude over that span is exactly ``0.0``.
+        """
+        rec = _run_config(2, self.ENERGY, 0.0, self.N_TURNS)
+        # Turn 0's backfill is the pre-fill; look at the settled turns.
+        ptp = np.array(rec["i_backfill_ptp"][1:])
+        self.assertGreater(
+            float(ptp.max()),
+            0.0,
+            "generator current is constant over the backfill span: the "
+            "controller is not being stepped there",
+        )
 
 
 class TestDrivenSteadyStateFastRamp(unittest.TestCase):
@@ -827,24 +873,30 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
     # pin tolerance, a real (declared) modelling shift, not FP noise.
     # Both stations still hold the setpoint and respond to the loading,
     # which the behavioural tests above assert independently.
+    # Regenerated 2026-09-02 for the PI-on-every-tracked-cell change: the
+    # loop now regulates over the backfill span rather than holding the
+    # forward pass's last command. On this slow ramp the move is only
+    # ~1.8e-6 relative (the ramped per-segment frame residual, just over
+    # the 1e-6 pin tolerance); the fast-ramp class shows the ~0.75 % move
+    # where the effect is large.
     PIN_V_MIN = np.array(
         [
-            [29720241.870437603, 29718291.578992896],
-            [29714444.558270626, 29708843.53792085],
-            [29701466.33210081, 29692091.054452974],
-            [29681368.34197527, 29669577.804998245],
-            [29657420.28679109, 29645289.890251752],
-            [29633652.159150466, 29622668.427521624],
+            [np.float64(29720241.870437264), np.float64(29718291.578992553)],
+            [np.float64(29714432.968325287), np.float64(29708831.94975577)],
+            [np.float64(29701443.86749246), np.float64(29692068.595739834)],
+            [np.float64(29681335.679706696), np.float64(29669545.155961253)],
+            [np.float64(29657378.069266602), np.float64(29645247.696551915)],
+            [np.float64(29633600.67819132), np.float64(29622616.3138695)],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.62027262356375, 56.620266121986276],
-            [56.623039259161175, 56.623083234533965],
-            [56.62742376709935, 56.62913667190933],
-            [56.63700927637203, 56.64423175134397],
-            [56.65642904646521, 56.6677698159723],
-            [56.69138791226268, 56.716714106921884],
+            [np.float64(56.62027262356418), np.float64(56.620266121986724)],
+            [np.float64(56.6230435719096), np.float64(56.62308915284882)],
+            [np.float64(56.62744046302634), np.float64(56.62915730543273)],
+            [np.float64(56.637048890465124), np.float64(56.64427703501682)],
+            [np.float64(56.65650073351732), np.float64(56.667838946520426)],
+            [np.float64(56.69148964792092), np.float64(56.71682344183016)],
         ]
     )
 
@@ -930,24 +982,31 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
     # increment is now referred to the PREVIOUS passage's design carrier;
     # see ``_accumulate_registration_phase``). See
     # ``test_pinned_trajectories`` for the size of that move.
+    # Regenerated once more (2026-09-02) for the PI-on-every-tracked-cell
+    # change: the loop now regulates over the backfill span instead of
+    # holding the forward pass's last command there, which on this fast
+    # ramp moved |V_ant| by ~0.75 % relative -- the physics of the change,
+    # not FP noise. ``TestPIStepsOnEveryTrackedCell`` pins the stepping
+    # itself; the four behavioural gates in this class are independent of
+    # these numbers.
     PIN_V_MIN = np.array(
         [
-            [29587394.540866826, 29543774.540832337],
-            [29678129.205798406, 29555053.199261077],
-            [29627477.73357503, 29499079.47193191],
-            [29584617.57014105, 29559592.346322853],
-            [29740572.811188616, 29830678.500964876],
-            [29968731.54672198, 29939952.509557907],
+            [np.float64(29587394.54086674), np.float64(29543774.54083225)],
+            [np.float64(29455326.30469015), np.float64(29334092.16259108)],
+            [np.float64(29204187.3650104), np.float64(29095690.530369125)],
+            [np.float64(29029232.37739778), np.float64(29013656.892460316)],
+            [np.float64(29049025.021193914), np.float64(29131632.507776596)],
+            [np.float64(29248980.124497097), np.float64(29377790.0335639)],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.68218992946697, 56.759034376146204],
-            [55.92315280173732, 55.577947695569684],
-            [53.11742774683469, 52.84886586314592],
-            [50.16944593673603, 51.23515554182409],
-            [50.235855986531725, 53.1933393487553],
-            [54.35525103113203, 58.0982032950765],
+            [np.float64(56.68218992946742), np.float64(56.75903437614676)],
+            [np.float64(56.846868375222485), np.float64(56.86408933270704)],
+            [np.float64(56.77960550428707), np.float64(56.61058762865109)],
+            [np.float64(56.40347496781524), np.float64(56.215683707866596)],
+            [np.float64(56.08941904309094), np.float64(56.06284787377117)],
+            [np.float64(56.13755675342588), np.float64(56.264303532400255)],
         ]
     )
 

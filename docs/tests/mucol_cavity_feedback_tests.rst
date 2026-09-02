@@ -801,23 +801,35 @@ antenna-voltage state onto the demodulation/readout carrier; see
 ``test_pinned_trajectories``
     Characterization pin of the exact recorded trajectories.
 
-``TestPIBackfillSpanFrameConsistency``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``TestPIStepsOnEveryTrackedCell``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The PI loop must act only on the forward (real-beam) coarse cells, never on the
-``no_beam`` backfill reconstruction segments that rebuild the previous turn.
-Stepping the controller on the backfill cells would double-advance its delay
-line and integrator on frame-rotated errors; the fix gates the controller
-update on ``not no_beam``. The tests instrument the controller call count
-against the recorded per-turn forward and total cell counts.
+The PI loop must act on **every** tracked coarse cell, the ``no_beam``
+backfill reconstruction segments included. A real LLRF regulates
+continuously; a loop confined to the forward passage is open-loop for
+``(N - 1) / N`` of every turn on an ``N``-section ring and merely holds the
+current the forward pass last commanded (a 6 % duty cycle on 16-section
+RCS1, which is what pinned the generator at the klystron limit for 100 % of
+the recorded cells). The tests instrument the controller call count against
+the recorded per-turn forward and total cell counts, and read the
+generator current over the backfill span. All run in the regime where the
+per-passage frame rotations are exactly unity (multi-section, constant
+energy, no RF-frequency offset), so stepping on the backfill cells needs no
+per-segment frame treatment; the ramped-case frame residual is a separate
+concern. Replaces the inverted ``TestPIBackfillSpanFrameConsistency``.
 
-``test_controller_stepped_only_on_forward_cells``
-    Two-section fast ramp: the controller is stepped on exactly the forward
-    cells and never on the (larger) backfill reconstruction segments.
-``test_single_section_controller_skips_turn0_backfill``
-    Control: a single-section ring still reconstructs its very first turn by
-    backfill (``n_total > n_forward`` on turn 0), and the gate skips those
-    backfill cells too.
+``test_controller_stepped_on_every_cell_two_sections``
+    Two sections, constant energy: controller calls equal the *total* cell
+    count, not the forward count.
+``test_controller_stepped_on_every_cell_four_sections``
+    Four sections: the backfill span is 3/4 of the turn and is stepped.
+``test_single_section_turn0_backfill_is_stepped_too``
+    A single-section ring reconstructs its first turn by backfill
+    (``n_total > n_forward`` on turn 0); those cells are stepped as well.
+``test_generator_current_is_regulated_on_the_backfill_span``
+    Physical pin: the peak-to-peak generator-current magnitude over the
+    backfill span is non-zero on the settled turns -- a forward-only loop
+    leaves a zero-order hold there, exactly ``0.0``.
 
 ``TestPIFullTrackingMultiSectionFastRamp``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1944,18 +1956,36 @@ meet are pinned.
 
 Closed-loop (Robinson-style) certification that the *driven* feedback is stable
 over many synchrotron periods, not merely that two induced-voltage models
-agree.
+agree. What it pins is that the cavity detuning **sign** still reaches the
+coherent dipole: the nominal (stabilising) sign damps hard while the flipped
+sign is left only marginally stable.
+
+The loop is deliberately backed off (``LOOP_AUTHORITY = 5e-3``,
+``N_DELAY = 25``) because at the PI tracking tests' tuning this test cannot
+exist -- since the controller began stepping on every tracked coarse cell it
+regulates so completely that both detuning signs damp identically and the
+differential collapses from ``5.8e-3`` to ``7e-8`` per turn. Both knobs are
+load-bearing: reverting either one fails the assertion. That delay is
+``19.3 ns``, NOT a realistic LLRF latency; a realistic one is unreachable
+until the controller gains a klystron current limit and a longer integral
+time (see the module docstring).
 
 ``test_setup_spans_many_synchrotron_periods``
     Guards that the run is long enough for a dipole oscillation to develop.
 ``test_bunch_stays_captured_and_loop_is_driven``
     The bunch stays captured and the PI loop actually acts on the voltage.
 ``test_initial_dipole_is_excited`` / ``test_nominal_dipole_stays_bounded``
-    An initial dipole is excited and, under nominal gains, stays bounded.
-``test_perturbed_dipole_grows`` / ``test_perturbed_grows_measurably_more_than_nominal``
-    A destabilising perturbation makes the dipole grow measurably more than
-    the nominal case -- the certification is sensitive to loop stability, not
-    vacuous.
+    An initial dipole is excited and, under the stabilising detuning sign, it
+    damps below ``-3e-3`` per turn and net-decays.
+``test_detuning_sign_changes_the_damping_rate``
+    Flipping the detuning sign costs at least ``3e-3`` per turn of damping --
+    the certification is sensitive to loop stability, not vacuous. Replaces
+    ``test_perturbed_dipole_grows`` and
+    ``test_perturbed_grows_measurably_more_than_nominal``, which asserted that
+    the perturbed dipole GROWS; that was retired on 2026-09-02 because the
+    perturbed envelope beats with a ~``200``-turn period and net-decays over
+    ``400`` turns, so its fitted sign was an artefact of where the horizon
+    stopped.
 
 
 ``test_generator_power_conservation.py``

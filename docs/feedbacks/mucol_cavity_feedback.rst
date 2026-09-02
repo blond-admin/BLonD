@@ -595,16 +595,22 @@ offset and without multi-section acceleration, and the pure-Python path
 and the numba kernel form them identically. The controller then produces
 ``I_gen[n]``, which drives the next step; without one, the generator
 current stays at the constant feedforward value
-``generator_current_bias``. The controller is stepped only on the real
-forward passage, never on the backfill reconstruction segments (those
-carry a per-segment frame phase, so stepping there would integrate
-frame-rotated errors and double-advance the delay line and integrator).
-Over that backfill span ``reset_arrays`` therefore seeds the generator grid
-with the *last commanded* current instead of the feedforward bias (a
-zero-order hold): those cells replay an interval that has already elapsed
-and during which the loop issued no new command, so the generator kept
-running at whatever it was last told rather than snapping back to the
-bias. Resetting them to the bias was a real defect, not a cosmetic one:
+``generator_current_bias``. The controller is stepped on **every** tracked
+cell, the backfill reconstruction segments included: a real LLRF regulates
+continuously, and a loop confined to the forward passage would be
+open-loop for ``(N - 1) / N`` of every turn on an ``N``-section ring,
+merely holding the current the forward pass last commanded (a 6 % duty
+cycle on 16-section RCS1). The error on a backfill cell is formed with the
+passage's frame rotations, which are set before the backfill replay and
+are exactly unity in the unrotated regime above; under a ramp the backfill
+cells carry a small per-segment frame residual (the registration phase
+``Psi``) that the per-passage rotation does not resolve -- a second-order
+correction, not a reason to leave the loop open. ``reset_arrays`` seeds the
+backfill span of the generator grid with the *last commanded* current
+rather than the feedforward bias: that is the loop's initial condition for
+the span it then regulates over, since those cells replay an interval that
+began with the generator running at whatever it was last told. Resetting
+them to the bias was a real defect, not a cosmetic one:
 with a detuned cavity the PI holds a reactive standing current, which the
 old reset discarded once per turn (setpoint errors of 3.1e-2 and 4.6e-2
 relative at 2 and 4 sections -- a one-off measurement taken when the

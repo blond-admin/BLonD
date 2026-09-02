@@ -21,11 +21,14 @@ envelope.  Two configurations are compared, differing *only* in the sign of
 the cavity resonance detuning ``delta_omega``:
 
 * **nominal** (``delta_omega = -DELTA_OMEGA``): the empirically stabilizing
-  sign at this above-transition operating point -- the dipole envelope stays
-  bounded (net decay, growth rate ``< 0``);
-* **perturbed** (``delta_omega = +DELTA_OMEGA``): the flipped, destabilizing
-  sign -- the dipole envelope grows (growth rate ``> 0``), measurably faster
-  than the nominal.
+  sign at this above-transition operating point -- the dipole envelope decays
+  hard, ~``-5e-3`` per turn, with a clean exponential shape (log-envelope fit
+  ``r^2 = 0.96..0.98``);
+* **perturbed** (``delta_omega = +DELTA_OMEGA``): the flipped sign -- most of
+  that damping is gone, leaving the envelope only MARGINALLY stable.
+
+The asserted quantity is the **gap between the two damping rates**, not growth
+in the perturbed case. See *What this test establishes* for why.
 
 **Machine point.**  ``E0 = 4 GeV`` constant (just above transition,
 ``gamma_t = 1/sqrt(alpha_p) ~ 31``), so the RF frame does *not* slip and the
@@ -38,19 +41,43 @@ dipole signal to rise above the filamentation floor.
 
 **What this test establishes, and what it does not.**
 
-* It is a *differential* regression test: it pins that the nominal (stabilizing
-  detuning) closed loop keeps the coherent dipole bounded while the perturbed
-  (destabilizing detuning) closed loop lets it grow, with a robust growth-rate
-  gap (~``2.5e-3`` per turn, stable across RNG seed and fit window).  It does
-  **not** cross-check an analytic Robinson growth rate.
-* The instability here is finite-amplitude / detuning driven and entangled
-  with filamentation: a *near-linear* bunch shows no measurable growth for any
-  detuning (the ultra-fast loop cancels linear Robinson entirely), so a
-  realistic (filamenting) bunch is required to expose the differential.
-* The loop runs at ~``harmonic`` coarse samples per turn, orders of magnitude
-  faster than the synchrotron motion, so the loop gain and loop delay are
-  dynamically *inert* on the dipole (verified in exploration): the operative
-  destabilization knob is the detuning sign, not gain/delay.
+* It is a *differential* regression test: it pins that the cavity detuning
+  SIGN still reaches the coherent dipole, by requiring the nominal sign to
+  damp hard (``< -3e-3`` per turn) and the perturbed sign to damp at least
+  ``3e-3`` per turn less. It does **not** cross-check an analytic Robinson
+  growth rate.
+* **It deliberately does NOT assert that the perturbed dipole grows.** That
+  assertion was removed on 2026-09-02 as unsound: the perturbed envelope is
+  not exponential but BEATS with a ~``200``-turn period and net-decays over
+  ``400`` turns (log-fit ``r^2 = 0.15..0.17``, rising ~``3 %`` across the fit
+  window where a true ``+1e-3``/turn exponential would rise ``27 %``). Its
+  fitted slope is therefore set by where the horizon lands -- negative at
+  ``200`` and ``400`` turns, positive only for horizons in roughly
+  ``[285, 365]`` -- and about a fifth of RNG seeds fail a ``> 5e-4`` gate
+  outright. Asserting it would pin the phase of a beat to an arbitrary turn
+  count. The damping differential, by contrast, holds over ``4`` seeds x
+  ``3`` fit windows x ``2`` horizons at ``+4.05e-3 .. +6.81e-3``, ~``15x``
+  the seed scatter, bunch fully captured throughout.
+* **The loop is deliberately backed off** (``LOOP_AUTHORITY``, ``N_DELAY``);
+  at the PI tracking tests' tuning this test cannot exist. Since the
+  controller began stepping on every tracked coarse cell, that fast loop
+  regulates so completely that both detuning signs damp identically at
+  ``-1.8e-4`` per turn and the gap collapses to ``7e-8``. Both knobs are
+  load-bearing: reverting either -- full gain at this delay, or this gain at
+  ``N_DELAY = 2`` -- drops the gap to ``-6e-16`` and ``+2.5e-5`` and fails
+  the assertion. The earlier claim in this docstring that "loop gain and loop
+  delay are dynamically inert on the dipole" is therefore RETIRED; they are
+  the only knobs that work. Measured inert instead: the integral time (across
+  five orders of magnitude, and as a pure-P loop) and the detuning magnitude
+  (across three orders, gap staying below ``6e-7``).
+* **This is not a realistic LLRF latency.** ``N_DELAY = 25`` is ``19.3 ns``,
+  ~``50x`` short of the ~``1 us`` of a real system. A realistic latency is
+  currently unreachable here: the loop diverges numerically above
+  ``N_DELAY ~ 11`` at full gain (and at ``1300`` even with the gain cut
+  ``1e-3``), because the integral time is only ~``30`` samples and the
+  controller has no klystron current limit (``max_output=None``) to bound the
+  runaway. Modelling a real LLRF here needs a longer integral time AND a
+  current limit first.
 * The differential is measured over turns ``[FIT_START, N_TURNS]`` (skipping
   the initial filamentation transient).  Beyond ~``350`` turns a slow secular
   drift common to *both* configurations (the documented bounded-secular-drift
@@ -102,10 +129,33 @@ N_TURNS = 300
 SIGMA_DT_FRAC = 0.03  # matched bunch length as a fraction of t_rf
 DIPOLE_KICK_FRAC = 0.05  # initial coherent-dipole offset as a fraction of t_rf
 
-# --- feedback / controller (loop tuning as in the PI tracking tests) -------
+# --- feedback / controller ------------------------------------------------
+# REDUCED-AUTHORITY loop, unlike the PI tracking tests. Since the controller
+# began stepping on every tracked coarse cell (it used to act only on the
+# forward passage, ~1/n_sections of the turn), the fast loop of those tests
+# regulates the cavity so completely that the cavity detuning sign stops
+# reaching the coherent dipole at all: both signs damp at -1.8e-4 per turn
+# and the differential collapses to 7e-8. The module docstring had already
+# conceded that "the ultra-fast loop cancels linear Robinson entirely"; the
+# duty-cycle change finished the job.
+#
+# LOOP_AUTHORITY and N_DELAY below back the loop off until the detuning sign
+# is operative again, and they are the ONLY knobs that do. Measured, at the
+# unchanged gain: the loop delay is inert up to N_DELAY=11 and numerically
+# divergent from 12; the integral time is inert across five orders of
+# magnitude and even as a pure-P loop; the detuning magnitude is inert across
+# three orders (gap stays < 6e-7, i.e. noise); reducing the gain alone either
+# leaves the gap at 7e-8, inverts its sign (x1e-3), or loses the bunch
+# (x1e-4 and below, in_window 0.53 and 0.20). Only delay AND gain together,
+# in a narrow window at N_DELAY 20-28 with the gain reduced 3e-3..1e-2, give
+# a captured bunch with a sign-correct differential.
 I_GEN_BIAS = V_DESIGN / (2.0 * R_OVER_Q * Q_L)
-GAIN_P = 0.1 / (R_OVER_Q * 2.0 * np.pi)
-N_DELAY = 2
+#: Fraction of the PI-tracking-test proportional gain used here.
+LOOP_AUTHORITY = 5.0e-3
+GAIN_P = LOOP_AUTHORITY * 0.1 / (R_OVER_Q * 2.0 * np.pi)
+#: Loop delay in coarse samples (1 sample = t_rf = 0.77 ns, so 19.3 ns).
+#: NOT a realistic LLRF latency -- see the class docstring's closing note.
+N_DELAY = 25
 
 # --- Robinson knob: the cavity resonance detuning sign ---------------------
 # Nominal uses -DELTA_OMEGA (empirically stabilizing here); perturbed flips it
@@ -118,11 +168,15 @@ DELTA_OMEGA = 200_000.0
 # FIT_START_PERIODS synchrotron periods of filamentation transient.
 FIT_START_PERIODS = 6
 
-# --- assertion thresholds (measured: nominal ~-0.85e-3, perturbed ~+1.68e-3,
-#     gap ~+2.55e-3 per turn; seed- and window-robust) --------------------
-NOMINAL_BOUND = 5.0e-4  # nominal growth must stay below this (bounded)
-PERTURBED_GROWS = 5.0e-4  # perturbed growth must exceed this (grows)
-DIFFERENTIAL_MARGIN = 1.5e-3  # perturbed - nominal must exceed this
+# --- assertion thresholds --------------------------------------------------
+# Measured over the full 4 seeds x 3 fit-windows x 2 horizons grid (36
+# variations, every one with the bunch fully captured):
+#   nominal   -6.16e-3 .. -4.34e-3   (always damped)
+#   gap       +4.05e-3 .. +6.81e-3   (always positive, ~15x the seed scatter)
+#   perturbed -2.00e-3 .. +2.26e-3   (SIGN FLIPS -- deliberately not asserted)
+# The thresholds sit ~1.3x inside the worst case of the two robust legs.
+NOMINAL_DAMPED = -3.0e-3  # nominal growth must be below this (net damped)
+DIFFERENTIAL_MARGIN = 3.0e-3  # perturbed - nominal must exceed this
 
 
 def _sliding_dipole_amplitude(centroid: np.ndarray, period: int) -> np.ndarray:
@@ -406,10 +460,10 @@ class TestClosedLoopRobinsonStability(unittest.TestCase):
         """
         self.assertLess(
             self.growth_nominal,
-            NOMINAL_BOUND,
+            NOMINAL_DAMPED,
             f"nominal dipole growth {self.growth_nominal:+.3e}/turn exceeds "
-            f"the bounded threshold {NOMINAL_BOUND:+.1e} -- the supposedly "
-            "stable closed loop is growing",
+            f"the damped threshold {NOMINAL_DAMPED:+.1e} -- the stabilising "
+            "detuning sign is no longer damping the coherent dipole",
         )
         amp = _sliding_dipole_amplitude(
             self.nominal["centroid"], self.nominal["period"]
@@ -425,34 +479,44 @@ class TestClosedLoopRobinsonStability(unittest.TestCase):
         )
 
     # ------------------------------------------------------------------ #
-    # Assert #2: the perturbed (destabilizing) loop grows measurably more #
+    # Assert #2: the detuning SIGN still sets the damping rate            #
     # ------------------------------------------------------------------ #
-    def test_perturbed_dipole_grows(self):
-        """Flipped (destabilizing) detuning: the coherent dipole grows."""
-        self.assertGreater(
-            self.growth_perturbed,
-            PERTURBED_GROWS,
-            f"perturbed dipole growth {self.growth_perturbed:+.3e}/turn does "
-            "not exceed the growth threshold -- the test cannot see growth",
-        )
-
-    def test_perturbed_grows_measurably_more_than_nominal(self):
+    def test_detuning_sign_changes_the_damping_rate(self):
         """
-        The differential: perturbed grows faster than nominal, with margin.
+        The differential: flipping the detuning costs most of the damping.
 
-        This is the core, seed- and window-robust content: flipping the cavity
-        detuning sign turns a bounded coherent dipole into a growing one, so
-        the coupled bunch/beam-loading/regulation system's stability genuinely
-        depends on the detuning -- and the metric can resolve the difference.
+        This is the seed- and window-robust content, and the reason the
+        class exists: the coupled bunch / beam-loading / regulation system's
+        stability genuinely depends on the cavity detuning sign, and the
+        metric can resolve the difference. Measured over 4 seeds x 3 fit
+        windows x 2 horizons the gap spans +4.05e-3 .. +6.81e-3 per turn,
+        about 15x the seed scatter, with the bunch fully captured in every
+        one.
+
+        Note what is asserted and what is not. The nominal (stabilising)
+        sign damps hard, ~-5e-3 per turn, with a clean exponential envelope
+        (log-fit r^2 = 0.96..0.98). The perturbed sign is left only
+        MARGINALLY stable: its envelope beats with a ~200-turn period and
+        net-decays over 400 turns (r^2 = 0.15..0.17), so its fitted slope
+        flips sign with the horizon -- negative at 200 and 400 turns,
+        positive only for horizons in roughly [285, 365]. Asserting
+        "perturbed grows > 0" would therefore pin the phase of a beat
+        against an arbitrary turn count, and about a fifth of seeds fail it
+        outright. That assertion was REMOVED for this reason; the damping
+        differential is asserted instead, because it is the part that
+        survives every probe.
         """
         differential = self.growth_perturbed - self.growth_nominal
         self.assertGreater(
             differential,
             DIFFERENTIAL_MARGIN,
-            f"perturbed grows only {differential:+.3e}/turn more than nominal "
-            f"(nominal {self.growth_nominal:+.3e}, perturbed "
+            f"perturbed is damped only {differential:+.3e}/turn less than "
+            f"nominal (nominal {self.growth_nominal:+.3e}, perturbed "
             f"{self.growth_perturbed:+.3e}); expected a gap > "
-            f"{DIFFERENTIAL_MARGIN:.1e}",
+            f"{DIFFERENTIAL_MARGIN:.1e}. The cavity detuning sign has "
+            "stopped reaching the coherent dipole -- which is what a fully "
+            "authoritative loop does (at the PI tracking tests' gain and "
+            "delay this gap is 7e-8).",
         )
 
 
