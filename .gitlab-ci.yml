@@ -245,7 +245,7 @@ workflow:
 
 precommit-check:
 
-  image: python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  image: gitlab-registry.cern.ch/blond/blond/python314 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
   variables:
