@@ -270,6 +270,10 @@ fabric.properties
 
 # uv pip
 uv.lock
+# GitLab CI caches (see .gitlab-ci.yml)
+.uv_cache/
+.numba_cache/
+.cache/pre-commit/
 
 ### Java ###
 

@@ -3,6 +3,19 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+  # --- uv (package installer, replaces pip; see `.cache_uv`) ---
+  # uv keeps a content-addressed store of every downloaded/built wheel and
+  # of the index metadata. Point it into the project dir so GitLab can cache
+  # it between pipelines: a warm cache turns the ~6 minute fresh
+  # `pip install .[all_cuda12]` into a few seconds of hard-linking. There is
+  # deliberately NO lockfile (uv.lock is git-ignored): every pipeline creates
+  # a fresh venv and re-resolves against the index, so we always test the
+  # newest releases and notice breakage early. Only the wheel *files* are
+  # reused from the cache, not a pinned set of versions.
+  UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv_cache"
+  # Always use the interpreter shipped in the CI image, never let uv download
+  # a managed Python of its own.
+  UV_PYTHON_DOWNLOADS: "never"
   # --- numba JIT cache (persisted across pipelines, see `.cache_numba`) ---
   # Centralise numba's on-disk cache (.nbi/.nbc) into one dir so GitLab can
   # cache it between runs; the kernels already use `cache=True`, but the
@@ -34,21 +47,103 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
 
-.cache_numba:
-  # Persist numba's JIT cache between pipelines. The key is per-job, which
-  # also separates Python versions (different image -> different numba/python
-  # -> entries would not validate anyway). Safe to share across GPU and
-  # non-GPU runners: it holds only CPU kernel code and self-validates on load.
+# ---------------------------------------------------------------------------
+# Installing uv
+# ---------------------------------------------------------------------------
+# The CI images run as `non_root`, so `pip install uv` lands in
+# ~/.local/bin, which is not on PATH -- hence the export. uv is installed
+# with the *system* pip before any venv exists; the venv itself is then
+# created by uv and contains no pip at all (use `uv pip ...` inside it).
+# `.uv_setup` is a YAML anchor (not an `extends` template) so the same
+# lines can be spliced into several before_scripts / after_scripts.
+.uv_setup: &uv_setup
+  - python3 -m pip install --user --quiet uv
+  - export PATH="${HOME}/.local/bin:${PATH}"
+  - uv --version
+
+# ---------------------------------------------------------------------------
+# Caches
+# ---------------------------------------------------------------------------
+# NOTE: GitLab `extends` merges hashes but OVERWRITES arrays, so two
+# templates that each define `cache:` (or `after_script:`) do not add up --
+# the last one listed in `extends` wins. Every cache a job needs therefore
+# has to be listed in ONE template. `.cache_uv` is for the pure-install
+# jobs (docs, pre-commit); `.cache_test` bundles uv + numba + compiled
+# backends for the test jobs.
+
+.cache_uv:
+  # Persist uv's download/build cache between pipelines. The key is per-job:
+  # the cache is content-addressed, so sharing it would be *safe*, but
+  # concurrent jobs uploading the same key overwrite each other and the
+  # wheels differ per Python version anyway.
   cache:
+    - key: "uv-${CI_JOB_NAME}"
+      paths:
+        - .uv_cache/
+  after_script:
+    # after_script runs in a fresh shell: PATH and the venv are gone, so
+    # re-add uv. `uv cache prune` drops entries no longer reachable by the
+    # current cache layout. Because every pipeline installs the newest
+    # releases, superseded wheels still accumulate slowly; wipe the cache
+    # once it outgrows BLOND_UV_CACHE_MAX_MB (default 3000) so the GitLab
+    # cache archive stays bounded. after_script runs just before the cache
+    # upload.
+    - export PATH="${HOME}/.local/bin:${PATH}"
+    - uv cache prune || true
+    - >
+      size_mb=$(du -sm "${UV_CACHE_DIR}" 2>/dev/null | cut -f1 || echo 0);
+      max_mb="${BLOND_UV_CACHE_MAX_MB:-3000}";
+      echo "uv cache size: ${size_mb} MB (max ${max_mb} MB)";
+      if [ "${size_mb}" -gt "${max_mb}" ]; then
+        echo "uv cache exceeds ${max_mb} MB, wiping it";
+        uv cache clean;
+      fi
+
+.cache_test:
+  cache:
+    # uv download/build cache, see `.cache_uv`.
+    - key: "uv-${CI_JOB_NAME}"
+      paths:
+        - .uv_cache/
+    # Persist numba's JIT cache between pipelines. The key is per-job, which
+    # also separates Python versions (different image -> different
+    # numba/python -> entries would not validate anyway). Safe to share
+    # across GPU and non-GPU runners: it holds only CPU kernel code and
+    # self-validates on load.
     - key: "numba-${CI_JOB_NAME}"
       paths:
         - .numba_cache/
+    # Persist the compiled C++/CUDA backends between pipelines. Each
+    # compiled/<hash>/ directory is keyed (see compiled_dir_handler) on the
+    # toolchain version, host CPU instruction set and build flags, so a
+    # binary is only ever reused in an identical environment. The compile
+    # steps run with --limit-cachesize, which prunes least-recently-used
+    # siblings to cap how many accumulate. The cache key is per-job, which
+    # keeps Python-version images separate; a job that runs on runners with
+    # different CPUs simply accumulates one directory per CPU (bounded by
+    # BLOND_COMPILED_CACHE_KEEP_N).
+    - key: "compiled-${CI_JOB_NAME}"
+      paths:
+        - blond/core/backends/cpp/compiled/
+        - blond/core/backends/cuda/compiled/
   after_script:
-    # Bound the cache size before GitLab uploads it (after_script runs just
-    # before cache upload). Bare python3 + pure stdlib: no venv needed, and no
-    # `import blond` -- which would recompile kernels into the very cache we
-    # are pruning. Size budget: BLOND_NUMBA_CACHE_MAX_MB (default 500).
+    # Bound the numba cache size before GitLab uploads it. Bare python3 +
+    # pure stdlib: no venv needed, and no `import blond` -- which would
+    # recompile kernels into the very cache we are pruning. Size budget:
+    # BLOND_NUMBA_CACHE_MAX_MB (default 500).
     - python3 dev_tools/prune_numba_cache.py
+    # Same bookkeeping for the uv cache as in `.cache_uv` (kept in sync by
+    # hand -- see the NOTE above on why it cannot be inherited).
+    - export PATH="${HOME}/.local/bin:${PATH}"
+    - uv cache prune || true
+    - >
+      size_mb=$(du -sm "${UV_CACHE_DIR}" 2>/dev/null | cut -f1 || echo 0);
+      max_mb="${BLOND_UV_CACHE_MAX_MB:-3000}";
+      echo "uv cache size: ${size_mb} MB (max ${max_mb} MB)";
+      if [ "${size_mb}" -gt "${max_mb}" ]; then
+        echo "uv cache exceeds ${max_mb} MB, wiping it";
+        uv cache clean;
+      fi
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -56,37 +151,20 @@ workflow:
     - if: $CI_COMMIT_TAG
       when: on_success
 
-.cache_compiled:
-  # Persist the compiled C++/CUDA backends between pipelines. Each
-  # compiled/<hash>/ directory is keyed (see compiled_dir_handler) on the
-  # toolchain version, host CPU instruction set and build flags, so a binary
-  # is only ever reused in an identical environment. The compile steps run with
-  # --limit-cachesize, which prunes least-recently-used siblings to cap how
-  # many accumulate. The cache key is per-job, which keeps Python-version
-  # images separate; a job that runs on runners with different CPUs simply
-  # accumulates one directory per CPU (bounded by BLOND_COMPILED_CACHE_KEEP_N).
-  cache:
-    - key: "compiled-${CI_JOB_NAME}"
-      paths:
-        - blond/core/backends/cpp/compiled/
-        - blond/core/backends/cuda/compiled/
-
 .before:
   before_script:
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
     - nvcc --version # probe NVCC installation
-
-
-    # Create and activate a virtual environment
-    - python3 -m venv ./.venv
-    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-
-    # Install project with extras
     - python3 --version && gcc --version && mpirun --version
-    - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[all_cuda12]
+    # Install uv, then let it create and populate the virtual environment.
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    # Install project with extras. Fresh resolution every pipeline (newest
+    # releases); only the wheel files come from the persisted uv cache.
+    - uv pip install -e ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA backends. --limit-cachesize evicts least-recently-used
     # sibling builds so the cached compiled/ tree stays bounded (CI-only; local
@@ -98,13 +176,13 @@ workflow:
   before_script:
     # Verify installation
     - gcc --version
-    # Create and activate a virtual environment
-    - python3 -m venv ./.venv
-    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    # Install project with extras
     - python3 --version && gcc --version && mpirun --version
-    - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[all_no_cuda]
+    # Install uv, then let it create and populate the virtual environment.
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    # Install project with extras (see `.before`).
+    - uv pip install -e ${project_root}[all_no_cuda]
     - cd ${project_root}
     # Compile C++ backend. --limit-cachesize evicts least-recently-used sibling
     # builds so the cached compiled/ tree stays bounded (CI-only).
@@ -116,8 +194,9 @@ workflow:
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
+    - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    - pip list
+    - uv pip list
     - cd ${project_root}
     # Warm the numba JIT cache in a single process before mpirun spawns 2
     # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
@@ -144,7 +223,7 @@ workflow:
     # 5 minute failure instead of a 2h one.
     - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
-    - pip uninstall -y mpi4py
+    - uv pip uninstall mpi4py
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
@@ -165,8 +244,9 @@ workflow:
     BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
+    - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    - pip list
+    - uv pip list
     - cd ${project_root}
     - python3 -m pytest
       -m "not backend_mutation and not mpi"
@@ -180,8 +260,9 @@ workflow:
     BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
+    - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    - pip list
+    - uv pip list
     - cd ${project_root}
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
@@ -189,8 +270,10 @@ workflow:
     # See the `-x --timeout=...` rationale in the `test_py_314` job above.
     - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
-    - pip uninstall -y mpi4py
-    - pip uninstall -y cupy-cuda12x
+    - uv pip uninstall mpi4py
+    # cupy is not part of all_no_cuda; uninstalling a missing package is a
+    # no-op for uv, kept so the job stays identical if the extras change.
+    - uv pip uninstall cupy-cuda12x
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
@@ -201,8 +284,9 @@ workflow:
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
   script:
+    - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    - pip list
+    - uv pip list
     - cd ${project_root}
     - mkdir -p junit-reports
     # Warm the numba JIT cache in a single process before mpirun spawns 2
@@ -230,7 +314,7 @@ workflow:
     # 5 minute failure instead of a 2h one.
     - mpirun -n 2 bash -c 'if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
-    - pip uninstall -y mpi4py
+    - uv pip uninstall mpi4py
     - python3 -m pytest
       -v
       --cov-append
@@ -246,7 +330,7 @@ workflow:
       --cov-config=.coveragerc
       --junitxml=junit-reports/junit-report-cuda.xml
     - export BLOND_BACKEND_MODE="numba"
-    - pip uninstall -y cupy-cuda12x
+    - uv pip uninstall cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
     - python3 -m pytest
       -v
@@ -284,16 +368,28 @@ precommit-check:
   image: python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
+  extends:
+    - .cache_uv
   variables:
     SKIP: no-commit-to-branch
+    # pre-commit builds one virtualenv per hook. Point its store into the
+    # project dir so the `cache:` entry below actually captures it (the
+    # default is ~/.cache/pre-commit, which GitLab cannot cache).
+    PRE_COMMIT_HOME: "${CI_PROJECT_DIR}/.cache/pre-commit"
   before_script:
-    - pip install pre-commit
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate
+    - uv pip install pre-commit
   script:
     - pre-commit run --all-files
   cache:
-    key: pre-commit-cache
-    paths:
-      - .cache/pre-commit
+    - key: "uv-${CI_JOB_NAME}"
+      paths:
+        - .uv_cache/
+    - key: pre-commit-cache
+      paths:
+        - .cache/pre-commit
 
 test_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
@@ -302,8 +398,7 @@ test_py_314_no_cupy:
   extends:
     - .before_no_gpu
     - .main_no_gpu
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
   dependencies: []
 
 test_py_314_main_many_environments:
@@ -314,8 +409,7 @@ test_py_314_main_many_environments:
     - .before
     - .main_many_environments
     - .publish
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
   dependencies: []
   tags:
     - k8s-gpu
@@ -327,6 +421,7 @@ test_py_310:
   extends:
     - .before
     - .main
+    - .cache_test
     # - .publish
   dependencies: []
   tags:
@@ -345,8 +440,7 @@ test_py_311:
   extends:
     - .before
     - .main
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
     # - .publish
   dependencies: []
   tags:
@@ -365,8 +459,7 @@ test_py_312:
   extends:
     - .before
     - .main
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
     # - .publish
   dependencies: []
   tags:
@@ -385,8 +478,7 @@ test_py_313:
   extends:
     - .before
     - .main
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
     # - .publish
   dependencies: []
   tags:
@@ -405,8 +497,7 @@ test_py_314:
   extends:
     - .before
     - .main
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
     # - .publish
   dependencies: []
   tags:
@@ -424,8 +515,7 @@ test_py_314_only_cupy:
   extends:
     - .before
     - .main_only_cupy
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
   dependencies: []
   tags:
     - k8s-gpu
@@ -440,20 +530,18 @@ test_minimum:
   stage: test
   interruptible: true
   extends:
-    - .cache_compiled
-    - .cache_numba
+    - .cache_test
   dependencies: []
   variables:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
 
-  # Replace .before to use uv
+  # Replaces .before: same uv setup, but resolve the OLDEST allowed version
+  # of every direct dependency to check the lower bounds in pyproject.toml.
   before_script:
-    # Create venv to avoid permission error when installing packages
-    - python3 -m venv .venv
-    - . .venv/bin/activate
-    # Install uv
-    - python -m pip install uv
-    - python -m uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate
+    - uv pip install --resolution lowest-direct ${project_root}[all_cuda12]
     - cd ${project_root}
     # Compile C++, CUDA, Fortran backends. --limit-cachesize evicts
     # least-recently-used sibling builds so the cached compiled/ tree stays
@@ -463,7 +551,9 @@ test_minimum:
 
   # Replace .main to use python from venv not python3 from system
   script:
-    - pip list
+    - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
+    - source ./.venv/bin/activate
+    - uv pip list
     - cd ${project_root}
     # Run all unittests + the examples
     - python -m pytest
@@ -503,12 +593,15 @@ test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python314
   stage: doc_build
   interruptible: true
+  extends:
+    - .cache_uv
   script:
     - cd ${project_root}
-    - python3 -m pip install --upgrade pip
-    - python3 -m pip install .[doc]
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate  # puts sphinx-build/sphinx-apidoc on PATH
+    - uv pip install ${project_root}[doc]
     - cd ${project_root}/docs
-    - export PATH=/home/non_root/.local/bin:$PATH
     - . ./create_docs.sh
   artifacts:
     paths:
@@ -519,12 +612,15 @@ test_documentation_building:
 
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python314
+  extends:
+    - .cache_uv
   script:
     - cd ${project_root}
     - mkdir public
-    - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v ${project_root}[doc]
-    - export PATH=$HOME/.local/bin:$PATH
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate  # puts sphinx-build/sphinx-apidoc on PATH
+    - uv pip install ${project_root}[doc]
     - cd ./docs
     - ./create_docs.sh
     - cd ..
