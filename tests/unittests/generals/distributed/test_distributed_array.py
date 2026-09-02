@@ -263,3 +263,36 @@ class TestDistributedArrayNoMPI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.mpi
+class TestScatterRootFailure(unittest.TestCase):
+    """A failure on rank 0 must not strand the other ranks.
+
+    `mpi_scatter` prepares the chunks inside an ``if rank == 0`` block. If
+    that raises, rank 0 never reaches ``comm.scatter`` while every other
+    rank is already blocked inside it, and the run hangs forever instead
+    of reporting the error.
+    """
+
+    @unittest.skipUnless(mpi_is_distributed(), "Runs only with `mpirun`")
+    def test_root_failure_raises_on_every_rank(self):
+        from mpi4py import MPI
+
+        rank = MPI.COMM_WORLD.Get_rank()
+        distributed_array = DistributedArray(
+            backend.array(np.arange(128), dtype=backend.float)
+        )
+
+        with (
+            patch.object(
+                backend, "array_split", side_effect=ValueError("boom")
+            ),
+            self.assertRaises(Exception) as caught,
+        ):
+            distributed_array.mpi_scatter()
+
+        if rank == 0:
+            self.assertIsInstance(caught.exception, ValueError)
+        else:
+            self.assertIn("Rank 0 failed", str(caught.exception))

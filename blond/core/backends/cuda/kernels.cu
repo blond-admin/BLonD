@@ -600,6 +600,12 @@ extern "C" __global__ void wake_from_pole_residue(
     real_t state_re = states[pole_n];
     real_t state_im = states[pole_n + 1];
 
+    // A real pole has no implicit complex conjugate (vector-fitting
+    // convention): only a pole with pole_im != 0 stands in for an
+    // unstored conjugate partner and needs the doubled injection.
+    const real_t injection_factor =
+        (pole_im == real_t(0)) ? factor : two_factor;
+
     int i_update = 0;
     int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
@@ -645,7 +651,7 @@ extern "C" __global__ void wake_from_pole_residue(
             state_im = new_state_imag;
         }
 
-        const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * two_factor;
+        const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * injection_factor;
 
         // First half of the trapezoidal rule.
         state_re += half_step;
