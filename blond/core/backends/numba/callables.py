@@ -19,6 +19,7 @@ import numba  # type: ignore
 import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
+from blond.core.backends.backend import STATE_LAG_BINS as _STATE_LAG_BINS
 from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
@@ -365,13 +366,6 @@ def _apply_sr_with_quantum_excitation(  # pragma: no cover
             - energy_lost
             + noise_scale * np.random.standard_normal()  # NOQA: NPY002
         )
-
-
-# How far behind the current bin the state read by `wake_from_pole_residue`
-# lags: the B-spline bin-averaged wake starts three half-bins back, so the
-# recursion covers lags of two bins and more. It is also the number of state
-# generations `states` carries, one per bin of that lag.
-_STATE_LAG_BINS = 2
 
 
 class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
@@ -829,61 +823,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         voltage: NumpyArray,
         voltage_threaded: NumpyArray,
     ) -> None:
-        """
-        Apply poles based on the `profile` to generate `voltage`.
-
-        Each pole carries a state that is advanced by one bin and then given
-        the bin's charge, in that order. A bin's output is read from the
-        state two bins back, so the kernel covers lags of two bins and more,
-        and the caller adds the nearer three -- the previous bin, the bin
-        itself and the next one, which the bin-averaged wake's non-causal
-        tap reaches. This is what lets the residues carry the B-spline
-        bin-average ``((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)``, which
-        stays bounded by one at any binning -- see
-        `MultiPoleSparseSolve._finalize_solver`.
-
-        Because a bin reads the state of two bins ago, `states` carries both
-        the newest state and its one-bin-older twin, each with its own
-        reference time. That is what lets the next call start from a state
-        that is really two bins old even when consecutive calls are only one
-        bin apart -- a profile spanning the full revolution period. The last
-        bin's charge is in the newest state only, so the first bin of the
-        next call does not see it through the recursion; the caller adds it
-        as a near lag, like any other neighbouring bin.
-
-        Parameters
-        ----------
-        profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
-        poles
-            Complex poles of an equivalent circuit model.
-        residues
-            Complex residues of an equivalent circuit model.
-        is_counterrotating_beam
-            If true, the current beam is counter-rotating.
-        counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
-            one needs `update_on_bin = [0,3,7]`.
-        factor
-            To convert `profile` to current per bin [A].
-        states
-            Complex state vector of length ``2 * n_poles + 2``, initially
-            ``(0 + 0j)``. ``states[:n_poles]`` holds each pole's state
-            through the last bin, referenced at the time in ``states[-1]``;
-            ``states[n_poles:2 * n_poles]`` holds the same state one bin
-            earlier, referenced at ``states[-2]``. Both reference times live
-            in the real part and are written by this function.
-        voltage
-            Output voltage, in [V].
-        voltage_threaded
-            Cached `voltage` array per thread. For speedup.
-        """
+        """See `Specials.wake_from_pole_residue`. Numba-jitted mirror of `PythonSpecials.wake_from_pole_residue`."""
         n_poles = len(poles)
         two_factor = 2 * factor
         n_bins = len(profile)

@@ -12,6 +12,10 @@
     typedef double real_t;
 #endif
 
+// Must match `blond.core.backends.backend.STATE_LAG_BINS`: how far behind
+// the current bin the state read by `wake_from_pole_residue` lags.
+#define STATE_LAG_BINS 2
+
 extern "C"
 __global__ void drift_simple(
                      real_t * __restrict__ beam_dt,
@@ -649,13 +653,13 @@ extern "C" __global__ void wake_from_pole_residue(
     real_t decay_im = real_t(0);
     real_t advance_re = real_t(0);
     real_t advance_im = real_t(0);
-    real_t res_lb_re = res_re;
-    real_t res_lb_im = res_im;
+    real_t residue_lookback_re = res_re;
+    real_t residue_lookback_im = res_im;
     real_t chunk_dt = real_t(0);
     // The step the previous call took from `state_prev` to `state`; the lag
     // correction of the first bin reaches across it.
     real_t jump_prev = t_state - t_state_prev;
-    int bins_since_jump = 2;  // force the lag factor on the first two bins
+    int bins_since_jump = STATE_LAG_BINS;  // force the lag factor on the first STATE_LAG_BINS bins
 
     for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
         real_t t_jump;
@@ -690,35 +694,35 @@ extern "C" __global__ void wake_from_pole_residue(
             advance_im = decay_im;
         }
 
-        if (bins_since_jump < 2) {
+        if (bins_since_jump < STATE_LAG_BINS) {
             // `state_prev` is referenced two bins back only when the last two
             // steps were both one bin wide; otherwise reach across whatever
             // they actually were. The lag is clamped at zero so the exponent
             // keeps a non-positive real part and cannot overflow -- a caller
             // handing in a state less than two bins old has nothing to reach
             // back to, and only a zero state may do so.
-            const real_t lag = t_jump + jump_prev - real_t(2) * bin_dt;
+            const real_t lag = t_jump + jump_prev - real_t(STATE_LAG_BINS) * bin_dt;
             if (lag > real_t(0)) {
                 const real_t lb_abs = exp(pole_re * lag);
                 const real_t lb_re  = lb_abs * cos(pole_im * lag);
                 const real_t lb_im  = lb_abs * sin(pole_im * lag);
-                res_lb_re = res_re * lb_re - res_im * lb_im;
-                res_lb_im = res_re * lb_im + res_im * lb_re;
+                residue_lookback_re = res_re * lb_re - res_im * lb_im;
+                residue_lookback_im = res_re * lb_im + res_im * lb_re;
             } else {
-                res_lb_re = res_re;
-                res_lb_im = res_im;
+                residue_lookback_re = res_re;
+                residue_lookback_im = res_im;
             }
             ++bins_since_jump;
         } else {
-            res_lb_re = res_re;
-            res_lb_im = res_im;
+            residue_lookback_re = res_re;
+            residue_lookback_im = res_im;
         }
 
         // Read the state that lags by two bins: the bin-averaged wake starts
         // three half-bins back, so this recursion covers lags of two bins and
         // more. The nearer three lags -- the previous bin, this one and the
         // next -- are added by the solver.
-        const real_t amp = res_lb_re * state_prev_re - res_lb_im * state_prev_im;
+        const real_t amp = residue_lookback_re * state_prev_re - residue_lookback_im * state_prev_im;
         atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
 
         state_prev_re = state_re;

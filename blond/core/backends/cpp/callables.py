@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import STATE_LAG_BINS as _STATE_LAG_BINS
 from blond.core.backends.backend import Specials, backend
 from blond.core.backends.cpp.compile import add_dll_directory_once
 from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
@@ -31,13 +32,6 @@ if TYPE_CHECKING:  # pragma: no cover
 # Upper bound on the number of cached array-pointer entries; the cache is
 # cleared wholesale once it grows past this to keep memory bounded.
 _PTR_CACHE_MAX_SIZE = 4096
-
-# How far behind the current bin the state read by `wake_from_pole_residue`
-# lags (must match the compiled kernel): the B-spline bin-averaged wake starts
-# three half-bins back, so the recursion covers lags of two bins and more. It
-# is also the number of state generations `states` carries, one per bin of
-# that lag.
-_STATE_LAG_BINS = 2
 
 
 def c_real(
