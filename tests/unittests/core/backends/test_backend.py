@@ -3,6 +3,7 @@ import subprocess
 import sys
 import unittest
 import warnings
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -101,8 +102,14 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_apply_environment_variables(self):
-        import os
+        # `patch.dict` restores the process environment on exit. Without it
+        # the loop below leaves BLOND_BACKEND_MODE/BITS at "fail", which
+        # breaks every later test that reads them -- and any subprocess that
+        # inherits them cannot even import blond.
+        with mock.patch.dict(os.environ):
+            self._apply_environment_variables_for_every_mode()
 
+    def _apply_environment_variables_for_every_mode(self):
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["64", "fail"]
         try:
@@ -112,26 +119,54 @@ class TestBackendBaseClass(unittest.TestCase):
         except ModuleNotFoundError:
             pass
         print(f"{backend_modes=}")
-        for backend_mode in backend_modes:
-            os.environ["BLOND_BACKEND_MODE"] = backend_mode
-            for backend_bit in backend_bits:
-                os.environ["BLOND_BACKEND_BITS"] = backend_bit
-                if (backend_mode == "fail") or (backend_bit == "fail"):
-                    with self.assertRaises(ValueError):
-                        self.backend_base_class.apply_environment_variables()
-                else:
-                    try:
-                        self.backend_base_class.apply_environment_variables()
-                    except FileNotFoundError as error:
-                        # Compiled backends might not be available locally --> skip.
-                        # On the CI, these will always be available, as the before_script builds them
-                        # or otherwise fails the CI
-                        if backend_mode == "cpp":  # TODO better handling
-                            warnings.warn(
-                                f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
-                            )
-                        else:
-                            raise error
+        # The probe values below (notably "fail") must not survive this
+        # test: tests run in random order, so anything left in the
+        # process environment poisons an arbitrary later test.
+        # `mock.patch.dict` restores os.environ wholesale on exit,
+        # including keys that were originally unset.
+        with mock.patch.dict(os.environ):
+            for backend_mode in backend_modes:
+                os.environ["BLOND_BACKEND_MODE"] = backend_mode
+                for backend_bit in backend_bits:
+                    os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                    if (backend_mode == "fail") or (backend_bit == "fail"):
+                        with self.assertRaises(ValueError):
+                            self.backend_base_class.apply_environment_variables()
+                    else:
+                        try:
+                            self.backend_base_class.apply_environment_variables()
+                        except FileNotFoundError as error:
+                            # Compiled backends might not be available locally --> skip.
+                            # On the CI, these will always be available, as the before_script builds them
+                            # or otherwise fails the CI
+                            if backend_mode == "cpp":  # TODO better handling
+                                warnings.warn(
+                                    f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
+                                )
+                            else:
+                                raise error
+
+    @pytest.mark.backend_mutation
+    def test_apply_environment_variables_restores_environment(self):
+        """`test_apply_environment_variables` must leak no env state.
+
+        It sets `BLOND_BACKEND_MODE` / `BLOND_BACKEND_BITS` to probe
+        values (including "fail"). Leaving those behind poisons every
+        later test in the session -- tests run in random order, so the
+        victim varies with the seed.
+        """
+        import os
+
+        env_keys = ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS")
+        before = {key: os.environ.get(key) for key in env_keys}
+
+        result = unittest.TestResult()
+        type(self)("test_apply_environment_variables").run(result)
+        self.assertEqual(result.errors, [])
+        self.assertEqual(result.failures, [])
+
+        after = {key: os.environ.get(key) for key in env_keys}
+        self.assertEqual(after, before)
 
     @pytest.mark.backend_mutation
     def test__finalize(self):
@@ -3220,8 +3255,6 @@ class TestSpecials(unittest.TestCase):
         allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
         ``float64`` the only precision all backends consistently accept.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3256,7 +3289,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3307,8 +3341,6 @@ class TestSpecials(unittest.TestCase):
         allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
         ``float64`` the only precision all backends consistently accept.
         """
-        import numba as _nb
-
         for charge in (-1, 1):
             for is_counterrotating_beam in (False, True):
                 for cr_flags_sign in (-1, 1):
@@ -3359,7 +3391,7 @@ class TestSpecials(unittest.TestCase):
                         )
                         voltage = backend.zeros(n_bins, dtype=backend.float)
                         voltage_threaded = backend.zeros(
-                            (_nb.get_num_threads(), n_bins),
+                            (backend.specials.get_max_threads(), n_bins),
                             dtype=backend.float,
                         )
                         update_on_bin = backend.array(
@@ -3404,6 +3436,91 @@ class TestSpecials(unittest.TestCase):
                             )
 
     @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_real_pole_cross_backend(self) -> None:
+        """Cross-backend parity when some poles are real.
+
+        A real pole (``imag == 0``) has no implicit complex conjugate in
+        the vector-fitting convention, so it must not receive the same
+        ``2 *`` injection factor as a genuine complex-conjugate-pair pole.
+        All backends must agree with each other on this.
+        """
+        n_bins = 64
+        n_poles = 3
+        dt_val = 1e-9
+
+        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
+        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
+        # Pole 0 and 2 are real (no implicit conjugate); pole 1 is complex.
+        poles_np = np.array(
+            [-1e8 + 0j, -2e8 + 5e8j, -3e8 + 0j],
+            dtype=np.complex128,
+        )
+        residues_np = np.array(
+            [1.5 + 0j, 0.5 - 1.0j, 0.3 + 0j],
+            dtype=np.complex128,
+        )
+        update_on_bin_np = np.array([0], dtype=np.int32)
+
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            profile = backend.array(profile_np, dtype=backend.float)
+            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
+            poles = backend.array(poles_np, dtype=np.complex128)
+            residues = backend.array(residues_np, dtype=np.complex128)
+            cr_flags = backend.ones(n_poles, dtype=backend.float)
+            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            voltage = backend.zeros(n_bins, dtype=backend.float)
+            voltage_threaded = backend.zeros(
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
+            )
+            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
+
+            backend.specials.wake_from_pole_residue(
+                profile=profile,
+                profile_dts=profile_dts,
+                poles=poles,
+                residues=residues,
+                is_counterrotating_beam=False,
+                counterrotating_pole_signs=cr_flags,
+                states=states,
+                voltage=voltage,
+                voltage_threaded=voltage_threaded,
+                update_on_bin=update_on_bin,
+                factor=backend.float(1.0),
+            )
+
+            result = copy_to_cpu(voltage)
+
+            if i == 0:
+                result_reference = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+            result2 = copy_to_cpu(states)
+
+            if i == 0:
+                result2_reference = result2
+            else:
+                np.testing.assert_allclose(
+                    result2,
+                    result2_reference,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_cr_flip_invariance(self) -> None:
         """Voltage is invariant under ``cr_pole_flip`` sign flips.
 
@@ -3413,8 +3530,6 @@ class TestSpecials(unittest.TestCase):
         Starting from zero state, the per-backend voltage must therefore
         be identical with and without flipped poles.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3441,7 +3556,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3493,8 +3609,6 @@ class TestSpecials(unittest.TestCase):
         them, so the jump at the boundary is physically meaningful. Scoped
         to float64 for the same reason as `test_wake_from_pole_residue`.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3537,7 +3651,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 

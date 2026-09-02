@@ -50,6 +50,25 @@ def _register_backend(bd: BackendType) -> BackendType:
     return bd
 
 
+def backend_class_for_mode(
+    mode: str,
+) -> type[Numpy64Bit | Cupy64Bit]:
+    """
+    Return the array backend class belonging to a specials mode.
+
+    Parameters
+    ----------
+    mode
+        A specials mode, e.g. 'python', 'cpp', 'numba' or 'cuda'.
+
+    Returns
+    -------
+    backend_class
+        :class:`Cupy64Bit` for the 'cuda' mode, else :class:`Numpy64Bit`.
+    """
+    return Cupy64Bit if mode.lower() == "cuda" else Numpy64Bit
+
+
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
@@ -816,24 +835,13 @@ class BackendBaseClass(ABC):
                 f"of {_allowed_backend_bits_flag}."
             )
 
-        if _backend_mode == "cuda":
-            if _backend_bits == "64":
-                self.change_backend(Cupy64Bit)
-            else:
-                # This statement is not reachable
-                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
-                # Anyways its beter to write if, elif, else explicitly
-                raise ValueError(_backend_bits)  # pragma: no cover
-            self.set_specials(mode=_backend_mode)  # type: ignore
-        else:
-            if _backend_bits == "64":
-                self.change_backend(Numpy64Bit)
-            else:
-                # This statement is not reachable
-                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
-                # Anyways its beter to write if, elif, else explicitly
-                raise ValueError(_backend_bits)  # pragma: no cover
-            self.set_specials(mode=_backend_mode)  # type: ignore
+        if _backend_bits != "64":
+            # This statement is not reachable
+            # because of `_backend_bits_raw in _allowed_backend_bits_flag`
+            # Anyways its beter to write if, elif, else explicitly
+            raise ValueError(_backend_bits)  # pragma: no cover
+        self.change_backend(backend_class_for_mode(_backend_mode))
+        self.set_specials(mode=_backend_mode)  # type: ignore
 
     def temporary_specials_mode(self, mode: str):
         """
