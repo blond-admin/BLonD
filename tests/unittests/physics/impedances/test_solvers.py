@@ -208,7 +208,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf_design = 0
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(42)
         dt = backend.array(rng.standard_normal(1000), dtype=backend.float)
 
         # truncate and shift center to 1
@@ -612,7 +612,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         cavity.voltage = 0
         cavity.phi_rf_design = 0
 
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(42)
         dt = rng.standard_normal(1000)
 
         # truncate and shift center to 1
@@ -787,10 +787,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")
+        # The two paths agree analytically but not bit-for-bit: the FFT
+        # solver rotates its spectrum by one sample to pick up the kernel's
+        # non-causal tap (see TimeDomain.get_impedance_from_wake), which the
+        # direct convolution gets from its own symmetric time axis instead.
         np.testing.assert_allclose(
             copy_to_cpu(initial_voltage) + offset,
             copy_to_cpu(td_solver[0 : len(initial_voltage)]) + offset,
-            rtol=1e-12,
+            rtol=1e-10,
         )
 
     def test_warns_on_edge_bins(self):

@@ -23,6 +23,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import math
 import numbers
 import warnings
 from abc import abstractmethod
@@ -35,7 +36,6 @@ from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
-from blond.generals.formatting_ import si_format
 from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -43,6 +43,10 @@ from blond.physics.impedances.base import (
     SupportsVectorFittedModel,
     TimeDomain,
     WakeFieldSource,
+)
+from blond.physics.impedances.bin_average import (
+    bspline_window_moments,
+    triple_box_average_poles,
 )
 from blond.physics.impedances.readers import ImpedanceReader
 
@@ -247,6 +251,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
+        counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:
         """
         Get impedance equivalent to the partial wake in time domain.
@@ -261,12 +266,29 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             Simulation `Beam` object.
         n_fft
             Number of FFT points.
+        counter_rotating
+            Not supported; must be ``False``.
 
         Returns
         -------
         impedance_from_wake
             Wake impedance.
+
+        Raises
+        ------
+        TypeError
+            If ``counter_rotating`` is ``True``.
         """
+        if counter_rotating:
+            # The inductive model has no counter-rotating form: its wake is
+            # the (odd) derivative of a delta, i.e. a purely local, reactive
+            # interaction that stores no field for a beam passing the other
+            # way. Returning the co-rotating impedance would silently claim
+            # a counter-rotating interaction that this model does not
+            # describe, so refuse instead of guessing a sign.
+            raise TypeError(
+                "InductiveImpedance has no counter-rotating impedance."
+            )
         # Recalculate only if `time` is changed
 
         hash_ = hash_linspace(time)
@@ -301,9 +323,20 @@ class Resonators(
     center_frequencies
         Center frequencies of the resonances, in [Hz].
     quality_factors
-        Quality factors (Q) of the resonances, dimensionless.
+        Quality factors (Q) of the resonances, dimensionless. Must be
+        strictly greater than 0.5: at Q = 0.5 the resonator is critically
+        damped, the damped frequency
+        :math:`\bar\omega = \sqrt{\omega^2 - \alpha^2}` collapses to zero
+        and the closed-form bin average divides by it, so that degenerate
+        case is rejected rather than approximated.
     shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
+
+    Raises
+    ------
+    RuntimeError
+        If any quality factor is not greater than 0.5, or if any center
+        frequency is negative.
 
     Notes
     -----
@@ -388,10 +421,12 @@ class Resonators(
         self._alpha = self._omega / (2 * self._quality_factors)
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
-        # Test if one or more quality factors is smaller than 0.5.
-        if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
+        # Test if one or more quality factors is 0.5 or smaller. The bound
+        # is strict: at exactly Q = 0.5 the resonator is critically damped,
+        # `_omega_bar` is zero and the closed-form bin average divides by it.
+        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
-                "All quality factors Q must be greater or equal 0.5"
+                "All quality factors Q must be greater than 0.5"
             )
         if backend.sum(self._center_frequencies < 0) > 0:
             raise RuntimeError(
@@ -400,28 +435,6 @@ class Resonators(
 
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
-
-    def _assert_wake_time_resolves_resonances(
-        self, time: NumpyArray | CupyArray
-    ) -> None:
-        """
-        Raise if ``time`` is too coarse to resolve the fastest resonance.
-
-        Overrides the no-op :func:`TimeDomain._assert_wake_time_resolves_resonances`
-        hook. Called by :func:`TimeDomain.get_impedance_from_wake` before the
-        wake is FFT-ed.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        """
-        f_max = np.max(self._omega) / (2 * np.pi)
-        T_max = 1 / f_max
-        assert (time[1] - time[0]) <= (T_max / 2), (  # Nyquist-Frequency
-            "The time step is not precise enough to consider the resonators"
-            f" maximum frequency of {si_format(f_max)}Hz."
-        )
 
     def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
@@ -487,37 +500,45 @@ class Resonators(
         shunt_impedances: NumpyArray | CupyArray,
     ) -> NumpyArray | CupyArray:
         r"""
-        Exact bin-average of the resonator wake over each sample interval.
+        Exact triple bin-average of the resonator wake.
 
-        A BLonD profile is a histogram: the charge is piecewise-constant over
-        each bin. The induced voltage of such a beam is therefore the
-        convolution of the histogram with the wake **integrated over each
-        bin**, not the wake point-sampled at the bin centres. Point-sampling a
-        resonator whose wake oscillates several times within a few bins aliases
-        badly (the low-Q / broadband resonator bug); bin-integration removes it
-        exactly.
+        A BLonD profile is a histogram, so the induced voltage of a bin is the
+        wake averaged over the source bin and over the observation bin. Doing
+        only that -- weighting the wake with the box of one bin twice, i.e.
+        multiplying the impedance by :math:`\mathrm{sinc}^2(\pi f \Delta t)` --
+        removes the *amplitude* error of an above-Nyquist resonance but leaves
+        a **half-bin lag**: it models the beam as a staircase, whose
+        derivative is a train of deltas sitting exactly on the bin edges, and
+        a causal wake assigns each of those edges wholly to the following bin.
+        For an inductive impedance that turns the exact answer into a backward
+        difference of the line density, late by :math:`\Delta t / 2`.
 
-        The resonator wake (including the linac ``R/Q`` factor of two)
+        The lag matters more than it looks. A reactive impedance must do no
+        net work on the beam; a phase error turns it resistive, and for a
+        12 ns Gaussian against a broadband 1 GHz resonator binned at
+        ``f_cutoff = f_res / 10`` the two-box average inflates the loss factor
+        **14-fold** (4.7-fold at ``f_res / 3``).
 
-        .. math::
-            W(t) = 2 R \alpha e^{-\alpha t}
-                   \left[\cos(\bar\omega t)
-                         - \tfrac{\alpha}{\bar\omega}\sin(\bar\omega t)\right],
-            \quad t > 0
+        Averaging over a third box -- equivalently, reconstructing the line
+        density as piecewise linear through the bin centres instead of as a
+        staircase -- fixes it (see
+        :mod:`blond.physics.impedances.bin_average` for the closed form).
+        That drops the lag to 0.002 bins and the loss factor to within 2 % of
+        the continuum answer, at the cost of about 1 % more amplitude
+        damping. A fourth box gains nothing further.
 
-        has the closed-form antiderivative
+        The price is one **non-causal tap**: the kernel is non-zero from
+        :math:`-3\Delta t / 2`, so the voltage of a bin depends on the charge
+        of the *next* one. That is an artefact of interpolating the line
+        density, not acausality -- the profile of the whole turn is known
+        before the voltage is applied -- but callers must sample ``time``
+        from ``-dt`` rather than from zero to pick the tap up.
 
-        .. math::
-            F(t) = \frac{2 R \alpha}{\bar\omega} e^{-\alpha t}
-                   \sin(\bar\omega t), \quad F(t \le 0) = 0
-
-        (using :math:`\alpha^2 + \bar\omega^2 = \omega^2`), so the average over
-        the bin :math:`[t - \Delta t/2,\, t + \Delta t/2]` is
-        :math:`(F(t + \Delta t/2) - F(t - \Delta t/2)) / \Delta t`. This is the
-        exact ``supersampling -> infinity`` limit of the former point-sampling
-        scheme, in closed form and without any resolution hyperparameter. The
-        causal onset also recovers the beam-loading factor of one half for the
-        self-bin automatically.
+        Each resonator contributes one pole :math:`p = -\alpha + i \bar\omega`
+        with residue :math:`\rho = R \alpha (1 + i \alpha / \bar\omega)`, such
+        that its wake is :math:`W(t) = 2 \,\mathrm{Re}[\rho e^{p t}]` for
+        :math:`t > 0`; :func:`~blond.physics.impedances.bin_average.triple_box_average_poles`
+        sums the bin-averaged wake of all of them.
 
         Parameters
         ----------
@@ -535,48 +556,14 @@ class Resonators(
         --------
         get_impedance_from_wake : Function used to calculate the corresponding impedance.
         """
-        dt = time[1] - time[0]
-        return (
-            self._wake_antiderivative(time + dt / 2, shunt_impedances)
-            - self._wake_antiderivative(time - dt / 2, shunt_impedances)
-        ) / dt
-
-    def _wake_antiderivative(
-        self,
-        t: NumpyArray | CupyArray,
-        shunt_impedances: NumpyArray | CupyArray,
-    ) -> NumpyArray | CupyArray:
-        r"""
-        Closed-form antiderivative :math:`F(t)` of the resonator wake.
-
-        See :func:`_wake_bin_average` for the formula.
-
-        Parameters
-        ----------
-        t
-            Time array at which to evaluate the antiderivative, in [s].
-        shunt_impedances
-            Shunt impedances to use (co- or counter-rotating), in [:math:`\Omega`].
-
-        Returns
-        -------
-        antiderivative
-            :math:`F(t)`, in [V s].
-        """
-        out = backend.zeros(len(t), dtype=backend.float, order="C")
-        positive = t > 0.0  # causal: F(t <= 0) = 0 (and F(0) = 0 anyway)
-        for res_ind in range(self._n_resonators):
-            alpha = self._alpha[res_ind]
-            omega_bar = self._omega_bar[res_ind]
-            out[positive] += (
-                2.0
-                * shunt_impedances[res_ind]
-                * alpha
-                / omega_bar
-                * backend.exp(-alpha * t[positive])
-                * backend.sin(omega_bar * t[positive])
-            )
-        return out
+        dt = float(time[1] - time[0])
+        poles = -self._alpha + 1j * self._omega_bar
+        residues = (
+            shunt_impedances
+            * self._alpha
+            * (1.0 + 1j * self._alpha / self._omega_bar)
+        )
+        return triple_box_average_poles(time, poles, residues, dt)
 
     def get_wake_per_particle(
         self,
@@ -833,6 +820,13 @@ class Resonators(
         return poles1, residues1, cr_signs
 
 
+# Number of bins the bin-average axis is extended by on either side before
+# the 5-point stencil is applied, so that every returned sample sees its real
+# neighbours instead of edge-clamped ones, and so that an onset falling near
+# the first requested bin still has a cell below it.
+_BIN_AVERAGE_PAD = 3
+
+
 class ImpedanceTable(WakeFieldSource):
     """Base class to manage impedance tables."""
 
@@ -992,6 +986,78 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 
+    def _warn_if_outside_table(self, time: NumpyArray | CupyArray) -> None:
+        """
+        Warn when ``time`` reaches outside the tabulated range.
+
+        ``TimeDomain.get_impedance_from_wake`` samples one bin below the axis
+        it was handed, to pick up the bin-average kernel's non-causal tap
+        (see :meth:`get_wake_per_bin`). That much undershoot is the kernel
+        doing its job, not the table being too short, so only warn beyond it.
+
+        Parameters
+        ----------
+        time
+            Time array the wake was requested on, in [s].
+        """
+        bin_step = (time[1] - time[0]) if len(time) > 1 else 0.0
+        if time.min() < (self._wake_x.min() - bin_step):
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
+        if time.max() > self._wake_x.max():
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
+
+    def _wake_with_resolved_onset(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        r"""
+        Tabulated wake with the causal jump at the table start resolved.
+
+        A causal wake table is zero below its first time and non-zero at it,
+        so ``wake_x[0]`` carries a jump. BLonD samples a jump at its own
+        midpoint -- both :meth:`Resonators.get_wake_per_particle` and
+        :meth:`TravelingWaveCavity.wake_calc` build their wake from
+        ``sign(t) + 1``, which is *half* the jump at ``t = 0`` (the
+        beam-loading theorem: a particle sees half of its own wake). A table
+        sampled that way therefore stores :math:`W(0^+) / 2` in
+        ``wake_y[0]``, and the function it represents rises to
+        :math:`2 \, \mathrm{wake\_y}[0]` immediately above ``wake_x[0]``.
+
+        This returns the piecewise-linear table with that first segment
+        replaced by the line from :math:`(x_0,\, 2 y_0)` to
+        :math:`(x_1,\, y_1)`; everywhere else it is plain interpolation.
+        For a table whose first sample is zero -- a wake that starts
+        continuously -- it changes nothing at all.
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Wake of the resolved model, in [V].
+        """
+        wake = backend.interp(time, self._wake_x, self._wake_y, left=0.0)
+        onset_value = 2.0 * float(self._wake_y[0])
+        first_time = float(self._wake_x[0])
+        if len(self._wake_x) < 2 or onset_value == 0.0:  # NOQA PLR2004
+            return wake
+        second_time = float(self._wake_x[1])
+        if second_time <= first_time:
+            return wake
+        first_segment = onset_value + (
+            float(self._wake_y[1]) - onset_value
+        ) * (time - first_time) / (second_time - first_time)
+        inside_first_segment = (time >= first_time) & (time <= second_time)
+        return backend.where(inside_first_segment, first_segment, wake)
+
     def get_wake_per_particle(
         self,
         time: NumpyArray | CupyArray,
@@ -1000,10 +1066,22 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         """
         Point-sampled tabulated wake, interpolated onto ``time``.
 
-        The bin-averaged version used by the solvers is obtained through the
-        generic
-        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`
-        default (exact here, as the table is piecewise-linear).
+        Below the first tabulated time the wake is zero, not the clamped
+        boundary value: a wake table is causal, so ``W`` vanishes before the
+        table starts. Clamping there would fabricate a spurious term of order
+        ``W(wake_x[0])`` whenever the caller samples below the table -- which
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_impedance_from_wake`
+        always does, since it shifts the axis by one bin to pick up the
+        bin-average kernel's non-causal tap. Above the last tabulated time the
+        value is still clamped (see the warning below): where the wake
+        continues is unknown once the table ends.
+
+        This is a point sample of the tabulated values themselves, so at
+        ``wake_x[0]`` it returns ``wake_y[0]``, i.e. the midpoint of the
+        causal jump under BLonD's sampling convention. The bin-averaged
+        version, :meth:`get_wake_per_bin`, integrates the *function* that
+        sampling represents and therefore resolves the jump; see
+        ``_wake_with_resolved_onset``.
 
         Parameters
         ----------
@@ -1019,17 +1097,148 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         """
         if counter_rotating:
             raise TypeError("ImpedanceTableTime has no counter-rotating wake.")
-        if time.min() < self._wake_x.min():
-            warnings.warn(
-                "Interpolation of wake outside boundaries",
-                stacklevel=1,
+        self._warn_if_outside_table(time)
+        # `left=0.0` enforces causality below the table; the right side keeps
+        # the interpolator's default clamp, guarded by the warning above.
+        return backend.interp(time, self._wake_x, self._wake_y, left=0.0)
+
+    def get_wake_per_bin(
+        self,
+        time: NumpyArray | CupyArray,
+        counter_rotating: bool = False,
+    ) -> NumpyArray | CupyArray:
+        r"""
+        Exact bin-average of the tabulated wake, jump included.
+
+        Overrides
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`.
+        The generic default there B-spline-averages the piecewise-linear
+        interpolant through the *query* samples, which turns the causal jump
+        at ``wake_x[0]`` into a one-bin ramp. The residual that leaves is of
+        order :math:`(76 / 384)\, W(0)` at the samples straddling the onset,
+        and -- unlike every other error of the stencil -- it does **not**
+        shrink when the table is refined, because the stencil only ever sees
+        the wake at the query points.
+
+        What is integrated here instead is the model the table really
+        represents: zero below ``wake_x[0]``, the causal jump at
+        ``wake_x[0]`` (resolved as in ``_wake_with_resolved_onset``), and
+        piecewise linear above it. Writing that model as the query-grid
+        interpolant :math:`g` plus a difference supported on the single cell
+        :math:`[t_{m-1},\, t_m]` that contains the onset -- with
+        :math:`t_m` the first grid point at or above the onset,
+        :math:`w = (t_m - \tau) / \Delta t \in [0, 1)` the width of the part
+        of that cell above the onset :math:`\tau`, :math:`Y` the jump and
+        :math:`W_m` the model at :math:`t_m` -- the difference is
+
+        .. math::
+            f - g = Y \, D_w + W_m \, (U_w - U_1) ,
+
+        where :math:`U_w` is the ramp rising from 0 to 1 over the last
+        :math:`w` bins before :math:`t_m` and :math:`D_w = \mathrm{box}_w
+        - U_w` its descending mirror. Since :math:`D_w` and :math:`U_w`
+        integrate against the B-spline in closed form (see
+        :func:`~blond.physics.impedances.bin_average.bspline_window_moments`),
+        the correction to the stencil at the
+        grid point :math:`t_m + v \Delta t` is exactly
+
+        .. math::
+            Y \, I_0(v, w) + (W_m - Y) \frac{I_1(v, w)}{w}
+            - W_m \, I_1(v, 1) ,
+
+        which is non-zero only for :math:`v \in \{-2, ..., 2\}`, the support
+        of the kernel. Everywhere else the stencil is untouched, so away from
+        the onset the accuracy is unchanged: the only error left is the
+        piecewise-linear representation of a smooth wake, which *is* second
+        order in the bin width.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres) at which the wake is evaluated, in [s].
+        counter_rotating
+            Not supported; must be ``False``.
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        if counter_rotating:
+            raise TypeError("ImpedanceTableTime has no counter-rotating wake.")
+        self._warn_if_outside_table(time)
+        bin_step = float(time[1] - time[0])
+        n_bins = len(time)
+        index = backend.arange(
+            -_BIN_AVERAGE_PAD,
+            n_bins + _BIN_AVERAGE_PAD,
+            dtype=backend.float,
+        )
+        time_extended = float(time[0]) + index * bin_step
+        wake = self._wake_with_resolved_onset(time_extended)
+        # The (1, 76, 230, 76, 1) / 384 stencil of
+        # `TimeDomain.get_wake_per_bin`, on the padded axis so that no
+        # returned sample has to fall back on an edge-clamped neighbour.
+        stencil = (
+            wake[:-4]
+            + 76.0 * wake[1:-3]
+            + 230.0 * wake[2:-2]
+            + 76.0 * wake[3:-1]
+            + wake[4:]
+        ) / 384.0
+        binned = stencil[1 : 1 + n_bins]
+        self._add_onset_correction(binned, wake, time_extended, bin_step)
+        return binned
+
+    def _add_onset_correction(
+        self,
+        binned: NumpyArray | CupyArray,
+        wake: NumpyArray | CupyArray,
+        time_extended: NumpyArray | CupyArray,
+        bin_step: float,
+    ) -> None:
+        """
+        Add the closed-form jump correction of :meth:`get_wake_per_bin`.
+
+        Modifies ``binned`` in place at the at most five samples the
+        B-spline reaches over the causal onset from.
+
+        Parameters
+        ----------
+        binned
+            Stencil result to correct, in [V].
+        wake
+            Wake of the resolved model on ``time_extended``, in [V].
+        time_extended
+            Padded, uniform time axis the stencil was evaluated on, in [s].
+        bin_step
+            Bin width, in [s].
+        """
+        onset_time = float(self._wake_x[0])
+        first_above = math.ceil(
+            (onset_time - float(time_extended[0])) / bin_step
+        )
+        if not 1 <= first_above <= len(time_extended) - 1:
+            # The onset is outside the padded axis, so no returned sample
+            # can see it.
+            return
+        width = (float(time_extended[first_above]) - onset_time) / bin_step
+        width = min(max(width, 0.0), 1.0)
+        jump = 2.0 * float(self._wake_y[0])
+        node_value = float(wake[first_above])
+        for index in range(first_above - 2, first_above + 3):
+            out_index = index - _BIN_AVERAGE_PAD
+            if not 0 <= out_index < len(binned):
+                continue
+            offset = float(index - first_above)
+            box_average, ramp_moment = bspline_window_moments(offset, width)
+            onset_ramp = ramp_moment / width if width > 0.0 else 0.0
+            grid_ramp = bspline_window_moments(offset, 1.0)[1]
+            binned[out_index] += (
+                jump * box_average
+                + (node_value - jump) * onset_ramp
+                - node_value * grid_ramp
             )
-        if time.max() > self._wake_x.max():
-            warnings.warn(
-                "Interpolation of wake outside boundaries",
-                stacklevel=1,
-            )
-        return backend.interp(time, self._wake_x, self._wake_y)
 
 
 # TODO rework docstring

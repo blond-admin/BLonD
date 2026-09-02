@@ -66,6 +66,43 @@ class TestImpedanceTableFreq(unittest.TestCase):
         # TODO: implement test for `get_freq_y`
         self.impedance_table_freq.get_freq_y(freq_x=None, sim=None)
 
+    def test_no_boundary_warning_for_the_non_causal_tap(self):
+        """A table exactly spanning the requested axis must not warn.
+
+        ``get_impedance_from_wake`` samples one bin below the axis it is
+        given, to pick up the bin-average kernel's non-causal tap. That is
+        the kernel doing its job, so it must not be reported as the table
+        being too short -- while a query that really does undershoot still
+        is.
+        """
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        time = backend.array(np.arange(64) * 1e-11)
+        table = ImpedanceTableTime(
+            wake_x=time,
+            wake_y=backend.array(
+                np.sin(2 * np.pi * 3e9 * np.arange(64) * 1e-11)
+            ),
+        )
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            table.get_impedance_from_wake(
+                time=time, simulation=simulation, beam=beam, n_fft=128
+            )
+        self.assertEqual(
+            [w for w in caught if "outside boundaries" in str(w.message)], []
+        )
+
+        # ... but a query that genuinely undershoots still warns.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            table.get_wake_per_particle(time - 5e-11)
+        self.assertEqual(
+            len([w for w in caught if "outside boundaries" in str(w.message)]),
+            1,
+        )
+
     def test_hashing(self):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -148,11 +185,15 @@ class TestImpedanceTableTime(unittest.TestCase):
                 backend.array(np.linspace(1, 5, 8)), counter_rotating=True
             )
 
-    def test_get_wake_per_bin_default_is_piecewise_linear_bin_average(self):
+    def test_get_wake_per_bin_default_is_bspline_bin_average(self):
         """The generic TimeDomain.get_wake_per_bin default bin-averages.
 
-        A table wake is piecewise-linear (interp), so the centered bin-average
-        over each bin is exactly the (w[n-1] + 6 w[n] + w[n+1]) / 8 stencil on
+        The kernel weights the wake with the quadratic B-spline
+        ``box * box * box`` (source bin, observation bin, and the third box
+        that turns the staircase line density into a piecewise-linear one and
+        so removes the half-bin lag). A table wake is piecewise-linear
+        (interp), so that weighting is exactly the
+        (w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384 stencil on
         the interior samples. This is the general fix shared by every
         time-domain source that does not have an analytic closed form.
         """
@@ -165,12 +206,16 @@ class TestImpedanceTableTime(unittest.TestCase):
         time = backend.array(t)
 
         binned = table.get_wake_per_bin(time)
-        w_prev = np.concatenate((w[:1], w[:-1]))
-        w_next = np.concatenate((w[1:], w[-1:]))
-        expected = (w_prev + 6 * w + w_next) / 8
+        expected = (
+            np.roll(w, 2)
+            + 76 * np.roll(w, 1)
+            + 230 * w
+            + 76 * np.roll(w, -1)
+            + np.roll(w, -2)
+        ) / 384
 
         np.testing.assert_allclose(
-            copy_to_cpu(binned)[1:-1], expected[1:-1], rtol=1e-12
+            copy_to_cpu(binned)[2:-2], expected[2:-2], rtol=1e-12
         )
         # and it genuinely differs from point-sampling get_wake_per_particle
         self.assertFalse(
@@ -179,6 +224,200 @@ class TestImpedanceTableTime(unittest.TestCase):
                 copy_to_cpu(table.get_wake_per_particle(time)),
             )
         )
+
+    def test_get_wake_per_bin_is_causal_below_table_start(self):
+        """A causal table must not fabricate a wake before it starts.
+
+        ``TimeDomain.get_impedance_from_wake`` samples the bin-averaged wake
+        from ``time - dt`` to pick up the kernel's one non-causal tap. For a
+        table that starts at ``t = 0`` -- the normal case for a causal wake --
+        the interpolation must return zero below the table, not the clamped
+        boundary value ``wake_y[0]``: clamping fabricates a spurious term of
+        order ``W(0)`` in *every* bin. Tabulating an analytic resonator wake
+        and comparing against ``Resonators.get_wake_per_bin`` on the same grid
+        pins that down.
+
+        The tolerances here only pin down causality and are deliberately
+        loose; how closely the tabulated wake now reproduces the closed form
+        across the onset is asserted by
+        ``test_get_wake_per_bin_is_exact_across_the_causal_onset``.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        time = backend.array(np.arange(400) * bin_step)
+        wake_points = resonator.get_wake_per_particle(time)
+        table = ImpedanceTableTime(wake_x=time, wake_y=wake_points)
+
+        # sampled from `time - bin_step`, the way `get_impedance_from_wake`
+        # does: index 0 is lag -dt (before the table starts), index 1 is lag 0
+        shifted_time = time - bin_step
+        tabulated = copy_to_cpu(table.get_wake_per_bin(shifted_time))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(shifted_time))
+        peak = np.max(np.abs(analytic))
+
+        # lag -dt: only the tail of the stencil reaches over the causal onset
+        self.assertLess(abs(tabulated[0] - analytic[0]), 0.2 * peak)
+        # lag 0
+        self.assertLess(abs(tabulated[1] - analytic[1]), 0.02 * peak)
+        # away from the onset the piecewise-linear table is faithful
+        np.testing.assert_allclose(
+            tabulated[4:], analytic[4:], atol=1e-2 * peak
+        )
+
+    def test_get_wake_per_bin_is_exact_across_the_causal_onset(self):
+        """A tabulated wake must bin-average exactly across its own step.
+
+        The generic ``TimeDomain.get_wake_per_bin`` stencil B-spline-averages
+        the piecewise-linear interpolant through the *query* samples, which
+        models the causal onset of a wake table as a one-bin ramp instead of
+        a step. The residual is of order ``(76 / 384) * W(0)`` -- about 8 % of
+        the wake peak -- and it does **not** shrink when the table is
+        refined, because the stencil only ever sees the wake at the query
+        points.
+
+        ``ImpedanceTableTime`` therefore integrates the model the table
+        really represents (zero below ``wake_x[0]``, piecewise linear above
+        it) against the same ``box * box * box`` kernel. On a densely
+        tabulated resonator wake the only error left is the piecewise-linear
+        representation of a smooth function, so every sample -- including the
+        two straddling the onset -- must match the analytic closed form of
+        :meth:`Resonators.get_wake_per_bin`.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        time = backend.array(np.arange(400) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=time, wake_y=resonator.get_wake_per_particle(time)
+        )
+
+        # sampled from `time - bin_step`, the way `get_impedance_from_wake`
+        # does: index 0 is lag -dt (before the table starts), index 1 is lag 0
+        shifted_time = time - bin_step
+        tabulated = copy_to_cpu(table.get_wake_per_bin(shifted_time))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(shifted_time))
+        peak = np.max(np.abs(analytic))
+
+        # The last two samples are excluded: there the analytic wake keeps
+        # going while the table has run out and clamps.
+        np.testing.assert_allclose(
+            tabulated[:-2], analytic[:-2], atol=1e-3 * peak
+        )
+
+    def test_get_wake_per_bin_without_a_step_is_the_plain_stencil(self):
+        """No step at the table start means no correction to the stencil.
+
+        A table whose first sample is zero, laid out on the query grid, is
+        exactly the piecewise-linear interpolant the generic stencil already
+        integrates, so the override must reproduce it bit for bit. Same for a
+        table that only starts long after the query axis does, where the wake
+        has already decayed away.
+        """
+        bin_step = 1e-11
+        t = np.arange(64) * bin_step
+        # genuinely piecewise linear, zero at the table start
+        w = np.concatenate(
+            (np.linspace(0.0, 5.0, 32), np.linspace(5.0, 1.0, 32))
+        )
+        table = ImpedanceTableTime(
+            wake_x=backend.array(t), wake_y=backend.array(w)
+        )
+        binned = copy_to_cpu(table.get_wake_per_bin(backend.array(t)))
+        stencil = (
+            np.roll(w, 2)
+            + 76 * np.roll(w, 1)
+            + 230 * w
+            + 76 * np.roll(w, -1)
+            + np.roll(w, -2)
+        ) / 384
+        np.testing.assert_allclose(binned[2:-2], stencil[2:-2], rtol=1e-12)
+
+    def test_get_wake_per_bin_is_exact_for_an_off_grid_onset(self):
+        """The onset need not land on a query point.
+
+        The correction integrates the part of the cell that lies above the
+        onset, so it must stay exact -- and free of any cliff -- for every
+        sub-bin position of the onset, including the two degenerate ends
+        where the onset all but coincides with a grid point.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        table_time = backend.array(np.arange(600) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=table_time,
+            wake_y=resonator.get_wake_per_particle(table_time),
+        )
+
+        for onset_offset in (0.0, 0.13, 0.5, 0.87, 0.999):
+            with self.subTest(onset_offset=onset_offset):
+                query = backend.array(
+                    (np.arange(-2, 500) + onset_offset) * bin_step
+                )
+                tabulated = copy_to_cpu(table.get_wake_per_bin(query))
+                analytic = copy_to_cpu(resonator.get_wake_per_bin(query))
+                peak = np.max(np.abs(analytic))
+                np.testing.assert_allclose(
+                    tabulated, analytic, atol=1e-3 * peak
+                )
+
+    def test_get_wake_per_bin_away_from_the_onset_is_untouched(self):
+        """A table whose onset is out of reach keeps the plain stencil.
+
+        The correction has the kernel's support, so a query axis that starts
+        well above the table's first time never sees it -- the result must
+        still track the analytic closed form to the accuracy of the
+        piecewise-linear representation alone.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        table_time = backend.array(np.arange(300, 1000) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=table_time,
+            wake_y=resonator.get_wake_per_particle(table_time),
+        )
+        query = backend.array(np.arange(320, 900) * bin_step)
+        tabulated = copy_to_cpu(table.get_wake_per_bin(query))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(query))
+        peak = np.max(
+            np.abs(
+                copy_to_cpu(
+                    resonator.get_wake_per_bin(
+                        backend.array(np.arange(1000) * bin_step)
+                    )
+                )
+            )
+        )
+        np.testing.assert_allclose(tabulated, analytic, atol=1e-3 * peak)
+
+    def test_get_wake_per_particle_vanishes_below_table_start(self):
+        """The tabulated wake is zero before the table, not clamped."""
+        table = ImpedanceTableTime(
+            wake_x=backend.array(np.arange(5) * 1e-11),
+            wake_y=backend.array(np.array([7.0, 6.0, 5.0, 4.0, 3.0])),
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wake = copy_to_cpu(
+                table.get_wake_per_particle(
+                    backend.array(np.array([-2e-11, -1e-11, 0.0, 1e-11]))
+                )
+            )
+        np.testing.assert_allclose(wake, np.array([0.0, 0.0, 7.0, 6.0]))
 
     def test_get_impedance_from_wake_within_bounds_no_warning(self):
         impedance_table = ImpedanceTableTime.from_file(
@@ -302,6 +541,28 @@ class TestInductiveImpedance(unittest.TestCase):
         # It should just allow to change internals of `get_impedance`
         # and guarantee that the result did not change
         np.testing.assert_allclose(copy_to_cpu(freq_y), pinned_freq_y)
+
+    def test_get_impedance_from_wake_cr_raises(self):
+        """The inductive model has no counter-rotating impedance.
+
+        The override must accept the `counter_rotating` keyword the base class
+        declares, and refuse the counter-rotating case rather than silently
+        returning the co-rotating impedance.
+        """
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 0.8 / c0
+
+        with self.assertRaises(TypeError):
+            self.inductive_impedance.get_impedance_from_wake(
+                time=backend.array([0.5, 1.5]),
+                n_fft=5,
+                simulation=simulation,
+                beam=beam,
+                counter_rotating=True,
+            )
 
     def test_hashing(self):
         simulation = Mock(Simulation)
@@ -490,6 +751,32 @@ class TestResonators(unittest.TestCase):
                 center_frequencies=400e6,
                 quality_factors=0.49,
             )
+
+    def test___init___quality_factor_exactly_one_half_raises(self):
+        """Q = 0.5 is critically damped and must be rejected.
+
+        At exactly Q = 0.5 the resonator is critically damped:
+        ``omega_bar = sqrt(omega**2 - alpha**2)`` is exactly zero, so the
+        residue ``R * alpha * complex(1, alpha / omega_bar)`` of the
+        closed-form bin average divides by zero. Rather than implement the
+        degenerate-pole limit, the input is rejected up front.
+        """
+        with self.assertRaisesRegex(RuntimeError, "greater than 0.5"):
+            Resonators(
+                shunt_impedances=1e6,
+                center_frequencies=1e9,
+                quality_factors=0.5,
+            )
+
+    def test___init___quality_factor_just_above_one_half_is_accepted(self):
+        """The bound is strict, so anything above 0.5 still constructs."""
+        resonators = Resonators(
+            shunt_impedances=1e6,
+            center_frequencies=1e9,
+            quality_factors=0.5000001,
+        )
+        self.assertEqual(len(resonators._quality_factors), 1)
+        self.assertGreater(float(resonators._omega_bar[0]), 0.0)
 
     def test_init_mixed_input(self):
         r_shunt = [1]
@@ -936,12 +1223,21 @@ class TestResonators(unittest.TestCase):
         dt = 0.18e-9  # f_res * dt = 0.18 -> heavily undersampled wake
         time = backend.array(np.arange(256) * dt)
 
-        n_sub = 4000
-        shifts = (np.arange(n_sub) + 0.5) / n_sub * dt - dt / 2
+        # Averaging over the source bin, the observation bin and the third
+        # box weights the point wake with the quadratic B-spline over
+        # (-1.5 dt, 1.5 dt), integrated here with a fine midpoint rule.
+        n_sub = 6000
+        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 3.0 - 1.5) * dt
+        scaled = np.abs(shifts) / dt
+        weights = np.where(
+            scaled <= 0.5, 0.75 - scaled**2, 0.5 * (1.5 - scaled) ** 2
+        )
         wake_avg = backend.zeros(len(time), dtype=backend.float)
-        for s in shifts:
-            wake_avg = wake_avg + local_res.get_wake_per_particle(time + s)
-        wake_avg = wake_avg / n_sub
+        for shift, weight in zip(shifts, weights, strict=True):
+            wake_avg = wake_avg + weight * local_res.get_wake_per_particle(
+                time + shift
+            )
+        wake_avg = wake_avg / np.sum(weights)
 
         binned = local_res.get_wake_per_bin(time)
         peak = np.max(np.abs(copy_to_cpu(wake_avg)))
@@ -984,14 +1280,29 @@ class TestResonators(unittest.TestCase):
         time = backend.array(np.arange(256) * dt)
         n_fft = 512
 
-        # reference: fine midpoint-rule average of the point wake over each bin
-        n_sub = 4000
-        shifts = (np.arange(n_sub) + 0.5) / n_sub * dt - dt / 2
+        # reference: fine midpoint-rule average of the point wake over each
+        # bin, sampled from `time - dt` because the kernel has one non-causal
+        # tap (see TimeDomain.get_wake_per_bin), and advanced by one sample
+        # again the way get_impedance_from_wake does.
+        shifted_time = time - dt
+        # Averaging over the source bin, the observation bin and the third
+        # box weights the point wake with the quadratic B-spline over
+        # (-1.5 dt, 1.5 dt), integrated here with a fine midpoint rule.
+        n_sub = 6000
+        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 3.0 - 1.5) * dt
+        scaled = np.abs(shifts) / dt
+        weights = np.where(
+            scaled <= 0.5, 0.75 - scaled**2, 0.5 * (1.5 - scaled) ** 2
+        )
         wake_avg = backend.zeros(len(time), dtype=backend.float)
-        for s in shifts:
-            wake_avg = wake_avg + local_res.get_wake_per_particle(time + s)
-        wake_avg = wake_avg / n_sub
-        expected = backend.fft.rfft(wake_avg, n=n_fft)
+        for shift, weight in zip(shifts, weights, strict=True):
+            wake_avg = wake_avg + weight * local_res.get_wake_per_particle(
+                shifted_time + shift
+            )
+        wake_avg = wake_avg / np.sum(weights)
+        expected = backend.fft.rfft(wake_avg, n=n_fft) * np.exp(
+            2j * np.pi * np.arange(n_fft // 2 + 1) / n_fft
+        )
 
         actual = local_res.get_impedance_from_wake(
             time=time, simulation=simulation, beam=beam, n_fft=n_fft
@@ -1163,13 +1474,14 @@ class TestResonators(unittest.TestCase):
 
         ``get_impedance_from_wake`` returns the FFT of the *bin-averaged*
         wake, i.e. the wake convolved with a normalised box of width ``dt``
-        (the histogram-beam model). The exact frequency response of that box
-        is ``sinc(f dt) = sin(pi f dt) / (pi f dt)``, so the analytic point
-        impedance is multiplied by that factor before comparison -- without
-        it the box roll-off alone is ``1 - sinc(f_r dt) ~ 1.6 %`` at
-        ``f_r dt = 0.1`` and would swamp the decay/shape check. Compensating
-        for it isolates the wake's decay and shape (residual ~ 3e-4, set by
-        DFT aliasing and window truncation).
+        three times -- source bin, observation bin, and the third box that
+        makes the line density piecewise linear. The exact frequency response
+        of those boxes is ``sinc(f dt)**3``, so the analytic point impedance
+        is multiplied by that factor before comparison -- without it the
+        roll-off alone is ``1 - sinc(f_r dt)**3 ~ 4.9 %`` at ``f_r dt = 0.1``
+        and would swamp the decay/shape check. Compensating for it isolates
+        the wake's decay and shape (residual ~ 3e-4, set by DFT aliasing and
+        window truncation).
         """
         freq_r, q_factor, shunt = 1e9, 100.0, 1e6
         res = Resonators(
@@ -1204,11 +1516,14 @@ class TestResonators(unittest.TestCase):
         )
         self.assertEqual(len(freq), len(imp_from_wake))
         # Analytic point impedance, folded with the exact frequency response
-        # of the width-dt bin-average box (sin(pi f dt) / (pi f dt)) so it
+        # of the three width-dt bin-average boxes (sinc(f dt)**3) so it
         # describes the same bin-averaged wake as imp_from_wake.
-        imp_analytic = copy_to_cpu(
-            res.get_impedance(backend.array(freq), simulation, beam)
-        ) * np.sinc(freq * dt)
+        imp_analytic = (
+            copy_to_cpu(
+                res.get_impedance(backend.array(freq), simulation, beam)
+            )
+            * np.sinc(freq * dt) ** 3
+        )
 
         # Compare in a band around the resonance where |Z| is significant.
         band = (freq > 0.5 * freq_r) & (freq < 1.5 * freq_r)

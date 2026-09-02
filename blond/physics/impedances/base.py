@@ -154,22 +154,53 @@ class TimeDomain(ABC):
         self, time: NumpyArray | CupyArray, counter_rotating: bool = False
     ) -> NumpyArray | CupyArray:
         """
-        Wake averaged over each sample bin ``[t - dt/2, t + dt/2]``.
+        Wake averaged over the source bin, the observation bin and one more.
 
         A profile is a histogram, so its induced voltage is the wake
         integrated over each bin, not the wake sampled at the bin centre.
         Point-sampling aliases badly when the wake oscillates several times
-        within a bin (the low-Q / broadband resonator bug); bin-averaging
-        removes it. Time-domain solvers use this instead of
-        :func:`get_wake_per_particle`.
+        within a bin (the low-Q / broadband resonator bug). Averaging over
+        both the source and the observation bin removes that amplitude error
+        but leaves a half-bin lag, because it models the beam as a staircase
+        whose derivative sits exactly on the bin edges; averaging over a third
+        box -- equivalently, reconstructing the line density as piecewise
+        linear rather than as a staircase -- removes the lag as well. The wake
+        is therefore weighted with the quadratic B-spline
+        ``box * box * box`` (``sinc(f dt)**3``), whose support straddles the
+        causal onset symmetrically. See
+        ``Resonators._wake_bin_average``
+        for the full argument and the numbers. Time-domain solvers use this
+        instead of :func:`get_wake_per_particle`.
 
-        The default here bin-averages the piecewise-linear interpolant
-        through :func:`get_wake_per_particle`, which on a uniform grid
-        reduces to the stencil ``(w[n-1] + 6 w[n] + w[n+1]) / 8`` (edges
-        extrapolate the boundary value). Exact for a tabulated wake; sources
-        with an analytic wake (e.g.
-        :class:`~blond.physics.impedances.sources.Resonators`) override this
-        with the exact closed-form bin-average instead.
+        The kernel is non-zero from ``-1.5 * dt``, i.e. it has one non-causal
+        tap: the voltage of a bin depends on the charge of the next one. That
+        is an artefact of interpolating the line density, not acausality.
+        Callers must sample ``time`` from ``-dt`` to pick the tap up;
+        :func:`get_impedance_from_wake` does.
+
+        The default here B-spline-averages the piecewise-linear interpolant
+        through :func:`get_wake_per_particle`, which on a uniform grid reduces
+        to the stencil ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1]
+        + w[n+2]) / 384`` (edges extrapolate the boundary value). It is
+        therefore exact only where the wake really is piecewise linear
+        between the samples spanned by the stencil -- away from any step.
+        Across a discontinuity, in particular the causal onset of a wake, the
+        stencil smears the step over its support and the result is off by
+        order ``(76 / 384) * W(0)``, a few percent of the wake amplitude.
+        That error does not shrink when the grid is refined, because the
+        stencil only ever sees the wake at the query points.
+
+        Sources that know where their wake steps therefore override this with
+        the exact closed-form result:
+        :meth:`~blond.physics.impedances.sources.Resonators.get_wake_per_bin`
+        integrates the analytic resonator wake, and
+        :meth:`~blond.physics.impedances.sources.ImpedanceTableTime.get_wake_per_bin`
+        integrates the tabulated model (zero below the table, causal jump at
+        its first time, piecewise linear above it). Sources that still use
+        the default -- notably
+        :class:`~blond.physics.impedances.sources.TravelingWaveCavity`, whose
+        wake also steps at ``t = 0`` -- keep the smearing error at their
+        onset.
 
         Parameters
         ----------
@@ -185,9 +216,13 @@ class TimeDomain(ABC):
             Bin-averaged wake, in [V].
         """
         w = self.get_wake_per_particle(time, counter_rotating)
-        wake_prev = backend.concatenate((w[:1], w[:-1]))
-        wake_next = backend.concatenate((w[1:], w[-1:]))
-        return (wake_prev + 6.0 * w + wake_next) / 8.0
+        prev_1 = backend.concatenate((w[:1], w[:-1]))
+        prev_2 = backend.concatenate((w[:1], w[:1], w[:-2]))
+        next_1 = backend.concatenate((w[1:], w[-1:]))
+        next_2 = backend.concatenate((w[2:], w[-1:], w[-1:]))
+        return (
+            prev_2 + 76.0 * prev_1 + 230.0 * w + 76.0 * next_1 + next_2
+        ) / 384.0
 
     def _assert_wake_time_resolves_resonances(  # noqa: B027
         self, time: NumpyArray | CupyArray
@@ -195,9 +230,10 @@ class TimeDomain(ABC):
         """
         No-op hook consulted by :func:`get_impedance_from_wake` before FFT-ing the wake.
 
-        Sources whose bin-averaged wake can alias if the sampling grid is too
-        coarse (e.g. :class:`~blond.physics.impedances.sources.Resonators`)
-        override this to raise instead.
+        Extension point for a source that wants to reject a sampling grid it
+        cannot represent (e.g. one too coarse for its bin-averaged wake, which
+        would alias). No source currently overrides it, so the call is
+        unconditionally a no-op.
 
         Parameters
         ----------
@@ -215,7 +251,14 @@ class TimeDomain(ABC):
         counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:
         """
-        Impedance from the bin-averaged wake: ``rfft(get_wake_per_bin(...))``.
+        Impedance from the bin-averaged wake, ``rfft(get_wake_per_bin(...))``.
+
+        The wake is sampled from ``time - dt`` rather than from ``time``, so
+        that the kernel's one non-causal tap (see :func:`get_wake_per_bin`) is
+        picked up, and the resulting spectrum is advanced by one sample again
+        to put lag zero back where the caller expects it. The convolution the
+        caller performs is zero-padded, so the sample the advance pulls in
+        past the profile's last bin is padding, not a wrap-around.
 
         Keeps a single cached ``(hash, impedance)`` slot per rotation
         direction (co- and counter-rotating), recomputing and overwriting
@@ -255,8 +298,18 @@ class TimeDomain(ABC):
             impedance = cached[1]
         else:
             self._assert_wake_time_resolves_resonances(time)
-            wake = self.get_wake_per_bin(time, counter_rotating)
-            impedance = backend.fft.rfft(wake, n=n_fft)
+            bin_step = time[1] - time[0]
+            wake = self.get_wake_per_bin(time - bin_step, counter_rotating)
+            # `n_fft=None` means "transform the wake as it is".
+            n_transform = len(wake) if n_fft is None else n_fft
+            # Undo the one-sample delay the shifted sampling introduced.
+            advance = backend.exp(
+                1j
+                * backend.twopi
+                * backend.arange(n_transform // 2 + 1, dtype=backend.float)
+                / n_transform
+            )
+            impedance = backend.fft.rfft(wake, n=n_fft) * advance
             cache[key] = (hash_, impedance)
         return impedance
 

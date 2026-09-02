@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -247,3 +248,41 @@ class TestPinFastTestBackends(unittest.TestCase):
         bend_test.pin_fast_test_backends()
 
         self.assertNotEqual(type(bm).__name__, "PyBackend")
+
+
+class LeakedBackend(backend.Numpy64Bit):
+    """Stand-in for an array backend left active by an earlier test."""
+
+
+class TestPinFastTestBackends(unittest.TestCase):
+    """`pin_fast_test_backends` must reset the *array* backend too.
+
+    A test (or a module imported during collection) that switches the
+    global array backend and does not restore it would otherwise leave
+    every following test running on the wrong array namespace.
+    """
+
+    def setUp(self):
+        self.init_backend = backend.backend.__class__
+
+    def tearDown(self):
+        backend.backend.change_backend(self.init_backend)
+
+    def test_restores_numpy_backend_for_a_cpu_environment(self):
+        with mock.patch.dict(os.environ, {"BLOND_BACKEND_MODE": "numba"}):
+            backend.backend.change_backend(LeakedBackend)
+            self.assertIs(backend.backend.__class__, LeakedBackend)
+
+            bend_test.pin_fast_test_backends()
+
+            self.assertIs(backend.backend.__class__, backend.Numpy64Bit)
+
+    @pytest.mark.cupy
+    @unittest.skipUnless(cupy_available, "Requires cupy")
+    def test_restores_cupy_backend_for_a_cuda_environment(self):
+        with mock.patch.dict(os.environ, {"BLOND_BACKEND_MODE": "cuda"}):
+            backend.backend.change_backend(backend.Numpy64Bit)
+
+            bend_test.pin_fast_test_backends()
+
+            self.assertIs(backend.backend.__class__, backend.Cupy64Bit)

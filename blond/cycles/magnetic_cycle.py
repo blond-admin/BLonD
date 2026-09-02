@@ -967,7 +967,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
 
 
 class MagneticCycleByTime(MagneticCycleBase):
-    """
+    r"""
     Magnetic cycle defined as B vs. time, interpolated just in time.
 
     Parameters
@@ -996,6 +996,22 @@ class MagneticCycleByTime(MagneticCycleBase):
     scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
     scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
     scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+    blond.generals.interpolators.DerivativeInterpolator : Smooth `B`-dot.
+
+    Notes
+    -----
+    Choosing `interpolator` decides how the ramp behaves *between* the
+    programmed points, which for an acceleration ramp is a physics choice
+    and not a cosmetic one. `interp1d` gives a piecewise-constant
+    :math:`\dot{B}` that jumps at every programmed point;
+    `Akima1DInterpolator` and `PchipInterpolator` are :math:`C^1` and pass
+    through the programmed points.
+    :class:`~blond.generals.interpolators.DerivativeInterpolator`
+    instead interpolates the *derivative* of the program, giving a
+    continuous :math:`\dot{B}` and hence a smooth demand on the
+    accelerating voltage. It is the BLonD 2 ``interpolation='derivative'``
+    option; note that it is a smoother rather than an interpolator, so it
+    matches only the first and the last programmed point.
 
     Examples
     --------
@@ -1243,6 +1259,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
         scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
         scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+        blond.generals.interpolators.DerivativeInterpolator : Smooth `B`-dot.
         """
         ret = MagneticCycleByTime(
             reference_time=base_time,

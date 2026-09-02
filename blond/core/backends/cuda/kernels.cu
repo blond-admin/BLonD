@@ -12,6 +12,10 @@
     typedef double real_t;
 #endif
 
+// Must match `blond.core.backends.backend.STATE_LAG_BINS`: how far behind
+// the current bin the state read by `wake_from_pole_residue` lags.
+#define STATE_LAG_BINS 2
+
 extern "C"
 __global__ void drift_simple(
                      real_t * __restrict__ beam_dt,
@@ -556,15 +560,33 @@ __global__ void histogram_sparse(
 // sequential across bins; different poles are fully independent and contend
 // only on the output `voltage` buffer via atomicAdd.
 //
+// Each pole's state is advanced by one bin and then given the bin's charge, in
+// that order. A bin's output is read from the state two bins back, so this
+// kernel covers lags of two bins and more, and the caller adds the nearer three
+// -- the previous bin, the bin itself and the next one, which the bin-averaged
+// wake's non-causal tap reaches. That is what lets the residues carry the
+// B-spline bin-average ((exp(p*dt) - 1) / (p*dt))^3 * exp(p*dt/2), which stays
+// bounded by one at any binning.
+//
+// Because a bin reads the state of two bins ago, `states` carries both the
+// newest state and its one-bin-older twin, each with its own reference time.
+// That is what lets the next call start from a state that is really two bins
+// old even when consecutive calls are only one bin apart -- a profile spanning
+// the full revolution period. The last bin's charge is in the newest state
+// only, so the first bin of the next call does not see it through the
+// recursion; the caller adds it as a near lag, like any other neighbour.
+//
 // Complex arrays (poles, residues, states) are stored as interleaved real/imag:
 //   [re0, im0, re1, im1, ...]
-// The last complex element of `states` stores t_start in its real part.
+// `states` holds 2 * n_poles + 2 complex elements: the states through the last
+// bin, the same states one bin earlier, and the two reference times (real part
+// only, the older one first).
 extern "C" __global__ void wake_from_pole_residue(
     const real_t * __restrict__ profile,
     const real_t * __restrict__ profile_dts,
     const real_t * __restrict__ poles,
     const real_t * __restrict__ residues,
-    const int is_counterrotating_beam,
+    const bool is_counterrotating_beam,
     const real_t * __restrict__ cr_pole_signs,
     const int * __restrict__ update_on_bin,
     const real_t factor,
@@ -572,14 +594,25 @@ extern "C" __global__ void wake_from_pole_residue(
     real_t * __restrict__ voltage,
     const int n_bins,
     const int n_poles,
-    const int n_updates,
-    const int n_profile_dts)
+    const int n_updates)
 {
     const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
     if (pole_i >= n_poles) return;
 
     const real_t two_factor = real_t(2) * factor;
-    const real_t t_start = states[2 * n_poles];
+
+    // Reference times of the two incoming states (real parts of the last two
+    // complex elements): `t_state` belongs to states[pole_i], `t_state_prev`
+    // to the one-bin-older states[n_poles + pole_i].
+    const real_t t_state_prev = states[2 * (2 * n_poles)];
+    const real_t t_state = states[2 * (2 * n_poles + 1)];
+
+    // The state a bin reads is referenced two bins back, while the
+    // bin-averaged wake starts three half-bins back (the residues carry
+    // ((exp(p*dt) - 1) / (p*dt))^3 * exp(p*dt/2)). Every bin is bin_dt wide
+    // -- a sparse profile's gaps are whole numbers of bins -- so that
+    // lookback is the same everywhere.
+    const real_t bin_dt = profile_dts[1] - profile_dts[0];
 
     // `cr_pole_flip` is intentionally applied to BOTH the state injection
     // and the output amplitude: for the counter-rotating beam's own wake
@@ -592,6 +625,7 @@ extern "C" __global__ void wake_from_pole_residue(
     }
 
     const int pole_n = 2 * pole_i;
+    const int pole_prev_n = 2 * (n_poles + pole_i);
     const real_t pole_re = poles[pole_n];
     const real_t pole_im = poles[pole_n + 1];
     const real_t res_re  = residues[pole_n];
@@ -609,68 +643,115 @@ extern "C" __global__ void wake_from_pole_residue(
     int i_update = 0;
     int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
+    // `state_prev` lags `state` by one bin, across the call boundary as
+    // well: the previous call left both states behind, so the first bin here
+    // still reads one that is genuinely two bins old.
+    real_t state_prev_re = states[pole_prev_n];
+    real_t state_prev_im = states[pole_prev_n + 1];
+
     real_t decay_re = real_t(0);
     real_t decay_im = real_t(0);
+    real_t advance_re = real_t(0);
+    real_t advance_im = real_t(0);
+    real_t residue_lookback_re = res_re;
+    real_t residue_lookback_im = res_im;
+    real_t chunk_dt = real_t(0);
+    // The step the previous call took from `state_prev` to `state`; the lag
+    // correction of the first bin reaches across it.
+    real_t jump_prev = t_state - t_state_prev;
+    int bins_since_jump = STATE_LAG_BINS;  // force the lag factor on the first STATE_LAG_BINS bins
 
     for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
+        real_t t_jump;
         if (bin_i == update_on_bin_i) {
-            const real_t t_jump = (bin_i == 0)
-                ? (profile_dts[0] - t_start)
+            // decay = exp(pole * chunk_dt)
+            chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
+            {
+                const real_t decay_abs = exp(pole_re * chunk_dt);
+                decay_re = decay_abs * cos(pole_im * chunk_dt);
+                decay_im = decay_abs * sin(pole_im * chunk_dt);
+            }
+
+            t_jump = (bin_i == 0)
+                ? (profile_dts[0] - t_state)
                 : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
 
-            // state *= exp(pole * t_jump)
+            // advance = exp(pole * t_jump)
             {
-                const real_t jump_abs  = exp(pole_re * t_jump);
-                const real_t jump_re   = jump_abs * cos(pole_im * t_jump);
-                const real_t jump_im   = jump_abs * sin(pole_im * t_jump);
-                const real_t new_state_re   = state_re * jump_re - state_im * jump_im;
-                const real_t new_state_imag = state_re * jump_im + state_im * jump_re;
-                state_re = new_state_re;
-                state_im = new_state_imag;
+                const real_t jump_abs = exp(pole_re * t_jump);
+                advance_re = jump_abs * cos(pole_im * t_jump);
+                advance_im = jump_abs * sin(pole_im * t_jump);
             }
-
-            // decay = exp(pole * dt)
-            const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
-            {
-                const real_t decay_abs   = exp(pole_re * dt);
-                const real_t cos_tmp     = cos(pole_im * dt);
-                const real_t sin_tmp     = sin(pole_im * dt);
-                decay_re = decay_abs * cos_tmp;
-                decay_im = decay_abs * sin_tmp;
-            }
+            bins_since_jump = 0;
 
             ++i_update;
             if (i_update < n_updates) {
                 update_on_bin_i = update_on_bin[i_update];
             }
         } else {
-            // state *= decay
-            const real_t new_state_re = state_re * decay_re - state_im * decay_im;
-            const real_t new_state_imag = state_re * decay_im + state_im * decay_re;
+            t_jump = chunk_dt;
+            advance_re = decay_re;
+            advance_im = decay_im;
+        }
+
+        if (bins_since_jump < STATE_LAG_BINS) {
+            // `state_prev` is referenced two bins back only when the last two
+            // steps were both one bin wide; otherwise reach across whatever
+            // they actually were. The lag is clamped at zero so the exponent
+            // keeps a non-positive real part and cannot overflow -- a caller
+            // handing in a state less than two bins old has nothing to reach
+            // back to, and only a zero state may do so.
+            const real_t lag = t_jump + jump_prev - real_t(STATE_LAG_BINS) * bin_dt;
+            if (lag > real_t(0)) {
+                const real_t lb_abs = exp(pole_re * lag);
+                const real_t lb_re  = lb_abs * cos(pole_im * lag);
+                const real_t lb_im  = lb_abs * sin(pole_im * lag);
+                residue_lookback_re = res_re * lb_re - res_im * lb_im;
+                residue_lookback_im = res_re * lb_im + res_im * lb_re;
+            } else {
+                residue_lookback_re = res_re;
+                residue_lookback_im = res_im;
+            }
+            ++bins_since_jump;
+        } else {
+            residue_lookback_re = res_re;
+            residue_lookback_im = res_im;
+        }
+
+        // Read the state that lags by two bins: the bin-averaged wake starts
+        // three half-bins back, so this recursion covers lags of two bins and
+        // more. The nearer three lags -- the previous bin, this one and the
+        // next -- are added by the solver.
+        const real_t amp = residue_lookback_re * state_prev_re - residue_lookback_im * state_prev_im;
+        atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
+
+        state_prev_re = state_re;
+        state_prev_im = state_im;
+
+        // state *= advance
+        {
+            const real_t new_state_re   = state_re * advance_re - state_im * advance_im;
+            const real_t new_state_imag = state_re * advance_im + state_im * advance_re;
             state_re = new_state_re;
             state_im = new_state_imag;
         }
 
-        const real_t half_step = cr_pole_flip * (real_t(0.5) * profile[bin_i]) * injection_factor;
-
-        // First half of the trapezoidal rule.
-        state_re += half_step;
-
-        // amp = Re(residue * state)
-        const real_t amp = res_re * state_re - res_im * state_im;
-        atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
-
-        // Second half of the trapezoidal rule.
-        state_re += half_step;
+        // Inject this bin's charge (real part only, imag part is zero).
+        state_re += cr_pole_flip * profile[bin_i] * injection_factor;
+        jump_prev = t_jump;
     }
 
-    // Persist state for the next call.
+    // Persist both states for the next call.
     states[pole_n]     = state_re;
     states[pole_n + 1] = state_im;
+    states[pole_prev_n]     = state_prev_re;
+    states[pole_prev_n + 1] = state_prev_im;
 
-    // Only one thread writes t_start for the next call.
+    // Only one thread writes the two reference times for the next call.
     if (pole_i == 0) {
-        states[2 * n_poles]     = profile_dts[n_profile_dts - 1];
-        states[2 * n_poles + 1] = real_t(0);
+        states[2 * (2 * n_poles)]         = profile_dts[n_bins - 2];
+        states[2 * (2 * n_poles) + 1]     = real_t(0);
+        states[2 * (2 * n_poles + 1)]     = profile_dts[n_bins - 1];
+        states[2 * (2 * n_poles + 1) + 1] = real_t(0);
     }
 }

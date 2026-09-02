@@ -19,6 +19,7 @@ import numba  # type: ignore
 import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
+from blond.core.backends.backend import STATE_LAG_BINS as _STATE_LAG_BINS
 from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
@@ -824,7 +825,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         fastmath=True,
         cache=False,
     )
-    def wake_from_pole_residue(
+    def wake_from_pole_residue(  # NOQA PLR0915
         # read
         profile: NumpyArray,
         profile_dts: NumpyArray,
@@ -839,40 +840,25 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         voltage: NumpyArray,
         voltage_threaded: NumpyArray,
     ) -> None:
-        """
-        Apply poles based on the `profile` to generate `voltage`.
-
-        Parameters
-        ----------
-        profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
-        poles
-            Complex poles of an equivalent circuit model.
-        residues
-            Complex residues of an equivalent circuit model.
-        is_counterrotating_beam
-            If true, the current beam is counter-rotating.
-        counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
-            one needs `update_on_bin = [0,3,7]`.
-        factor
-            To convert `profile` to current per bin [A].
-        states
-            Complex state vector, initially ``(0 + 0j)``.
-        voltage
-            Output voltage, in [V].
-        voltage_threaded
-            Cached `voltage` array per thread. For speedup.
-        """
+        """See `Specials.wake_from_pole_residue`. Numba-jitted mirror of `PythonSpecials.wake_from_pole_residue`."""
         n_poles = len(poles)
         two_factor = 2 * factor
         n_bins = len(profile)
+        # The state a bin reads is referenced two bins back, while the
+        # bin-averaged wake starts three half-bins back (the residues carry
+        # ((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)). Every bin is `bin_dt`
+        # wide -- a sparse profile's gaps are whole numbers of bins -- so
+        # that lookback is the same everywhere.
+        bin_dt = profile_dts[1] - profile_dts[0]
+
+        assert len(states) == _STATE_LAG_BINS * (n_poles + 1)
+        assert n_bins >= _STATE_LAG_BINS
+
+        # Reference times of the two incoming states: `t_state` belongs to
+        # `states[pole_i]`, `t_state_prev` to the one-bin-older
+        # `states[n_poles + pole_i]`.
+        t_state = states[-1].real
+        t_state_prev = states[-2].real
 
         voltage[:] = 0  # reset to zero from previous call
         voltage_threaded[:, :] = 0  # reset to zero from previous call
@@ -895,10 +881,6 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             ):
                 cr_pole_flip = -1.0
 
-            # y[n] = profile[n] + exp(p * dt) * y[n-1]
-            # V[n] = 2 * Re(r * y[n]) for a complex pole (stands in for its
-            # unstored conjugate); V[n] = Re(r * y[n]) for a real pole.
-            # state = 0.0 + 0.0j
             i_update = 0
             # empty `update_on_bin` means "never update"; `decay` stays 0
             update_on_bin_i = (
@@ -908,44 +890,72 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             pole = complex(poles[pole_i])
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
+            # `state_prev` lags `state` by one bin, across the call boundary
+            # as well: the previous call left both states behind, so the
+            # first bin here still reads one that is genuinely two bins old.
+            state_prev = complex(states[n_poles + pole_i])
             decay = 0.0 + 0.0j
+            advance = 0.0 + 0.0j
+            chunk_dt = 0.0
+            # The step the previous call took from `state_prev` to `state`;
+            # the lag correction of the first bin reaches across it.
+            jump_prev = t_state - t_state_prev
+            residue_lookback = residue
+            bins_since_jump = _STATE_LAG_BINS  # lag factor on the first bins
 
             # A real pole has no implicit complex conjugate (vector-fitting
             # convention): only a pole with imag != 0 stands in for an
             # unstored conjugate partner and needs the doubled injection.
             injection_factor = factor if pole.imag == 0 else two_factor
 
-            t_start = states[-1]
-
             for bin_i in range(n_bins):
-                profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
-                )
-
                 if bin_i == update_on_bin_i:
+                    chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * chunk_dt)
                     if bin_i == 0:
-                        t_jump = profile_dts[0] - t_start + 0j
+                        t_jump = profile_dts[0] - t_state
                     else:
-                        t_jump = (
-                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
-                        )
-                    state *= np.exp(pole * t_jump)
-                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
-                    decay = np.exp(pole * dt)
+                        t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
+                    advance = np.exp(pole * t_jump)
+                    bins_since_jump = 0
 
                     i_update += 1
                     if i_update < len(update_on_bin):
                         update_on_bin_i = update_on_bin[i_update]
                 else:
-                    state *= decay
-                state += profile_i_half
-                amp = float(np.real(residue * state))
+                    t_jump = chunk_dt
+                    advance = decay
+                if bins_since_jump < _STATE_LAG_BINS:
+                    # `state_prev` is referenced two bins back only when the
+                    # last two steps were both one bin wide; otherwise reach
+                    # across whatever they actually were. The lag is clamped
+                    # at zero so the exponent keeps a non-positive real part
+                    # and cannot overflow -- a caller handing in a state less
+                    # than two bins old has nothing to reach back to, and only
+                    # a zero state may do so.
+                    lag = t_jump + jump_prev - _STATE_LAG_BINS * bin_dt
+                    residue_lookback = (
+                        residue * np.exp(pole * lag) if lag > 0.0 else residue
+                    )
+                    bins_since_jump += 1
+                else:
+                    residue_lookback = residue
+                # Read the state that lags by two bins: the bin-averaged wake
+                # starts three half-bins back, so the recursion covers lags of
+                # two bins and more. The nearer three lags -- the previous
+                # bin, this one and the next -- are added by the solver.
+                amp = float(np.real(residue_lookback * state_prev))
                 voltage_threaded[thread_i, bin_i] += cr_pole_flip * amp
-                state += profile_i_half
+                state_prev = state
+                state = state * advance
+                state += cr_pole_flip * profile[bin_i] * injection_factor
+                jump_prev = t_jump
             states[pole_i] = state
+            states[n_poles + pole_i] = state_prev
 
         voltage[:] = np.sum(voltage_threaded, axis=0)
-        states[-1] = profile_dts[-1]
+        states[-1] = profile_dts[n_bins - 1]
+        states[-2] = profile_dts[n_bins - 2]
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(  # NOQA: D102
@@ -972,3 +982,22 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             _apply_sr_with_quantum_excitation(
                 beam_dE, damping_factor, energy_lost_typed, noise_scale
             )
+
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: NumpyArray,
+        beam_dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        parameter_array: NumpyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+        raise NotImplementedError

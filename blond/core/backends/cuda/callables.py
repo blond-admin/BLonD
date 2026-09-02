@@ -13,11 +13,13 @@ from __future__ import annotations
 import itertools
 import os
 import time
+import weakref
 from typing import TYPE_CHECKING
 
 import cupy as cp  # type: ignore
 import numpy as np
 
+from blond.core.backends.backend import STATE_LAG_BINS as _STATE_LAG_BINS
 from blond.core.backends.backend import Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
 from blond.generals.compiled_cache import mark_used
@@ -100,10 +102,13 @@ _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 # profile reconfiguration (not every turn), so checking it once per
 # distinct array avoids a host<->device sync (`cp.allclose(...).__bool__`)
 # on every call, which would otherwise happen once per RF turn.
-# Keyed by (id, shape, data pointer) since `id()` alone can be reused
-# after an array is garbage collected.
+# Keyed by `id()`, which CPython/CuPy may reuse for an unrelated array
+# once the original is garbage collected. That reuse window is closed
+# by `weakref.finalize`: it purges the entry at the exact moment the
+# original array is deallocated, so a stale verdict can never be read
+# for a different array that later gets the same id.
 _MAX_UNIFORMITY_CACHE_SIZE = 64
-_bin_centers_uniformity_cache: dict[tuple[int, tuple, int], bool] = {}
+_bin_centers_uniformity_cache: dict[int, bool] = {}
 
 
 def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
@@ -113,11 +118,7 @@ def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
     `cp.allclose` host<->device sync only occurs once per distinct
     `bin_centers` array rather than on every `kick_interpolated` call.
     """
-    key = (
-        id(bin_centers),
-        tuple(bin_centers.shape),
-        int(bin_centers.data.ptr),
-    )
+    key = id(bin_centers)
     cached = _bin_centers_uniformity_cache.get(key)
     if cached is not None:
         return cached
@@ -128,6 +129,7 @@ def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
     if len(_bin_centers_uniformity_cache) >= _MAX_UNIFORMITY_CACHE_SIZE:
         _bin_centers_uniformity_cache.clear()
     _bin_centers_uniformity_cache[key] = is_uniform
+    weakref.finalize(bin_centers, _bin_centers_uniformity_cache.pop, key, None)
     return is_uniform
 
 
@@ -808,36 +810,16 @@ class CudaSpecials(Specials):  # NOQA: D101
         """
         Apply poles based on the `profile` to generate `voltage`.
 
+        See `Specials.wake_from_pole_residue` for the lag bookkeeping and the
+        ``states`` layout.
+
         Parameters
         ----------
-        profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
-        poles
-            Complex poles of an equivalent circuit model.
-        residues
-            Complex residues of an equivalent circuit model.
-        is_counterrotating_beam
-            If true, the current beam is counter-rotating.
-        counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: ``0,0,0,1,1,1,1,2,2,2``
-            one needs ``update_on_bin = [0,3,7]``.
-        factor
-            To convert `profile` to current per bin [A].
-        states
-            Complex state vector, length ``n_poles + 1``.
-            The last element stores ``t_start`` in its real part.
-        voltage
-            Output voltage, in [V].
         voltage_threaded
             Unused on the CUDA backend (kept for API parity with CPU
             backends); pole contributions are reduced into `voltage`
-            directly via atomic adds.
+            directly via atomic adds. See `Specials.wake_from_pole_residue`
+            for every other parameter.
         """
         assert profile.device != "cpu", (
             f"Requires Cupy array, but got {type(profile)}."
@@ -886,10 +868,11 @@ class CudaSpecials(Specials):  # NOQA: D101
         n_bins = int(profile.shape[0])
         n_poles = int(poles.shape[0])
         n_updates = int(update_on_bin.shape[0])
-        n_profile_dts = int(profile_dts.shape[0])
 
-        # states has length n_poles + 1; last entry stores t_start.
-        assert states.shape[0] == n_poles + 1
+        # states holds both state generations plus their two reference
+        # times; see the docstring.
+        assert states.shape[0] == _STATE_LAG_BINS * (n_poles + 1)
+        assert n_bins >= _STATE_LAG_BINS
         assert residues.shape[0] == n_poles
         assert counterrotating_pole_signs.shape[0] == n_poles
         assert voltage.shape[0] == n_bins
@@ -918,7 +901,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 profile_dts,
                 poles_r,
                 residues_r,
-                np.int32(1 if is_counterrotating_beam else 0),
+                np.bool_(is_counterrotating_beam),
                 counterrotating_pole_signs,
                 update_on_bin,
                 FLOAT(factor),
@@ -927,8 +910,26 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(n_bins),
                 np.int32(n_poles),
                 np.int32(n_updates),
-                np.int32(n_profile_dts),
             ),
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),
         )
+
+        @staticmethod
+        def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+            beam_dt: CupyArray,
+            beam_dE: CupyArray,
+            induced_voltage: CupyArray,
+            parameter_array: CupyArray,
+            alpha: float,
+            omega_bar: float,
+            const: float,
+            coeff1: float,
+            coeff2: float,
+            coeff3: float,
+            coeff4: float,
+            time_since_last_track: float,
+            multiturn: bool,
+        ) -> None:
+            # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+            raise NotImplementedError

@@ -1,9 +1,11 @@
 import unittest
 
 import numpy as np
-from scipy.constants import e
 
 from blond import backend, electron
+from blond.acc_math.analytic.hamilton import (
+    calc_synchrotron_tune_single_harmonic,
+)
 from blond.acc_math.analytic.longitudinal_beam_dynamics import (
     get_angular_synchrotron_frequency,
     get_angular_synchrotron_tune,
@@ -24,15 +26,22 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
         self.momentum_compaction_factor = 7.120435962 * 1e-6
         self.phase_slip_factor = 7.120435962 * 1e-6
         self.synchronous_phase = 3.10
+        # 20 GeV electrons are ultra-relativistic; beta ~ 1.
+        self.beta = 1.0
+        self.charge = self.particle_type.charge
 
-        self.expected_small_amplitude_tune = np.sqrt(
-            (
-                self.harmonic_number
-                * e
-                * self.voltage
-                * abs(self.phase_slip_factor * np.cos(self.synchronous_phase))
+        # Independent ground truth: the single-harmonic synchrotron tune
+        # from `hamilton`, which is the reference implementation.
+        self.expected_small_amplitude_tune = (
+            calc_synchrotron_tune_single_harmonic(
+                charge=self.charge,
+                voltage=self.voltage,
+                beta=self.beta,
+                energy=self.beam_energy,
+                phi_s=self.synchronous_phase,
+                harmonic=self.harmonic_number,
+                eta_0=self.phase_slip_factor,
             )
-            / (2 * np.pi * self.beam_energy)
         )
         self.expected_small_amplitude_frequency = (
             2
@@ -53,11 +62,12 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
             harmonic_number=self.harmonic_number,
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
+            beta=self.beta,
+            charge=self.charge,
         )
         self.assertAlmostEqual(
             self.expected_small_amplitude_tune,
             tune,
-            msg="Expected value = 1.1e-7 rad/s",
             places=self.places,
         )
 
@@ -69,11 +79,12 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
             revolution_frequency=self.revolution_frequency,
+            beta=self.beta,
+            charge=self.charge,
         )
         self.assertAlmostEqual(
             self.expected_small_amplitude_frequency,
             frequency,
-            msg="Expected value = 1.1e-7 rad/s",
             places=self.places,
         )
 
@@ -89,6 +100,8 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
             harmonic_number=self.harmonic_number,
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
+            beta=self.beta,
+            charge=self.charge,
         )
 
         self.assertAlmostEqual(
@@ -104,6 +117,8 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
             revolution_frequency=self.revolution_frequency,
+            beta=self.beta,
+            charge=self.charge,
         )
 
         self.assertAlmostEqual(
@@ -115,22 +130,29 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
 
 class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
     def setUp(self):
-        # Example of the FCC-ee high-energy booster at injection
-        self.energy = np.array([20.0, 20.0, 1.0, 10.0, 1.0])
+        # Physically consistent electron beam (total energy > rest mass) so
+        # that the reference beta can be derived from the energy.
+        self.particle_type = electron
+        rest_mass = electron.mass
+        self.energy = np.array([20e9, 20e9, 5e9, 10e9, 1e9])
+        self.beta = np.sqrt(1.0 - (rest_mass / self.energy) ** 2)
         self.revolution_frequency = np.array([5.0, 2.0, 1.0, 10.0, 1.0])
         self.voltage = np.array([50e6, 40e6, 1e6, 10e6, 5e6])
         self.harmonic_number = 250
         self.phase_slip_factor = 7e-6
         self.synchronous_phase = 0.15
+        self.charge = electron.charge
 
-        self.expected_small_amplitude_tune = np.sqrt(
-            (
-                self.harmonic_number
-                * e
-                * self.voltage
-                * abs(self.phase_slip_factor * np.cos(self.synchronous_phase))
+        self.expected_small_amplitude_tune = (
+            calc_synchrotron_tune_single_harmonic(
+                charge=self.charge,
+                voltage=self.voltage,
+                beta=self.beta,
+                energy=self.energy,
+                phi_s=self.synchronous_phase,
+                harmonic=self.harmonic_number,
+                eta_0=self.phase_slip_factor,
             )
-            / (2 * np.pi * self.energy)
         )
         self.expected_small_amplitude_frequency = (
             2
@@ -153,6 +175,8 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
                 synchronous_phase=self.synchronous_phase,
                 phase_slip_factor=self.phase_slip_factor,
                 revolution_frequency=self.revolution_frequency,
+                beta=self.beta,
+                charge=self.charge,
             )
         tune = get_small_amplitude_angular_synchrotron_tune(
             energy=self.energy,
@@ -160,11 +184,13 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
             harmonic_number=self.harmonic_number,
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
+            beta=self.beta,
+            charge=self.charge,
         )
-        np.testing.assert_almost_equal(
+        np.testing.assert_allclose(
             self.expected_small_amplitude_tune,
             tune,
-            decimal=self.places,
+            rtol=1e-12,
         )
 
     def test_get_small_amplitude_angular_synchrotron_frequency(self):
@@ -175,11 +201,13 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
             revolution_frequency=self.revolution_frequency,
+            beta=self.beta,
+            charge=self.charge,
         )
-        np.testing.assert_almost_equal(
+        np.testing.assert_allclose(
             self.expected_small_amplitude_frequency,
             frequency,
-            decimal=self.places,
+            rtol=1e-12,
         )
 
     def test_get_angular_synchrotron_tune_and_frequency(self):
@@ -194,12 +222,14 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
             harmonic_number=self.harmonic_number,
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
+            beta=self.beta,
+            charge=self.charge,
         )
 
-        np.testing.assert_almost_equal(
+        np.testing.assert_allclose(
             expected,
             tune,
-            decimal=self.places,
+            rtol=1e-12,
         )
 
         tune = get_angular_synchrotron_frequency(
@@ -209,10 +239,12 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
             synchronous_phase=self.synchronous_phase,
             phase_slip_factor=self.phase_slip_factor,
             revolution_frequency=self.revolution_frequency,
+            beta=self.beta,
+            charge=self.charge,
         )
 
-        np.testing.assert_almost_equal(
+        np.testing.assert_allclose(
             2 * np.pi * self.revolution_frequency * expected,
             tune,
-            decimal=self.places,
+            rtol=1e-12,
         )

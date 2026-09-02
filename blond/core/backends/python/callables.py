@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import STATE_LAG_BINS as _STATE_LAG_BINS
 from blond.core.backends.backend import Specials
 from blond.core.beam.flags import BeamFlags
 
@@ -800,7 +801,7 @@ class PythonSpecials(Specials):
             out[sel] = hist
 
     @staticmethod
-    def wake_from_pole_residue(
+    def wake_from_pole_residue(  # NOQA PLR0915
         # read
         profile: NumpyArray,
         profile_dts: NumpyArray,
@@ -817,6 +818,10 @@ class PythonSpecials(Specials):
     ) -> None:
         """
         Apply poles based on the `profile` to generate `voltage`.
+
+        See `Specials.wake_from_pole_residue` for the full derivation of the
+        lag bookkeeping and the ``states`` layout; this is the readable
+        reference implementation the other backends must match.
 
         Parameters
         ----------
@@ -840,7 +845,12 @@ class PythonSpecials(Specials):
         factor
             To convert `profile` to current per bin [A].
         states
-            Complex state vector, initially ``(0 + 0j)``.
+            Complex state vector of length ``2 * n_poles + 2``, initially
+            ``(0 + 0j)``. ``states[:n_poles]`` holds each pole's state
+            through the last bin, referenced at the time in ``states[-1]``;
+            ``states[n_poles:2 * n_poles]`` holds the same state one bin
+            earlier, referenced at ``states[-2]``. Both reference times live
+            in the real part and are written by this function.
         voltage
             Output voltage, in [V].
         voltage_threaded
@@ -850,10 +860,23 @@ class PythonSpecials(Specials):
         two_factor = 2 * factor
         n_bins = len(profile)
 
+        assert len(states) == _STATE_LAG_BINS * (n_poles + 1)
+        assert n_bins >= _STATE_LAG_BINS
+
         voltage[:] = 0
         voltage_threaded[:, :] = 0
 
-        t_start = states[-1]
+        # Reference times of the two incoming states: `t_state` belongs to
+        # `states[pole_i]`, `t_state_prev` to the one-bin-older
+        # `states[n_poles + pole_i]`.
+        t_state = states[-1].real
+        t_state_prev = states[-2].real
+        # The state a bin reads is referenced two bins back, while the
+        # bin-averaged wake starts three half-bins back (the residues carry
+        # ((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)). Every bin is `bin_dt`
+        # wide -- a sparse profile's gaps are whole numbers of bins -- so
+        # that lookback is the same everywhere.
+        bin_dt = profile_dts[1] - profile_dts[0]
 
         for pole_i in range(n_poles):
             # `cr_pole_flip` is intentionally applied to BOTH the state
@@ -878,40 +901,205 @@ class PythonSpecials(Specials):
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
 
+            # `state_prev` lags `state` by one bin, across the call boundary
+            # as well: the previous call left both states behind, so the
+            # first bin here still reads one that is genuinely two bins old.
+            state_prev = complex(states[n_poles + pole_i])
+
             # A real pole has no implicit complex conjugate (vector-fitting
             # convention): only a pole with imag != 0 stands in for an
             # unstored conjugate partner and needs the doubled injection.
             injection_factor = factor if pole.imag == 0 else two_factor
 
             decay = 0.0 + 0j
+            advance = 0.0 + 0j
+            chunk_dt = 0.0
+            # The step the previous call took from `state_prev` to `state`;
+            # the lag correction of the first bin reaches across it.
+            jump_prev = t_state - t_state_prev
+            residue_lookback = residue
+            bins_since_jump = _STATE_LAG_BINS  # lag factor on the first bins
             for bin_i in range(n_bins):
-                profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
-                )
-
                 if bin_i == update_on_bin_i:
+                    chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * chunk_dt)
                     if bin_i == 0:
-                        t_jump = profile_dts[0] - t_start + 0j
+                        t_jump = profile_dts[0] - t_state
                     else:
-                        t_jump = (
-                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
-                        )
-                    state *= np.exp(pole * t_jump)
-                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
-                    decay = np.exp(pole * dt)
+                        t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1]
+                    advance = np.exp(pole * t_jump)
+                    bins_since_jump = 0
 
                     i_update += 1
                     if i_update < len(update_on_bin):
                         update_on_bin_i = update_on_bin[i_update]
                 else:
-                    state *= decay
-                state += profile_i_half
-                amp = float(np.real(residue * state))
+                    t_jump = chunk_dt
+                    advance = decay
+                if bins_since_jump < _STATE_LAG_BINS:
+                    # `state_prev` is referenced two bins back only when the
+                    # last two steps were both one bin wide; otherwise reach
+                    # across whatever they actually were. The lag is clamped
+                    # at zero so the exponent keeps a non-positive real part
+                    # and cannot overflow -- a caller handing in a state less
+                    # than two bins old has nothing to reach back to, and only
+                    # a zero state may do so.
+                    lag = t_jump + jump_prev - _STATE_LAG_BINS * bin_dt
+                    residue_lookback = (
+                        residue * np.exp(pole * lag) if lag > 0.0 else residue
+                    )
+                    bins_since_jump += 1
+                else:
+                    residue_lookback = residue
+                # Read the state that lags by two bins: the bin-averaged wake
+                # starts three half-bins back, so the recursion covers lags of
+                # two bins and more. The nearer three lags -- the previous
+                # bin, this one and the next -- are added by the solver.
+                amp = float(np.real(residue_lookback * state_prev))
                 voltage[bin_i] += cr_pole_flip * amp
-                state += profile_i_half
+                state_prev = state
+                state = state * advance
+                state += cr_pole_flip * profile[bin_i] * injection_factor
+                jump_prev = t_jump
             states[pole_i] = state
+            states[n_poles + pole_i] = state_prev
 
-        states[-1] = profile_dts[-1]
+        states[-1] = profile_dts[n_bins - 1]
+        states[-2] = profile_dts[n_bins - 2]
+
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: NumpyArray,
+        beam_dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        parameter_array: NumpyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        if multiturn:
+            # Bridge the wake from the previous turn across the rev. gap.
+            time_difference_0 = (
+                beam_dt[0] + time_since_last_track - parameter_array[2]
+            )
+            exp_term = np.exp(-alpha * time_difference_0)
+            cos_term = np.cos(omega_bar * time_difference_0)
+            sin_term = np.sin(omega_bar * time_difference_0)
+            product_first = exp_term * (
+                (cos_term + coeff1 * sin_term) * parameter_array[0]
+                + coeff2 * sin_term * parameter_array[1]
+            )
+            product_second = exp_term * (
+                coeff3 * sin_term * parameter_array[0]
+                + (cos_term + coeff4 * sin_term) * parameter_array[1]
+            )
+        else:
+            # Turn 1: no previous-turn wake to bridge.
+            product_first = 0.0
+            product_second = 0.0
+
+        induced_voltage[0] = const * (0.5 + product_first)
+        beam_dE[0] += induced_voltage[0]
+
+        input_first, input_second = _music_recurrence(
+            beam_dt,
+            beam_dE,
+            induced_voltage,
+            product_first + 1.0,
+            product_second,
+            alpha,
+            omega_bar,
+            const,
+            coeff1,
+            coeff2,
+            coeff3,
+            coeff4,
+        )
+        parameter_array[0] = input_first
+        parameter_array[1] = input_second
+        parameter_array[2] = beam_dt[len(beam_dt) - 1]
+
+
+def _music_recurrence(
+    beam_dt: NumpyArray,
+    beam_dE: NumpyArray,
+    induced_voltage: NumpyArray,
+    input_first: float,
+    input_second: float,
+    alpha: float,
+    omega_bar: float,
+    const: float,
+    coeff1: float,
+    coeff2: float,
+    coeff3: float,
+    coeff4: float,
+) -> tuple[float, float]:
+    """
+    Run the MuSiC O(n) recurrence over the sorted macro-particles.
+
+    Updates ``beam_dE`` and ``induced_voltage`` in place (from index 1
+    onwards) and returns the carried state for the next turn.
+
+    Parameters
+    ----------
+    beam_dt
+        Macro-particle time coordinates [s], sorted ascending.
+    beam_dE
+        Macro-particle energy coordinates [eV]; updated in place.
+    induced_voltage
+        Output induced voltage [V]; written from index 1 onwards.
+    input_first
+        First component of the carried state at entry.
+    input_second
+        Second component of the carried state at entry.
+    alpha
+        Resonator damping ``omega_R / (2 Q)`` [rad/s].
+    omega_bar
+        Damped resonant angular frequency [rad/s].
+    const
+        MuSiC prefactor [V].
+    coeff1
+        Recurrence coefficient.
+    coeff2
+        Recurrence coefficient.
+    coeff3
+        Recurrence coefficient.
+    coeff4
+        Recurrence coefficient.
+
+    Returns
+    -------
+    input_first
+        First component of the carried state after the loop.
+    input_second
+        Second component of the carried state after the loop.
+    """
+    for i in range(len(beam_dt) - 1):
+        time_difference = beam_dt[i + 1] - beam_dt[i]
+        exp_term = np.exp(-alpha * time_difference)
+        cos_term = np.cos(omega_bar * time_difference)
+        sin_term = np.sin(omega_bar * time_difference)
+
+        product_first = exp_term * (
+            (cos_term + coeff1 * sin_term) * input_first
+            + coeff2 * sin_term * input_second
+        )
+        product_second = exp_term * (
+            coeff3 * sin_term * input_first
+            + (cos_term + coeff4 * sin_term) * input_second
+        )
+
+        induced_voltage[i + 1] = const * (0.5 + product_first)
+        beam_dE[i + 1] += induced_voltage[i + 1]
+        input_first = product_first + 1.0
+        input_second = product_second
+    return input_first, input_second
 
     @staticmethod
     def wake_from_twc_fir(

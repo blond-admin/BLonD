@@ -3,9 +3,11 @@ import subprocess
 import sys
 import unittest
 import warnings
+from unittest import mock
 
 import numpy as np
 import pytest
+from scipy.constants import elementary_charge
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
@@ -28,9 +30,17 @@ try:
 except ModuleNotFoundError:
     cupy_available = False
 
+from numba import config as numba_config
 from numba import set_num_threads
 
 from blond.testing.helpers import allclose_tolerances
+
+#: Thread count used to exercise the multi-threaded kernel paths (several
+#: kernels shard a scratch buffer per thread, so one thread would not test
+#: them). `set_num_threads` rejects anything above numba's own maximum --
+#: the core count, or NUMBA_NUM_THREADS when set -- so the request is
+#: clamped: hardcoding 8 fails on any machine or CPU quota below that.
+N_TEST_THREADS = min(8, numba_config.NUMBA_NUM_THREADS)
 
 backend_org = backend.__class__
 backend_specials_mode_org = backend.specials_mode
@@ -100,8 +110,14 @@ class TestBackendBaseClass(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_apply_environment_variables(self):
-        import os
+        # `patch.dict` restores the process environment on exit. Without it
+        # the loop below leaves BLOND_BACKEND_MODE/BITS at "fail", which
+        # breaks every later test that reads them -- and any subprocess that
+        # inherits them cannot even import blond.
+        with mock.patch.dict(os.environ):
+            self._apply_environment_variables_for_every_mode()
 
+    def _apply_environment_variables_for_every_mode(self):
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["64", "fail"]
         try:
@@ -111,26 +127,54 @@ class TestBackendBaseClass(unittest.TestCase):
         except ModuleNotFoundError:
             pass
         print(f"{backend_modes=}")
-        for backend_mode in backend_modes:
-            os.environ["BLOND_BACKEND_MODE"] = backend_mode
-            for backend_bit in backend_bits:
-                os.environ["BLOND_BACKEND_BITS"] = backend_bit
-                if (backend_mode == "fail") or (backend_bit == "fail"):
-                    with self.assertRaises(ValueError):
-                        self.backend_base_class.apply_environment_variables()
-                else:
-                    try:
-                        self.backend_base_class.apply_environment_variables()
-                    except FileNotFoundError as error:
-                        # Compiled backends might not be available locally --> skip.
-                        # On the CI, these will always be available, as the before_script builds them
-                        # or otherwise fails the CI
-                        if backend_mode == "cpp":  # TODO better handling
-                            warnings.warn(
-                                f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
-                            )
-                        else:
-                            raise error
+        # The probe values below (notably "fail") must not survive this
+        # test: tests run in random order, so anything left in the
+        # process environment poisons an arbitrary later test.
+        # `mock.patch.dict` restores os.environ wholesale on exit,
+        # including keys that were originally unset.
+        with mock.patch.dict(os.environ):
+            for backend_mode in backend_modes:
+                os.environ["BLOND_BACKEND_MODE"] = backend_mode
+                for backend_bit in backend_bits:
+                    os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                    if (backend_mode == "fail") or (backend_bit == "fail"):
+                        with self.assertRaises(ValueError):
+                            self.backend_base_class.apply_environment_variables()
+                    else:
+                        try:
+                            self.backend_base_class.apply_environment_variables()
+                        except FileNotFoundError as error:
+                            # Compiled backends might not be available locally --> skip.
+                            # On the CI, these will always be available, as the before_script builds them
+                            # or otherwise fails the CI
+                            if backend_mode == "cpp":  # TODO better handling
+                                warnings.warn(
+                                    f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
+                                )
+                            else:
+                                raise error
+
+    @pytest.mark.backend_mutation
+    def test_apply_environment_variables_restores_environment(self):
+        """`test_apply_environment_variables` must leak no env state.
+
+        It sets `BLOND_BACKEND_MODE` / `BLOND_BACKEND_BITS` to probe
+        values (including "fail"). Leaving those behind poisons every
+        later test in the session -- tests run in random order, so the
+        victim varies with the seed.
+        """
+        import os
+
+        env_keys = ("BLOND_BACKEND_MODE", "BLOND_BACKEND_BITS")
+        before = {key: os.environ.get(key) for key in env_keys}
+
+        result = unittest.TestResult()
+        type(self)("test_apply_environment_variables").run(result)
+        self.assertEqual(result.errors, [])
+        self.assertEqual(result.failures, [])
+
+        after = {key: os.environ.get(key) for key in env_keys}
+        self.assertEqual(after, before)
 
     @pytest.mark.backend_mutation
     def test__finalize(self):
@@ -347,7 +391,7 @@ class TestSpecials(unittest.TestCase):
         ]
         if cupy_available:
             self.special_modes.append("cuda")
-        set_num_threads(8)
+        set_num_threads(N_TEST_THREADS)
         self.original_backend = type(backend)
         self.original_backend_specials_mode = backend.specials_mode
 
@@ -447,6 +491,82 @@ class TestSpecials(unittest.TestCase):
                     result_python,
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_music_track(self) -> None:
+        """python/cpp backends agree; numba/cuda raise NotImplementedError."""
+        dtype = np.float64
+        R_S, omega_R, Q, n_particles = 1e6, 2 * np.pi * 1e9, 1.0, 1e11
+        reference_single = None
+        reference_multi = None
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            n = len(self.dt)  # self.dt is already sorted ascending
+            alpha = omega_R / (2 * Q)
+            omega_bar = np.sqrt(omega_R**2 - alpha**2)
+            const = -elementary_charge * R_S * omega_R * n_particles / (n * Q)
+            coeffs = (
+                alpha,
+                omega_bar,
+                const,
+                -alpha / omega_bar,
+                -R_S * omega_R / (Q * omega_bar),
+                omega_R * Q / (R_S * omega_bar),
+                alpha / omega_bar,
+            )
+
+            dE = self.dE.copy()
+            iv = backend.zeros(n, dtype=backend.float)
+            ap = backend.array([1.0, 0.0, 0.0], dtype=backend.float)
+            time_since_last_track = 10.0
+
+            if special in ("numba", "cuda"):
+                # MuSiC was not shipped for these backends in BLonD2.
+                with self.assertRaises(NotImplementedError):
+                    backend.specials.music_track(
+                        self.dt,
+                        dE,
+                        iv,
+                        ap,
+                        *coeffs,
+                        time_since_last_track,
+                        False,
+                    )
+                continue
+
+            # turn 1 (single-turn) then turn 2 (multi-turn)
+            backend.specials.music_track(
+                self.dt, dE, iv, ap, *coeffs, time_since_last_track, False
+            )
+            single = copy_to_cpu(iv)
+            iv2 = backend.zeros(n, dtype=backend.float)
+            backend.specials.music_track(
+                self.dt, dE, iv2, ap, *coeffs, time_since_last_track, True
+            )
+            multi = copy_to_cpu(iv2)
+
+            if reference_single is None:
+                reference_single = single
+                reference_multi = multi
+            else:
+                # cpp uses VDT fast math, so allow a small tolerance.
+                np.testing.assert_allclose(
+                    single,
+                    reference_single,
+                    **allclose_tolerances(reference_single, 1e-5),
+                    err_msg=f"single-turn `{special}` disagrees with python",
+                )
+                np.testing.assert_allclose(
+                    multi,
+                    reference_multi,
+                    **allclose_tolerances(reference_multi, 1e-5),
+                    err_msg=f"multi-turn `{special}` disagrees with python",
                 )
 
     @unittest.skip
@@ -2416,7 +2536,7 @@ class TestSpecials(unittest.TestCase):
             except (FileNotFoundError, OSError):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
-            set_num_threads(8)
+            set_num_threads(N_TEST_THREADS)
             array_write = backend.ones(21, dtype=backend.float)
             backend.specials.histogram(
                 array_read=backend.array(
@@ -2468,10 +2588,14 @@ class TestSpecials(unittest.TestCase):
         centers = backend.array(centers_np, dtype=backend.float)
         poles = backend.array(poles_np, dtype=backend.complex)
         residues = backend.array(residues_np, dtype=backend.complex)
-        states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
-        # non-zero state so decay handling is observable in the output
+        # Two state generations per pole plus their two reference times,
+        # see `Specials.wake_from_pole_residue`.
+        states = backend.zeros(2 * len(poles_np) + 2, dtype=backend.complex)
+        # non-zero states so decay handling is observable in the output
         states[0] = 0.3 + 0.1j
+        states[len(poles_np)] = 0.3 + 0.1j
         states[-1] = centers_np[0] - bin_dt
+        states[-2] = centers_np[0] - 2 * bin_dt
         voltage = backend.zeros(n, dtype=backend.float)
         for _ in range(n_calls):
             backend.specials.wake_from_pole_residue(
@@ -3143,8 +3267,6 @@ class TestSpecials(unittest.TestCase):
         allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
         ``float64`` the only precision all backends consistently accept.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3176,10 +3298,11 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3230,8 +3353,6 @@ class TestSpecials(unittest.TestCase):
         allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
         ``float64`` the only precision all backends consistently accept.
         """
-        import numba as _nb
-
         for charge in (-1, 1):
             for is_counterrotating_beam in (False, True):
                 for cr_flags_sign in (-1, 1):
@@ -3278,11 +3399,11 @@ class TestSpecials(unittest.TestCase):
                         cr_flags = backend.ones(n_poles, dtype=backend.float)
                         cr_flags[-1] *= cr_flags_sign
                         states = backend.zeros(
-                            n_poles + 1, dtype=np.complex128
+                            2 * n_poles + 2, dtype=np.complex128
                         )
                         voltage = backend.zeros(n_bins, dtype=backend.float)
                         voltage_threaded = backend.zeros(
-                            (_nb.get_num_threads(), n_bins),
+                            (backend.specials.get_max_threads(), n_bins),
                             dtype=backend.float,
                         )
                         update_on_bin = backend.array(
@@ -3335,8 +3456,6 @@ class TestSpecials(unittest.TestCase):
         ``2 *`` injection factor as a genuine complex-conjugate-pair pole.
         All backends must agree with each other on this.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3370,7 +3489,8 @@ class TestSpecials(unittest.TestCase):
             states = backend.zeros(n_poles + 1, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3388,7 +3508,7 @@ class TestSpecials(unittest.TestCase):
                 factor=backend.float(1.0),
             )
 
-            result = np.asarray(copy_to_cpu(voltage))
+            result = copy_to_cpu(voltage)
 
             if i == 0:
                 result_reference = result
@@ -3400,7 +3520,7 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
-            result2 = np.asarray(copy_to_cpu(states))
+            result2 = copy_to_cpu(states)
 
             if i == 0:
                 result2_reference = result2
@@ -3422,8 +3542,6 @@ class TestSpecials(unittest.TestCase):
         Starting from zero state, the per-backend voltage must therefore
         be identical with and without flipped poles.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3447,10 +3565,11 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.array(flags_np, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 
@@ -3502,8 +3621,6 @@ class TestSpecials(unittest.TestCase):
         them, so the jump at the boundary is physically meaningful. Scoped
         to float64 for the same reason as `test_wake_from_pole_residue`.
         """
-        import numba as _nb
-
         n_bins = 64
         n_poles = 3
         dt_val = 1e-9
@@ -3543,10 +3660,11 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
-                (_nb.get_num_threads(), n_bins), dtype=backend.float
+                (backend.specials.get_max_threads(), n_bins),
+                dtype=backend.float,
             )
             update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
 

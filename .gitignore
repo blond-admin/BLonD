@@ -371,3 +371,8 @@ last_*.npy
 
 # superpowers subagent-driven-development scratch workspaces
 .superpowers/
+
+# Observable outputs that default their save path to the cwd
+tests/last_*
+last_*.json
+last_*.npy

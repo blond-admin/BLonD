@@ -50,6 +50,34 @@ def _register_backend(bd: BackendType) -> BackendType:
     return bd
 
 
+def backend_class_for_mode(
+    mode: str,
+) -> type[Numpy64Bit | Cupy64Bit]:
+    """
+    Return the array backend class belonging to a specials mode.
+
+    Parameters
+    ----------
+    mode
+        A specials mode, e.g. 'python', 'cpp', 'numba' or 'cuda'.
+
+    Returns
+    -------
+    backend_class
+        :class:`Cupy64Bit` for the 'cuda' mode, else :class:`Numpy64Bit`.
+    """
+    return Cupy64Bit if mode.lower() == "cuda" else Numpy64Bit
+
+
+# How far behind the current bin the state read by
+# `Specials.wake_from_pole_residue` lags: the B-spline bin-averaged wake
+# starts three half-bins back, so the recursion covers lags of two bins and
+# more. It is also the number of state generations `states` carries, one per
+# bin of that lag. Shared by all four backends so the layout cannot drift
+# between them.
+STATE_LAG_BINS = 2
+
+
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
@@ -384,6 +412,25 @@ class Specials(ABC):
         """
         Apply poles based on the `profile` to generate `voltage`.
 
+        Each pole carries a state that is advanced by one bin and then given
+        the bin's charge, in that order. A bin's output is read from the
+        state two bins back, so the kernel covers lags of two bins and more,
+        and the caller adds the nearer three -- the previous bin, the bin
+        itself and the next one, which the bin-averaged wake's non-causal
+        tap reaches. This is what lets the residues carry the B-spline
+        bin-average ``((exp(p*dt) - 1) / (p*dt))**3 * exp(p*dt/2)``, which
+        stays bounded by one at any binning -- see
+        `MultiPoleSparseSolve._finalize_solver`.
+
+        Because a bin reads the state of two bins ago, `states` carries both
+        the newest state and its one-bin-older twin, each with its own
+        reference time. That is what lets the next call start from a state
+        that is really two bins old even when consecutive calls are only one
+        bin apart -- a profile spanning the full revolution period. The last
+        bin's charge is in the newest state only, so the first bin of the
+        next call does not see it through the recursion; the caller adds it
+        as a near lag, like any other neighbouring bin.
+
         Parameters
         ----------
         profile
@@ -406,7 +453,12 @@ class Specials(ABC):
         factor
             To convert `profile` to current per bin [A].
         states
-            Complex state vector, initially ``(0 + 0j)``.
+            Complex state vector of length ``2 * n_poles + 2``, initially
+            ``(0 + 0j)``. ``states[:n_poles]`` holds each pole's state
+            through the last bin, referenced at the time in ``states[-1]``;
+            ``states[n_poles:2 * n_poles]`` holds the same state one bin
+            earlier, referenced at ``states[-2]``. Both reference times live
+            in the real part and are written by this function.
         voltage
             Output voltage, in [V].
         voltage_threaded
@@ -533,6 +585,68 @@ class Specials(ABC):
             "is not implemented."
         )
 
+    # The MuSiC kernel is intentionally *not* abstract: BLonD2 only shipped
+    # it for the ``python`` and ``cpp`` backends, so those two override the
+    # method below while ``numba`` and ``cuda`` raise by default.
+    @staticmethod
+    def music_track(
+        beam_dt: NumpyArray | CupyArray,
+        beam_dE: NumpyArray | CupyArray,
+        induced_voltage: NumpyArray | CupyArray,
+        parameter_array: NumpyArray | CupyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        """
+        MuSiC induced voltage of one resonator; updates ``beam_dE`` in place.
+
+        The caller must sort the macro-particles by ``beam_dt`` (ascending)
+        beforehand. ``induced_voltage`` is filled by the kernel.
+
+        Parameters
+        ----------
+        beam_dt
+            Macro-particle time coordinates [s], sorted ascending.
+        beam_dE
+            Macro-particle energy coordinates [eV]; updated in place.
+        induced_voltage
+            Output induced voltage [V]; filled by the kernel.
+        parameter_array
+            Length-3 state vector
+            ``[input_first, input_second, last_dt]``, carried across turns
+            and written back in place. When ``multiturn`` is ``True`` it
+            must hold the state left by the previous turn.
+        alpha
+            Resonator damping ``omega_R / (2 Q)`` [rad/s].
+        omega_bar
+            Damped resonant angular frequency [rad/s].
+        const
+            MuSiC prefactor [V].
+        coeff1
+            Recurrence coefficient (see :class:`~blond.physics.impedances.music_algorithm.Music`).
+        coeff2
+            Recurrence coefficient.
+        coeff3
+            Recurrence coefficient.
+        coeff4
+            Recurrence coefficient.
+        time_since_last_track
+            Time elapsed [s] since the previous call, used to span the gap
+            to the previous turn. Ignored when ``multiturn`` is ``False``.
+        multiturn
+            If ``False`` (turn 1) the recurrence starts fresh. If ``True``
+            the wake from the previous turn is bridged across the
+            revolution gap using ``parameter_array``.
+        """
+        raise NotImplementedError("The backend for `music_track` is missing.")
+
 
 class _ModeSwitchHelper:
     """
@@ -640,6 +754,7 @@ class BackendBaseClass(ABC):
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
         self.sqrt: Callable = None  # type: ignore
+        self.expm1: Callable = None  # type: ignore
         self.interp: Callable = None  # type: ignore
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
@@ -824,24 +939,13 @@ class BackendBaseClass(ABC):
                 f"of {_allowed_backend_bits_flag}."
             )
 
-        if _backend_mode == "cuda":
-            if _backend_bits == "64":
-                self.change_backend(Cupy64Bit)
-            else:
-                # This statement is not reachable
-                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
-                # Anyways its beter to write if, elif, else explicitly
-                raise ValueError(_backend_bits)  # pragma: no cover
-            self.set_specials(mode=_backend_mode)  # type: ignore
-        else:
-            if _backend_bits == "64":
-                self.change_backend(Numpy64Bit)
-            else:
-                # This statement is not reachable
-                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
-                # Anyways its beter to write if, elif, else explicitly
-                raise ValueError(_backend_bits)  # pragma: no cover
-            self.set_specials(mode=_backend_mode)  # type: ignore
+        if _backend_bits != "64":
+            # This statement is not reachable
+            # because of `_backend_bits_raw in _allowed_backend_bits_flag`
+            # Anyways its beter to write if, elif, else explicitly
+            raise ValueError(_backend_bits)  # pragma: no cover
+        self.change_backend(backend_class_for_mode(_backend_mode))
+        self.set_specials(mode=_backend_mode)  # type: ignore
 
     def temporary_specials_mode(self, mode: str):
         """
@@ -1034,6 +1138,7 @@ class NumpyBackend(BackendBaseClass):
         self.isnan = np.isnan
         self.sum = np.sum
         self.sqrt = np.sqrt
+        self.expm1 = np.expm1
         self.interp = np.interp
         self.meshgrid = np.meshgrid
         self.square = np.square
@@ -1188,6 +1293,7 @@ class CupyBackend(BackendBaseClass):
         self.isnan = cp.isnan
         self.sum = cp.sum
         self.sqrt = cp.sqrt
+        self.expm1 = cp.expm1
         self.interp = cp.interp
         self.meshgrid = cp.meshgrid
         self.square = cp.square

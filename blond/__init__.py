@@ -8,6 +8,12 @@
 
 """BLonD beam dynamics software."""
 
+# Imported first, and for its import-time side effect only: it defaults
+# OMP_WAIT_POLICY to "passive". This must happen before anything pulls
+# in an OpenMP runtime (numba, the compiled C++ library), because
+# libgomp reads the wait policy once at initialisation.
+from blond.core.backends import openmp_env  # noqa: F401  # isort: skip
+
 __all__ = [
     "BiGaussian",
     "Cupy64Bit",
@@ -29,6 +35,7 @@ __all__ = [
     "MagneticCyclePerTurn",
     "MagneticCyclePerTurnAllRFStations",
     "AllowPlotting",
+    "DerivativeInterpolator",
     "BeamObservationOncePerTurn",
     "RFStationPhaseObservation",
     "StaticProfileObservation",
@@ -60,6 +67,7 @@ __all__ = [
     "BeamStatisticsOncePerTurn",
     "WakeFieldObservation",
     "typing",
+    "Music",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
@@ -90,6 +98,7 @@ from blond.cycles.magnetic_cycle import (
 )
 from blond.generals import typing_ as typing
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
+from blond.generals.interpolators import DerivativeInterpolator
 from blond.handle_results.observables import (
     BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
@@ -111,6 +120,7 @@ from blond.physics.cavities import (
 from blond.physics.drifts import DriftSimple
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
+from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
     MultiPoleSparseSolve,
