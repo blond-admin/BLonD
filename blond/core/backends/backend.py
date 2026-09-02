@@ -69,6 +69,15 @@ def backend_class_for_mode(
     return Cupy64Bit if mode.lower() == "cuda" else Numpy64Bit
 
 
+# How far behind the current bin the state read by
+# `Specials.wake_from_pole_residue` lags: the B-spline bin-averaged wake
+# starts three half-bins back, so the recursion covers lags of two bins and
+# more. It is also the number of state generations `states` carries, one per
+# bin of that lag. Shared by all four backends so the layout cannot drift
+# between them.
+STATE_LAG_BINS = 2
+
+
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 

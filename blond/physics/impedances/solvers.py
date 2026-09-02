@@ -43,10 +43,10 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
+from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.sources import (
     InductiveImpedance,
     Resonators,
-    causal_third_antiderivative_factor,
 )
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
@@ -1284,7 +1284,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         return induced_voltage
 
 
-def _bin_averaged_kernel(
+def _exact_near_field_wake(
     lags: NumpyArray | CupyArray,
     poles: NumpyArray | CupyArray,
     residues: NumpyArray | CupyArray,
@@ -1293,14 +1293,15 @@ def _bin_averaged_kernel(
     r"""
     Bin-averaged wake of a pole-residue model at arbitrary lags.
 
-    Sums ``2 * Re(residue * ...)`` over the poles of the wake weighted with
-    the quadratic B-spline ``box * box * box`` of bin width ``bin_dt`` -- the
-    same kernel
+    Thin wrapper over
+    :func:`~blond.physics.impedances.bin_average.triple_box_average_poles` --
+    the same kernel
     :func:`~blond.physics.impedances.sources.Resonators.get_wake_per_bin`
     returns, but evaluated at lags that need not lie on a uniform grid.
-    :class:`MultiPoleSparseSolve` uses it for the three lags its recursion
-    does not cover, at the profile's actual bin spacings, so that the gaps of
-    a sparse profile are handled exactly.
+    :class:`MultiPoleSparseSolve` uses it for the three near lags its
+    recursion does not cover (the previous bin, the bin itself, and the next
+    one that the kernel's non-causal tap reaches), at the profile's actual
+    bin spacings, so that the gaps of a sparse profile are handled exactly.
 
     Parameters
     ----------
@@ -1319,46 +1320,7 @@ def _bin_averaged_kernel(
     kernel
         Bin-averaged wake at each lag, in [V].
     """
-    out = backend.zeros(len(lags), dtype=backend.float, order="C")
-    resolved = lags > 1.5 * bin_dt
-    onset = ~resolved
-    onset_lags = lags[onset]
-    for pole_entry, residue_entry in zip(poles, residues, strict=True):
-        pole = complex(pole_entry)
-        residue = complex(residue_entry)
-        pole_dt = pole * bin_dt
-        out[resolved] += (
-            2.0
-            * (
-                residue
-                * (np.expm1(pole_dt) / pole_dt) ** 3
-                * backend.exp(pole * (lags[resolved] - 1.5 * bin_dt))
-            ).real
-        )
-        out[onset] += (
-            2.0
-            / bin_dt**3
-            * (
-                residue
-                * (
-                    causal_third_antiderivative_factor(
-                        onset_lags + 1.5 * bin_dt, pole
-                    )
-                    - 3.0
-                    * causal_third_antiderivative_factor(
-                        onset_lags + 0.5 * bin_dt, pole
-                    )
-                    + 3.0
-                    * causal_third_antiderivative_factor(
-                        onset_lags - 0.5 * bin_dt, pole
-                    )
-                    - causal_third_antiderivative_factor(
-                        onset_lags - 1.5 * bin_dt, pole
-                    )
-                )
-            ).real
-        )
-    return out
+    return triple_box_average_poles(lags, poles, residues, bin_dt)
 
 
 # Slack on the turn-boundary check below, as a fraction of a bin. A profile
@@ -1503,7 +1465,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         bin_spacings = profile_hist_x[1:] - profile_hist_x[:-1]
         n_bins = len(profile_hist_x)
         self._lag_zero_factor = float(
-            _bin_averaged_kernel(
+            _exact_near_field_wake(
                 backend.zeros(1, dtype=backend.float),
                 self._poles,
                 self._residues,
@@ -1511,11 +1473,11 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             )[0]
         )
         self._lag_prev_factors = backend.zeros(n_bins, dtype=backend.float)
-        self._lag_prev_factors[1:] = _bin_averaged_kernel(
+        self._lag_prev_factors[1:] = _exact_near_field_wake(
             bin_spacings, self._poles, self._residues, bin_dt
         )
         self._lag_next_factors = backend.zeros(n_bins, dtype=backend.float)
-        self._lag_next_factors[:-1] = _bin_averaged_kernel(
+        self._lag_next_factors[:-1] = _exact_near_field_wake(
             -bin_spacings, self._poles, self._residues, bin_dt
         )
 
@@ -1618,7 +1580,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._trailing_bin_amplitude = (
                 self._charge_per_macroparticle
                 * float(
-                    _bin_averaged_kernel(
+                    _exact_near_field_wake(
                         backend.array([trailing_lag], dtype=backend.float),
                         self._poles,
                         self._residues_unaveraged,
