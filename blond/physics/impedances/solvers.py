@@ -40,6 +40,7 @@ from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     SupportsDirectTerm,
+    SupportsInductiveTerm,
     SupportsTWCFIRModel,
     SupportsVectorFittedModel,
     TimeDomain,
@@ -1378,6 +1379,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         # finite-support travelling-wave-cavity (FIR) sources
         self._twc_r_shunt: NumpyArray | CupyArray | None = None
+        self._twc_sources_cpu: tuple[list, list, list] = ([], [], [])
         self._twc_a_tilde: NumpyArray | CupyArray | None = None
         self._twc_omega_r: NumpyArray | CupyArray | None = None
         self._twc_bin_dt: float | None = None
@@ -1386,6 +1388,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         # constant (direct) impedance term: wake = d * delta(t)
         self._direct_term: float = 0.0
+        self._inductive_term: float = 0.0
         self._bin_dt: float | None = None
 
     def on_wakefield_init_simulation(
@@ -1470,6 +1473,16 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             else backend.array([0], dtype=np.int32)
         )
 
+        twc_r_shunt, twc_a_tilde, twc_omega_r = self._twc_sources_cpu
+        if len(twc_r_shunt) > 0:
+            self._finalize_twc_sources(
+                twc_r_shunt=twc_r_shunt,
+                twc_a_tilde=twc_a_tilde,
+                twc_omega_r=twc_omega_r,
+                profile_hist_x=profile_hist_x,
+                bin_dt=bin_dt,
+            )
+
     def _fit_vector_model(
         self,
     ) -> tuple[
@@ -1496,6 +1509,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         twc_omega_r = []
         assert self._parent_wakefield is not None
         self._direct_term = 0.0
+        self._inductive_term = 0.0
         for source in self._parent_wakefield.sources:
             recognized = False
             if isinstance(source, SupportsVectorFittedModel):
@@ -1514,12 +1528,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             if isinstance(source, SupportsDirectTerm):
                 self._direct_term += float(source.get_direct_term())
                 recognized = True
+            if isinstance(source, SupportsInductiveTerm):
+                self._inductive_term += float(source.get_inductive_term())
+                recognized = True
             if not recognized:
                 raise TypeError(
                     f"{type(source).__name__} supports none of "
-                    "`SupportsVectorFittedModel`, `SupportsTWCFIRModel` or "
-                    "`SupportsDirectTerm` and can not be used with "
-                    "`MultiPoleSparseSolve`."
+                    "`SupportsVectorFittedModel`, `SupportsTWCFIRModel`, "
+                    "`SupportsDirectTerm` or `SupportsInductiveTerm` and "
+                    "can not be used with `MultiPoleSparseSolve`."
                 )
 
         poles = backend.array(poles, dtype=complex)
@@ -1529,6 +1546,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         assert len(counter_rotation_pole_flip) == len(poles)
         assert len(residues) == len(poles)
+        # TWC FIR sources are finalised separately once the profile lattice
+        # is known, see `_finalize_twc_sources`.
+        self._twc_sources_cpu = (twc_r_shunt, twc_a_tilde, twc_omega_r)
         return poles, residues, counter_rotation_pole_flip
 
     def _continuous_profile_hist_x(self) -> NumpyArray | CupyArray:
@@ -1768,15 +1788,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._trailing_bin_amplitude * self._trailing_hist_y
         )
 
-        if len(twc_r_shunt) > 0:
-            self._finalize_twc_sources(
-                twc_r_shunt=twc_r_shunt,
-                twc_a_tilde=twc_a_tilde,
-                twc_omega_r=twc_omega_r,
-                profile_hist_x=profile_hist_x,
-                bin_dt=bin_dt,
-            )
-
     def _finalize_twc_sources(
         self, twc_r_shunt, twc_a_tilde, twc_omega_r, profile_hist_x, bin_dt
     ):
@@ -1875,6 +1886,19 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 * self._charge_per_macroparticle
                 / self._bin_dt
             ) * profile_hist_y
+        if self._inductive_term != 0.0:
+            # inductive impedance Z = 2j*pi*f*L: V(t) = L * dI/dt, with
+            # I = q_mp * hist / bin_dt; central finite difference (same
+            # stencil `InductiveImpedance` uses for the FFT solvers), one-
+            # sided at the ends. On an `EquidistantMultiProfile` this is
+            # taken across the continuous memory layout, so the stencil
+            # straddles bunch-segment boundaries -- those bins are the
+            # (empty) edges of each segment, so the leakage is nil.
+            self._voltage += (
+                self._inductive_term
+                * self._charge_per_macroparticle
+                / self._bin_dt**2
+            ) * backend.gradient(profile_hist_y)
 
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage

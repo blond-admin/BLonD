@@ -760,6 +760,38 @@ class SupportsDirectTerm(ABC):
         direct_term
             Constant impedance ``d``, in [Ohm].
         """
+
+
+class SupportsInductiveTerm(ABC):
+    """
+    Mixin for sources with a purely inductive impedance term.
+
+    ``Z(f) = 2j pi f L`` corresponds to the wake ``W(t) = L delta'(t)``:
+    the induced voltage is ``L`` times the time derivative of the beam
+    current. A pure inductance has no pole-residue representation (any
+    pole placed far above the band only mimics it up to a spurious
+    ``Re Z ~ f^2``), so, like the direct term, it is applied to the binned
+    profile directly -- as a central finite difference, the same
+    ``np.gradient`` stencil ``InductiveImpedance`` reproduces in the
+    frequency domain for the FFT solvers. The finite difference amplifies
+    histogram noise at the bin Nyquist; band-limit the profile if that
+    matters.
+
+    See Also
+    --------
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    """
+
+    @abstractmethod  # pragma: no cover
+    def get_inductive_term(self) -> float:
+        """
+        Provide the inductive impedance coefficient.
+
+        Returns
+        -------
+        inductive_term
+            ``L`` in ``Z(f) = 2j pi f L``, in [Ohm s] (= Henry).
+        """
         pass
 
 

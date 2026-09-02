@@ -166,6 +166,14 @@ def triple_box_average_pole(
     r"""
     Triple bin-average of a single pole's wake :math:`2\,\mathrm{Re}[\rho e^{p t}]`.
 
+    The factor 2 stands in for the implicit, unstored complex-conjugate
+    partner of a complex pole (vector-fitting convention). A **real** pole
+    (``pole.imag == 0``) has no partner and contributes
+    :math:`\mathrm{Re}[\rho e^{p t}]` undoubled -- the same rule the
+    far-field recursion applies (``injection_factor`` in
+    ``wake_from_pole_residue``); without it, a real pole's near-field taps
+    would be counted twice relative to its recursion tail.
+
     Writing the pole :math:`p` and residue :math:`\rho`, the causal third
     antiderivative of the wake is
     :math:`A_3(t) = 2 \,\mathrm{Re}[\rho \varphi_3(t)]` with
@@ -203,14 +211,15 @@ def triple_box_average_pole(
         Bin-averaged wake of this single pole, in the units of ``residue``.
     """
     out = backend.zeros(len(t), dtype=backend.float, order="C")
+    pair_factor = 1.0 if pole.imag == 0 else 2.0
     fully_causal = t > 1.5 * dt
     onset = ~fully_causal
     out[fully_causal] = (
-        2.0 * (residue * _smoothed_pole(t[fully_causal], pole, dt)).real
+        pair_factor * (residue * _smoothed_pole(t[fully_causal], pole, dt)).real
     )
     onset_t = t[onset]
     out[onset] = (
-        2.0
+        pair_factor
         / dt**3
         * (
             residue
