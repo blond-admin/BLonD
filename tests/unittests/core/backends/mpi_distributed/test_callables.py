@@ -68,6 +68,7 @@ class TestCallables(unittest.TestCase):
         except ModuleNotFoundError as exc:
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
+        self.addCleanup(backend.change_backend, Numpy64Bit)
 
         cp.random.seed(0)
         dt = DistributedArray(cp.random.normal(loc=0, scale=1, size=512))
@@ -84,5 +85,4 @@ class TestCallables(unittest.TestCase):
         dE.mpi_scatter()
         self.assertLess(dt.local_size, 512)
         rms = rms_emittance(dt=dt, dE=dE)
-        self.assertAlmostEqual(rms_expected, rms)
-        backend.change_backend(Numpy64Bit)
+        self.assertAlmostEqual(float(copy_to_cpu(rms_expected)), rms)

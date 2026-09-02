@@ -1602,6 +1602,43 @@ class TestFitPoles(unittest.TestCase):
             np.abs(imp_fit[sel]), np.abs(Z[sel]), rtol=0.05
         )
 
+    def test_recovers_real_pole_system(self):
+        """A single-pole RC-like relaxation impedance has a purely real
+        pole/residue. Fitting it with ``n_pole_real=1`` must produce a
+        real pole, and reconstructing with the vector-fitting convention
+        for a real pole (no implicit conjugate term) must match the
+        analytic impedance."""
+        R = 1e6
+        tau = 1e-9
+        freq = np.linspace(0, 4e9, 1000)
+        omega = 2j * np.pi * freq
+        Z = R / (1 + omega * tau)
+
+        poles, residues, rms_error, prop_coeff, const_coeff = fit_poles(
+            freqs=freq,
+            Z=Z,
+            n_pole=0,
+            n_pole_real=1,
+            max_iterations=20,
+        )
+
+        self.assertEqual(len(poles), 1)
+        self.assertLess(rms_error, 1e-3)
+
+        pole = poles[0]
+        residue = residues.flatten()[0]
+        self.assertEqual(np.imag(pole), 0.0)
+        self.assertEqual(np.imag(residue), 0.0)
+
+        # Vector-fitting convention: a real pole has no implicit
+        # conjugate, so no `+ conj(residue) / (omega - conj(pole))` term.
+        imp_fit = (
+            residue / (omega - pole)
+            + prop_coeff * 1j * 2 * np.pi * freq
+            + const_coeff
+        )
+        np.testing.assert_allclose(np.abs(imp_fit), np.abs(Z), rtol=0.05)
+
     def test_max_iterations_branch(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e6]),

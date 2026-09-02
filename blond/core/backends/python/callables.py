@@ -769,6 +769,12 @@ class PythonSpecials(Specials):
             # as well: the previous call left both states behind, so the
             # first bin here still reads one that is genuinely two bins old.
             state_prev = complex(states[n_poles + pole_i])
+
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only a pole with imag != 0 stands in for an
+            # unstored conjugate partner and needs the doubled injection.
+            injection_factor = factor if pole.imag == 0 else two_factor
+
             decay = 0.0 + 0j
             advance = 0.0 + 0j
             chunk_dt = 0.0
@@ -817,7 +823,7 @@ class PythonSpecials(Specials):
                 voltage[bin_i] += cr_pole_flip * amp
                 state_prev = state
                 state = state * advance
-                state += cr_pole_flip * profile[bin_i] * two_factor
+                state += cr_pole_flip * profile[bin_i] * injection_factor
                 jump_prev = t_jump
             states[pole_i] = state
             states[n_poles + pole_i] = state_prev

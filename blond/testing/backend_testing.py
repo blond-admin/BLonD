@@ -96,10 +96,14 @@ def pin_fast_test_backends() -> None:
       cpp > numba > python). The legacy backend is a mutable global that many
       regression tests change without restoring; leaving it in pure-python
       mode made those tests an order-dependent performance sink.
-    - **BLonD 3**: only the slow pure-python kernels are guarded against being
-      the *ambient* default; ``python`` specials are switched to ``numba``.
-      Tests that deliberately exercise the python backend set it themselves
-      after this helper runs and are therefore unaffected.
+    - **BLonD 3**: the *array* backend is reset to the one the environment
+      asks for (``Numpy64Bit``, or ``Cupy64Bit`` when
+      ``BLOND_BACKEND_MODE=cuda``), so a backend left active by an earlier
+      test cannot make the next test operate on the wrong array namespace.
+      On top of that, only the slow pure-python kernels are guarded against
+      being the *ambient* default; ``python`` specials are switched to
+      ``numba``. Tests that deliberately exercise another backend set it
+      themselves after this helper runs and are therefore unaffected.
 
     Notes
     -----
@@ -113,6 +117,13 @@ def pin_fast_test_backends() -> None:
     legacy_utils = sys.modules.get("blond.legacy.blond2.utils")
     if legacy_utils is not None:
         legacy_utils.bmath.use_cpu()
+
+    environment_mode = os.environ.get(
+        "BLOND_BACKEND_MODE", backend.DEFAULT_BACKEND
+    )
+    backend.backend.change_backend(
+        backend.backend_class_for_mode(environment_mode)
+    )
 
     if backend.backend.specials_mode == "python":
         try:

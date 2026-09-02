@@ -946,6 +946,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             residue_lookback = residue
             bins_since_jump = _STATE_LAG_BINS  # lag factor on the first bins
 
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only a pole with imag != 0 stands in for an
+            # unstored conjugate partner and needs the doubled injection.
+            injection_factor = factor if pole.imag == 0 else two_factor
+
             for bin_i in range(n_bins):
                 if bin_i == update_on_bin_i:
                     chunk_dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
@@ -986,7 +991,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 voltage_threaded[thread_i, bin_i] += cr_pole_flip * amp
                 state_prev = state
                 state = state * advance
-                state += cr_pole_flip * profile[bin_i] * two_factor
+                state += cr_pole_flip * profile[bin_i] * injection_factor
                 jump_prev = t_jump
             states[pole_i] = state
             states[n_poles + pole_i] = state_prev

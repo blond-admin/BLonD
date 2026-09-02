@@ -122,6 +122,11 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
         ----------
         freq
             Frequency axis to plot along.
+
+        Returns
+        -------
+        h
+            The reconstructed frequency response plotted.
         """
         omega = 2 * np.pi * freq
         s = 1j * omega
@@ -130,13 +135,18 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
             pk = self.poles[i]
             ck = self.residues[i]
             h += ck / (s - pk)
-            h += np.conjugate(ck) / (s - np.conjugate(pk))
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only double-count via the conjugate term for a
+            # genuine complex-conjugate-pair pole.
+            if np.imag(pk) != 0:
+                h += np.conjugate(ck) / (s - np.conjugate(pk))
         plt.subplot(3, 1, 1)
         plt.plot(freq, 20 * np.log10(np.abs(h)))
         plt.subplot(3, 1, 2)
         plt.plot(freq, np.real(h))
         plt.subplot(3, 1, 3)
         plt.plot(freq, np.imag(h))
+        return h
 
     def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
         """
