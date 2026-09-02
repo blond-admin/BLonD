@@ -124,12 +124,19 @@ in the banner above; nothing further is owed here.
 
 ## Regression tests
 
-Run from the BLonD checkout with `MPLBACKEND=Agg`. There is no
-`BLonD/.venv`: BLonD is a submodule of the outer muon-collider-blonder
-repo and shares that repo's venv -- `../.venv/Scripts/python.exe` on
-Windows, `../.venv/bin/python` on Linux/macOS. (A standalone BLonD clone
-has neither; create your own venv and install per CLAUDE.md.)
-Both live in `tests/unittests/physics/impedances/test_solvers.py`:
+Run from the BLonD checkout root. There is no `BLonD/.venv`: BLonD is a
+submodule of the outer muon-collider-blonder repo and shares that repo's
+venv, which as of 2026-09-02 is **`.venv_312`** (Python 3.12.8) --
+`../.venv_312/Scripts/python.exe` on Windows,
+`../.venv_312/bin/python` on Linux/macOS. Resolve the name with
+`ls -d ../.venv*` rather than typing it: this note and
+`MUCOL_FEEDBACK_CONTEXT.md` §0 both said `.venv` until 2026-09-02 and no
+such directory exists. (A standalone BLonD clone has neither; create your
+own venv and install per CLAUDE.md.) `MPLBACKEND=Agg` is **no longer
+needed** either -- `BLonD/conftest.py` calls
+`matplotlib.use("Agg", force=True)` whenever `MPLBACKEND` is unset.
+Both tests live in `tests/unittests/physics/impedances/test_solvers.py`
+(verified present 2026-09-02):
 
 - `test_counter_rotating_without_shunt_cr_raises_both_solvers` — added by
   this session; both solvers must raise on counter-rotating + `Resonators`

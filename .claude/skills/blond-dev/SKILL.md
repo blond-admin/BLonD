@@ -35,12 +35,23 @@ the doubt; don't paper over it.
 CI actually runs. Read `CONTRIBUTING.md` first — this skill captures only the
 **non-obvious** parts and gotchas not spelled out there.
 
-**Skills in this repo** (`.agents/skills/`):
+**Skills in this repo** (`.agents/skills/`) — three, not two:
 - `blond-dev/` — *this* skill: developing/maintaining BLonD (install, test, backends, CI gotchas).
 - `blond-assistant/` — *using* BLonD: writing simulation input files and the public API
   (`Ring`, RF stations, `Beam`, `MagneticCycle`, `WakeField`, …). Has a full
   `references/api_reference.md`. Consult it when writing or debugging a simulation script
   rather than the framework itself.
+- `blond-migration/` — *porting* BLonD 2 scripts to the BLonD 3 API. Reach for it on any
+  BLonD 2 symbol (`RingAndRFTracker`, `FullRingAndRF`, `bigaussian()`, `Profile(beam, …)`,
+  `TotalInducedVoltage`, `blond.utils.bmath`, `from blond.legacy.blond2…`) or when an old
+  script breaks with `ImportError`/`TypeError` after an upgrade. Carries
+  `references/api_mapping.md` (class-by-class table), `example_pairs.md` and
+  `verification.md`.
+
+`.agents/skills/` is the single source of truth for all three. The `sync-agent-docs`
+pre-commit hook mirrors the tree verbatim into `.claude/skills/` and regenerates the root
+`CLAUDE.md` / `AGENTS.md` from *this* file — so edit here, never the copies, and re-stage
+what the hook rewrites.
 
 ## Install (editable, with extras)
 

@@ -383,11 +383,20 @@ Induced-voltage classes → solvers:
     `delta_f` is orthogonal to it: a pure frequency offset in [Hz],
     added to the design frequency of every pass when retuning, and to
     the constructed centre frequency once, at late init, when not. No
-    spelling of `delta_f` switches retuning on. Passing `delta_f`
-    *without* `retune_to_rf` raises `ValueError`, because `delta_f=0.0`
-    used to mean "retune" and now means "no offset" -- the same call,
-    the opposite physics -- so the mode has to be stated. `None` is no
-    longer accepted for either argument.
+    spelling of `delta_f` switches retuning on, and a `delta_f` given
+    *without* `retune_to_rf` is a perfectly ordinary configuration --
+    a fixed-frequency resonator deliberately offset from nominal, e.g.
+    a detuned higher-order mode.
+
+    **Migration hazard: nothing raises.** `delta_f=0.0` used to mean
+    "retune", and now means "no offset, and (at the default
+    `retune_to_rf=False`) no retuning" -- the same call, the opposite
+    physics, with no error and no warning. A ported BLonD 2 call that
+    relied on the old sentinel encoding therefore runs a
+    fixed-frequency resonator silently. State the mode explicitly.
+    Neither argument takes `None`: `delta_f=None` dies in `float(None)`
+    with a `TypeError`, while `retune_to_rf=None` is quietly coerced to
+    `False` by `bool(None)` -- so it does *not* fail loudly either.
 
 
 Note `frequency_resolution` [Hz] → `t_periodicity = 1 / frequency_resolution`

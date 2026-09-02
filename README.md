@@ -128,8 +128,9 @@ plt.show()
 
 ## BLonD Assistant (AI helper)
 
-This repository ships a **`blond-assistant`** agent skill (in `.agents/skills/`)
-that turns an AI coding assistant into a BLonD expert.
+This repository ships a **`blond-assistant`** agent skill (in `.agents/skills/`,
+alongside two others — see the table below) that turns an AI coding assistant
+into a BLonD expert.
 It knows the simulation building blocks (`Ring`, RF stations, `Drift`, `Beam`,
 `MagneticCycle`, `WakeField`, profiles, observations, …) and the idiomatic way
 to assemble them, and points to the relevant `blond/examples/` and docs.
@@ -147,21 +148,26 @@ automatically when you mention BLonD topics.
 
 ### Installing the assistant
 
-The skill is bundled in `.agents/skills/blond-assistant/`. Most tools discover
-skills from their own directory, so "installing" means making the skill visible
-there. Copy (or symlink) the folder into your assistant's skills directory:
+**For Claude Code there is nothing to install.** `.agents/skills/` is the
+source of truth, and the `sync-agent-docs` pre-commit hook mirrors it verbatim
+into `.claude/skills/`, which is tracked — so a fresh clone already has the
+skills where Claude Code looks for them. Do not `cp` or `ln -s` over that
+mirror: the hook regenerates it from `.agents/skills/` and will overwrite a
+hand-made copy, and a symlink in its place fights the hook on every commit.
+Edit `.agents/skills/`, and let the hook rewrite `.claude/skills/`,
+`CLAUDE.md` and `AGENTS.md`.
 
-```bash
-# Claude Code (project-local)
-cp -r .agents/skills/blond-assistant .claude/skills/
-
-# or symlink so it stays in sync with the repo
-ln -s ../../.agents/skills/blond-assistant .claude/skills/blond-assistant
-```
-
-For other assistants, point them at `.agents/skills/` or copy the folder into
+For other assistants, point them at `.agents/skills/`, or copy the folder into
 their respective skills directory (e.g. Copilot CLI / Gemini CLI plugin paths).
-No additional dependencies are required — the skill is plain Markdown.
+No additional dependencies are required — the skills are plain Markdown.
+
+Three skills ship in this repo:
+
+| skill | use it for |
+|---|---|
+| `blond-assistant` | *using* BLonD — writing and debugging simulation input files against the public API |
+| `blond-dev` | *developing* BLonD itself — backends, tests, docs, pre-commit and CI gotchas |
+| `blond-migration` | *porting* BLonD 2 scripts to the BLonD 3 API |
 
 ## Contributing
 

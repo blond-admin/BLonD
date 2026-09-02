@@ -8,7 +8,15 @@ source, scripted name/role/test-name checks) 2026-08-12; split-envelope
 docs pass (this file + both RSTs + `observables.py` + the outer-repo
 example, see §2.13) 2026-08-12; design-gain-ledger work plus the
 absence-claim and portability audit 2026-09-01 (§2.14–§2.16, §3.1, §3.2,
-§5, §6). Still to be reviewed before the MR.
+§5, §6); **re-sync against the `ec159a87` tip 2026-09-02** — every test
+count in §5 re-run rather than carried over, and the claims that
+`cdca671b` / `ec159a87` had invalidated corrected in §0, §1, §2.13, §3.2,
+§3.3, §4, §5 and §6. Still to be reviewed before the MR.
+
+**One thing that re-sync could NOT verify: the Sphinx doc build.** It has
+not been run since `064305e3`, four commits and ~2200 rewritten RST lines
+ago, because this checkout's venv has no sphinx installed. §5 says what to
+install and why it is the likeliest pre-MR failure.
 
 **What this file is.** A maintainer's handoff map: the invariants, the
 decisions (including the rejected ones and the user directives behind them),
@@ -74,8 +82,9 @@ check).
   (`_rebuild_grid_arrays`) and can therefore not desync. The sanctioned READ
   surface is the three PUBLIC read-only properties on
   `IQCavityFeedbackTimingClass` — `rf_centers`, `rf_centers_lengths` and
-  `forward_offset` (`cavity_feedback.py`, ~1006/1037/1058 as of 2026-09-01;
-  grep the `def` lines, not the line numbers) — pinned by
+  `forward_offset` (`cavity_feedback.py`, 1011/1042/1063 as of 2026-09-02,
+  having been ~1006/1037/1058 the day before; grep the `def` lines, not the
+  line numbers) — pinned by
   `TestCoarseGridAccessorsAreStatedPublic`. Read through those; the private
   `_rf_centers` / `_rf_centers_lengths` are the mixin's to mutate and are not
   a public API.
@@ -141,16 +150,32 @@ check).
 - **Running the tests.** Run pytest from the `BLonD/` checkout root:
   `python -m pytest tests/unittests/`. On the machine this file was written on
   the interpreter is the OUTER repo's shared venv, one level up — there is no
-  `BLonD/.venv` here:
-  - Windows: `..\.venv\Scripts\python.exe -m pytest tests\unittests\`
-  - Linux/macOS: `../.venv/bin/python -m pytest tests/unittests/`
+  `BLonD/.venv` here. **The venv's NAME is not stable and this file has been
+  wrong about it before**: it is `.venv_312` (Python 3.12.8) as of
+  2026-09-02, and every earlier revision of this bullet said `.venv`, which
+  does not exist. Resolve it, do not type it from memory —
+  `ls -d ../.venv*` from `BLonD/`:
+  - Windows: `..\.venv_312\Scripts\python.exe -m pytest tests\unittests\`
+  - Linux/macOS: `../.venv_312/bin/python -m pytest tests/unittests/`
+
+  Two other things depend on that same name and are therefore also wrong
+  wherever `.venv` is hardcoded: `docs/create_docs.bat`'s auto-activation
+  line (see §3.2) and the outer repo's own `CLAUDE.md` / `README.md`, which
+  document a `.venv` + `.venv314` pair that is not what is on disk. The
+  outer repo is not this file's to fix.
 
   That shared-venv layout is this developer's choice, **not** a requirement.
-  If you cloned BLonD standalone (or your outer checkout has no `.venv`),
-  there is no `../.venv` at all — create your own per `CONTRIBUTING.md` §2
+  If you cloned BLonD standalone (or your outer checkout has no venv at
+  all), create your own per `CONTRIBUTING.md` §2
   *Create a Virtual Environment* (`python -m venv .venv` inside `BLonD/`) and
   `pip install -e ".[dev]"` per `CLAUDE.md` *Install*. Test with
-  `ls ../.venv` / `ls .venv`: whichever exists is yours.
+  `ls -d ../.venv* .venv` — whichever exists is yours.
+  **The doc extras are a separate install and are NOT in `.venv_312`**
+  (verified 2026-09-02: `python -m sphinx` reports *No module named
+  sphinx*, and neither `sphinx-build` nor `sphinx-apidoc` is on PATH). So
+  `.venv_312` runs the tests but cannot run `docs/create_docs.sh`; that
+  needs `pip install -e ".[doc]"` in whichever venv you point it at. See
+  §5 for what this leaves unverified.
   `MPLBACKEND=Agg` is no longer needed — `BLonD/conftest.py` calls
   `matplotlib.use("Agg", force=True)` when `MPLBACKEND` is unset. (The bare
   `VAR=value cmd` prefix older notes use is bash-only; PowerShell needs
@@ -176,9 +201,32 @@ check).
   `python`-not-found error, fix PATH first (activate the venv; check
   `where python` / `which python`) — only if it still fails spuriously should
   you judge the commit by the other hooks (ruff, isort, pyupgrade, numpydoc,
-  `sync-agent-docs`, taplo) and re-run
+  taplo) and re-run
   `python dev_tools/precommit_check_copyright.py` by hand with the venv
   interpreter. A genuine missing copyright header must never be ignored.
+
+  **Two corrections, both measured 2026-09-02.**
+
+  (a) **`sync-agent-docs` is the OTHER `language: system` hook and fails
+  identically** — `.pre-commit-config.yaml:53` is bare
+  `entry: python dev_tools/sync_agent_docs.py`, same as line 45 — so it too
+  exits 9009 here. Do not list it among the hooks you can still trust, as
+  the paragraph above used to. This one matters more than the copyright
+  hook: when it dies, `CLAUDE.md`, `AGENTS.md` and the whole
+  `.claude/skills/` mirror are **not** regenerated, and an edit to
+  `.agents/skills/` commits with its mirrors silently stale. Run it by hand
+  with the venv interpreter after touching any skill —
+  `<venv>/python.exe dev_tools/sync_agent_docs.py` — and re-stage what it
+  rewrites. Exit 1 from it means "I rewrote files", which is success.
+
+  (b) **The self-test above no longer returns a clean 0 in this working
+  tree, and the reason is not your change.** Run by hand with the venv
+  interpreter, `precommit_check_copyright.py` now exits **1** on
+  `blond/examples/notebooks/getting_started.py:1` — an *untracked* file
+  (§6) with no copyright header. The script sweeps the tree rather than the
+  staged set, so any stray `.py` anywhere under `blond/` trips it. Before
+  concluding you broke something: check whether the file it names is one of
+  yours, or one of the untracked strays.
 - True everywhere: module-docstring summaries must start on the line **after**
   the opening `"""` (numpydoc GL01 convention in this repo).
 - All mucol test files gate debug plotting on `DEBUG_PLOT = False`; never
@@ -756,19 +804,29 @@ composition multiply for undriven feedbacks; refreshed by `reset_arrays`).
   by `TestDesignLockedDriveWalkOffUnderRFOffset`
   (`phase_correction == −delta_phi_rf`, atol 1e-9). The beam component
   keeps the pre-existing demod/readout closure byte-for-byte.
-- **`_carrier_slip_gap` contract update:** its two constituents are now
+- **`_carrier_slip_gap` contract update:** its two constituents are
   held separately — `_kick_clock_slip_gap` (live kick-clock tail, reset per
-  passage) and `_grid_carrier_phase` (running Ψ total) — because the
-  generator frame rotation needs the kick-clock part with the station
-  clock on top (`_update_frame_rotations`:
-  `exp(−i(delta_phi_rf + gap + Ψ))` for composition,
-  `exp(+i(gap + Ψ))` for the kick frame). The demod/readout sides still
-  subtract/add the identical folded total, unchanged.
+  passage) and `_grid_carrier_phase` (running Ψ total). The demod/readout
+  sides subtract/add the identical folded total, unchanged.
+  **CORRECTED 2026-09-02:** this bullet used to justify the split by
+  claiming the generator frame rotation "needs the kick-clock part with
+  the station clock on top". It does not, and did not by the time the
+  claim was written: `_update_frame_rotations` computes
+  `total_generator_slip = delta_phi_rf + _carrier_slip_gap`, i.e. the
+  **full** gap including Ψ. `_kick_clock_slip_gap` survives only as the
+  named intermediate of that sum, so the split is presentational — which
+  is what the design RST (*Signal path of one turn*, step 2) has said all
+  along. The formulas quoted here were right
+  (`exp(−i(delta_phi_rf + gap + Ψ))` for composition, `exp(+i(gap + Ψ))`
+  for the kick frame); only the reason attached to them was wrong.
 - **PI regulates the KICK-frame sum**
   (`error = V_set − V·exp(+i(gap + Ψ))`), python
   (`_update_generator_current`) and kernel identically; the
   `envelope_pi_scan` signature grew (the two component in/out arrays, the
-  `generator_active` gate, the two rotation scalars).
+  `generator_active` gate, and **three** rotation scalars — this bullet
+  said two until 2026-09-02, missing `_pi_error_frame_rotation`, which
+  `afd5d96a` had already added alongside `_generator_frame_rotation` and
+  `_kick_frame_rotation`; see the design RST's step-4 list).
 - **`initial_voltage` / the pre-fill seed the GEN component** (flagged
   corner, decided): the seed models a generator-established,
   design-anchored field, so `reset_arrays` puts it on
@@ -1118,6 +1176,13 @@ keeps a beam's clock alive.
   breath — this entry is the proof that the note alone is not evidence.**
   The same audit checked the other 55 absence claims in this file
   against the tree: all of them hold.
+  **Read the grep output before you panic (2026-09-02):**
+  `grep -rn _phase_offset_frwrd --include=*.py .` returns **six** hits, and
+  all six are `TestVestigialPhaseOffsetsStayDeleted` itself in
+  `tests/unittests/physics/feedbacks/test_cavity_feedback.py` — the two
+  `hasattr` assertions, the source scan, and their names. Production
+  `blond/` is clean. An absence pinned by a test necessarily names the
+  thing it forbids; that is the guard working, not a regression.
 - **`_reference_turn_offset` was write-only — DELETED (2026-09-01).**
   Set to `-1` / `0` in `RFCenterGridMixin.get_passed_time_forward_direction`
   and defaulted in `__init__`, read nowhere. The backfill walk that would
@@ -1133,9 +1198,16 @@ keeps a beam's clock alive.
   (`InductiveImpedanceSolver`, `PeriodicFreqSolver`,
   `TimeDomainFftSolver`, `ContinuousMultiTurnTimeDomainSolver`), so any
   future sweep must attribute hits by receiver before concluding
-  anything. **Still open:** the same audit found
+  anything. ~~**Still open:** the same audit found
   `SingleTurnResonatorConvolutionSolver._simulation` is dead in the same
-  way (assigned, never read); it was out of scope and is untouched.
+  way (assigned, never read); it was out of scope and is untouched.~~
+  **CLOSED (`cdca671b`, 2026-09-01):** that second dead attribute was
+  deleted too — both its `__init__` declaration and the assignment in
+  `on_wakefield_init_simulation`. Verified 2026-09-02 by scanning the
+  class body: no `_simulation` in
+  `SingleTurnResonatorConvolutionSolver`. The receiver trap above still
+  stands, and a bare `grep self._simulation solvers.py` still returns ten
+  live hits on the four sibling classes.
 - ~~**The extracted mixins** are still pure moves; promoting them to
   composed collaborators is the natural follow-up.~~
   **DECIDED (2026-08-31): stay mixins, state the host instead.** Composition
@@ -1182,10 +1254,17 @@ keeps a beam's clock alive.
   *Windows note:* `docs/create_docs.bat` is a convenience port of the same
   script (it `cd`s to its own directory, so any absolute invocation works,
   e.g. `cmd //c "<abs-path-to>\BLonD\docs\create_docs.bat"` from Git Bash). It
-  additionally auto-activates a `..\..\.venv*` — i.e. a venv in the OUTER
-  repo — which is one developer's layout, not a requirement; and the
-  working-tree copy on the original machine is edited to point at `.venv314`
-  (see §6: machine-local, do NOT commit).
+  additionally auto-activates a venv in the OUTER repo — one developer's
+  layout, not a requirement.
+  **CORRECTED 2026-09-02:** earlier revisions of this bullet and of §6 said
+  the working-tree copy was locally edited to point at `.venv314` and must
+  not be committed. That edit is **gone** — `git status docs/create_docs.bat`
+  is clean and its line 23 activates `..\..\.venv\Scripts\activate.bat`,
+  literally, with no glob. Which now means the guard simply no-ops: the
+  outer venv is `.venv_312` (§0), so nothing matches and the script falls
+  through to whatever `python` PATH resolves to — harmless if you activated
+  the venv yourself, a Microsoft Store stub if you did not (the same trap as
+  `check copyright`, above).
   No new top-level exports were added, so `ASSIGNED_CATEGORIES` needs no
   update.
 - ~~RST/source name drift~~ **RESOLVED (2026-08-12)**: both RSTs now use
@@ -1211,13 +1290,30 @@ keeps a beam's clock alive.
   *Frame-time fidelity* note in the class docstring now do, including why
   the fundamental mode needs the opposite treatment (`retune_to_rf=True`
   plus the phase clock, not a finer frame).
-  **API note (2026-09-01):** retuning is now stated by the explicit
+  **API note (2026-09-01, re-checked against the code 2026-09-02):**
+  retuning is now stated by the explicit
   `retune_to_rf` boolean, defaulting to `False`; `delta_f` is a pure
   frequency offset in [Hz] that applies in BOTH modes (on the design
   frequency of every pass when retuning, on the constructed centre
-  frequency once when not). Neither is inferred from the other, and
-  `None` is not accepted for either — the old `delta_f=None` /
-  `delta_f=0.0` mode encoding is gone with no compatibility path.
+  frequency once when not, via `_apply_fixed_frequency_offset`, which
+  snapshots `_constructed_center_frequency` so re-running late init cannot
+  stack the offset twice). Neither is inferred from the other, and the old
+  `delta_f=None` / `delta_f=0.0` mode encoding is gone with no
+  compatibility path.
+  **Two corrections to how that landed.** (a) `cdca671b` shipped an
+  intermediate API — `retune_to_rf=None` inferring the mode from `delta_f`,
+  plus a `ValueError` on `retune_to_rf=False` with a nonzero `delta_f`.
+  `ec159a87` deleted both: there is now **no validation at all** on this
+  pair, and a fixed-frequency resonator carrying a `delta_f` is an ordinary
+  supported configuration, not an error. Any note promising that
+  `ValueError` describes a tree that existed for one commit.
+  (b) "`None` is not accepted for either" overstates it, and in the
+  direction that matters: `delta_f=None` does fail, but only incidentally,
+  as a `TypeError` out of `float(None)`; `retune_to_rf=None` is **silently
+  coerced to `False`** by `bool(None)` and runs a fixed-frequency
+  resonator. So the dangerous migration case — a ported call whose mode
+  used to be inferred — fails quietly, not loudly. Verified by
+  construction, 2026-09-02.
 
 - ~~Beam phase loop ↔ cavity feedback coupling~~ **DECIDED (2026-08-12,
   maintainer ruling): deliberate NON-GOAL — the phase loop must not couple
@@ -1230,9 +1326,15 @@ keeps a beam's clock alive.
   no such feedback the method stays a silent no-op — a normal, supported
   configuration the beam controls exercise unconditionally every turn.
   Known wording drift (code frozen during the 2026-08-12 docs sweep): the
-  method's two `TODO`s and its message's "open design task" phrasing
-  predate the ruling — and `TestCavitySumPhaseGuard` pins that phrase
-  verbatim, so message and test must move together in the next code pass.
+  method's two `TODO`s (`beam_feedback.py` ~334/337) and its message's
+  "open design task" phrasing predate the ruling, so message and tests
+  must move together in the next code pass. **Re-checked 2026-09-02: that
+  phrase is pinned verbatim in TWO places, not the one named here** —
+  `TestCavitySumPhaseGuard` in
+  `tests/unittests/physics/feedbacks/test_beam_feedback.py` *and* an
+  `assertIn("open design task", message)` in
+  `tests/unittests/physics/feedbacks/accelerators/lhc/test_beam_feedback.py`.
+  Rewording the message breaks both.
   Related: `get_main_harmonic_voltage` warns that it returns the
   UNPERTURBED voltage while local feedbacks are active (triggered from
   `BeamFeedbackBase.beam_phase()` when it forms the main-harmonic vector
@@ -1340,8 +1442,8 @@ sizes.
 | `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` construction: the forward and **backfill** reference walks, `_generate_rf_centers`, segment generation (`_append_segment` / `_clear_segments` / `_rebuild_grid_arrays` / `_close_previous_turn_grid`), `_preceding_segment_residual`, `_validate_grid`, and the two direction selectors (`_reference_list_for_direction`, `_own_index_for_direction` — the *space*-sense reverse, §1.3). `_segments` is the single source of truth; the flat arrays are derived. Its module docstring is the canonical statement of the backfill-vs-reverse rule and of the design-clock-only geometry |
 | `rf_center_segment.py` | The two value classes: `RFCenterSegment` (all four fields load-bearing — see the correction in §2.11 — with the ≥ 2-centres and `residual ∈ [0, duration]` validation) and `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`). Both are imported by `cavity_feedback.py` |
 | `cavity_solvers.py` | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the coarse-step arithmetic `coarse_step_exponent`, `euler_voltage_multiplier`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`; and `ForwardEulerValidityGuard` — the discretisation tripwires, beside the solvers they certify. Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
-| `envelope_kernel.py` | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Since §2.13 it advances the two source-split components, composes the demod-frame sum per cell and forms the PI error in the kick frame; the signature carries the component in/out arrays, the `generator_active` gate and the two per-passage rotation scalars. Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
-| `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current` (forms the PI error in the KICK frame via `_kick_frame_rotation`, §2.13), `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need both coarse grids and the three values carried across the turn boundary, and because the scan depends on `pi_setpoint` staying *unevaluated* on a span the controller sits out (that property may reach through to the parent station, which a no-beam backfill span must not require) |
+| `envelope_kernel.py` | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Since §2.13 it advances the two source-split components, composes the demod-frame sum per cell and forms the PI error in the kick frame; the signature carries the component in/out arrays, the `generator_active` gate and the **three** per-passage rotation scalars (`_generator_frame_rotation`, `_kick_frame_rotation`, `_pi_error_frame_rotation` — this row said two until 2026-09-02). Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
+| `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current` (forms the PI error in the KICK frame via `_kick_frame_rotation`, §2.13), `_limit_fine_grid_generator_current`. **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need **every** coarse grid (the summed, generator- and beam-sourced antenna voltages plus the generator current) and **all five** values carried across the turn boundary (`_last_val_ant_voltage`, `_last_val_ant_voltage_gen`, `_last_val_ant_voltage_beam`, `_last_val_generator_current`, `_last_val_beam_current` — this row said "both coarse grids and the three values" until 2026-09-02, a pre-envelope-split count the module docstring had already outgrown), and because the scan depends on `pi_setpoint` staying *unevaluated* on a span the controller sits out (that property may reach through to the parent station, which a no-beam backfill span must not require) |
 | `generator_current_controller.py` | `GeneratorCurrentController` ABC + `GeneratorCurrentPIController`; the envelope-scan capability hooks (`supports_envelope_scan`, `envelope_scan_kernel`, `envelope_scan_state`, `absorb_envelope_scan_state`); `current_limit_from_power`, `clamp_magnitude` |
 | `beam_current.py` | `low_pass_filter`, `rf_beam_current` (unified; keyword-only coarse args; no wrap-around; `check_fits_in_span` + `hist_step`/`sampling_time` + `_check_coarse_index_bounds` guards) |
 | `beam_feedback.py` | the surviving phase loop (`BeamFeedbackBase`), incl. `cavity_sum_phase`, whose `NotImplementedError` guard is the permanent contract — coupling is a deliberate non-goal (§3.3) |
@@ -1384,20 +1486,48 @@ above.
 
 ## 5. Verification status
 
-- **Full `tests/unittests/` run: 1612 passed / 63 skipped / 175 subtests /
-  0 failed (2026-09-01)**, up from 1590 at the start of that session (+22
-  tests). `tests/unittests/physics/feedbacks/accelerators/mucol` alone is
-  259 passed / 5 skipped / 136 subtests. Outer-repo
-  `test_rcs_two_beam_example.py`: 14 passed (that one is in the OUTER repo —
-  §0 *Cross-repo references*; unavailable in a standalone BLonD clone).
-  Pre-commit is green on all changed files EXCEPT `check copyright`, which
-  exits 9009 on **this machine only** because the hook invokes bare `python`
-  — running `dev_tools/precommit_check_copyright.py` with the venv
-  interpreter exits 0. Do not generalise that: see §0 for the root cause and
-  the self-test that tells you whether your machine is affected.
-- HISTORY: `tests/unittests/physics/feedbacks` collected 550 tests on
-  2026-08-31, and `physics/{feedbacks,impedances}` was 692 passed / 16
-  skipped / 147 subtests. (Was 525 on 2026-08-12, 513 on 2026-08-11.)
+- **Re-measured 2026-09-02 at tip `ec159a87`**, `.venv_312` (Python
+  3.12.8), numba backend, no GPU present. Every number below was run for
+  this entry, not carried over:
+
+  | scope | result | previously recorded |
+  |---|---|---|
+  | `tests/unittests/` (full) | **1621 passed / 88 skipped / 176 subtests / 0 failed**, 206.8 s | 1612 / 63 / 175 (2026-09-01) |
+  | `physics/feedbacks/accelerators/mucol` | 261 passed / 6 skipped / 137 subtests, 41.8 s | 259 / 5 / 136 |
+  | `physics/feedbacks` | 572 passed / 8 skipped / 142 subtests, 38.7 s | 550 collected (2026-08-31) |
+  | `physics/{feedbacks,impedances}` | 737 passed / 15 skipped / 159 subtests, 71.1 s | 692 / 16 / 147 |
+  | outer `test_rcs_two_beam_example.py` | 14 passed, 38.2 s | 14 passed |
+
+  The `+25` on the full run's skip count is **environment, not
+  regression**: this machine has no CuPy, so every `cupy`/`cuda`-marked
+  test skips. Read the skip counts as a property of the box, not of the
+  tree. The outer-repo row is the cross-repo pin of §0 and is unavailable
+  in a standalone BLonD clone; it was run from the outer root with
+  `MPLBACKEND=Agg` and left that working tree byte-identical
+  (`git status --porcelain` diffed before and after).
+- **Pre-commit was NOT re-run over `--all-files` for this entry, on
+  purpose.** Four of the hooks (`ruff-format`, `ruff-check --fix`, isort,
+  `trailing-whitespace`) rewrite what they touch, and this checkout carries
+  untracked work — `blond/examples/notebooks/getting_started.py`, two
+  `blond/legacy/blond2/beam/*_old.py`, and a stray untracked `unittests/`
+  tree at the repo root — that an `--all-files` sweep would silently
+  reformat. Run it on your own changed files
+  (`pre-commit run --files <paths>`) instead.
+
+  Run that way over the nine files this 2026-09-02 pass changed, every
+  content hook passed (`trim trailing whitespace`, `fix end of files`,
+  `check for merge conflicts`, `check for added large files`,
+  `don't commit to branch`; the python-only hooks had no files to check).
+  The two `language: system` hooks both failed with the bare-`python` 9009
+  — `check copyright` **and `sync-agent-docs`**, which §0 previously listed
+  as still trustworthy. And re-running `precommit_check_copyright.py` by
+  hand with the venv interpreter no longer exits 0 as §0 promised: it exits
+  1 on the untracked `blond/examples/notebooks/getting_started.py`. Both
+  corrections, with what to do about them, are in §0.
+- HISTORY: full run 1612 / 63 / 175 on 2026-09-01, up from 1590 at the
+  start of that session (+22). `tests/unittests/physics/feedbacks`
+  collected 550 tests on 2026-08-31 (was 525 on 2026-08-12, 513 on
+  2026-08-11).
 - **HISTORY**: the last full battery run recorded here (mucol + LHC
   comparisons + impedances) was **492 passed**, the only failures being the
   pre-existing SPS `TestTravelingWaveCavity` ones (`test_vind`,
@@ -1414,10 +1544,23 @@ above.
   `WakeField.headless(t_rev=)` kwarg, the `DriftSubstepped.headless` override
   and the docstring rewrites in `cavities.py` / `drifts.py` / `solvers.py` /
   `reference_clock.py` — so it covers the tree as it stands at the
-  `064305e3` tip (§6). Anything committed after that needs a re-run before
+  `064305e3` tip. Anything committed after that needs a re-run before
   the MR: under `-W` + nitpicky a single new unresolved cross-reference fails
   the whole build. Run it ONCE, sequentially — `cd docs && bash
   create_docs.sh`; see §3.2 for why and for the Windows variant.
+- **The doc build is therefore STALE as of 2026-09-02, and could not be
+  re-run here.** Four commits have landed since `064305e3` — `534eb7c2`,
+  `550df2f8`, `cdca671b`, `ec159a87` — and between them they rewrote
+  `docs/feedbacks/mucol_cavity_feedback.rst` (+447) and
+  `docs/tests/mucol_cavity_feedback_tests.rst` (+1786) wholesale and
+  rewrote docstrings across `cavity_feedback.py`, `generator_regulation.py`,
+  `observables.py` and `solvers.py`. None of that has been through `-W` +
+  nitpicky. The blocker is the environment, not the tree: `.venv_312` has
+  **no sphinx and no numpydoc** installed (§0), so `create_docs.sh` cannot
+  run in it at all — `graphviz`/`dot` *is* on PATH, so that prerequisite is
+  satisfied. **Do not treat the green above as covering the current tip.**
+  Someone must `pip install -e ".[doc]"` and run the build once before the
+  MR; on this much new RST it is the single most likely thing to fail.
 
 ---
 
@@ -1431,7 +1574,24 @@ used: the work was checkpoint-committed incrementally on
 as of 2026-08-11 the tip was `d93eaf3c`. Re-run the full battery
 before/after any reshuffle.
 
-**As of 2026-09-01** the tip of `blonder_feature/mucol_feedbacks` is
+**As of 2026-09-02** the tip of `blonder_feature/mucol_feedbacks` is
+**`ec159a87`**, four commits past the `064305e3` this section used to name:
+
+| commit | what it is |
+|---|---|
+| `534eb7c2` | *context update* — this file only (+445) |
+| `550df2f8` | *docm* — both mucol RSTs rewritten (+447 / +1786) and `blond-migration`'s `api_mapping.md`; no production code |
+| `cdca671b` | **code.** The registration-phase sign-and-reference fix (§3.1b) *and* the first `retune_to_rf` API (§3.3). Touched no doc file at all |
+| `ec159a87` | **code.** Simplified that API to two independent kwargs, deleting the inference path and the `ValueError` `cdca671b` had just added (§3.3) |
+
+Note the ordering trap for anyone reading the history: the two doc commits
+land BEFORE the code they describe, so `534eb7c2`/`550df2f8` document a tree
+that did not exist yet. §3.1b and the RSTs are nevertheless current, because
+the code landed as written. What was NOT updated in the same breath is
+everything `cdca671b` invalidated elsewhere in this file — corrected
+2026-09-02 in §2.13, §3.2, §3.3, §4 and §5.
+
+**As of 2026-09-01** the tip was
 `064305e3`, and the §2.14/§2.15 work is IN it — verified by reading the blobs
 at that commit, not by assuming: `take_pending_rf_energy_gain` present in
 `reference_clock.py`, `_last_design_energy_gain_reference` present 5x in
@@ -1444,26 +1604,50 @@ the design-gain ledger — the one carrying all three defects described in
 the range `15315271..ed2cddbe`; phi_s and the symbolic Hamiltonian are wrong
 there in the reframing-element layouts.
 
-Remaining uncommitted at the time of writing: this file, plus
-`docs/create_docs.bat` (a machine-local switch from `.venv` to `.venv314` —
-maintainer said to ignore it; do NOT commit it, it would break the doc build
-for CI and other developers) and the untracked `docs/superpowers/` (2 planning
-docs, not gitignored, simply never added). The outer repo has an unstaged
-submodule pointer (` M BLonD`).
+**Working tree, re-checked 2026-09-02.** The old list here (this file
+uncommitted, plus a machine-local `docs/create_docs.bat` edit, plus
+`docs/superpowers/`) is **entirely superseded** — this file and
+`create_docs.bat` are both committed and clean, and `docs/superpowers/`
+does not exist in this checkout at all. What `git status --short` actually
+shows is four untracked entries, none of them mucol work:
+`blond/examples/notebooks/getting_started.py`,
+`blond/legacy/blond2/beam/beam_old.py`,
+`blond/legacy/blond2/beam/distributions_old.py`, and a stray `unittests/`
+directory at the repo root — a duplicate test tree, untracked and *not*
+gitignored, most likely dropped there by a pytest run from the wrong cwd.
+Worth deleting after you have confirmed it holds nothing of yours; it is
+the kind of thing that quietly gets committed. The outer repo carries its
+own unrelated in-flight edits.
 
 **Portability note:** almost everything an agent needs is in-repo (this file,
-`CLAUDE.md` / `AGENTS.md`, and `.agents/skills/` + `.claude/skills/`, 14
-tracked files). `CLAUDE.md` and `AGENTS.md` are byte-identical **to each
-other** (md5 `e6b4f5a8…`, 19755 bytes) and identical to the **body** of their
-source `.agents/skills/blond-dev/SKILL.md` — but NOT to the file as a whole
-(md5 `3c584db5…`, 19822 bytes): the `sync-agent-docs` generator replaces
-SKILL.md's 4-line YAML frontmatter with a 6-line AUTO-GENERATED banner, so
-`diff SKILL.md CLAUDE.md` shows exactly that one hunk and nothing else
-(verified 2026-09-01). Edit the skill, never the copies.
+`CLAUDE.md` / `AGENTS.md`, and `.agents/skills/` + `.claude/skills/`, still
+14 tracked files — re-counted 2026-09-02 with `git ls-files .agents .claude`,
+now covering **three** skills: `blond-dev`, `blond-assistant` and
+`blond-migration`). `CLAUDE.md` and `AGENTS.md` are byte-identical **to each
+other** (md5 `ca6e4125…`, 20207 bytes) and identical to the **body** of their
+source `.agents/skills/blond-dev/SKILL.md` (md5 `a6299993…`, 20591 bytes):
+the `sync-agent-docs` generator replaces SKILL.md's 4-line YAML frontmatter
+with a 6-line AUTO-GENERATED banner. Edit the skill, never the copies.
+
+**Do not verify that with a plain `diff` on Windows.** The generator writes
+its targets with `newline="\n"`, while `.agents/skills/blond-dev/SKILL.md`
+comes out of a `core.autocrlf` checkout as CRLF (measured: 315 CR bytes in
+SKILL.md, **0** in `CLAUDE.md`). Every line therefore differs and
+`diff SKILL.md CLAUDE.md` reports one whole-file hunk — `1,315c1,317` here —
+not the single header hunk earlier revisions of this note promised. Use
+`diff --strip-trailing-cr`, or `diff <(tr -d '\r' < SKILL.md) CLAUDE.md`,
+which does show exactly the frontmatter-for-banner hunk and nothing else
+(verified 2026-09-02). The same asymmetry makes the byte counts above
+platform-dependent: trust the CR-stripped diff, not the sizes.
+
 Two things do **not** travel and are named here so you do not go hunting:
 per-machine assistant memory under `~/.claude/projects/.../memory/` (outside
 the repo by design — hence this file is the handoff surface), and the
-untracked `docs/superpowers/` planning docs cited in §3.2, which exist only in
-the original working tree. Cross-repo pins (`rcs_two_beam_example`,
+untracked `docs/superpowers/` planning docs cited in §3.2 — **absent from
+this checkout too** (`ls docs/superpowers` → no such directory, 2026-09-02),
+so treat every reference to them as unresolvable rather than as something you
+have failed to find. The outer repo has a `docs/superpowers/specs/` of its
+own holding three *different* specs; the mixin self-typing design cited in
+§3.2 is in neither. Cross-repo pins (`rcs_two_beam_example`,
 `test_rcs_two_beam_example.py`) live in the OUTER repo, not in `BLonD/` —
 see §0 *Environment*.
