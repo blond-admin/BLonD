@@ -1383,6 +1383,88 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
 
     def _finalize_solver(self, beam):
+        """
+        One-time setup: fit the vector model, prepare the recursion and the near-field kernel.
+
+        Splitting the wake into these two pieces -- and keeping that split
+        all the way through setup and every call -- isn't an implementation
+        choice, it's forced by the physics: `wake_from_pole_residue`'s
+        recursion is, per pole, a single complex memory cell, so it can only
+        ever produce a value proportional to ``exp(pole * lag)`` -- a pure
+        geometric sequence in the lag. The exact bin-averaged kernel *is*
+        exactly that sequence from two bins away onward (see
+        `_setup_far_field_recursion`), but at the three lags nearest the
+        charge -- previous bin, the bin itself, and the next one, where the
+        kernel's non-causal tap reaches -- the causal cutoff in the
+        derivation (`bin_average.causal_third_antiderivative_factor` is
+        forced to zero below its argument) makes the kernel a genuinely
+        different, non-exponential function there. No choice of recursion
+        state, injected-charge weighting, or per-pole coefficients changes
+        that -- those three lags are simply outside what a single-state
+        linear recursion can represent, for any pole. So they are computed
+        directly in closed form instead (`_setup_near_field_kernel`) and
+        added on top of the recursion's output every call
+        (`_add_near_field_voltage`); merging the two is not a simplification
+        that is available here.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam, forwarded to
+            `_setup_far_field_recursion` for the initial reference time.
+        """
+        poles, residues, counter_rotation_pole_flip = self._fit_vector_model()
+        self._poles = poles
+        self._residues = residues
+        self._counterrotating_pole_signs = counter_rotation_pole_flip
+
+        profile_hist_x = self._continuous_profile_hist_x()
+        self._voltage = backend.zeros(len(profile_hist_x), dtype=backend.float)
+        bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
+        self._bin_dt = bin_dt
+        self._first_profile_dt = float(profile_hist_x[0])
+        # Every bin must be bin_dt wide; a sparse profile
+        # (EquidistantMultiProfile) may have charge-free gaps between
+        # bunches, but each gap must be a whole number of bins.
+        spacings = (profile_hist_x[1:] - profile_hist_x[:-1]) / bin_dt
+        n_bins_per_spacing = backend.round(spacings)
+        assert backend.all(n_bins_per_spacing >= 1) and backend.allclose(
+            spacings, n_bins_per_spacing
+        ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
+
+        # Near-field setup reads the raw (unaveraged) residues, so it must
+        # run before `_setup_far_field_recursion` overwrites `self._residues`
+        # with the bin-averaged ones.
+        self._setup_near_field_kernel(profile_hist_x, bin_dt)
+        self._setup_far_field_recursion(profile_hist_x, bin_dt)
+
+        self._voltage_threaded = backend.zeros(
+            (backend.specials.get_max_threads(), len(self._voltage))
+        )
+        self._update_on_bin = backend.unique(
+            self._profile._bucket_index_to_memory_index
+            if type(self._profile) is EquidistantMultiProfile
+            else backend.array([0], dtype=np.int32)
+        )
+
+    def _fit_vector_model(
+        self,
+    ) -> tuple[
+        NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray
+    ]:
+        """
+        Collect the pole-residue model of every source, concatenated.
+
+        Returns
+        -------
+        poles
+            Complex poles of all sources, concatenated, in [rad/s].
+        residues
+            Complex residues, matching ``poles`` one-to-one.
+        counterrotating_pole_signs
+            Sign flip per pole for a counter-rotating beam, matching
+            ``poles`` one-to-one.
+        """
         poles = []
         residues = []
         counter_rotation_pole_flip = []
@@ -1396,15 +1478,25 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             residues.extend(residues_)
             counter_rotation_pole_flip.extend(cr_signs_)
 
-        self._poles = backend.array(poles, dtype=complex)
-        self._residues = backend.array(residues, dtype=complex)
-        self._counterrotating_pole_signs = backend.array(
+        poles = backend.array(poles, dtype=complex)
+        residues = backend.array(residues, dtype=complex)
+        counter_rotation_pole_flip = backend.array(
             counter_rotation_pole_flip, dtype=backend.float
         )
-        assert len(self._counterrotating_pole_signs) == len(self._poles)
-        assert len(self._residues) == len(self._poles)
+        assert len(counter_rotation_pole_flip) == len(poles)
+        assert len(residues) == len(poles)
+        return poles, residues, counter_rotation_pole_flip
 
-        profile_hist_x = (
+    def _continuous_profile_hist_x(self) -> NumpyArray | CupyArray:
+        """
+        Return the profile's time axis on its underlying, continuous grid.
+
+        Returns
+        -------
+        hist_x
+            The time axis, in [s].
+        """
+        return (
             self._parent_wakefield.profile._continuous_memory_hist_x
             if type(self._parent_wakefield.profile) is EquidistantMultiProfile
             else self._parent_wakefield.profile.hist_x
@@ -1412,56 +1504,28 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             #  and sparse profile once the `assert_linspace`
             #  is added
         )
-        self._voltage = backend.zeros(
-            len(profile_hist_x),
-            dtype=backend.float,
-        )
-        # Two state generations per pole -- the newest one and the same one
-        # bin earlier -- plus their two reference times, see
-        # `Specials.wake_from_pole_residue`.
-        self._states = backend.zeros(2 * len(self._poles) + 2, complex)
-        bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
-        self._bin_dt = bin_dt
-        self._first_profile_dt = float(profile_hist_x[0])
-        # Every bin must be bin_dt wide; a sparse profile
-        # (EquidistantMultiProfile) may have charge-free gaps between
-        # bunches, but each gap must be a whole number of bins.
-        spacings = (profile_hist_x[1:] - profile_hist_x[:-1]) / bin_dt
-        n_bins_per_spacing = backend.round(spacings)
-        assert backend.all(n_bins_per_spacing >= 1) and backend.allclose(
-            spacings, n_bins_per_spacing
-        ), "MultiPoleSparseSolve needs bins of uniform width (gaps allowed)."
 
-        # Bin-average each pole's wake over the source bin, the observation
-        # bin and the third box that makes the line density piecewise linear
-        # instead of a staircase -- otherwise the solvers carry a half-bin lag
-        # that inflates the loss factor (see
-        # `Resonators._wake_bin_average`). Weighting exp(p*t) with the
-        # resulting quadratic B-spline scales the residue by
-        # ((exp(p*dt) - 1) / (p*dt))**3 and starts the kernel three half-bins
-        # late, so `wake_from_pole_residue` reads a state referenced two bins
-        # back; the extra exp(p*dt/2) here is the half bin between that
-        # reference and where the kernel begins. Every factor stays bounded by
-        # one, at any binning.
-        p_dt = self._poles * bin_dt
-        # p = 0 (a pole at zero frequency, which resonators never have) is a
-        # removable singularity; guard the division and use the p -> 0 limit.
-        nonzero_pole = p_dt != 0
-        p_dt_safe = backend.ones_like(p_dt)
-        p_dt_safe[nonzero_pole] = p_dt[nonzero_pole]
-        bin_average_factor = backend.ones_like(p_dt)
-        bin_average_factor[nonzero_pole] = (
-            (backend.expm1(p_dt_safe) / p_dt_safe) ** 3
-            * backend.exp(p_dt_safe / 2.0)
-        )[nonzero_pole]
+    def _setup_near_field_kernel(
+        self, profile_hist_x: NumpyArray | CupyArray, bin_dt: float
+    ) -> None:
+        """
+        Precompute the three near-field taps `wake_from_pole_residue` cannot produce.
 
-        # The recursion covers lags of two bins and more. The remaining three
-        # -- the previous bin, the bin itself and the *next* one, which the
-        # kernel's non-causal tap reaches -- are added in
-        # `calc_induced_voltage`. They are evaluated at the profile's actual
-        # bin spacings, so a sparse profile's gaps come out exactly right:
-        # a neighbour a gap away lands in the closed-form branch, and the
-        # non-causal tap across a gap evaluates to zero on its own.
+        The recursion covers lags of two bins and more. The remaining three
+        -- the previous bin, the bin itself and the *next* one, which the
+        kernel's non-causal tap reaches -- are added in
+        `_add_near_field_voltage`. They are evaluated here at the profile's
+        actual bin spacings, so a sparse profile's gaps come out exactly
+        right: a neighbour a gap away lands in the closed-form branch, and
+        the non-causal tap across a gap evaluates to zero on its own.
+
+        Parameters
+        ----------
+        profile_hist_x
+            The profile's time axis, in [s].
+        bin_dt
+            Profile bin width, in [s].
+        """
         bin_spacings = profile_hist_x[1:] - profile_hist_x[:-1]
         n_bins = len(profile_hist_x)
         self._lag_zero_factor = float(
@@ -1480,13 +1544,62 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._lag_next_factors[:-1] = _exact_near_field_wake(
             -bin_spacings, self._poles, self._residues, bin_dt
         )
-
-        # The near lags above need the residues as the model gives them; the
-        # kernel needs them scaled by the bin average. Keep both: the lag of
+        # Near lags need the residues as the model gives them; the far-field
+        # recursion needs them scaled by the bin average (see
+        # `_setup_far_field_recursion`). Keep the raw ones around: the lag of
         # the bin that a *previous* call left behind is only known once that
-        # call has happened, so it cannot be tabulated here.
+        # call has happened, so it cannot be tabulated here (see
+        # `_advance_reference_time`).
         self._residues_unaveraged = self._residues
+
+        # Charge of the bin the previous call ended on; zero until there has
+        # been one. `_trailing_bin_amplitude` stays 0.0 for the first call,
+        # so the handover term in `_add_near_field_voltage` vanishes on its
+        # own.
+        self._trailing_hist_y = backend.zeros(1, dtype=backend.float)
+        self._trailing_bin_amplitude = 0.0
+
+    def _setup_far_field_recursion(
+        self, profile_hist_x: NumpyArray | CupyArray, bin_dt: float
+    ) -> None:
+        """
+        Scale the residues and initialise the state for `wake_from_pole_residue`.
+
+        Bin-average each pole's wake over the source bin, the observation
+        bin and the third box that makes the line density piecewise linear
+        instead of a staircase -- otherwise the solver carries a half-bin lag
+        that inflates the loss factor (see `Resonators._wake_bin_average`).
+        Weighting exp(p*t) with the resulting quadratic B-spline scales the
+        residue by ``((exp(p*dt) - 1) / (p*dt))**3`` and starts the kernel
+        three half-bins late, so `wake_from_pole_residue` reads a state
+        referenced two bins back; the extra ``exp(p*dt/2)`` here is the half
+        bin between that reference and where the kernel begins. Every factor
+        stays bounded by one, at any binning.
+
+        Parameters
+        ----------
+        profile_hist_x
+            The profile's time axis, in [s].
+        bin_dt
+            Profile bin width, in [s].
+        """
+        p_dt = self._poles * bin_dt
+        # p = 0 (a pole at zero frequency, which resonators never have) is a
+        # removable singularity; guard the division and use the p -> 0 limit.
+        nonzero_pole = p_dt != 0
+        p_dt_safe = backend.ones_like(p_dt)
+        p_dt_safe[nonzero_pole] = p_dt[nonzero_pole]
+        bin_average_factor = backend.ones_like(p_dt)
+        bin_average_factor[nonzero_pole] = (
+            (backend.expm1(p_dt_safe) / p_dt_safe) ** 3
+            * backend.exp(p_dt_safe / 2.0)
+        )[nonzero_pole]
         self._residues = self._residues * bin_average_factor
+
+        # Two state generations per pole -- the newest one and the same one
+        # bin earlier -- plus their two reference times, see
+        # `Specials.wake_from_pole_residue`.
+        self._states = backend.zeros(2 * len(self._poles) + 2, complex)
         # Initialise both reference times one and two full bins before the
         # first bin centre: the kernel reads a state referenced two bins
         # back, so it evaluates `exp(pole * (t_jump - 2 * bin_dt))` and needs
@@ -1496,105 +1609,74 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._states[-1] = profile_hist_x[0] - bin_dt
         self._states[-2] = profile_hist_x[0] - 2.0 * bin_dt
 
-        # Charge of the bin the previous call ended on; zero until there has
-        # been one. `_trailing_bin_amplitude` stays 0.0 for the first call,
-        # so the handover term below vanishes on its own.
-        self._trailing_hist_y = backend.zeros(1, dtype=backend.float)
-        self._trailing_bin_amplitude = 0.0
-
-        self._voltage_threaded = backend.zeros(
-            (backend.specials.get_max_threads(), len(self._voltage))
-        )
-        self._update_on_bin = backend.unique(
-            self._profile._bucket_index_to_memory_index
-            if type(self._profile) is EquidistantMultiProfile
-            else backend.array([0], dtype=np.int32)
-        )
-
-    def calc_induced_voltage(
-        self, beam: BeamBaseClass
-    ) -> NumpyArray | CupyArray:
+    def _advance_reference_time(self, beam: BeamBaseClass) -> None:
         """
-        Calculate the induced voltage in this turn based on the last profiles.
+        Shift the recursion's reference times to the current profile, and update the trailing-bin near-field tap.
+
+        Each turn the two state generations' reference times are shifted
+        back by the time elapsed since the previous call, so the pole decays
+        `wake_from_pole_residue` computes are relative to the current
+        profile. The previous call's trailing bin -- whose charge the
+        current profile's first bin does not see through the recursion,
+        since it lives in the newer state generation only -- is a near lag
+        like any other and gets the same closed-form treatment
+        `_setup_near_field_kernel` gives a neighbour inside a call, at its
+        true lag, so a gap between the two calls comes out exactly right.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam, for the current reference
+            time.
+        """
+        # The last two entries of `_states` are not pole states but the
+        # running reference times of the two state generations (real part
+        # only).
+        passed_time = complex(beam.reference.time - self.last_reference_time)
+        self._states[-1] -= passed_time
+        self._states[-2] -= passed_time
+        bin_dt = self._bin_dt
+        # The kernel reads the older generation for the first bin, so it is
+        # that one -- not the newer -- which has to sit two bins before it. A
+        # profile spanning the whole revolution period meets this with
+        # equality; a longer one would let the bins of consecutive turns
+        # overlap and count the same charge twice.
+        assert self._states[-2].real <= (
+            self._first_profile_dt
+            - 2.0 * bin_dt
+            + _TURN_BOUNDARY_TOLERANCE * bin_dt
+        ), (
+            "The profile must not be longer than the time between two "
+            "calls of the solver."
+        )
+        trailing_lag = self._first_profile_dt - self._states[-1].real
+        self._trailing_bin_amplitude = self._charge_per_macroparticle * float(
+            _exact_near_field_wake(
+                backend.array([trailing_lag], dtype=backend.float),
+                self._poles,
+                self._residues_unaveraged,
+                bin_dt,
+            )[0]
+        )
+
+    def _far_field_voltage(
+        self,
+        beam: BeamBaseClass,
+        profile_hist_y: NumpyArray | CupyArray,
+        profile_dts: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Run the recursion, overwriting `self._voltage` with the far-field part.
 
         Parameters
         ----------
         beam
             Simulation object of a particle beam.
-
-        Returns
-        -------
-        induced_voltage
-            The induced voltage, in [V].
+        profile_hist_y
+            Beam profile histogram.
+        profile_dts
+            The profile's time axis, in [s].
         """
-        profile_hist_y = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
-            self._profile._continuous_memory_hist_y
-            if type(self._profile) is EquidistantMultiProfile
-            else self._profile.hist_y
-        )
-        profile_dts = (
-            self._profile._continuous_memory_hist_x
-            if type(self._profile) is EquidistantMultiProfile
-            else self._profile.hist_x
-        )
-
-        if self._poles is None:
-            self._finalize_solver(beam=beam)
-            assert self._update_on_bin[0] == 0, "First bin must always update."
-            assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
-                "The last bin must not update, the kernels read "
-                "`profile_dts[update_bin + 1]`."
-            )
-        else:
-            # The last two entries of `_states` are not pole states but the
-            # running reference times of the two state generations (real part
-            # only). Each turn they are shifted back by the time elapsed
-            # since the previous call, so the pole decays are computed
-            # relative to the current profile.
-            passed_time = complex(
-                beam.reference.time - self.last_reference_time
-            )
-            self._states[-1] -= passed_time
-            self._states[-2] -= passed_time
-            bin_dt = self._bin_dt
-            # The kernel reads the older generation for the first bin, so it
-            # is that one -- not the newer -- which has to sit two bins before
-            # it. A profile spanning the whole revolution period meets this
-            # with equality; a longer one would let the bins of consecutive
-            # turns overlap and count the same charge twice.
-            assert self._states[-2].real <= (
-                self._first_profile_dt
-                - 2.0 * bin_dt
-                + _TURN_BOUNDARY_TOLERANCE * bin_dt
-            ), (
-                "The profile must not be longer than the time between two "
-                "calls of the solver."
-            )
-            # The newer generation carries the charge of the previous call's
-            # trailing bin, which this profile's first bin therefore does not
-            # see through the recursion. That charge is a near lag, and gets
-            # the same treatment `_lag_prev_factors` gives a neighbour inside
-            # a call -- at its true lag, so a gap between the two calls comes
-            # out exactly right as well.
-            trailing_lag = self._first_profile_dt - self._states[-1].real
-            self._trailing_bin_amplitude = (
-                self._charge_per_macroparticle
-                * float(
-                    _exact_near_field_wake(
-                        backend.array([trailing_lag], dtype=backend.float),
-                        self._poles,
-                        self._residues_unaveraged,
-                        bin_dt,
-                    )[0]
-                )
-            )
-
-        self._charge_per_macroparticle = (
-            -(1 * beam.particle_type.charge * e)
-            * beam.intensity
-            * self._parent_wakefield.profile.hist_y_to_density_factor
-        )
-
         backend.specials.wake_from_pole_residue(
             profile=profile_hist_y,
             profile_dts=profile_dts,
@@ -1608,9 +1690,21 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             update_on_bin=self._update_on_bin,
             factor=self._charge_per_macroparticle,
         )
-        # Near-diagonal terms (see _finalize_solver): the recursion covers
-        # lags of two bins and more, so the previous bin, the bin itself and
-        # the next one -- the kernel's non-causal tap -- are added here.
+
+    def _add_near_field_voltage(
+        self, profile_hist_y: NumpyArray | CupyArray
+    ) -> None:
+        """
+        Add the three near-field taps and the previous call's trailing bin onto `self._voltage`.
+
+        See `_setup_near_field_kernel` for the taps and
+        `_advance_reference_time` for the trailing-bin term.
+
+        Parameters
+        ----------
+        profile_hist_y
+            Beam profile histogram.
+        """
         factor = self._charge_per_macroparticle
         self._voltage += (factor * self._lag_zero_factor) * profile_hist_y
         self._voltage[1:] += (
@@ -1628,6 +1722,53 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._voltage[:1] += (
             self._trailing_bin_amplitude * self._trailing_hist_y
         )
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate the induced voltage in this turn based on the last profiles.
+
+        Runs the far-field recursion (`_far_field_voltage`) and adds the
+        near-field correction (`_add_near_field_voltage`) on top -- see
+        `_finalize_solver` for why the two cannot be merged into one.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        profile_hist_y = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
+            self._profile._continuous_memory_hist_y
+            if type(self._profile) is EquidistantMultiProfile
+            else self._profile.hist_y
+        )
+        profile_dts = self._continuous_profile_hist_x()
+
+        if self._poles is None:
+            self._finalize_solver(beam=beam)
+            assert self._update_on_bin[0] == 0, "First bin must always update."
+            assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
+                "The last bin must not update, the kernels read "
+                "`profile_dts[update_bin + 1]`."
+            )
+        else:
+            self._advance_reference_time(beam)
+
+        self._charge_per_macroparticle = (
+            -(1 * beam.particle_type.charge * e)
+            * beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
+        )
+
+        self._far_field_voltage(beam, profile_hist_y, profile_dts)
+        self._add_near_field_voltage(profile_hist_y)
+
         self._trailing_hist_y[:] = profile_hist_y[-1:]
         self.last_reference_time = copy(beam.reference.time)
         return self._voltage
