@@ -663,22 +663,34 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         )
         self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
 
-    def test_warns_on_particle_loss(self):
+    def test_incomplete_capture_is_not_warned_about_here(self):
         """
-        Warn when the profile does not capture the whole beam.
+        Incomplete capture is the profile's report, not this one's.
 
-        Particles lost or outside the profile window are invisible to the
-        feedback's beam current; ``rf_beam_current`` must warn about them
-        before anything else. Modeled by a density factor corresponding to
+        ``rf_beam_current`` used to warn when the profile held less than
+        the whole beam. That check moved to
+        ``ProfileBaseClass._warn_if_beam_not_captured``, which owns both
+        the window and the histogram and warns ONCE at fill time. This
+        consumer must stay silent about it: it is called once per
+        passage, so a copy here would fire against that latch and bury
+        the single report. Modeled by a density factor corresponding to
         only half of the macroparticles being inside the window.
         """
         profile = self._profile_with_bunch_at(0.5)
         profile.hist_y_to_density_factor = 0.5 / float(
             np.sum(copy_to_cpu(profile.hist_y))
         )
-        with self.assertWarns(UserWarning) as cm:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             self._downsampled(profile)
-        self.assertIn("not be treated correctly", str(cm.warning))
+        self.assertEqual(
+            [],
+            [
+                str(entry.message)
+                for entry in caught
+                if "inside the profile window" in str(entry.message)
+            ],
+        )
 
     def test_no_warning_when_profile_captures_full_beam(self):
         """No particle-loss warning when the window captures everything."""
@@ -745,39 +757,32 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             )
         self.assertIn("longer than", str(cm.exception))
 
-    def test_particle_loss_warning_is_not_shadowed_by_the_span_guard(self):
+    def test_span_guard_still_raises_after_the_loss_check_moved(self):
         """
-        The span guard must not pre-empt the particle-loss warning.
+        The span guard is independent of where capture is reported.
 
         The two answer different questions -- "is the beam inside the
         profile?" versus "does the profile fit the span it is re-binned
         onto?" -- and the fold destroys charge even when the whole beam
-        is captured. So the loss warning has to stay reachable: it is
-        emitted before the span check, and raising there must not stop it
-        being seen.
+        is captured. The first question moved to the profile; this one
+        stays here and must still raise, including for a profile whose
+        capture is incomplete.
         """
         profile = self._profile_over(0.0, 5.0, (1.5, 4.5))
         profile.hist_y_to_density_factor = 0.5 / float(
             np.sum(copy_to_cpu(profile.hist_y))
         )
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            with self.assertRaises(ValueError):
-                rf_beam_current(
-                    beam=StubBeam(self.intensity),
-                    profile=profile,
-                    omega_c=self.omega_rf,
-                    use_lowpass_filter=False,
-                    dT=0.0,
-                    sampling_time=self.t_rf,
-                    n_points=3,
-                )
-        loss_warnings = [
-            str(entry.message)
-            for entry in caught
-            if "inside the profile window" in str(entry.message)
-        ]
-        self.assertEqual(len(loss_warnings), 1)
+        with self.assertRaises(ValueError) as cm:
+            rf_beam_current(
+                beam=StubBeam(self.intensity),
+                profile=profile,
+                omega_c=self.omega_rf,
+                use_lowpass_filter=False,
+                dT=0.0,
+                sampling_time=self.t_rf,
+                n_points=3,
+            )
+        self.assertIn("longer than", str(cm.exception))
 
     def test_raises_when_profile_starts_after_coarse_grid(self):
         """A window past the grid raises ValueError, not a bare IndexError."""

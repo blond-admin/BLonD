@@ -261,21 +261,14 @@ def rf_beam_current(
     hist_x = copy_to_cpu(profile.hist_x)
     hist_y = copy_to_cpu(profile.hist_y)
 
-    # Warn before anything else if the profile does not capture the whole
-    # beam (particle loss or particles outside the profile window): the
-    # missing charge is invisible to the feedback and will not be treated.
-    if profile.hist_y_to_density_factor is not None:
-        captured_fraction = float(
-            np.sum(hist_y) * profile.hist_y_to_density_factor
-        )
-        if not np.isclose(captured_fraction, 1.0, rtol=0, atol=1e-6):
-            warnings.warn(
-                f"Only {captured_fraction:.6f} of the beam's macroparticles "
-                "are inside the profile window (particle loss or particles "
-                "outside the window). Their charge is invisible to the "
-                "feedback and will not be treated correctly.",
-                stacklevel=2,
-            )
+    # Whether the profile captured the whole beam is NOT checked here.
+    # That is a property of the profile's own window, not of this
+    # consumer, and it is owned by
+    # ``ProfileBaseClass._warn_if_beam_not_captured``, which warns once
+    # at fill time -- before this function is ever reached, and for every
+    # consumer of a profile rather than for the feedback alone. Do not
+    # re-add a copy here: it would fire per passage against that
+    # once-per-profile latch.
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio.
@@ -369,8 +362,8 @@ def rf_beam_current(
     # instead of accumulating into it. That forward span IS the interval
     # between two consecutive passages of this station, so it is the same
     # quantity the per-passage wake solvers pass to the same guard.
-    # Independent of the particle-loss warning above: the fold destroys
-    # charge even when the window captures the whole beam.
+    # Independent of the profile's own incomplete-capture warning: the
+    # fold destroys charge even when the window captures the whole beam.
     profile.check_fits_in_span(
         n_points * sampling_time,
         span_description=(
