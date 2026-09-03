@@ -1025,6 +1025,71 @@ class PythonSpecials(Specials):
         parameter_array[1] = input_second
         parameter_array[2] = beam_dt[len(beam_dt) - 1]
 
+    @staticmethod
+    def wake_from_twc_fir(
+        # read
+        profile: NumpyArray,
+        grid_index: NumpyArray,
+        r_shunt: NumpyArray,
+        a_tilde: NumpyArray,
+        omega_r: NumpyArray,
+        bin_dt: float,
+        factor: float,
+        # write
+        voltage: NumpyArray,
+        voltage_threaded: NumpyArray,
+    ) -> None:
+        """
+        Travelling-wave-cavity wake via a phasor FIR recursion.
+
+        Reference implementation; see the ``Specials`` ABC for the full
+        description of the algorithm and its lattice-grid convention.
+
+        The bins live on a common equidistant lattice of spacing `bin_dt`
+        at positions `grid_index` (integers, strictly increasing). Gaps
+        between consecutive bins carry no charge and produce no output;
+        the recursion advances across them in closed form, firing each
+        taper term's removal at its exact lattice expiry site (the same
+        elapsed-time bookkeeping ``wake_from_pole_residue`` uses for its
+        ``t_jump``). On a gap-free grid (``grid_index = arange(n_bins)``)
+        this reduces to the plain per-bin recursion.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram (occupied lattice sites only).
+        grid_index
+            Lattice site of each profile bin, strictly increasing.
+        r_shunt
+            Shunt impedance per TWC mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s].
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        bin_dt
+            Spacing of the underlying equidistant lattice, in [s].
+        factor
+            To convert `profile` to current per bin [A].
+        voltage
+            Output voltage, in [V]. Overwritten.
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+
+        for mode_i in range(len(r_shunt)):
+            _twc_fir_one_mode(
+                profile=profile,
+                grid_index=grid_index,
+                r_shunt=r_shunt[mode_i],
+                a_tilde=a_tilde[mode_i],
+                omega_r=omega_r[mode_i],
+                bin_dt=bin_dt,
+                two_factor=2 * factor,
+                voltage=voltage,
+            )
+
 
 def _music_recurrence(
     beam_dt: NumpyArray,
@@ -1100,68 +1165,3 @@ def _music_recurrence(
         input_first = product_first + 1.0
         input_second = product_second
     return input_first, input_second
-
-    @staticmethod
-    def wake_from_twc_fir(
-        # read
-        profile: NumpyArray,
-        grid_index: NumpyArray,
-        r_shunt: NumpyArray,
-        a_tilde: NumpyArray,
-        omega_r: NumpyArray,
-        bin_dt: float,
-        factor: float,
-        # write
-        voltage: NumpyArray,
-        voltage_threaded: NumpyArray,
-    ) -> None:
-        """
-        Travelling-wave-cavity wake via a phasor FIR recursion.
-
-        Reference implementation; see the ``Specials`` ABC for the full
-        description of the algorithm and its lattice-grid convention.
-
-        The bins live on a common equidistant lattice of spacing `bin_dt`
-        at positions `grid_index` (integers, strictly increasing). Gaps
-        between consecutive bins carry no charge and produce no output;
-        the recursion advances across them in closed form, firing each
-        taper term's removal at its exact lattice expiry site (the same
-        elapsed-time bookkeeping ``wake_from_pole_residue`` uses for its
-        ``t_jump``). On a gap-free grid (``grid_index = arange(n_bins)``)
-        this reduces to the plain per-bin recursion.
-
-        Parameters
-        ----------
-        profile
-            Beam profile histogram (occupied lattice sites only).
-        grid_index
-            Lattice site of each profile bin, strictly increasing.
-        r_shunt
-            Shunt impedance per TWC mode, in [Ohm].
-        a_tilde
-            Wake support (filling) time per mode, in [s].
-        omega_r
-            Angular resonant frequency per mode, in [rad/s].
-        bin_dt
-            Spacing of the underlying equidistant lattice, in [s].
-        factor
-            To convert `profile` to current per bin [A].
-        voltage
-            Output voltage, in [V]. Overwritten.
-        voltage_threaded
-            Cached `voltage` array per thread. For speedup.
-        """
-        voltage[:] = 0
-        voltage_threaded[:, :] = 0
-
-        for mode_i in range(len(r_shunt)):
-            _twc_fir_one_mode(
-                profile=profile,
-                grid_index=grid_index,
-                r_shunt=r_shunt[mode_i],
-                a_tilde=a_tilde[mode_i],
-                omega_r=omega_r[mode_i],
-                bin_dt=bin_dt,
-                two_factor=2 * factor,
-                voltage=voltage,
-            )
