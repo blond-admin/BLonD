@@ -3486,7 +3486,7 @@ class TestSpecials(unittest.TestCase):
             poles = backend.array(poles_np, dtype=np.complex128)
             residues = backend.array(residues_np, dtype=np.complex128)
             cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
+            states = backend.zeros(2 * n_poles + 2, dtype=np.complex128)
             voltage = backend.zeros(n_bins, dtype=backend.float)
             voltage_threaded = backend.zeros(
                 (backend.specials.get_max_threads(), n_bins),
