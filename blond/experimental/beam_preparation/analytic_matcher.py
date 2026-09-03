@@ -34,6 +34,7 @@ the iteration when collective effects are strong.
 from __future__ import annotations
 
 import warnings
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -89,7 +90,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-def _machine_parameters(simulation: Simulation, beam: BeamBaseClass) -> dict:
+@dataclass
+class _MachineParameters:
+    """Longitudinal machine parameters shared by the analytic matchers."""
+
+    omega_rf: float
+    eta_0: float
+    charge: float
+    t_rev: float
+    energy_gain_per_turn: float
+    eom_factor_dE: float
+
+
+def _machine_parameters(
+    simulation: Simulation, beam: BeamBaseClass
+) -> _MachineParameters:
     """
     Longitudinal machine parameters shared by the analytic matchers.
 
@@ -119,7 +134,7 @@ def _machine_parameters(simulation: Simulation, beam: BeamBaseClass) -> dict:
         )
         - beam.reference.total_energy
     )
-    return dict(
+    return _MachineParameters(
         omega_rf=omega_rf,
         eta_0=eta_0,
         charge=beam.particle_type.charge,
@@ -461,17 +476,17 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
 
         # --- machine parameters (shared helpers, no third variant) ----
         params = _machine_parameters(simulation, beam)
-        charge = params["charge"]
-        t_rev = params["t_rev"]
-        eta_0 = params["eta_0"]
-        eom_factor_dE = params["eom_factor_dE"]
+        charge = params.charge
+        t_rev = params.t_rev
+        eta_0 = params.eta_0
+        eom_factor_dE = params.eom_factor_dE
 
         # --- RF potential well from the actual RF waveform ------------
         dt_margin_fraction = _resolve_dt_margin_fraction(
             self._dt_margin_fraction, _ring_has_wakefields(simulation)
         )
         time_array = bucket_time_array(
-            params["omega_rf"],
+            params.omega_rf,
             n_points=self._n_points_grid,
             dt_margin_fraction=dt_margin_fraction,
         )
@@ -481,7 +496,7 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
             charge=charge,
             t_rev=t_rev,
             eta_0=eta_0,
-            energy_gain_per_turn=params["energy_gain_per_turn"],
+            energy_gain_per_turn=params.energy_gain_per_turn,
             subtract_min=False,
         )
 
@@ -1078,22 +1093,22 @@ class LineDensityMatcher(_AnalyticMatcherBase):
 
         # --- machine parameters and RF potential well -----------------
         params = _machine_parameters(simulation, beam)
-        eom_factor_dE = params["eom_factor_dE"]
+        eom_factor_dE = params.eom_factor_dE
         dt_margin_fraction = _resolve_dt_margin_fraction(
             self._dt_margin_fraction, _ring_has_wakefields(simulation)
         )
         time_array = bucket_time_array(
-            params["omega_rf"],
+            params.omega_rf,
             n_points=self._n_points_grid,
             dt_margin_fraction=dt_margin_fraction,
         )
         rf_potential_raw = rf_potential_well(
             time_array,
             self._total_input_voltage(simulation, time_array),
-            charge=params["charge"],
-            t_rev=params["t_rev"],
-            eta_0=params["eta_0"],
-            energy_gain_per_turn=params["energy_gain_per_turn"],
+            charge=params.charge,
+            t_rev=params.t_rev,
+            eta_0=params.eta_0,
+            energy_gain_per_turn=params.energy_gain_per_turn,
             subtract_min=False,
         )
 
@@ -1195,9 +1210,9 @@ class LineDensityMatcher(_AnalyticMatcherBase):
             induced_potential_new = rf_potential_well(
                 time_array,
                 induced_voltage,
-                charge=params["charge"],
-                t_rev=params["t_rev"],
-                eta_0=params["eta_0"],
+                charge=params.charge,
+                t_rev=params.t_rev,
+                eta_0=params.eta_0,
                 subtract_min=False,
             )
             residual = float(

@@ -345,7 +345,7 @@ class SequentialMultiBunchMatcher(_MultiBunchMatcherBase):
         super().prepare_beam(simulation=simulation, beam=beam)
 
         params = _machine_parameters(simulation, beam)
-        bucket_size = 2.0 * np.pi / params["omega_rf"]
+        bucket_size = 2.0 * np.pi / params.omega_rf
         intensities = self._resolve_intensities(beam)
         self.bunch_intensities = intensities
 
@@ -595,7 +595,7 @@ class SelfConsistentMultiBunchMatcher(_MultiBunchMatcherBase):
         super().prepare_beam(simulation=simulation, beam=beam)
 
         params = _machine_parameters(simulation, beam)
-        bucket_size = 2.0 * np.pi / params["omega_rf"]
+        bucket_size = 2.0 * np.pi / params.omega_rf
         intensities = self._resolve_intensities(beam)
         self.bunch_intensities = intensities
         bucket_offsets = self.bucket_indices.astype(float) * bucket_size
@@ -608,14 +608,14 @@ class SelfConsistentMultiBunchMatcher(_MultiBunchMatcherBase):
         # Reference amplitude for the residual: bare single-bucket
         # well, cut at the separatrix (same normalization as the
         # single-bunch matchers).
-        single_time = bucket_time_array(params["omega_rf"], n_points=1000)
+        single_time = bucket_time_array(params.omega_rf, n_points=1000)
         rf_single_raw = rf_potential_well(
             single_time,
             _total_rf_voltage(simulation, single_time),
-            charge=params["charge"],
-            t_rev=params["t_rev"],
-            eta_0=params["eta_0"],
-            energy_gain_per_turn=params["energy_gain_per_turn"],
+            charge=params.charge,
+            t_rev=params.t_rev,
+            eta_0=params.eta_0,
+            energy_gain_per_turn=params.energy_gain_per_turn,
             subtract_min=False,
         )
         _, well_single = cut_potential_well(single_time, rf_single_raw)
@@ -754,9 +754,9 @@ class SelfConsistentMultiBunchMatcher(_MultiBunchMatcherBase):
             train_induced_potential_new = rf_potential_well(
                 train_time,
                 train_induced_voltage_new,
-                charge=params["charge"],
-                t_rev=params["t_rev"],
-                eta_0=params["eta_0"],
+                charge=params.charge,
+                t_rev=params.t_rev,
+                eta_0=params.eta_0,
                 subtract_min=False,
             )
             residual = float(
