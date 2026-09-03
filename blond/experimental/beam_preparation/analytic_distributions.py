@@ -145,19 +145,20 @@ def _resolve_exponent(
                 UserWarning,
                 stacklevel=3,
             )
-        return DISTRIBUTION_EXPONENTS[distribution_type]
+        resolved_exponent = DISTRIBUTION_EXPONENTS[distribution_type]
     elif distribution_type == DistributionType.BINOMIAL:
         if exponent is None:
             raise ValueError(
                 "distribution_type='binomial' requires an exponent"
             )
-        return float(exponent)
+        resolved_exponent = float(exponent)
     else:
         raise ValueError(
             f"Unknown {distribution_type=}; expected one of "
             f"{list(DISTRIBUTION_EXPONENTS)} or "
             f"{[DistributionType.BINOMIAL, DistributionType.GAUSSIAN]}"
         )
+    return resolved_exponent
 
 
 def distribution_function(
@@ -253,29 +254,40 @@ def line_density(
     time_array = np.asarray(time_array, dtype=float)
     distribution_type = DistributionType._from_input(distribution_type)
     normalized_offset = 2.0 * (time_array - bunch_position) / bunch_length
-    if distribution_type == DistributionType.GAUSSIAN:
-        if exponent is not None:
-            warnings.warn(
-                f"exponent is ignored for {distribution_type=}",
-                UserWarning,
-                stacklevel=2,
+
+    if (
+        distribution_type
+        in (DistributionType.GAUSSIAN, DistributionType.COSINE_SQUARED)
+        and exponent is not None
+    ):
+        warnings.warn(
+            f"exponent is ignored for {distribution_type=}",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    match distribution_type:
+        case DistributionType.GAUSSIAN:
+            sigma = bunch_length / 4.0
+            result = np.exp(
+                -((time_array - bunch_position) ** 2) / (2.0 * sigma**2)
             )
-        sigma = bunch_length / 4.0
-        return np.exp(-((time_array - bunch_position) ** 2) / (2.0 * sigma**2))
-    elif distribution_type == DistributionType.COSINE_SQUARED:
-        if exponent is not None:
-            warnings.warn(
-                f"exponent is ignored for {distribution_type=}",
-                UserWarning,
-                stacklevel=2,
+
+        case DistributionType.COSINE_SQUARED:
+            result = np.zeros_like(time_array, dtype=float)
+            inside = np.abs(normalized_offset) <= 1.0
+            result[inside] = (
+                np.cos(0.5 * np.pi * normalized_offset[inside]) ** 2
             )
-        result = np.zeros_like(time_array, dtype=float)
-        inside = np.abs(normalized_offset) <= 1.0
-        result[inside] = np.cos(0.5 * np.pi * normalized_offset[inside]) ** 2
-        return result
-    resolved_exponent = _resolve_exponent(distribution_type, exponent)
-    # Phase-space exponent mu -> line-density exponent mu + 1/2.
-    return _binomial_family(normalized_offset**2, 1.0, resolved_exponent + 0.5)
+
+        case _:
+            resolved_exponent = _resolve_exponent(distribution_type, exponent)
+            # Phase-space exponent mu -> line-density exponent mu + 1/2.
+            result = _binomial_family(
+                normalized_offset**2, 1.0, resolved_exponent + 0.5
+            )
+
+    return result
 
 
 def _bunch_length_rms(
@@ -308,18 +320,21 @@ def _bunch_length_fwhm(
     above = np.flatnonzero(line_density_values >= half_maximum)
     first, last = int(above[0]), int(above[-1])
     bin_size = time_array[1] - time_array[0]
+
     if first > 0:
         time_left = time_array[first] - bin_size * (
             line_density_values[first] - half_maximum
         ) / (line_density_values[first] - line_density_values[first - 1])
     else:
         time_left = time_array[first]
+
     if last < len(time_array) - 1:
         time_right = time_array[last] + bin_size * (
             line_density_values[last] - half_maximum
         ) / (line_density_values[last] - line_density_values[last + 1])
     else:
         time_right = time_array[last]
+
     return float(
         4.0 * (time_right - time_left) / (2.0 * np.sqrt(2.0 * np.log(2.0)))
     )
@@ -403,8 +418,10 @@ def x0_from_bunch_length(
     time_array = np.asarray(time_array, dtype=float)
     x_grid = np.asarray(x_grid, dtype=float)
     finite = np.isfinite(x_grid)
+
     if inside_bucket_mask is not None:
         finite = finite & inside_bucket_mask
+
     x_low = float(x_grid[finite].min())
     x_high = float(x_grid[finite].max())
     x_span = x_high - x_low
@@ -413,19 +430,30 @@ def x0_from_bunch_length(
     def measure(x_0: float) -> float:
         if bunch_length_fit == BunchLengthFit.FULL:
             columns = np.any((x_grid <= x_0) & finite, axis=0)
-            if not np.any(columns):
-                return 0.0
             occupied = np.flatnonzero(columns)
-            return float(time_array[occupied[-1]] - time_array[occupied[0]])
-        density = distribution_function(
-            x_grid, distribution_type, x_0, exponent
-        )
-        if inside_bucket_mask is not None:
-            density = np.where(inside_bucket_mask, density, 0.0)
-        line_density_values = density.sum(axis=0)
-        if bunch_length_fit == "rms":
-            return _bunch_length_rms(time_array, line_density_values)
-        return _bunch_length_fwhm(time_array, line_density_values)
+
+            if occupied.size == 0:
+                achieved = 0.0
+            else:
+                achieved = float(
+                    time_array[occupied[-1]] - time_array[occupied[0]]
+                )
+        else:
+            density = distribution_function(
+                x_grid, distribution_type, x_0, exponent
+            )
+
+            if inside_bucket_mask is not None:
+                density = np.where(inside_bucket_mask, density, 0.0)
+
+            line_density_values = density.sum(axis=0)
+
+            if bunch_length_fit == BunchLengthFit.RMS:
+                achieved = _bunch_length_rms(time_array, line_density_values)
+            else:
+                achieved = _bunch_length_fwhm(time_array, line_density_values)
+
+        return achieved
 
     x_0 = x_high
     for iteration in range(max_iterations):
@@ -437,12 +465,15 @@ def x0_from_bunch_length(
                 f"x_0={x_0:.6e}, bunch length {achieved:.6e} s "
                 f"(target {target_bunch_length:.6e})"
             )
+
         if abs(achieved - target_bunch_length) <= time_resolution:
             return float(x_0)
+
         if achieved >= target_bunch_length:
             x_high = x_0
         else:
             x_low = x_0
+
         if (x_high - x_low) < 1e-12 * x_span:
             if achieved < target_bunch_length and np.isclose(
                 x_high, x_grid[finite].max()
@@ -464,6 +495,7 @@ def x0_from_bunch_length(
                     stacklevel=2,
                 )
             return float(x_0)
+
     warnings.warn(
         f"x0_from_bunch_length did not converge in {max_iterations} "
         f"iterations (last bunch length {achieved:.4e} s for target "
