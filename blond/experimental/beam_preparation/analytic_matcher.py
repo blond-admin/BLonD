@@ -73,6 +73,12 @@ from blond.experimental.beam_preparation.analytic_well_cut import (
 )
 from blond.generals.cupy.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.generals.iterables_ import all_equal
+from blond.physics.cavities import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
+from blond.physics.drifts import DriftSimple
+from blond.physics.impedances.base import WakeField
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -91,8 +97,6 @@ def _machine_parameters(simulation: Simulation, beam: BeamBaseClass) -> dict:
     factor (required identical across drifts) — no third
     parameter-extraction variant.
     """
-    from blond.physics.drifts import DriftSimple
-
     _, omega_rf, _, _ = get_main_harmonic_attributes(
         beam=beam, simulation=simulation
     )
@@ -131,8 +135,6 @@ def _machine_parameters(simulation: Simulation, beam: BeamBaseClass) -> dict:
 
 def _ring_has_wakefields(simulation: Simulation) -> bool:
     """Whether the ring contains any WakeField element."""
-    from blond.physics.impedances.base import WakeField
-
     return (
         len(simulation.ring.elements.get_elements(WakeField, recursive=False))
         > 0
@@ -157,11 +159,6 @@ def _total_rf_voltage(
     simulation: Simulation, time_array: NumpyArray
 ) -> NumpyArray:
     """Total RF voltage waveform summed over all RF stations, in [V]."""
-    from blond.physics.cavities import (
-        MultiHarmonicRFStation,
-        SingleHarmonicRFStation,
-    )
-
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation, recursive=False
     ) + simulation.ring.elements.get_elements(

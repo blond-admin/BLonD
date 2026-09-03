@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.beam.beams import Beam
 from blond.experimental.beam_preparation.analytic_induced_potential import (
     clone_wakefields_on_smooth_profile,
     induced_voltage_from_line_density,
@@ -341,8 +342,6 @@ class SequentialMultiBunchMatcher(_MultiBunchMatcherBase):
         beam
             Simulation :class:`~blond.core.beam.beams.Beam` object.
         """
-        from blond.core.beam.beams import Beam
-
         super().prepare_beam(simulation=simulation, beam=beam)
 
         params = _machine_parameters(simulation, beam)
@@ -593,8 +592,6 @@ class SelfConsistentMultiBunchMatcher(_MultiBunchMatcherBase):
         beam
             Simulation :class:`~blond.core.beam.beams.Beam` object.
         """
-        from blond.core.beam.beams import Beam
-
         super().prepare_beam(simulation=simulation, beam=beam)
 
         params = _machine_parameters(simulation, beam)
