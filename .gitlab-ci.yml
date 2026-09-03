@@ -169,7 +169,7 @@ workflow:
     # Install uv, then let it create and populate the virtual environment.
     - *uv_setup
     - uv venv ./.venv
-    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - source ./.venv/bin/activate
     # Install project with extras. Fresh resolution every pipeline (newest
     # releases); only the wheel files come from the persisted uv cache.
     - uv pip install -e ${project_root}[all_cuda12]
@@ -196,7 +196,7 @@ workflow:
     # Install uv, then let it create and populate the virtual environment.
     - *uv_setup
     - uv venv ./.venv
-    - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
+    - source ./.venv/bin/activate
     # Install project with extras (see `.before`).
     - uv pip install -e ${project_root}[all_no_cuda]
     - cd ${project_root}
