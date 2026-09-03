@@ -16,7 +16,12 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.drifts import DriftBaseClass, DriftExact, DriftSimple
+from blond.physics.drifts import (
+    DriftBaseClass,
+    DriftExact,
+    DriftLikeLineSegment,
+    DriftSimple,
+)
 from blond.testing.backend_testing import multi_backend_testcase
 
 
@@ -519,6 +524,180 @@ class TestDriftExact(unittest.TestCase):
                 free_names = {s.name for s in ham.free_symbols}
                 for k in range(1, n_alpha + 1):
                     self.assertIn(f"alpha_{k}", free_names)
+
+
+class TestDriftLikeLineSegment(unittest.TestCase):
+    r"""``DriftLikeLineSegment``: linear slip factor + exact relativistic delta.
+
+    This is the BLonD-native equivalent of the longitudinal drift of an
+    xsuite ``LineSegmentMap`` with zeroth-order momentum compaction.
+    Parameters are the PSB flat bottom (van Rijswijk 2024, Table 1).
+    """
+
+    CIRCUMFERENCE = 157.0800
+    TRANSITION_GAMMA = 4.1164
+    KINETIC_ENERGY = 1.4e9  # eV
+
+    def _build(self, dE=None, turn_counter=None):
+        from blond.core.beam.particle_types import proton
+
+        alpha_0 = momentum_compaction_factor(self.TRANSITION_GAMMA)
+        drift = DriftLikeLineSegment.headless(
+            momentum_compaction_factor=alpha_0,
+            orbit_length=self.CIRCUMFERENCE,
+            section_index=0,
+            turn_counter=turn_counter,
+        )
+        beam = ProbeBeam(
+            dE=np.linspace(-8e6, 8e6, 17) if dE is None else dE,
+            particle_type=proton,
+            reference_total_energy=self.KINETIC_ENERGY + float(proton.mass),
+        )
+        return drift, beam, alpha_0
+
+    @staticmethod
+    def _delta_exact(dE, beta, energy):
+        """Exact relative momentum deviation from the energy deviation."""
+        return (
+            np.sqrt(1.0 + (dE**2 + 2.0 * dE * energy) / (beta**2 * energy**2))
+            - 1.0
+        )
+
+    def test_track_uses_exact_delta(self):
+        """Per-turn dt change equals ``T * eta_0 * delta_exact``.
+
+        Unlike ``DriftSimple`` (which uses ``delta ~= dE/(beta^2 E)``), this
+        element keeps the exact relativistic ``delta`` while retaining the
+        linear ``eta_0`` slip.
+        """
+        drift, beam, alpha_0 = self._build()
+        beta = beam.reference.beta
+        gamma = beam.reference.gamma
+        energy = beam.reference.total_energy
+        dE = beam.dE.copy_as_numpy()
+
+        t_rev = self.CIRCUMFERENCE / (beta * c0)
+        eta_0 = alpha_0 - 1.0 / gamma**2
+        expected = t_rev * eta_0 * self._delta_exact(dE, beta, energy)
+
+        dt_before = beam.dt.copy_as_numpy()
+        drift.track(beam=beam)
+        actual = beam.dt.copy_as_numpy() - dt_before
+
+        np.testing.assert_allclose(actual, expected, rtol=1e-12)
+
+    def test_differs_from_drift_simple_at_large_amplitude(self):
+        """The exact delta must deviate from the linearised one.
+
+        Guards against the element silently degenerating into
+        ``DriftSimple``: at ``dE`` of a few per mille of the total energy the
+        quadratic term of the exact ``delta`` is resolvable.
+        """
+        drift, beam, alpha_0 = self._build(dE=np.array([8e6]))
+        beta = beam.reference.beta
+        energy = beam.reference.total_energy
+
+        simple_delta = beam.dE.copy_as_numpy() / (beta**2 * energy)
+        exact_delta = self._delta_exact(beam.dE.copy_as_numpy(), beta, energy)
+
+        drift.track(beam=beam)
+        self.assertGreater(abs(exact_delta[0] / simple_delta[0] - 1.0), 1e-4)
+
+    def test_hamiltonian_matches_tracking_low_amplitude(self):
+        """At low amplitude ``dH/d(dE)`` reproduces the exact-delta map.
+
+        The degree-3 Hamiltonian makes the separatrix consistent with the
+        tracking for low synchrotron phase advance; the residual scales like
+        ``(dE/E)**3``, so at small ``dE`` the two agree tightly.
+        """
+        from blond.core.beam.particle_types import proton
+
+        energy = self.KINETIC_ENERGY + float(proton.mass)
+        drift, beam, alpha_0 = self._build(dE=np.array([0.0]))
+        beta = beam.reference.beta
+        gamma = beam.reference.gamma
+        t_rev = self.CIRCUMFERENCE / (beta * c0)
+        eta_0 = alpha_0 - 1.0 / gamma**2
+
+        dE_s, beta_s, gamma_s, E_s = sympy.symbols(
+            "dE beta gamma E", real=True
+        )
+        dH_ddE = sympy.lambdify(
+            (dE_s, beta_s, gamma_s, E_s),
+            sympy.diff(drift.get_hamilton_symbolic(), dE_s),
+            modules="numpy",
+        )
+        small_dE = np.linspace(-1e5, 1e5, 11)
+        np.testing.assert_allclose(
+            dH_ddE(small_dE, beta, gamma, energy),
+            t_rev * eta_0 * self._delta_exact(small_dE, beta, energy),
+            rtol=1e-7,
+        )
+
+    def test_get_hamilton_symbolic_replace_symbols_false(self):
+        """With ``replace_symbols=False`` alpha_0 stays as a free symbol."""
+        drift, _, _ = self._build()
+
+        alpha_0_s = sympy.Symbol("alpha_0", real=True)
+
+        ham_sym = drift.get_hamilton_symbolic(replace_symbols=False)
+        self.assertIn("alpha_0", {s.name for s in ham_sym.free_symbols})
+
+        # Substituting back the numeric value must match
+        # ``replace_symbols=True`` (evaluated numerically to avoid sympy
+        # simplification precision issues).
+        ham_num = drift.get_hamilton_symbolic(replace_symbols=True)
+        dE, beta, gamma, E = sympy.symbols("dE beta gamma E", real=True)
+        resubstituted = ham_sym.subs(alpha_0_s, float(drift.alpha_0))
+
+        test_vals = {dE: 1e5, beta: 0.9, gamma: 2.5, E: 1e9}
+        val_sym = float(resubstituted.subs(test_vals))
+        val_num = float(ham_num.subs(test_vals))
+        np.testing.assert_allclose(val_sym, val_num, rtol=1e-10)
+
+    def test_headless_with_scheduled_momentum_compaction(self):
+        """A per-turn ``momentum_compaction_factor`` array is applied."""
+        from blond.core.beam.particle_types import proton
+
+        alphas = np.array([0.0241, 0.0242, 0.0243])
+        turn_counter = DynamicParameter(0)
+        drift = DriftLikeLineSegment.headless(
+            momentum_compaction_factor=alphas,
+            orbit_length=self.CIRCUMFERENCE,
+            section_index=0,
+            turn_counter=turn_counter,
+        )
+
+        beam = ProbeBeam(
+            dE=np.array([1e6, 0.0, -1e6]),
+            particle_type=proton,
+            reference_total_energy=self.KINETIC_ENERGY + float(proton.mass),
+        )
+        dE = beam.dE.copy_as_numpy()
+
+        for turn, alpha_0 in enumerate(alphas):
+            turn_counter.value = turn
+            beta = beam.reference.beta
+            gamma = beam.reference.gamma
+            energy = beam.reference.total_energy
+            t_rev = self.CIRCUMFERENCE / (beta * c0)
+            expected = (
+                t_rev
+                * (alpha_0 - 1.0 / gamma**2)
+                * self._delta_exact(dE, beta, energy)
+            )
+
+            dt_before = beam.dt.copy_as_numpy()
+            drift.track(beam=beam)
+            dt_change = beam.dt.copy_as_numpy() - dt_before
+
+            np.testing.assert_allclose(
+                dt_change,
+                expected,
+                rtol=1e-12,
+                err_msg=f"Failed on turn {turn}",
+            )
+            self.assertEqual(drift.alpha_0, alpha_0)
 
 
 class TestDriftSpecial(unittest.TestCase):

@@ -37,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
-    """
+    r"""
     Base class of a drift.
 
     Parameters
@@ -53,6 +53,39 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
+
+    See Also
+    --------
+    DriftSimple : Linear slip, linearised delta (fastest).
+    DriftLikeLineSegment : Linear slip, exact delta (xsuite-equivalent).
+    DriftExact : Full slip, exact delta (most complete).
+
+    Notes
+    -----
+    BLonD ships three longitudinal drift solvers that trade accuracy for
+    speed. They differ in two independent choices:
+
+    * the relative momentum deviation :math:`\delta` from the energy deviation
+      :math:`dE` -- either the *linearised*
+      :math:`\delta \approx dE/(\beta^2 E)` or the *exact*
+      :math:`\delta = \sqrt{1 + (dE^2 + 2\,dE\,E)/(\beta^2 E^2)} - 1`;
+    * the phase slip (revolution-time change) from :math:`\delta` -- either the
+      *linear slip factor* :math:`\eta_0 = \alpha_0 - 1/\gamma^2` (first order)
+      or the *full slip*
+      :math:`(1 + \alpha_0\delta + \dots)\,(1 + dE/E)/(1 + \delta) - 1` with the
+      all-order momentum-compaction expansion.
+
+    The concrete classes pick the rungs (fastest first):
+
+    * :class:`DriftSimple` -- linear slip, linearised :math:`\delta`. Fastest,
+      and internally consistent (its tracker, Hamiltonian and separatrix are
+      all linear); accurate for small amplitudes / ultra-relativistic beams.
+    * :class:`DriftLikeLineSegment` -- linear slip, exact :math:`\delta`.
+      Reproduces an xsuite ``LineSegmentMap``; use it for xsuite cross-checks
+      and low-energy rings where the :math:`\delta` linearisation in
+      :class:`DriftSimple` is no longer adequate.
+    * :class:`DriftExact` -- full slip, exact :math:`\delta`. The most complete
+      model, adding higher-order momentum compaction via ``higher_order_alpha``.
     """
 
     def __init__(
@@ -102,7 +135,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
 
 class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     r"""
-    Base class to implement beam drifts in synchrotrons.
+    Simple, fully linearised longitudinal drift (fastest solver).
 
     The arrival-time change over the drift is calculated as:
 
@@ -114,6 +147,15 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     :math:`E` are the reference beam quantities, :math:`dE` the energy
     deviation and :math:`\eta_0` the (first-order) phase-slip factor built
     from the momentum compaction factor :math:`\alpha_0`.
+
+    Both approximations are first order: the momentum deviation is the
+    *linearised* :math:`\delta \approx dE/(\beta^2 E)` and the slip is the
+    *linear* factor :math:`\eta_0`. This makes it the fastest solver and keeps
+    its tracker, Hamiltonian and separatrix mutually consistent, at the cost of
+    accuracy for large amplitudes or low energy. For the exact momentum
+    deviation use :class:`DriftLikeLineSegment`; for the full slip (and
+    higher-order momentum compaction) use :class:`DriftExact`. See
+    :class:`DriftBaseClass` for the full comparison.
 
     Parameters
     ----------
@@ -131,6 +173,12 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
+
+    See Also
+    --------
+    DriftLikeLineSegment : Linear slip but the *exact* delta (xsuite-equivalent).
+    DriftExact : Full slip and exact delta (most complete, slowest).
+    DriftBaseClass : Overview of the three solvers and their accuracy choices.
     """
 
     def __init__(
@@ -142,7 +190,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         """
-        Base class to implement beam drifts in synchrotrons.
+        Simple, fully linearised longitudinal drift (fastest solver).
 
         Parameters
         ----------
@@ -411,12 +459,14 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
 class DriftExact(DriftSimple, HasSymbolicHamiltonian):
     r"""
-    Drift element using the exact drift formulation.
+    Exact longitudinal drift (most complete, slowest solver).
 
-    This replaces the simple drift with the exact solver based on:
-      - exact delta from dE
-      - full alpha(delta) expansion
-      - exact (1 + dE/E) / (1 + delta) factor
+    This is the most accurate of the three drift solvers: it keeps the full
+    slip *and* the exact momentum deviation, namely
+
+    * exact ``delta`` from ``dE``;
+    * higher-order momentum compaction expansion (up to provided order);
+    * exact ``(1 + dE/E) / (1 + delta)`` factor.
 
     The arrival-time change over the drift is calculated as:
 
@@ -454,6 +504,12 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         the parameter along the ramp.
     **kwargs
         Additional keyword arguments for MRO of fused elements.
+
+    See Also
+    --------
+    DriftSimple : Linear slip and linearised delta (fastest, small-amplitude).
+    DriftLikeLineSegment : Linear slip but exact delta (xsuite-equivalent).
+    DriftBaseClass : Overview of the three solvers and their accuracy choices.
     """
 
     def __init__(
@@ -486,9 +542,10 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         `DriftExact` element using the exact drift formulation.
 
         This replaces the simple drift with the exact solver based on:
-          - exact delta from dE
-          - full alpha(delta) expansion
-          - exact (1 + dE/E) / (1 + delta) factor
+
+        * exact ``delta`` from ``dE``;
+        * full ``alpha(delta)`` expansion;
+        * exact ``(1 + dE/E) / (1 + delta)`` factor.
 
         Parameters
         ----------
@@ -643,3 +700,198 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
             )
+
+
+class DriftLikeLineSegment(DriftSimple):
+    r"""
+    Drift matching an xsuite ``LineSegmentMap`` (linear slip, exact delta).
+
+    Like :class:`DriftSimple` this element uses the first-order slip factor
+    :math:`\eta_0`, but it converts the energy deviation to the momentum
+    deviation with the *exact* relativistic relation instead of the linear
+    approximation :math:`\delta \approx dE/(\beta^2 E)`:
+
+    .. math::
+        \Delta dt = \frac{L}{\beta c}\,\eta_0\,\delta,\qquad
+        \delta = \sqrt{1 + \frac{dE^2 + 2\,dE\,E}{\beta^2 E^2}} - 1.
+
+    It is the BLonD-native equivalent of the longitudinal drift of an xsuite
+    ``LineSegmentMap`` with zeroth-order momentum compaction, with which it
+    agrees to machine precision. It sits between :class:`DriftSimple` (linear
+    slip *and* linear :math:`\delta`) and :class:`DriftExact` (full slip *and*
+    exact :math:`\delta`).
+
+    Parameters
+    ----------
+    orbit_length
+        Length of drift, in [m].
+    section_index
+        Section index to group elements into sections.
+    radiation_integrals
+        Synchrotron radiation integrals.
+        Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
+    momentum_compaction_factor
+        Momentum compaction factor of this drift section.
+        Use ``drift.schedule("momentum_compaction_factor", ...)`` to influence
+        the parameter along the ramp.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
+    See Also
+    --------
+    DriftSimple : Same linear slip but the *linearised* delta (fastest).
+    DriftExact : Full slip and exact delta (most complete, slowest).
+    DriftBaseClass : Overview of the three solvers and their accuracy choices.
+    """
+
+    def __init__(
+        self,
+        orbit_length: float,
+        section_index: int = 0,
+        radiation_integrals: NumpyArray | None = None,
+        momentum_compaction_factor: float | None = None,
+        **kwargs: dict[str, Any],  # for MRO of fused elements
+    ) -> None:
+        super().__init__(
+            orbit_length=orbit_length,
+            section_index=section_index,
+            radiation_integrals=radiation_integrals,
+            momentum_compaction_factor=momentum_compaction_factor,
+            **kwargs,  # for MRO of fused elements
+        )
+
+    @staticmethod
+    def headless(
+        momentum_compaction_factor: NumpyArray | tuple[NumpyArray, NumpyArray],
+        orbit_length: float,
+        section_index: int = 0,
+        turn_counter: DynamicParameter | None = None,
+    ) -> DriftLikeLineSegment:
+        """
+        Initialize object without simulation context.
+
+        Parameters
+        ----------
+        momentum_compaction_factor
+            Momentum compaction factor.
+        orbit_length
+            Length of drift, in [m].
+            Length / Velocity => Time to pass the element.
+        section_index
+            Section index to group elements into sections.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+
+        Returns
+        -------
+        drift_like_line_segment
+            ``DriftLikeLineSegment`` object without simulation context.
+        """
+        d = DriftLikeLineSegment(
+            orbit_length=orbit_length,
+            section_index=section_index,
+        )
+
+        if isinstance(momentum_compaction_factor, int | float):
+            d.momentum_compaction_factor = float(momentum_compaction_factor)
+        else:
+            d.schedule(
+                "momentum_compaction_factor", momentum_compaction_factor
+            )
+
+        d.configure(turn_counter=turn_counter)
+
+        return d
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        """
+        Main simulation routine (linear slip, exact delta).
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=beam.reference.time,
+            )
+
+        dt = self.track_reference(beam.reference)
+        gamma = beam.reference.gamma
+        self._last_eta_0 = self.eta_0(gamma)
+
+        if beam.common_array_size > 0:
+            backend.specials.drift_like_line_segment(
+                dt=beam.write_partial_dt(),
+                dE=beam.read_partial_dE(),
+                T=dt,
+                eta_0=self._last_eta_0,
+                beta=beam.reference.beta,
+                energy=beam.reference.total_energy,
+            )
+
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        r"""
+        Return the partial Hamiltonian symbolic expression.
+
+        The tracker (see ``DriftLikeLineSegment._track``) maps
+        ``dt -> dt + T * eta_0 * delta(dE)`` with the exact relativistic
+        ``delta`` and
+
+        .. math::
+
+            T = \frac{L}{\beta c},\qquad
+            \eta_0 = \alpha_0 - \frac{1}{\gamma^2}.
+
+        Its Hamiltonian is therefore :math:`H = T\,\eta_0\int_0^{dE}
+        \delta\,d(dE')`. To stay a polynomial in ``dE`` (the symbolic
+        separatrix consumes it via ``sympy.Poly``) the exact ``delta(dE)`` is
+        Taylor-expanded to order ``dE**2``, so ``dH/d(dE)`` reproduces the
+        exact-delta map to ``O(dE**3)`` and the separatrix matches the
+        tracking for low synchrotron phase advance.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            Polynomial in ``dE`` (degree 3) with coefficients in ``beta``,
+            ``gamma`` and ``E``.
+        """
+        dE, beta, gamma, E = sympy.symbols("dE beta gamma E", real=True)
+
+        if replace_symbols:
+            assert self.alpha_0 is not None
+            alpha_0 = float(self.alpha_0)
+        else:
+            alpha_0 = sympy.Symbol("alpha_0", real=True)
+
+        T = float(self.orbit_length) / (beta * c0)
+        eta_0 = alpha_0 - 1 / gamma**2
+
+        # Taylor-expand the exact delta(dE) up to order dE**2 so the
+        # integrated Hamiltonian is a degree-3 polynomial in dE.
+        n_delta = 2
+        delta_exact = (
+            sympy.sqrt(1 + (dE**2 + 2 * dE * E) / (beta**2 * E**2)) - 1
+        )
+        delta = delta_exact.series(dE, 0, n_delta + 1).removeO()
+
+        # H = T * eta_0 * integral_0^dE delta d(dE'); the polynomial
+        # antiderivative already vanishes at dE = 0.
+        H = sympy.expand(T * eta_0 * sympy.integrate(delta, dE))
+        return sum(H.coeff(dE, k) * dE**k for k in range(n_delta + 2))

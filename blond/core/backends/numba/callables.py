@@ -532,6 +532,40 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
     @staticmethod
     @enforce_precision(FLOAT)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def drift_like_line_segment(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        """Drift with linear slip factor and exact relativistic delta."""
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        for i in prange(len(dt)):
+            dEi = dE[i]
+            delta = (
+                np.sqrt(
+                    1.0
+                    + inv_beta_sq
+                    * (
+                        dEi * dEi * inv_energy * inv_energy
+                        + 2.0 * dEi * inv_energy
+                    )
+                )
+                - 1.0
+            )
+            dt[i] += T * eta_0 * delta
+
+    @staticmethod
+    @enforce_precision(FLOAT)
     @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
     def kick_multi_harmonic(  # NOQA PLR0915 # NOQA: D102
         dt: NumpyArray,

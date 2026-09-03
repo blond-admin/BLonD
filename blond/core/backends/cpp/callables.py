@@ -551,6 +551,37 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
+        def drift_like_line_segment(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
+        ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
+            _LIBBLOND.drift_like_line_segment(
+                _get_pointer(dt),
+                _get_pointer(dE),
+                c_real(T, floattype),
+                c_real(eta_0, floattype),
+                c_real(beta, floattype),
+                c_real(energy, floattype),
+                _get_len(dt),
+            )
+
+        @staticmethod
         def drift_exact(
             dt: NumpyArray,
             dE: NumpyArray,

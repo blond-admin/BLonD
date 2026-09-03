@@ -30,6 +30,33 @@ __global__ void drift_simple(
 }
 
 
+// Drift with the linear slip factor but the exact relativistic delta;
+// reproduces the longitudinal drift of an xsuite LineSegmentMap.
+extern "C"
+__global__ void drift_like_line_segment(
+                     real_t * __restrict__ beam_dt,
+                     real_t * __restrict__ beam_dE,
+                     const real_t T,
+                     const real_t eta_zero,
+                     const real_t beta,
+                     const real_t energy,
+                     const int n_macroparticles
+                     )
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    const real_t inv_beta_sq = 1.0 / (beta * beta);
+    const real_t inv_energy = 1.0 / energy;
+    for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x) {
+        const real_t dE = beam_dE[i];
+        const real_t delta =
+            sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
+                                      2.0 * dE * inv_energy)) -
+            1.0;
+        beam_dt[i] += T * eta_zero * delta;
+    }
+}
+
+
 extern "C"
 __global__ void kick_single_harmonic(
     real_t  * __restrict__ beam_dt,

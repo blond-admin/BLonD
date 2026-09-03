@@ -198,6 +198,20 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def drift_like_line_segment(  # NOQA: D102
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        raise NotImplementedError(
+            "Abstract method `drift_like_line_segment` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,

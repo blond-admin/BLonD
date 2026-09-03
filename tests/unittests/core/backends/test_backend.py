@@ -637,6 +637,39 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_drift_like_line_segment(self) -> None:
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            backend.specials.drift_like_line_segment(
+                dt=self.dt,
+                dE=self.dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            result = self.dt
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                if backend.float == np.float32:
+                    raise TypeError("32 bit backends have been removed.")
+
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=1e-12,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
         dtype = np.float64
         for n_voltages in (1, 2, 3, 4, 5):
@@ -2913,6 +2946,33 @@ class TestSpecials(unittest.TestCase):
             dt = backend.zeros(0, dtype=backend.float)
             dE = backend.zeros(0, dtype=backend.float)
             backend.specials.drift_simple(
+                dt=dt,
+                dE=dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_drift_like_line_segment_zero_macroparticles(self) -> None:
+        """`drift_like_line_segment` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.drift_like_line_segment(
                 dt=dt,
                 dE=dE,
                 T=self.t_rev * self.length_ratio,
