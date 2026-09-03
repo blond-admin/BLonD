@@ -151,7 +151,7 @@ def _machine_parameters(
 def _ring_has_wakefields(simulation: Simulation) -> bool:
     """Whether the ring contains any WakeField element."""
     return (
-        len(simulation.ring.elements.get_elements(WakeField, recursive=False))
+        len(simulation.ring.elements.get_elements(WakeField, recursive=True))
         > 0
     )
 
