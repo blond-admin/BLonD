@@ -130,7 +130,7 @@ class _MultiBunchMatcherBase(MatchingRoutine):
         if isinstance(bunch_matchers, _AnalyticMatcherBase):
             # Template mode: one clone per bunch, seeds derived so the
             # bunches carry independent sampling noise.
-            template_seed = bunch_matchers._constructor_kwargs["seed"]
+            template_seed = bunch_matchers._constructor_kwargs.seed
             self.bunch_matchers = [
                 bunch_matchers.clone(
                     seed=None

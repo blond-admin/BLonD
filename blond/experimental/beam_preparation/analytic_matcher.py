@@ -34,7 +34,7 @@ the iteration when collective effects are strong.
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass
+import dataclasses as dc
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -82,7 +82,7 @@ from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Literal
+    from typing import Any, Literal
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -90,7 +90,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-@dataclass
+@dc.dataclass
 class _MachineParameters:
     """Longitudinal machine parameters shared by the analytic matchers."""
 
@@ -208,6 +208,65 @@ def _validate_extra_voltage(
     return (extra_time, extra_values)
 
 
+@dc.dataclass
+class _ConstructorKwargs:
+    """Marker base for per-matcher constructor-argument dataclasses."""
+
+    def _validate_overrides(self, overrides: dict[str, Any]) -> set[str]:
+        self_fields = {f.name for f in dc.fields(self)}
+        override_fields = {key for key in overrides.keys()}
+        return override_fields - self_fields
+
+
+@dc.dataclass
+class _AnalyticDistributionMatcherKwargs(_ConstructorKwargs):
+    """Constructor arguments of :class:`AnalyticDistributionMatcher`."""
+
+    n_macroparticles: int | float
+    distribution_type: str
+    exponent: float | None = None
+    bunch_length: float | None = None
+    bunch_length_fit: BunchLengthFit | Literal["rms", "fwhm", "full"] = (
+        BunchLengthFit.RMS
+    )
+    emittance: float | None = None
+    seed: int | None = 0
+    n_points_grid: int = 1000
+    dt_margin_fraction: float | None = None
+    maxiter_intensity_effects: int = 100
+    tolerance_potential_well: float = 1e-6
+    relaxation_factor: float = 1.0
+    allow_inner_buckets: bool = False
+    extra_voltage: tuple[NumpyArray, NumpyArray] | None = None
+    verbose: bool = False
+    plot: bool = False
+
+
+@dc.dataclass
+class _LineDensityMatcherKwargs(_ConstructorKwargs):
+    """Constructor arguments of :class:`LineDensityMatcher`."""
+
+    n_macroparticles: int | float
+    time_array: NumpyArray | None = None
+    line_density_values: NumpyArray | None = None
+    line_density_type: str | None = None
+    bunch_length: float | None = None
+    exponent: float | None = None
+    half_option: AbelSide | Literal["first", "second", "both"] = AbelSide.FIRST
+    n_points_abel: int = 10_000
+    profile_centering: Literal["peak", "barycenter"] = "peak"
+    seed: int | None = 0
+    n_points_grid: int = 1000
+    dt_margin_fraction: float | None = None
+    maxiter_intensity_effects: int = 100
+    tolerance_potential_well: float = 1e-6
+    relaxation_factor: float = 1.0
+    allow_inner_buckets: bool = False
+    extra_voltage: tuple[NumpyArray, NumpyArray] | None = None
+    verbose: bool = False
+    plot: bool = False
+
+
 class _AnalyticMatcherBase(MatchingRoutine):
     """
     Shared behaviour of the analytic single-bunch matchers.
@@ -217,7 +276,7 @@ class _AnalyticMatcherBase(MatchingRoutine):
     support :meth:`clone`.
     """
 
-    _constructor_kwargs: dict
+    _constructor_kwargs: _ConstructorKwargs
     _extra_voltage: tuple[NumpyArray, NumpyArray] | None
     # Set by the self-consistent multi-bunch driver: it supplies the
     # full train wake via extra_voltage, so the matcher must not run
@@ -243,25 +302,28 @@ class _AnalyticMatcherBase(MatchingRoutine):
         matcher
             A fresh, independent instance of the same class.
         """
-        unknown = set(overrides) - set(self._constructor_kwargs)
+        unknown = self._constructor_kwargs._validate_overrides(overrides)
         if unknown:
             raise TypeError(
                 f"Unknown constructor argument(s) for "
                 f"{type(self).__name__}: {sorted(unknown)}"
             )
-        return type(self)(**{**self._constructor_kwargs, **overrides})
+        current_kwargs = dc.replace(self._constructor_kwargs, **overrides)
+        return type(self)(**dc.asdict(current_kwargs))
 
     def _total_input_voltage(
         self, simulation: Simulation, time_array: NumpyArray
     ) -> NumpyArray:
         """RF-station voltage plus the optional extra voltage, in [V]."""
         total_voltage = _total_rf_voltage(simulation, time_array)
+
         if self._extra_voltage is not None:
             extra_time, extra_values = self._extra_voltage
             # np.interp holds the edge values outside the given range.
             total_voltage = total_voltage + np.interp(
                 time_array, extra_time, extra_values
             )
+
         return total_voltage
 
 
@@ -405,13 +467,14 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
         verbose: bool = False,
         plot: bool = False,
     ) -> None:
-        constructor_kwargs = {
-            key: value
-            for key, value in locals().items()
-            if key not in ("self", "__class__")
-        }
+        self._constructor_kwargs = _AnalyticDistributionMatcherKwargs(
+            **{
+                key: value
+                for key, value in locals().items()
+                if key not in ("self", "__class__")
+            }
+        )
         super().__init__()
-        self._constructor_kwargs = constructor_kwargs
         if (bunch_length is None) == (emittance is None):
             raise ValueError(
                 "Specify exactly one of `bunch_length` or `emittance`."
@@ -986,13 +1049,14 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         verbose: bool = False,
         plot: bool = False,
     ) -> None:
-        constructor_kwargs = {
-            key: value
-            for key, value in locals().items()
-            if key not in ("self", "__class__")
-        }
+        self._constructor_kwargs = _LineDensityMatcherKwargs(
+            **{
+                key: value
+                for key, value in locals().items()
+                if key not in ("self", "__class__")
+            }
+        )
         super().__init__()
-        self._constructor_kwargs = constructor_kwargs
         measured_mode = (time_array is not None) and (
             line_density_values is not None
         )
