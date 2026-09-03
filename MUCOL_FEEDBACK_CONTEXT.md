@@ -419,15 +419,19 @@ kernel glue calls the *controller's* own
 per-cell multipliers (`_kernel_step_multipliers`) and the beam current
 (`_kernel_beam_current`) are still marshalled per segment by the feedback.
 
-Two exact-fallback paths keep it byte-identical:
+One exact-fallback path keeps it byte-identical:
 
 - **Coincident (zero) coarse step** → the Python reference (skip-and-warn
   can't vectorise).
-- **Klystron-limit saturation** → the kernel flags any cell within a 1e-9
-  guard band of `max_output` and the segment reruns on the reference path,
-  because numba's complex `abs` differs from numpy's *scalar* `np.abs` by
-  1 ULP (~40 % of values). When no cell nears the limit the clamp is never
-  applied → identical.
+
+**HISTORY — the second fallback was REMOVED (2026-09-04, §2.17).** Until
+then the kernel flagged any cell within a 1e-9 guard band of `max_output`
+(`saturation_possible`) and the caller discarded the whole segment and
+re-ran it on the reference path, because numba's complex `abs` differs
+from numpy's complex `np.abs` by 1–2 ULP on ~38 % of values. A saturated
+segment is now committed from the kernel and the two paths are compared
+to `SATURATED_RTOL = 1e-12` there, bit-identity being kept everywhere
+the clamp does not fire.
 
 `_check_beam_kick_magnitude` runs as a vectorised post-pass
 (`_check_beam_kicks`) that *delegates* to the per-cell checker for message
@@ -1056,6 +1060,58 @@ keeps a beam's clock alive.
   invariant. Documented in the class docstring and pinned by a test.
 
 ---
+
+### 2.17 Klystron-saturation fallback removed (2026-09-04)
+
+**What.** `envelope_kernel.envelope_pi_scan` no longer returns
+`saturation_possible`, the `max_output * (1 - 1e-9)` guard band is gone,
+and `cavity_feedback._circuit_track_cells_kernel` no longer discards a
+saturated segment to re-run it cell by cell in Python. The kernel's own
+clamp (`output * (max_output / |output|)`, already computed) is committed.
+`np.abs` was left untouched at both sites in
+`generator_current_controller.py` (the clamp scale at `clamp_magnitude`
+and the anti-windup threshold in `_update_generator_current`) — see
+*rejected* below.
+
+**Why it was there, measured (2 M complex samples, 1e-300…1e300).**
+numba's complex `abs` matches `np.hypot(re, im)` and the naive
+`sqrt(re²+im²)` bit-for-bit in the normal range, but numpy's complex
+`np.abs` takes a different code path and disagrees with all of them by
+1–2 ULP on ~38 % of values (max relative 4.4e-16), uniformly across
+magnitudes — no pathological subset. So no numba spelling reproduces
+`np.abs(complex)`.
+
+**Why it could go.** Measured on a saturating 64-cell segment: all three
+antenna-voltage grids and the PI integral come out **exactly** equal on
+the two paths; only 16/64 generator-current cells differ, by 3.1e-16
+relative. The anti-windup branch flip that the ULP could in principle
+cause (the threshold test gating `self._integral = candidate_integral`)
+did not occur. Power goes as |I|², ~6e-16 — below physical meaning.
+Maintainer ruling: compare saturated segments with an `rtol`, not
+bit-identity. `SATURATED_RTOL = 1e-12` sits four orders above the
+measured floor and still catches any real algorithmic divergence.
+
+**Rejected: aligning the reference to `np.hypot`.** It was implemented
+and reverted the same day. It does make the two paths bit-identical under
+saturation (verified: 0 mismatches over the whole double range) at no
+cost, but it adds a helper, a docstring defending it and a test pinning
+it, to protect a property nobody needs. Less code won.
+
+**Cost.** RCS4, 2 turns, 200 k macroparticles, `realistic`: 13.1 s → 6.8 s
+at `n_rf_periods_per_coarse_grid = 1`; 2.7 s → 0.3 s at 4. `idealised`
+unchanged (never saturated). The BLonD unit suite itself dropped from
+224 s to 152 s. Runtime is CPU-bound in the per-cell recursion and linear
+in coarse cells; RSS stays ~600 MB — it was never memory-bound.
+
+**Pins.** None moved: 1635 passed / 86 skipped / 0 failed after the
+change (1636 before, minus the deleted alignment test). Tests:
+`test_forward_pi_saturating` compares via `_compare_close` /
+`SATURATED_RTOL`; new
+`test_saturating_segment_is_not_deferred_to_python` spies on
+`_circuit_track_cells_python` and asserts zero calls; both in
+`test_envelope_kernel.py`. `test_scan_state_hands_out_a_copy`'s rationale
+(a discarded kernel result must not have touched the controller) is now
+historical — the copy is still the right contract.
 
 ## 3. Open items / flagged (NOT done — need decisions)
 

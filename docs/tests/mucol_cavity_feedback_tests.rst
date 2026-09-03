@@ -493,11 +493,11 @@ the observable behaviour the refactor must not change.
     Marshalling to the kernel and absorbing the result back leaves the delay
     line and the integral unchanged.
 ``test_scan_state_hands_out_a_copy``
-    The buffer handed to the kernel is a copy, not the live state.
-    ``_circuit_track_cells`` discards the whole kernel result when a cell
-    turns out to be saturated and reruns the span on the exact reference
-    path, so a scan whose output is thrown away must leave the controller
-    untouched. Scribbling over the handed-out buffer must not reach it.
+    The buffer handed to the kernel is a copy, not the live state, so
+    scribbling over the handed-out buffer must not reach the controller.
+    The contract was motivated by the (since removed) saturation fallback,
+    under which a kernel result could be thrown away and the span re-run on
+    the reference path; a copy is still the right contract without it.
 ``test_delay_line_reports_oldest_first``
     The deque view keeps oldest-to-newest order across a buffer wrap.
 

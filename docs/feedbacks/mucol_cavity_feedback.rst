@@ -300,12 +300,16 @@ Classes at a glance
     (``use_numba_envelope_kernel``); it advances the two source-split
     envelope components, composes their demodulation-frame sum and runs
     the kick-frame PI per cell. It is byte-identical to the
-    pure-Python per-cell reference, which is kept both as that reference
-    and as the exact fallback: a segment is re-run there when any cell
-    reaches the klystron limit (whose numpy magnitude clamp the kernel
-    cannot reproduce bit-for-bit) or when two coarse points coincide
-    (zero step), and a controller that supplies no compiled form of
-    itself (``supports_envelope_scan``) is driven cell by cell instead.
+    pure-Python per-cell reference wherever the klystron clamp does not
+    fire, and agrees with it to ``SATURATED_RTOL`` (1e-12) where it does:
+    numba's complex ``abs`` and numpy's differ by one or two ULP, which
+    moves the clamped current by ~3e-16 relative and leaves the antenna
+    voltages and the PI integral exactly equal, so a saturated segment is
+    committed from the kernel rather than re-run. The reference is kept
+    as that reference and as the one remaining exact fallback: a segment
+    is re-run there when two coarse points coincide (zero step), and a
+    controller that supplies no compiled form of itself
+    (``supports_envelope_scan``) is driven cell by cell instead.
     Set the flag ``False`` on an instance to force the reference path.
 
 :mod:`blond.physics.feedbacks.iq`
