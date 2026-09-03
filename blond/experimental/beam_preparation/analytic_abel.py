@@ -67,9 +67,11 @@ class AbelSide(StrEnum):
         try:
             half_option = cls(half_option)
         except ValueError:
-            raise ValueError(f"Attempted to cast {half_option=} to AbelSide"
-                                "unsuccessfully.  Valid options are "
-                                f"{list(cls)}.")
+            raise ValueError(
+                f"Attempted to cast {half_option=} to AbelSide"
+                "unsuccessfully.  Valid options are "
+                f"{list(cls)}."
+            )
 
         return half_option
 
@@ -91,6 +93,12 @@ def _abel_transform_branch(
     in branch order (not sorted). NaNs from a non-monotonic branch and
     negative values are zeroed, as in BLonD 2.
     """
+    if branch not in (AbelSide.FIRST, AbelSide.SECOND):
+        raise ValueError(
+            f"branch should be {AbelSide.FIRST} or "
+            f"{AbelSide.SECOND}, not {branch=}."
+        )
+
     if n_points_abel is not None:
         time_abel = np.linspace(
             float(time_branch[0]), float(time_branch[-1]), int(n_points_abel)
@@ -105,51 +113,48 @@ def _abel_transform_branch(
         potential_abel = potential_branch
     potential_abel = potential_abel - np.min(potential_abel)
 
+    # On the second branch the singular endpoint i is the *first*
+    # sample of [i, end], not the last as on the first branch.
+    # Reversing its arrays once up front makes both branches identical
+    # in the loop below (reversing integrand and x together leaves
+    # np.trapezoid unchanged).
+    if branch == AbelSide.SECOND:
+        time_abel = time_abel[::-1]
+        line_density_derivative_abel = line_density_derivative_abel[::-1]
+        potential_abel = potential_abel[::-1]
+
     n_points = len(time_abel)
     distribution_values = np.zeros(n_points)
     prefactor = np.sqrt(eom_factor_dE) / np.pi
 
     with np.errstate(invalid="ignore", divide="ignore"):
         for i in range(n_points):
-            if branch == AbelSide.FIRST:
-                integrand = line_density_derivative_abel[: i + 1] / np.sqrt(
-                    potential_abel[: i + 1] - potential_abel[i]
-                )
-                # The integrand diverges (integrably) at its last point:
-                # extrapolate it linearly from the previous two samples.
-                if len(integrand) > 2:
-                    integrand[-1] = integrand[-2] + (
-                        integrand[-2] - integrand[-3]
-                    )
-                elif len(integrand) > 1:
+            integrand_slice = slice(None, i + 1)
+            integrand = line_density_derivative_abel[
+                integrand_slice
+            ] / np.sqrt(potential_abel[integrand_slice] - potential_abel[i])
+
+            match len(integrand):
+                case x if x > 2:
+                    integrand[-1] = 2 * integrand[-2] - integrand[-3]
+                case x if x > 1:
                     integrand[-1] = integrand[-2]
-                else:
+                case _:
                     integrand = np.zeros(1)
-                distribution_values[i] = prefactor * np.trapezoid(
-                    integrand, x=time_abel[: i + 1]
-                )
-            elif branch == AbelSide.SECOND:
-                integrand = line_density_derivative_abel[i:] / np.sqrt(
-                    potential_abel[i:] - potential_abel[i]
-                )
-                if len(integrand) > 2:
-                    integrand[0] = integrand[1] - (integrand[2] - integrand[1])
-                elif len(integrand) > 1:
-                    integrand[0] = integrand[1]
-                else:
-                    integrand = np.zeros(1)
-                distribution_values[i] = -prefactor * np.trapezoid(
-                    integrand, x=time_abel[i:]
-                )
-            else:
-                raise ValueError("branch should be AbelSide.FIRST or "
-                                 f"AbelSide.SECOND, not {branch=}.")
+
+            distribution_values[i] = prefactor * np.trapezoid(
+                integrand, x=time_abel[integrand_slice]
+            )
 
     # Unphysical results are zeroed, as in BLonD 2 (which cleaned NaN
     # and negatives): NaN/inf from non-monotonic or duplicated
     # potential samples, negative density from noise.
     distribution_values[~np.isfinite(distribution_values)] = 0.0
     distribution_values[distribution_values < 0.0] = 0.0
+
+    if branch == AbelSide.SECOND:
+        potential_abel = potential_abel[::-1]
+        distribution_values = distribution_values[::-1]
 
     return potential_abel, distribution_values
 
