@@ -69,7 +69,7 @@ def clone_wakefields_on_smooth_profile(
         wakefields.
     """
     wakefields = simulation.ring.elements.get_elements(
-        WakeField, recursive=False
+        WakeField, recursive=True
     )
     if len(wakefields) == 0:
         return [], None

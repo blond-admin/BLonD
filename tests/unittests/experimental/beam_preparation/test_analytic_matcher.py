@@ -56,6 +56,37 @@ def _build_simulation(resonator_r_shunt=None, intensity=1e11):
     return simulation, beam
 
 
+def _build_simulation_local_wakefield(resonator_r_shunt, intensity=1e11):
+    """Same as `_build_simulation`, but the wakefield is attached as the
+    RF station's `local_wakefield` instead of a top-level ring element."""
+    ring = Ring(26658.883)
+    profile = StaticProfile(cut_left=0.0, cut_right=RF_PERIOD, n_bins=512)
+    wakefield = WakeField(
+        sources=(Resonators(resonator_r_shunt, 8e8, 1.0),),
+        solver=TimeDomainFftSolver(),
+        profile=profile,
+    )
+    rf_station = SingleHarmonicRFStation(
+        harmonic=35640,
+        voltage=6e6,
+        phi_rf=0,
+        local_wakefield=wakefield,
+    )
+    drift = DriftSimple(
+        orbit_length=26658.883,
+        momentum_compaction_factor=momentum_compaction_factor(
+            transition_gamma=55.759505
+        ),
+    )
+    ring.add_elements([rf_station, drift, profile], reorder=True)
+    magnetic_cycle = ConstantMagneticCycle(
+        value=450e9, reference_particle=proton
+    )
+    beam = Beam(intensity=intensity, particle_type=proton)
+    simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+    return simulation, beam
+
+
 def test_matched_bunch_length_and_position():
     simulation, beam = _build_simulation()
     target = 1.2e-9  # 4-sigma rms
@@ -205,6 +236,23 @@ def test_intensity_effects_converge():
     assert np.isclose(matcher.matched_bunch_length, 1.2e-9, rtol=1e-2)
     assert len(matcher.intensity_residuals) == (matcher.n_intensity_iterations)
     # The contour emittance is evaluated in the distorted well.
+    assert matcher.matched_emittance is not None
+    assert 0.0 < matcher.matched_emittance < 1.24
+
+
+def test_intensity_effects_converge_local_wakefield():
+    """Same setup as `test_intensity_effects_converge`, but the wakefield
+    is attached to the cavity's `local_wakefield` instead of being a
+    top-level `ring.elements` entry."""
+    simulation, beam = _build_simulation_local_wakefield(
+        resonator_r_shunt=1e4, intensity=2e11
+    )
+    matcher = _intensity_matcher()
+    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+    assert 1 <= matcher.n_intensity_iterations <= 20
+    assert matcher.final_potential_well_error < 1e-6
+    assert np.isclose(matcher.matched_bunch_length, 1.2e-9, rtol=1e-2)
+    assert len(matcher.intensity_residuals) == (matcher.n_intensity_iterations)
     assert matcher.matched_emittance is not None
     assert 0.0 < matcher.matched_emittance < 1.24
 
