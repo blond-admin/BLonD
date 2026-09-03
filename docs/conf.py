@@ -167,7 +167,9 @@ pygments_dark_style = "monokai"
 setuptools_scm_git_archive = False
 
 autodoc_member_order = "bysource"
-autodoc_preserve_defaults = True  # optional
+
+# causes named default arguments to be displayed as such instead of their numerical values, i.e. pi instead of 3.14
+autodoc_preserve_defaults = True
 # autodoc_inherit_docstrings = False
 autodoc_typehints = "signature"  # or 'description'
 
