@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -63,6 +64,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         self._hist_x: NumpyArray | CupyArray | None = None
         self._hist_y: NumpyArray | CupyArray | None = None
         self.hist_y_to_density_factor: float | None = None
+        #: Latch for the incomplete-capture warning, so that a window
+        #: mistake is reported once instead of once per passage. See
+        #: :meth:`_warn_if_beam_not_captured`.
+        self._beam_capture_warning_emitted: bool = False
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
@@ -481,11 +486,65 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
             self.hist_y_to_density_factor = 1.0 / beam.common_array_size
+            self._warn_if_beam_not_captured()
         else:
             self._hist_y[:] = 0
             self.hist_y_to_density_factor = 0.0
 
         self.invalidate_cache()
+
+    def _warn_if_beam_not_captured(self) -> None:
+        """
+        Warn once if the window does not hold the whole beam.
+
+        ``beam._dt.histogram`` discards every particle outside
+        ``[cut_left, cut_right]`` silently, so a window that is too
+        narrow, or a beam that has drifted out of it, leaves the
+        histogram carrying less charge than the beam does. Nothing
+        downstream can detect that: consumers scale ``hist_y`` by
+        ``hist_y_to_density_factor`` and by ``beam.intensity``, both of
+        which describe the *whole* beam, so the missing charge shows up
+        as a quietly wrong induced voltage rather than as an error.
+
+        The check belongs here because the profile is the only object
+        that owns both the window and the histogram. Consumers -- the
+        cavity feedback's beam current, the wake solvers -- inherit it by
+        using a profile at all, and cannot each forget it.
+
+        Notes
+        -----
+        The warning is latched in ``_beam_capture_warning_emitted``, so
+        one bad window costs one message rather than one per passage: a
+        per-section element on a multi-section ring is tracked
+        ``n_sections`` times per turn, which would otherwise bury the
+        report under thousands of identical lines. The latch is per
+        instance, so each profile that is affected still reports itself
+        once.
+
+        An empty beam does not reach this method. It leaves the density
+        factor at ``0.0``, which is a captured fraction of zero by
+        arithmetic while saying nothing about the window.
+        """
+        if self._beam_capture_warning_emitted:
+            return
+        factor = self.hist_y_to_density_factor
+        if factor is None or factor == 0.0:
+            return
+        captured_fraction = float(backend.sum(self._hist_y)) * factor
+        if np.isclose(captured_fraction, 1.0, rtol=0, atol=1e-6):
+            return
+        self._beam_capture_warning_emitted = True
+        warnings.warn(
+            f"Only {captured_fraction:.6f} of the beam's macroparticles "
+            f"are inside the profile window [{self.cut_left} s, "
+            f"{self.cut_right} s] of {self.name or type(self).__name__}. "
+            "The charge outside is dropped by the histogram and is "
+            "invisible to every consumer of this profile, which will "
+            "therefore treat the beam loading incorrectly. Widen the "
+            "window, or move the beam inside it. Reported once per "
+            "profile.",
+            stacklevel=2,
+        )
 
     @staticmethod
     def get_arrays(

@@ -7,6 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 import unittest
+import warnings
 
 import numpy as np
 import pytest
@@ -16,6 +17,7 @@ from blond import (
     Beam,
     Cupy64Bit,
     backend,
+    proton,
     uranium_29,
 )
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
@@ -479,6 +481,104 @@ class TestProfileWindowFitsInSpan(unittest.TestCase):
         """
         with self.assertRaises(ValueError):
             self.profile.check_fits_in_span(1.001 * self.profile.hist_step)
+
+
+class TestProfileCapturesWholeBeam(unittest.TestCase):
+    """
+    The profile warns when its window does not hold the whole beam.
+
+    Charge outside ``[cut_left, cut_right]`` is dropped by the histogram
+    without a trace: every consumer downstream then scales a profile that
+    silently carries less charge than the beam does. The profile is the
+    only object that can see this -- it owns both the window and the
+    histogram -- so the check lives here rather than in any one consumer.
+
+    The warning is latched per profile instance. A profile is tracked
+    once per passage, and the condition is a property of the window, not
+    of the turn: warning on every call would emit thousands of identical
+    messages for one mistake.
+    """
+
+    def _beam(self, dt: list[float]) -> Beam:
+        """Beam with the given ``dt`` coordinates and no energy offset."""
+        beam = Beam(intensity=1e9, particle_type=proton)
+        beam.setup_beam(
+            dt=np.asarray(dt, dtype=float),
+            dE=np.zeros(len(dt), dtype=float),
+        )
+        return beam
+
+    @staticmethod
+    def _capture_warnings(caught: list) -> list[str]:
+        """Messages of the capture warning among ``caught``."""
+        return [
+            str(entry.message)
+            for entry in caught
+            if "inside the profile window" in str(entry.message)
+        ]
+
+    def setUp(self):
+        """A window holding [0, 1] s in ten bins."""
+        self.profile = StaticProfile(cut_left=0.0, cut_right=1.0, n_bins=10)
+
+    def test_no_warning_when_every_particle_is_inside(self):
+        """A window holding the whole beam is silent."""
+        beam = self._beam([0.1, 0.5, 0.9])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.profile._track(beam)
+        self.assertEqual([], self._capture_warnings(caught))
+
+    def test_warns_when_a_particle_is_outside(self):
+        """A particle beyond cut_right is reported, with the fraction."""
+        beam = self._beam([0.1, 0.5, 5.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.profile._track(beam)
+        messages = self._capture_warnings(caught)
+        self.assertEqual(1, len(messages))
+        self.assertIn("0.666667", messages[0])
+
+    def test_warns_when_a_particle_is_below_the_window(self):
+        """The check is two-sided: cut_left is guarded as well."""
+        beam = self._beam([-3.0, 0.5, 0.9])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.profile._track(beam)
+        self.assertEqual(1, len(self._capture_warnings(caught)))
+
+    def test_warning_is_emitted_only_once_per_profile(self):
+        """Ten tracked turns of the same mistake give one warning."""
+        beam = self._beam([0.1, 0.5, 5.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for _ in range(10):
+                self.profile._track(beam)
+        self.assertEqual(1, len(self._capture_warnings(caught)))
+
+    def test_a_second_profile_warns_independently(self):
+        """The latch is per instance, so each bad window is reported."""
+        other = StaticProfile(cut_left=0.0, cut_right=1.0, n_bins=10)
+        beam = self._beam([0.1, 0.5, 5.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.profile._track(beam)
+            other._track(beam)
+        self.assertEqual(2, len(self._capture_warnings(caught)))
+
+    def test_empty_beam_does_not_warn(self):
+        """
+        A beam with no particles is not a window mistake.
+
+        ``_track`` zeroes the histogram and sets the density factor to
+        0.0 for an empty beam, which is a captured fraction of zero by
+        arithmetic but says nothing about the window.
+        """
+        beam = self._beam([])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.profile._track(beam)
+        self.assertEqual([], self._capture_warnings(caught))
 
 
 if __name__ == "__main__":
