@@ -68,8 +68,6 @@ __all__ = [
     "WakeFieldObservation",
     "typing",
     "Music",
-    "DynamicProfileConstNBinsObservation",
-    "SymbolicSeparatrixHelper",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
@@ -106,7 +104,6 @@ from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
     BeamStatisticsOncePerTurn,
     DriftObservation,
-    DynamicProfileConstNBinsObservation,
     RFStationPhaseObservation,
     SimulationObservation,
     StaticProfileObservation,
@@ -141,6 +138,3 @@ from blond.physics.profiles import (
     StaticProfile,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-from blond.utilities.separatrix.symbolic_separatrix import (
-    SymbolicSeparatrixHelper,
-)
