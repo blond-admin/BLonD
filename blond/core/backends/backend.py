@@ -543,6 +543,19 @@ class BackendBaseClass(ABC):
         self.ndarray: type = None  # type: ignore
         self.where: Callable = None  # type: ignore
         self.hstack: type = None  # type: ignore
+        self.isfinite: Callable = None  # type: ignore
+        self.argmin: Callable = None  # type: ignore
+        self.argmax: Callable = None  # type: ignore
+        self.argsort: Callable = None  # type: ignore
+        self.trapezoid: Callable = None  # type: ignore
+        self.maximum: Callable = None  # type: ignore
+        self.flatnonzero: Callable = None  # type: ignore
+        self.log: Callable = None  # type: ignore
+        self.diff: Callable = None  # type: ignore
+        self.full: Callable = None  # type: ignore
+        self.ndim: Callable = None  # type: ignore
+        self.column_stack: Callable = None  # type: ignore
+        self.searchsorted: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -922,6 +935,19 @@ class NumpyBackend(BackendBaseClass):
         self.ndarray = np.ndarray
         self.where = np.where
         self.hstack = np.hstack
+        self.isfinite = np.isfinite
+        self.argmin = np.argmin
+        self.argmax = np.argmax
+        self.argsort = np.argsort
+        self.trapezoid = np.trapezoid
+        self.maximum = np.maximum
+        self.flatnonzero = np.flatnonzero
+        self.log = np.log
+        self.diff = np.diff
+        self.full = np.full
+        self.ndim = np.ndim
+        self.column_stack = np.column_stack
+        self.searchsorted = np.searchsorted
 
         self._finalize()
 
@@ -1069,6 +1095,19 @@ class CupyBackend(BackendBaseClass):
         self.ndarray = cp.ndarray
         self.where = cp.where
         self.hstack = cp.hstack
+        self.isfinite = cp.isfinite
+        self.argmin = cp.argmin
+        self.argmax = cp.argmax
+        self.argsort = cp.argsort
+        self.trapezoid = cp.trapezoid if hasattr(cp, "trapezoid") else cp.trapz
+        self.maximum = cp.maximum
+        self.flatnonzero = cp.flatnonzero
+        self.log = cp.log
+        self.diff = cp.diff
+        self.full = cp.full
+        self.ndim = cp.ndim
+        self.column_stack = cp.column_stack
+        self.searchsorted = cp.searchsorted
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
