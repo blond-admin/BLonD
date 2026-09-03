@@ -114,11 +114,29 @@ class DistributedArray:
         size = self._comm.Get_size()
         rank = self._comm.Get_rank()
 
+        chunks = None
+        root_exception: Exception | None = None
+        root_error: str | None = None
+
         if rank == 0:
-            # Split array into `size` chunks
-            chunks = backend.array_split(self.array_local, size)
-        else:  # pragma: no cover # when writing this, only rank 0 reports coverage
-            chunks = None
+            # Split array into `size` chunks. Any failure here must be
+            # announced before the scatter below: every other rank is
+            # already blocking inside it, so raising straight away would
+            # deadlock the whole run instead of reporting the problem.
+            try:
+                chunks = backend.array_split(self.array_local, size)
+            except Exception as exc:
+                root_exception = exc
+                root_error = f"{type(exc).__name__}: {exc}"
+
+        root_error = self._comm.bcast(root_error, root=0)
+        if root_error is not None:
+            if root_exception is not None:
+                raise root_exception
+            raise RuntimeError(  # pragma: no cover # only non-root ranks
+                f"Rank 0 failed to split the array before `mpi_scatter`, "
+                f"so there is nothing to scatter: {root_error}"
+            )
 
         # Each rank receives one chunk
         self.array_local = self._comm.scatter(chunks, root=0)

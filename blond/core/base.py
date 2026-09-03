@@ -708,6 +708,7 @@ class ScheduledInterpolation(ScheduledBaseClass):
     scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
     scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
     scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+    blond.generals.interpolators.DerivativeInterpolator : Smooth derivative.
 
     Examples
     --------
