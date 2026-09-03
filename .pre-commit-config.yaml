@@ -45,6 +45,18 @@ repos:
         entry: python dev_tools/precommit_check_copyright.py
         language: system
 
+  # Every class exported at BLonD toplevel needs a documentation category
+  - repo: local
+    hooks:
+      - id: check-toplevel-categories
+        name: check toplevel classes are categorized for the docs
+        entry: python dev_tools/precommit_check_toplevel_categories.py
+        language: system
+        # Only the toplevel exports and the category mapping itself can
+        # break this; the doc build would otherwise be the first to notice.
+        files: ^(blond/__init__\.py|docs/create_doc_blond_main_objects\.py)$
+        pass_filenames: false
+
   # Mirror .agents/skills into root CLAUDE.md / AGENTS.md and .claude/skills
   - repo: local
     hooks:
