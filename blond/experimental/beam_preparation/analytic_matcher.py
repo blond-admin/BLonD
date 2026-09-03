@@ -51,6 +51,7 @@ from blond.experimental.beam_preparation.analytic_action import (
     hamiltonian_from_emittance,
 )
 from blond.experimental.beam_preparation.analytic_distributions import (
+    BunchLengthFit,
     distribution_function,
     line_density,
     x0_from_bunch_length,
@@ -378,7 +379,8 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
         distribution_type: str,
         exponent: float | None = None,
         bunch_length: float | None = None,
-        bunch_length_fit: Literal["rms", "fwhm", "full"] = "rms",
+        bunch_length_fit: BunchLengthFit
+        | Literal["rms", "fwhm", "full"] = BunchLengthFit.RMS,
         emittance: float | None = None,
         seed: int | None = 0,
         n_points_grid: int = 1000,

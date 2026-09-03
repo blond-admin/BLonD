@@ -43,21 +43,75 @@ and line-density shapes.
 from __future__ import annotations
 
 import warnings
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Literal
+    from typing import Literal, Self
 
     from numpy.typing import NDArray as NumpyArray
 
-# Named distribution types and their phase-space exponent mu.
+    DistributionTypeString = Literal[
+        "waterbag",
+        "parabolic_amplitude",
+        "parabolic_line",
+        "binomial",
+        "gaussian",
+        "cosine_squared",
+    ]
+
+
+class DistributionType(StrEnum):
+    """Named analytic distribution families."""
+
+    WATERBAG = "waterbag"
+    PARABOLIC_AMPLITUDE = "parabolic_amplitude"
+    PARABOLIC_LINE = "parabolic_line"
+    BINOMIAL = "binomial"
+    GAUSSIAN = "gaussian"
+    COSINE_SQUARED = "cosine_squared"
+
+    @classmethod
+    def _from_input(cls, distribution_type: Self | str) -> Self:
+
+        try:
+            distribution_type = cls(distribution_type)
+        except ValueError:
+            raise ValueError(
+                f"Unknown {distribution_type=}; expected one of {list(cls)}."
+            )
+
+        return distribution_type
+
+
+class BunchLengthFit(StrEnum):
+    """Bunch-length measurement used by :func:`x0_from_bunch_length`."""
+
+    RMS = "rms"
+    FWHM = "fwhm"
+    FULL = "full"
+
+    @classmethod
+    def _from_input(cls, bunch_length_fit: Self | str) -> Self:
+
+        try:
+            bunch_length_fit = cls(bunch_length_fit)
+        except ValueError:
+            raise ValueError(
+                f"Unknown {bunch_length_fit=}; expected one of {list(cls)}."
+            )
+
+        return bunch_length_fit
+
+
+# Phase-space exponent mu for the named binomial families.
 # The corresponding line-density exponent is mu + 1/2 (see module doc).
 DISTRIBUTION_EXPONENTS = {
-    "waterbag": 0.0,
-    "parabolic_amplitude": 1.0,
-    "parabolic_line": 0.5,
+    DistributionType.WATERBAG: 0.0,
+    DistributionType.PARABOLIC_AMPLITUDE: 1.0,
+    DistributionType.PARABOLIC_LINE: 0.5,
 }
 
 
@@ -80,7 +134,9 @@ def _binomial_family(
     return result
 
 
-def _resolve_exponent(distribution_type: str, exponent: float | None) -> float:
+def _resolve_exponent(
+    distribution_type: DistributionType, exponent: float | None
+) -> float:
     """Map a named type to its exponent; validate the binomial input."""
     if distribution_type in DISTRIBUTION_EXPONENTS:
         if exponent is not None:
@@ -90,21 +146,23 @@ def _resolve_exponent(distribution_type: str, exponent: float | None) -> float:
                 stacklevel=3,
             )
         return DISTRIBUTION_EXPONENTS[distribution_type]
-    if distribution_type == "binomial":
+    elif distribution_type == DistributionType.BINOMIAL:
         if exponent is None:
             raise ValueError(
                 "distribution_type='binomial' requires an exponent"
             )
         return float(exponent)
-    raise ValueError(
-        f"Unknown {distribution_type=}; expected one of "
-        f"{list(DISTRIBUTION_EXPONENTS) + ['binomial', 'gaussian']}"
-    )
+    else:
+        raise ValueError(
+            f"Unknown {distribution_type=}; expected one of "
+            f"{list(DISTRIBUTION_EXPONENTS)} or "
+            f"{[DistributionType.BINOMIAL, DistributionType.GAUSSIAN]}"
+        )
 
 
 def distribution_function(
     x_array: NumpyArray,
-    distribution_type: str,
+    distribution_type: DistributionType | DistributionTypeString,
     x_0: float,
     exponent: float | None = None,
 ) -> NumpyArray:
@@ -143,7 +201,8 @@ def distribution_function(
     ``density_grid[H_grid > H_max] = 0``).
     """
     x_array = np.asarray(x_array, dtype=float)
-    if distribution_type == "gaussian":
+    distribution_type = DistributionType._from_input(distribution_type)
+    if distribution_type == DistributionType.GAUSSIAN:
         if exponent is not None:
             warnings.warn(
                 f"exponent is ignored for {distribution_type=}",
@@ -157,7 +216,7 @@ def distribution_function(
 
 def line_density(
     time_array: NumpyArray,
-    distribution_type: str,
+    distribution_type: DistributionType | DistributionTypeString,
     bunch_length: float,
     bunch_position: float = 0.0,
     exponent: float | None = None,
@@ -192,8 +251,9 @@ def line_density(
         :math:`\lambda(t)` evaluated at ``time_array`` (not normalized).
     """
     time_array = np.asarray(time_array, dtype=float)
+    distribution_type = DistributionType._from_input(distribution_type)
     normalized_offset = 2.0 * (time_array - bunch_position) / bunch_length
-    if distribution_type == "gaussian":
+    if distribution_type == DistributionType.GAUSSIAN:
         if exponent is not None:
             warnings.warn(
                 f"exponent is ignored for {distribution_type=}",
@@ -202,7 +262,7 @@ def line_density(
             )
         sigma = bunch_length / 4.0
         return np.exp(-((time_array - bunch_position) ** 2) / (2.0 * sigma**2))
-    if distribution_type == "cosine_squared":
+    elif distribution_type == DistributionType.COSINE_SQUARED:
         if exponent is not None:
             warnings.warn(
                 f"exponent is ignored for {distribution_type=}",
@@ -270,9 +330,10 @@ def x0_from_bunch_length(
     x_grid: NumpyArray,
     *,
     target_bunch_length: float,
-    distribution_type: str,
+    distribution_type: DistributionType | DistributionTypeString,
     exponent: float | None = None,
-    bunch_length_fit: Literal["rms", "fwhm", "full"] = "rms",
+    bunch_length_fit: BunchLengthFit
+    | Literal["rms", "fwhm", "full"] = BunchLengthFit.RMS,
     inside_bucket_mask: NumpyArray | None = None,
     max_iterations: int = 100,
     verbose: bool = False,
@@ -337,10 +398,7 @@ def x0_from_bunch_length(
             "bunch_length_fit='gauss' was broken dead code in BLonD 2 "
             "and is not ported; use 'rms', 'fwhm' or 'full'."
         )
-    if bunch_length_fit not in ("rms", "fwhm", "full"):
-        raise ValueError(
-            f"Unknown {bunch_length_fit=}; use 'rms', 'fwhm' or 'full'."
-        )
+    bunch_length_fit = BunchLengthFit._from_input(bunch_length_fit)
 
     time_array = np.asarray(time_array, dtype=float)
     x_grid = np.asarray(x_grid, dtype=float)
@@ -353,7 +411,7 @@ def x0_from_bunch_length(
     time_resolution = float(time_array[1] - time_array[0])
 
     def measure(x_0: float) -> float:
-        if bunch_length_fit == "full":
+        if bunch_length_fit == BunchLengthFit.FULL:
             columns = np.any((x_grid <= x_0) & finite, axis=0)
             if not np.any(columns):
                 return 0.0
