@@ -308,8 +308,40 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
 
         self._integral: complex = 0.0 + 0.0j
         # Zero-prefilled so the first n_delay updates act on a null error.
-        self._delay_line: collections.deque[complex] = collections.deque(
-            [0.0 + 0.0j] * (self._n_delay + 1), maxlen=self._n_delay + 1
+        #
+        # Held as a circular buffer rather than a deque because the state
+        # handoff to the compiled scan happens once per tracked span: a
+        # deque has to be rebuilt element by element in Python on the way
+        # back, which is O(n_delay) per span. That is invisible at the
+        # 20-sample delay of a fast trim loop and dominates at the ~1300
+        # samples a physically slow LLRF needs.
+        #
+        # Invariant: ``_delay_buffer[_delay_head]`` is the slot written
+        # next and currently holds the oldest error -- exactly the
+        # convention ``envelope_pi_scan`` uses, so the two representations
+        # need no translation.
+        self._delay_buffer: NumpyArray = np.zeros(
+            self._n_delay + 1, dtype=np.complex128
+        )
+        self._delay_head: int = 0
+
+    @property
+    def _delay_line(self) -> collections.deque[complex]:
+        """
+        The delay line as a deque, oldest error first.
+
+        Returns
+        -------
+        delay_line
+            The ``n_delay + 1`` most recent errors [V], oldest first,
+            unrolled from the internal circular buffer.
+        """
+        return collections.deque(
+            (
+                complex(value)
+                for value in np.roll(self._delay_buffer, -self._delay_head)
+            ),
+            maxlen=self._n_delay + 1,
         )
 
     #: The PI law has a compiled counterpart (see :meth:`envelope_scan_kernel`).
@@ -364,9 +396,13 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         """
         Gains, bias, limit and live state, in the kernel's argument order.
 
-        The delay line travels as a plain array; the kernel treats it as a
-        circular buffer whose head starts at zero, which reproduces
-        :class:`~collections.deque` ``append``/``[0]`` semantics exactly.
+        The delay line travels as the circular buffer it already is, so no
+        reordering is needed in either direction.
+
+        The buffer is **copied**, deliberately. The caller discards the
+        whole kernel result when a cell turns out to be saturated and
+        reruns the span on the exact reference path, so the live state must
+        survive a scan whose output is thrown away.
 
         Returns
         -------
@@ -378,8 +414,8 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             float(self.gain_proportional),
             float(self.gain_integral),
             complex(self.generator_current_bias),
-            np.array(self._delay_line, dtype=np.complex128),
-            0,
+            self._delay_buffer.copy(),
+            self._delay_head,
             complex(self._integral),
             np.inf if self.max_output is None else float(self.max_output),
         )
@@ -388,9 +424,11 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         """
         Restore the delay line and integral the compiled scan advanced.
 
-        Rebuilds the deque from the circular buffer oldest-first starting at
-        the returned head, so a following span or turn resumes exactly where
-        the scan stopped.
+        Adopts the kernel's buffer and head as-is, so a following span or
+        turn resumes exactly where the scan stopped. The buffer handed out
+        by :meth:`envelope_scan_state` was already a private copy, so there
+        is nothing to duplicate here and the handoff costs O(1) rather than
+        rebuilding an ``n_delay``-long container per span.
 
         Parameters
         ----------
@@ -399,14 +437,8 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             kernel.
         """
         delay_buffer, delay_head, integral = state
-        buffer_len = delay_buffer.shape[0]
-        self._delay_line = collections.deque(
-            (
-                delay_buffer[(delay_head + offset) % buffer_len]
-                for offset in range(buffer_len)
-            ),
-            maxlen=buffer_len,
-        )
+        self._delay_buffer = delay_buffer
+        self._delay_head = int(delay_head)
         self._integral = integral
 
     def update_generator_current(
@@ -427,8 +459,12 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         generator_current
             The (clamped) generator-current command for this sample [A].
         """
-        self._delay_line.append(error)
-        delayed_error = self._delay_line[0]
+        # Write at the head, advance, then read the new head: the slot that
+        # falls under it is the error from n_delay updates ago. Identical to
+        # deque ``append`` followed by ``[0]``, and to the compiled scan.
+        self._delay_buffer[self._delay_head] = error
+        self._delay_head = (self._delay_head + 1) % self._delay_buffer.size
+        delayed_error = complex(self._delay_buffer[self._delay_head])
 
         candidate_integral = self._integral + delayed_error * delta_t
         output = (

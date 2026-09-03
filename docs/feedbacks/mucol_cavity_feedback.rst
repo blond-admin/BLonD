@@ -467,8 +467,11 @@ Each turn the timing class runs:
      underflowing bins carry non-negligible charge (a charge-free
      Gaussian tail sticking out below the grid start still only warns).
 
-   A warning -- not an error -- fires if the profile window does not
-   capture the whole beam.
+   Whether the window captures the whole beam is *not* checked here. It
+   is a property of the profile's window rather than of this consumer,
+   and ``ProfileBaseClass._warn_if_beam_not_captured`` warns about it
+   once, at fill time -- before this step is reached, and for every
+   consumer of a profile rather than for the feedback alone.
 
    *Forward pass*: one ``circuit_track`` over the forward segment, which
    performs the coarse-grid cavity update and the optional generator

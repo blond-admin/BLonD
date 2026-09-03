@@ -977,9 +977,13 @@ the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
 ``test_no_error_when_first_coarse_cell_empty``
     A mid-window bunch leaves the first cell numerically empty (the guard uses
     a relative threshold, not ``!= 0``).
-``test_warns_on_particle_loss``
-    Warns when the profile does not capture the whole beam (modelled by a
-    density factor putting only half the macroparticles in the window).
+``test_incomplete_capture_is_not_warned_about_here``
+    Incomplete capture is NOT reported by this consumer. The check moved
+    to ``ProfileBaseClass._warn_if_beam_not_captured`` (see *Guards
+    tested outside the feedbacks tree*), which owns the window and the
+    histogram and warns once at fill time; a copy here would fire once
+    per passage against that latch. Modelled by a density factor putting
+    only half the macroparticles in the window.
 ``test_no_warning_when_profile_captures_full_beam``
     No warning when the window captures everything.
 ``test_raises_when_profile_longer_than_coarse_grid``
@@ -989,12 +993,13 @@ the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
     trailing bunch's index onto the leading bunch's cell and *overwrite*
     it, losing 50 % of the demodulated charge silently. The guard is
     ``ProfileBaseClass.check_fits_in_span``.
-``test_particle_loss_warning_is_not_shadowed_by_the_span_guard``
+``test_span_guard_still_raises_after_the_loss_check_moved``
     The two guards answer different questions -- "is the beam inside the
     profile?" versus "does the profile fit the span it is re-binned
     onto?" -- and the fold destroys charge even when the whole beam is
-    captured, so the loss warning is emitted *before* the span check and
-    must still be seen when that check raises.
+    captured. The first question is now the profile's; this one stays
+    here and must still raise, including for a profile whose capture is
+    incomplete.
 ``test_raises_when_profile_starts_after_coarse_grid``
     A window entirely past the grid raises a ``ValueError`` naming the
     coarse-grid index, not a bare ``IndexError``. This one is raised by
@@ -2854,6 +2859,42 @@ deposited twice. Both destroy charge, so the guard raises for both.
     The boundary of the previous escape: a span above one bin is a real span,
     so an over-long window must still be rejected. The escape hatch is not a
     blanket bypass.
+
+
+``TestProfileCapturesWholeBeam``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(``tests/unittests/physics/test_profiles.py``) The profile's second
+self-check, and the sibling of the span guard above: that one asks whether
+the window fits the span it is re-binned onto, this one whether the window
+holds the beam at all. ``beam._dt.histogram`` drops every particle outside
+``[cut_left, cut_right]`` silently, and consumers then scale ``hist_y`` by
+``hist_y_to_density_factor`` and ``beam.intensity`` -- both describing the
+*whole* beam -- so missing charge surfaces as a quietly wrong induced
+voltage rather than an error. ``ProfileBaseClass._warn_if_beam_not_captured``
+therefore warns from ``_track``, where the window and the histogram are both
+in hand. It previously lived in ``rf_beam_current``, which gave the feedback
+path the check and left every other consumer of a profile without it.
+
+``test_no_warning_when_every_particle_is_inside``
+    A window holding the whole beam is silent.
+``test_warns_when_a_particle_is_outside``
+    A particle beyond ``cut_right`` is reported, and the message carries
+    the captured fraction.
+``test_warns_when_a_particle_is_below_the_window``
+    The check is two-sided; ``cut_left`` is guarded as well.
+``test_warning_is_emitted_only_once_per_profile``
+    Latched, not per passage -- the same reasoning as
+    ``test_coincident_passage_warns_only_once_per_solver`` below. The
+    condition is a property of the window, not of the turn, so ten tracked
+    turns of one mistake give one message instead of burying it.
+``test_a_second_profile_warns_independently``
+    The latch is per instance, so a multi-section ring still reports every
+    profile that is affected -- once each.
+``test_empty_beam_does_not_warn``
+    A beam with no particles leaves the density factor at ``0.0``, which is
+    a captured fraction of zero by arithmetic while saying nothing about the
+    window. It is not a window mistake and must stay silent.
 
 
 The solver call site

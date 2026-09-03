@@ -1,5 +1,6 @@
 """Unit tests for the standalone generator-current PI controller."""
 
+import collections
 import unittest
 
 import numpy as np
@@ -427,6 +428,134 @@ class TestPIErrorFrame(unittest.TestCase):
             omega_times_dt=2.0 * np.pi, coarse_grid_index_to_update=0
         )
         self.assertEqual(recorded[0], -1.0 + 0.0j)
+
+
+class TestDelayLineStateHandoff(unittest.TestCase):
+    """
+    The delay line is a circular buffer, and must behave like the deque.
+
+    The controller hands its delay line to the compiled envelope scan once
+    per tracked span, so the representation is a performance decision: a
+    deque has to be rebuilt element by element in Python on the way back,
+    which is O(n_delay) per span and dominates once a physically slow LLRF
+    pushes the delay to ~1300 samples. These tests pin the observable
+    behaviour that refactor must not change.
+    """
+
+    @staticmethod
+    def _reference(n_delay, max_output):
+        """
+        A deque-based PI update, as the controller used to be written.
+
+        Parameters
+        ----------
+        n_delay
+            Loop delay in samples.
+        max_output
+            Klystron current limit [A], or None.
+
+        Returns
+        -------
+        step
+            Callable taking ``(error, delta_t)`` and returning the
+            generator current, closing over its own deque and integral.
+        """
+        gains = dict(kp=1.7, ki=3.1e5, bias=0.2 + 0.05j)
+        line = collections.deque(
+            [0.0 + 0.0j] * (n_delay + 1), maxlen=n_delay + 1
+        )
+        state = {"integral": 0.0 + 0.0j}
+
+        def step(error, delta_t):
+            line.append(error)
+            delayed = line[0]
+            candidate = state["integral"] + delayed * delta_t
+            out = (
+                gains["bias"] + gains["kp"] * delayed + gains["ki"] * candidate
+            )
+            saturated = max_output is not None and np.abs(out) > max_output
+            if not saturated:
+                state["integral"] = candidate
+            return clamp_magnitude(out, max_output)
+
+        return step
+
+    def test_matches_the_deque_law_bit_for_bit(self):
+        """Buffer and deque must agree exactly, limited and unlimited."""
+        rng = np.random.default_rng(7)
+        for n_delay in (0, 1, 2, 5, 20, 137):
+            for max_output in (None, 0.5):
+                with self.subTest(n_delay=n_delay, max_output=max_output):
+                    controller = GeneratorCurrentPIController(
+                        gain_proportional=1.7,
+                        gain_integral=3.1e5,
+                        generator_current_bias=0.2 + 0.05j,
+                        n_delay=n_delay,
+                        max_output=max_output,
+                    )
+                    reference = self._reference(n_delay, max_output)
+                    for _ in range(500):
+                        error = 1e-3 * complex(rng.normal(), rng.normal())
+                        self.assertEqual(
+                            controller.update_generator_current(error, 3e-10),
+                            reference(error, 3e-10),
+                        )
+
+    def test_scan_state_round_trip_is_lossless(self):
+        """Marshalling to the kernel and back must not move the state."""
+        controller = GeneratorCurrentPIController(
+            gain_proportional=1.7,
+            gain_integral=3.1e5,
+            generator_current_bias=0.2 + 0.05j,
+            n_delay=9,
+        )
+        rng = np.random.default_rng(11)
+        for _ in range(25):
+            controller.update_generator_current(
+                1e-3 * complex(rng.normal(), rng.normal()), 3e-10
+            )
+        before = list(controller._delay_line)
+        integral = controller.integral
+        state = controller.envelope_scan_state()
+        controller.absorb_envelope_scan_state((state[3], state[4], state[5]))
+        self.assertEqual(list(controller._delay_line), before)
+        self.assertEqual(controller.integral, integral)
+
+    def test_scan_state_hands_out_a_copy(self):
+        """
+        The buffer must be a copy, not the live state.
+
+        ``_circuit_track_cells`` discards the whole kernel result when a
+        cell turns out to be saturated and reruns the span on the exact
+        reference path, so a scan whose output is thrown away must leave
+        the controller untouched.
+        """
+        controller = GeneratorCurrentPIController(
+            gain_proportional=1.7,
+            gain_integral=3.1e5,
+            generator_current_bias=0.2 + 0.05j,
+            n_delay=4,
+        )
+        controller.update_generator_current(1e-3 + 0j, 3e-10)
+        before = list(controller._delay_line)
+        buffer = controller.envelope_scan_state()[3]
+        buffer[:] = -99.0  # what a discarded kernel run would scribble
+        self.assertEqual(list(controller._delay_line), before)
+
+    def test_delay_line_reports_oldest_first(self):
+        """The deque view keeps oldest-to-newest order across a wrap."""
+        controller = GeneratorCurrentPIController(
+            gain_proportional=0.0,
+            gain_integral=0.0,
+            generator_current_bias=0.0 + 0.0j,
+            n_delay=2,
+        )
+        for value in (1.0, 2.0, 3.0, 4.0, 5.0):
+            controller.update_generator_current(value + 0j, 1.0)
+        self.assertEqual(
+            list(controller._delay_line),
+            [3.0 + 0j, 4.0 + 0j, 5.0 + 0j],
+        )
 
 
 if __name__ == "__main__":
