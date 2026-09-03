@@ -222,22 +222,11 @@ def envelope_pi_scan(
         The head index after the span.
     integral
         The committed error integral after the span.
-    saturation_possible
-        True if any cell's generator current reached (within a guard band) the
-        klystron limit. numpy's scalar complex ``abs`` used by the reference
-        clamp cannot be reproduced bit-for-bit in numba, so the caller reruns
-        such (rare) segments on the exact Python path. When no cell nears the
-        limit the clamp is never applied and the kernel output is identical.
     """
     n = omega_times_dt.shape[0]
     buffer_len = delay_buffer.shape[0]
     voltage_gen_prev = voltage_gen_init
     voltage_beam_prev = voltage_beam_init
-    # Guard band below the limit: comfortably wider than a double-precision ULP
-    # (~2e-16) yet negligible physically, so it can never miss a cell the
-    # reference would clamp while almost never firing spuriously.
-    saturation_guard = max_output * (1.0 - 1.0e-9)
-    saturation_possible = False
     for cell in range(n):
         # Drive current: the carried value for the first cell, otherwise the
         # generator current currently in the grid at the previous cell -- the PI
@@ -295,13 +284,6 @@ def envelope_pi_scan(
                 + gain_integral * candidate_integral
             )
             magnitude = np.abs(output)
-            if magnitude > saturation_guard:
-                # At/near the klystron limit: the reference clamp's numpy
-                # magnitude cannot be reproduced bit-for-bit here, so flag the
-                # segment for the exact Python rerun. The clamp below still runs
-                # to keep the recursion self-consistent, but its result is
-                # discarded by the caller when this flag is set.
-                saturation_possible = True
             if magnitude > max_output:
                 # Saturated: freeze the integral (anti-windup) and clamp.
                 generator_current_out[cell] = output * (max_output / magnitude)
@@ -310,4 +292,4 @@ def envelope_pi_scan(
                 generator_current_out[cell] = output
         # Inactive: leave generator_current_out[cell] at its pre-filled static
         # grid value -- the constant-current / no-beam path never rewrites it.
-    return delay_buffer, delay_head, integral, saturation_possible
+    return delay_buffer, delay_head, integral

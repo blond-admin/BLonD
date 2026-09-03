@@ -170,6 +170,45 @@ def _snapshot(feedback):
     return snap
 
 
+#: Tolerance for comparing the two paths once the klystron clamp has fired.
+#: The clamp scales by ``max_output / |I|``, and numpy's complex ``np.abs``
+#: and numba's disagree by one or two ULP, so the clamped current differs at
+#: the 1e-16 level (measured: 3.1e-16 worst case over a saturating segment,
+#: with the antenna voltages and the PI integral still exactly equal). That
+#: is four orders below anything physical -- the output power goes as
+#: ``|I|**2``, so ~6e-16 relative -- while still catching any real
+#: algorithmic divergence, which would be orders larger.
+SATURATED_RTOL = 1.0e-12
+
+
+def _assert_close(test, kernel_snap, python_snap, rtol=SATURATED_RTOL):
+    """
+    Assert two run snapshots agree to ``rtol``.
+
+    Parameters
+    ----------
+    test
+        The active ``TestCase`` (for assertions).
+    kernel_snap
+        Snapshot from the kernel path.
+    python_snap
+        Snapshot from the pure-Python path.
+    rtol
+        Relative tolerance.
+    """
+    for key in ("V", "V_gen", "V_beam", "I"):
+        np.testing.assert_allclose(
+            kernel_snap[key],
+            python_snap[key],
+            rtol=rtol,
+            err_msg=f"{key} differs between kernel and python paths",
+        )
+    if "integral" in kernel_snap:
+        np.testing.assert_allclose(
+            kernel_snap["integral"], python_snap["integral"], rtol=rtol
+        )
+
+
 def _assert_bit_identical(test, kernel_snap, python_snap):
     """
     Assert two run snapshots are byte-for-byte identical.
@@ -310,6 +349,22 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             )
         return _snapshot(feedback)
 
+    def _compare_close(self, **kwargs):
+        """
+        Run one config on both paths and assert agreement to ``rtol``.
+
+        For configurations where the klystron clamp fires; see
+        :data:`SATURATED_RTOL`.
+
+        Parameters
+        ----------
+        **kwargs
+            Forwarded to :meth:`_run_single_segment`.
+        """
+        kernel_snap = self._run_single_segment(True, **kwargs)
+        python_snap = self._run_single_segment(False, **kwargs)
+        _assert_close(self, kernel_snap, python_snap)
+
     def _compare(self, **kwargs):
         """
         Run one config on both paths and assert bit identity.
@@ -355,8 +410,14 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         )
 
     def test_forward_pi_saturating(self):
-        """PI controller hitting the klystron clamp (anti-windup path)."""
-        self._compare(
+        """PI controller hitting the klystron clamp (anti-windup path).
+
+        Compared to a tolerance rather than bit-for-bit: once the clamp
+        fires, the two paths scale by ``max_output / |I|`` computed with
+        numpy's and numba's complex ``abs`` respectively, which disagree by
+        one or two ULP. See :data:`SATURATED_RTOL`.
+        """
+        self._compare_close(
             no_beam=False,
             controller_kw={
                 "gain_proportional": 1e-6,
@@ -365,6 +426,62 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
                 "n_delay": 1,
                 "max_output": 0.05,
             },
+        )
+
+    def test_saturating_segment_is_not_deferred_to_python(self):
+        """A saturated segment must be committed from the compiled scan.
+
+        The kernel used to flag any cell at or near the klystron limit and
+        have the caller discard the whole segment and re-run it cell by
+        cell in Python, because numpy's complex ``np.abs`` -- the old
+        spelling of the reference clamp -- disagreed with numba's by one
+        or two ULP. Both sides now spell the magnitude as
+        ``hypot(real, imag)`` (see ``complex_magnitude``), which agrees
+        bit-for-bit over the whole double range, so the detour is gone.
+
+        This matters for runtime, not for physics: with a klystron-limited
+        preset the generator saturates on every passage, so *every*
+        forward segment used to pay the per-cell Python path.
+        """
+        controller_kw = {
+            "gain_proportional": 1e-6,
+            "gain_integral": 1e-1,
+            "generator_current_bias": BIAS,
+            "n_delay": 1,
+            "max_output": 0.05,
+        }
+        original = IQCavityFeedbackTimingClass._circuit_track_cells_python
+        calls = []
+
+        def _spy(self, *args, **kwargs):
+            calls.append(1)
+            return original(self, *args, **kwargs)
+
+        IQCavityFeedbackTimingClass._circuit_track_cells_python = _spy
+        try:
+            kernel_snap = self._run_single_segment(
+                True, no_beam=False, controller_kw=controller_kw
+            )
+        finally:
+            IQCavityFeedbackTimingClass._circuit_track_cells_python = original
+
+        self.assertEqual(
+            len(calls),
+            0,
+            msg="the kernel still defers a saturated segment to Python",
+        )
+
+        python_snap = self._run_single_segment(
+            False, no_beam=False, controller_kw=controller_kw
+        )
+        _assert_close(self, kernel_snap, python_snap)
+        # Non-vacuous: the clamp really did fire.
+        current = kernel_snap["I"]
+        self.assertTrue(
+            np.any(
+                np.hypot(current.real, current.imag)
+                >= controller_kw["max_output"] * (1.0 - 1e-12)
+            )
         )
 
     def test_exponential_solver_pi(self):

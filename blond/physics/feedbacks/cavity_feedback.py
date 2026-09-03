@@ -1736,40 +1736,28 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             start_index:end_index
         ].astype(np.complex128)
 
-        delay_buffer, delay_head, integral, saturation_possible = (
-            envelope_scan(
-                voltage_multiplier,
-                drive_weight,
-                omega_times_dt,
-                beam_current,
-                voltage_gen_out,
-                voltage_beam_out,
-                voltage_out,
-                generator_current_out,
-                voltage_gen_init,
-                voltage_beam_init,
-                generator_current_init,
-                float(self.R_over_Q),
-                bool(self._generator_active),
-                complex(self._generator_frame_rotation),
-                complex(self._kick_frame_rotation),
-                complex(self._pi_error_frame_rotation),
-                controller_active,
-                voltage_setpoint,
-                float(omega_input),
-                *controller_state,
-            )
+        delay_buffer, delay_head, integral = envelope_scan(
+            voltage_multiplier,
+            drive_weight,
+            omega_times_dt,
+            beam_current,
+            voltage_gen_out,
+            voltage_beam_out,
+            voltage_out,
+            generator_current_out,
+            voltage_gen_init,
+            voltage_beam_init,
+            generator_current_init,
+            float(self.R_over_Q),
+            bool(self._generator_active),
+            complex(self._generator_frame_rotation),
+            complex(self._kick_frame_rotation),
+            complex(self._pi_error_frame_rotation),
+            controller_active,
+            voltage_setpoint,
+            float(omega_input),
+            *controller_state,
         )
-
-        if saturation_possible:
-            # A cell reached the klystron limit, whose numpy-magnitude clamp the
-            # kernel cannot reproduce bit-for-bit. Nothing has been committed
-            # yet (grids not written, controller state untouched), so rerun the
-            # segment on the exact reference path and discard the kernel result.
-            self._circuit_track_cells_python(
-                omega_input, no_beam, start_index, end_index
-            )
-            return
 
         self.antenna_voltage_beam_coarse_grid[start_index:end_index] = (
             voltage_beam_out

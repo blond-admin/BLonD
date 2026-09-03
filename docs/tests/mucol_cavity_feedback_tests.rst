@@ -457,9 +457,10 @@ The saturating PI control law mapping a voltage error to a generator current.
 ``TestLoopDelayIsFixedAtConstruction``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``n_delay`` is read-only. The delay-line deque keeps the ``maxlen`` it was
-built with, so a post-construction write used to be silently ignored: a user
-retuning the loop delay got neither a delay change nor a complaint.
+``n_delay`` is read-only. The delay line is a fixed-size circular buffer sized
+once from the constructor value, so a post-construction write used to be
+silently ignored: a user retuning the loop delay got neither a delay change nor
+a complaint.
 
 ``test_n_delay_reads_back_the_constructor_value``
     The documented read surface is unchanged, for ``n_delay`` 0, 1 and 7.
@@ -469,10 +470,36 @@ retuning the loop delay got neither a delay change nor a complaint.
     A post-construction retune raises ``AttributeError`` instead of being
     dropped.
 ``test_delay_line_length_tracks_the_constructor_value``
-    The deque is sized ``n_delay + 1`` from the constructor value (both
-    ``len`` and ``maxlen``).
+    The delay line holds ``n_delay + 1`` errors, from the constructor value.
 ``test_int_coercion_still_applies``
     A float loop delay is still coerced to ``int``.
+
+``TestDelayLineStateHandoff``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The delay line is a circular buffer, and must behave exactly like the deque it
+replaced. The representation is a performance decision: the controller hands
+its delay line to the compiled envelope scan once per tracked span, and a deque
+has to be rebuilt element by element in Python on the way back -- O(``n_delay``)
+per span. That is invisible at the 2-sample delay of a fast trim loop and
+dominates once a physically slow LLRF pushes the delay to ~1300 samples
+(measured 12.9 ms per turn against 0.10 ms, a 132x difference). These tests pin
+the observable behaviour the refactor must not change.
+
+``test_matches_the_deque_law_bit_for_bit``
+    Buffer and deque agree exactly -- ``assertEqual``, not a tolerance --
+    over ``n_delay`` 0, 1, 2, 5, 20 and 137, limited and unlimited.
+``test_scan_state_round_trip_is_lossless``
+    Marshalling to the kernel and absorbing the result back leaves the delay
+    line and the integral unchanged.
+``test_scan_state_hands_out_a_copy``
+    The buffer handed to the kernel is a copy, not the live state.
+    ``_circuit_track_cells`` discards the whole kernel result when a cell
+    turns out to be saturated and reruns the span on the exact reference
+    path, so a scan whose output is thrown away must leave the controller
+    untouched. Scribbling over the handed-out buffer must not reach it.
+``test_delay_line_reports_oldest_first``
+    The deque view keeps oldest-to-newest order across a buffer wrap.
 
 ``TestPIErrorFrame``
 ~~~~~~~~~~~~~~~~~~~~
@@ -3084,7 +3111,7 @@ cannot silently regress, and one deletion is pinned beside them.
 ``TestLoopDelayIsFixedAtConstruction``
     (``tests/.../mucol/test_generator_current_controller.py``, documented
     with its module above) ``GeneratorCurrentPIController.n_delay`` is read
-    exactly once, inside ``__init__``, to size the delay-line deque, so a
+    exactly once, inside ``__init__``, to size the delay-line buffer, so a
     post-construction write was silently ignored. The read-only property
     makes that mistake raise.
 ``TestVestigialPhaseOffsetsStayDeleted``
