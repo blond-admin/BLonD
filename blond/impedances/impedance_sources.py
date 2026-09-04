@@ -379,6 +379,65 @@ class Resonators(_ImpedanceObject):
                 )
             )
 
+    def calculate_envelope(
+        self, time_axis: Optional[NumpyArray] = None
+    ) -> tuple[NumpyArray, NumpyArray]:
+        r"""Normalised decay envelope of all resonators.
+
+        Parameters
+        ----------
+        time_axis : float array, optional
+            Time axis on which to calculate the envelope, in [s]. By
+            default a linspace covering 20 times the slowest decay time.
+
+        Returns
+        -------
+        time_axis : float array
+            Time axis used for the calculation, in [s]
+        envelope : float array
+            Normalised envelope values
+        """
+        if time_axis is None:
+            time_axis = np.linspace(
+                0, np.max(self.Q / self.omega_R) * 20, 100000
+            )
+        alpha = self.omega_R / (2 * self.Q)
+        envelope = np.zeros_like(time_axis)
+        for i in range(self.n_resonators):
+            envelope += self.R_S[i] * alpha[i] * np.exp(-alpha[i] * time_axis)
+        envelope /= np.max(envelope)
+        return time_axis, envelope
+
+    def get_decay_time(self, decay_fraction_threshold: float) -> float:
+        r"""Time after which the summed wake envelope has decayed below
+        `decay_fraction_threshold`.
+
+        Used by multi-turn wake solvers to decide how long past profiles
+        must be remembered.
+
+        Parameters
+        ----------
+        decay_fraction_threshold : float
+            Fraction of the initial envelope amplitude below which the
+            wake is considered fully decayed.
+
+        Returns
+        -------
+        storage_time : float
+            Time after which the threshold is reached, in [s]
+        """
+        time_axis = np.linspace(
+            0,
+            -4
+            * np.max(self.Q / self.omega_R)
+            * np.log(decay_fraction_threshold),
+            100000,
+        )
+        _, envelope = self.calculate_envelope(time_axis=time_axis)
+        return float(
+            time_axis[np.abs(envelope - decay_fraction_threshold).argmin()]
+        )
+
     def imped_calc(self, frequency_array: NDArray):
         r"""Impedance calculation method as a function of frequency
 
