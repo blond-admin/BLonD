@@ -29,10 +29,22 @@ from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.handle_results.hdf5_io import (
+    ATTR_OBSERVABLE_CLASS,
+    ResultsFormatError,
+    create_results_file,
+    migrate_payload,
+    open_results_file,
+    read_format_version,
+    read_group_payload,
+    results_filepath,
+)
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
+
+    import h5py
 
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
@@ -113,17 +125,29 @@ class ObservablesBaseClass(MainLoopRelevant):
     ----------
     folder
         Target folder to save the data at.
-        Use `rename` to change the destination.
+    name
+        Name of the HDF5 group this observable is stored under. Defaults
+        to the class name. Use `rename` to change it.
     **kwargs
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str | None = None, **kwargs):
+    def __init__(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
+        folder = folder if folder is not None else ""
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"
-        logger.info(f"Will save {self} to {self.common_filepath}_,,,")
+        self.name = name if name is not None else type(self).__name__
+        logger.info(
+            f"Will save {self} to {self.common_filepath}.h5"
+            f" in group {self.name}."
+        )
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         """
@@ -142,56 +166,151 @@ class ObservablesBaseClass(MainLoopRelevant):
         ]
         return recorders
 
-    def rename(self, new_common_filepath: str) -> None:
+    def rename(self, new_name: str) -> None:
         """
-        Change the common save name of all internal arrays.
+        Change the HDF5 group name this observable is stored under.
 
         Parameters
         ----------
-        new_common_filepath
-            The new common name of all internal arrays.
+        new_name
+            New group name.
 
         Notes
         -----
         This has no effect on files that are already saved to the disk.
         """
-        old_common_filepath = self.common_filepath
-        for _attribute_name, instance in self.get_recorders():
-            if old_common_filepath not in instance.filepath:
-                # it would not make sense to replace the old filepath
-                raise NameError(
-                    f"{instance.filepath} does not include"
-                    f" {old_common_filepath} anymore. This might be caused"
-                    f" by a manual override of the filename."
-                )
-            instance.filepath = instance.filepath.replace(
-                old_common_filepath,
-                new_common_filepath,
+        self.name = new_name
+        logger.info(f"Changed group name of {self} to {self.name}.")
+
+    def dataset_names(self) -> dict[str, str]:
+        """
+        Map HDF5 dataset name to recorder attribute name.
+
+        Returns
+        -------
+        dataset_names
+            Mapping of dataset name to the attribute holding the recorder.
+        """
+        return {
+            attribute.removeprefix("_"): attribute
+            for attribute, _recorder in self.get_recorders()
+        }
+
+    def to_disk(
+        self,
+        group: h5py.Group | None = None,
+        overwrite: bool = True,
+    ) -> None:
+        """
+        Save data to disk.
+
+        Parameters
+        ----------
+        group
+            Open HDF5 group to write into. When omitted, a standalone
+            results file is created at ``<common_filepath>.h5``.
+        overwrite
+            Whether an existing standalone file may be replaced. Ignored
+            when `group` is given.
+
+        Raises
+        ------
+        FileExistsError
+            If the standalone file exists and `overwrite` is False.
+        """
+        if group is None:
+            with create_results_file(
+                self.common_filepath, overwrite=overwrite
+            ) as file:
+                self.to_disk(file.create_group(self.name))
+            logger.info(f"Saved {self} to {self.common_filepath}.h5")
+            return
+        group.attrs[ATTR_OBSERVABLE_CLASS] = type(self).__name__
+        for dataset_name, attribute in self.dataset_names().items():
+            getattr(self, attribute).to_group(group, dataset_name)
+
+    def from_disk(self, group: h5py.Group | None = None) -> None:
+        """
+        Load data from disk.
+
+        Parameters
+        ----------
+        group
+            Open HDF5 group to read from. When omitted, the standalone
+            results file at ``<common_filepath>.h5`` is used.
+
+        Raises
+        ------
+        ResultsFormatError
+            If the group was written by a different observable class or
+            does not contain every expected dataset.
+        """
+        if group is None:
+            with open_results_file(self.common_filepath) as file:
+                if self.name not in file:
+                    raise ResultsFormatError(
+                        f"{self.common_filepath}.h5 has no group"
+                        f" '{self.name}'. It contains {list(file.keys())}."
+                    )
+                self.from_disk(file[self.name])
+            return
+
+        stored_class = group.attrs.get(ATTR_OBSERVABLE_CLASS)
+        if stored_class != type(self).__name__:
+            raise ResultsFormatError(
+                f"Group '{group.name}' holds data of"
+                f" '{stored_class}', but is being loaded into"
+                f" {type(self).__name__}."
             )
-        self.common_filepath = new_common_filepath
-        logger.info(
-            f"Changed save target of {self} to {self.common_filepath}."
+        expected = self.dataset_names()
+        payload = migrate_payload(
+            read_group_payload(group),
+            from_version=read_format_version(group.file),
         )
-
-    def to_disk(self) -> None:
-        """Save data to disk."""
-        for _attribute_name, instance in self.get_recorders():
-            array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Saved {array_recorder.filepath_array}")
-            array_recorder.to_disk()
-
-    def from_disk(self) -> None:
-        """Load data from disk."""
-        for attribute_name, instance in self.get_recorders():
-            array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Loaded {array_recorder.filepath_array}")
-
-            self.__setattr__(
-                attribute_name,
-                array_recorder.from_disk(
-                    filepath=array_recorder.filepath,
-                ),
+        missing = sorted(set(expected) - set(payload))
+        if len(missing) > 0:
+            raise ResultsFormatError(
+                f"Group '{group.name}' is missing the datasets {missing}."
             )
+        extra = sorted(set(payload) - set(expected))
+        if len(extra) > 0:
+            warnings.warn(
+                f"Ignoring unknown datasets {extra} in group '{group.name}'.",
+                UserWarning,
+                stacklevel=2,
+            )
+        for dataset_name, attribute in expected.items():
+            array, attrs = payload[dataset_name]
+            expected_trailing = getattr(self, attribute)._memory.shape[1:]
+            if array.shape[1:] != expected_trailing:
+                warnings.warn(
+                    f"Dataset '{dataset_name}' has shape {array.shape},"
+                    f" but this observable expects trailing dimensions"
+                    f" {expected_trailing}. Loading the stored data"
+                    f" anyway; the simulation configuration may differ.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            setattr(
+                self,
+                attribute,
+                DenseArrayRecorder.from_payload(array, attrs),
+            )
+
+    def purge_from_disk(self, verbose: bool = True) -> None:
+        """
+        Delete the standalone results file of this observable.
+
+        Parameters
+        ----------
+        verbose
+            Whether to print the removal message.
+        """
+        filepath = results_filepath(self.common_filepath)
+        if filepath.is_file():
+            filepath.unlink()
+            if verbose:
+                print(f"Removed {filepath}")
 
     def assert_lateinit(self):
         """Check that DenseArrays are already initialized."""
@@ -432,32 +551,26 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         shape = (n_entries, self._bins[0], self._bins[1])
 
         self._hist2d = DenseArrayRecorder(
-            f"{self.common_filepath}_hist2d",
-            shape,
+            shape=shape,
         )
 
         self._xedges = DenseArrayRecorder(
-            f"{self.common_filepath}_xedges",
-            (n_entries, self._bins[0] + 1),
+            shape=(n_entries, self._bins[0] + 1),
         )
 
         self._yedges = DenseArrayRecorder(
-            f"{self.common_filepath}_yedges",
-            (n_entries, self._bins[1] + 1),
+            shape=(n_entries, self._bins[1] + 1),
         )
 
         self._reference_time = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_time",
-            (n_entries,),
+            shape=(n_entries,),
         )
 
         self._intensity = DenseArrayRecorder(
-            f"{self.common_filepath}_intensity",
-            (n_entries,),
+            shape=(n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_total_energy",
-            (n_entries,),
+            shape=(n_entries,),
         )
 
     def _update(self) -> None:
@@ -778,25 +891,20 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         shape = (n_entries, n_macroparticles)
 
         self._dts = DenseArrayRecorder(
-            f"{self.common_filepath}_dts",
-            shape,
+            shape=shape,
         )
         self._dEs = DenseArrayRecorder(
-            f"{self.common_filepath}_dEs",
-            shape,
+            shape=shape,
         )
         self._flags = DenseArrayRecorder(
-            f"{self.common_filepath}_flags",
-            shape,
+            shape=shape,
         )
 
         self._reference_time = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_time",
-            (n_entries,),
+            shape=(n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_total_energy",
-            (n_entries,),
+            shape=(n_entries,),
         )
 
     def _update(self) -> None:
@@ -952,24 +1060,19 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         n_entries = self._calc_n_entries(n_turns)
 
         self._bunch_position = DenseArrayRecorder(
-            f"{self.common_filepath}_bunch_position",
-            n_entries,
+            shape=n_entries,
         )
         self._energy_spread = DenseArrayRecorder(
-            f"{self.common_filepath}_energy_spread",
-            n_entries,
+            shape=n_entries,
         )
         self._bunch_length = DenseArrayRecorder(
-            f"{self.common_filepath}_bunch_length",
-            n_entries,
+            shape=n_entries,
         )
         self._reference_time = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_time",
-            n_entries,
+            shape=n_entries,
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{self.common_filepath}_reference_total_energy",
-            n_entries,
+            shape=n_entries,
         )
 
     def _update(self) -> None:
@@ -1124,16 +1227,13 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
         n_harmonics = int(self._rf_station.n_rf)
         shape = (n_entries, n_harmonics)
         self._phases = DenseArrayRecorder(
-            f"{self.common_filepath}_phases",
-            shape,
+            shape=shape,
         )
         self._omegas = DenseArrayRecorder(
-            f"{self.common_filepath}_omegas",
-            shape,
+            shape=shape,
         )
         self._voltages = DenseArrayRecorder(
-            f"{self.common_filepath}_voltages",
-            shape,
+            shape=shape,
         )
 
     def _update(self) -> None:
@@ -1255,8 +1355,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_filepath}_hist_y",
-            (n_entries, n_bins),
+            shape=(n_entries, n_bins),
         )
 
     def _update(self) -> None:
@@ -1417,8 +1516,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_filepath}_hist_y",
-            shape,
+            shape=shape,
         )
 
     def _update(self) -> None:
@@ -1529,8 +1627,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
-            f"{self.common_filepath}_induced_voltage",
-            (n_entries, n_bins),
+            shape=(n_entries, n_bins),
         )
 
     def _update(self) -> None:
@@ -1632,12 +1729,10 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         n_bins = int(self._profile.n_bins)
         shape = (n_entries, n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_filepath}_hist_y",
-            shape,
+            shape=shape,
         )
         self._hist_x = DenseArrayRecorder(
-            f"{self.common_filepath}_hist_x",
-            shape,
+            shape=shape,
         )
 
     def _update(self) -> None:
@@ -1768,12 +1863,10 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         n_entries = self._calc_n_entries(n_turns=n_turns)
         shape = n_entries
         self._t_revs = DenseArrayRecorder(
-            f"{self.common_filepath}_t_revs",
-            shape,
+            shape=shape,
         )
         self._separatrices = DenseArrayRecorder(
-            f"{self.common_filepath}_separatrices",
-            (n_entries, 2, self._separatrix_points),
+            shape=(n_entries, 2, self._separatrix_points),
         )
         self._simulation = simulation
         self._beam = beam
@@ -1867,8 +1960,7 @@ class DriftObservation(ObservablesOncePerTurnBase):
         )
 
         self._eta_0s = DenseArrayRecorder(
-            f"{self.common_filepath}_eta_0s",
-            (self._calc_n_entries(n_turns=n_turns)),
+            shape=(self._calc_n_entries(n_turns=n_turns)),
         )
 
     def _update(

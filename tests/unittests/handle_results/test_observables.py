@@ -1,7 +1,10 @@
+import tempfile
 import unittest
 from copy import deepcopy
+from pathlib import Path
 from unittest.mock import Mock, PropertyMock
 
+import h5py
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -25,6 +28,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
+from blond.handle_results.hdf5_io import ResultsFormatError
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamHist2dOncePerTurn,
@@ -84,11 +88,18 @@ class ObservablesHelper(ObservablesOncePerTurnBase):
     def _update(self) -> None:
         pass
 
-    def to_disk(self) -> None:
-        pass
 
-    def from_disk(self) -> None:
-        pass
+class RecordingObservablesHelper(ObservablesOncePerTurnBase):
+    def on_run_simulation(self, simulation, beam, n_turns, **kwargs) -> None:
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns, **kwargs
+        )
+        self._values = DenseArrayRecorder(
+            shape=(self._calc_n_entries(n_turns), 2)
+        )
+
+    def _update(self) -> None:
+        self._values.write(np.array([1.0, 2.0]))
 
 
 class TestObservables(unittest.TestCase):
@@ -159,23 +170,13 @@ class TestObservables(unittest.TestCase):
             n_turns=100,
         )
 
-        # without recorders, should run through
-        orig_name = self.observables.common_filepath
-        self.observables.rename(orig_name + "_1")
-        assert self.observables.common_filepath == orig_name + "_1"
+        self.assertEqual(self.observables.name, "ObservablesHelper")
+        self.observables.rename("beam1")
+        self.assertEqual(self.observables.name, "beam1")
 
-        self.observables._example_densr_arr_rec = DenseArrayRecorder(
-            f"{orig_name}_1_example_densr_arr_rec", (1, 1)
-        )
-        recorders = self.observables.get_recorders()
-        assert len(recorders) == 1
-
-        recorders[0][1].filepath = "Notsame"
-        with self.assertRaises(NameError):
-            self.observables.rename("")
-        recorders[0][1].filepath = orig_name + "_1"
-        self.observables.rename(orig_name + "_2")
-        assert self.observables.common_filepath == orig_name + "_2"
+        self.observables.to_disk()
+        with h5py.File(self.observables.common_filepath + ".h5", "r") as file:
+            self.assertEqual(list(file.keys()), ["beam1"])
 
     def test_assert_lateinit_fail(self) -> None:
         obs_helper = ObservablesHelper(each_turn_i=0)
@@ -186,6 +187,102 @@ class TestObservables(unittest.TestCase):
             obs_helper.get_recorders()
         with self.assertRaises(AssertionError):
             obs_helper.assert_lateinit()
+
+
+class TestObservablesHdf5(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.folder = self._tmp.name + "/"
+        self.observables = RecordingObservablesHelper(
+            each_turn_i=1,
+            folder=self.folder,
+        )
+        self.observables.on_init_simulation(simulation=simulation)
+        self.observables.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=100
+        )
+        self.observables.update()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_default_name_is_class_name(self) -> None:
+        self.assertEqual(self.observables.name, "RecordingObservablesHelper")
+
+    def test_explicit_name_is_used(self) -> None:
+        observables = RecordingObservablesHelper(
+            each_turn_i=1, folder=self.folder, name="beam1"
+        )
+        self.assertEqual(observables.name, "beam1")
+
+    def test_standalone_roundtrip(self) -> None:
+        before = {
+            attribute: recorder.get_valid_entries().copy()
+            for attribute, recorder in self.observables.get_recorders()
+        }
+        self.observables.to_disk()
+        self.observables.from_disk()
+        for attribute, expected in before.items():
+            np.testing.assert_array_equal(
+                getattr(self.observables, attribute).get_valid_entries(),
+                expected,
+            )
+
+    def test_standalone_writes_single_h5_file(self) -> None:
+        self.observables.to_disk()
+        written = sorted(path.name for path in Path(self.folder).iterdir())
+        self.assertEqual(written, ["last.h5"])
+
+    def test_no_overwrite_refuses_existing_file(self) -> None:
+        self.observables.to_disk()
+        with self.assertRaises(FileExistsError):
+            self.observables.to_disk(overwrite=False)
+
+    def test_group_records_observable_class(self) -> None:
+        self.observables.to_disk()
+        with h5py.File(Path(self.folder) / "last.h5", "r") as file:
+            self.assertEqual(
+                file["RecordingObservablesHelper"].attrs["observable_class"],
+                "RecordingObservablesHelper",
+            )
+
+    def test_missing_dataset_raises_and_names_it(self) -> None:
+        self.observables.to_disk()
+        dataset_name = next(iter(self.observables.dataset_names()))
+        with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
+            del file["RecordingObservablesHelper"][dataset_name]
+        with self.assertRaises(ResultsFormatError) as context:
+            self.observables.from_disk()
+        self.assertIn(dataset_name, str(context.exception))
+
+    def test_extra_dataset_warns_and_is_ignored(self) -> None:
+        self.observables.to_disk()
+        with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
+            group = file["RecordingObservablesHelper"]
+            dataset = group.create_dataset("from_the_future", data=[1.0])
+            dataset.attrs["write_idx"] = 1
+        with self.assertWarns(UserWarning):
+            self.observables.from_disk()
+
+    def test_class_mismatch_raises(self) -> None:
+        self.observables.to_disk()
+        with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
+            file["RecordingObservablesHelper"].attrs["observable_class"] = (
+                "Other"
+            )
+        with self.assertRaises(ResultsFormatError):
+            self.observables.from_disk()
+
+    def test_purge_from_disk_removes_file(self) -> None:
+        self.observables.to_disk()
+        self.observables.purge_from_disk(verbose=False)
+        self.assertEqual(list(Path(self.folder).iterdir()), [])
+
+    def test_rename_changes_group_name(self) -> None:
+        self.observables.rename("beam1")
+        self.observables.to_disk()
+        with h5py.File(Path(self.folder) / "last.h5", "r") as file:
+            self.assertEqual(list(file.keys()), ["beam1"])
 
 
 class TestBeamObservation(unittest.TestCase):

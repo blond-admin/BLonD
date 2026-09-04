@@ -108,20 +108,15 @@ class BeamObservationInRingElement(
         ) // self.each_turn_i + 2
 
         self._dEs = DenseArrayRecorder(
-            self.common_filepath + "_dEs", (n_entries, beam.common_array_size)
+            shape=(n_entries, beam.common_array_size)
         )
         self._dts = DenseArrayRecorder(
-            self.common_filepath + "_dts", (n_entries, beam.common_array_size)
+            shape=(n_entries, beam.common_array_size)
         )
-        self._reference_time = DenseArrayRecorder(
-            self.common_filepath + "_reference_time", (n_entries,)
-        )
-        self._reference_total_energy = DenseArrayRecorder(
-            self.common_filepath + "_reference_total_energy", (n_entries,)
-        )
+        self._reference_time = DenseArrayRecorder(shape=(n_entries,))
+        self._reference_total_energy = DenseArrayRecorder(shape=(n_entries,))
         self._flags = DenseArrayRecorder(
-            self.common_filepath + "_flags",
-            (n_entries, beam.common_array_size),
+            shape=(n_entries, beam.common_array_size),
         )
 
     def _track(self, beam: BeamBaseClass) -> None:
@@ -277,26 +272,11 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         n_entries = int(n_turns * count // self.each_turn_i)
         shape = n_entries
 
-        self._mean_dt = DenseArrayRecorder(
-            f"{self.common_filepath}_mean_dt",
-            shape,
-        )
-        self._mean_dE = DenseArrayRecorder(
-            f"{self.common_filepath}_mean_dE",
-            shape,
-        )
-        self._sigma_dt = DenseArrayRecorder(
-            f"{self.common_filepath}_sigma_dt",
-            shape,
-        )
-        self._sigma_dE = DenseArrayRecorder(
-            f"{self.common_filepath}_sigma_dE",
-            shape,
-        )
-        self._rms_emittance = DenseArrayRecorder(
-            f"{self.common_filepath}_emittance_stat",
-            shape,
-        )
+        self._mean_dt = DenseArrayRecorder(shape=shape)
+        self._mean_dE = DenseArrayRecorder(shape=shape)
+        self._sigma_dt = DenseArrayRecorder(shape=shape)
+        self._sigma_dE = DenseArrayRecorder(shape=shape)
+        self._rms_emittance = DenseArrayRecorder(shape=shape)
 
     def _track(
         self,
@@ -468,20 +448,11 @@ class InducedVoltageObservationCR(
         n_entries = int(n_turns * count // self.each_turn_i)
         shape = (n_entries, ind_volt_len)
 
-        self._induced_voltage = DenseArrayRecorder(
-            f"{self.common_filepath}_induced_voltage",
-            shape,
-        )
+        self._induced_voltage = DenseArrayRecorder(shape=shape)
 
-        self._beam_profile = DenseArrayRecorder(
-            f"{self.common_filepath}_beam_profile",
-            shape,
-        )
+        self._beam_profile = DenseArrayRecorder(shape=shape)
 
-        self._beam_reference_time = DenseArrayRecorder(
-            f"{self.common_filepath}_beam_reference_time",
-            n_entries,
-        )
+        self._beam_reference_time = DenseArrayRecorder(shape=n_entries)
 
     @property  # as readonly attributes
     def induced_voltage(self):
