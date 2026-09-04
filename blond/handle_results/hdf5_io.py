@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -26,8 +27,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    GroupPayload = dict[str, tuple[NumpyArray, dict[str, Any]]]
-
 logger = logging.getLogger(__name__)
 
 FORMAT_VERSION = 1
@@ -40,6 +39,31 @@ ATTR_BLOND_VERSION = "blond_version"
 ATTR_CREATED = "created"
 ATTR_OBSERVABLE_CLASS = "observable_class"
 ATTR_WRITE_IDX = "write_idx"
+
+
+@dataclass
+class GroupPayload:
+    """
+    In-memory image of one observable group of a results file.
+
+    This is the unit a migration step operates on. It carries the
+    group's datasets *and* its attributes, plus the group name, so that
+    a migration can act on one observable only (for example renaming a
+    dataset in ``BunchStatistics`` alone) and can rewrite group-level
+    attributes such as ``observable_class``.
+    """
+
+    datasets: dict[str, tuple[NumpyArray, dict[str, Any]]] = field(
+        default_factory=dict
+    )
+    """Dataset name -> (array, dataset attributes as a plain ``dict``)."""
+
+    attrs: dict[str, Any] = field(default_factory=dict)
+    """The group-level attributes as a plain ``dict``."""
+
+    group_name: str = ""
+    """Name of the group in the results file, without the leading path."""
+
 
 MIGRATIONS: dict[int, Callable[[GroupPayload], GroupPayload]] = {}
 """Upgraders keyed by the version they migrate *from*, to that version + 1."""
@@ -96,9 +120,13 @@ def create_results_file(
     """
     filepath = results_filepath(stem)
     file = h5py.File(filepath, "w" if overwrite else "w-")
-    file.attrs[ATTR_FORMAT_VERSION] = FORMAT_VERSION
-    file.attrs[ATTR_BLOND_VERSION] = __version__
-    file.attrs[ATTR_CREATED] = datetime.now(timezone.utc).isoformat()
+    try:
+        file.attrs[ATTR_FORMAT_VERSION] = FORMAT_VERSION
+        file.attrs[ATTR_BLOND_VERSION] = __version__
+        file.attrs[ATTR_CREATED] = datetime.now(timezone.utc).isoformat()
+    except Exception:
+        file.close()
+        raise
     return file
 
 
@@ -177,23 +205,26 @@ def read_format_version(file: h5py.File) -> int:
 
 def read_group_payload(group: h5py.Group) -> GroupPayload:
     """
-    Read every dataset in ``group`` into memory.
+    Read every dataset and attribute of ``group`` into memory.
 
     Parameters
     ----------
     group : h5py.Group
-        The group whose datasets to read.
+        The group whose datasets and attributes to read.
 
     Returns
     -------
-    dict of str to tuple
-        Maps each dataset name to a tuple of its array and its
-        attributes as a plain ``dict``.
+    GroupPayload
+        The group's datasets, its group-level attributes, and its name.
     """
-    return {
-        name: (dataset[()], dict(dataset.attrs))
-        for name, dataset in group.items()
-    }
+    return GroupPayload(
+        datasets={
+            name: (dataset[()], dict(dataset.attrs))
+            for name, dataset in group.items()
+        },
+        attrs=dict(group.attrs),
+        group_name=group.name.rsplit("/", 1)[-1],
+    )
 
 
 def migrate_payload(
@@ -209,7 +240,7 @@ def migrate_payload(
 
     Parameters
     ----------
-    payload : dict of str to tuple
+    payload : GroupPayload
         The payload to migrate, as returned by
         `read_group_payload`.
     from_version : int
@@ -223,17 +254,25 @@ def migrate_payload(
 
     Returns
     -------
-    dict of str to tuple
+    GroupPayload
         The migrated payload.
 
     Raises
     ------
     ResultsFormatError
-        If no migration is registered for a version in the chain
-        from ``from_version`` to ``to_version``.
+        If ``from_version`` is newer than ``to_version``, or if no
+        migration is registered for a version in the chain from
+        ``from_version`` to ``to_version``.
     """
     if migrations is None:
         migrations = MIGRATIONS
+    if from_version > to_version:
+        raise ResultsFormatError(
+            f"The results were written with results format version"
+            f" {from_version}, but this BLonD ({__version__})"
+            f" understands at most version {to_version}."
+            f" Upgrade BLonD to read this file."
+        )
     for version in range(from_version, to_version):
         if version not in migrations:
             raise ResultsFormatError(

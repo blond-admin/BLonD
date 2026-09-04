@@ -18,6 +18,7 @@ from blond import (
     Beam,
     BeamObservationOncePerTurn,
     DriftSimple,
+    ResultsFormatError,
     RFStationPhaseObservation,
     Ring,
     Simulation,
@@ -164,7 +165,7 @@ def main():
         print(
             f"Loaded {phase_observation.common_filepath}"
         )  # pragma: no cover
-    except (FileNotFoundError, AssertionError):
+    except (FileNotFoundError, AssertionError, ResultsFormatError):
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,

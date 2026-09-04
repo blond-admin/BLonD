@@ -119,7 +119,7 @@ class TestDenseArrayRecorderHDF5(unittest.TestCase):
             recorder.to_group(file.create_group("obs"), "values")
         with open_results_file(self.stem) as file:
             payload = read_group_payload(file["obs"])
-        loaded = DenseArrayRecorder.from_payload(*payload["values"])
+        loaded = DenseArrayRecorder.from_payload(*payload.datasets["values"])
         np.testing.assert_array_equal(loaded._memory, recorder._memory)
         self.assertEqual(loaded._write_idx, 2)
         np.testing.assert_array_equal(
@@ -133,5 +133,5 @@ class TestDenseArrayRecorderHDF5(unittest.TestCase):
             recorder.to_group(file.create_group("obs"), "values")
         with open_results_file(self.stem) as file:
             payload = read_group_payload(file["obs"])
-        loaded = DenseArrayRecorder.from_payload(*payload["values"])
+        loaded = DenseArrayRecorder.from_payload(*payload.datasets["values"])
         self.assertEqual(loaded._memory.dtype, np.float32)

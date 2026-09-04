@@ -99,12 +99,19 @@ def _resolve_group_names(
     Parameters
     ----------
     observe
-        Observables that are saved or loaded together.
+        Observables that are saved together.
 
     Returns
     -------
     resolved
         List of (observable, group name) in the given order.
+
+    Notes
+    -----
+    This resolves collisions for the *save* path only. The caller is
+    expected to write the resolved name back onto the observable, so
+    that loading matches observables to groups by name and never by
+    position in ``observe``.
     """
     resolved: list[tuple[ObservablesOncePerTurnBase, str]] = []
     used: set[str] = set()
@@ -116,7 +123,7 @@ def _resolve_group_names(
                 suffix += 1
             warnings.warn(
                 f"Two observables both want the group '{group_name}';"
-                f" storing the second as '{group_name}_{suffix}'."
+                f" renaming the second to '{group_name}_{suffix}'."
                 f" Pass group_name= to give them stable, meaningful"
                 f" names.",
                 UserWarning,
@@ -1522,9 +1529,16 @@ class Simulation(Preparable):
 
         Notes
         -----
+        - All observables go into **one** file, so only the ``folder=`` of
+          the first observable is used for the default file stem; the
+          ``folder=`` of every other observable in ``observe`` is ignored.
+          Pass ``common_name=`` to choose the stem explicitly.
         - Observables that ask for the same group name are stored under a
           suffixed group name with a warning; pass ``group_name=`` to the
           observable to give it a stable, meaningful name.
+        - The resolved group name is written back onto each observable's
+          ``group_name``, so that ``load_results()`` matches observables to
+          groups by name rather than by their position in ``observe``.
         - Use ``load_results()`` to load saved data without re-running the
           simulation.
 
@@ -1566,8 +1580,19 @@ class Simulation(Preparable):
             else observe[0].common_filepath
         )
         filepath = results_filepath(stem)
+        resolved = _resolve_group_names(observe)
+        # Validate every observable *before* truncating the target file,
+        # so that a not-yet-finalized observable cannot destroy a
+        # previous good results file. `dataset_names()` is pure and is
+        # the same gate that `to_disk` goes through.
+        for observable, group_name in resolved:
+            observable.dataset_names()
+            # Remember the resolved name, so that `load_results` finds
+            # each observable's group by identity instead of by its
+            # position in `observe`.
+            observable.group_name = group_name
         with create_results_file(stem, overwrite=overwrite) as file:
-            for observable, group_name in _resolve_group_names(observe):
+            for observable, group_name in resolved:
                 observable.to_disk(file.create_group(group_name))
         logger.info(
             f"Saved results of {len(observe)} observables to {filepath}"
@@ -1627,6 +1652,11 @@ class Simulation(Preparable):
 
         Notes
         -----
+        - Each observable is loaded from the group named by its
+          ``group_name``, independently of the order of ``observe``. If
+          ``save_results()`` had to auto-suffix a colliding group name, it
+          stored the resolved name on the observable; for a fresh session,
+          pass ``group_name=`` explicitly.
         - The observables must be created with the same parameters as when the data was saved.
         - The simulation setup (ring, RF stations, etc.) should match the original simulation,
           though only the observables are populated with data.
@@ -1687,12 +1717,19 @@ class Simulation(Preparable):
             else observe[0].common_filepath
         )
         with open_results_file(stem) as file:
-            for observable, group_name in _resolve_group_names(observe):
+            # Match by `group_name` only. Re-deriving collision suffixes
+            # here would depend on the order of `observe`, and would
+            # silently cross-assign the data of two observables of the
+            # same class when that order changed between save and load.
+            for observable in observe:
+                group_name = observable.group_name
                 if group_name not in file:
                     raise ResultsFormatError(
                         f"{results_filepath(stem)} has no group"
                         f" '{group_name}'. It contains"
                         f" {list(file.keys())}."
+                        f" Pass group_name= to the observable to select"
+                        f" the group it is loaded from."
                     )
                 observable.from_disk(file[group_name])
 

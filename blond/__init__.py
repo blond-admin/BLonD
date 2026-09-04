@@ -38,6 +38,7 @@ __all__ = [
     "DerivativeInterpolator",
     "BeamObservationOncePerTurn",
     "RFStationPhaseObservation",
+    "ResultsFormatError",
     "StaticProfileObservation",
     "BeamObservationInRingElement",
     "MultiHarmonicRFStation",
@@ -99,6 +100,7 @@ from blond.cycles.magnetic_cycle import (
 from blond.generals import typing_ as typing
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.generals.interpolators import DerivativeInterpolator
+from blond.handle_results.hdf5_io import ResultsFormatError
 from blond.handle_results.observables import (
     BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,

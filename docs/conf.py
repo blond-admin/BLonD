@@ -318,10 +318,12 @@ nitpick_ignore_regex = [
     (r"py:.*", r"h5py\._hl\..*"),
     # pstats.SortKey (and similar enums) are absent from the stdlib inventory.
     (r"py:.*", r"pstats\..*"),
-    # Project-internal type aliases for external array types
-    # (NumpyArray = numpy.typing.NDArray, CupyArray = cupy.ndarray). They are
-    # spelled as bare names in annotations/docstrings and have no own page.
-    (r"py:.*", r"(NumpyArray|CupyArray)"),
+    # Project-internal names that are spelled as bare names in
+    # annotations/docstrings and have no own page: the type aliases for
+    # external array types (NumpyArray = numpy.typing.NDArray,
+    # CupyArray = cupy.ndarray) and the results-file group payload
+    # container (blond.handle_results.hdf5_io.GroupPayload).
+    (r"py:.*", r"(NumpyArray|CupyArray|GroupPayload)"),
     # numpydoc/napoleon type-vocabulary words that are not cross-references
     # (e.g. ``x : int, optional`` or ``flag : bool, default=False``); they leak
     # in as bogus ``py:class`` targets.

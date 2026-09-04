@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import Mock, PropertyMock
+from unittest.mock import Mock, PropertyMock, patch
 
 import h5py
 import numpy as np
@@ -28,7 +28,13 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
-from blond.handle_results.hdf5_io import ResultsFormatError
+from blond.handle_results.hdf5_io import (
+    ATTR_FORMAT_VERSION,
+    FORMAT_VERSION,
+    MIGRATIONS,
+    GroupPayload,
+    ResultsFormatError,
+)
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamHist2dOncePerTurn,
@@ -275,10 +281,97 @@ class TestObservablesHdf5(unittest.TestCase):
         with self.assertRaises(ResultsFormatError):
             self.observables.from_disk()
 
+    def test_colliding_dataset_names_are_rejected(self) -> None:
+        # `_values` and `values` both map onto the dataset "values",
+        # which would silently drop one of them on save and on load.
+        self.observables.values = DenseArrayRecorder(shape=(2,))
+        with self.assertRaises(AssertionError):
+            self.observables.dataset_names()
+
     def test_purge_from_disk_removes_file(self) -> None:
         self.observables.to_disk()
         self.observables.purge_from_disk(verbose=False)
         self.assertEqual(list(Path(self.folder).iterdir()), [])
+
+    def test_purge_from_disk_keeps_other_observables(self) -> None:
+        # A file written by `Simulation.save_results` holds one group
+        # per observable; purging one of them must not delete the data
+        # of the others.
+        self.observables.to_disk()
+        filepath = Path(self.folder) / "last.h5"
+        with h5py.File(filepath, "r+") as file:
+            file.create_group("SomeoneElse")
+        self.observables.purge_from_disk(verbose=False)
+        self.assertTrue(filepath.is_file())
+        with h5py.File(filepath, "r") as file:
+            self.assertEqual(list(file.keys()), ["SomeoneElse"])
+
+    def test_shape_mismatch_warns(self) -> None:
+        self.observables.to_disk()
+        dataset_name, attribute = next(
+            iter(self.observables.dataset_names().items())
+        )
+        # Same trailing dimensions, different leading dimension: this is
+        # what a file saved with a different `n_turns` looks like.
+        recorder = getattr(self.observables, attribute)
+        longer = np.zeros(
+            (recorder._memory.shape[0] + 5,) + recorder._memory.shape[1:]
+        )
+        with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
+            group = file["RecordingObservablesHelper"]
+            write_idx = group[dataset_name].attrs["write_idx"]
+            del group[dataset_name]
+            dataset = group.create_dataset(dataset_name, data=longer)
+            dataset.attrs["write_idx"] = write_idx
+        with self.assertWarns(UserWarning) as context:
+            self.observables.from_disk()
+        self.assertIn(
+            dataset_name,
+            " ".join(str(warning.message) for warning in context.warnings),
+        )
+        self.assertEqual(
+            getattr(self.observables, attribute)._memory.shape, longer.shape
+        )
+
+    def test_migration_chain_applied_on_load(self) -> None:
+        # End-to-end: a synthetic file stamped with an older format
+        # version is upgraded by the registered chain before its
+        # datasets are handed to the recorders.
+        self.observables.to_disk()
+        dataset_name = next(iter(self.observables.dataset_names()))
+        filepath = Path(self.folder) / "last.h5"
+        with h5py.File(filepath, "r+") as file:
+            file.attrs[ATTR_FORMAT_VERSION] = FORMAT_VERSION - 1
+            group = file["RecordingObservablesHelper"]
+            group.move(dataset_name, "legacy_" + dataset_name)
+            group.attrs["observable_class"] = "LegacyHelper"
+
+        def upgrade(payload: GroupPayload) -> GroupPayload:
+            if payload.attrs["observable_class"] != "LegacyHelper":
+                return payload
+            payload.attrs["observable_class"] = "RecordingObservablesHelper"
+            payload.datasets[dataset_name] = payload.datasets.pop(
+                "legacy_" + dataset_name
+            )
+            return payload
+
+        with patch.dict(MIGRATIONS, {FORMAT_VERSION - 1: upgrade}, clear=True):
+            self.observables.from_disk()
+        self.assertGreater(
+            getattr(
+                self.observables,
+                self.observables.dataset_names()[dataset_name],
+            )._write_idx,
+            0,
+        )
+
+    def test_load_without_migration_registered_raises(self) -> None:
+        self.observables.to_disk()
+        with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
+            file.attrs[ATTR_FORMAT_VERSION] = FORMAT_VERSION - 1
+        with patch.dict(MIGRATIONS, {}, clear=True):
+            with self.assertRaises(ResultsFormatError):
+                self.observables.from_disk()
 
     def test_rename_changes_group_name(self) -> None:
         self.observables.rename("beam1")

@@ -70,6 +70,7 @@ ASSIGNED_CATEGORIES = {
     "BeamHist2dOncePerTurn": Categories.DIAGNOSTICS.value,
     "BeamStatisticsOncePerTurn": Categories.DIAGNOSTICS.value,
     "WakeFieldObservation": Categories.DIAGNOSTICS.value,
+    "ResultsFormatError": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Backend / Precision

@@ -16,6 +16,7 @@ import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
@@ -43,8 +44,6 @@ from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
-
-    import h5py
 
     from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
@@ -198,10 +197,19 @@ class ObservablesBaseClass(MainLoopRelevant):
         dataset_names
             Mapping of dataset name to the attribute holding the recorder.
         """
-        return {
+        recorders = self.get_recorders()
+        dataset_names = {
             attribute.removeprefix("_"): attribute
-            for attribute, _recorder in self.get_recorders()
+            for attribute, _recorder in recorders
         }
+        # Stripping the leading underscore must not make two recorders
+        # (e.g. `_foo` and `foo`) collapse onto one dataset name, which
+        # would silently drop one of them on save and on load.
+        assert len(dataset_names) == len(recorders), (
+            f"{type(self).__name__} has recorders that map onto the same"
+            f" dataset name: {sorted(a for a, _ in recorders)}."
+        )
+        return dataset_names
 
     def to_disk(
         self,
@@ -224,6 +232,18 @@ class ObservablesBaseClass(MainLoopRelevant):
         ------
         FileExistsError
             If the standalone file exists and `overwrite` is False.
+
+        Notes
+        -----
+        The standalone path (``group=None``) always targets
+        ``<common_filepath>.h5``, which defaults to ``<folder>last.h5``,
+        and it **replaces the whole file** rather than adding a group to
+        it. Two observables that are saved standalone into the same
+        folder therefore overwrite each other unless they are given
+        different `common_filepath` values; `rename` only changes the
+        group name *inside* the file, not the file it is written to.
+        To collect several observables in one file, use
+        `blond.Simulation.save_results` instead.
         """
         if group is None:
             with create_results_file(
@@ -251,6 +271,14 @@ class ObservablesBaseClass(MainLoopRelevant):
         ResultsFormatError
             If the group was written by a different observable class or
             does not contain every expected dataset.
+
+        Notes
+        -----
+        The standalone path (``group=None``) reads
+        ``<common_filepath>.h5``, the same single file that a standalone
+        `to_disk` writes, and looks up `group_name` inside it. It is
+        `common_filepath` that distinguishes two standalone observables
+        stored in the same folder.
         """
         if group is None:
             with open_results_file(self.common_filepath) as file:
@@ -263,24 +291,27 @@ class ObservablesBaseClass(MainLoopRelevant):
                 self.from_disk(file[self.group_name])
             return
 
-        stored_class = group.attrs.get(ATTR_OBSERVABLE_CLASS)
+        expected = self.dataset_names()
+        # Migrate first: a migration step may have to fix up the group
+        # attributes themselves, e.g. after an observable was renamed.
+        payload = migrate_payload(
+            read_group_payload(group),
+            from_version=read_format_version(group.file),
+        )
+        stored_class = payload.attrs.get(ATTR_OBSERVABLE_CLASS)
         if stored_class != type(self).__name__:
             raise ResultsFormatError(
                 f"Group '{group.name}' holds data of"
                 f" '{stored_class}', but is being loaded into"
                 f" {type(self).__name__}."
             )
-        expected = self.dataset_names()
-        payload = migrate_payload(
-            read_group_payload(group),
-            from_version=read_format_version(group.file),
-        )
-        missing = sorted(set(expected) - set(payload))
+        datasets = payload.datasets
+        missing = sorted(set(expected) - set(datasets))
         if len(missing) > 0:
             raise ResultsFormatError(
                 f"Group '{group.name}' is missing the datasets {missing}."
             )
-        extra = sorted(set(payload) - set(expected))
+        extra = sorted(set(datasets) - set(expected))
         if len(extra) > 0:
             warnings.warn(
                 f"Ignoring unknown datasets {extra} in group '{group.name}'.",
@@ -288,14 +319,15 @@ class ObservablesBaseClass(MainLoopRelevant):
                 stacklevel=2,
             )
         for dataset_name, attribute in expected.items():
-            array, attrs = payload[dataset_name]
-            expected_trailing = getattr(self, attribute)._memory.shape[1:]
-            if array.shape[1:] != expected_trailing:
+            array, attrs = datasets[dataset_name]
+            expected_shape = getattr(self, attribute)._memory.shape
+            if array.shape != expected_shape:
                 warnings.warn(
                     f"Dataset '{dataset_name}' has shape {array.shape},"
-                    f" but this observable expects trailing dimensions"
-                    f" {expected_trailing}. Loading the stored data"
-                    f" anyway; the simulation configuration may differ.",
+                    f" but this observable was set up for shape"
+                    f" {expected_shape}. Loading the stored data"
+                    f" anyway; the number of turns or the simulation"
+                    f" configuration may differ.",
                     UserWarning,
                     stacklevel=2,
                 )
@@ -307,18 +339,41 @@ class ObservablesBaseClass(MainLoopRelevant):
 
     def purge_from_disk(self, verbose: bool = True) -> None:
         """
-        Delete the standalone results file of this observable.
+        Delete the saved data of this observable.
 
         Parameters
         ----------
         verbose
             Whether to print the removal message.
+
+        Notes
+        -----
+        A results file written by `blond.Simulation.save_results`
+        usually holds the groups of *every* observable of that
+        simulation, so the whole file is removed only when it contains
+        nothing but this observable's own group. Otherwise just that
+        group is deleted and the rest of the file is left intact.
         """
         filepath = results_filepath(self.common_filepath)
-        if filepath.is_file():
+        if not filepath.is_file():
+            return
+        try:
+            with h5py.File(filepath, "r") as file:
+                group_names = list(file.keys())
+        except OSError:
+            # Not readable as HDF5; fall back to removing the file.
+            group_names = [self.group_name]
+        if group_names == [self.group_name]:
             filepath.unlink()
             if verbose:
                 print(f"Removed {filepath}")
+            return
+        if self.group_name not in group_names:
+            return
+        with h5py.File(filepath, "r+") as file:
+            del file[self.group_name]
+        if verbose:
+            print(f"Removed group '{self.group_name}' from {filepath}")
 
     def assert_lateinit(self):
         """Check that DenseArrays are already initialized."""

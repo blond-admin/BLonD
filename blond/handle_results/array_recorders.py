@@ -170,7 +170,9 @@ class DenseArrayRecorder(ArrayRecorder):
         recorder
             Recorder holding the loaded array.
         """
-        recorder = cls(shape=array.shape, dtype=array.dtype)
+        # `preallocate=False` skips touching every element of an array
+        # that is discarded on the very next line.
+        recorder = cls(shape=0, dtype=array.dtype, preallocate=False)
         recorder._memory = array
         recorder._write_idx = int(attrs[ATTR_WRITE_IDX])
         return recorder

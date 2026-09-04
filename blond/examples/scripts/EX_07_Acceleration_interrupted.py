@@ -25,6 +25,7 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
+    ResultsFormatError,
     RFStationPhaseObservation,
     Ring,
     Simulation,
@@ -128,7 +129,7 @@ def main():
         print(
             f"Loaded {phase_observation.common_filepath}"
         )  # pragma: no cover
-    except (FileNotFoundError, AssertionError):
+    except (FileNotFoundError, AssertionError, ResultsFormatError):
         sim.finalize(
             beams=beam1,
             n_turns=N_TURNS,

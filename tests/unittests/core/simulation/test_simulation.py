@@ -37,6 +37,7 @@ from blond.core.simulation.execution_models.conterrotating_beams import (
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
+from blond.handle_results.hdf5_io import ResultsFormatError
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
@@ -423,6 +424,111 @@ class TestSimulation(unittest.TestCase):
                         "BeamObservationOncePerTurn",
                         "BeamObservationOncePerTurn_1",
                     ],
+                )
+
+    def test_reordered_observe_loads_the_right_group(self):
+        # Two observables of the same class collide on the group name,
+        # so the second one is saved under an auto-suffixed group. The
+        # data must follow the observable, not its position in
+        # `observe=`.
+        first = BeamObservationOncePerTurn(each_turn_i=1)
+        second = BeamObservationOncePerTurn(each_turn_i=5)
+        self.simulation.run_simulation(
+            beams=(self.beam,), n_turns=10, observe=(first, second)
+        )
+        first_dEs = first.dEs.copy()
+        second_dEs = second.dEs.copy()
+        self.assertNotEqual(first_dEs.shape, second_dEs.shape)
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            with self.assertWarns(UserWarning):
+                self.simulation.save_results(
+                    observe=(first, second), common_name=stem
+                )
+            # Reversed order compared to the save.
+            self.simulation.load_results(
+                beams=(self.beam,),
+                n_turns=10,
+                observe=(second, first),
+                common_name=stem,
+            )
+        np.testing.assert_array_equal(first_dEs, first.dEs)
+        np.testing.assert_array_equal(second_dEs, second.dEs)
+
+    def test_load_never_invents_a_group_suffix(self):
+        # Loading resolves each observable to its own `group_name` only.
+        # It must not re-derive collision suffixes, which would depend on
+        # the position inside `observe=` and silently hand the second
+        # observable the data of a different one.
+        first = BeamObservationOncePerTurn(each_turn_i=1)
+        second = BeamObservationOncePerTurn(each_turn_i=5)
+        self.simulation.run_simulation(
+            beams=(self.beam,), n_turns=10, observe=(first, second)
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            with self.assertWarns(UserWarning):
+                self.simulation.save_results(
+                    observe=(first, second), common_name=stem
+                )
+            # A fresh session: both observables carry the default name.
+            first.rename("BeamObservationOncePerTurn")
+            second.rename("BeamObservationOncePerTurn")
+            self.simulation.load_results(
+                beams=(self.beam,),
+                n_turns=10,
+                observe=(first, second),
+                common_name=stem,
+            )
+        np.testing.assert_array_equal(first.dEs, second.dEs)
+
+    def test_load_results_missing_group_raises(self):
+        observation = BeamObservationOncePerTurn(
+            each_turn_i=10, group_name="beam1"
+        )
+        kwargs = dict(beams=(self.beam,), n_turns=10, observe=(observation,))
+        self.simulation.run_simulation(**kwargs)
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            self.simulation.save_results(
+                observe=(observation,), common_name=stem
+            )
+            observation.rename("not_in_the_file")
+            with self.assertRaises(ResultsFormatError) as context:
+                self.simulation.load_results(
+                    beams=(self.beam,),
+                    n_turns=10,
+                    observe=(observation,),
+                    common_name=stem,
+                )
+        message = str(context.exception)
+        self.assertIn("not_in_the_file", message)
+        self.assertIn("beam1", message)
+        self.assertIn("group_name=", message)
+
+    def test_failed_save_keeps_previous_file(self):
+        observation = BeamObservationOncePerTurn(each_turn_i=10)
+        kwargs = dict(beams=(self.beam,), n_turns=10, observe=(observation,))
+        self.simulation.run_simulation(**kwargs)
+        # An observable that was never finalized: saving it must fail
+        # before the existing results file is truncated.
+        not_finalized = BeamObservationOncePerTurn(
+            each_turn_i=10, group_name="unfinalized"
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            self.simulation.save_results(
+                observe=(observation,), common_name=stem
+            )
+            before = Path(stem + ".h5").read_bytes()
+            with self.assertRaises(AssertionError):
+                self.simulation.save_results(
+                    observe=(observation, not_finalized), common_name=stem
+                )
+            self.assertEqual(before, Path(stem + ".h5").read_bytes())
+            with h5py.File(stem + ".h5", "r") as file:
+                self.assertEqual(
+                    list(file.keys()), ["BeamObservationOncePerTurn"]
                 )
 
     def test_save_results_without_observables_raises(self):
