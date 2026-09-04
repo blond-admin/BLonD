@@ -38,6 +38,7 @@ from scipy.constants import e
 
 from ..beam.sparse_profiles import SparseProfileBaseClass
 from ..utils import bmath as bm
+from . import sparse_impedance_kernels as _kernels
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable, Optional
@@ -108,6 +109,28 @@ class InducedVoltageSparseMultiPass:
             source.get_decay_time(decay_fraction_threshold)
             for source in self.resonators
         )
+
+        # Concatenated resonator parameters for the compiled kernel; the
+        # kernel needs the analytic parameters, so it only applies when
+        # every source exposes them
+        if all(
+            hasattr(source, attr)
+            for source in self.resonators
+            for attr in ("R_S", "Q", "omega_R")
+        ):
+            R_S = np.concatenate([s.R_S for s in self.resonators])
+            omega_R = np.concatenate([s.omega_R for s in self.resonators])
+            Q = np.concatenate([s.Q for s in self.resonators])
+            self._R_S_all = np.ascontiguousarray(R_S, dtype=float)
+            self._alpha_all = np.ascontiguousarray(
+                omega_R / (2 * Q), dtype=float
+            )
+            self._omega_bar_all = np.ascontiguousarray(
+                np.sqrt(omega_R**2 - self._alpha_all**2), dtype=float
+            )
+            self.use_numba_kernels = _kernels.NUMBA_AVAILABLE
+        else:
+            self.use_numba_kernels = False
 
         self.process()
 
@@ -183,6 +206,21 @@ class InducedVoltageSparseMultiPass:
             (centers, hist, charge_per_mp) for centers, hist in windows
         ] + list(self._past_windows)
 
+        if self.use_numba_kernels:
+            self._compute_voltage_kernel(windows, sources)
+        else:
+            self._compute_voltage_python(windows, sources)
+
+        # Remember the current pass (newest first)
+        if self.rf_station is not None:
+            for centers, hist in windows:
+                self._past_windows.appendleft(
+                    (centers.copy(), hist.copy(), charge_per_mp)
+                )
+
+    def _compute_voltage_python(self, windows, sources) -> None:
+        """Pure-numpy path: per window pair, evaluate the wake on the
+        uniform offset grid and convolve."""
         self.induced_voltage[:] = 0
         offset = 0
         for centers_i, hist_i in windows:
@@ -204,12 +242,35 @@ class InducedVoltageSparseMultiPass:
                 )
             offset += n_i
 
-        # Remember the current pass (newest first)
-        if self.rf_station is not None:
-            for centers, hist in windows:
-                self._past_windows.appendleft(
-                    (centers.copy(), hist.copy(), charge_per_mp)
-                )
+    def _compute_voltage_kernel(self, windows, sources) -> None:
+        """Compiled path: direct double sum over all source windows in a
+        single numba kernel."""
+        target_centers = np.ascontiguousarray(
+            np.concatenate([centers for centers, _ in windows]), dtype=float
+        )
+        source_centers = np.ascontiguousarray(
+            np.concatenate([centers for centers, _, _ in sources]),
+            dtype=float,
+        )
+        source_hists = np.ascontiguousarray(
+            np.concatenate([hist for _, hist, _ in sources]), dtype=float
+        )
+        source_bounds = np.zeros(len(sources) + 1, dtype=np.int64)
+        np.cumsum([len(hist) for _, hist, _ in sources], out=source_bounds[1:])
+        source_factors = np.ascontiguousarray(
+            [factor for _, _, factor in sources], dtype=float
+        )
+        _kernels.multipass_induced_voltage(
+            target_centers,
+            source_centers,
+            source_hists,
+            source_bounds,
+            source_factors,
+            self._R_S_all,
+            self._alpha_all,
+            self._omega_bar_all,
+            self.induced_voltage,
+        )
 
     def track(self) -> None:
         """Compute the induced voltage and apply the kick to the beam."""

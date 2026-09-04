@@ -250,6 +250,37 @@ class TestInducedVoltageSparseMultiPass(unittest.TestCase):
             err_msg="process() did not reset the pass memory.",
         )
 
+    def test_kernel_matches_python_path(self):
+        """The numba kernel and the numpy convolve path must agree, on
+        the first turn and on a second turn with a surviving wake."""
+        t_rev = self.rf.t_rev[0]
+        f_r = 200e6
+        long_memory = Resonators(
+            R_S=5e6, frequency_R=f_r, Q=np.pi * f_r * t_rev
+        )
+        iv_kernel = InducedVoltageSparseMultiPass(
+            self.beam, self.sparse, long_memory, rf_station=self.rf
+        )
+        if not iv_kernel.use_numba_kernels:
+            self.skipTest("numba kernels not available")
+        iv_python = InducedVoltageSparseMultiPass(
+            self.beam, self.sparse, long_memory, rf_station=self.rf
+        )
+        iv_python.use_numba_kernels = False
+
+        for turn in range(2):
+            iv_kernel.induced_voltage_generation()
+            iv_python.induced_voltage_generation()
+            scale = np.max(np.abs(iv_python.induced_voltage))
+            np.testing.assert_allclose(
+                iv_kernel.induced_voltage,
+                iv_python.induced_voltage,
+                rtol=1e-7,
+                atol=1e-9 * scale,
+                err_msg="Numba kernel differs from the numpy path on "
+                f"turn {turn}.",
+            )
+
     def test_track_kicks_beam(self):
         iv = InducedVoltageSparseMultiPass(
             self.beam, self.sparse, self.resonators
