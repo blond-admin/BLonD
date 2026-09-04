@@ -311,6 +311,11 @@ nitpick_ignore_regex = [
     # matplotlib's canonical (private) class paths are not in its inventory;
     # only the public re-exports (e.g. matplotlib.axes.Axes) are.
     (r"py:.*", r"matplotlib\..*\._.*"),
+    # h5py.Group/h5py.File are the public spellings used in our type
+    # hints, but they resolve at runtime to private submodule paths
+    # (h5py._hl.group.Group, h5py._hl.files.File) that h5py ships no
+    # intersphinx inventory entry for.
+    (r"py:.*", r"h5py\._hl\..*"),
     # pstats.SortKey (and similar enums) are absent from the stdlib inventory.
     (r"py:.*", r"pstats\..*"),
     # Project-internal type aliases for external array types

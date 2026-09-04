@@ -429,6 +429,10 @@ class TestSimulation(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.simulation.save_results(observe=())
 
+    def test_load_results_without_observables_raises(self):
+        with self.assertRaises(ValueError):
+            self.simulation.load_results(beams=(self.beam,), observe=())
+
     def test_on_init_simulation(self):
         self.simulation.on_init_simulation(simulation=self.simulation)
 

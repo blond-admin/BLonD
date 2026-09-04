@@ -101,6 +101,7 @@ def main():
         beams=(beam1,),
     )
 
+    # writes one HDF5 file holding one group per observable
     beam_logger_element.to_disk()
 
 
