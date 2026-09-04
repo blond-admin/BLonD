@@ -67,10 +67,10 @@ those attribute names, so no new bookkeeping is required.
 
 **Group names** resolve in this order:
 
-1. the observable's optional `name=` constructor argument;
+1. the observable's optional `group_name=` constructor argument;
 2. otherwise `type(observable).__name__`;
 3. on collision within one file, suffix `_1`, `_2`, ... and emit a
-   `UserWarning` telling the user to pass `name=` for a stable, meaningful
+   `UserWarning` telling the user to pass `group_name=` for a stable, meaningful
    group name.
 
 Positional indexing is deliberately *not* used as the primary scheme: group
@@ -114,8 +114,12 @@ break; no deprecation shim.
 
 ### `ObservablesBaseClass` (`observables.py`)
 
-- `__init__` gains an optional `name: str | None = None`; `self.name`
-  defaults to the class name. `folder` is retained and now designates where
+- `__init__` gains an optional `group_name: str | None = None`;
+  `self.group_name` defaults to the class name. It is deliberately NOT
+  called `name`: `SimulationElementBase` already owns `name` for a
+  different concept (a human-readable element label with an
+  order-dependent `Unnamed-<cls>-001` fallback), and the observables in
+  `observables_as_elements.py` inherit it. `folder` is retained and now designates where
   a *standalone* save writes its own file.
 - `to_disk(group=None)`: with a group, write into it. Without one — the
   standalone path used by `blond/examples/scripts/EX_19_Observable_as_element.py:104`
@@ -123,7 +127,7 @@ break; no deprecation shim.
   to the same code path. Writes the group attribute `observable_class`.
 - `from_disk(group=None)`: symmetric. Validates `observable_class`, applies
   migrations, then repopulates each expected recorder from its dataset.
-- `rename(new_name)` now sets the group name instead of rewriting per-
+- `rename(new_group_name)` now sets the group name instead of rewriting per-
   recorder path strings. The old string-replacement implementation
   (`observables.py:145-173`) and its `NameError` guard are deleted.
 

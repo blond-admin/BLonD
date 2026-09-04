@@ -610,13 +610,13 @@ concern."
   `migrate_payload`, `read_format_version`, `ATTR_OBSERVABLE_CLASS`,
   `ResultsFormatError` (Task 1).
 - Produces:
-  - `ObservablesBaseClass.__init__(folder=None, name=None, **kwargs)` with
-    the public attribute `name: str`.
+  - `ObservablesBaseClass.__init__(folder=None, group_name=None, **kwargs)`
+    with the public attribute `group_name: str`.
   - `ObservablesBaseClass.to_disk(group: h5py.Group | None = None,
     overwrite: bool = True) -> None`
   - `ObservablesBaseClass.from_disk(group: h5py.Group | None = None) -> None`
-  - `ObservablesBaseClass.rename(new_name: str) -> None` — sets the **group**
-    name.
+  - `ObservablesBaseClass.rename(new_group_name: str) -> None` — sets the
+    **group** name.
   - `ObservablesBaseClass.purge_from_disk(verbose: bool = True) -> None` —
     deletes the standalone file only.
   - `ObservablesBaseClass.dataset_names() -> dict[str, str]` mapping dataset
@@ -676,7 +676,7 @@ class TestObservablesHdf5(unittest.TestCase):
 
     def test_explicit_name_is_used(self) -> None:
         observables = RecordingObservablesHelper(
-            each_turn_i=1, folder=self.folder, name="beam1"
+            each_turn_i=1, folder=self.folder, group_name="beam1"
         )
         self.assertEqual(observables.name, "beam1")
 
@@ -1016,7 +1016,7 @@ git commit -m "Saved observables as one HDF5 group each
 
 Each observable now writes one group holding one dataset per recorder,
 named after the recorder attribute. Group names default to the class
-name and can be set with the new name= argument. Loading validates the
+name and can be set with the new group_name= argument. Loading validates the
 observable class and the dataset set, and reports missing datasets by
 name instead of failing late.
 
@@ -1080,8 +1080,8 @@ In `tests/unittests/core/simulation/test_simulation.py`, replace
         np.testing.assert_almost_equal(de_before_save, observation.dEs)
 
     def test_two_observables_share_one_file(self):
-        first = BeamObservationOncePerTurn(each_turn_i=10, name="beam1")
-        second = BeamObservationOncePerTurn(each_turn_i=10, name="beam2")
+        first = BeamObservationOncePerTurn(each_turn_i=10, group_name="beam1")
+        second = BeamObservationOncePerTurn(each_turn_i=10, group_name="beam2")
         kwargs = dict(
             beams=(self.beam,), n_turns=10, observe=(first, second)
         )
@@ -1160,7 +1160,7 @@ def _resolve_group_names(
     resolved: list[tuple[ObservablesOncePerTurnBase, str]] = []
     used: set[str] = set()
     for observable in observe:
-        group_name = observable.name
+        group_name = observable.group_name
         if group_name in used:
             suffix = 1
             while f"{group_name}_{suffix}" in used:
@@ -1168,7 +1168,7 @@ def _resolve_group_names(
             warnings.warn(
                 f"Two observables both want the group '{group_name}';"
                 f" storing the second as '{group_name}_{suffix}'."
-                f" Pass name= to give them stable, meaningful names.",
+                f" Pass group_name= to give them stable, meaningful names.",
                 UserWarning,
                 stacklevel=3,
             )
@@ -1244,7 +1244,7 @@ git commit -m "Saved a whole simulation to one HDF5 file
 
 save_results now opens a single file and writes one group per
 observable, returning the path it wrote. Colliding group names are
-suffixed with a warning pointing at the name= argument. common_name is
+suffixed with a warning pointing at the group_name= argument. common_name is
 now the file stem rather than a per-array filename prefix."
 ```
 
