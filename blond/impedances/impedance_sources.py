@@ -379,6 +379,31 @@ class Resonators(_ImpedanceObject):
                 )
             )
 
+    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray]:
+        r"""Derive the complex poles and residues of the resonators.
+
+        One complex-conjugate pole pair per resonator; only the pole with
+        positive imaginary part is returned, and the wake is recovered as
+        :math:`W(t) = 2 \, \Re(A_k e^{s_k t})` (with half weight at
+        :math:`t = 0`, consistent with the beam-loading theorem).
+
+        From Zotter & Kheifets, *Impedances and Wakes in High Energy
+        Particle Accelerators*, p. 84,
+        https://www.worldscientific.com/doi/epdf/10.1142/3068
+
+        Returns
+        -------
+        poles : complex array
+            The complex poles :math:`s_k = -\alpha + i \bar{\omega}`, in [1/s]
+        residues : complex array
+            The complex residues :math:`A_k`, in [Ohm/s]
+        """
+        Q_bar = self.Q * np.sqrt(1 - 1 / (4 * self.Q**2))
+        omega1 = self.omega_R / self.Q * (1j / 2 + Q_bar)
+        residues = self.R_S * omega1 / (2 * Q_bar)
+        poles = 1j * omega1
+        return poles, residues
+
     def imped_calc(self, frequency_array: NDArray):
         r"""Impedance calculation method as a function of frequency
 

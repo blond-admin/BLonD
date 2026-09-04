@@ -213,6 +213,58 @@ class SparseProfileBaseClass:
     def edges(self):
         return self.edges_array.flatten()
 
+    @property
+    def bucket_index_to_memory_index(self):
+        """Mapping from the linear bucket index to the position of that
+        bucket's window in the concatenated (memory) arrays, skipping
+        empty buckets.
+
+        E.g. ``filling_pattern = [1, 0, 0, 1]`` with 8 slices per profile
+        gives ``[0, 0, 0, 8]``: an empty bucket keeps the memory index of
+        the last filled bucket before it.
+        """
+        return (
+            np.cumsum(self._filling_pattern, dtype=np.int64) - 1
+        ) * np.int64(self.number_of_slices_per_profile)
+
+    @property
+    def memory_time_order(self):
+        """Indices sorting ``profiles_list`` by time (injected profiles are
+        appended to the list, so list order is not necessarily time order).
+        """
+        return np.argsort(
+            [profile.bin_centers[0] for profile in self.profiles_list]
+        )
+
+    @property
+    def continuous_bin_centers(self):
+        """Concatenated bin centers of all profiles, in time order."""
+        return np.concatenate(
+            [self.profiles_list[p].bin_centers for p in self.memory_time_order]
+        )
+
+    @property
+    def continuous_n_macroparticles(self):
+        """Concatenated histograms of all profiles, in time order."""
+        return np.concatenate(
+            [
+                self.profiles_list[p].n_macroparticles
+                for p in self.memory_time_order
+            ]
+        )
+
+    @property
+    def update_on_bin(self):
+        """First memory index of each profile window, in time order.
+
+        These are the bins where the time step between consecutive memory
+        bins can jump (inter-window gaps); solvers stepping through the
+        concatenated arrays only need to re-evaluate their time step there.
+        """
+        return np.arange(len(self.profiles_list), dtype=np.int64) * np.int64(
+            self.number_of_slices_per_profile
+        )
+
     def _set_cuts(self, length_in_buckets: int):
         """
         Internal method to initialise the cut options of each profile.
