@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy
 import numpy as np
 
 from blond.handle_results.array_recorders import DenseArrayRecorder
@@ -13,6 +14,92 @@ from blond.handle_results.hdf5_io import (
 
 
 class TestDenseArrayRecorder(unittest.TestCase):
+    def setUp(self) -> None:
+        self.dense_array_recorder = DenseArrayRecorder(
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+        )
+
+    def test_init(self):
+        no_pre = DenseArrayRecorder(
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+            preallocate=False,
+        )
+
+        pre = DenseArrayRecorder(
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+            preallocate=True,
+        )
+
+        np.testing.assert_array_equal(pre._memory, no_pre._memory)
+
+    def test_get_valid_entries(self):
+        self.assertEqual(
+            0, self.dense_array_recorder.get_valid_entries().shape[0]
+        )
+        self.dense_array_recorder.write(np.arange(10))
+        self.assertEqual(
+            1, self.dense_array_recorder.get_valid_entries().shape[0]
+        )
+        self.dense_array_recorder.write(np.arange(10))
+        self.assertEqual(
+            2, self.dense_array_recorder.get_valid_entries().shape[0]
+        )
+
+    def test_write(self):
+        newdata = np.linspace(10, 20, 10, dtype=np.float32)
+        self.dense_array_recorder.write(newdata)
+        numpy.testing.assert_array_equal(
+            self.dense_array_recorder.get_valid_entries()[0, :], newdata
+        )
+
+    def test_write_with_numpy_mask(self):
+        mask = np.array(
+            [True, False, True, False, True, False, True, False, True, False],
+            dtype=bool,
+        )
+        newdata = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+        self.dense_array_recorder.write(newdata, mask=mask)
+        result = self.dense_array_recorder.get_valid_entries()[0]
+        np.testing.assert_array_equal(result[mask], newdata)
+        self.assertTrue(np.all(np.isnan(result[~mask])))
+
+    def test_write_with_cupy_mask(self):
+        numpy_mask = np.array(
+            [True, False, True, False, True, False, True, False, True, False],
+            dtype=bool,
+        )
+
+        class _MockCupyArray:
+            device = "cuda:0"
+
+            def __init__(self, arr):
+                self._arr = arr
+
+            def get(self):
+                return self._arr
+
+        cupy_mask = _MockCupyArray(numpy_mask)
+        newdata = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+        self.dense_array_recorder.write(newdata, mask=cupy_mask)
+
+        result = self.dense_array_recorder.get_valid_entries()[0]
+
+        np.testing.assert_array_equal(result[numpy_mask], newdata)
+
+        self.assertTrue(np.all(np.isnan(result[~numpy_mask])))
+
+    def test_constructor_takes_no_filepath(self) -> None:
+        with self.assertRaises(TypeError):
+            DenseArrayRecorder(filepath="somewhere", shape=(1,))
+
+
+class TestDenseArrayRecorderHDF5(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.stem = str(Path(self._tmp.name) / "run")
@@ -48,16 +135,3 @@ class TestDenseArrayRecorder(unittest.TestCase):
             payload = read_group_payload(file["obs"])
         loaded = DenseArrayRecorder.from_payload(*payload["values"])
         self.assertEqual(loaded._memory.dtype, np.float32)
-
-    def test_write_with_mask_sets_nan_outside_mask(self) -> None:
-        recorder = DenseArrayRecorder(shape=(1, 3), dtype=float)
-        mask = np.array([True, False, True])
-        recorder.write(np.array([1.0, 2.0]), mask=mask)
-        np.testing.assert_array_equal(
-            recorder.get_valid_entries()[0],
-            np.array([1.0, np.nan, 2.0]),
-        )
-
-    def test_constructor_takes_no_filepath(self) -> None:
-        with self.assertRaises(TypeError):
-            DenseArrayRecorder(filepath="somewhere", shape=(1,))
