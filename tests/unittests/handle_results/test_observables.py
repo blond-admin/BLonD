@@ -91,33 +91,6 @@ class ObservablesHelper(ObservablesOncePerTurnBase):
         pass
 
 
-class TestDenseArrayRecorder(unittest.TestCase):
-    def test___init__(self):
-        DenseArrayRecorder(
-            filepath=callers_relative_path("not_exists.txt", stacklevel=1),
-            shape=(
-                1,
-                1,
-            ),
-            dtype=float,
-            overwrite=True,
-        )
-
-    def test___init___warns(self):
-        with self.assertWarns(UserWarning):
-            DenseArrayRecorder(
-                filepath=callers_relative_path(
-                    "resources/exists", stacklevel=1
-                ),
-                shape=(
-                    1,
-                    1,
-                ),
-                dtype=float,
-                overwrite=False,
-            )
-
-
 class TestObservables(unittest.TestCase):
     def setUp(self) -> None:
         self.observables = ObservablesHelper(

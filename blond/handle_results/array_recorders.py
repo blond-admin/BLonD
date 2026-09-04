@@ -10,21 +10,18 @@
 
 from __future__ import annotations
 
-import json
-import os.path
-import warnings
 from abc import ABC, abstractmethod
-from os.path import isfile
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond.generals.cupy_.no_cupy_import import is_cupy_array
+from blond.handle_results.hdf5_io import ATTR_WRITE_IDX
 
 if TYPE_CHECKING:  # pragma: no cover
-    from os import PathLike
-    from typing import Literal
+    from typing import Any, Literal
 
+    import h5py
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import DTypeLike
     from numpy.typing import NDArray as NumpyArray
@@ -61,25 +58,40 @@ class ArrayRecorder(ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def to_disk(self) -> None:
-        """Save the entire array to the disk."""
-        pass
-
-    @staticmethod
-    @abstractmethod  # pragma: no cover
-    def from_disk(filepath: str | PathLike) -> ArrayRecorder:
+    def to_group(self, group: h5py.Group, name: str) -> None:
         """
-        Load the entire array from the disk.
+        Write the internal array into an HDF5 group.
 
         Parameters
         ----------
-        filepath
-            Path to the file to load.
+        group
+            Open HDF5 group that receives the dataset.
+        name
+            Name of the dataset inside the group.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod  # pragma: no cover
+    def from_payload(
+        cls,
+        array: NumpyArray,
+        attrs: dict[str, Any],
+    ) -> ArrayRecorder:
+        """
+        Rebuild a recorder from a migrated HDF5 payload.
+
+        Parameters
+        ----------
+        array
+            Array as read from the results file.
+        attrs
+            Dataset attributes as read from the results file.
 
         Returns
         -------
         recorder
-            Loaded array recorder instance.
+            Recorder holding the loaded array.
         """
         pass
 
@@ -90,16 +102,12 @@ class DenseArrayRecorder(ArrayRecorder):
 
     Parameters
     ----------
-    filepath
-        Path for saving the array.
     shape
         Shape of the array to allocate.
     dtype
         Data type of the array.
     order
         Memory layout order ('C' or 'F').
-    overwrite
-        Whether to overwrite existing files.
     preallocate
         Flag to force memory preallocation to ensure early failure if
         too much data is requested.
@@ -113,11 +121,9 @@ class DenseArrayRecorder(ArrayRecorder):
 
     def __init__(
         self,
-        filepath: str | PathLike,
         shape: int | tuple[int, ...],
         dtype: DTypeLike | None = None,
         order: Literal["C", "F"] = "C",
-        overwrite: bool = True,
         preallocate: bool = True,
     ):
         # Declare expected size of data in advance use zeros for safety,
@@ -129,96 +135,45 @@ class DenseArrayRecorder(ArrayRecorder):
             self._memory *= 0
         self._write_idx = 0
 
-        self.filepath = filepath
-        self.overwrite = overwrite
-        if not self.overwrite and os.path.exists(self.filepath_array):
-            warnings.warn(
-                f"{self.filepath_array} already exists!",
-                UserWarning,
-                stacklevel=1,
-            )
-
-    @property
-    def filepath_array(self) -> str:
+    def to_group(self, group: h5py.Group, name: str) -> None:
         """
-        Path of the file that holds the numpy-array.
-
-        Returns
-        -------
-        path
-            Path to the numpy array file.
-        """
-        return f"{self.filepath}.npy"
-
-    @property
-    def filepath_attributes(self) -> str:
-        """
-        Path of the file that holds the properties.
-
-        Returns
-        -------
-        path
-            Path to the attributes JSON file.
-        """
-        return f"{self.filepath}.json"
-
-    def purge_from_disk(self, verbose: bool = True):
-        """
-        Delete the saved array from the disk.
+        Write the internal array into an HDF5 group.
 
         Parameters
         ----------
-        verbose
-            Whether to print removal messages.
+        group
+            Open HDF5 group that receives the dataset.
+        name
+            Name of the dataset inside the group.
         """
-        if os.path.exists(self.filepath_array):
-            os.remove(self.filepath_array)
-            if verbose:
-                print(f"Removed {self.filepath_array}")
-        if os.path.exists(self.filepath_attributes):
-            os.remove(self.filepath_attributes)
-            if verbose:
-                print(f"Removed {self.filepath_attributes}")
+        dataset = group.create_dataset(name, data=self._memory)
+        dataset.attrs[ATTR_WRITE_IDX] = self._write_idx
 
-    def to_disk(self):
-        """Save the entire array from the disk."""
-        if not self.overwrite:
-            assert not os.path.exists(self.filepath_array)
-        np.save(self.filepath_array, self._memory)
-        attributes = {
-            "_write_idx": self._write_idx,
-            "overwrite": self.overwrite,
-        }
-        with open(self.filepath_attributes, "w") as f:
-            json.dump(attributes, f)
-
-    @staticmethod
-    def from_disk(filepath: str | PathLike) -> DenseArrayRecorder:
+    @classmethod
+    def from_payload(
+        cls,
+        array: NumpyArray,
+        attrs: dict[str, Any],
+    ) -> DenseArrayRecorder:
         """
-        Load the entire array from the disk.
+        Rebuild a recorder from a migrated HDF5 payload.
 
         Parameters
         ----------
-        filepath
-            Path to the file to load.
+        array
+            Array as read from the results file.
+        attrs
+            Dataset attributes as read from the results file.
 
         Returns
         -------
         recorder
-            Loaded DenseArrayRecorder instance.
+            Recorder holding the loaded array.
         """
-        dense_recorder = DenseArrayRecorder(
-            filepath=filepath,
-            shape=(1, 1),
-        )
-        assert isfile(dense_recorder.filepath_array)
-        _memory: NumpyArray = np.load(dense_recorder.filepath_array)
-        dense_recorder._memory = _memory
-        with open(dense_recorder.filepath_attributes) as f:
-            loaded_data = json.load(f)
-        dense_recorder._write_idx = loaded_data["_write_idx"]
-        dense_recorder.overwrite = loaded_data["overwrite"]
-        return dense_recorder
+        recorder = cls(shape=array.shape, dtype=array.dtype)
+        recorder._memory = array
+        recorder._write_idx = int(attrs[ATTR_WRITE_IDX])
+        return recorder
 
     def write(
         self,
