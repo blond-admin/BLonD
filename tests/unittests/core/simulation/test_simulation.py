@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from copy import deepcopy
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
 
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -361,30 +364,70 @@ class TestSimulation(unittest.TestCase):
             particle_type=proton,
         )
 
+    def test_save_results_writes_single_file(self):
+        observation = BeamObservationOncePerTurn(each_turn_i=10)
+        kwargs = dict(beams=(self.beam,), n_turns=10, observe=(observation,))
+        self.simulation.run_simulation(**kwargs)
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            filepath = self.simulation.save_results(
+                observe=(observation,), common_name=stem
+            )
+            self.assertEqual(filepath, Path(stem + ".h5"))
+            self.assertEqual(
+                [path.name for path in Path(folder).iterdir()],
+                ["run.h5"],
+            )
+
     def test_load_results(self):
-        observation = BeamObservationOncePerTurn(
-            each_turn_i=10,
-        )
-        kwargs = dict(
-            beams=(self.beam,),
-            n_turns=10,
-            observe=(observation,),
-        )
+        observation = BeamObservationOncePerTurn(each_turn_i=10)
+        kwargs = dict(beams=(self.beam,), n_turns=10, observe=(observation,))
         self.simulation.run_simulation(**kwargs)
         de_before_save = observation.dEs.copy()
-        self.simulation.save_results(
-            observe=(observation,),
-            common_name="newname",
-        )
-        self.simulation.load_results(
-            **kwargs,
-            common_name="newname",
-        )
-        de_from_disk = observation.dEs.copy()
-        np.testing.assert_almost_equal(de_before_save, de_from_disk)
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            self.simulation.save_results(
+                observe=(observation,), common_name=stem
+            )
+            self.simulation.load_results(**kwargs, common_name=stem)
+        np.testing.assert_almost_equal(de_before_save, observation.dEs)
 
-        for name, rec in observation.get_recorders():
-            rec.purge_from_disk()
+    def test_two_observables_share_one_file(self):
+        first = BeamObservationOncePerTurn(each_turn_i=10, group_name="beam1")
+        second = BeamObservationOncePerTurn(each_turn_i=10, group_name="beam2")
+        kwargs = dict(beams=(self.beam,), n_turns=10, observe=(first, second))
+        self.simulation.run_simulation(**kwargs)
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            self.simulation.save_results(
+                observe=(first, second), common_name=stem
+            )
+            with h5py.File(stem + ".h5", "r") as file:
+                self.assertEqual(sorted(file.keys()), ["beam1", "beam2"])
+
+    def test_colliding_group_names_warn_and_suffix(self):
+        first = BeamObservationOncePerTurn(each_turn_i=10)
+        second = BeamObservationOncePerTurn(each_turn_i=10)
+        kwargs = dict(beams=(self.beam,), n_turns=10, observe=(first, second))
+        self.simulation.run_simulation(**kwargs)
+        with tempfile.TemporaryDirectory() as folder:
+            stem = str(Path(folder) / "run")
+            with self.assertWarns(UserWarning):
+                self.simulation.save_results(
+                    observe=(first, second), common_name=stem
+                )
+            with h5py.File(stem + ".h5", "r") as file:
+                self.assertEqual(
+                    sorted(file.keys()),
+                    [
+                        "BeamObservationOncePerTurn",
+                        "BeamObservationOncePerTurn_1",
+                    ],
+                )
+
+    def test_save_results_without_observables_raises(self):
+        with self.assertRaises(ValueError):
+            self.simulation.save_results(observe=())
 
     def test_on_init_simulation(self):
         self.simulation.on_init_simulation(simulation=self.simulation)

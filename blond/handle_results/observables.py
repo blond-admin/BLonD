@@ -459,6 +459,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     range
         The time and energy limits of the histogram.
         If not given, each turn will directly use ``dt.min()`` and ``dt.max()``.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     See Also
     --------
@@ -490,10 +493,12 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         folder: str = "",
         bins: int | tuple[int, int] = 32,
         range: AnyArray | None = None,
+        group_name: str | None = None,
     ):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
+            group_name=group_name,
         )
         self._beam: BeamBaseClass | None = None
         self._hist2d: DenseArrayRecorder | None = None
@@ -798,6 +803,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         saving or loading files.
     warn
         If ``True``, emits a warning about the performance impact.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     See Also
     --------
@@ -832,6 +840,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         each_turn_i: int,
         folder: str = "",
         warn: bool = True,
+        group_name: str | None = None,
     ):
         if warn:
             warnings.warn(
@@ -845,6 +854,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
+            group_name=group_name,
         )
         self._beam: BeamBaseClass | None = None
         self._dts: DenseArrayRecorder | None = None
@@ -1005,6 +1015,9 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     Examples
     --------
@@ -1026,10 +1039,12 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self,
         each_turn_i: int,
         folder: str = "",
+        group_name: str | None = None,
     ):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
+            group_name=group_name,
         )
         self._beam: BeamBaseClass | None = None
         self._bunch_position: DenseArrayRecorder | None = None
@@ -1170,6 +1185,9 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     Examples
     --------
@@ -1197,8 +1215,13 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         rf_station: SingleHarmonicRFStation,
         folder: str = "",
+        group_name: str | None = None,
     ):
-        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+            group_name=group_name,
+        )
         self._rf_station = rf_station
         self._phases: DenseArrayRecorder | None = None
         self._omegas: DenseArrayRecorder | None = None
@@ -1302,6 +1325,9 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     Examples
     --------
@@ -1326,10 +1352,12 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         profile: StaticProfile,
         folder: str = "",
+        group_name: str | None = None,
     ):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
+            group_name=group_name,
         )
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
@@ -1447,6 +1475,9 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         saving or loading files.
     sort_profiles_by_section
         Whether to sort profiles by section index.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     Examples
     --------
@@ -1483,8 +1514,13 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         profiles: list[StaticProfile],
         folder: str = "",
         sort_profiles_by_section=True,
+        group_name: str | None = None,
     ):
-        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+            group_name=group_name,
+        )
 
         if sort_profiles_by_section:
             profiles = sorted(profiles, key=lambda prof: prof.section_index)
@@ -1575,6 +1611,9 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     Examples
     --------
@@ -1597,10 +1636,12 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         wakefield: WakeField,
         folder: str = "",
+        group_name: str | None = None,
     ):
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
+            group_name=group_name,
         )
         self._wakefield = wakefield
         self._induced_voltage: DenseArrayRecorder | None = None
@@ -1677,6 +1718,9 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
 
     Examples
     --------
@@ -1701,8 +1745,13 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         profile: DynamicProfileConstNBins,
         folder: str = "",
+        group_name: str | None = None,
     ):
-        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+            group_name=group_name,
+        )
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
 
@@ -1823,6 +1872,9 @@ class SimulationObservation(ObservablesOncePerTurnBase):
     separatrix_lim
         If not provided, the separatrix is recorded within
         ``beam.dt_min`` and ``beam.dt_max``.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
     """
 
     def __init__(
@@ -1831,8 +1883,13 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         folder: str = "",
         separatrix_points: int = 256,
         separatrix_lim: tuple[float, float] | None = None,
+        group_name: str | None = None,
     ):
-        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+            group_name=group_name,
+        )
         self._simulation: Simulation | None = None
 
         self._t_revs: DenseArrayRecorder | None = None
@@ -1927,6 +1984,9 @@ class DriftObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
     """
 
     def __init__(
@@ -1934,8 +1994,13 @@ class DriftObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         drift: DriftSimple,
         folder: str = "",
+        group_name: str | None = None,
     ):
-        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            folder=folder,
+            group_name=group_name,
+        )
         self._drift: DriftSimple = drift
 
         self._eta_0s: DenseArrayRecorder | None = None

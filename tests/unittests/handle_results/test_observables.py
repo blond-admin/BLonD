@@ -1054,5 +1054,41 @@ class TestDriftObservation(unittest.TestCase):
         self.assertEqual(len(self.obs.eta_0s), 2)  # two updates before
 
 
+class TestGroupNameForwarding(unittest.TestCase):
+    """
+    Regression test: `group_name=` must reach `ObservablesBaseClass`.
+
+    The public observable classes each define their own `__init__`
+    and did not always forward `group_name` to `super().__init__()`,
+    which silently made `group_name=` unreachable through the public
+    API even though `ObservablesBaseClass` supports it.
+    """
+
+    def test_beam_observation_once_per_turn(self) -> None:
+        default = BeamObservationOncePerTurn(each_turn_i=1, warn=False)
+        self.assertEqual(default.group_name, "BeamObservationOncePerTurn")
+        named = BeamObservationOncePerTurn(
+            each_turn_i=1, warn=False, group_name="beam1"
+        )
+        self.assertEqual(named.group_name, "beam1")
+
+    def test_rf_station_phase_observation(self) -> None:
+        rf_station = Mock(SingleHarmonicRFStation)
+        default = RFStationPhaseObservation(
+            each_turn_i=1, rf_station=rf_station
+        )
+        self.assertEqual(default.group_name, "RFStationPhaseObservation")
+        named = RFStationPhaseObservation(
+            each_turn_i=1, rf_station=rf_station, group_name="beam1"
+        )
+        self.assertEqual(named.group_name, "beam1")
+
+    def test_simulation_observation(self) -> None:
+        default = SimulationObservation(each_turn_i=1)
+        self.assertEqual(default.group_name, "SimulationObservation")
+        named = SimulationObservation(each_turn_i=1, group_name="beam1")
+        self.assertEqual(named.group_name, "beam1")
+
+
 if __name__ == "__main__":
     unittest.main()

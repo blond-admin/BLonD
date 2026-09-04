@@ -22,6 +22,7 @@ import logging
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
+from pathlib import Path
 from pstats import SortKey
 from typing import TYPE_CHECKING
 
@@ -47,6 +48,12 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
 from blond.generals.warnings_ import PerformanceWarning
+from blond.handle_results.hdf5_io import (
+    ResultsFormatError,
+    create_results_file,
+    open_results_file,
+    results_filepath,
+)
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
@@ -81,6 +88,44 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_group_names(
+    observe: tuple[ObservablesOncePerTurnBase, ...],
+) -> list[tuple[ObservablesOncePerTurnBase, str]]:
+    """
+    Assign a unique HDF5 group name to each observable.
+
+    Parameters
+    ----------
+    observe
+        Observables that are saved or loaded together.
+
+    Returns
+    -------
+    resolved
+        List of (observable, group name) in the given order.
+    """
+    resolved: list[tuple[ObservablesOncePerTurnBase, str]] = []
+    used: set[str] = set()
+    for observable in observe:
+        group_name = observable.group_name
+        if group_name in used:
+            suffix = 1
+            while f"{group_name}_{suffix}" in used:
+                suffix += 1
+            warnings.warn(
+                f"Two observables both want the group '{group_name}';"
+                f" storing the second as '{group_name}_{suffix}'."
+                f" Pass group_name= to give them stable, meaningful"
+                f" names.",
+                UserWarning,
+                stacklevel=3,
+            )
+            group_name = f"{group_name}_{suffix}"
+        used.add(group_name)
+        resolved.append((observable, group_name))
+    return resolved
 
 
 class Simulation(Preparable):
@@ -1436,27 +1481,39 @@ class Simulation(Preparable):
         self,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
-    ) -> None:
+        overwrite: bool = True,
+    ) -> Path:
         """
-        Save observable data to disk for later analysis.
+        Save observable data to a single HDF5 results file.
 
-        After running a simulation, this method saves the data collected by observables
-        (like RF phase evolution, beam profiles, etc.) to disk. This is useful for:
+        After running a simulation, this method saves the data collected
+        by observables (like RF phase evolution, beam profiles, etc.) to
+        one HDF5 file, one group per observable. This is useful for:
         - Analyzing results later without re-running the simulation
         - Sharing results with others
-
-        Each observable is saved according to its own format (typically NumPy arrays).
 
         Parameters
         ----------
         observe
-            Tuple of observable objects whose data should be saved. These should be
-            the same observables that were passed to ``run_simulation()``.
-            Default is empty tuple.
+            Tuple of observable objects whose data should be saved. These
+            should be the same observables that were passed to
+            ``run_simulation()``. Default is empty tuple.
         common_name
-            Optional prefix for all saved files. If provided, all observables will
-            use this as part of their filename, making it easier to identify related
-            files. If None, each observable uses its default naming. Default is None.
+            File stem to save all observables under. If ``None``, the
+            first observable's default stem is used. Default is None.
+        overwrite
+            Whether an existing file at the target path may be replaced.
+            Default is True.
+
+        Returns
+        -------
+        pathlib.Path
+            Path of the written HDF5 file.
+
+        Raises
+        ------
+        ValueError
+            If ``observe`` is empty.
 
         See Also
         --------
@@ -1465,8 +1522,11 @@ class Simulation(Preparable):
 
         Notes
         -----
-        - Saved files are typically stored in the current working directory or a subdirectory defined by the observable.
-        - Use ``load_results()`` to load saved data without re-running the simulation.
+        - Observables that ask for the same group name are stored under a
+          suffixed group name with a warning; pass ``group_name=`` to the
+          observable to give it a stable, meaningful name.
+        - Use ``load_results()`` to load saved data without re-running the
+          simulation.
 
         Examples
         --------
@@ -1483,23 +1543,36 @@ class Simulation(Preparable):
         ...     observe=(phase_obs,),
         ... )
         >>>
-        >>> # Save the data
+        >>> # Save the data to `<common_filepath>.h5`
         >>> sim.save_results(observe=(phase_obs,))
 
-        Save with a custom name prefix:
+        Save with a custom file stem:
 
         >>> from blond import Simulation
         >>> sim = Simulation(...)
         >>> sim.run_simulation(observe=(phase_obs,), ...)
         >>> sim.save_results(
         ...     observe=(phase_obs,),
-        ...     common_name="simulation_450GeV_1000turns"
-        ... )
+        ...     common_name="simulation_450GeV_1000turns",
+        ... )  # written to simulation_450GeV_1000turns.h5
         """
-        for observable in observe:
-            if common_name is not None:
-                observable.rename(new_common_filepath=common_name)
-            observable.to_disk()
+        if len(observe) == 0:
+            raise ValueError(
+                "save_results needs at least one observable in observe=."
+            )
+        stem = (
+            common_name
+            if common_name is not None
+            else observe[0].common_filepath
+        )
+        filepath = results_filepath(stem)
+        with create_results_file(stem, overwrite=overwrite) as file:
+            for observable, group_name in _resolve_group_names(observe):
+                observable.to_disk(file.create_group(group_name))
+        logger.info(
+            f"Saved results of {len(observe)} observables to {filepath}"
+        )
+        return filepath
 
     def load_results(
         self,
@@ -1535,14 +1608,17 @@ class Simulation(Preparable):
 
         Raises
         ------
+        ValueError
+            If ``observe`` is empty.
         AssertionError
             If ``n_turns`` exceeds the maximum turns defined by the
             magnetic cycle, or if beam ordering is incorrect for counter-rotating simulations.
-
         FileNotFoundError
-            If the saved data files cannot be found.
-        AssertionError
-            If the loaded data dimensions don't match the specified parameters.
+            If the saved results file cannot be found.
+        ResultsFormatError
+            If the results file has no format version, was written with
+            a format version newer than this BLonD understands, or does
+            not contain a group for one of the requested observables.
 
         See Also
         --------
@@ -1574,7 +1650,7 @@ class Simulation(Preparable):
         >>> plt.plot(phase_obs.phases)
         >>> plt.show()
 
-        Load with custom name prefix:
+        Load with a custom file stem:
 
         >>> from blond import Simulation, Beam
         >>> sim = Simulation(...)
@@ -1583,8 +1659,8 @@ class Simulation(Preparable):
         ...     beams=(beam1,),
         ...     n_turns=1000,
         ...     observe=(phase_obs,),
-        ...     common_name="simulation_450GeV_1000turns"
-        ... )
+        ...     common_name="simulation_450GeV_1000turns",
+        ... )  # read from simulation_450GeV_1000turns.h5
 
         Combine with run_simulation for caching:
 
@@ -1596,15 +1672,29 @@ class Simulation(Preparable):
         ...     sim.run_simulation(beams=(beam1,), n_turns=1000, observe=(phase_obs,))
         ...     sim.save_results(observe=(phase_obs,))
         """
+        if len(observe) == 0:
+            raise ValueError(
+                "load_results needs at least one observable in observe=."
+            )
         self.finalize(
             beams=beams,
             n_turns=n_turns,
             observe=observe,
         )
-        for observable in observe:
-            if common_name is not None:
-                observable.rename(new_common_filepath=common_name)
-            observable.from_disk()
+        stem = (
+            common_name
+            if common_name is not None
+            else observe[0].common_filepath
+        )
+        with open_results_file(stem) as file:
+            for observable, group_name in _resolve_group_names(observe):
+                if group_name not in file:
+                    raise ResultsFormatError(
+                        f"{results_filepath(stem)} has no group"
+                        f" '{group_name}'. It contains"
+                        f" {list(file.keys())}."
+                    )
+                observable.from_disk(file[group_name])
 
     def _update_Trev_and_dErev(self, reference: ReferenceCoordinates) -> None:
         """
