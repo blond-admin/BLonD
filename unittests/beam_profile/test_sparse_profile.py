@@ -534,6 +534,45 @@ class testProfileClass(unittest.TestCase):
 
         np.testing.assert_equal(updated_batch_list, sparse_profile.batch_list)
 
+    def test_sparse_memory_parameters(self):
+        """The concatenated-memory parameters (bucket index mapping, time
+        order, continuous arrays, window starts) consumed by solvers
+        stepping through the sparse memory."""
+        sparse_profile = SparseBatch(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
+        )
+        sparse_profile.track()
+        n_p = sparse_profile.number_of_slices_per_profile
+        n_windows = len(sparse_profile.profiles_list)
+
+        np.testing.assert_equal(
+            sparse_profile.bucket_index_to_memory_index,
+            (np.cumsum(self.filling_pattern) - 1) * n_p,
+        )
+        np.testing.assert_equal(
+            sparse_profile.update_on_bin,
+            np.arange(n_windows) * n_p,
+        )
+
+        centers = sparse_profile.continuous_bin_centers
+        hist = sparse_profile.continuous_n_macroparticles
+        self.assertEqual(len(centers), n_windows * n_p)
+        self.assertEqual(len(hist), n_windows * n_p)
+        # time-ordered and strictly increasing across window boundaries
+        self.assertTrue(np.all(np.diff(centers) > 0))
+        for k, p in enumerate(sparse_profile.memory_time_order):
+            profile = sparse_profile.profiles_list[p]
+            np.testing.assert_equal(
+                centers[k * n_p : (k + 1) * n_p], profile.bin_centers
+            )
+            np.testing.assert_equal(
+                hist[k * n_p : (k + 1) * n_p], profile.n_macroparticles
+            )
+
     def test_update_batch_list_ordering(self):
         """New profiles must be appended in injection order: several new
         batches in one call require new_batch_indices, and the cut arrays
