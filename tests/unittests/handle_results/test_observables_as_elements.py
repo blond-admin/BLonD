@@ -249,5 +249,73 @@ class TestInducedVoltageObservationCR(unittest.TestCase):
         self.assertEqual(len(observation._beam_profile.get_valid_entries()), 0)
 
 
+class TestGroupNameIsIndependentOfElementName(unittest.TestCase):
+    """
+    Regression test for `group_name` colliding with
+    `SimulationElementBase.name`.
+
+    `SimulationElementBase.name` is a human-readable element label with
+    an order-dependent default (``Unnamed-<class>-<instance count>``)
+    assigned *after* `ObservablesBaseClass.__init__` returns. Before
+    the fix, both attributes were named ``name``, so the element base
+    class silently clobbered the HDF5 group name with that
+    non-reproducible default.
+    """
+
+    def test_beam_observation_in_ring_element_default_group_name(
+        self,
+    ) -> None:
+        first = BeamObservationInRingElement(each_turn_i=1)
+        second = BeamObservationInRingElement(each_turn_i=1)
+        self.assertEqual(first.group_name, "BeamObservationInRingElement")
+        self.assertEqual(second.group_name, "BeamObservationInRingElement")
+
+    def test_beam_observation_in_ring_element_explicit_group_name(
+        self,
+    ) -> None:
+        observation = BeamObservationInRingElement(
+            each_turn_i=1, group_name="beam1"
+        )
+        self.assertEqual(observation.group_name, "beam1")
+
+    def test_bunch_observation_meta_params_default_group_name(
+        self,
+    ) -> None:
+        first = BunchObservationMetaParams(each_turn_i=1)
+        second = BunchObservationMetaParams(each_turn_i=1)
+        self.assertEqual(first.group_name, "BunchObservationMetaParams")
+        self.assertEqual(second.group_name, "BunchObservationMetaParams")
+
+    def test_bunch_observation_meta_params_explicit_group_name(
+        self,
+    ) -> None:
+        observation = BunchObservationMetaParams(
+            each_turn_i=1, group_name="beam1"
+        )
+        self.assertEqual(observation.group_name, "beam1")
+
+    def test_induced_voltage_observation_cr_default_group_name(
+        self,
+    ) -> None:
+        wakefield = Mock(WakeField)
+        first = InducedVoltageObservationCR(
+            each_turn_i=1, wake_field=wakefield
+        )
+        second = InducedVoltageObservationCR(
+            each_turn_i=1, wake_field=wakefield
+        )
+        self.assertEqual(first.group_name, "InducedVoltageObservationCR")
+        self.assertEqual(second.group_name, "InducedVoltageObservationCR")
+
+    def test_induced_voltage_observation_cr_explicit_group_name(
+        self,
+    ) -> None:
+        wakefield = Mock(WakeField)
+        observation = InducedVoltageObservationCR(
+            each_turn_i=1, wake_field=wakefield, group_name="beam1"
+        )
+        self.assertEqual(observation.group_name, "beam1")
+
+
 if __name__ == "__main__":
     unittest.main()

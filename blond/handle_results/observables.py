@@ -125,9 +125,14 @@ class ObservablesBaseClass(MainLoopRelevant):
     ----------
     folder
         Target folder to save the data at.
-    name
+    group_name
         Name of the HDF5 group this observable is stored under. Defaults
         to the class name. Use `rename` to change it.
+
+        Not to be confused with `SimulationElementBase.name` (a
+        different, human-readable element label with an order-dependent
+        default): the HDF5 group name must be reproducible across runs,
+        so it is tracked separately as `group_name`.
     **kwargs
         Additional keyword arguments.
     """
@@ -135,7 +140,7 @@ class ObservablesBaseClass(MainLoopRelevant):
     def __init__(
         self,
         folder: str | None = None,
-        name: str | None = None,
+        group_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -143,10 +148,12 @@ class ObservablesBaseClass(MainLoopRelevant):
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"
-        self.name = name if name is not None else type(self).__name__
+        self.group_name = (
+            group_name if group_name is not None else type(self).__name__
+        )
         logger.info(
             f"Will save {self} to {self.common_filepath}.h5"
-            f" in group {self.name}."
+            f" in group {self.group_name}."
         )
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
@@ -166,21 +173,21 @@ class ObservablesBaseClass(MainLoopRelevant):
         ]
         return recorders
 
-    def rename(self, new_name: str) -> None:
+    def rename(self, new_group_name: str) -> None:
         """
         Change the HDF5 group name this observable is stored under.
 
         Parameters
         ----------
-        new_name
+        new_group_name
             New group name.
 
         Notes
         -----
         This has no effect on files that are already saved to the disk.
         """
-        self.name = new_name
-        logger.info(f"Changed group name of {self} to {self.name}.")
+        self.group_name = new_group_name
+        logger.info(f"Changed group name of {self} to {self.group_name}.")
 
     def dataset_names(self) -> dict[str, str]:
         """
@@ -222,7 +229,7 @@ class ObservablesBaseClass(MainLoopRelevant):
             with create_results_file(
                 self.common_filepath, overwrite=overwrite
             ) as file:
-                self.to_disk(file.create_group(self.name))
+                self.to_disk(file.create_group(self.group_name))
             logger.info(f"Saved {self} to {self.common_filepath}.h5")
             return
         group.attrs[ATTR_OBSERVABLE_CLASS] = type(self).__name__
@@ -247,12 +254,13 @@ class ObservablesBaseClass(MainLoopRelevant):
         """
         if group is None:
             with open_results_file(self.common_filepath) as file:
-                if self.name not in file:
+                if self.group_name not in file:
                     raise ResultsFormatError(
                         f"{self.common_filepath}.h5 has no group"
-                        f" '{self.name}'. It contains {list(file.keys())}."
+                        f" '{self.group_name}'. It contains"
+                        f" {list(file.keys())}."
                     )
-                self.from_disk(file[self.name])
+                self.from_disk(file[self.group_name])
             return
 
         stored_class = group.attrs.get(ATTR_OBSERVABLE_CLASS)

@@ -51,6 +51,9 @@ class BeamObservationInRingElement(
         data is kept in memory. Defaults to ``None``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
+    group_name : str or None, optional
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
     beam : BeamBaseClass or None, optional
         Beam to be observed by this element.
     """
@@ -62,9 +65,15 @@ class BeamObservationInRingElement(
         n_turns: int = 1,
         folder: str = "",
         name: str | None = None,
+        group_name: str | None = None,
         beam: BeamBaseClass | None = None,
     ) -> None:
-        super().__init__(section_index=section_index, name=name, folder=folder)
+        super().__init__(
+            section_index=section_index,
+            name=name,
+            folder=folder,
+            group_name=group_name,
+        )
         self.each_turn_i = each_turn_i
         self.n_turns = n_turns
 
@@ -216,6 +225,9 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
     """
 
     def __init__(
@@ -223,8 +235,9 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         each_turn_i: int,
         beam: BeamBaseClass | None = None,
         folder: str = "",
+        group_name: str | None = None,
     ):
-        super().__init__(folder=folder)
+        super().__init__(folder=folder, group_name=group_name)
 
         self.each_turn_i = each_turn_i
         # use ID because `prepare_beam` would trigger
@@ -390,6 +403,9 @@ class InducedVoltageObservationCR(
     folder
         Path to the target folder used for
         saving or loading files.
+    group_name
+        Name of the HDF5 group this observable is stored under.
+        Defaults to the class name.
     """
 
     def __init__(
@@ -398,8 +414,13 @@ class InducedVoltageObservationCR(
         wake_field: WakeField,
         section_index: int = 0,
         folder: str = "",
+        group_name: str | None = None,
     ):
-        super().__init__(folder=folder, section_index=section_index)
+        super().__init__(
+            folder=folder,
+            section_index=section_index,
+            group_name=group_name,
+        )
 
         self.each_turn_i = each_turn_i
 

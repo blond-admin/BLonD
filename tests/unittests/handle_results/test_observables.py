@@ -170,9 +170,9 @@ class TestObservables(unittest.TestCase):
             n_turns=100,
         )
 
-        self.assertEqual(self.observables.name, "ObservablesHelper")
+        self.assertEqual(self.observables.group_name, "ObservablesHelper")
         self.observables.rename("beam1")
-        self.assertEqual(self.observables.name, "beam1")
+        self.assertEqual(self.observables.group_name, "beam1")
 
         self.observables.to_disk()
         with h5py.File(self.observables.common_filepath + ".h5", "r") as file:
@@ -207,13 +207,15 @@ class TestObservablesHdf5(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_default_name_is_class_name(self) -> None:
-        self.assertEqual(self.observables.name, "RecordingObservablesHelper")
+        self.assertEqual(
+            self.observables.group_name, "RecordingObservablesHelper"
+        )
 
     def test_explicit_name_is_used(self) -> None:
         observables = RecordingObservablesHelper(
-            each_turn_i=1, folder=self.folder, name="beam1"
+            each_turn_i=1, folder=self.folder, group_name="beam1"
         )
-        self.assertEqual(observables.name, "beam1")
+        self.assertEqual(observables.group_name, "beam1")
 
     def test_standalone_roundtrip(self) -> None:
         before = {
