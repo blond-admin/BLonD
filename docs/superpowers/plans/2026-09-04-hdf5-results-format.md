@@ -630,12 +630,33 @@ at the top of that file currently overrides `to_disk` / `from_disk` with
 no-ops — **delete those two overrides** so the helper exercises the real
 implementation.
 
+`ObservablesHelper` holds **no** `DenseArrayRecorder`, so `get_recorders()`
+returns an empty list and every round-trip assertion below would be vacuous.
+Add a second helper next to it that actually records something:
+
+```python
+class RecordingObservablesHelper(ObservablesOncePerTurnBase):
+    def on_run_simulation(self, simulation, beam, n_turns, **kwargs) -> None:
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns, **kwargs
+        )
+        self._values = DenseArrayRecorder(
+            shape=(self._calc_n_entries(n_turns), 2)
+        )
+
+    def _update(self) -> None:
+        self._values.write(np.array([1.0, 2.0]))
+```
+
+`TestObservablesHdf5` below uses `RecordingObservablesHelper`, not
+`ObservablesHelper`. Its single dataset is named `values`.
+
 ```python
 class TestObservablesHdf5(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.folder = self._tmp.name + "/"
-        self.observables = ObservablesHelper(
+        self.observables = RecordingObservablesHelper(
             each_turn_i=1,
             folder=self.folder,
         )
@@ -649,10 +670,12 @@ class TestObservablesHdf5(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_default_name_is_class_name(self) -> None:
-        self.assertEqual(self.observables.name, "ObservablesHelper")
+        self.assertEqual(
+            self.observables.name, "RecordingObservablesHelper"
+        )
 
     def test_explicit_name_is_used(self) -> None:
-        observables = ObservablesHelper(
+        observables = RecordingObservablesHelper(
             each_turn_i=1, folder=self.folder, name="beam1"
         )
         self.assertEqual(observables.name, "beam1")
@@ -686,15 +709,17 @@ class TestObservablesHdf5(unittest.TestCase):
         self.observables.to_disk()
         with h5py.File(Path(self.folder) / "last.h5", "r") as file:
             self.assertEqual(
-                file["ObservablesHelper"].attrs["observable_class"],
-                "ObservablesHelper",
+                file["RecordingObservablesHelper"].attrs[
+                    "observable_class"
+                ],
+                "RecordingObservablesHelper",
             )
 
     def test_missing_dataset_raises_and_names_it(self) -> None:
         self.observables.to_disk()
         dataset_name = next(iter(self.observables.dataset_names()))
         with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
-            del file["ObservablesHelper"][dataset_name]
+            del file["RecordingObservablesHelper"][dataset_name]
         with self.assertRaises(ResultsFormatError) as context:
             self.observables.from_disk()
         self.assertIn(dataset_name, str(context.exception))
@@ -702,7 +727,7 @@ class TestObservablesHdf5(unittest.TestCase):
     def test_extra_dataset_warns_and_is_ignored(self) -> None:
         self.observables.to_disk()
         with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
-            group = file["ObservablesHelper"]
+            group = file["RecordingObservablesHelper"]
             dataset = group.create_dataset("from_the_future", data=[1.0])
             dataset.attrs["write_idx"] = 1
         with self.assertWarns(UserWarning):
@@ -711,7 +736,7 @@ class TestObservablesHdf5(unittest.TestCase):
     def test_class_mismatch_raises(self) -> None:
         self.observables.to_disk()
         with h5py.File(Path(self.folder) / "last.h5", "r+") as file:
-            file["ObservablesHelper"].attrs["observable_class"] = "Other"
+            file["RecordingObservablesHelper"].attrs["observable_class"] = "Other"
         with self.assertRaises(ResultsFormatError):
             self.observables.from_disk()
 
@@ -797,7 +822,7 @@ Add the dataset-name mapping and the two I/O methods:
             Mapping of dataset name to the attribute holding the recorder.
         """
         return {
-            attribute.lstrip("_"): attribute
+            attribute.removeprefix("_"): attribute
             for attribute, _recorder in self.get_recorders()
         }
 
