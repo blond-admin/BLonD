@@ -844,9 +844,9 @@ class IQCavityFeedbackTimingClass(
 
     # Compile the per-cell coarse-envelope recursion to a numba host kernel
     # (see :mod:`~blond.physics.feedbacks.envelope_kernel`). The pure-Python
-    # path is kept as the byte-identical reference and the fallback for
-    # degenerate (coincident) coarse steps and klystron-limit saturation. Set
-    # ``False`` on an instance to force the reference path.
+    # path is kept as the readable reference and the fallback for degenerate
+    # (coincident) coarse steps; klystron-limit saturation is handled inside
+    # the kernel. Set ``False`` on an instance to force the reference path.
     use_numba_envelope_kernel: bool = True
 
     def __init__(

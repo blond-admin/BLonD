@@ -525,10 +525,10 @@ class TestDelayLineStateHandoff(unittest.TestCase):
         """
         The buffer must be a copy, not the live state.
 
-        ``_circuit_track_cells`` discards the whole kernel result when a
-        cell turns out to be saturated and reruns the span on the exact
-        reference path, so a scan whose output is thrown away must leave
-        the controller untouched.
+        The kernel advances the handed-out buffer in place and the result
+        is committed only by ``absorb_envelope_scan_state``, so a scan
+        whose output is never absorbed must leave the controller
+        untouched.
         """
         controller = GeneratorCurrentPIController(
             gain_proportional=1.7,

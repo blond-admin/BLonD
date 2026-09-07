@@ -399,10 +399,12 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         The delay line travels as the circular buffer it already is, so no
         reordering is needed in either direction.
 
-        The buffer is **copied**, deliberately. The caller discards the
-        whole kernel result when a cell turns out to be saturated and
-        reruns the span on the exact reference path, so the live state must
-        survive a scan whose output is thrown away.
+        The buffer is **copied**, deliberately. The kernel advances the
+        buffer it is handed in place, and the result is committed only by
+        :meth:`absorb_envelope_scan_state`; handing out a copy keeps the
+        live state untouched until then, so a scan that is not absorbed
+        (an exception between the two calls) leaves the controller
+        consistent.
 
         Returns
         -------
