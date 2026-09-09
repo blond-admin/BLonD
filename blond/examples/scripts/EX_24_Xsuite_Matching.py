@@ -20,6 +20,7 @@ from blond import (
     BeamObservationOncePerTurn,
     DriftSimple,
     MagneticCyclePerTurn,
+    ResultsFormatError,
     RFStationPhaseObservation,
     Ring,
     Simulation,
@@ -101,15 +102,15 @@ def main():
 
     try:
         sim.load_results(
+            beams=(beam1,),
             n_turns=N_TURNS,
-            observe=[phase_observation],
-            beams=[beam1],
+            observe=(phase_observation, bunch_observation),
         )
-    except AssertionError as exc:
+    except (FileNotFoundError, AssertionError, ResultsFormatError):
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,
-            observe=[phase_observation, bunch_observation],
+            observe=(phase_observation, bunch_observation),
         )
 
     ANIMATE = False
