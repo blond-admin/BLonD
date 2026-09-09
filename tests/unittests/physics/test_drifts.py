@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -435,7 +436,7 @@ class TestDriftExact(unittest.TestCase):
         np.testing.assert_allclose(blond2_expected, beam.dt.copy_as_numpy())
 
     @multi_backend_testcase("Numpy64Bit")
-    @pytest.mark.backend_mutationn
+    @pytest.mark.backend_mutation
     def test_compare_track_ham(self):
         """For ``higher_order_alpha`` lengths 1, 2, 3 (i.e. α_1, α_1..α_2,
         α_1..α_3 — α_0 is set separately by ``momentum_compaction_factor``),
@@ -699,29 +700,96 @@ class TestDriftLikeLineSegment(unittest.TestCase):
             )
             self.assertEqual(drift.alpha_0, alpha_0)
 
+    def _build_drift_exact(self, alpha_0, turn_counter=None):
+        """``DriftExact`` with only ``alpha_0`` (no higher-order terms)."""
+        return DriftExact.headless(
+            momentum_compaction_factor=alpha_0,
+            higher_order_alpha=None,
+            orbit_length=self.CIRCUMFERENCE,
+            section_index=0,
+            turn_counter=turn_counter,
+        )
 
-class TestDriftSpecial(unittest.TestCase):
-    @unittest.skip
-    def test_on_init_simulation(self):
-        # TODO: implement test for `on_init_simulation`
-        self.drift_special.on_init_simulation(simulation=None)
+    def _track_both(self, dE):
+        """Track copies of one beam through both solvers.
 
-    @unittest.skip
-    def test_track(self):
-        # TODO: implement test for `track`
-        self.drift_special.track(beam=None)
+        Returns
+        -------
+        dt_change_segment, dt_change_exact, delta_max
+            Per-particle ``dt`` change of ``DriftLikeLineSegment`` and
+            ``DriftExact`` plus the largest exact ``delta`` of the beam.
+        """
+        from blond.core.beam.particle_types import proton
 
+        drift_seg, beam, alpha_0 = self._build(dE=dE)
+        drift_ex = self._build_drift_exact(alpha_0)
+        beam = ProbeBeam(
+            dt=np.linspace(-1e-7, 1e-7, len(dE)),
+            dE=dE,
+            particle_type=proton,
+            reference_total_energy=self.KINETIC_ENERGY + float(proton.mass),
+        )
+        beam_seg = deepcopy(beam)
+        beam_ex = deepcopy(beam)
 
-class TestDriftXSuite(unittest.TestCase):
-    @unittest.skip
-    def test_on_init_simulation(self):
-        # TODO: implement test for `on_init_simulation`
-        self.drift_x_suite.on_init_simulation(simulation=None)
+        drift_seg.track(beam=beam_seg)
+        drift_ex.track(beam=beam_ex)
 
-    @unittest.skip
-    def test_track(self):
-        # TODO: implement test for `track`
-        self.drift_x_suite.track(beam=None)
+        # Neither drift may touch the energy coordinate
+        np.testing.assert_array_equal(
+            beam_seg.dE.copy_as_numpy(), beam.dE.copy_as_numpy()
+        )
+        np.testing.assert_array_equal(
+            beam_ex.dE.copy_as_numpy(), beam.dE.copy_as_numpy()
+        )
+
+        dt_before = beam.dt.copy_as_numpy()
+        dt_change_segment = beam_seg.dt.copy_as_numpy() - dt_before
+        dt_change_exact = beam_ex.dt.copy_as_numpy() - dt_before
+        delta_max = np.max(
+            np.abs(
+                self._delta_exact(
+                    dE, beam.reference.beta, beam.reference.total_energy
+                )
+            )
+        )
+        return dt_change_segment, dt_change_exact, delta_max
+
+    def test_matches_drift_exact_at_small_amplitude(self):
+        """Agrees with ``DriftExact`` (``alpha_0`` only) to first order.
+
+        Both solvers use the exact ``delta``; ``DriftExact`` additionally
+        keeps the exact ``(1 + dE/E) / (1 + delta)`` factor, whose expansion
+        starts to differ from ``eta_0 * delta`` only at second order in
+        ``delta``. At ``dE ~ 1 keV`` (``delta ~ 5e-7``) the two must agree
+        far better than the leading-order difference ``~delta``.
+        """
+        dt_change_segment, dt_change_exact, delta_max = self._track_both(
+            dE=np.linspace(-1e3, 1e3, 17)
+        )
+        self.assertLess(delta_max, 1e-6)
+        np.testing.assert_allclose(
+            dt_change_segment, dt_change_exact, rtol=1e-5, atol=0.0
+        )
+
+    def test_differs_from_drift_exact_at_large_amplitude(self):
+        """Deviates from ``DriftExact`` at second order in ``delta``.
+
+        Guards against the element silently becoming ``DriftExact``: at
+        ``dE = 8 MeV`` (``delta ~ 4e-3``) the relative difference between
+        the two is of order ``delta`` and thus clearly resolvable, but it
+        must not exceed a few ``delta`` either.
+        """
+        dt_change_segment, dt_change_exact, delta_max = self._track_both(
+            dE=np.linspace(-8e6, 8e6, 17)
+        )
+        nonzero = dt_change_exact != 0.0
+        relative_difference = np.abs(
+            (dt_change_segment[nonzero] - dt_change_exact[nonzero])
+            / dt_change_exact[nonzero]
+        )
+        self.assertGreater(np.max(relative_difference), delta_max)
+        self.assertLess(np.max(relative_difference), 5 * delta_max)
 
 
 if __name__ == "__main__":
