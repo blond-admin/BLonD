@@ -13,6 +13,9 @@
 # in an OpenMP runtime (numba, the compiled C++ library), because
 # libgomp reads the wait policy once at initialisation.
 from blond.core.backends import openmp_env  # noqa: F401  # isort: skip
+import sys
+
+from blond.legacy import DynamicLegacyFinder, legacy_getattr
 
 __all__ = [
     "BiGaussian",
@@ -138,3 +141,29 @@ from blond.physics.profiles import (
     StaticProfile,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+
+sys.meta_path.append(DynamicLegacyFinder())
+
+
+def __getattr__(name: str):
+    """
+    Explain BLonD 2 names that are no longer exported from ``blond``.
+
+    Parameters
+    ----------
+    name
+        The attribute that was not found on the ``blond`` package.
+
+    Returns
+    -------
+    None
+        Never returns; see :func:`blond.legacy.legacy_getattr`.
+
+    Raises
+    ------
+    ImportError
+        If `name` exists somewhere in ``blond.legacy.blond2``.
+    AttributeError
+        Otherwise.
+    """
+    return legacy_getattr(__name__, name)
