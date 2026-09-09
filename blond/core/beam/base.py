@@ -25,6 +25,7 @@ from blond.generals.distributed import distributed_array
 from blond.generals.distributed import helpers as dist_help
 
 if TYPE_CHECKING:  # pragma: no cover
+    from os import PathLike
     from typing import Any, Literal, Self
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -228,6 +229,64 @@ class BeamBaseClass(Preparable, ABC):
         self._ids = distributed_array.concatenate(self._ids, new_ids)
 
         self.intensity = ratio * self.common_array_size
+
+    def save(self, path: str | PathLike) -> None:
+        """
+        Write the beam to an HDF5 file.
+
+        The file format is versioned; beams written by older BLonD versions
+        are migrated when they are loaded again.
+
+        Parameters
+        ----------
+        path
+            Destination file path. An existing file is overwritten.
+
+        See Also
+        --------
+        load : Read a beam back from an HDF5 file.
+        blond.core.beam.serialization.save_beam : Implementation.
+
+        Examples
+        --------
+        >>> beam.save("beam.h5")
+        """
+        # Imported here to avoid a cyclic import at module load time.
+        from blond.core.beam.serialization import save_beam
+
+        save_beam(self, path)
+
+    @staticmethod
+    def load(path: str | PathLike) -> BeamBaseClass:
+        """
+        Read a beam from an HDF5 file written by `save`.
+
+        Particle coordinates are placed on the active backend, so a beam
+        saved on a CPU can be loaded on a GPU and vice versa.
+
+        Parameters
+        ----------
+        path
+            Source file path.
+
+        Returns
+        -------
+        beam
+            The restored beam.
+
+        See Also
+        --------
+        save : Write a beam to an HDF5 file.
+        blond.core.beam.serialization.load_beam : Implementation.
+
+        Examples
+        --------
+        >>> beam = Beam.load("beam.h5")
+        """
+        # Imported here to avoid a cyclic import at module load time.
+        from blond.core.beam.serialization import load_beam
+
+        return load_beam(path)
 
     def signed_charge_with_direction(self):
         """
