@@ -55,6 +55,68 @@ def read_toplevel_exports() -> dict[str, str]:
     return {name: origins.get(name, "") for name in exported}
 
 
+def assigned_names(node: ast.Assign) -> list[str]:
+    """Collect the plain names assigned by an assignment statement.
+
+    Parameters
+    ----------
+    node
+        The assignment, e.g. ``__all__ = [...]`` or ``BEAM = "beam"``.
+
+    Returns
+    -------
+    names
+        Every target that is a plain name; attribute or subscript
+        targets (``obj.attr = ...``) are skipped.
+    """
+    return [
+        target.id for target in node.targets if isinstance(target, ast.Name)
+    ]
+
+
+def find_assignment(tree: ast.Module, name: str) -> ast.expr | None:
+    """Find the value assigned to a module-level variable.
+
+    Parameters
+    ----------
+    tree
+        Syntax tree of a module.
+    name
+        Variable to look for, e.g. ``"__all__"``.
+
+    Returns
+    -------
+    value
+        Right-hand side of the first ``name = ...`` at module level, or
+        ``None`` if there is no such assignment.
+    """
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and name in assigned_names(node):
+            return node.value
+    return None
+
+
+def string_constants(nodes: list[ast.expr | None]) -> list[str]:
+    """Pick the string literals out of a list of expressions.
+
+    Parameters
+    ----------
+    nodes
+        Expressions, e.g. the elements of a list or the keys of a dict.
+        Anything that is not a string literal is ignored.
+
+    Returns
+    -------
+    strings
+        The literal values, in source order.
+    """
+    return [
+        node.value
+        for node in nodes
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+
+
 def all_names(tree: ast.Module) -> list[str]:
     """Collect the string entries of the ``__all__`` assignment.
 
@@ -68,26 +130,13 @@ def all_names(tree: ast.Module) -> list[str]:
     names
         The exported names, in source order.
     """
-    for node in tree.body:
-        if not isinstance(node, ast.Assign):
-            continue
-        targets = [
-            target.id
-            for target in node.targets
-            if isinstance(target, ast.Name)
-        ]
-        if "__all__" not in targets:
-            continue
-        assert isinstance(node.value, (ast.List, ast.Tuple)), (
-            "`__all__` must be a list or tuple literal"
-        )
-        return [
-            element.value
-            for element in node.value.elts
-            if isinstance(element, ast.Constant)
-            and isinstance(element.value, str)
-        ]
-    raise AssertionError(f"No `__all__` found in {INIT_SCRIPT}")
+    value = find_assignment(tree, "__all__")
+    if value is None:
+        raise AssertionError(f"No `__all__` found in {INIT_SCRIPT}")
+    assert isinstance(value, (ast.List, ast.Tuple)), (
+        "`__all__` must be a list or tuple literal"
+    )
+    return string_constants(value.elts)
 
 
 def import_origins(tree: ast.Module) -> dict[str, str]:
@@ -168,10 +217,8 @@ def is_class(name: str, module_path: str, depth: int = 0) -> bool:
         is_function = isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         if is_function and node.name == name:
             return False
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == name:
-                    return False
+        if isinstance(node, ast.Assign) and name in assigned_names(node):
+            return False
 
     origins = import_origins(tree)
     if name in origins:
@@ -188,14 +235,13 @@ def doc_script_categories() -> list[str]:
         Enum member names, in source order.
     """
     for node in parse(DOC_SCRIPT).body:
-        if isinstance(node, ast.ClassDef) and node.name == "Categories":
-            return [
-                target.id
-                for statement in node.body
-                if isinstance(statement, ast.Assign)
-                for target in statement.targets
-                if isinstance(target, ast.Name)
-            ]
+        if not isinstance(node, ast.ClassDef) or node.name != "Categories":
+            continue
+        members = []
+        for statement in node.body:
+            if isinstance(statement, ast.Assign):
+                members += assigned_names(statement)
+        return members
     raise AssertionError(f"No `Categories` enum found in {DOC_SCRIPT}")
 
 
@@ -207,25 +253,13 @@ def assigned_categories() -> list[str]:
     assigned
         The categorized names, in source order.
     """
-    for node in parse(DOC_SCRIPT).body:
-        if not isinstance(node, ast.Assign):
-            continue
-        targets = [
-            target.id
-            for target in node.targets
-            if isinstance(target, ast.Name)
-        ]
-        if "ASSIGNED_CATEGORIES" not in targets:
-            continue
-        assert isinstance(node.value, ast.Dict), (
-            "`ASSIGNED_CATEGORIES` must be a dict literal"
-        )
-        return [
-            key.value
-            for key in node.value.keys
-            if isinstance(key, ast.Constant) and isinstance(key.value, str)
-        ]
-    raise AssertionError(f"No `ASSIGNED_CATEGORIES` found in {DOC_SCRIPT}")
+    value = find_assignment(parse(DOC_SCRIPT), "ASSIGNED_CATEGORIES")
+    if value is None:
+        raise AssertionError(f"No `ASSIGNED_CATEGORIES` found in {DOC_SCRIPT}")
+    assert isinstance(value, ast.Dict), (
+        "`ASSIGNED_CATEGORIES` must be a dict literal"
+    )
+    return string_constants(value.keys)
 
 
 def suggest_category(categories: list[str], module_path: str) -> str:
