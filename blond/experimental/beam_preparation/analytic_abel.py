@@ -50,9 +50,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import backend
+from blond.generals.cupy.no_cupy_import import AllowPlotting
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Self
 
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -77,14 +82,14 @@ class AbelSide(StrEnum):
 
 
 def _abel_transform_branch(
-    time_branch: NumpyArray,
-    line_density_derivative_branch: NumpyArray,
-    potential_branch: NumpyArray,
+    time_branch: NumpyArray | CupyArray,
+    line_density_derivative_branch: NumpyArray | CupyArray,
+    potential_branch: NumpyArray | CupyArray,
     *,
     eom_factor_dE: float,
     branch: AbelSide,
     n_points_abel: int | None,
-) -> tuple[NumpyArray, NumpyArray]:
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     r"""
     Abel-invert one monotonic branch of the potential well.
 
@@ -100,39 +105,50 @@ def _abel_transform_branch(
         )
 
     if n_points_abel is not None:
-        time_abel = np.linspace(
-            float(time_branch[0]), float(time_branch[-1]), int(n_points_abel)
+        time_abel = backend.linspace(
+            float(time_branch[0]),
+            float(time_branch[-1]),
+            int(n_points_abel),
+            dtype=backend.float,
         )
-        line_density_derivative_abel = np.interp(
+        line_density_derivative_abel = backend.interp(
             time_abel, time_branch, line_density_derivative_branch
         )
-        potential_abel = np.interp(time_abel, time_branch, potential_branch)
+        potential_abel = backend.interp(
+            time_abel, time_branch, potential_branch
+        )
     else:
-        time_abel = np.asarray(time_branch, dtype=float)
+        time_abel = backend.cast_arr_float_if_needed(time_branch)
         line_density_derivative_abel = line_density_derivative_branch
         potential_abel = potential_branch
-    potential_abel = potential_abel - np.min(potential_abel)
+    potential_abel = potential_abel - backend.min(potential_abel)
 
     # On the second branch the singular endpoint i is the *first*
     # sample of [i, end], not the last as on the first branch.
     # Reversing its arrays once up front makes both branches identical
     # in the loop below (reversing integrand and x together leaves
-    # np.trapezoid unchanged).
+    # backend.trapezoid unchanged).
     if branch == AbelSide.SECOND:
         time_abel = time_abel[::-1]
         line_density_derivative_abel = line_density_derivative_abel[::-1]
         potential_abel = potential_abel[::-1]
 
     n_points = len(time_abel)
-    distribution_values = np.zeros(n_points)
-    prefactor = np.sqrt(eom_factor_dE) / np.pi
+    distribution_values = backend.zeros(n_points, dtype=backend.float)
+    # Python float() casting to avoid unwanted precision change
+    # downstream.
+    prefactor = float(np.sqrt(eom_factor_dE)) / np.pi
 
+    # Per-sample kernel launches make this loop far slower on a GPU
+    # backend than on a CPU one.
     with np.errstate(invalid="ignore", divide="ignore"):
         for i in range(n_points):
             integrand_slice = slice(None, i + 1)
             integrand = line_density_derivative_abel[
                 integrand_slice
-            ] / np.sqrt(potential_abel[integrand_slice] - potential_abel[i])
+            ] / backend.sqrt(
+                potential_abel[integrand_slice] - potential_abel[i]
+            )
 
             match len(integrand):
                 case x if x > 2:
@@ -140,16 +156,16 @@ def _abel_transform_branch(
                 case x if x > 1:
                     integrand[-1] = integrand[-2]
                 case _:
-                    integrand = np.zeros(1)
+                    integrand = backend.zeros(1, dtype=backend.float)
 
-            distribution_values[i] = prefactor * np.trapezoid(
+            distribution_values[i] = prefactor * backend.trapezoid(
                 integrand, x=time_abel[integrand_slice]
             )
 
     # Unphysical results are zeroed, as in BLonD 2 (which cleaned NaN
     # and negatives): NaN/inf from non-monotonic or duplicated
     # potential samples, negative density from noise.
-    distribution_values[~np.isfinite(distribution_values)] = 0.0
+    distribution_values[~backend.isfinite(distribution_values)] = 0.0
     distribution_values[distribution_values < 0.0] = 0.0
 
     if branch == AbelSide.SECOND:
@@ -160,9 +176,9 @@ def _abel_transform_branch(
 
 
 def distribution_from_line_density(
-    time_array: NumpyArray,
-    line_density_values: NumpyArray,
-    potential_well: NumpyArray,
+    time_array: ArrayLike,
+    line_density_values: ArrayLike,
+    potential_well: ArrayLike,
     *,
     eom_factor_dE: float,
     half_option: AbelSide
@@ -170,7 +186,7 @@ def distribution_from_line_density(
     n_points_abel: int | None = None,
     verbose: bool = False,
     plot: bool = False,
-) -> tuple[NumpyArray, NumpyArray]:
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     r"""
     Reconstruct :math:`F(H)` from a line density (Abel transform).
 
@@ -219,9 +235,9 @@ def distribution_from_line_density(
         :math:`F(H)` at ``hamiltonian_coord`` (normalization inherited
         from ``line_density_values``; negative/NaN values zeroed).
     """
-    time_array = np.asarray(time_array, dtype=float)
-    line_density_values = np.asarray(line_density_values, dtype=float)
-    potential_well = np.asarray(potential_well, dtype=float)
+    time_array = backend.cast_arr_float_if_needed(time_array)
+    line_density_values = backend.cast_arr_float_if_needed(line_density_values)
+    potential_well = backend.cast_arr_float_if_needed(potential_well)
     assert time_array.shape == line_density_values.shape, (
         f"{time_array.shape=} must match {line_density_values.shape=}"
     )
@@ -233,16 +249,16 @@ def distribution_from_line_density(
 
     # Central-difference derivative on the full profile, so the bunch
     # centre keeps a two-sided estimate on both branches.
-    line_density_derivative = np.gradient(line_density_values, time_array)
+    line_density_derivative = backend.gradient(line_density_values, time_array)
 
     # A symmetric well sampled on an even grid carries two (or more)
     # equal minimum samples: end the first branch at the first
     # occurrence and start the second at the last, so neither branch
     # opens with a duplicated potential value (an exact division by
     # zero in the Abel integrand).
-    minimum_index_first = int(np.argmin(potential_well))
+    minimum_index_first = int(backend.argmin(potential_well))
     minimum_index_second = int(
-        len(potential_well) - 1 - np.argmin(potential_well[::-1])
+        len(potential_well) - 1 - backend.argmin(potential_well[::-1])
     )
     if minimum_index_first < 2 or minimum_index_second > len(time_array) - 3:
         raise ValueError(
@@ -276,10 +292,10 @@ def distribution_from_line_density(
         hamiltonian_first, distribution_first = results[AbelSide.FIRST]
         hamiltonian_second, distribution_second = results[AbelSide.SECOND]
         # The second branch runs from the minimum outwards, so its
-        # Hamiltonian coordinates are already ascending for np.interp.
+        # Hamiltonian coordinates are already ascending for interp.
         distribution_values = (
             distribution_first
-            + np.interp(
+            + backend.interp(
                 hamiltonian_first, hamiltonian_second, distribution_second
             )
         ) / 2.0
@@ -287,7 +303,7 @@ def distribution_from_line_density(
     else:
         hamiltonian_coord, distribution_values = results[half_option]
 
-    ascending = np.argsort(hamiltonian_coord)
+    ascending = backend.argsort(hamiltonian_coord)
     hamiltonian_coord = hamiltonian_coord[ascending]
     distribution_values = distribution_values[ascending]
 
@@ -296,10 +312,10 @@ def distribution_from_line_density(
             "[distribution_from_line_density] "
             f"{half_option=}, branches at minimum index "
             f"{minimum_index_first}, "
-            f"H range [0, {hamiltonian_coord.max():.6e}] eV, "
-            f"F(0)={distribution_values[0]:.6e}, "
+            f"H range [0, {float(hamiltonian_coord.max()):.6e}] eV, "
+            f"F(0)={float(distribution_values[0]):.6e}, "
             f"zeroed points="
-            f"{int(np.sum(distribution_values == 0.0))}"
+            f"{int(backend.sum(distribution_values == 0.0))}"
             f"/{len(distribution_values)}"
         )
 
@@ -316,33 +332,37 @@ def distribution_from_line_density(
 
 
 def _plot_abel_transform(
-    time_array: NumpyArray,
-    line_density_values: NumpyArray,
-    potential_well: NumpyArray,
-    hamiltonian_coord: NumpyArray,
-    distribution_values: NumpyArray,
+    time_array: NumpyArray | CupyArray,
+    line_density_values: NumpyArray | CupyArray,
+    potential_well: NumpyArray | CupyArray,
+    hamiltonian_coord: NumpyArray | CupyArray,
+    distribution_values: NumpyArray | CupyArray,
 ) -> None:
     """Diagnostic figure: input line density and well, reconstructed F(H)."""
     import matplotlib.pyplot as plt
 
-    fig, (ax_input, ax_result) = plt.subplots(
-        1, 2, num="distribution_from_line_density", figsize=(9, 4)
-    )
-    ax_input.plot(
-        time_array * 1e9,
-        line_density_values / line_density_values.max(),
-        label="Line density (norm.)",
-    )
-    ax_well = ax_input.twinx()
-    ax_well.plot(
-        time_array * 1e9, potential_well, color="C1", label="Potential well"
-    )
-    ax_input.set_xlabel("Time [ns]")
-    ax_input.set_ylabel("Line density [norm.]")
-    ax_well.set_ylabel("Potential well [eV]")
-    ax_input.legend(loc="upper left")
-    ax_well.legend(loc="upper right")
-    ax_result.plot(hamiltonian_coord, distribution_values)
-    ax_result.set_xlabel("Hamiltonian [eV]")
-    ax_result.set_ylabel("Distribution function F(H)")
-    fig.tight_layout()
+    with AllowPlotting():
+        fig, (ax_input, ax_result) = plt.subplots(
+            1, 2, num="distribution_from_line_density", figsize=(9, 4)
+        )
+        ax_input.plot(
+            time_array * 1e9,
+            line_density_values / line_density_values.max(),
+            label="Line density (norm.)",
+        )
+        ax_well = ax_input.twinx()
+        ax_well.plot(
+            time_array * 1e9,
+            potential_well,
+            color="C1",
+            label="Potential well",
+        )
+        ax_input.set_xlabel("Time [ns]")
+        ax_input.set_ylabel("Line density [norm.]")
+        ax_well.set_ylabel("Potential well [eV]")
+        ax_input.legend(loc="upper left")
+        ax_well.legend(loc="upper right")
+        ax_result.plot(hamiltonian_coord, distribution_values)
+        ax_result.set_xlabel("Hamiltonian [eV]")
+        ax_result.set_ylabel("Distribution function F(H)")
+        fig.tight_layout()
