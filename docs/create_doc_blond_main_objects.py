@@ -79,10 +79,11 @@ ASSIGNED_CATEGORIES = {
 
 
 def main():
-    """Reads all imports that are available at BLonD toplevel and creates RST file."""
-    blond_toplevel_variable_names = dir(
-        blond
-    )  # All variable names in `blond.__init__.py`
+    """Reads the public BLonD toplevel API and creates the RST file."""
+    # The public API, as declared by `blond.__init__.__all__`. Names that
+    # are imported for internal use only (e.g. `DynamicLegacyFinder`) are
+    # deliberately not documented here.
+    blond_toplevel_variable_names = sorted(blond.__all__)
 
     # Prepare dict: category → list of RST blocks
     categorized_entries = {cat.value: [] for cat in Categories}
@@ -150,7 +151,7 @@ def print_unlinked_classes(blond_toplevel_variable_names: list[str]):
     Parameters
     ----------
     blond_toplevel_variable_names
-        All variable names in `blond.__init__.py`
+        The public names exported by `blond.__init__.py`
     """
     assigned_category_keys = ASSIGNED_CATEGORIES.keys()
     for name in blond_toplevel_variable_names:
