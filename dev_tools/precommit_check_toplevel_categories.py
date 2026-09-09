@@ -34,7 +34,7 @@ def parse(path: Path) -> ast.Module:
 
     Returns
     -------
-    ast.Module
+    tree
         The parsed syntax tree.
     """
     return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -45,7 +45,7 @@ def read_toplevel_exports() -> dict[str, str]:
 
     Returns
     -------
-    dict of str to str
+    exports
         Maps each name in ``__all__`` to the module it is imported from.
         Names without a matching ``from ... import ...`` map to ``""``.
     """
@@ -65,7 +65,7 @@ def all_names(tree: ast.Module) -> list[str]:
 
     Returns
     -------
-    list of str
+    names
         The exported names, in source order.
     """
     for node in tree.body:
@@ -100,7 +100,7 @@ def import_origins(tree: ast.Module) -> dict[str, str]:
 
     Returns
     -------
-    dict of str to str
+    origins
         Bound name (respecting ``as`` aliases) to source module. Relative
         imports and ``import x`` statements are skipped.
     """
@@ -125,7 +125,7 @@ def module_file(module_path: str) -> Path | None:
 
     Returns
     -------
-    Path or None
+    path
         The ``.py`` file, or ``None`` if it is not a file in this repo.
     """
     base = REPO_ROOT.joinpath(*module_path.split("."))
@@ -154,7 +154,7 @@ def is_class(name: str, module_path: str, depth: int = 0) -> bool:
 
     Returns
     -------
-    bool
+    is_class
         Whether ``name`` refers to a class.
     """
     path = module_file(module_path) if module_path else None
@@ -184,7 +184,7 @@ def doc_script_categories() -> list[str]:
 
     Returns
     -------
-    list of str
+    categories
         Enum member names, in source order.
     """
     for node in parse(DOC_SCRIPT).body:
@@ -204,7 +204,7 @@ def assigned_categories() -> list[str]:
 
     Returns
     -------
-    list of str
+    assigned
         The categorized names, in source order.
     """
     for node in parse(DOC_SCRIPT).body:
@@ -240,7 +240,7 @@ def suggest_category(categories: list[str], module_path: str) -> str:
 
     Returns
     -------
-    str
+    category
         Name of the suggested ``Categories`` member.
     """
     rules = (
@@ -268,7 +268,7 @@ def dict_line_number() -> int:
 
     Returns
     -------
-    int
+    line_number
         1-based line number, or 0 if the dict was not found.
     """
     lines = DOC_SCRIPT.read_text(encoding="utf-8").splitlines()
@@ -283,7 +283,7 @@ def perform_check() -> int:
 
     Returns
     -------
-    int
+    exit_code
         Process exit code: 0 if everything is categorized, else 1.
     """
     categories = doc_script_categories()
