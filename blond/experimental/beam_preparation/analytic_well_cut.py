@@ -27,19 +27,23 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_potential_well import (
     check_single_bucket_well,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
 def cut_potential_well(
-    time_array: NumpyArray,
-    potential_well: NumpyArray,
+    time_array: ArrayLike,
+    potential_well: ArrayLike,
     *,
     bucket_index: int | Literal["deepest"] = "deepest",
     subtract_min: bool = True,
@@ -47,7 +51,7 @@ def cut_potential_well(
     allow_inner_buckets: bool = False,
     verbose: bool = False,
     plot: bool = False,
-) -> tuple[NumpyArray, NumpyArray]:
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Cut a potential well at the separatrix of one RF bucket.
 
@@ -112,13 +116,20 @@ rf_potential_well` output may present:
         :func:`bucket_time_array`), if the requested bucket does not
         exist, or if the cut fails the single-bucket validation.
     """
-    time_array = np.asarray(time_array, dtype=float)
-    potential_well = np.asarray(potential_well, dtype=float)
+    time_array = backend.cast_arr_float_if_needed(time_array)
+    potential_well = backend.cast_arr_float_if_needed(potential_well)
     assert time_array.shape == potential_well.shape, (
         f"{time_array.shape=} must match {potential_well.shape=}"
     )
 
-    helper = PotentialWellHelper(time_array, potential_well)
+    # PotentialWellHelper is NumPy/SciPy-only (scipy.signal.find_peaks
+    # has no CuPy counterpart), so bucket detection and the index
+    # arithmetic below run on host copies; only the returned slices are
+    # taken from the backend arrays.
+    time_host = copy_to_cpu(time_array)
+    potential_well_host = copy_to_cpu(potential_well)
+
+    helper = PotentialWellHelper(time_host, potential_well_host)
     intervals = np.asarray(helper.bucket_list, dtype=float).reshape(-1, 2)
     if intervals.shape[0] == 0:
         raise ValueError(
@@ -134,8 +145,8 @@ rf_potential_well` output may present:
     # off-by-one purge uses index//2 cells and misses pairs straddling
     # a cell boundary). Deduplicate so `bucket_index` counts physical
     # buckets.
-    left_indices = np.searchsorted(time_array, intervals[:, 0], "left")
-    right_indices = np.searchsorted(time_array, intervals[:, 1], "right") - 1
+    left_indices = np.searchsorted(time_host, intervals[:, 0], "left")
+    right_indices = np.searchsorted(time_host, intervals[:, 1], "right") - 1
     index_pairs = np.column_stack((left_indices, right_indices))
     index_pairs = index_pairs[np.argsort(index_pairs[:, 0])]
     kept_pairs = [index_pairs[0]]
@@ -148,11 +159,11 @@ rf_potential_well` output may present:
             kept_pairs.append(pair)
     index_pairs = np.asarray(kept_pairs)
     intervals = np.column_stack(
-        (time_array[index_pairs[:, 0]], time_array[index_pairs[:, 1]])
+        (time_host[index_pairs[:, 0]], time_host[index_pairs[:, 1]])
     )
 
     if bucket_index == "deepest":
-        index_of_minimum = int(potential_well.argmin())
+        index_of_minimum = int(potential_well_host.argmin())
         containing = np.flatnonzero(
             (index_pairs[:, 0] <= index_of_minimum)
             & (index_of_minimum <= index_pairs[:, 1])
@@ -178,8 +189,8 @@ rf_potential_well` output may present:
     right_index = int(index_pairs[selected, 1])
     cut_slice = slice(left_index, right_index + 1)
 
-    time_array_cut = time_array[cut_slice].copy()
-    potential_well_cut = potential_well[cut_slice].copy()
+    time_array_cut = backend.copy(time_array[cut_slice])
+    potential_well_cut = backend.copy(potential_well[cut_slice])
     if subtract_min:
         potential_well_cut = potential_well_cut - potential_well_cut.min()
 
@@ -204,7 +215,9 @@ rf_potential_well` output may present:
         )
 
     if plot:
-        _plot_cut(time_array, potential_well, intervals, selected, cut_slice)
+        _plot_cut(
+            time_host, potential_well_host, intervals, selected, cut_slice
+        )
 
     return time_array_cut, potential_well_cut
 

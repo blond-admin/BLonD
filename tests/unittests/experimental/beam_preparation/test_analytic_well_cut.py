@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_action import (
     action_from_potential_well,
 )
@@ -31,7 +32,7 @@ EOM_FACTOR_DE = calc_eom_factor_dE(ETA_0, BETA, TOTAL_ENERGY)
 
 
 def _well(time_array, phi_rf=0.0, eta_0=ETA_0, energy_gain_per_turn=0.0):
-    total_voltage = VOLTAGE * np.sin(OMEGA_RF * time_array + phi_rf)
+    total_voltage = VOLTAGE * backend.sin(OMEGA_RF * time_array + phi_rf)
     return rf_potential_well(
         time_array,
         total_voltage,
@@ -43,7 +44,9 @@ def _well(time_array, phi_rf=0.0, eta_0=ETA_0, energy_gain_per_turn=0.0):
 
 
 def _separatrix_action(well_cut):
-    deltaE_max = np.sqrt((well_cut.max() - well_cut.min()) / EOM_FACTOR_DE)
+    deltaE_max = backend.sqrt(
+        (well_cut.max() - well_cut.min()) / EOM_FACTOR_DE
+    )
     return 4.0 * deltaE_max / (np.pi * OMEGA_RF)
 
 
@@ -56,14 +59,16 @@ def test_margined_frame_is_cut_to_one_bucket():
     assert check_single_bucket_well(well, raise_error=False) is False
     time_cut, well_cut = cut_potential_well(time_array, well)
     # ...the cut restores it and spans one RF period.
-    assert np.isclose(well_cut.min(), 0.0)
+    assert backend.isclose(well_cut.min(), 0.0)
     span = time_cut[-1] - time_cut[0]
-    assert np.isclose(span, RF_PERIOD, rtol=2e-3)
+    assert backend.isclose(span, RF_PERIOD, rtol=2e-3)
     # J at the separatrix matches the closed form on the cut well.
     sorted_h, sorted_j = action_from_potential_well(
         time_cut, well_cut, eom_factor_dE=EOM_FACTOR_DE
     )
-    assert np.isclose(sorted_j[-1], _separatrix_action(well_cut), rtol=1e-4)
+    assert backend.isclose(
+        sorted_j[-1], _separatrix_action(well_cut), rtol=1e-4
+    )
 
 
 def test_cut_is_idempotent_on_clean_bucket():
@@ -72,7 +77,7 @@ def test_cut_is_idempotent_on_clean_bucket():
     time_cut, well_cut = cut_potential_well(time_array, well)
     # An already-cut single bucket passes through (near-)unchanged.
     assert len(time_cut) >= len(time_array) - 2
-    assert np.isclose(well_cut.max(), well.max() - well.min(), rtol=1e-3)
+    assert backend.isclose(well_cut.max(), well.max() - well.min(), rtol=1e-3)
 
 
 def test_accelerating_well_cut_at_separatrix():
@@ -93,8 +98,8 @@ def test_accelerating_well_cut_at_separatrix():
     sorted_h, sorted_j = action_from_potential_well(
         time_cut, well_cut, eom_factor_dE=EOM_FACTOR_DE
     )
-    assert np.all(np.diff(sorted_j) >= -1e-12)
-    assert np.all(np.isfinite(sorted_j))
+    assert backend.all(backend.diff(sorted_j) >= -1e-12)
+    assert backend.all(backend.isfinite(sorted_j))
 
 
 def test_below_transition_with_convention_and_margin():
@@ -109,7 +114,9 @@ def test_below_transition_with_convention_and_margin():
     sorted_h, sorted_j = action_from_potential_well(
         time_cut, well_cut, eom_factor_dE=EOM_FACTOR_DE
     )
-    assert np.isclose(sorted_j[-1], _separatrix_action(well_cut), rtol=1e-4)
+    assert backend.isclose(
+        sorted_j[-1], _separatrix_action(well_cut), rtol=1e-4
+    )
 
 
 def test_below_transition_without_convention_raises():
@@ -120,26 +127,28 @@ def test_below_transition_without_convention_raises():
 
 
 def test_multibucket_span_selection():
-    time_array = np.linspace(0.0, 3.0 * RF_PERIOD, 6000)
+    time_array = backend.linspace(
+        0.0, 3.0 * RF_PERIOD, 6000, dtype=backend.float
+    )
     well = _well(time_array)
     # "deepest" returns a single one-period bucket.
     time_cut, well_cut = cut_potential_well(time_array, well)
     span = time_cut[-1] - time_cut[0]
-    assert np.isclose(span, RF_PERIOD, rtol=2e-2)
+    assert backend.isclose(span, RF_PERIOD, rtol=2e-2)
     # Explicit selection: the first bucket's minimum sits at half an RF
     # period, and the cut does not leak into the second bucket.
     time_cut_0, well_cut_0 = cut_potential_well(
         time_array, well, bucket_index=0
     )
     time_of_minimum = time_cut_0[int(well_cut_0.argmin())]
-    assert np.isclose(time_of_minimum, 0.5 * RF_PERIOD, rtol=5e-2)
+    assert backend.isclose(time_of_minimum, 0.5 * RF_PERIOD, rtol=5e-2)
     assert time_cut_0[-1] <= 1.5 * RF_PERIOD
     # The third physical bucket is addressable and centred at 2.5 T_rf.
     time_cut_2, well_cut_2 = cut_potential_well(
         time_array, well, bucket_index=2
     )
     time_of_minimum_2 = time_cut_2[int(well_cut_2.argmin())]
-    assert np.isclose(time_of_minimum_2, 2.5 * RF_PERIOD, rtol=5e-2)
+    assert backend.isclose(time_of_minimum_2, 2.5 * RF_PERIOD, rtol=5e-2)
     # Out-of-range selection fails loudly.
     with pytest.raises(ValueError, match="bucket_index"):
         cut_potential_well(time_array, well, bucket_index=99)
@@ -166,8 +175,8 @@ def test_double_harmonic_sub_wells_characterization():
         OMEGA_RF, n_points=4000, dt_margin_fraction=0.2
     )
     total_voltage = VOLTAGE * (
-        np.sin(OMEGA_RF * time_array)
-        + 0.8 * np.sin(2.0 * OMEGA_RF * time_array)
+        backend.sin(OMEGA_RF * time_array)
+        + 0.8 * backend.sin(2.0 * OMEGA_RF * time_array)
     )
     well = rf_potential_well(
         time_array,
@@ -192,7 +201,7 @@ def test_double_harmonic_sub_wells_characterization():
     _, sub_well_2 = cut_potential_well(time_array, well, bucket_index=2)
     amplitude_1 = sub_well_1.max() - sub_well_1.min()
     amplitude_2 = sub_well_2.max() - sub_well_2.min()
-    assert np.isclose(amplitude_1, amplitude_2, rtol=1e-3)
+    assert backend.isclose(amplitude_1, amplitude_2, rtol=1e-3)
     assert amplitude_1 < 0.1 * VOLTAGE / (
         np.pi * OMEGA_RF * T_REV / (2.0 * np.pi)
     )
@@ -201,8 +210,8 @@ def test_double_harmonic_sub_wells_characterization():
         time_array,
         VOLTAGE
         * (
-            np.sin(OMEGA_RF * time_array)
-            + 0.5 * np.sin(2.0 * OMEGA_RF * time_array + np.pi)
+            backend.sin(OMEGA_RF * time_array)
+            + 0.5 * backend.sin(2.0 * OMEGA_RF * time_array + np.pi)
         ),
         charge=1.0,
         t_rev=T_REV,
@@ -213,8 +222,8 @@ def test_double_harmonic_sub_wells_characterization():
         time_array,
         VOLTAGE
         * (
-            np.sin(OMEGA_RF * time_array)
-            + 0.5 * np.sin(2.0 * OMEGA_RF * time_array)
+            backend.sin(OMEGA_RF * time_array)
+            + 0.5 * backend.sin(2.0 * OMEGA_RF * time_array)
         ),
         charge=1.0,
         t_rev=T_REV,

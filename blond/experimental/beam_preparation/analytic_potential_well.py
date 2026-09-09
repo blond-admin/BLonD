@@ -25,9 +25,13 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.integrate import cumulative_trapezoid
+
+from blond.core.backends.backend import backend
+from blond.generals.cupy.no_cupy_import import AllowPlotting
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -35,7 +39,7 @@ def bucket_time_array(
     omega_rf: float,
     n_points: int = 10_000,
     dt_margin_fraction: float = 0.0,
-) -> NumpyArray:
+) -> NumpyArray | CupyArray:
     """
     Uniform time grid spanning one RF period of the main harmonic.
 
@@ -69,12 +73,39 @@ def bucket_time_array(
     """
     rf_period = 2.0 * np.pi / omega_rf
     margin = dt_margin_fraction * rf_period
-    return np.linspace(-margin / 2.0, rf_period + margin / 2.0, int(n_points))
+    return backend.linspace(
+        -margin / 2.0,
+        rf_period + margin / 2.0,
+        int(n_points),
+        dtype=backend.float,
+    )
+
+
+def _cumulative_trapezoid_from_zero(
+    values: NumpyArray | CupyArray, time_array: NumpyArray | CupyArray
+) -> NumpyArray | CupyArray:
+    """
+    Cumulative trapezoidal integral of ``values`` over ``time_array``.
+
+    Starts at zero. Equivalent to
+    ``scipy.integrate.cumulative_trapezoid(values, x=time_array,
+    initial=0.0)``, re-implemented on `backend` primitives since CuPy
+    has no ``cumulative_trapezoid`` counterpart.
+    """
+    time_step = backend.diff(time_array)
+    midpoint_average = 0.5 * (values[:-1] + values[1:])
+    increments = time_step * midpoint_average
+    return backend.concatenate(
+        (
+            backend.zeros(1, dtype=backend.float),
+            backend.cumulative_sum(increments),
+        )
+    )
 
 
 def rf_potential_well(
-    time_array: NumpyArray,
-    total_voltage: NumpyArray,
+    time_array: ArrayLike,
+    total_voltage: ArrayLike,
     *,
     charge: float,
     t_rev: float,
@@ -83,7 +114,7 @@ def rf_potential_well(
     subtract_min: bool = True,
     verbose: bool = False,
     plot: bool = False,
-) -> NumpyArray:
+) -> NumpyArray | CupyArray:
     r"""
     Analytic RF potential well from a total RF voltage waveform.
 
@@ -110,9 +141,9 @@ def rf_potential_well(
         non-uniform.
     total_voltage
         Total RF voltage summed over all harmonics at ``time_array``,
-        in [V], as a host NumPy array — e.g. the output of
-        ``rf_station.calc_gap_voltage_without_feedbacks`` converted
-        with ``copy_to_cpu``.
+        in [V] — e.g. the output of
+        ``rf_station.calc_gap_voltage_without_feedbacks``. NumPy or
+        CuPy, matching ``backend``.
     charge
         Particle charge, as number of elementary charges ``e``.
     t_rev
@@ -141,33 +172,33 @@ def rf_potential_well(
     the stable phase inside the frame — see the ``phi_rf`` convention in
     :func:`bucket_time_array` and :func:`check_single_bucket_well`).
     """
-    time_array = np.asarray(time_array, dtype=float)
-    total_voltage = np.asarray(total_voltage, dtype=float)
+    time_array = backend.array(time_array, dtype=backend.float)
+    total_voltage = backend.array(total_voltage, dtype=backend.float)
     assert time_array.shape == total_voltage.shape, (
         f"{time_array.shape=} must match {total_voltage.shape=}"
     )
 
-    eom_factor_potential = np.sign(eta_0) * charge / t_rev
+    # float() keeps the factor weak: a NumPy float64 scalar would
+    # promote a float32 backend array back to float64.
+    eom_factor_potential = float(np.sign(eta_0)) * charge / t_rev
 
     # RF voltage seen relative to the synchronous accelerating voltage
     effective_voltage = total_voltage - energy_gain_per_turn / abs(charge)
 
-    potential_well = -cumulative_trapezoid(
-        eom_factor_potential * effective_voltage,
-        x=time_array,
-        initial=0.0,
+    potential_well = -_cumulative_trapezoid_from_zero(
+        eom_factor_potential * effective_voltage, time_array
     )
 
     if subtract_min:
-        potential_well = potential_well - np.min(potential_well)
+        potential_well = potential_well - backend.min(potential_well)
 
     if verbose:
         print(
             "[rf_potential_well] "
             f"eom_factor={eom_factor_potential:.3e} e/s, "
-            f"span={time_array[-1] - time_array[0]:.3e} s, "
-            f"well min={potential_well.min():.3e} eV, "
-            f"well max={potential_well.max():.3e} eV"
+            f"span={float(time_array[-1] - time_array[0]):.3e} s, "
+            f"well min={float(potential_well.min()):.3e} eV, "
+            f"well max={float(potential_well.max()):.3e} eV"
         )
 
     if plot:
@@ -177,7 +208,7 @@ def rf_potential_well(
 
 
 def check_single_bucket_well(
-    potential_well: NumpyArray,
+    potential_well: ArrayLike,
     *,
     relative_tolerance: float = 1e-2,
     allow_inner_buckets: bool = False,
@@ -234,7 +265,7 @@ def check_single_bucket_well(
         If the well is not a single cut bucket and ``raise_error`` is
         True.
     """
-    potential_well = np.asarray(potential_well, dtype=float)
+    potential_well = backend.array(potential_well, dtype=backend.float)
 
     problems = []
     inner_buckets_message = None
@@ -243,7 +274,7 @@ def check_single_bucket_well(
             "a well needs at least 3 samples in a 1D array "
             f"(got shape {potential_well.shape})"
         )
-    elif np.any(np.isnan(potential_well)):
+    elif backend.any(backend.isnan(potential_well)):
         # NaN compares False everywhere and would silently pass the
         # numeric checks below (and bridge the action integral).
         problems.append("the potential well contains NaN")
@@ -266,7 +297,7 @@ def check_single_bucket_well(
                 )
             interior = potential_well[1:-1]
             n_inner_maxima = int(
-                np.sum(
+                backend.sum(
                     (interior > potential_well[:-2])
                     & (interior >= potential_well[2:])
                     & (interior > well_min + tolerance)
@@ -308,23 +339,24 @@ def check_single_bucket_well(
 
 
 def _plot_potential_well(
-    time_array: NumpyArray,
-    total_voltage: NumpyArray,
-    potential_well: NumpyArray,
+    time_array: NumpyArray | CupyArray,
+    total_voltage: NumpyArray | CupyArray,
+    potential_well: NumpyArray | CupyArray,
 ) -> None:
     """Draw a quick diagnostic figure of the voltage and potential well."""
     import matplotlib.pyplot as plt
 
-    fig, (ax_v, ax_p) = plt.subplots(
-        2, 1, sharex=True, num="rf_potential_well"
-    )
-    time_ns = time_array * 1e9
-    ax_v.plot(time_ns, total_voltage / 1e6, color="C0")
-    ax_v.set_ylabel("RF voltage [MV]")
-    ax_v.grid(alpha=0.3)
-    ax_p.plot(time_ns, potential_well, color="C1")
-    ax_p.set_xlabel("Time [ns]")
-    ax_p.set_ylabel("Potential well [eV]")
-    ax_p.grid(alpha=0.3)
-    fig.suptitle("Analytic RF potential well")
-    fig.tight_layout()
+    with AllowPlotting():
+        fig, (ax_v, ax_p) = plt.subplots(
+            2, 1, sharex=True, num="rf_potential_well"
+        )
+        time_ns = time_array * 1e9
+        ax_v.plot(time_ns, total_voltage / 1e6, color="C0")
+        ax_v.set_ylabel("RF voltage [MV]")
+        ax_v.grid(alpha=0.3)
+        ax_p.plot(time_ns, potential_well, color="C1")
+        ax_p.set_xlabel("Time [ns]")
+        ax_p.set_ylabel("Potential well [eV]")
+        ax_p.grid(alpha=0.3)
+        fig.suptitle("Analytic RF potential well")
+        fig.tight_layout()

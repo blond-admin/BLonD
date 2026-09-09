@@ -4,11 +4,13 @@ import numpy as np
 import pytest
 from scipy.integrate import cumulative_trapezoid
 
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_potential_well import (
     bucket_time_array,
     check_single_bucket_well,
     rf_potential_well,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # LHC-like main-harmonic parameters (450 GeV protons, h=35640, V=6 MV).
 OMEGA_RF = 2518229887.224505
@@ -19,7 +21,7 @@ HARMONIC = OMEGA_RF * T_REV / (2.0 * np.pi)
 
 
 def _single_harmonic(time_array, phi_rf=0.0):
-    return VOLTAGE * np.sin(OMEGA_RF * time_array + phi_rf)
+    return VOLTAGE * backend.sin(OMEGA_RF * time_array + phi_rf)
 
 
 def test_bucket_time_array_span():
@@ -42,12 +44,14 @@ def test_shape_and_min_at_zero():
         eta_0=ETA_0,
     )
     assert well.shape == time_array.shape
-    assert np.isclose(well.min(), 0.0)
+    assert backend.isclose(well.min(), 0.0)
 
 
 def test_matches_closed_form():
     # For V*sin(w t): Phi(t) = (eom*V/w)*(cos(w t) - 1), then min at 0.
-    time_array = np.linspace(0.0, 2.0 * np.pi / OMEGA_RF, 20000)
+    time_array = backend.linspace(
+        0.0, 2.0 * np.pi / OMEGA_RF, 20000, dtype=backend.float
+    )
     well = rf_potential_well(
         time_array,
         _single_harmonic(time_array),
@@ -57,12 +61,15 @@ def test_matches_closed_form():
     )
     eom = np.sign(ETA_0) * 1.0 / T_REV
     analytic = (eom * VOLTAGE / OMEGA_RF) * (
-        np.cos(OMEGA_RF * time_array) - 1.0
+        backend.cos(OMEGA_RF * time_array) - 1.0
     )
     analytic = analytic - analytic.min()
     # Measured max rel. error at n=20000 is ~8e-9 (O(h^2) convergence).
     np.testing.assert_allclose(
-        well, analytic, rtol=1e-6, atol=1e-6 * well.max()
+        copy_to_cpu(well),
+        copy_to_cpu(analytic),
+        rtol=1e-6,
+        atol=1e-6 * well.max(),
     )
 
 
@@ -80,9 +87,11 @@ def test_matches_legacy_cumtrapz_formula():
     )
     eom = np.sign(ETA_0) * 1.0 / T_REV
     legacy = -cumulative_trapezoid(
-        eom * total_voltage, x=time_array, initial=0.0
+        eom * copy_to_cpu(total_voltage),
+        x=copy_to_cpu(time_array),
+        initial=0.0,
     )
-    np.testing.assert_array_equal(well, legacy)
+    np.testing.assert_array_equal(copy_to_cpu(well), legacy)
 
 
 def test_eta_sign_flips_potential():
@@ -93,7 +102,7 @@ def test_eta_sign_flips_potential():
     below = rf_potential_well(
         time_array, total_voltage, eta_0=-ETA_0, **common
     )
-    np.testing.assert_allclose(above, -below)
+    np.testing.assert_allclose(copy_to_cpu(above), copy_to_cpu(-below))
 
 
 def test_energy_gain_adds_linear_tilt_with_pinned_slope():
@@ -107,9 +116,10 @@ def test_energy_gain_adds_linear_tilt_with_pinned_slope():
     tilted = rf_potential_well(
         time_array, total_voltage, energy_gain_per_turn=energy_gain, **common
     )
-    diff = tilted - base
-    coeffs = np.polyfit(time_array, diff, 1)
-    residual = diff - np.polyval(coeffs, time_array)
+    time_host = copy_to_cpu(time_array)
+    diff = copy_to_cpu(tilted) - copy_to_cpu(base)
+    coeffs = np.polyfit(time_host, diff, 1)
+    residual = diff - np.polyval(coeffs, time_host)
     assert np.max(np.abs(residual)) < 1e-6 * np.max(np.abs(diff))
     # Pin the sign and magnitude of the acceleration term (a sign flip
     # in the ported formula must fail here).
@@ -126,7 +136,9 @@ def test_energy_gain_slope_sign_with_negative_charge():
     tilted = rf_potential_well(
         time_array, total_voltage, energy_gain_per_turn=energy_gain, **common
     )
-    coeffs = np.polyfit(time_array, tilted - base, 1)
+    coeffs = np.polyfit(
+        copy_to_cpu(time_array), copy_to_cpu(tilted) - copy_to_cpu(base), 1
+    )
     expected_slope = np.sign(ETA_0) * np.sign(-1.0) * energy_gain / T_REV
     assert np.isclose(coeffs[0], expected_slope, rtol=1e-6)
 
@@ -142,7 +154,7 @@ def test_amplitude_scales_with_charge():
         t_rev=T_REV,
         eta_0=ETA_0,
     )
-    assert np.isclose(
+    assert backend.isclose(
         well_q2.max(), 2.0 * VOLTAGE / (np.pi * HARMONIC), rtol=1e-6
     )
     # q = -1, above transition: sign(eta*q) < 0, so the convention is
@@ -154,7 +166,9 @@ def test_amplitude_scales_with_charge():
         t_rev=T_REV,
         eta_0=ETA_0,
     )
-    assert np.isclose(well_qm1.max(), VOLTAGE / (np.pi * HARMONIC), rtol=1e-6)
+    assert backend.isclose(
+        well_qm1.max(), VOLTAGE / (np.pi * HARMONIC), rtol=1e-6
+    )
     # The convention holds: minimum sits mid-frame, not on an edge.
     n = len(time_array)
     assert 0.25 * n < well_qm1.argmin() < 0.75 * n
@@ -188,7 +202,7 @@ def test_check_single_bucket_well():
 
     # Multi-bucket span: interior maxima.
     rf_period = 2.0 * np.pi / OMEGA_RF
-    time_3 = np.linspace(0.0, 3.0 * rf_period, 6000)
+    time_3 = backend.linspace(0.0, 3.0 * rf_period, 6000, dtype=backend.float)
     three_buckets = rf_potential_well(
         time_3,
         _single_harmonic(time_3),
@@ -222,14 +236,16 @@ def test_check_single_bucket_well():
 
     # NaN wells must fail loudly (NaN compares False everywhere and
     # would otherwise silently pass the numeric checks).
-    nan_well = clean.copy()
+    nan_well = backend.copy(clean)
     nan_well[100] = np.nan
     with pytest.raises(ValueError, match="NaN"):
         check_single_bucket_well(nan_well)
 
     # Degenerate input: too few samples.
     with pytest.raises(ValueError):
-        check_single_bucket_well(np.array([0.0, 1.0]))
+        check_single_bucket_well(
+            backend.array([0.0, 1.0], dtype=backend.float)
+        )
 
 
 def test_check_accepts_sample_aligned_cut_of_tilted_well():
@@ -255,7 +271,7 @@ def test_check_accepts_sample_aligned_cut_of_tilted_well():
     i_min = int(well.argmin())
     i_unstable = int(well[:i_min].argmax())
     level = well[i_unstable]
-    i_right = i_min + int(np.argmax(well[i_min:] >= level))
+    i_right = i_min + int(backend.argmax(well[i_min:] >= level))
     cut = well[i_unstable : i_right + 1]
     assert check_single_bucket_well(cut) is True
 
@@ -266,8 +282,8 @@ def test_allow_inner_buckets_warns_instead_of_raising():
     # barriers, so only the inner structure is at stake.
     time_array = bucket_time_array(OMEGA_RF, n_points=4000)
     split_voltage = VOLTAGE * (
-        np.sin(OMEGA_RF * time_array)
-        + 0.8 * np.sin(2.0 * OMEGA_RF * time_array)
+        backend.sin(OMEGA_RF * time_array)
+        + 0.8 * backend.sin(2.0 * OMEGA_RF * time_array)
     )
     split_well = rf_potential_well(
         time_array,

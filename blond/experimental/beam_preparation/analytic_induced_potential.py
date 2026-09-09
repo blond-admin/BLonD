@@ -23,14 +23,12 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from blond.core.backends.backend import backend
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -39,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def clone_wakefields_on_smooth_profile(
     simulation: Simulation,
-    time_array: NumpyArray,
+    time_array: NumpyArray | CupyArray,
 ) -> tuple[list[WakeField], StaticProfile | None]:
     """
     Deep-copy the ring's wakefields onto a smooth-profile grid.
@@ -92,7 +90,7 @@ def clone_wakefields_on_smooth_profile(
 def reattach_smooth_profile(
     wakefield_clones: list[WakeField],
     simulation: Simulation,
-    time_array: NumpyArray,
+    time_array: NumpyArray | CupyArray,
 ) -> StaticProfile:
     """
     Attach a fresh smooth profile spanning ``time_array`` to the clones.
@@ -137,9 +135,9 @@ def reattach_smooth_profile(
 def induced_voltage_from_line_density(
     wakefield_clones: list[WakeField],
     smooth_profile: StaticProfile,
-    line_density_values: NumpyArray,
+    line_density_values: NumpyArray | CupyArray,
     beam: BeamBaseClass,
-) -> NumpyArray:
+) -> NumpyArray | CupyArray:
     """
     Total induced voltage of a smooth candidate line density.
 
@@ -152,6 +150,7 @@ def induced_voltage_from_line_density(
     line_density_values
         Candidate line density on the smooth-profile grid (any
         normalization; it is scaled to the beam intensity internally).
+        NumPy or CuPy; converted to ``backend`` internally.
     beam
         Beam being matched — provides intensity and particle charge
         (works before the beam is populated).
@@ -161,23 +160,19 @@ def induced_voltage_from_line_density(
     induced_voltage
         Total induced voltage on the smooth-profile grid, in [V].
     """
-    # The profile's histogram lives on the active backend (a CuPy
-    # device array under CUDA); convert the host line density at this
-    # boundary — CuPy rejects slice-assignment from a host array
-    # ("non-scalar numpy.ndarray cannot be used for fill").
-    smooth_profile._hist_y[:] = backend.array(
-        line_density_values, dtype=backend.float
-    )
-    total = float(np.sum(line_density_values))
+    # Create a new backend array only if needed.
+    # Ensures write to _hist_y is viable for any combination of backend
+    # and input array type without forcing unnecessary array creation.
+    line_density = backend.cast_arr_float_if_needed(line_density_values)
+    smooth_profile._hist_y[:] = line_density
+    total = float(backend.sum(line_density))
     assert total > 0.0, "The candidate line density is empty."
     # Same semantics as the framework: hist_y * factor = beam fraction
     # per bin (the framework sets 1 / n_macroparticles).
     smooth_profile.hist_y_to_density_factor = 1.0 / total
     smooth_profile.invalidate_cache()
 
-    induced_voltage = np.zeros(len(line_density_values), dtype=float)
+    induced_voltage = backend.zeros(len(line_density), dtype=backend.float)
     for wakefield_clone in wakefield_clones:
-        induced_voltage += copy_to_cpu(
-            wakefield_clone.calc_induced_voltage(beam=beam)
-        )
+        induced_voltage += wakefield_clone.calc_induced_voltage(beam=beam)
     return induced_voltage
