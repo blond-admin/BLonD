@@ -247,16 +247,33 @@ function histogram!(
         return nothing
     end
     array_read = wrap_array(device, Float64, array_read_pointer, n_read)
+    inverse_bin_width = n_bins / (stop - start)
+    values_per_workgroup = histogram_values_per_workgroup()
+    n_workgroups = cld(n_read, values_per_workgroup)
+    # The workgroup size is passed at launch: building a statically
+    # sized kernel from an `Int` is a runtime dispatch.
     kernel! = histogram_kernel!(device)
-    kernel!(
-        array_read,
-        array_write,
-        n_bins,
-        start,
-        stop,
-        n_bins / (stop - start);
-        ndrange=n_read,
-    )
+    need_atomics = private_bins_need_atomics(device)
+    # One pass per window of `HISTOGRAM_LOCAL_BINS` bins; a single pass
+    # for every histogram that fits into workgroup-local memory.
+    for bin_offset in 0:HISTOGRAM_LOCAL_BINS:(n_bins - 1)
+        n_local_bins = min(HISTOGRAM_LOCAL_BINS, n_bins - bin_offset)
+        kernel!(
+            array_read,
+            array_write,
+            n_read,
+            n_bins,
+            start,
+            stop,
+            inverse_bin_width,
+            bin_offset,
+            n_local_bins,
+            values_per_workgroup,
+            need_atomics;
+            ndrange=n_workgroups * HISTOGRAM_WORKGROUP_SIZE,
+            workgroupsize=HISTOGRAM_WORKGROUP_SIZE,
+        )
+    end
     KernelAbstractions.synchronize(device)
     return nothing
 end

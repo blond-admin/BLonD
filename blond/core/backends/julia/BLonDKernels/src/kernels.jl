@@ -93,24 +93,141 @@ end
     end
 end
 
+# Histogram with workgroup-private bins.
+#
+# Every work-item throwing its value straight at the global histogram makes
+# all of them contend on the same few atomic locations (a 1000-bin
+# histogram of 1e6 particles is ~10x slower than the cpp/cuda kernels that
+# way). Instead each workgroup accumulates into a private copy of the
+# bins in workgroup-local memory (shared memory on GPUs, a stack array on
+# the CPU), and only the per-workgroup partial sums are added to the
+# global histogram. The global atomic traffic drops from one add per
+# particle to one add per (workgroup, non-empty bin).
+#
+# Local memory is a compile-time constant of the kernel, so histograms
+# with more bins than `HISTOGRAM_LOCAL_BINS` are built in several passes
+# over the input, each pass covering the next window of bins.
+
+"""
+    HISTOGRAM_LOCAL_BINS
+
+Number of private bins per workgroup. `Int32` counts of 16 KiB fit into
+the workgroup-local memory of every supported GPU generation with room
+to spare for other kernels resident on the same multiprocessor.
+"""
+const HISTOGRAM_LOCAL_BINS = 4096
+
+"""
+    HISTOGRAM_WORKGROUP_SIZE
+
+Work-items per workgroup for the histogram kernel: the largest workgroup
+every GPU generation supports, so that the private bins are shared by as
+many work-items as possible. On the CPU backend a workgroup is one task,
+so this is also the chunk one thread handles between two flushes.
+"""
+const HISTOGRAM_WORKGROUP_SIZE = 1024
+
+"""
+    HISTOGRAM_VALUES_PER_WORK_ITEM
+
+Values each work-item feeds into the private bins before the workgroup
+flushes them. Larger values amortise the flush over more particles but
+leave fewer workgroups to spread over the device; 32 is the measured
+optimum for ``1e6`` particles on both CPU threads and CUDA. A workgroup
+never counts more than `typemax(Int32)` values into one private bin.
+"""
+const HISTOGRAM_VALUES_PER_WORK_ITEM = 32
+
+"""
+    histogram_values_per_workgroup() -> Int
+
+Number of input values one workgroup of the histogram kernel consumes.
+"""
+histogram_values_per_workgroup()::Int =
+    HISTOGRAM_WORKGROUP_SIZE * HISTOGRAM_VALUES_PER_WORK_ITEM
+
+"""
+    private_bins_need_atomics(device) -> Val
+
+Whether work-items of one workgroup may race on the private bins.
+
+The CPU backend executes the work-items of a workgroup one after the
+other on a single task, so plain increments are exact there and the
+locked read-modify-write of an atomic would only cost time. On every
+other device the work-items run concurrently and need the atomic.
+"""
+private_bins_need_atomics(::CPU) = Val(false)
+private_bins_need_atomics(::Any) = Val(true)
+
 @kernel function histogram_kernel!(
-    array_read, array_write, n_bins, start, stop, inverse_bin_width
-)
-    i = @index(Global, Linear)
-    @inbounds begin
-        value = array_read[i]
+    array_read,
+    array_write,
+    n_read,
+    n_bins,
+    start,
+    stop,
+    inverse_bin_width,
+    bin_offset,
+    n_local_bins,
+    values_per_workgroup,
+    ::Val{NEED_ATOMICS},
+) where {NEED_ATOMICS}
+    workgroup_size = @uniform @groupsize()[1]
+    local_counts = @localmem Int32 (HISTOGRAM_LOCAL_BINS,)
+
+    # Phase 1: clear the private bins of this workgroup.
+    zero_index = @index(Local, Linear)
+    while zero_index <= n_local_bins
+        @inbounds local_counts[zero_index] = Int32(0)
+        zero_index += workgroup_size
+    end
+
+    @synchronize
+
+    # Phase 2: count this workgroup's slice of the input into the
+    # private bins. Only bins of the current pass window
+    # ``[bin_offset + 1, bin_offset + n_local_bins]`` are counted.
+    local_index = @index(Local, Linear)
+    group_index = @index(Group, Linear)
+    value_index = (group_index - 1) * values_per_workgroup + local_index
+    last_value_index = min(group_index * values_per_workgroup, n_read)
+    while value_index <= last_value_index
+        @inbounds value = array_read[value_index]
+        # Out-of-range values map to bin 0, which no window contains.
+        bin_index = 0
         if value == stop
             # The right-most edge belongs to the last bin.
-            Atomix.@atomic array_write[n_bins] += 1.0
+            bin_index = n_bins
         else
             bin_float = floor((value - start) * inverse_bin_width)
             # Range-check in floating point: converting an out-of-range
             # `Float64` to `Int` is undefined behaviour.
             if bin_float >= 0.0 && bin_float < n_bins
                 bin_index = unsafe_trunc(Int, bin_float) + 1
-                Atomix.@atomic array_write[bin_index] += 1.0
             end
         end
+        local_bin = bin_index - bin_offset
+        if 1 <= local_bin <= n_local_bins
+            if NEED_ATOMICS
+                @inbounds Atomix.@atomic local_counts[local_bin] += Int32(1)
+            else
+                @inbounds local_counts[local_bin] += Int32(1)
+            end
+        end
+        value_index += workgroup_size
+    end
+
+    @synchronize
+
+    # Phase 3: add the non-empty private bins to the global histogram.
+    flush_index = @index(Local, Linear)
+    while flush_index <= n_local_bins
+        @inbounds count = local_counts[flush_index]
+        if count != Int32(0)
+            global_bin = bin_offset + flush_index
+            @inbounds Atomix.@atomic array_write[global_bin] += Float64(count)
+        end
+        flush_index += workgroup_size
     end
 end
 

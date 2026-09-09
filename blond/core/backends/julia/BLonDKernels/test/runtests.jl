@@ -7,9 +7,12 @@
 # Project website: http://blond.web.cern.ch/
 
 using Test
+using Aqua
 using JET
 using LinearAlgebra: dot
 using Random
+using Atomix: Atomix
+using KernelAbstractions: KernelAbstractions, @index, @kernel
 
 using BLonDKernels
 
@@ -130,6 +133,26 @@ function reference_beam_phase(
                               bin_size
     end
     return sine_coefficient / cosine_coefficient
+end
+
+# The global-atomic histogram the privatised kernel replaced; kept as
+# the performance baseline of the "workgroup privatisation" testset.
+@kernel function naive_histogram_kernel!(
+    array_read, array_write, n_bins, start, stop, inverse_bin_width
+)
+    i = @index(Global, Linear)
+    @inbounds begin
+        value = array_read[i]
+        if value == stop
+            Atomix.@atomic array_write[n_bins] += 1.0
+        else
+            bin_float = floor((value - start) * inverse_bin_width)
+            if bin_float >= 0.0 && bin_float < n_bins
+                bin_index = unsafe_trunc(Int, bin_float) + 1
+                Atomix.@atomic array_write[bin_index] += 1.0
+            end
+        end
+    end
 end
 
 function reference_histogram(array_read, n_bins, start, stop)
@@ -682,6 +705,64 @@ function run_device_tests(
             end
         end
 
+        @testset "histogram! workgroup privatisation" begin
+            # Many values (several workgroups, partial last workgroup,
+            # heavy contention on few bins) and more bins than fit into
+            # one workgroup's local memory (multi-pass path). The
+            # values are chosen so that every case also has entries
+            # exactly on `stop`, below `start` and above `stop`.
+            rng = MersenneTwister(1234)
+            n_values = 1_000_003
+            start = -1.0
+            stop = 3.0
+            values_host = 4.0 .* rand(rng, n_values) .- 1.5
+            values_host[1:100] .= stop
+            values_host[101:200] .= start
+            values = to_device(values_host)
+            local_bins = BLonDKernels.HISTOGRAM_LOCAL_BINS
+            for n_bins in (1, 7, 1000, local_bins, 3 * local_bins + 5)
+                expected = reference_histogram(
+                    values_host, n_bins, start, stop
+                )
+                out = to_device(ones(Float64, n_bins))
+                BLonDKernels.histogram!(
+                    device,
+                    raw_pointer(values),
+                    n_values,
+                    raw_pointer(out),
+                    n_bins,
+                    start,
+                    stop,
+                )
+                @test to_host(out) == expected
+            end
+            # The privatised kernel must beat a naive global-atomic
+            # kernel (the previous implementation) on the same device,
+            # measured relative to each other so the test does not
+            # depend on the machine. Both are timed after compilation.
+            n_bins = 1000
+            out = to_device(zeros(Float64, n_bins))
+            run_privatised() = BLonDKernels.histogram!(
+                device, raw_pointer(values), n_values, raw_pointer(out),
+                n_bins, start, stop,
+            )
+            naive_kernel! = naive_histogram_kernel!(device)
+            function run_naive()
+                fill!(out, 0.0)
+                naive_kernel!(
+                    values, out, n_bins, start, stop,
+                    n_bins / (stop - start); ndrange=n_values,
+                )
+                KernelAbstractions.synchronize(device)
+            end
+            run_privatised()
+            run_naive()
+            elapsed_privatised =
+                minimum(@elapsed(run_privatised()) for _ in 1:20)
+            elapsed_naive = minimum(@elapsed(run_naive()) for _ in 1:20)
+            @test elapsed_privatised < elapsed_naive
+        end
+
         @testset "beam_phase" begin
             hist_x_host = collect(range(-10, 10; length=21))
             hist_y_host = 10.0^2 .- hist_x_host .^ 2
@@ -1214,6 +1295,13 @@ function run_music_track_tests(device; run_jet::Bool)
 end
 
 @testset verbose = true "BLonDKernels" begin
+    @testset "Aqua quality assurance" begin
+        # `persistent_tasks` spawns a fresh Julia process and precompiles
+        # the package again; the remaining checks (ambiguities, unbound
+        # arguments, undefined exports, stale/compat deps, type piracy)
+        # are what guard the public surface.
+        Aqua.test_all(BLonDKernels; persistent_tasks=false)
+    end
     host = @inferred BLonDKernels.host_device()
     @test host isa BLonDKernels.CPU
     @test_opt target_modules = (BLonDKernels,) BLonDKernels.host_device()

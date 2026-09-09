@@ -19,7 +19,15 @@ BLonD (Python) owns all arrays; they are handed over as a raw pointer
 module BLonDKernels
 
 using Atomix: Atomix
-using KernelAbstractions: KernelAbstractions, CPU, @index, @kernel
+using KernelAbstractions:
+    KernelAbstractions,
+    CPU,
+    @groupsize,
+    @index,
+    @kernel,
+    @localmem,
+    @synchronize,
+    @uniform
 using LinearAlgebra: dot
 using Random: randn!
 
