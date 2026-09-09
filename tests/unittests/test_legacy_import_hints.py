@@ -126,4 +126,7 @@ class TestHooksAreInertForBlond3(unittest.TestCase):
             text=True,
             check=True,
         )
-        self.assertEqual(result.stdout.strip(), "False")
+        # BLonD prints a backend banner when BLOND_BACKEND_MODE is set,
+        # so only the last stdout line carries the answer.
+        last_line = result.stdout.strip().splitlines()[-1]
+        self.assertEqual(last_line, "False")
