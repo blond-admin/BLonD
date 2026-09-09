@@ -6,6 +6,7 @@ from contextlib import redirect_stdout
 from math import gamma, pi, sqrt
 
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_abel import (
@@ -20,6 +21,7 @@ from blond.experimental.beam_preparation.analytic_potential_well import (
     rf_potential_well,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import multi_backend_testcase
 
 # LHC-like kinetic factor (450 GeV protons).
 ETA_0 = 3.172867586042721e-04
@@ -103,6 +105,8 @@ class TestBinomialRoundTrip(unittest.TestCase):
                         )
                     )
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_rf_well(self):
         # Same anchor in a realistic sinusoidal RF well: the projection
         # identity holds for a general well, not just the linear regime.

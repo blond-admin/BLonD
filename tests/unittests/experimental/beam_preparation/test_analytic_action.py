@@ -3,6 +3,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_action import (
@@ -22,6 +23,7 @@ from blond.experimental.beam_preparation.analytic_well_cut import (
     cut_potential_well,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import multi_backend_testcase
 
 # LHC-like reference (450 GeV protons).
 OMEGA_RF = 2518229887.224505
@@ -185,6 +187,8 @@ class TestHamiltonianFromEmittance(unittest.TestCase):
             time_array, well, eom_factor_dE=EOM_FACTOR_DE
         )
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_round_trip(self):
         # Pick a level well inside the bucket, round-trip via emittance.
         index = len(self.sorted_h) // 2
@@ -224,6 +228,8 @@ class TestActionGrid(unittest.TestCase):
         action_2D = action_grid(self.hamilton, self.sorted_h, self.sorted_j)
         self.assertEqual(action_2D.shape, self.hamilton.shape)
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_outside_bucket_is_infinite(self):
         # H above the largest tabulated level -> inf.
         outside = action_grid(

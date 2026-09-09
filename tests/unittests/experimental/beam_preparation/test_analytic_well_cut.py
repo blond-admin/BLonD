@@ -3,6 +3,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_action import (
@@ -19,6 +20,7 @@ from blond.experimental.beam_preparation.analytic_potential_well import (
 from blond.experimental.beam_preparation.analytic_well_cut import (
     cut_potential_well,
 )
+from blond.testing.backend_testing import multi_backend_testcase
 
 # LHC-like reference (450 GeV protons).
 OMEGA_RF = 2518229887.224505
@@ -52,6 +54,8 @@ def _separatrix_action(well_cut):
 
 
 class TestCutPotentialWell(unittest.TestCase):
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_margined_frame_is_cut_to_one_bucket(self):
         time_array = bucket_time_array(
             OMEGA_RF, n_points=4000, dt_margin_fraction=0.4

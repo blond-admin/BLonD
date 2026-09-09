@@ -4,6 +4,7 @@ import unittest
 import warnings
 
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_distributions import (
@@ -18,6 +19,7 @@ from blond.experimental.beam_preparation.analytic_hamiltonian import (
     hamiltonian_grid,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import multi_backend_testcase
 
 # LHC-like kinetic factor (450 GeV protons).
 ETA_0 = 3.172867586042721e-04
@@ -89,6 +91,8 @@ class TestDistributionFunction(unittest.TestCase):
         with self.assertWarnsRegex(UserWarning, "ignored"):
             line_density(x_array, "gaussian", 1.0, exponent=2.0)
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_inf_grid_evaluates_to_zero_without_warnings(self):
         # action_grid marks outside-bucket points with inf; all families
         # must map them to 0 with no RuntimeWarning.

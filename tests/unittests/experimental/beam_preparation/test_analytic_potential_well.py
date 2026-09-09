@@ -3,15 +3,17 @@
 import unittest
 
 import numpy as np
+import pytest
 from scipy.integrate import cumulative_trapezoid
 
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import CupyBackend, backend
 from blond.experimental.beam_preparation.analytic_potential_well import (
     bucket_time_array,
     check_single_bucket_well,
     rf_potential_well,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import multi_backend_testcase
 
 # LHC-like main-harmonic parameters (450 GeV protons, h=35640, V=6 MV).
 OMEGA_RF = 2518229887.224505
@@ -74,8 +76,11 @@ class TestRfPotentialWell(unittest.TestCase):
             atol=1e-6 * float(well.max()),
         )
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_matches_legacy_cumtrapz_formula(self):
-        # Exact parity with the BLonD 2 expression (same integration).
+        # Exact parity with the BLonD 2 expression (same integration)
+        # for numpy, almost exact with cupy.
         time_array = bucket_time_array(OMEGA_RF, n_points=4000)
         total_voltage = _single_harmonic(time_array)
         well = rf_potential_well(
@@ -92,7 +97,16 @@ class TestRfPotentialWell(unittest.TestCase):
             x=copy_to_cpu(time_array),
             initial=0.0,
         )
-        np.testing.assert_array_equal(copy_to_cpu(well), legacy)
+        if isinstance(backend, CupyBackend):
+            well_amplitude = float(well.max() - well.min())
+            np.testing.assert_allclose(
+                copy_to_cpu(well),
+                legacy,
+                rtol=1e-12,
+                atol=1e-12 * well_amplitude,
+            )
+        else:
+            np.testing.assert_array_equal(well, legacy)
 
     def test_eta_sign_flips_potential(self):
         time_array = bucket_time_array(OMEGA_RF, n_points=4000)

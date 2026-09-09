@@ -3,6 +3,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond import (
     Beam,
@@ -28,6 +29,7 @@ from blond.experimental.beam_preparation.analytic_matcher import (
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import TimeDomainFftSolver
+from blond.testing.backend_testing import multi_backend_testcase
 
 RF_PERIOD = 2.0 * np.pi / 2518229887.224505
 
@@ -206,6 +208,8 @@ class TestTotalInputVoltage(unittest.TestCase):
             "sinusoid": lambda t: backend.sin(3.0 * omega_rf * t),
         }
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_extra_waveform_is_added_to_the_rf_voltage(self):
         # The extra voltage must be summed onto the RF waveform as
         # given, for any shape and amplitude. Query points are every
@@ -215,7 +219,9 @@ class TestTotalInputVoltage(unittest.TestCase):
         extra_time = backend.linspace(
             -RF_PERIOD, 2.0 * RF_PERIOD, 401, dtype=backend.float
         )
-        time_array = extra_time[::2]
+        # Copied, not a view: CuPy's interp rejects a non-contiguous
+        # query point array.
+        time_array = backend.copy(extra_time[::2])
         rf_voltage = _total_rf_voltage(simulation, time_array)
         span = float(extra_time[-1] - extra_time[0])
         omega_rf = 2.0 * np.pi / RF_PERIOD

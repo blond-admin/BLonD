@@ -3,6 +3,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_hamiltonian import (
@@ -10,6 +11,7 @@ from blond.experimental.beam_preparation.analytic_hamiltonian import (
     hamiltonian_grid,
 )
 from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import multi_backend_testcase
 
 # LHC-like reference (450 GeV protons).
 ETA_0 = 3.172867586042721e-04
@@ -51,6 +53,8 @@ class TestHamiltonianGrid(unittest.TestCase):
         )
         return time, well
 
+    @multi_backend_testcase
+    @pytest.mark.backend_mutation
     def test_grid_shape_and_convention(self):
         time, well = self._single_bucket_well(n_time=300)
         time_grid, deltaE_grid, hamilton = hamiltonian_grid(
