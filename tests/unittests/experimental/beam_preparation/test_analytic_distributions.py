@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 import pytest
 
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_distributions import (
     DISTRIBUTION_EXPONENTS,
     _bunch_length_fwhm,
@@ -16,6 +17,7 @@ from blond.experimental.beam_preparation.analytic_hamiltonian import (
     calc_eom_factor_dE,
     hamiltonian_grid,
 )
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # LHC-like kinetic factor (450 GeV protons).
 ETA_0 = 3.172867586042721e-04
@@ -28,7 +30,9 @@ CURVATURE = 1.0e18  # eV/s^2
 
 
 def _harmonic_grid(n_time=1001, n_deltaE=801, half_span=1.0e-9):
-    time_array = np.linspace(-half_span, half_span, n_time)
+    time_array = backend.linspace(
+        -half_span, half_span, n_time, dtype=backend.float
+    )
     well = CURVATURE * time_array**2
     time_grid, deltaE_grid, hamilton = hamiltonian_grid(
         time_array,
@@ -40,28 +44,31 @@ def _harmonic_grid(n_time=1001, n_deltaE=801, half_span=1.0e-9):
 
 
 def test_named_types_match_binomial_exponents():
-    x_array = np.linspace(0.0, 2.0, 100)
+    x_array = backend.linspace(0.0, 2.0, 100, dtype=backend.float)
     for name, exponent in DISTRIBUTION_EXPONENTS.items():
         np.testing.assert_array_equal(
-            distribution_function(x_array, name, 1.3),
-            distribution_function(x_array, "binomial", 1.3, exponent),
+            copy_to_cpu(distribution_function(x_array, name, 1.3)),
+            copy_to_cpu(
+                distribution_function(x_array, "binomial", 1.3, exponent)
+            ),
         )
 
 
 def test_gaussian_form_and_binomial_form():
-    x_array = np.array([0.0, 0.4, 1.0, 1.6])
+    x_array = backend.array([0.0, 0.4, 1.0, 1.6], dtype=backend.float)
     np.testing.assert_allclose(
-        distribution_function(x_array, "gaussian", 0.8),
-        np.exp(-2.0 * x_array / 0.8),
+        copy_to_cpu(distribution_function(x_array, "gaussian", 0.8)),
+        copy_to_cpu(backend.exp(-2.0 * x_array / 0.8)),
     )
+    x_host = copy_to_cpu(x_array)
     np.testing.assert_allclose(
-        distribution_function(x_array, "binomial", 1.0, 2.0),
-        np.where(x_array <= 1.0, (1.0 - np.minimum(x_array, 1.0)) ** 2, 0.0),
+        copy_to_cpu(distribution_function(x_array, "binomial", 1.0, 2.0)),
+        np.where(x_host <= 1.0, (1.0 - np.minimum(x_host, 1.0)) ** 2, 0.0),
     )
 
 
 def test_input_validation():
-    x_array = np.linspace(0.0, 1.0, 10)
+    x_array = backend.linspace(0.0, 1.0, 10, dtype=backend.float)
     with pytest.raises(ValueError, match="binomial"):
         distribution_function(x_array, "binomial", 1.0)
     with pytest.raises(ValueError, match="Unknown"):
@@ -75,7 +82,7 @@ def test_input_validation():
 def test_inf_grid_evaluates_to_zero_without_warnings():
     # action_grid marks outside-bucket points with inf; all families
     # must map them to 0 with no RuntimeWarning.
-    x_array = np.array([0.2, 0.9, np.inf])
+    x_array = backend.array([0.2, 0.9, np.inf], dtype=backend.float)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         binomial = distribution_function(x_array, "binomial", 1.0, 0.5)
@@ -111,34 +118,40 @@ def test_projection_gives_plus_half_exponent():
         expected /= expected.max()
         significant = expected > 0.05
         np.testing.assert_allclose(
-            projected[significant],
-            expected[significant],
+            copy_to_cpu(projected[significant]),
+            copy_to_cpu(expected[significant]),
             rtol=rtol,
             err_msg=distribution_type,
         )
 
 
 def test_line_density_shapes():
-    time_array = np.linspace(-1.0, 1.0, 2001)
+    time_array = backend.linspace(-1.0, 1.0, 2001, dtype=backend.float)
     # parabolic_line: total exponent 0.5 + 0.5 = 1 -> exact parabola.
     parabola = line_density(time_array, "parabolic_line", 2.0)
-    np.testing.assert_allclose(parabola, 1.0 - time_array**2, atol=1e-12)
+    np.testing.assert_allclose(
+        copy_to_cpu(parabola), copy_to_cpu(1.0 - time_array**2), atol=1e-12
+    )
     # cosine_squared with support tau
     cosine = line_density(time_array, "cosine_squared", 2.0)
     np.testing.assert_allclose(
-        cosine, np.cos(0.5 * np.pi * time_array) ** 2, atol=1e-12
+        copy_to_cpu(cosine),
+        copy_to_cpu(backend.cos(0.5 * np.pi * time_array) ** 2),
+        atol=1e-12,
     )
     # gaussian: sigma = tau/4
     gaussian = line_density(time_array, "gaussian", 2.0)
     np.testing.assert_allclose(
-        gaussian, np.exp(-(time_array**2) / (2 * 0.5**2)), atol=1e-12
+        copy_to_cpu(gaussian),
+        copy_to_cpu(backend.exp(-(time_array**2) / (2 * 0.5**2))),
+        atol=1e-12,
     )
 
 
 def test_fwhm_helper_on_gaussian():
-    time_array = np.linspace(-1.0, 1.0, 4001)
+    time_array = backend.linspace(-1.0, 1.0, 4001, dtype=backend.float)
     sigma = 0.1
-    gaussian = np.exp(-(time_array**2) / (2 * sigma**2))
+    gaussian = backend.exp(-(time_array**2) / (2 * sigma**2))
     assert np.isclose(
         _bunch_length_fwhm(time_array, gaussian), 4.0 * sigma, rtol=1e-3
     )

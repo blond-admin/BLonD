@@ -48,9 +48,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import backend
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Self
 
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     DistributionTypeString = Literal[
@@ -116,8 +120,8 @@ DISTRIBUTION_EXPONENTS = {
 
 
 def _binomial_family(
-    values: NumpyArray, scale: float, exponent: float
-) -> NumpyArray:
+    values: NumpyArray | CupyArray, scale: float, exponent: float
+) -> NumpyArray | CupyArray:
     """
     Masked binomial kernel ``(1 - values/scale)**exponent``.
 
@@ -128,7 +132,7 @@ def _binomial_family(
     which computed NaNs first and cleaned them after under suppressed
     warnings.
     """
-    result = np.zeros_like(values, dtype=float)
+    result = backend.zeros_like(values, dtype=backend.float)
     inside = values <= scale
     result[inside] = (1.0 - values[inside] / scale) ** exponent
     return result
@@ -162,11 +166,11 @@ def _resolve_exponent(
 
 
 def distribution_function(
-    x_array: NumpyArray,
+    x_array: ArrayLike,
     distribution_type: DistributionType | DistributionTypeString,
     x_0: float,
     exponent: float | None = None,
-) -> NumpyArray:
+) -> NumpyArray | CupyArray:
     r"""
     Stationary phase-space distribution :math:`g(X)` (BLonD 2 families).
 
@@ -201,7 +205,7 @@ def distribution_function(
     density — zero them with an inside-bucket mask (as BLonD 2 did with
     ``density_grid[H_grid > H_max] = 0``).
     """
-    x_array = np.asarray(x_array, dtype=float)
+    x_array = backend.cast_arr_float_if_needed(x_array)
     distribution_type = DistributionType._from_input(distribution_type)
     if distribution_type == DistributionType.GAUSSIAN:
         if exponent is not None:
@@ -210,18 +214,18 @@ def distribution_function(
                 UserWarning,
                 stacklevel=2,
             )
-        return np.exp(-2.0 * x_array / x_0)
+        return backend.exp(-2.0 * x_array / x_0)
     resolved_exponent = _resolve_exponent(distribution_type, exponent)
     return _binomial_family(x_array, x_0, resolved_exponent)
 
 
 def line_density(
-    time_array: NumpyArray,
+    time_array: ArrayLike,
     distribution_type: DistributionType | DistributionTypeString,
     bunch_length: float,
     bunch_position: float = 0.0,
     exponent: float | None = None,
-) -> NumpyArray:
+) -> NumpyArray | CupyArray:
     r"""
     Analytic line density :math:`\lambda(t)` (BLonD 2 families).
 
@@ -251,7 +255,7 @@ def line_density(
     line_density_values
         :math:`\lambda(t)` evaluated at ``time_array`` (not normalized).
     """
-    time_array = np.asarray(time_array, dtype=float)
+    time_array = backend.cast_arr_float_if_needed(time_array)
     distribution_type = DistributionType._from_input(distribution_type)
     normalized_offset = 2.0 * (time_array - bunch_position) / bunch_length
 
@@ -269,15 +273,15 @@ def line_density(
     match distribution_type:
         case DistributionType.GAUSSIAN:
             sigma = bunch_length / 4.0
-            result = np.exp(
+            result = backend.exp(
                 -((time_array - bunch_position) ** 2) / (2.0 * sigma**2)
             )
 
         case DistributionType.COSINE_SQUARED:
-            result = np.zeros_like(time_array, dtype=float)
-            inside = np.abs(normalized_offset) <= 1.0
+            result = backend.zeros_like(time_array, dtype=backend.float)
+            inside = backend.abs(normalized_offset) <= 1.0
             result[inside] = (
-                np.cos(0.5 * np.pi * normalized_offset[inside]) ** 2
+                backend.cos(0.5 * np.pi * normalized_offset[inside]) ** 2
             )
 
         case _:
@@ -291,21 +295,24 @@ def line_density(
 
 
 def _bunch_length_rms(
-    time_array: NumpyArray, line_density_values: NumpyArray
+    time_array: NumpyArray | CupyArray,
+    line_density_values: NumpyArray | CupyArray,
 ) -> float:
     """4-sigma RMS bunch length of a line density (BLonD 2 default)."""
-    total = float(np.sum(line_density_values))
+    total = float(backend.sum(line_density_values))
     if total <= 0.0:
         return 0.0
-    mean_time = float(np.sum(line_density_values * time_array) / total)
+    mean_time = float(backend.sum(line_density_values * time_array) / total)
     variance = float(
-        np.sum(line_density_values * (time_array - mean_time) ** 2) / total
+        backend.sum(line_density_values * (time_array - mean_time) ** 2)
+        / total
     )
-    return 4.0 * np.sqrt(variance)
+    return float(4.0 * np.sqrt(variance))
 
 
 def _bunch_length_fwhm(
-    time_array: NumpyArray, line_density_values: NumpyArray
+    time_array: NumpyArray | CupyArray,
+    line_density_values: NumpyArray | CupyArray,
 ) -> float:
     """
     FWHM bunch length rescaled to gaussian-equivalent 4 sigma.
@@ -314,10 +321,10 @@ def _bunch_length_fwhm(
     interpolated half-maximum crossings, then
     ``4 * fwhm / (2 * sqrt(2 * ln 2))``.
     """
-    if np.all(line_density_values <= 0.0):
+    if backend.all(line_density_values <= 0.0):
         return 0.0
     half_maximum = 0.5 * float(line_density_values.max())
-    above = np.flatnonzero(line_density_values >= half_maximum)
+    above = backend.flatnonzero(line_density_values >= half_maximum)
     first, last = int(above[0]), int(above[-1])
     bin_size = time_array[1] - time_array[0]
 
@@ -341,15 +348,15 @@ def _bunch_length_fwhm(
 
 
 def x0_from_bunch_length(
-    time_array: NumpyArray,
-    x_grid: NumpyArray,
+    time_array: ArrayLike,
+    x_grid: ArrayLike,
     *,
     target_bunch_length: float,
     distribution_type: DistributionType | DistributionTypeString,
     exponent: float | None = None,
     bunch_length_fit: BunchLengthFit
     | Literal["rms", "fwhm", "full"] = BunchLengthFit.RMS,
-    inside_bucket_mask: NumpyArray | None = None,
+    inside_bucket_mask: NumpyArray | CupyArray | None = None,
     max_iterations: int = 100,
     verbose: bool = False,
 ) -> float:
@@ -415,9 +422,9 @@ def x0_from_bunch_length(
         )
     bunch_length_fit = BunchLengthFit._from_input(bunch_length_fit)
 
-    time_array = np.asarray(time_array, dtype=float)
-    x_grid = np.asarray(x_grid, dtype=float)
-    finite = np.isfinite(x_grid)
+    time_array = backend.cast_arr_float_if_needed(time_array)
+    x_grid = backend.cast_arr_float_if_needed(x_grid)
+    finite = backend.isfinite(x_grid)
 
     if inside_bucket_mask is not None:
         finite = finite & inside_bucket_mask
@@ -429,8 +436,8 @@ def x0_from_bunch_length(
 
     def measure(x_0: float) -> float:
         if bunch_length_fit == BunchLengthFit.FULL:
-            columns = np.any((x_grid <= x_0) & finite, axis=0)
-            occupied = np.flatnonzero(columns)
+            columns = backend.any((x_grid <= x_0) & finite, axis=0)
+            occupied = backend.flatnonzero(columns)
 
             if occupied.size == 0:
                 achieved = 0.0
@@ -444,7 +451,7 @@ def x0_from_bunch_length(
             )
 
             if inside_bucket_mask is not None:
-                density = np.where(inside_bucket_mask, density, 0.0)
+                density = backend.where(inside_bucket_mask, density, 0.0)
 
             line_density_values = density.sum(axis=0)
 
@@ -475,7 +482,7 @@ def x0_from_bunch_length(
             x_low = x_0
 
         if (x_high - x_low) < 1e-12 * x_span:
-            if achieved < target_bunch_length and np.isclose(
+            if achieved < target_bunch_length and backend.isclose(
                 x_high, x_grid[finite].max()
             ):
                 warnings.warn(

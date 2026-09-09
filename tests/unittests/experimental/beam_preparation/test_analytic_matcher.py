@@ -16,6 +16,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_distributions import (
     line_density,
 )
@@ -383,7 +384,9 @@ def _measured_profile(
     full_length=1.6e-9, position=0.15e-9, baseline=0.0, n_samples=201
 ):
     """Synthetic 'measured' profile on its own (bucket-unrelated) axis."""
-    time_measured = np.linspace(-1.0e-9, 1.0e-9, n_samples)
+    time_measured = backend.linspace(
+        -1.0e-9, 1.0e-9, n_samples, dtype=backend.float
+    )
     profile = (
         line_density(
             time_measured,
@@ -448,9 +451,12 @@ def test_line_density_measured_mode_recenters():
     # Matched length agrees with the input profile's own 4 sigma rms
     # (computed on the baseline-subtracted input).
     clean = profile - profile.min()
-    mean_time = np.sum(clean * time_measured) / np.sum(clean)
-    input_4sigma = 4.0 * np.sqrt(
-        np.sum(clean * (time_measured - mean_time) ** 2) / np.sum(clean)
+    mean_time = backend.sum(clean * time_measured) / backend.sum(clean)
+    input_4sigma = 4.0 * float(
+        backend.sqrt(
+            backend.sum(clean * (time_measured - mean_time) ** 2)
+            / backend.sum(clean)
+        )
     )
     assert np.isclose(matcher.matched_bunch_length, input_4sigma, rtol=3e-2)
     # The input arrays were not mutated.

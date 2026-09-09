@@ -16,6 +16,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_distributions import (
     line_density,
 )
@@ -117,7 +118,7 @@ def test_clone_overrides_and_independence():
 
 
 def test_clone_works_for_line_density_matcher():
-    time_measured = np.linspace(-1e-9, 1e-9, 101)
+    time_measured = backend.linspace(-1e-9, 1e-9, 101, dtype=backend.float)
     profile = line_density(
         time_measured, "binomial", 1.6e-9, bunch_position=0.0, exponent=1.5
     )
@@ -130,7 +131,9 @@ def test_clone_works_for_line_density_matcher():
     varied = matcher.clone(half_option="both", seed=3)
     assert varied._half_option == "both"
     assert varied._seed == 3
-    np.testing.assert_array_equal(varied._input_time, time_measured)
+    np.testing.assert_array_equal(
+        copy_to_cpu(varied._input_time), copy_to_cpu(time_measured)
+    )
 
 
 def test_clone_rejects_unknown_argument():
@@ -144,14 +147,16 @@ def test_clone_rejects_unknown_argument():
 def test_extra_voltage_shifts_synchronous_position():
     # A small constant extra voltage V0 moves the zero crossing of the
     # total voltage: sin(omega t) V + V0 = 0 -> dt = -asin(V0/V)/omega.
-    extra_time = np.linspace(-2.0 * RF_PERIOD, 3.0 * RF_PERIOD, 100)
+    extra_time = backend.linspace(
+        -2.0 * RF_PERIOD, 3.0 * RF_PERIOD, 100, dtype=backend.float
+    )
     v_0, v_rf = 2e5, 6e6
     omega_rf = 2.0 * np.pi / RF_PERIOD
 
     positions = {}
     for label, extra in (
         ("bare", None),
-        ("offset", (extra_time, v_0 * np.ones_like(extra_time))),
+        ("offset", (extra_time, v_0 * backend.ones_like(extra_time))),
     ):
         simulation, beam = _build_simulation()
         matcher = _template(extra_voltage=extra)
@@ -203,7 +208,7 @@ def test_train_positions_lengths_and_independent_noise():
 
 
 def test_per_bunch_parameters_and_mixed_types():
-    time_measured = np.linspace(-1e-9, 1e-9, 101)
+    time_measured = backend.linspace(-1e-9, 1e-9, 101, dtype=backend.float)
     profile = line_density(
         time_measured, "binomial", 1.6e-9, bunch_position=0.0, exponent=1.5
     )

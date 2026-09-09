@@ -33,8 +33,8 @@ the iteration when collective effects are strong.
 
 from __future__ import annotations
 
-import warnings
 import dataclasses as dc
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -42,6 +42,7 @@ import numpy as np
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.bigaussian import get_main_harmonic_attributes
 from blond.beam_preparation.helpers import populate_beam
+from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.analytic_abel import (
     AbelSide,
@@ -84,6 +85,8 @@ from blond.physics.impedances.base import WakeField
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal
 
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -171,25 +174,25 @@ def _resolve_dt_margin_fraction(
 
 
 def _total_rf_voltage(
-    simulation: Simulation, time_array: NumpyArray
-) -> NumpyArray:
+    simulation: Simulation, time_array: NumpyArray | CupyArray
+) -> NumpyArray | CupyArray:
     """Total RF voltage waveform summed over all RF stations, in [V]."""
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation, recursive=False
     ) + simulation.ring.elements.get_elements(
         MultiHarmonicRFStation, recursive=False
     )
-    total_voltage = np.zeros_like(time_array)
+    total_voltage = backend.zeros_like(time_array, dtype=backend.float)
     for rf_station in rf_stations:
-        total_voltage += copy_to_cpu(
-            rf_station.calc_gap_voltage_without_feedbacks(ts=time_array)
+        total_voltage += rf_station.calc_gap_voltage_without_feedbacks(
+            ts=time_array
         )
     return total_voltage
 
 
 def _validate_extra_voltage(
-    extra_voltage: tuple[NumpyArray, NumpyArray] | None,
-) -> tuple[NumpyArray, NumpyArray] | None:
+    extra_voltage: tuple[ArrayLike, ArrayLike] | None,
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray] | None:
     """Validate and copy an ``(time_array, voltage_array)`` input."""
     if extra_voltage is None:
         return None
@@ -197,12 +200,13 @@ def _validate_extra_voltage(
         raise ValueError(
             "extra_voltage must be a (time_array, voltage_array) pair."
         )
-    extra_time = np.asarray(extra_voltage[0], dtype=float).copy()
-    extra_values = np.asarray(extra_voltage[1], dtype=float).copy()
+    # backend.array copies, decoupling the stored pair from the input.
+    extra_time = backend.array(extra_voltage[0], dtype=backend.float)
+    extra_values = backend.array(extra_voltage[1], dtype=backend.float)
     assert extra_time.shape == extra_values.shape, (
         f"{extra_time.shape=} must match {extra_values.shape=}"
     )
-    assert np.all(np.diff(extra_time) > 0.0), (
+    assert backend.all(backend.diff(extra_time) > 0.0), (
         "extra_voltage time_array must be strictly increasing."
     )
     return (extra_time, extra_values)
@@ -312,15 +316,15 @@ class _AnalyticMatcherBase(MatchingRoutine):
         return type(self)(**dc.asdict(current_kwargs))
 
     def _total_input_voltage(
-        self, simulation: Simulation, time_array: NumpyArray
-    ) -> NumpyArray:
+        self, simulation: Simulation, time_array: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
         """RF-station voltage plus the optional extra voltage, in [V]."""
         total_voltage = _total_rf_voltage(simulation, time_array)
 
         if self._extra_voltage is not None:
             extra_time, extra_values = self._extra_voltage
-            # np.interp holds the edge values outside the given range.
-            total_voltage = total_voltage + np.interp(
+            # interp holds the edge values outside the given range.
+            total_voltage = total_voltage + backend.interp(
                 time_array, extra_time, extra_values
             )
 
@@ -568,7 +572,7 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
         # matcher's own resolution: the induced voltage (including the
         # wake tail behind the bunch) and its potential live on the
         # frame directly, with no cut-edge interpolation artefacts.
-        induced_potential = np.zeros_like(time_array)
+        induced_potential = backend.zeros_like(time_array, dtype=backend.float)
         if self._ignore_ring_wakefields:
             # The self-consistent multi-bunch driver supplies the FULL
             # train wake (own bunch included) via extra_voltage: the
@@ -633,7 +637,7 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
             density = distribution_function(
                 hamilton_2D, self._distribution_type, x_0, self._exponent
             )
-            density = np.where(inside_bucket_mask, density, 0.0)
+            density = backend.where(inside_bucket_mask, density, 0.0)
             density /= density.sum()
             line_density_values = density.sum(axis=0)
 
@@ -656,7 +660,7 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
             # Induced potential of the smooth candidate line density,
             # computed on the full frame (the line density vanishes at
             # the separatrix edges, so the frame extension is smooth).
-            line_density_frame = np.interp(
+            line_density_frame = backend.interp(
                 time_array,
                 time_cut,
                 line_density_values,
@@ -680,8 +684,10 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
 
             # Fixed-point residual (independent of the relaxation).
             residual = float(
-                np.sqrt(
-                    np.mean((induced_potential_new - induced_potential) ** 2)
+                backend.sqrt(
+                    backend.mean(
+                        (induced_potential_new - induced_potential) ** 2
+                    )
                 )
                 / rf_amplitude
             )
@@ -716,14 +722,18 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
                 eom_factor_dE=eom_factor_dE,
                 allow_inner_buckets=self._allow_inner_buckets,
             )
-        self.matched_emittance = float(
-            2.0 * np.pi * np.interp(x_0, sorted_hamiltonian, sorted_action)
+        # CuPy's interp needs an array query point (see the interop doc).
+        action_at_x_0 = backend.interp(
+            backend.array([x_0], dtype=backend.float),
+            sorted_hamiltonian,
+            sorted_action,
         )
+        self.matched_emittance = float(2.0 * np.pi * action_at_x_0[0])
         total = line_density_values.sum()
         mean_time = (line_density_values * time_cut).sum() / total
         self.matched_bunch_length = float(
             4.0
-            * np.sqrt(
+            * backend.sqrt(
                 (line_density_values * (time_cut - mean_time) ** 2).sum()
                 / total
             )
@@ -748,11 +758,14 @@ class AnalyticDistributionMatcher(_AnalyticMatcherBase):
             )
 
         # --- sampling -------------------------------------------------
+        # populate_beam samples with a host RNG and re-uploads via
+        # backend.array, so it needs host grids; this conversion could
+        # move into populate_beam itself later.
         populate_beam(
             beam=beam,
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            density_grid=density,
+            time_grid=copy_to_cpu(time_grid),
+            deltaE_grid=copy_to_cpu(deltaE_grid),
+            density_grid=copy_to_cpu(density),
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
         )
@@ -856,11 +869,11 @@ def _profile_position(
     slightly noisy profiles).
     """
     if profile_centering == "peak":
-        return float(time_line_den[np.argmax(line_density_values)])
+        return float(time_line_den[backend.argmax(line_density_values)])
     above = line_density_values >= 0.6 * float(line_density_values.max())
     return float(
-        np.sum(time_line_den[above] * line_density_values[above])
-        / np.sum(line_density_values[above])
+        backend.sum(time_line_den[above] * line_density_values[above])
+        / backend.sum(line_density_values[above])
     )
 
 
@@ -874,7 +887,7 @@ def _well_minimum_time(time_cut: NumpyArray, well_cut: NumpyArray) -> float:
     that plateaus the fixed-point residual at the grid resolution
     instead of converging.
     """
-    minimum_index = int(np.argmin(well_cut))
+    minimum_index = int(backend.argmin(well_cut))
     if minimum_index == 0 or minimum_index == len(well_cut) - 1:
         return float(time_cut[minimum_index])
     value_left, value_center, value_right = well_cut[
@@ -1082,14 +1095,15 @@ class LineDensityMatcher(_AnalyticMatcherBase):
                 f"got {relaxation_factor}."
             )
         if measured_mode:
-            input_time = np.asarray(time_array, dtype=float).copy()
-            input_line_density = np.asarray(
-                line_density_values, dtype=float
-            ).copy()
+            # backend.array copies, decoupling from the caller's input.
+            input_time = backend.array(time_array, dtype=backend.float)
+            input_line_density = backend.array(
+                line_density_values, dtype=backend.float
+            )
             assert input_time.shape == input_line_density.shape, (
                 f"{input_time.shape=} must match {input_line_density.shape=}"
             )
-            assert np.all(np.diff(input_time) > 0.0), (
+            assert backend.all(backend.diff(input_time) > 0.0), (
                 "`time_array` must be strictly increasing."
             )
             self._input_time = input_time
@@ -1186,10 +1200,11 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         else:
             assert self._line_density_type is not None
             assert self._bunch_length is not None
-            time_line_den = np.linspace(
+            time_line_den = backend.linspace(
                 float(time_array[0]),
                 float(time_array[-1]),
                 self._n_points_abel,
+                dtype=backend.float,
             )
             line_density_values = line_density(
                 time_line_den,
@@ -1205,7 +1220,7 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         # wakefields the well moves with the induced potential, so
         # centering and induced potential iterate together (BLonD 2)
         # with the under-relaxation stabiliser.
-        induced_potential = np.zeros_like(time_array)
+        induced_potential = backend.zeros_like(time_array, dtype=backend.float)
         if self._ignore_ring_wakefields:
             # See AnalyticDistributionMatcher: the self-consistent
             # multi-bunch driver supplies the full wake externally.
@@ -1258,7 +1273,7 @@ class LineDensityMatcher(_AnalyticMatcherBase):
                     )
                 break
 
-            line_density_frame = np.interp(
+            line_density_frame = backend.interp(
                 time_array,
                 time_line_den,
                 line_density_values,
@@ -1280,8 +1295,10 @@ class LineDensityMatcher(_AnalyticMatcherBase):
                 subtract_min=False,
             )
             residual = float(
-                np.sqrt(
-                    np.mean((induced_potential_new - induced_potential) ** 2)
+                backend.sqrt(
+                    backend.mean(
+                        (induced_potential_new - induced_potential) ** 2
+                    )
                 )
                 / rf_amplitude
             )
@@ -1320,7 +1337,7 @@ class LineDensityMatcher(_AnalyticMatcherBase):
             distribution_from_line_density(
                 abel_time,
                 line_density_values[abel_support],
-                np.interp(abel_time, time_cut, well_cut),
+                backend.interp(abel_time, time_cut, well_cut),
                 eom_factor_dE=eom_factor_dE,
                 half_option=self._half_option,
                 n_points_abel=self._n_points_abel,
@@ -1335,19 +1352,21 @@ class LineDensityMatcher(_AnalyticMatcherBase):
             n_points_deltaE=self._n_points_grid,
             allow_inner_buckets=self._allow_inner_buckets,
         )
-        density = np.interp(
+        density = backend.interp(
             hamilton_2D - float(well_cut.min()),
             self.hamiltonian_coord,
             self.distribution_values,
         )
         # Outside the tabulated range and the separatrix the density
-        # is unknown/unphysical: zero it (np.interp would extend the
+        # is unknown/unphysical: zero it (interp would extend the
         # edge value as a constant).
         density[
             hamilton_2D - float(well_cut.min())
             > float(self.hamiltonian_coord[-1])
         ] = 0.0
-        density = np.where(hamilton_2D <= float(well_cut.max()), density, 0.0)
+        density = backend.where(
+            hamilton_2D <= float(well_cut.max()), density, 0.0
+        )
         density /= density.sum()
         reconstructed_line_density = density.sum(axis=0)
 
@@ -1357,7 +1376,7 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         self.matched_bunch_position = float(mean_time)
         self.matched_bunch_length = float(
             4.0
-            * np.sqrt(
+            * backend.sqrt(
                 (
                     reconstructed_line_density * (time_cut - mean_time) ** 2
                 ).sum()
@@ -1366,7 +1385,7 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         )
         self.matched_time_array = time_cut.copy()
         self.matched_line_density = reconstructed_line_density.copy()
-        input_on_cut = np.interp(
+        input_on_cut = backend.interp(
             time_cut,
             time_line_den,
             line_density_values,
@@ -1375,8 +1394,10 @@ class LineDensityMatcher(_AnalyticMatcherBase):
         )
         input_normalized = input_on_cut / input_on_cut.sum()
         self.profile_reconstruction_error = float(
-            np.max(np.abs(reconstructed_line_density - input_normalized))
-            / np.max(input_normalized)
+            backend.max(
+                backend.abs(reconstructed_line_density - input_normalized)
+            )
+            / backend.max(input_normalized)
         )
         if self._verbose:
             source = (
@@ -1396,11 +1417,14 @@ class LineDensityMatcher(_AnalyticMatcherBase):
             )
 
         # --- sampling -------------------------------------------------
+        # populate_beam samples with a host RNG and re-uploads via
+        # backend.array, so it needs host grids; this conversion could
+        # move into populate_beam itself later.
         populate_beam(
             beam=beam,
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            density_grid=density,
+            time_grid=copy_to_cpu(time_grid),
+            deltaE_grid=copy_to_cpu(deltaE_grid),
+            density_grid=copy_to_cpu(density),
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
         )
