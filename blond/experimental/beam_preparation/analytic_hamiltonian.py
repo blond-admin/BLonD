@@ -29,11 +29,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_potential_well import (
     check_single_bucket_well,
 )
+from blond.generals.cupy.no_cupy_import import AllowPlotting
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -65,8 +69,8 @@ def calc_eom_factor_dE(
 
 
 def hamiltonian_grid(
-    time_array: NumpyArray,
-    potential_well: NumpyArray,
+    time_array: ArrayLike,
+    potential_well: ArrayLike,
     *,
     eom_factor_dE: float,
     n_points_deltaE: int | None = None,
@@ -75,13 +79,15 @@ def hamiltonian_grid(
     allow_inner_buckets: bool = False,
     verbose: bool = False,
     plot: bool = False,
-) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+) -> tuple[
+    NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray
+]:
     r"""
     Build the analytic 2D Hamiltonian over a (time, energy) grid.
 
     :math:`H(t, \Delta E) = \mathrm{eom\_factor\_dE}\, \Delta E^2 + V(t)`.
 
-    The returned arrays follow the BLonD 2 convention (``np.meshgrid``
+    The returned arrays follow the BLonD 2 convention (``backend.meshgrid``
     with default ``"xy"`` indexing): shape
     ``(n_points_deltaE, len(time_array))``, with :math:`\Delta E` varying
     along axis 0 and time along axis 1. Summing a density over axis 0
@@ -144,8 +150,8 @@ def hamiltonian_grid(
     step along axis 0): pass them directly, without the transpose the
     semi-empiric ``"ij"``-indexed grids require.
     """
-    time_array = np.asarray(time_array, dtype=float)
-    potential_well = np.asarray(potential_well, dtype=float)
+    time_array = backend.cast_arr_float_if_needed(time_array)
+    potential_well = backend.cast_arr_float_if_needed(potential_well)
     assert time_array.shape == potential_well.shape, (
         f"{time_array.shape=} must match {potential_well.shape=}"
     )
@@ -162,18 +168,23 @@ def hamiltonian_grid(
         potential_well_amplitude = float(
             potential_well.max() - potential_well.min()
         )
-        deltaE_max = np.sqrt(potential_well_amplitude / eom_factor_dE)
+        # Python float() casting to avoid unwanted precision change
+        # downstream.
+        deltaE_max = float(np.sqrt(potential_well_amplitude / eom_factor_dE))
         energy_range = (-deltaE_max, deltaE_max)
 
     assert energy_range[1] > energy_range[0], (
         f"`energy_range` must be increasing, got {energy_range=}"
     )
 
-    deltaE_array = np.linspace(
-        energy_range[0], energy_range[1], n_points_deltaE
+    deltaE_array = backend.linspace(
+        energy_range[0],
+        energy_range[1],
+        n_points_deltaE,
+        dtype=backend.float,
     )
 
-    time_grid, deltaE_grid = np.meshgrid(time_array, deltaE_array)
+    time_grid, deltaE_grid = backend.meshgrid(time_array, deltaE_array)
     hamilton_2D = (
         eom_factor_dE * deltaE_grid**2 + potential_well[np.newaxis, :]
     )
@@ -184,8 +195,8 @@ def hamiltonian_grid(
             f"shape={hamilton_2D.shape}, "
             f"dE_range=[{energy_range[0]:.3e}, {energy_range[1]:.3e}] eV, "
             "potential_well_amplitude="
-            f"{potential_well.max() - potential_well.min():.3e} eV, "
-            f"H max={hamilton_2D.max():.3e} eV"
+            f"{float(potential_well.max() - potential_well.min()):.3e} eV, "
+            f"H max={float(hamilton_2D.max()):.3e} eV"
         )
 
     if plot:
@@ -195,28 +206,29 @@ def hamiltonian_grid(
 
 
 def _plot_hamiltonian(
-    time_grid: NumpyArray,
-    deltaE_grid: NumpyArray,
-    hamilton_2D: NumpyArray,
-    potential_well: NumpyArray,
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
+    hamilton_2D: NumpyArray | CupyArray,
+    potential_well: NumpyArray | CupyArray,
 ) -> None:
     """Quick diagnostic contour of the 2D Hamiltonian with the separatrix."""
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(num="hamiltonian_grid")
-    contour = ax.contourf(
-        time_grid * 1e9, deltaE_grid / 1e6, hamilton_2D, levels=40
-    )
-    fig.colorbar(contour, ax=ax, label="Hamiltonian [eV]")
-    ax.contour(
-        time_grid * 1e9,
-        deltaE_grid / 1e6,
-        hamilton_2D,
-        levels=[float(potential_well.max())],
-        colors="w",
-        linewidths=1.5,
-    )
-    ax.set_xlabel("Time [ns]")
-    ax.set_ylabel("Energy offset [MeV]")
-    ax.set_title("Analytic 2D Hamiltonian")
-    fig.tight_layout()
+    with AllowPlotting():
+        fig, ax = plt.subplots(num="hamiltonian_grid")
+        contour = ax.contourf(
+            time_grid * 1e9, deltaE_grid / 1e6, hamilton_2D, levels=40
+        )
+        fig.colorbar(contour, ax=ax, label="Hamiltonian [eV]")
+        ax.contour(
+            time_grid * 1e9,
+            deltaE_grid / 1e6,
+            hamilton_2D,
+            levels=[float(potential_well.max())],
+            colors="w",
+            linewidths=1.5,
+        )
+        ax.set_xlabel("Time [ns]")
+        ax.set_ylabel("Energy offset [MeV]")
+        ax.set_title("Analytic 2D Hamiltonian")
+        fig.tight_layout()

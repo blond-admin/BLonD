@@ -39,24 +39,28 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import backend
 from blond.experimental.beam_preparation.analytic_potential_well import (
     check_single_bucket_well,
 )
+from blond.generals.cupy.no_cupy_import import AllowPlotting
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
 def action_from_potential_well(
-    time_array: NumpyArray,
-    potential_well: NumpyArray,
+    time_array: ArrayLike,
+    potential_well: ArrayLike,
     *,
     eom_factor_dE: float,
     single_bucket_tolerance: float = 1e-2,
     allow_inner_buckets: bool = False,
     verbose: bool = False,
     plot: bool = False,
-) -> tuple[NumpyArray, NumpyArray]:
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     r"""
     Action :math:`J` as a function of the Hamiltonian :math:`H`.
 
@@ -116,8 +120,8 @@ def action_from_potential_well(
     an f_s extraction matters. Emittance/bunch-length targeting at
     typical bunch sizes is unaffected.
     """
-    time_array = np.asarray(time_array, dtype=float)
-    potential_well = np.asarray(potential_well, dtype=float)
+    time_array = backend.cast_arr_float_if_needed(time_array)
+    potential_well = backend.cast_arr_float_if_needed(potential_well)
     assert time_array.shape == potential_well.shape, (
         f"{time_array.shape=} must match {potential_well.shape=}"
     )
@@ -134,13 +138,18 @@ def action_from_potential_well(
     # `single_bucket_tolerance`) it avoids the spurious gap-wide chord a
     # masked integral would draw between disconnected islands, and the
     # islands' areas are summed — the legacy semantics.
-    action = np.zeros(len(potential_well), dtype=float)
+    # Per-level kernel launches make this loop far slower on a GPU
+    # backend than on a CPU one.
+    action = backend.zeros(len(potential_well), dtype=backend.float)
     for index in range(len(potential_well)):
         hamiltonian_level = potential_well[index]
-        deltaE_trajectory = np.sqrt(
-            np.maximum(hamiltonian_level - potential_well, 0.0) / eom_factor_dE
+        deltaE_trajectory = backend.sqrt(
+            backend.maximum(hamiltonian_level - potential_well, 0.0)
+            / eom_factor_dE
         )
-        action[index] = np.trapezoid(deltaE_trajectory, x=time_array) / np.pi
+        action[index] = (
+            backend.trapezoid(deltaE_trajectory, x=time_array) / np.pi
+        )
 
     order = potential_well.argsort()
     sorted_hamiltonian = potential_well[order]
@@ -150,10 +159,11 @@ def action_from_potential_well(
         print(
             "[action_from_potential_well] "
             f"n_levels={len(sorted_action)}, "
-            f"H range=[{sorted_hamiltonian[0]:.3e}, "
-            f"{sorted_hamiltonian[-1]:.3e}] eV, "
-            f"J max={sorted_action.max():.3e} eV.s, "
-            f"emittance max={2 * np.pi * sorted_action.max():.3e} eV.s"
+            f"H range=[{float(sorted_hamiltonian[0]):.3e}, "
+            f"{float(sorted_hamiltonian[-1]):.3e}] eV, "
+            f"J max={float(sorted_action.max()):.3e} eV.s, "
+            "emittance max="
+            f"{2 * np.pi * float(sorted_action.max()):.3e} eV.s"
         )
 
     if plot:
@@ -163,10 +173,10 @@ def action_from_potential_well(
 
 
 def action_grid(
-    hamilton_2D: NumpyArray,
-    sorted_hamiltonian: NumpyArray,
-    sorted_action: NumpyArray,
-) -> NumpyArray:
+    hamilton_2D: NumpyArray | CupyArray,
+    sorted_hamiltonian: NumpyArray | CupyArray,
+    sorted_action: NumpyArray | CupyArray,
+) -> NumpyArray | CupyArray:
     r"""
     Map a 2D Hamiltonian grid onto the action variable.
 
@@ -196,7 +206,7 @@ def action_grid(
     a RuntimeWarning) or ``inf`` (integer exponents) — mask
     ``X > X0`` *before* applying the power, do not clean up afterwards.
     """
-    return np.interp(
+    return backend.interp(
         hamilton_2D,
         sorted_hamiltonian,
         sorted_action,
@@ -207,8 +217,8 @@ def action_grid(
 
 def hamiltonian_from_emittance(
     emittance: float,
-    sorted_hamiltonian: NumpyArray,
-    sorted_action: NumpyArray,
+    sorted_hamiltonian: NumpyArray | CupyArray,
+    sorted_action: NumpyArray | CupyArray,
 ) -> float:
     r"""
     Hamiltonian level enclosing a given longitudinal emittance.
@@ -243,21 +253,28 @@ def hamiltonian_from_emittance(
             f"Requested emittance {emittance:.4e} eV.s exceeds the "
             f"bucket area {bucket_area:.4e} eV.s"
         )
+    # CuPy's interp requires an array `x`; NumPy would accept the bare
+    # scalar, so wrap it to keep both backends working.
+    target_action = backend.array(
+        [emittance / (2.0 * np.pi)], dtype=backend.float
+    )
     return float(
-        np.interp(emittance / (2.0 * np.pi), sorted_action, sorted_hamiltonian)
+        backend.interp(target_action, sorted_action, sorted_hamiltonian)[0]
     )
 
 
 def _plot_action(
-    sorted_hamiltonian: NumpyArray, sorted_action: NumpyArray
+    sorted_hamiltonian: NumpyArray | CupyArray,
+    sorted_action: NumpyArray | CupyArray,
 ) -> None:
     """Quick diagnostic plot of the action versus the Hamiltonian."""
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(num="action_from_potential_well")
-    ax.plot(sorted_hamiltonian, sorted_action)
-    ax.set_xlabel("Hamiltonian [eV]")
-    ax.set_ylabel("Action J [eV.s]")
-    ax.set_title("Action versus Hamiltonian")
-    ax.grid(alpha=0.3)
-    fig.tight_layout()
+    with AllowPlotting():
+        fig, ax = plt.subplots(num="action_from_potential_well")
+        ax.plot(sorted_hamiltonian, sorted_action)
+        ax.set_xlabel("Hamiltonian [eV]")
+        ax.set_ylabel("Action J [eV.s]")
+        ax.set_title("Action versus Hamiltonian")
+        ax.grid(alpha=0.3)
+        fig.tight_layout()
