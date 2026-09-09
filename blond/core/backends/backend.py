@@ -59,14 +59,16 @@ def backend_class_for_mode(
     Parameters
     ----------
     mode
-        A specials mode, e.g. 'python', 'cpp', 'numba' or 'cuda'.
+        A specials mode, e.g. 'python', 'cpp', 'numba', 'cuda',
+        'julia_cpu' or 'julia_gpu'.
 
     Returns
     -------
     backend_class
-        :class:`Cupy64Bit` for the 'cuda' mode, else :class:`Numpy64Bit`.
+        :class:`Cupy64Bit` for the GPU modes ('cuda', 'julia_gpu'),
+        else :class:`Numpy64Bit`.
     """
-    return Cupy64Bit if mode.lower() == "cuda" else Numpy64Bit
+    return Cupy64Bit if mode.lower() in ("cuda", "julia_gpu") else Numpy64Bit
 
 
 class Specials(ABC):
@@ -604,6 +606,8 @@ class BackendBaseClass(ABC):
             "cpp_single_core",
             "numba",
             "cuda",
+            "julia_cpu",
+            "julia_gpu",
         ],
         is_gpu: bool,
         verbose: bool = False,
@@ -785,7 +789,7 @@ class BackendBaseClass(ABC):
         Following environment variables can be set:
 
         - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'cpp_single_core',
-          'numba', 'cuda'
+          'numba', 'cuda', 'julia_cpu', 'julia_gpu'
         - `BLOND_BACKEND_BITS` can only be '64'
         """
         _backend_mode_env = os.environ.get("BLOND_BACKEND_MODE")
@@ -805,6 +809,8 @@ class BackendBaseClass(ABC):
             "cpp_single_core",
             "numba",
             "cuda",
+            "julia_cpu",
+            "julia_gpu",
         )
         if _backend_mode_raw in _allowed_backend_modes:
             _backend_mode: Literal[
@@ -813,6 +819,8 @@ class BackendBaseClass(ABC):
                 "cpp_single_core",
                 "numba",
                 "cuda",
+                "julia_cpu",
+                "julia_gpu",
             ] = _backend_mode_raw  # type: ignore
         else:
             raise ValueError(
@@ -1077,6 +1085,7 @@ class NumpyBackend(BackendBaseClass):
             "cpp",
             "cpp_single_core",
             "numba",
+            "julia_cpu",
         ],
     ) -> None:
         """
@@ -1110,6 +1119,13 @@ class NumpyBackend(BackendBaseClass):
             )
 
             self.specials = NumbaSpecials()
+            self.specials_mode = mode
+        elif mode == "julia_cpu":
+            from blond.core.backends.julia.callables import (
+                JuliaCpuSpecials,
+            )
+
+            self.specials = JuliaCpuSpecials()
             self.specials_mode = mode
         else:
             raise UnknownBackendMode(
@@ -1223,7 +1239,7 @@ class CupyBackend(BackendBaseClass):
 
         self._finalize()
 
-    def set_specials(self, mode: Literal["cuda"]) -> None:
+    def set_specials(self, mode: Literal["cuda", "julia_gpu"]) -> None:
         """
         Set the special compiled functions.
 
@@ -1236,6 +1252,14 @@ class CupyBackend(BackendBaseClass):
             from blond.core.backends.cuda.callables import CudaSpecials
 
             self.specials = CudaSpecials()
+            self.specials_mode = mode
+        elif mode == "julia_gpu":
+            from blond.core.backends.julia.callables import (
+                JuliaGpuSpecials,
+            )
+
+            self.specials = JuliaGpuSpecials()
+            self.specials_mode = mode
         else:
             raise UnknownBackendMode(
                 f"Unknown specials mode {mode!r} for {type(self).__name__}."

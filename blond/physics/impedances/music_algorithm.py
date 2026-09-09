@@ -69,8 +69,8 @@ class Music(BeamPhysicsRelevant):
 
     Notes
     -----
-    Only the ``python`` and ``cpp`` backends are supported (those that
-    BLonD2 shipped); ``numba``, ``cuda`` and MPI raise
+    Only the ``python``, ``cpp`` and ``julia_cpu`` backends are
+    supported; ``numba``, ``cuda``, ``julia_gpu`` and MPI raise
     :class:`NotImplementedError`. Like BLonD2, only singly-charged
     particles (``charge == 1``) are supported.
 
@@ -162,7 +162,8 @@ class Music(BeamPhysicsRelevant):
         Raises
         ------
         NotImplementedError
-            If MPI is in use or the ``numba`` or ``cuda`` backend is selected.
+            If MPI is in use or the ``numba``, ``cuda`` or ``julia_gpu``
+            backend is selected.
             The per-turn sort (:meth:`~blond.core.beam.base.BeamBaseClass.sort_by_dt`)
             also rejects distributed beams as a low-level safeguard.
         """
@@ -179,6 +180,10 @@ class Music(BeamPhysicsRelevant):
         if backend.specials_mode == "cuda":  # pragma: no cover
             raise NotImplementedError(
                 "MuSiC does not support the `cuda` backend."
+            )
+        if backend.specials_mode == "julia_gpu":  # pragma: no cover
+            raise NotImplementedError(
+                "MuSiC does not support the `julia_gpu` backend."
             )
 
     def configure_run(

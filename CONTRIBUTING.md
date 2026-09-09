@@ -158,8 +158,14 @@ For CUDA13:
 pip install --editable ".[dev, gpu_cuda13]"
 ```
 
+For the Julia backends (`julia_cpu`, `julia_gpu`), add the `julia` extra:
+
+```bash
+pip install --editable ".[dev, julia]"
+```
+
 The convenience extras `all_no_cuda`, `all_cuda12`, and `all_cuda13` bundle
-`dev`, `doc`, `xsuite`, and `mpi` (and the matching GPU package), e.g.:
+`dev`, `doc`, `xsuite`, `mpi`, and `julia` (and the matching GPU package), e.g.:
 
 ```bash
 pip install --editable ".[all_cuda12]"
@@ -207,6 +213,72 @@ from blond import setup_backend
 setup_backend("cpp")  # Activate the C++ backend
 ```
 
+### 6. The Julia Backends (Optional)
+
+`julia_cpu` and `julia_gpu` run the numeric kernels through
+[KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
+Both modes share a single Julia source tree, the `BLonDKernels` package in
+`blond/core/backends/julia/BLonDKernels/`, which is compiled for the host CPU
+(`julia_cpu`, NumPy arrays) and for CUDA (`julia_gpu`, CuPy arrays). BLonD keeps
+owning the arrays; Julia wraps their raw pointers zero-copy.
+
+```python
+from blond import setup_backend
+
+setup_backend("julia_cpu")  # or "julia_gpu" for CUDA
+```
+
+Nothing has to be compiled by hand: on the **first** use, `juliapkg` downloads a
+Julia toolchain and the Julia packages listed in
+`blond/core/backends/julia/juliapkg.json`, which needs network access and takes
+a few minutes. Everything after that is cached. For this reason the Julia modes
+are deliberately **not** part of `setup_backend("auto")` — auto-selection must
+never start a download.
+
+The Julia unit tests of the kernels themselves are run by Julia:
+
+```bash
+julia --project=blond/core/backends/julia/BLonDKernels -e 'using Pkg; Pkg.test()'
+```
+
+The same suite can be run through `juliacall` from the Python test suite, which
+is opt-in because `Pkg.test` instantiates its own environment:
+
+```bash
+BLOND_RUN_JULIA_PACKAGE_TESTS=True python3 -m pytest -v \
+    tests/unittests/core/backends/julia/
+```
+
+**`GLIBCXX_... not found` when starting Julia.** Julia ships its own, newer
+`libstdc++`, but NumPy (and every other compiled Python package) has already
+loaded the *system* one into the process by the time BLonD starts Julia; the
+dynamic linker resolves both by the same SONAME, so Julia's copy can no longer
+be loaded. BLonD detects this and raises with the workaround: start Python with
+that library preloaded, e.g.
+
+```bash
+LD_PRELOAD=$(dirname $(dirname $(readlink -f .venv/julia_env/pyjuliapkg/install/bin/julia)))/lib/julia/libstdc++.so.6 \
+    python3 -m pytest -v tests/unittests/core/backends/
+```
+
+or install a system `libstdc++` at least as new as Julia's. On distributions
+with a recent `libstdc++` (Ubuntu 22.04+, Fedora 36+) nothing has to be done.
+
+**`CUDA runtime library ... was loaded from a system path` on `julia_gpu`.**
+This warning from CUDA.jl is expected and harmless here: CuPy has already
+loaded the CUDA runtime into the process, and `julia_gpu` deliberately shares
+that runtime (and the arrays it manages) instead of letting CUDA.jl load a
+second copy from its own artifacts.
+
+**Adding another device (Metal, ROCm, oneAPI).** The kernels in
+`BLonDKernels/src/kernels.jl` are device-agnostic; only the array wrapping is
+not. Add a package extension next to `ext/BLonDKernelsCUDAExt.jl` that provides
+`wrap_array` and a `<vendor>_device()` for the new KA backend, add the vendor
+package as a `weakdep` in `BLonDKernels/Project.toml`, and add a `Specials`
+subclass in `blond/core/backends/julia/callables.py` overriding `_kernels`,
+`_device` and `_ptr`. Note that BLonD itself still needs a host-side array
+library for that device (CuPy's role for CUDA).
+
 
 ---
 
@@ -227,6 +299,7 @@ Apply a marker when your test depends on global/backend state or external runtim
   switches numerical specials). Skip these when running against a fixed backend.
 - `cupy` — test requires CuPy / a CUDA-capable GPU.
 - `mpi` — test must be launched under `mpirun` (uses MPI communication).
+- `julia` — test requires `juliacall` and a working Julia installation.
 
 Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash

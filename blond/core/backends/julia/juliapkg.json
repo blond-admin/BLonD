@@ -1,0 +1,22 @@
+{
+    "julia": "1.10",
+    "packages": {
+        "KernelAbstractions": {
+            "uuid": "63c18a36-062a-441e-b654-da1e3ab1ce7c",
+            "version": "0.9"
+        },
+        "Atomix": {
+            "uuid": "a9b6321e-bd34-4604-b9c9-b65b8de01458",
+            "version": "1"
+        },
+        "CUDA": {
+            "uuid": "052768ef-5323-5732-b1bb-66c8b64840ba",
+            "version": "6"
+        },
+        "BLonDKernels": {
+            "uuid": "a3de7e09-0857-480d-8a28-c9ddd5b12cf7",
+            "dev": true,
+            "path": "BLonDKernels"
+        }
+    }
+}

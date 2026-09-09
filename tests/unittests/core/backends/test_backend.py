@@ -17,6 +17,7 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
+from blond.core.backends.julia.julia_env import is_julia_available
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -120,10 +121,14 @@ class TestBackendBaseClass(unittest.TestCase):
     def _apply_environment_variables_for_every_mode(self):
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["64", "fail"]
+        if is_julia_available():
+            backend_modes = ["julia_cpu"] + backend_modes
         try:
             import cupy
 
             backend_modes = ["cuda"] + backend_modes
+            if is_julia_available():
+                backend_modes = ["julia_gpu"] + backend_modes
         except ModuleNotFoundError:
             pass
         print(f"{backend_modes=}")
@@ -321,6 +326,22 @@ class TestCupyBackend(unittest.TestCase):
         )
         self.cupy_backend.set_specials(mode="cuda")
 
+    @pytest.mark.julia
+    @pytest.mark.cupy
+    @pytest.mark.backend_mutation
+    def test_set_specials_julia_gpu(self) -> None:
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+        if not is_julia_available():
+            self.skipTest("juliacall is not installed")
+        self.cupy_backend = CupyBackend(
+            float_=np.float64, complex_=np.complex128
+        )
+        self.cupy_backend.set_specials(mode="julia_gpu")
+        self.assertEqual(
+            type(self.cupy_backend.specials).__name__, "JuliaGpuSpecials"
+        )
+
     @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         if not cupy_available:
@@ -374,6 +395,16 @@ class TestNumpyBackend(unittest.TestCase):
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
 
+    @pytest.mark.julia
+    @pytest.mark.backend_mutation
+    def test_set_specials_julia_cpu(self) -> None:
+        if not is_julia_available():
+            self.skipTest("juliacall is not installed")
+        self.numpy_backend.set_specials(mode="julia_cpu")
+        self.assertEqual(
+            type(self.numpy_backend.specials).__name__, "JuliaCpuSpecials"
+        )
+
     @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
@@ -391,6 +422,10 @@ class TestSpecials(unittest.TestCase):
         ]
         if cupy_available:
             self.special_modes.append("cuda")
+        if is_julia_available():
+            self.special_modes.append("julia_cpu")
+            if cupy_available:
+                self.special_modes.append("julia_gpu")
         set_num_threads(N_TEST_THREADS)
         self.original_backend = type(backend)
         self.original_backend_specials_mode = backend.specials_mode
@@ -406,12 +441,13 @@ class TestSpecials(unittest.TestCase):
             "cpp",
             "cpp_single_core",
             "numba",
+            "julia_cpu",
         ):
             if dtype == np.float32:
                 raise TypeError("32 Bit backends have been removed")
             else:
                 backend.change_backend(Numpy64Bit)
-        elif special_mode in ("cuda",):
+        elif special_mode in ("cuda", "julia_gpu"):
             if dtype == np.float32:
                 raise TypeError("32 Bit backends have been removed")
             else:
@@ -420,6 +456,24 @@ class TestSpecials(unittest.TestCase):
             raise ValueError(special_mode)
 
         backend.set_specials(special_mode)
+
+        if special_mode in ("julia_cpu", "julia_gpu"):
+            # Boot Julia here, inside the `try` of every caller, so that
+            # a machine which cannot start it skips the julia modes the
+            # same way a missing cpp compilation is skipped, instead of
+            # failing in the middle of each kernel test.
+            from blond.core.backends.julia.julia_env import (
+                julia_cuda_kernels,
+                julia_kernels,
+            )
+
+            try:
+                if special_mode == "julia_gpu":
+                    julia_cuda_kernels()
+                else:
+                    julia_kernels()
+            except (ImportError, RuntimeError) as error:
+                raise OSError(str(error)) from error
 
         self.dt = backend.linspace(1e-9, 10e-9, 10, dtype=backend.float)
         self.dE = backend.linspace(1e9, 10e9, 10, dtype=backend.float)
@@ -481,8 +535,7 @@ class TestSpecials(unittest.TestCase):
                     energy=self.energy,
                 )
             result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -526,7 +579,7 @@ class TestSpecials(unittest.TestCase):
             ap = backend.array([1.0, 0.0, 0.0], dtype=backend.float)
             time_since_last_track = 10.0
 
-            if special in ("numba", "cuda"):
+            if special in ("numba", "cuda", "julia_gpu"):
                 # MuSiC was not shipped for these backends in BLonD2.
                 with self.assertRaises(NotImplementedError):
                     backend.specials.music_track(
@@ -591,8 +644,7 @@ class TestSpecials(unittest.TestCase):
                 energy=self.energy,
             )
             result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -621,8 +673,7 @@ class TestSpecials(unittest.TestCase):
                 energy=self.energy,
             )
             result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -658,8 +709,7 @@ class TestSpecials(unittest.TestCase):
                     acceleration_kick=self.acceleration_kick,
                 )
                 result = self.dE
-                if special == "cuda":
-                    result = result.get()
+                result = copy_to_cpu(result)
                 if i == 0:
                     result_python = result
                 else:
@@ -937,8 +987,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=self.acceleration_kick,
             )
             result = self.dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -976,8 +1025,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=acceleration_kick,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -1012,8 +1060,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=acceleration_kick,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -1059,8 +1106,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=backend.float(0.5),
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             result = np.asarray(result)
             np.testing.assert_array_equal(
                 result[~in_range],
@@ -1150,8 +1196,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=acceleration_kick,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             np.testing.assert_array_equal(
                 np.asarray(result),
                 0.0,
@@ -1227,8 +1272,7 @@ class TestSpecials(unittest.TestCase):
                 bucket_index_to_memory_index=bucket_index_to_memory_index,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
 
             # Ground truth: same particle kicked against ONLY the second
             # island's own 4-bin dense profile (island-local, no gap).
@@ -1253,8 +1297,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=acceleration_kick,
             )
             expected = dE_local
-            if special == "cuda":
-                expected = expected.get()
+            expected = copy_to_cpu(expected)
 
             np.testing.assert_allclose(
                 result,
@@ -1318,8 +1361,7 @@ class TestSpecials(unittest.TestCase):
                 bucket_index_to_memory_index=bucket_index_to_memory_index,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             np.testing.assert_allclose(
                 result, np.zeros(1), err_msg=f"Failed `{special}` {dtype}"
             )
@@ -1410,9 +1452,8 @@ class TestSpecials(unittest.TestCase):
 
             result_sparse = dE_sparse
             result_dense = dE_dense
-            if special == "cuda":
-                result_sparse = result_sparse.get()
-                result_dense = result_dense.get()
+            result_sparse = copy_to_cpu(result_sparse)
+            result_dense = copy_to_cpu(result_dense)
 
             if special == "numba":
                 # `numba`'s dense kernel reconstructs bin spacing from
@@ -1497,8 +1538,7 @@ class TestSpecials(unittest.TestCase):
                 stop=backend.float(8.0),
             )
             result = array_write
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             np.testing.assert_array_equal(
                 np.asarray(result),
                 expected,
@@ -1953,8 +1993,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=acceleration_kick,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2018,8 +2057,7 @@ class TestSpecials(unittest.TestCase):
                 len(ids),
                 msg=f"Failed test `{special}` with {dtype}",
             )
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
 
             result = np.sort(result)  # because of race conditions in
             # parallel execution, the order can not be guaranteed
@@ -2077,8 +2115,7 @@ class TestSpecials(unittest.TestCase):
             ids = ids[:n_new]
 
             result = dt  # could be any of the 4 arrays
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
 
             result = np.sort(result)  # because of race conditions in
             # parallel execution, the order can not be guaranteed
@@ -2209,8 +2246,7 @@ class TestSpecials(unittest.TestCase):
                 dE=dE,
                 flags=flags,
             )
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2272,8 +2308,7 @@ class TestSpecials(unittest.TestCase):
                 )
             result = array_write
 
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2317,8 +2352,7 @@ class TestSpecials(unittest.TestCase):
                 )
             result = array_write
 
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2372,8 +2406,7 @@ class TestSpecials(unittest.TestCase):
             print(backend.specials_mode, array_write)
             result = array_write
 
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2449,8 +2482,7 @@ class TestSpecials(unittest.TestCase):
                     bucket_index_to_memory_index=bucket_index_to_memory_index,
                 )
             result = array_write
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             np.testing.assert_array_equal(
                 result,
                 expected,
@@ -2478,8 +2510,7 @@ class TestSpecials(unittest.TestCase):
                 )
             result = array_write
 
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2511,8 +2542,7 @@ class TestSpecials(unittest.TestCase):
                 )
             result = array_write
 
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
             else:
@@ -2548,8 +2578,7 @@ class TestSpecials(unittest.TestCase):
             )
             result = array_write
 
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             if i == 0:
                 result_python = result
                 print(result_python.tolist())
@@ -2612,9 +2641,9 @@ class TestSpecials(unittest.TestCase):
                     dtype=backend.float,
                 ),
             )
-        if backend.is_gpu:
-            return voltage.get(), states.get()
-        return np.asarray(voltage), np.asarray(states)
+        return np.asarray(copy_to_cpu(voltage)), np.asarray(
+            copy_to_cpu(states)
+        )
 
     def _assert_wake_matches_python(
         self, update_on_bin_np: np.ndarray, n_calls: int = 1
@@ -3011,8 +3040,7 @@ class TestSpecials(unittest.TestCase):
                 acceleration_kick=self.acceleration_kick,
             )
             result = dE
-            if special == "cuda":
-                result = result.get()
+            result = copy_to_cpu(result)
             # Without any rf harmonic, every particle receives exactly
             # `acceleration_kick`.
             expected = np.full(
@@ -3157,9 +3185,7 @@ class TestSpecials(unittest.TestCase):
                 )
                 # Post-condition: leading `n_new` entries are non-flagged,
                 # trailing entries are flagged — what the return value means.
-                flags_after = (
-                    flags.get() if special == "cuda" else np.asarray(flags)
-                )
+                flags_after = copy_to_cpu(flags)
                 self.assertTrue(
                     bool(np.all(flags_after[:n_new] != 0)),
                     msg=(

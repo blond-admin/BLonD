@@ -1,0 +1,28 @@
+name = "BLonDKernels"
+uuid = "a3de7e09-0857-480d-8a28-c9ddd5b12cf7"
+authors = ["BLonD developers <blond-admin@cern.ch>"]
+version = "0.1.0"
+
+[deps]
+Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[weakdeps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
+[extensions]
+BLonDKernelsCUDAExt = "CUDA"
+
+[compat]
+Atomix = "1"
+KernelAbstractions = "0.9"
+julia = "1.10"
+
+[extras]
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "JET", "CUDA"]

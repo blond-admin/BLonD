@@ -15,7 +15,14 @@ from typing import Literal
 
 def setup_backend(
     mode: Literal[
-        "auto", "python", "cpp", "cpp_single_core", "numba", "cuda"
+        "auto",
+        "python",
+        "cpp",
+        "cpp_single_core",
+        "numba",
+        "cuda",
+        "julia_cpu",
+        "julia_gpu",
     ] = "auto",
 ) -> None:
     """
@@ -36,12 +43,18 @@ def setup_backend(
 
     if mode == "auto":
         backend.autoselect_backend()
-    elif mode == "cuda":
+    elif mode in ("cuda", "julia_gpu"):
         from blond import Cupy64Bit
 
         backend.change_backend(Cupy64Bit)
         backend.set_specials(mode)
-    elif mode in ("python", "cpp", "cpp_single_core", "numba"):
+    elif mode in (
+        "python",
+        "cpp",
+        "cpp_single_core",
+        "numba",
+        "julia_cpu",
+    ):
         from blond import Numpy64Bit
 
         backend.change_backend(Numpy64Bit)

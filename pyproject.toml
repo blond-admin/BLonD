@@ -91,9 +91,12 @@ legacy = [
   "scipy~=1.15",                # scientific computing algorithms
   "packaging==26.0",            # version parsing
 ]
-all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
-all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
-all_cuda13 = ["blond[dev,doc,xsuite,mpi,gpu_cuda13]"]
+julia = [
+  "juliacall>=0.9.24", # Julia interpreter embedded in Python
+]
+all_no_cuda = ["blond[dev,doc,xsuite,mpi,julia]"]
+all_cuda12 = ["blond[dev,doc,xsuite,mpi,julia,gpu_cuda12]"]
+all_cuda13 = ["blond[dev,doc,xsuite,mpi,julia,gpu_cuda13]"]
 
 [tool.setuptools]
 packages = { find = {} }
@@ -157,6 +160,7 @@ markers = [
   "backend_mutation: Tests that alter the backend as a side effect.",
   "cupy: Test that require CuPy.",
   "integration: Full end-to-end simulation tests.",
+  "julia: Tests that require juliacall/Julia.",
 ]
 
 [tool.numpydoc_validation]
@@ -182,6 +186,7 @@ exclude_files = [ # don't process filepaths that match these regex
   '^blond/core/backends/cpp/callables.py',
   '^blond/core/backends/cuda/callables.py',
   '^blond/core/backends/numba/callables.py',
+  '^blond/core/backends/julia/callables.py',
   '^blond/experimental/.*',
 
 ]

@@ -52,6 +52,7 @@ Extras are defined in `pyproject.toml` `[project.optional-dependencies]`:
 | GPU (CUDA 12 / 13) | `pip install -e ".[dev,gpu_cuda12]"` (or `gpu_cuda13`) |
 | Docs | `pip install -e ".[doc]"` |
 | XSuite interop | `pip install -e ".[dev,xsuite]"` |
+| Julia backends | `pip install -e ".[dev,julia]"` |
 | Everything | `".[all_no_cuda]"` / `".[all_cuda12]"` / `".[all_cuda13]"` |
 
 `gpu_cuda12` vs `gpu_cuda13` must match the installed CUDA toolkit. After install,
@@ -70,7 +71,7 @@ Backend-relevant env vars and markers:
 - `BLOND_FORCE_TEST_ALL_BACKENDS=True` — fan a backend-aware test out over **every**
   available backend instead of just the selected one. **Set this whenever you touch
   backend code.**
-- Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`.
+- Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`, `julia`.
   Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`.
 - `pytest-randomly` randomizes order; reproduce a failure with `--randomly-seed=<N>`.
 - **Tests run in random order *and* `backend_mutation` tests flip the global
@@ -85,9 +86,10 @@ Backend-relevant env vars and markers:
 
 A numeric kernel exists once **per backend** under
 `blond/core/backends/<name>/callables.py` — `NumbaSpecials`, `CppSpecials`,
-`CudaSpecials`, `PythonSpecials`, all subclasses of the `Specials` ABC in
+`CudaSpecials`, `PythonSpecials`, `JuliaCpuSpecials`/`JuliaGpuSpecials`, all
+subclasses of the `Specials` ABC in
 `blond/core/backends/backend.py`. Activate one with `backend.set_specials("cpp")`
-(`numba`/`cpp`/`cuda`/`python`). Backend-aware kernel tests live in
+(`numba`/`cpp`/`cuda`/`python`/`julia_cpu`/`julia_gpu`). Backend-aware kernel tests live in
 `tests/unittests/core/backends/test_backend.py`, looping over `special_modes` and
 comparing each backend to the Python reference.
 
@@ -106,10 +108,20 @@ comparing each backend to the Python reference.
   for the rare op the backend doesn't re-export (and then branch via `is_cupy_array`). This
   is also why you read precision from `backend.float`, not `np.float64` (see below).
 - **Backend parity is mandatory.** Adding or changing a kernel means updating it in
-  **all four** backends *and* the `Specials` ABC signature — not just the one you run
+  **all five** backends *and* the `Specials` ABC signature — not just the one you run
   locally. A kernel present in only some backends fails under
   `BLOND_FORCE_TEST_ALL_BACKENDS=True`. The `python` backend is the readable reference
-  implementation; mirror its behaviour exactly in `numba`/`cpp`/`cuda`.
+  implementation; mirror its behaviour exactly in `numba`/`cpp`/`cuda`/`julia`.
+- **The two Julia modes share one kernel source.** `julia_cpu` (NumPy arrays) and
+  `julia_gpu` (CuPy arrays) both run
+  `blond/core/backends/julia/BLonDKernels/src/kernels.jl`, written once with
+  KernelAbstractions.jl; `callables.py` only passes `(pointer, length)` pairs, so a
+  kernel change is made once, for both devices. Julia does not own the arrays.
+  The first use downloads Julia and its packages — which is exactly why the julia
+  modes are **not** in `autoselect_backend`; don't add them there.
+  On a distro with an old system `libstdc++` (RHEL 9, …) Julia cannot be loaded
+  after NumPy: BLonD raises an `OSError` naming the `LD_PRELOAD=…/lib/julia/
+  libstdc++.so.6` workaround, and the julia modes then *skip* in the test suite.
 - **Arrays may be NumPy *or* CuPy — handle both.** Backend arrays are *not* guaranteed to
   be NumPy. The conversion rules:
   - **Use `copy_to_cpu(arr)`, never `arr.get()` directly.**

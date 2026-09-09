@@ -917,21 +917,21 @@ class CudaSpecials(Specials):  # NOQA: D101
             grid=(blocks_poles, 1, 1),
         )
 
-        @staticmethod
-        def music_track(  # NOQA: D102 inherited from `Specials.music_track`
-            beam_dt: CupyArray,
-            beam_dE: CupyArray,
-            induced_voltage: CupyArray,
-            parameter_array: CupyArray,
-            alpha: float,
-            omega_bar: float,
-            const: float,
-            coeff1: float,
-            coeff2: float,
-            coeff3: float,
-            coeff4: float,
-            time_since_last_track: float,
-            multiturn: bool,
-        ) -> None:
-            # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
-            raise NotImplementedError
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: CupyArray,
+        beam_dE: CupyArray,
+        induced_voltage: CupyArray,
+        parameter_array: CupyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+        raise NotImplementedError

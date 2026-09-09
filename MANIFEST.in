@@ -5,6 +5,9 @@ recursive-include blond *.f90
 recursive-include blond *.dll
 recursive-include blond *.so
 recursive-include blond *.cubin
+recursive-include blond *.jl
+recursive-include blond *.toml
+recursive-include blond juliapkg.json
 
 recursive-exclude tests *
 recursive-exclude legacy *
