@@ -135,6 +135,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             turn_counter=simulation.turn_counter,
             **kwargs,
         )
+        self._first_turn_value_checked = False
 
     def configure(
         self,
@@ -178,9 +179,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             Additional keyword arguments.
         """
         self.update_main_rf_stations()
-        self._first_turn_value_checked = False
         self._simulation = simulation
-
         self.check_main_rf_stations_with_cavity_feedback()
 
     @abstractmethod  # pragma: no cover

@@ -31,7 +31,6 @@ It also ships with the [**BLonD Assistant**](#blond-assistant-ai-helper), an AI 
     * C++ on Windows: [mingw-w64](https://winlibs.com/#download-release)
     * CUDA Compiler Driver - [NVCC](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
 
-
 ## Installation
 > [!WARNING]
 > This does not work until BLonD3 is the main version!
@@ -47,6 +46,11 @@ pip install blond[gpu_cuda12]
 ```bash
 pip install blond[gpu_cuda13]
 ```
+
+
+## Installation + Editable BLonD
+
+Use the [Getting-Started-Blond3 Project](https://gitlab.cern.ch/blond/future/getting-started-blond3) to setup and start using/editing BLonD 3 in a new virtual environment.
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp` or `blond-compile-cuda`

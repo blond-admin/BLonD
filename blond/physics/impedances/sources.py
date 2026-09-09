@@ -35,6 +35,7 @@ from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
+from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
@@ -44,8 +45,6 @@ from blond.physics.impedances.base import (
 from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -116,68 +115,6 @@ def fit_poles(
     rms_error = vf.get_rms_error()
 
     return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
-
-
-def get_hash(array1d: NumpyArray | CupyArray, *, salt: Any = None) -> int:
-    """
-    Compute a lightweight, approximate hash value for a 1D NumPy array.
-
-    The function samples a few representative elements of the input array
-    (first, second, middle, and last), along with the array length, and computes
-    a Python built-in hash from this tuple. The result is intended for quick,
-    approximate identification of arrays rather than exact equality or integrity
-    verification.
-
-    Parameters
-    ----------
-    array1d : numpy.ndarray
-        One-dimensional NumPy array of numeric values.
-    salt
-        Additional information to generate a hash.
-
-    Returns
-    -------
-    int
-        An integer hash value derived from selected elements of the array.
-
-    Warnings
-    --------
-    - This function is **not collision-resistant**. Different arrays may yield
-      identical hash values, especially if they share similar boundary values or
-      lengths.
-    - Not suitable for **data integrity**, **deduplication**, or **security**
-      purposes. Use `hashlib` (e.g., SHA-256) for robust, deterministic hashing.
-    - Assumes a 1D numeric array; no validation is performed. Multi-dimensional
-      or non-numeric inputs may cause unexpected behavior or errors.
-    - Python’s built-in hash is **not stable across sessions** due to hash
-      randomization (unless `PYTHONHASHSEED` is fixed).
-
-    Notes
-    -----
-    - **Time complexity:** O(1) — the function samples only four elements
-      regardless of array size.
-    - **Memory usage:** O(1) — constant space overhead.
-    - Designed for fast, approximate fingerprinting in performance-sensitive
-      contexts where occasional collisions are acceptable.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    >>> get_hash(arr)
-    2398472938472938  # Example output (varies by session)
-    """
-    len_ = len(array1d)
-    return hash(
-        (
-            float(array1d[0]),
-            float(array1d[1]),
-            float(array1d[int(len_ // 2)]),
-            float(array1d[-1]),
-            len_,
-            salt,
-        )
-    )
 
 
 class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
@@ -274,7 +211,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             Derivative impedance in frequency domain.
         """
         # Recalculate only if `freq_x` or `hist_step` is changed
-        hash_ = get_hash(freq_x, salt=hist_step)
+        hash_ = hash_linspace(freq_x, salt=hist_step)
         if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
@@ -330,7 +267,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         """
         # Recalculate only if `time` is changed
 
-        hash_ = get_hash(time)
+        hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
         freq = backend.fft.rfftfreq(n_fft, d=time[1] - time[0])
@@ -503,7 +440,7 @@ class Resonators(
         get_impedance_from_wake_freq : Function used to calculate the corresponding frequency.
         """
         # Recalculate only if `time` has changed
-        hash_ = get_hash(time)
+        hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
 
@@ -544,7 +481,7 @@ class Resonators(
             Wake impedance in frequency domain for counter-rotating mode.
         """
         # Recalculate only if `time` has changed
-        hash_ = get_hash(time, salt=1)  # to distinguish between
+        hash_ = hash_linspace(time, salt=1)  # to distinguish between
         # counterrotation
         if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
             return self._cache_impedance_from_wake_counter_rotation
@@ -794,7 +731,7 @@ class Resonators(
         """
         # Recalculate only if `freq_x` is changed
 
-        hash_ = get_hash(freq_x, salt=counter_rotation)
+        hash_ = hash_linspace(freq_x, salt=counter_rotation)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
@@ -943,7 +880,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
             Complex impedance array.
         """
         # Recalculate only if `freq_x` is changed
-        hash_ = get_hash(freq_x)
+        hash_ = hash_linspace(freq_x)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
         impedance = backend.interp(
@@ -1052,7 +989,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         impedance_from_wake
             Wake impedance in frequency domain.
         """
-        hash_ = get_hash(time)
+        hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
         if time.min() < self._wake_x.min():
