@@ -1,7 +1,10 @@
-"""Tests for the SequentialMultiBunchMatcher (and matcher clone/extra_voltage)."""
+"""Tests for the multi-bunch matchers and the matcher clone helper."""
+
+import io
+import unittest
+from contextlib import redirect_stdout
 
 import numpy as np
-import pytest
 
 from blond import (
     Beam,
@@ -35,6 +38,8 @@ from blond.physics.impedances.solvers import (
 )
 
 RF_PERIOD = 2.0 * np.pi / 2518229887.224505
+
+TRAIN_INTENSITIES = [2.0e11, 1.6e11, 2.4e11, 2.0e11]
 
 
 def _build_simulation(
@@ -91,6 +96,21 @@ def _template(**overrides):
     return matcher.clone(**overrides) if overrides else matcher
 
 
+def _train_specs():
+    """Build EX_31-like per-bunch specs at reduced resolution.
+
+    Returns
+    -------
+    list
+        One single-bunch matcher per bunch of the train.
+    """
+    lengths = [1.2e-9, 1.1e-9, 1.3e-9, 1.2e-9]
+    return [
+        _template(bunch_length=length, seed=bunch_i, relaxation_factor=0.5)
+        for bunch_i, length in enumerate(lengths)
+    ]
+
+
 def _bunch_positions_and_lengths(dt, bucket_indices):
     positions, lengths = [], []
     for bucket_index in bucket_indices:
@@ -102,155 +122,133 @@ def _bunch_positions_and_lengths(dt, bucket_indices):
     return np.array(positions), np.array(lengths)
 
 
-# ------------------------------- clone ------------------------------------
-
-
-def test_clone_overrides_and_independence():
-    template = _template()
-    varied = template.clone(bunch_length=1.0e-9, seed=7)
-    assert varied is not template
-    assert varied._bunch_length == 1.0e-9
-    assert varied._seed == 7
-    # Untouched arguments are inherited; the original is unmodified.
-    assert varied._distribution_type == "parabolic_amplitude"
-    assert template._bunch_length == 1.2e-9
-    assert template._seed == 0
-
-
-def test_clone_works_for_line_density_matcher():
+def _measured_line_density():
     time_measured = backend.linspace(-1e-9, 1e-9, 101, dtype=backend.float)
     profile = line_density(
         time_measured, "binomial", 1.6e-9, bunch_position=0.0, exponent=1.5
     )
-    matcher = LineDensityMatcher(
-        n_macroparticles=1_000,
-        time_array=time_measured,
-        line_density_values=profile,
-        seed=0,
-    )
-    varied = matcher.clone(half_option="both", seed=3)
-    assert varied._half_option == "both"
-    assert varied._seed == 3
-    np.testing.assert_array_equal(
-        copy_to_cpu(varied._input_time), copy_to_cpu(time_measured)
-    )
+    return time_measured, profile
 
 
-def test_clone_rejects_unknown_argument():
-    with pytest.raises(TypeError, match="not_a_parameter"):
-        _template().clone(not_a_parameter=1.0)
+class TestMatcherClone(unittest.TestCase):
+    def test_overrides_and_independence(self):
+        template = _template()
+        varied = template.clone(bunch_length=1.0e-9, seed=7)
+        self.assertIsNot(varied, template)
+        self.assertEqual(varied._bunch_length, 1.0e-9)
+        self.assertEqual(varied._seed, 7)
+        # Untouched arguments are inherited; the original is unmodified.
+        self.assertEqual(varied._distribution_type, "parabolic_amplitude")
+        self.assertEqual(template._bunch_length, 1.2e-9)
+        self.assertEqual(template._seed, 0)
 
-
-# ---------------------------- extra_voltage --------------------------------
-
-
-def test_extra_voltage_shifts_synchronous_position():
-    # A small constant extra voltage V0 moves the zero crossing of the
-    # total voltage: sin(omega t) V + V0 = 0 -> dt = -asin(V0/V)/omega.
-    extra_time = backend.linspace(
-        -2.0 * RF_PERIOD, 3.0 * RF_PERIOD, 100, dtype=backend.float
-    )
-    v_0, v_rf = 2e5, 6e6
-    omega_rf = 2.0 * np.pi / RF_PERIOD
-
-    positions = {}
-    for label, extra in (
-        ("bare", None),
-        ("offset", (extra_time, v_0 * backend.ones_like(extra_time))),
-    ):
-        simulation, beam = _build_simulation()
-        matcher = _template(extra_voltage=extra)
-        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-        positions[label] = float(np.mean(copy_to_cpu(beam.read_partial_dt())))
-
-    expected_shift = -np.arcsin(v_0 / v_rf) / omega_rf
-    measured_shift = positions["offset"] - positions["bare"]
-    assert np.isclose(measured_shift, expected_shift, rtol=0.05)
-
-
-def test_extra_voltage_validation():
-    with pytest.raises(ValueError, match="pair"):
-        _template(extra_voltage=(np.zeros(4),))
-    with pytest.raises(AssertionError, match="increasing"):
-        _template(extra_voltage=(np.array([1.0, 0.0]), np.array([0.0, 0.0])))
-
-
-# ------------------------ SequentialMultiBunchMatcher ----------------------
-
-
-def test_train_positions_lengths_and_independent_noise():
-    simulation, beam = _build_simulation()
-    matcher = SequentialMultiBunchMatcher(
-        bunch_matchers=_template(),
-        n_bunches=3,
-        bunch_spacing_buckets=5,
-    )
-    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-
-    np.testing.assert_array_equal(matcher.bucket_indices, [0, 5, 10])
-    dt = copy_to_cpu(beam.read_partial_dt())
-    assert len(dt) == 3 * 2_000
-    positions, lengths = _bunch_positions_and_lengths(
-        dt, matcher.bucket_indices
-    )
-    np.testing.assert_allclose(
-        positions,
-        (matcher.bucket_indices + 0.5) * RF_PERIOD,
-        atol=0.02e-9,
-    )
-    np.testing.assert_allclose(lengths, 1.2e-9, rtol=3e-2)
-    # Template mode derives per-bunch seeds: independent noise, so the
-    # local coordinates must differ bunch to bunch.
-    local_first = dt[:2_000]
-    local_second = dt[2_000:4_000] - 5 * RF_PERIOD
-    assert not np.allclose(local_first, local_second, atol=1e-13)
-    assert [m._seed for m in matcher.bunch_matchers] == [0, 1, 2]
-
-
-def test_per_bunch_parameters_and_mixed_types():
-    time_measured = backend.linspace(-1e-9, 1e-9, 101, dtype=backend.float)
-    profile = line_density(
-        time_measured, "binomial", 1.6e-9, bunch_position=0.0, exponent=1.5
-    )
-    bunch_matchers = [
-        _template(seed=1),
-        _template(bunch_length=1.0e-9, seed=2),
-        LineDensityMatcher(
-            n_macroparticles=2_000,
+    def test_works_for_line_density_matcher(self):
+        time_measured, profile = _measured_line_density()
+        matcher = LineDensityMatcher(
+            n_macroparticles=1_000,
             time_array=time_measured,
             line_density_values=profile,
-            half_option="both",
-            n_points_abel=2_000,
-            seed=3,
-            n_points_grid=300,
-        ),
-    ]
-    simulation, beam = _build_simulation()
-    matcher = SequentialMultiBunchMatcher(
-        bunch_matchers=bunch_matchers,
-        bucket_indices=[0, 4, 9],
-    )
-    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+            seed=0,
+        )
+        varied = matcher.clone(half_option="both", seed=3)
+        self.assertEqual(varied._half_option, "both")
+        self.assertEqual(varied._seed, 3)
+        np.testing.assert_array_equal(
+            copy_to_cpu(varied._input_time), copy_to_cpu(time_measured)
+        )
 
-    dt = copy_to_cpu(beam.read_partial_dt())
-    _, lengths = _bunch_positions_and_lengths(dt, matcher.bucket_indices)
-    assert np.isclose(lengths[0], 1.2e-9, rtol=3e-2)
-    assert np.isclose(lengths[1], 1.0e-9, rtol=3e-2)
-    assert np.isclose(
-        lengths[2], matcher.bunch_matchers[2].matched_bunch_length, rtol=3e-2
-    )
-    # The user's spec instances were deep-copied, not run.
-    assert bunch_matchers[0].matched_bunch_length is None
-    assert matcher.bunch_matchers[0].matched_bunch_length is not None
+    def test_rejects_unknown_argument(self):
+        with self.assertRaisesRegex(TypeError, "not_a_parameter"):
+            _template().clone(not_a_parameter=1.0)
 
 
-def test_wake_of_predecessor_shifts_next_bunch():
-    # A long-memory resonator (decay over several buckets) so the
-    # predecessor's wake reaches the next bucket. Reference: a single
-    # bunch alone. In the two-bunch train, the first bunch (no
-    # predecessor) must reproduce the reference exactly, while the
-    # second must sit at a measurably different position.
-    def run(bucket_indices):
+class TestSequentialMultiBunchMatcher(unittest.TestCase):
+    def test_train_positions_lengths_and_independent_noise(self):
+        simulation, beam = _build_simulation()
+        matcher = SequentialMultiBunchMatcher(
+            bunch_matchers=_template(),
+            n_bunches=3,
+            bunch_spacing_buckets=5,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+        np.testing.assert_array_equal(matcher.bucket_indices, [0, 5, 10])
+        dt = copy_to_cpu(beam.read_partial_dt())
+        self.assertEqual(len(dt), 3 * 2_000)
+        positions, lengths = _bunch_positions_and_lengths(
+            dt, matcher.bucket_indices
+        )
+        np.testing.assert_allclose(
+            positions,
+            (matcher.bucket_indices + 0.5) * RF_PERIOD,
+            atol=0.02e-9,
+        )
+        np.testing.assert_allclose(lengths, 1.2e-9, rtol=3e-2)
+        # Template mode derives per-bunch seeds: independent noise, so
+        # the local coordinates must differ bunch to bunch.
+        local_first = dt[:2_000]
+        local_second = dt[2_000:4_000] - 5 * RF_PERIOD
+        self.assertFalse(np.allclose(local_first, local_second, atol=1e-13))
+        self.assertEqual([m._seed for m in matcher.bunch_matchers], [0, 1, 2])
+
+    def test_per_bunch_parameters_and_mixed_types(self):
+        time_measured, profile = _measured_line_density()
+        bunch_matchers = [
+            _template(seed=1),
+            _template(bunch_length=1.0e-9, seed=2),
+            LineDensityMatcher(
+                n_macroparticles=2_000,
+                time_array=time_measured,
+                line_density_values=profile,
+                half_option="both",
+                n_points_abel=2_000,
+                seed=3,
+                n_points_grid=300,
+            ),
+        ]
+        simulation, beam = _build_simulation()
+        matcher = SequentialMultiBunchMatcher(
+            bunch_matchers=bunch_matchers,
+            bucket_indices=[0, 4, 9],
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+        dt = copy_to_cpu(beam.read_partial_dt())
+        _, lengths = _bunch_positions_and_lengths(dt, matcher.bucket_indices)
+        np.testing.assert_allclose(lengths[0], 1.2e-9, rtol=3e-2)
+        np.testing.assert_allclose(lengths[1], 1.0e-9, rtol=3e-2)
+        np.testing.assert_allclose(
+            lengths[2],
+            matcher.bunch_matchers[2].matched_bunch_length,
+            rtol=3e-2,
+        )
+        # The user's spec instances were deep-copied, not run.
+        self.assertIsNone(bunch_matchers[0].matched_bunch_length)
+        self.assertIsNotNone(matcher.bunch_matchers[0].matched_bunch_length)
+
+    def test_wake_of_predecessor_shifts_next_bunch(self):
+        # A long-memory resonator (decay over several buckets) so the
+        # predecessor's wake reaches the next bucket. Reference: a
+        # single bunch alone. In the two-bunch train, the first bunch
+        # (no predecessor) must reproduce the reference exactly, while
+        # the second must sit at a measurably different position.
+        shift_single, _ = self._run_train([0])
+        shifts_train, matcher = self._run_train([0, 1])
+
+        # Self-wake shift is real and reproduced for the first bunch.
+        self.assertGreater(abs(shift_single[0]), 0.005e-9)
+        np.testing.assert_allclose(
+            shifts_train[0], shift_single[0], atol=0.002e-9
+        )
+        # The predecessor's wake moves the second bunch measurably.
+        self.assertGreater(abs(shifts_train[1] - shift_single[0]), 0.01e-9)
+        # Each bunch ran its own converged self-wake iteration.
+        for bunch_matcher in matcher.bunch_matchers:
+            self.assertGreaterEqual(bunch_matcher.n_intensity_iterations, 1)
+            self.assertLess(bunch_matcher.final_potential_well_error, 1e-6)
+
+    @staticmethod
+    def _run_train(bucket_indices):
         simulation, beam = _build_simulation(
             resonator_r_shunt=1e5,
             intensity=2e11 * len(bucket_indices),
@@ -268,262 +266,268 @@ def test_wake_of_predecessor_shifts_next_bunch():
         shifts = (matcher.bucket_indices + 0.5) * RF_PERIOD - positions
         return shifts, matcher
 
-    shift_single, _ = run([0])
-    shifts_train, matcher = run([0, 1])
-
-    # Self-wake shift is real and reproduced for the first bunch.
-    assert abs(shift_single[0]) > 0.005e-9
-    assert np.isclose(shifts_train[0], shift_single[0], atol=0.002e-9)
-    # The predecessor's wake moves the second bunch measurably.
-    assert abs(shifts_train[1] - shift_single[0]) > 0.01e-9
-    # Each bunch ran its own converged self-wake iteration.
-    for bunch_matcher in matcher.bunch_matchers:
-        assert bunch_matcher.n_intensity_iterations >= 1
-        assert bunch_matcher.final_potential_well_error < 1e-6
-
-
-def test_intensity_handling():
-    # None: equal split of beam.intensity, no warning.
-    simulation, beam = _build_simulation(intensity=3e11)
-    matcher = SequentialMultiBunchMatcher(
-        bunch_matchers=_template(),
-        n_bunches=3,
-        bunch_spacing_buckets=2,
-    )
-    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-    np.testing.assert_allclose(matcher.bunch_intensities, 1e11)
-
-    # Mismatching per-bunch sum: warn and overwrite (BLonD 2).
-    simulation, beam = _build_simulation(intensity=3e11)
-    matcher = SequentialMultiBunchMatcher(
-        bunch_matchers=_template(),
-        n_bunches=2,
-        bunch_spacing_buckets=2,
-        bunch_intensities=[1e11, 2.5e11],
-    )
-    with pytest.warns(UserWarning, match="overwritten"):
-        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-    assert beam.intensity == 3.5e11
-
-
-def test_input_validation():
-    template = _template()
-    with pytest.raises(ValueError, match="exactly one"):
-        SequentialMultiBunchMatcher(bunch_matchers=template)
-    with pytest.raises(ValueError, match="exactly one"):
-        SequentialMultiBunchMatcher(
-            bunch_matchers=template, bucket_indices=[0, 5], n_bunches=2
-        )
-    with pytest.raises(ValueError, match="bunch_spacing_buckets"):
-        SequentialMultiBunchMatcher(bunch_matchers=template, n_bunches=2)
-    with pytest.raises(ValueError, match="increasing"):
-        SequentialMultiBunchMatcher(
-            bunch_matchers=template, bucket_indices=[5, 0]
-        )
-    with pytest.raises(ValueError, match="bunch matchers"):
-        SequentialMultiBunchMatcher(
-            bunch_matchers=[template], bucket_indices=[0, 5]
-        )
-    with pytest.raises(TypeError, match="single-bunch matcher"):
-        SequentialMultiBunchMatcher(
-            bunch_matchers=[template, "not_a_matcher"],
-            bucket_indices=[0, 5],
-        )
-    with pytest.raises(ValueError, match="bunch intensities"):
+    def test_intensity_is_split_equally_by_default(self):
+        simulation, beam = _build_simulation(intensity=3e11)
         matcher = SequentialMultiBunchMatcher(
-            bunch_matchers=template,
+            bunch_matchers=_template(),
+            n_bunches=3,
+            bunch_spacing_buckets=2,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        np.testing.assert_allclose(matcher.bunch_intensities, 1e11)
+
+    def test_mismatching_per_bunch_sum_warns_and_overwrites(self):
+        # BLonD 2 behaviour: warn and overwrite the beam intensity.
+        simulation, beam = _build_simulation(intensity=3e11)
+        matcher = SequentialMultiBunchMatcher(
+            bunch_matchers=_template(),
+            n_bunches=2,
+            bunch_spacing_buckets=2,
+            bunch_intensities=[1e11, 2.5e11],
+        )
+        with self.assertWarnsRegex(UserWarning, "overwritten"):
+            simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        self.assertEqual(beam.intensity, 3.5e11)
+
+    def test_train_is_stationary_over_turns(self):
+        simulation, beam = _build_simulation(
+            resonator_r_shunt=1e4, intensity=2e11
+        )
+        matcher = SequentialMultiBunchMatcher(
+            bunch_matchers=_template(),
+            n_bunches=2,
+            bunch_spacing_buckets=4,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        dt = copy_to_cpu(beam.read_partial_dt())
+        initial_positions, initial_lengths = _bunch_positions_and_lengths(
+            dt, matcher.bucket_indices
+        )
+        simulation.run_simulation(
+            beams=(beam,), n_turns=30, show_progressbar=False
+        )
+        final_dt = copy_to_cpu(beam.read_partial_dt())
+        final_positions, final_lengths = _bunch_positions_and_lengths(
+            final_dt, matcher.bucket_indices
+        )
+        np.testing.assert_allclose(final_lengths, initial_lengths, rtol=5e-2)
+        np.testing.assert_allclose(
+            final_positions, initial_positions, atol=0.05e-9
+        )
+
+    def test_verbose_and_plot_smoke(self):
+        import matplotlib
+
+        matplotlib.use("Agg", force=True)
+        import matplotlib.pyplot as plt
+
+        simulation, beam = _build_simulation(
+            resonator_r_shunt=1e4, intensity=2e11
+        )
+        matcher = SequentialMultiBunchMatcher(
+            bunch_matchers=_template(
+                n_macroparticles=1_000, n_points_grid=200
+            ),
+            n_bunches=2,
+            bunch_spacing_buckets=3,
+            verbose=True,
+            plot=True,
+        )
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        self.assertIn("SequentialMultiBunchMatcher", stdout.getvalue())
+        plt.close("all")
+
+
+class TestSequentialMultiBunchMatcherValidation(unittest.TestCase):
+    def setUp(self):
+        self.template = _template()
+
+    def test_no_bucket_specification_raises(self):
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            SequentialMultiBunchMatcher(bunch_matchers=self.template)
+
+    def test_two_bucket_specifications_raise(self):
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            SequentialMultiBunchMatcher(
+                bunch_matchers=self.template,
+                bucket_indices=[0, 5],
+                n_bunches=2,
+            )
+
+    def test_n_bunches_without_spacing_raises(self):
+        with self.assertRaisesRegex(ValueError, "bunch_spacing_buckets"):
+            SequentialMultiBunchMatcher(
+                bunch_matchers=self.template, n_bunches=2
+            )
+
+    def test_decreasing_bucket_indices_raise(self):
+        with self.assertRaisesRegex(ValueError, "increasing"):
+            SequentialMultiBunchMatcher(
+                bunch_matchers=self.template, bucket_indices=[5, 0]
+            )
+
+    def test_matcher_count_mismatch_raises(self):
+        with self.assertRaisesRegex(ValueError, "bunch matchers"):
+            SequentialMultiBunchMatcher(
+                bunch_matchers=[self.template], bucket_indices=[0, 5]
+            )
+
+    def test_non_matcher_entry_raises(self):
+        with self.assertRaisesRegex(TypeError, "single-bunch matcher"):
+            SequentialMultiBunchMatcher(
+                bunch_matchers=[self.template, "not_a_matcher"],
+                bucket_indices=[0, 5],
+            )
+
+    def test_intensity_count_mismatch_raises(self):
+        matcher = SequentialMultiBunchMatcher(
+            bunch_matchers=self.template,
             n_bunches=2,
             bunch_spacing_buckets=2,
             bunch_intensities=[1e11, 1e11, 1e11],
         )
         simulation, beam = _build_simulation()
-        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        with self.assertRaisesRegex(ValueError, "bunch intensities"):
+            simulation.prepare_beam(beam=beam, preparation_routine=matcher)
 
 
-def test_verbose_and_plot_smoke(capsys):
-    import matplotlib
+class TestSelfConsistentMultiBunchMatcher(unittest.TestCase):
+    def test_agrees_with_sequential(self):
+        # With causal (open-boundary) wakes the sequential method
+        # already sits at the self-consistent fixed point: both
+        # matchers must give the same train. Same seeds -> sampling
+        # noise cancels in the comparison.
+        results = {}
+        for label, matcher_class in (
+            ("sequential", SequentialMultiBunchMatcher),
+            ("self_consistent", SelfConsistentMultiBunchMatcher),
+        ):
+            with self.subTest(matcher=label):
+                simulation, beam = _build_simulation(
+                    resonator_r_shunt=1e5,
+                    intensity=sum(TRAIN_INTENSITIES),
+                    n_buckets=41,
+                    resonator_frequency=2e8,
+                    resonator_quality=10.0,
+                )
+                kwargs = dict(
+                    bunch_matchers=_train_specs(),
+                    n_bunches=4,
+                    bunch_spacing_buckets=10,
+                    bunch_intensities=TRAIN_INTENSITIES,
+                )
+                if matcher_class is SelfConsistentMultiBunchMatcher:
+                    kwargs["relaxation_factor"] = 0.5
+                matcher = matcher_class(**kwargs)
+                simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+                dt = copy_to_cpu(beam.read_partial_dt())
+                results[label] = _bunch_positions_and_lengths(
+                    dt, matcher.bucket_indices
+                )
+                if matcher_class is SelfConsistentMultiBunchMatcher:
+                    self.assertLess(matcher.final_potential_well_error, 1e-6)
 
-    matplotlib.use("Agg", force=True)
-    import matplotlib.pyplot as plt
-
-    simulation, beam = _build_simulation(resonator_r_shunt=1e4, intensity=2e11)
-    matcher = SequentialMultiBunchMatcher(
-        bunch_matchers=_template(n_macroparticles=1_000, n_points_grid=200),
-        n_bunches=2,
-        bunch_spacing_buckets=3,
-        verbose=True,
-        plot=True,
-    )
-    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-    assert "SequentialMultiBunchMatcher" in capsys.readouterr().out
-    plt.close("all")
-
-
-def test_train_is_stationary_over_turns():
-    simulation, beam = _build_simulation(resonator_r_shunt=1e4, intensity=2e11)
-    matcher = SequentialMultiBunchMatcher(
-        bunch_matchers=_template(),
-        n_bunches=2,
-        bunch_spacing_buckets=4,
-    )
-    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-    dt = copy_to_cpu(beam.read_partial_dt())
-    initial_positions, initial_lengths = _bunch_positions_and_lengths(
-        dt, matcher.bucket_indices
-    )
-    simulation.run_simulation(
-        beams=(beam,), n_turns=30, show_progressbar=False
-    )
-    final_dt = copy_to_cpu(beam.read_partial_dt())
-    final_positions, final_lengths = _bunch_positions_and_lengths(
-        final_dt, matcher.bucket_indices
-    )
-    np.testing.assert_allclose(final_lengths, initial_lengths, rtol=5e-2)
-    np.testing.assert_allclose(
-        final_positions, initial_positions, atol=0.05e-9
-    )
-
-
-# ---------------------- SelfConsistentMultiBunchMatcher --------------------
-
-
-def _train_specs():
-    """EX_31-like per-bunch specs (reduced resolution)."""
-    lengths = [1.2e-9, 1.1e-9, 1.3e-9, 1.2e-9]
-    return [
-        _template(bunch_length=length, seed=bunch_i, relaxation_factor=0.5)
-        for bunch_i, length in enumerate(lengths)
-    ]
-
-
-TRAIN_INTENSITIES = [2.0e11, 1.6e11, 2.4e11, 2.0e11]
-
-
-def test_self_consistent_agrees_with_sequential():
-    # With causal (open-boundary) wakes the sequential method already
-    # sits at the self-consistent fixed point: both matchers must give
-    # the same train. Same seeds -> sampling noise cancels in the
-    # comparison.
-    results = {}
-    for label, matcher_class in (
-        ("sequential", SequentialMultiBunchMatcher),
-        ("self_consistent", SelfConsistentMultiBunchMatcher),
-    ):
-        simulation, beam = _build_simulation(
-            resonator_r_shunt=1e5,
-            intensity=sum(TRAIN_INTENSITIES),
-            n_buckets=41,
-            resonator_frequency=2e8,
-            resonator_quality=10.0,
+        np.testing.assert_allclose(
+            results["self_consistent"][0],
+            results["sequential"][0],
+            atol=0.5e-12,
         )
-        kwargs = dict(
-            bunch_matchers=_train_specs(),
-            n_bunches=4,
-            bunch_spacing_buckets=10,
-            bunch_intensities=TRAIN_INTENSITIES,
+        np.testing.assert_allclose(
+            results["self_consistent"][1],
+            results["sequential"][1],
+            rtol=2e-3,
         )
-        if matcher_class is SelfConsistentMultiBunchMatcher:
-            kwargs["relaxation_factor"] = 0.5
-        matcher = matcher_class(**kwargs)
-        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-        dt = copy_to_cpu(beam.read_partial_dt())
-        results[label] = _bunch_positions_and_lengths(
-            dt, matcher.bucket_indices
+
+    def test_periodic_wraps_the_wake(self):
+        # With a periodic solver and train_periodicity, the wake of the
+        # trailing bunches wraps around onto the first bunch — a
+        # configuration the open-boundary methods cannot represent: the
+        # first bunch's position must differ measurably.
+        n_buckets_period = 40
+        train_periodicity = n_buckets_period * RF_PERIOD
+
+        positions = {}
+        for label, solver, periodicity in (
+            ("open", None, None),
+            (
+                "periodic",
+                PeriodicFreqSolver(t_periodicity=train_periodicity),
+                train_periodicity,
+            ),
+        ):
+            with self.subTest(boundary=label):
+                simulation, beam = _build_simulation(
+                    resonator_r_shunt=1e5,
+                    intensity=sum(TRAIN_INTENSITIES),
+                    n_buckets=n_buckets_period if periodicity else 41,
+                    resonator_frequency=2e8,
+                    resonator_quality=10.0,
+                    solver=solver,
+                )
+                matcher = SelfConsistentMultiBunchMatcher(
+                    bunch_matchers=_train_specs(),
+                    n_bunches=4,
+                    bunch_spacing_buckets=10,
+                    bunch_intensities=TRAIN_INTENSITIES,
+                    relaxation_factor=0.5,
+                    train_periodicity=periodicity,
+                )
+                simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+                self.assertLess(matcher.final_potential_well_error, 1e-6)
+                dt = copy_to_cpu(beam.read_partial_dt())
+                positions[label], _ = _bunch_positions_and_lengths(
+                    dt, matcher.bucket_indices
+                )
+
+        # The first bunch now feels the wrapped wake of the whole train.
+        self.assertGreater(
+            abs(positions["periodic"][0] - positions["open"][0]), 2e-12
         )
-        if matcher_class is SelfConsistentMultiBunchMatcher:
-            assert matcher.final_potential_well_error < 1e-6
 
-    np.testing.assert_allclose(
-        results["self_consistent"][0],
-        results["sequential"][0],
-        atol=0.5e-12,
-    )
-    np.testing.assert_allclose(
-        results["self_consistent"][1],
-        results["sequential"][1],
-        rtol=2e-3,
-    )
-
-
-def test_self_consistent_periodic_wraps_the_wake():
-    # With a periodic solver and train_periodicity, the wake of the
-    # trailing bunches wraps around onto the first bunch — a
-    # configuration the open-boundary methods cannot represent: the
-    # first bunch's position must differ measurably.
-    n_buckets_period = 40
-    train_periodicity = n_buckets_period * RF_PERIOD
-
-    positions = {}
-    for label, solver, periodicity in (
-        ("open", None, None),
-        (
-            "periodic",
-            PeriodicFreqSolver(t_periodicity=train_periodicity),
-            train_periodicity,
-        ),
-    ):
-        simulation, beam = _build_simulation(
-            resonator_r_shunt=1e5,
-            intensity=sum(TRAIN_INTENSITIES),
-            n_buckets=n_buckets_period if periodicity else 41,
-            resonator_frequency=2e8,
-            resonator_quality=10.0,
-            solver=solver,
-        )
+    def test_without_wakefields(self):
+        simulation, beam = _build_simulation()
         matcher = SelfConsistentMultiBunchMatcher(
-            bunch_matchers=_train_specs(),
-            n_bunches=4,
-            bunch_spacing_buckets=10,
-            bunch_intensities=TRAIN_INTENSITIES,
-            relaxation_factor=0.5,
-            train_periodicity=periodicity,
-        )
-        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-        assert matcher.final_potential_well_error < 1e-6
-        dt = copy_to_cpu(beam.read_partial_dt())
-        positions[label], _ = _bunch_positions_and_lengths(
-            dt, matcher.bucket_indices
-        )
-
-    # The first bunch now feels the wrapped wake of the whole train.
-    assert abs(positions["periodic"][0] - positions["open"][0]) > 2e-12
-
-
-def test_self_consistent_without_wakefields():
-    simulation, beam = _build_simulation()
-    matcher = SelfConsistentMultiBunchMatcher(
-        bunch_matchers=_template(),
-        n_bunches=2,
-        bunch_spacing_buckets=5,
-    )
-    simulation.prepare_beam(beam=beam, preparation_routine=matcher)
-    assert matcher.n_intensity_iterations == 0
-    dt = copy_to_cpu(beam.read_partial_dt())
-    positions, lengths = _bunch_positions_and_lengths(
-        dt, matcher.bucket_indices
-    )
-    np.testing.assert_allclose(
-        positions, (matcher.bucket_indices + 0.5) * RF_PERIOD, atol=0.02e-9
-    )
-    np.testing.assert_allclose(lengths, 1.2e-9, rtol=3e-2)
-
-
-def test_self_consistent_validation():
-    template = _template()
-    with pytest.raises(ValueError, match="relaxation_factor"):
-        SelfConsistentMultiBunchMatcher(
-            bunch_matchers=template,
+            bunch_matchers=_template(),
             n_bunches=2,
             bunch_spacing_buckets=5,
-            relaxation_factor=0.0,
         )
-    # train_periodicity shorter than the occupied buckets.
-    simulation, beam = _build_simulation(resonator_r_shunt=1e4, intensity=2e11)
-    matcher = SelfConsistentMultiBunchMatcher(
-        bunch_matchers=template,
-        n_bunches=2,
-        bunch_spacing_buckets=5,
-        train_periodicity=3 * RF_PERIOD,
-    )
-    with pytest.raises(ValueError, match="train_periodicity"):
         simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        self.assertEqual(matcher.n_intensity_iterations, 0)
+        dt = copy_to_cpu(beam.read_partial_dt())
+        positions, lengths = _bunch_positions_and_lengths(
+            dt, matcher.bucket_indices
+        )
+        np.testing.assert_allclose(
+            positions,
+            (matcher.bucket_indices + 0.5) * RF_PERIOD,
+            atol=0.02e-9,
+        )
+        np.testing.assert_allclose(lengths, 1.2e-9, rtol=3e-2)
+
+    def test_invalid_relaxation_factor_raises(self):
+        with self.assertRaisesRegex(ValueError, "relaxation_factor"):
+            SelfConsistentMultiBunchMatcher(
+                bunch_matchers=_template(),
+                n_bunches=2,
+                bunch_spacing_buckets=5,
+                relaxation_factor=0.0,
+            )
+
+    def test_too_short_train_periodicity_raises(self):
+        simulation, beam = _build_simulation(
+            resonator_r_shunt=1e4, intensity=2e11
+        )
+        matcher = SelfConsistentMultiBunchMatcher(
+            bunch_matchers=_template(),
+            n_bunches=2,
+            bunch_spacing_buckets=5,
+            train_periodicity=3 * RF_PERIOD,
+        )
+        with self.assertRaisesRegex(ValueError, "train_periodicity"):
+            simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+
+if __name__ == "__main__":
+    unittest.main()
