@@ -225,24 +225,57 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
     folder
         Path to the target folder used for
         saving or loading files.
+    section_index
+        Index of the ring section this element is placed in.
+    name
+        Element name; auto-generated if ``None``.
+    label
+        Short name used in plots and legends, e.g. ``"co_rotating"``.
+        Defaults to ``name``.
+    turn_fraction
+        Fraction of a revolution, in the observed beam's own traversal
+        order, already elapsed where this element sits.  Added to the
+        turn number in :attr:`turns` so that the samples of several
+        instances of one beam can be interleaved into one within-turn
+        trace.  Bookkeeping only: it does not change *when* the element
+        fires.
+
+    Notes
+    -----
+    Being a ring element, this samples the beam **where it sits** in the
+    element list, at that beam's own passage.  That is what makes it
+    usable with counter-rotating beams: the mainloop walks the list
+    forwards for the co-rotating beam and backwards for the
+    counter-rotating one, and the ``beam`` filter selects the passage
+    to record.  One instance per beam behind every RF station gives
+    ``n_sections`` samples per turn per beam, which resolves a
+    synchrotron oscillation that once-per-turn sampling aliases.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - the placement bookkeeping is optional
         self,
         each_turn_i: int,
         beam: BeamBaseClass | None = None,
         folder: str = "",
+        *,
+        section_index: int = 0,
+        name: str | None = None,
+        label: str | None = None,
+        turn_fraction: float = 0.0,
     ):
-        super().__init__(folder=folder)
-
+        super().__init__(folder=folder, section_index=section_index, name=name)
         self.each_turn_i = each_turn_i
+        self.label = self.name if label is None else str(label)
+        self.turn_fraction = float(turn_fraction)
         # use ID because `prepare_beam` would trigger
         # bugs when setting ``self.beam = beam``
-
         self._beam_id_filter: int | None = (
             id(beam) if beam is not None else None
         )
-
+        self._turn_counter: DynamicParameter | None = None
+        self._turns: DenseArrayRecorder | None = None
+        self._total_energy: DenseArrayRecorder | None = None
+        self._intensity: DenseArrayRecorder | None = None
         self._sigma_dt: DenseArrayRecorder | None = None
         self._sigma_dE: DenseArrayRecorder | None = None
         self._mean_dt: DenseArrayRecorder | None = None
@@ -281,6 +314,19 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         n_entries = int(n_turns * count // self.each_turn_i)
         shape = n_entries
 
+        self._turn_counter = simulation.turn_counter
+        self._turns = DenseArrayRecorder(
+            f"{self.common_filepath}_turns",
+            shape,
+        )
+        self._total_energy = DenseArrayRecorder(
+            f"{self.common_filepath}_total_energy",
+            shape,
+        )
+        self._intensity = DenseArrayRecorder(
+            f"{self.common_filepath}_intensity",
+            shape,
+        )
         self._mean_dt = DenseArrayRecorder(
             f"{self.common_filepath}_mean_dt",
             shape,
@@ -317,6 +363,11 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         if isinstance(beam, ProbeBeam):
             return
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
+            self._turns.write(
+                float(self._turn_counter.value) + self.turn_fraction
+            )
+            self._total_energy.write(float(beam.reference.total_energy))
+            self._intensity.write(float(beam.intensity))
             self._sigma_dt.write(beam._dt.std())
             self._sigma_dE.write(beam._dE.std())
             self._mean_dt.write(beam._dt.mean())
@@ -324,6 +375,49 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             self._rms_emittance.write(  # attribute acess on cached property
                 beam.rms_emittance
             )
+
+    @property  # as readonly attributes
+    def turns(self):
+        """
+        Turn number of each sample, including the within-turn position.
+
+        ``turn_counter + turn_fraction`` at the time of the sample.
+        Concatenating the samples of several instances of one beam and
+        sorting by this gives the within-turn trace.
+
+        Returns
+        -------
+        turns
+            Fractional turn number per sample.
+        """
+        return self._turns.get_valid_entries()
+
+    @property  # as readonly attributes
+    def total_energy(self):
+        """
+        Reference total energy per sample, in [eV].
+
+        Returns
+        -------
+        total_energy
+            Reference total energy of the observed beam, in [eV].
+        """
+        return self._total_energy.get_valid_entries()
+
+    @property  # as readonly attributes
+    def intensity(self):
+        """
+        Beam intensity per sample, i.e. real particles in the beam.
+
+        Constant unless the particle type decays, in which case the
+        samples resolve the decay along the ring.
+
+        Returns
+        -------
+        intensity
+            Number of real particles represented by the beam.
+        """
+        return self._intensity.get_valid_entries()
 
     @property  # as readonly attributes
     def sigma_dt(self):

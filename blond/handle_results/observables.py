@@ -2745,3 +2745,421 @@ class FullTurnCavityObservation(ObservablesOncePerTurnBase):
         cells = np.arange(voltage.size, dtype=float)
         times = arrival + (cells - offset) * cell_duration
         return np.where(np.isfinite(voltage), times, np.nan)
+
+
+class CavityEnvelopeSummary(ObservablesOncePerTurnBase):
+    """
+    Per-turn scalar summary of a cavity-voltage envelope.
+
+    Reads ``feedback.antenna_voltage_coarse_grid`` at the end of every turn
+    -- i.e. after *both* counter-rotating beams have passed the station --
+    and stores a handful of scalars instead of the full grid.
+
+    Parameters
+    ----------
+    each_turn_i
+        Record every ``each_turn_i``-th turn.
+    feedback
+        The cavity feedback to watch.
+    section_index
+        Index of the RF station the feedback belongs to (bookkeeping only).
+    folder
+        Target folder for :meth:`Simulation.save_results`.  Must end in a
+        path separator when non-empty.
+
+    Notes
+    -----
+    All voltages are **per cavity** [V]: the coarse grid of
+    ``IQCavityFeedbackTimingClass`` is normalised per cavity, while the fine
+    grid carries the station total.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        feedback: IQCavityFeedbackBase,
+        section_index: int = 0,
+        folder: str = "",
+    ) -> None:
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._feedback = feedback
+        self.section_index = int(section_index)
+
+        self._magnitude_min: DenseArrayRecorder | None = None
+        self._magnitude_mean: DenseArrayRecorder | None = None
+        self._magnitude_max: DenseArrayRecorder | None = None
+        self._magnitude_end: DenseArrayRecorder | None = None
+        self._phase_end: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # always beams[0]; unused here
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Allocate the recorders when the simulation starts.
+
+        Parameters
+        ----------
+        simulation
+            The running :class:`~blond.Simulation`.
+        beam
+            Ignored -- this observable watches a feedback, not a beam.
+        n_turns
+            Number of turns the simulation will run.
+        **kwargs
+            Unused, kept for interface compatibility.
+        """
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns
+        )
+        n_entries = self._calc_n_entries(n_turns=n_turns)
+        prefix = f"{self.common_filepath}_envelope_s{self.section_index}"
+        self._magnitude_min = DenseArrayRecorder(f"{prefix}_min", n_entries)
+        self._magnitude_mean = DenseArrayRecorder(f"{prefix}_mean", n_entries)
+        self._magnitude_max = DenseArrayRecorder(f"{prefix}_max", n_entries)
+        self._magnitude_end = DenseArrayRecorder(f"{prefix}_end", n_entries)
+        self._phase_end = DenseArrayRecorder(f"{prefix}_phase", n_entries)
+
+    def _update(self) -> None:
+        """Record the current envelope statistics."""
+        envelope = self._feedback.antenna_voltage_coarse_grid
+        magnitude = np.abs(envelope)
+        self._magnitude_min.write(float(np.nanmin(magnitude)))
+        self._magnitude_mean.write(float(np.nanmean(magnitude)))
+        self._magnitude_max.write(float(np.nanmax(magnitude)))
+        self._magnitude_end.write(float(magnitude[-1]))
+        self._phase_end.write(float(np.angle(envelope[-1])))
+
+    @property
+    def magnitude_min(self) -> np.ndarray:
+        """
+        Smallest ``|V_ant|`` over the recorded window [V per cavity].
+
+        NOT a per-turn minimum, for the same reason as
+        :attr:`magnitude_mean`: the window is the coarse grid standing at
+        the end of the turn, which spans ``|n - 2 i - 1| / n`` of a
+        revolution and is therefore station-dependent -- 0.9375 turn at
+        stations 0 and 15 but 0.0625 turn at stations 7 and 8 for RCS1's
+        16 sections.  A station whose window happens to exclude the sag
+        reports a shallower minimum than one whose window contains it, so
+        the per-station curves are not directly comparable even though
+        they share an axis.
+
+        Returns
+        -------
+        magnitude_min
+            Smallest ``|V_ant|`` over the recorded window [V per cavity].
+        """
+        return self._magnitude_min.get_valid_entries()
+
+    @property
+    def magnitude_mean(self) -> np.ndarray:
+        """
+        Mean ``|V_ant|`` over the recorded window [V per cavity].
+
+        NOT a turn average: the feedback rebuilds its coarse grid at every
+        passage, so the grid standing at the end of a turn spans
+        ``|n - 2 i - 1| / n`` of a revolution -- 0.9375 turn at stations 0
+        and 15 but 0.0625 turn at stations 7 and 8 for RCS1's 16 sections.
+        The window is therefore station-dependent and this mean is not
+        comparable across stations.
+
+        Returns
+        -------
+        magnitude_mean
+            Mean ``|V_ant|`` over the recorded window [V per cavity].
+        """
+        return self._magnitude_mean.get_valid_entries()
+
+    @property
+    def magnitude_max(self) -> np.ndarray:
+        """
+        Largest ``|V_ant|`` seen during each turn [V per cavity].
+
+        Returns
+        -------
+        magnitude_max
+            Largest ``|V_ant|`` seen during each turn [V per cavity].
+        """
+        return self._magnitude_max.get_valid_entries()
+
+    @property
+    def magnitude_end(self) -> np.ndarray:
+        """
+        ``|V_ant|`` at the end of each turn [V per cavity].
+
+        Returns
+        -------
+        magnitude_end
+            ``|V_ant|`` at the end of each turn [V per cavity].
+        """
+        return self._magnitude_end.get_valid_entries()
+
+    @property
+    def phase_end(self) -> np.ndarray:
+        """
+        ``arg(V_ant)`` at the end of each turn [rad].
+
+        Returns
+        -------
+        phase_end
+            ``arg(V_ant)`` at the end of each turn [rad].
+        """
+        return self._phase_end.get_valid_entries()
+
+
+class ControllerCorrectionSummary(ObservablesOncePerTurnBase):
+    """
+    Per-turn summary of the correction the loop hands to the beam.
+
+    The cavity feedback's output to the RF station is two fine-grid
+    arrays: ``relative_voltage_correction`` (amplitude, in units of the
+    station voltage) and ``phase_correction`` [rad].  The station applies
+    entry ``j`` to whichever particles fall in profile bin ``j``, so the
+    single number that describes what the *bunch* received is the
+    **charge-weighted** mean over the profile -- not the plain mean over
+    the window, in which the bunch occupies only a few percent of the bins
+    and empty bins would count equally.  Both are recorded, because their
+    difference is itself diagnostic: they agree only when the correction
+    is flat across the window.
+
+    Six scalars per turn, so this can be attached to every station where
+    :class:`IQCavityFeedbackObservation` (which keeps both full grids) can
+    only be afforded on one.
+
+    Parameters
+    ----------
+    each_turn_i
+        Record every ``each_turn_i``-th turn.
+    feedback
+        The cavity feedback whose readout is summarised.
+    profile
+        The station's live profile, supplying the charge weights.  It must
+        be the profile the feedback itself reads, or the weights do not
+        line up with the correction arrays.
+    section_index
+        Index of the RF station (bookkeeping only).
+    beam_label
+        Name of the beam whose passage this instance samples, or ``""``
+        (default) for the once-per-turn instance that is not tied to a
+        beam.  Bookkeeping: it keeps the recorder filenames unique and
+        labels the plot.
+    folder
+        Target folder for :meth:`Simulation.save_results`.
+
+    Notes
+    -----
+    Passed to ``run_simulation(observe=...)`` this reads the state
+    standing at the **end of the turn**, like :class:`CavityEnvelopeSummary`
+    -- and the feedback overwrites both arrays at *every* passage, so an
+    end-of-turn read keeps only the later of the turn's two
+    counter-rotating passages, and which beam that is differs between the
+    first and second half of the element list.  Attached to a station with
+    :meth:`~blond.core.base.SimulationElementBase.add_observable` instead,
+    it fires at that beam's own passage and both are recorded separately.
+
+    ``phase_correction`` is the cheapest no-op check of a feedback: a
+    driven cavity sitting on its setpoint with no beam must hand the
+    station a phase of exactly zero, so a run at negligible intensity
+    that shows anything else has a feedback that is not phase-neutral.
+    """
+
+    def __init__(  # noqa: PLR0913 - mirrors CavityEnvelopeSummary's shape
+        self,
+        each_turn_i: int,
+        feedback: IQCavityFeedbackBase,
+        profile: StaticProfile,
+        section_index: int = 0,
+        beam_label: str = "",
+        folder: str = "",
+    ) -> None:
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._feedback = feedback
+        self._profile = profile
+        self.section_index = int(section_index)
+        self.beam_label = beam_label
+
+        self._v_corr_bunch: DenseArrayRecorder | None = None
+        self._v_corr_window: DenseArrayRecorder | None = None
+        self._v_corr_spread: DenseArrayRecorder | None = None
+        self._phi_corr_bunch: DenseArrayRecorder | None = None
+        self._phi_corr_window: DenseArrayRecorder | None = None
+        self._phi_corr_spread: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # always beams[0]; unused here
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Allocate the recorders when the simulation starts.
+
+        Parameters
+        ----------
+        simulation
+            The running :class:`~blond.Simulation`.
+        beam
+            Ignored -- this observable watches a feedback, not a beam.
+        n_turns
+            Number of turns the simulation will run.
+        **kwargs
+            Unused, kept for interface compatibility.
+        """
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns
+        )
+        n_entries = self._calc_n_entries(n_turns=n_turns)
+        prefix = f"{self.common_filepath}_correction_s{self.section_index}"
+        if self.beam_label:
+            prefix = f"{prefix}_{self.beam_label}"
+        self._v_corr_bunch = DenseArrayRecorder(f"{prefix}_v_bunch", n_entries)
+        self._v_corr_window = DenseArrayRecorder(
+            f"{prefix}_v_window", n_entries
+        )
+        self._v_corr_spread = DenseArrayRecorder(
+            f"{prefix}_v_spread", n_entries
+        )
+        self._phi_corr_bunch = DenseArrayRecorder(
+            f"{prefix}_phi_bunch", n_entries
+        )
+        self._phi_corr_window = DenseArrayRecorder(
+            f"{prefix}_phi_window", n_entries
+        )
+        self._phi_corr_spread = DenseArrayRecorder(
+            f"{prefix}_phi_spread", n_entries
+        )
+
+    def _summarise(
+        self, values: np.ndarray, weights: np.ndarray
+    ) -> tuple[float, float, float]:
+        """
+        Reduce one fine-grid correction array to three scalars.
+
+        Parameters
+        ----------
+        values
+            The correction on the fine grid.
+        weights
+            Charge per bin, from the live profile.
+
+        Returns
+        -------
+        bunch, window, spread
+            Charge-weighted mean, plain window mean, and the peak-to-peak
+            spread over the bins that actually hold charge.  All three are
+            ``NaN`` when the window holds no charge at all, which is a
+            real configuration (``--intensity-scale 0``) and not an error.
+        """
+        finite = np.isfinite(values)
+        window = float(np.mean(values[finite])) if finite.any() else np.nan
+        occupied = finite & (weights > 0.0)
+        if not occupied.any():
+            return np.nan, window, np.nan
+        total = float(np.sum(weights[occupied]))
+        bunch = float(np.sum(values[occupied] * weights[occupied]) / total)
+        return bunch, window, float(np.ptp(values[occupied]))
+
+    def _update(self) -> None:
+        """Record the current correction summary."""
+        weights = np.asarray(copy_to_cpu(self._profile.hist_y), dtype=float)
+        v_corr = np.asarray(
+            copy_to_cpu(self._feedback.relative_voltage_correction),
+            dtype=float,
+        )
+        phi_corr = np.asarray(
+            copy_to_cpu(self._feedback.phase_correction), dtype=float
+        )
+
+        bunch, window, spread = self._summarise(v_corr, weights)
+        self._v_corr_bunch.write(bunch)
+        self._v_corr_window.write(window)
+        self._v_corr_spread.write(spread)
+
+        bunch, window, spread = self._summarise(phi_corr, weights)
+        self._phi_corr_bunch.write(bunch)
+        self._phi_corr_window.write(window)
+        self._phi_corr_spread.write(spread)
+
+    @property
+    def v_corr_bunch(self) -> np.ndarray:
+        """
+        Charge-weighted amplitude correction per turn [1].
+
+        ``1.0`` means the bunch saw exactly the station's nominal voltage.
+
+        Returns
+        -------
+        v_corr_bunch
+            Charge-weighted amplitude correction per turn [1].
+        """
+        return self._v_corr_bunch.get_valid_entries()
+
+    @property
+    def v_corr_window(self) -> np.ndarray:
+        """
+        Plain window mean of the amplitude correction per turn [1].
+
+        Kept beside :attr:`v_corr_bunch` because the gap between the two
+        is the signature of a correction that varies across the profile
+        window rather than being the rigid offset it is often assumed to
+        be.
+
+        Returns
+        -------
+        v_corr_window
+            Plain window mean of the amplitude correction per turn [1].
+        """
+        return self._v_corr_window.get_valid_entries()
+
+    @property
+    def v_corr_spread(self) -> np.ndarray:
+        """
+        Peak-to-peak amplitude correction across the bunch [1].
+
+        Returns
+        -------
+        v_corr_spread
+            Peak-to-peak amplitude correction across the bunch [1].
+        """
+        return self._v_corr_spread.get_valid_entries()
+
+    @property
+    def phi_corr_bunch(self) -> np.ndarray:
+        """
+        Charge-weighted phase correction per turn [rad].
+
+        Returns
+        -------
+        phi_corr_bunch
+            Charge-weighted phase correction per turn [rad].
+        """
+        return self._phi_corr_bunch.get_valid_entries()
+
+    @property
+    def phi_corr_window(self) -> np.ndarray:
+        """
+        Plain window mean of the phase correction per turn [rad].
+
+        Returns
+        -------
+        phi_corr_window
+            Plain window mean of the phase correction per turn [rad].
+        """
+        return self._phi_corr_window.get_valid_entries()
+
+    @property
+    def phi_corr_spread(self) -> np.ndarray:
+        """
+        Peak-to-peak phase correction across the bunch [rad].
+
+        Returns
+        -------
+        phi_corr_spread
+            Peak-to-peak phase correction across the bunch [rad].
+        """
+        return self._phi_corr_spread.get_valid_entries()

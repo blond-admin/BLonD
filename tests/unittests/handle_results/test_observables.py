@@ -30,6 +30,8 @@ from blond.handle_results.observables import (
     BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
     BeamStatisticsOncePerTurn,
+    CavityEnvelopeSummary,
+    ControllerCorrectionSummary,
     DriftObservation,
     DynamicProfileConstNBinsObservation,
     FullTurnCavityObservation,
@@ -980,6 +982,108 @@ class _DerivedForwardOffsetFeedback(Mock):
             Backfill cell count preceding the forward segment.
         """
         return len(self._rf_centers) - self._rf_centers_lengths[-1]
+
+
+class TestCavityEnvelopeSummary(unittest.TestCase):
+    """Five scalars per turn off the coarse envelope of one feedback."""
+
+    def _summary(self, envelope, n_turns=2):
+        feedback = Mock()
+        feedback.antenna_voltage_coarse_grid = np.asarray(envelope)
+        summary = CavityEnvelopeSummary(
+            each_turn_i=1, feedback=feedback, section_index=3
+        )
+        summary.common_filepath = "test"
+        summary.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns
+        )
+        return summary, feedback
+
+    def test_scalars_of_one_turn(self):
+        summary, _ = self._summary([1.0 + 0j, 2.0j, -3.0 + 0j])
+        simulation.turn_counter.value = 0
+        summary.update()
+        self.assertEqual(summary.magnitude_min[0], 1.0)
+        self.assertEqual(summary.magnitude_mean[0], 2.0)
+        self.assertEqual(summary.magnitude_max[0], 3.0)
+        self.assertEqual(summary.magnitude_end[0], 3.0)
+        self.assertAlmostEqual(summary.phase_end[0], np.pi, places=12)
+
+    def test_records_once_per_turn_from_the_live_grid(self):
+        summary, feedback = self._summary([1.0 + 0j, 1.0 + 0j])
+        simulation.turn_counter.value = 0
+        summary.update()
+        feedback.antenna_voltage_coarse_grid = np.array([2.0 + 0j, 4.0 + 0j])
+        simulation.turn_counter.value = 1
+        summary.update()
+        simulation.turn_counter.value = 0
+        np.testing.assert_array_equal(summary.magnitude_max, [1.0, 4.0])
+        np.testing.assert_array_equal(summary.magnitude_mean, [1.0, 3.0])
+        self.assertEqual(summary.section_index, 3)
+
+    def test_nan_cells_are_ignored(self):
+        summary, _ = self._summary([1.0 + 0j, np.nan, 3.0 + 0j])
+        simulation.turn_counter.value = 0
+        summary.update()
+        self.assertEqual(summary.magnitude_min[0], 1.0)
+        self.assertEqual(summary.magnitude_max[0], 3.0)
+
+
+class TestControllerCorrectionSummary(unittest.TestCase):
+    """Charge-weighted and window means of the loop's correction arrays."""
+
+    def _summary(self, v_corr, phi_corr, hist_y, beam_label=""):
+        feedback = Mock()
+        feedback.relative_voltage_correction = np.asarray(v_corr, float)
+        feedback.phase_correction = np.asarray(phi_corr, float)
+        profile = Mock()
+        profile.hist_y = np.asarray(hist_y, float)
+        summary = ControllerCorrectionSummary(
+            each_turn_i=1,
+            feedback=feedback,
+            profile=profile,
+            section_index=2,
+            beam_label=beam_label,
+        )
+        summary.common_filepath = "test"
+        summary.on_run_simulation(simulation=simulation, beam=beam, n_turns=1)
+        simulation.turn_counter.value = 0
+        summary.update()
+        return summary
+
+    def test_bunch_mean_is_charge_weighted_and_window_mean_is_not(self):
+        summary = self._summary(
+            v_corr=[1.0, 1.1, 1.3, np.nan],
+            phi_corr=[0.0, 0.1, 0.3, 0.4],
+            hist_y=[0.0, 1.0, 3.0, 0.0],
+        )
+        # Charge sits in bins 1 and 2 with weights 1 and 3.
+        self.assertAlmostEqual(summary.v_corr_bunch[0], 1.25, places=12)
+        self.assertAlmostEqual(summary.phi_corr_bunch[0], 0.25, places=12)
+        # The window mean counts every finite bin equally.
+        self.assertAlmostEqual(
+            summary.v_corr_window[0], (1.0 + 1.1 + 1.3) / 3, places=12
+        )
+        self.assertAlmostEqual(summary.phi_corr_window[0], 0.2, places=12)
+        # Peak to peak over the occupied bins only.
+        self.assertAlmostEqual(summary.v_corr_spread[0], 0.2, places=12)
+        self.assertAlmostEqual(summary.phi_corr_spread[0], 0.2, places=12)
+
+    def test_empty_window_gives_nan_bunch_values_but_a_window_mean(self):
+        summary = self._summary(
+            v_corr=[1.0, 1.2], phi_corr=[0.0, 0.2], hist_y=[0.0, 0.0]
+        )
+        self.assertTrue(np.isnan(summary.v_corr_bunch[0]))
+        self.assertTrue(np.isnan(summary.v_corr_spread[0]))
+        self.assertAlmostEqual(summary.v_corr_window[0], 1.1, places=12)
+
+    def test_beam_label_keeps_recorder_files_apart(self):
+        plain = self._summary([1.0], [0.0], [1.0])
+        labelled = self._summary([1.0], [0.0], [1.0], beam_label="co")
+        self.assertNotEqual(
+            plain._v_corr_bunch.filepath, labelled._v_corr_bunch.filepath
+        )
+        self.assertIn("_co_", labelled._v_corr_bunch.filepath)
 
 
 class TestIQCavityFeedbackObservation(unittest.TestCase):

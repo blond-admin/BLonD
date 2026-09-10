@@ -396,6 +396,43 @@ from blond import BeamObservationInRingElement
 obs = BeamObservationInRingElement(each_turn_i=1)
 ```
 
+### BunchObservationMetaParams (per beam, counter-rotating aware)
+
+A *ring element* (`blond.handle_results.observables_as_elements`) that records
+`mean_dt`, `sigma_dt`, `mean_dE`, `sigma_dE`, `rms_emittance`, `total_energy`
+and `intensity` where it sits in the element list, at that beam's own passage.
+The once-per-turn observables above bind `beams[0]` only; this one takes a
+`beam=` filter, so a counter-rotating run gets one instance per beam. Placing
+one per beam behind every RF station gives `n_sections` samples per turn
+(`turns` carries the fractional turn via `turn_fraction`); one at each beam's
+own end of turn -- the end of the list for the co-rotating beam, its *start*
+for the counter-rotating one, which walks the list backwards -- gives the
+once-per-turn record.
+
+```python
+stats_co = BunchObservationMetaParams(
+    each_turn_i=1, beam=beam_co, section_index=i, label="co_rotating",
+    turn_fraction=(i + 0.5) / n_sections,
+)
+ring.add_elements([..., station, stats_co, ...], reorder=False)
+```
+
+### Cavity-feedback observations
+
+All in `blond.handle_results.observables`, for an `IQCavityFeedback*` feedback:
+
+| class | records | cost |
+|---|---|---|
+| `IQCavityFeedbackObservation` | the full coarse and fine grids, once per turn | one station only |
+| `FullTurnCavityObservation` | the coarse grid at *every* passage of both counter-rotating beams, so the union covers the whole turn; also the reflected current | one station, large |
+| `CavityEnvelopeSummary` | min / mean / max / end `|V_ant|` and end phase of the coarse envelope, once per turn | five scalars: every station |
+| `ControllerCorrectionSummary` | the loop's amplitude and phase correction, charge-weighted over the profile (what the *bunch* received) plus window mean and spread | six scalars: every station |
+
+The two summaries can be handed to `run_simulation(observe=...)` (end-of-turn
+state) or attached to a station with `station.add_observable(beam, summary)`,
+which fires at that beam's own passage so both counter-rotating passages are
+kept.
+
 ### SimulationObservation / DriftObservation
 
 ```python

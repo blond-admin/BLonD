@@ -195,6 +195,79 @@ class TestBunchObservationMetaParams(unittest.TestCase):
         self.assertEqual(len(observation.rms_emittance), 0)
 
 
+class TestBunchObservationMetaParamsPlacement(unittest.TestCase):
+    """Turn, energy and intensity records plus the placement bookkeeping."""
+
+    def _observation(self, **kwargs) -> BunchObservationMetaParams:
+        observation = BunchObservationMetaParams(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            **kwargs,
+        )
+        observation.common_filepath = "test"
+        simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+        simulation.ring.elements.elements = [observation]
+        observation.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=3
+        )
+        return observation
+
+    def _real_beam(self):
+        real = Mock(BeamBaseClass)
+        real.reference = Mock(ReferenceCoordinates)
+        real.reference.time = 0.0
+        real.reference.total_energy = 63.0e9
+        real.intensity = 2.7e12
+        real._dt = np.array([0.0, 1.0, 2.0, 3.0]) * 1e-12
+        real._dE = np.array([-1.0, 0.0, 1.0, 2.0]) * 1e6
+        real.rms_emittance = 1.0e-6
+        return real
+
+    def test_records_turn_energy_and_intensity(self):
+        observation = self._observation(turn_fraction=0.25)
+        real = self._real_beam()
+        for turn in range(3):
+            simulation.turn_counter.value = turn
+            real.intensity = 2.7e12 * (1.0 - 0.1 * turn)
+            observation.track(real)
+        simulation.turn_counter.value = 0
+        np.testing.assert_array_equal(observation.turns, [0.25, 1.25, 2.25])
+        np.testing.assert_array_equal(observation.total_energy, [63.0e9] * 3)
+        np.testing.assert_allclose(
+            observation.intensity, 2.7e12 * np.array([1.0, 0.9, 0.8])
+        )
+        self.assertEqual(len(observation.sigma_dt), 3)
+
+    def test_beam_filter_selects_one_beam(self):
+        wanted = self._real_beam()
+        other = self._real_beam()
+        observation = self._observation(beam=wanted)
+        observation.track(other)
+        observation.track(wanted)
+        observation.track(other)
+        self.assertEqual(len(observation.turns), 1)
+        self.assertEqual(len(observation.intensity), 1)
+
+    def test_placement_bookkeeping(self):
+        observation = BunchObservationMetaParams(
+            each_turn_i=1,
+            folder="",
+            section_index=3,
+            name="stats_s3",
+            label="co_rotating",
+            turn_fraction=0.5,
+        )
+        self.assertEqual(observation.section_index, 3)
+        self.assertEqual(observation.name, "stats_s3")
+        self.assertEqual(observation.label, "co_rotating")
+        self.assertEqual(observation.turn_fraction, 0.5)
+        # The label defaults to the name.
+        unlabeled = BunchObservationMetaParams(
+            each_turn_i=1, folder="", name="just_a_name"
+        )
+        self.assertEqual(unlabeled.label, "just_a_name")
+
+
 class TestInducedVoltageObservationCR(unittest.TestCase):
     def test_no_induced_voltage(self):
         wakefield = WakeField(
