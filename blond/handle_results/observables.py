@@ -2257,3 +2257,491 @@ class DriftObservation(ObservablesOncePerTurnBase):
             Drift in arc parameter eta of shape ``(n_observations)``.
         """
         return self._eta_0s.get_valid_entries()
+
+
+class _CounterRotatingPassage(ObservablesOncePerTurnBase):
+    """
+    Record the counter-rotating half of a :class:`FullTurnCavityObservation`.
+
+    :meth:`~blond.core.base.SimulationElementBase.add_observable` keys its
+    dict on ``id(beam)``, and
+    :meth:`ObservablesOncePerTurnBase.update`
+    refuses a second call within one turn, so one instance cannot serve
+    both beams of a counter-rotating run.  The parent therefore takes the
+    co-rotating slot itself and hands this arm the counter-rotating one;
+    the arm owns no storage and only forwards the passage to the parent.
+
+    Parameters
+    ----------
+    each_turn_i
+        Record every ``each_turn_i``-th turn.
+    parent
+        The observation that owns the recorders.
+    folder
+        Target folder for :meth:`Simulation.save_results`.
+
+    Notes
+    -----
+    Found and late-initialised by ``Simulation._exec_all_in_tree``, which
+    walks the whole attribute tree, so this arm needs no entry in
+    ``run_simulation(observe=...)`` -- and must not have one, or it would
+    be updated twice per turn and raise.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        parent: FullTurnCavityObservation,
+        folder: str = "",
+    ) -> None:
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._parent = parent
+
+    def _update(self) -> None:
+        """Record the counter-rotating passage into the parent."""
+        self._parent.record_passage(1)
+
+
+class FullTurnCavityObservation(ObservablesOncePerTurnBase):
+    """
+    Record one cavity feedback over a whole turn: both passages, both grids.
+
+    :class:`IQCavityFeedbackObservation`
+    records the feedback once per turn, at the end, and therefore keeps
+    only the coarse grid standing at that moment.  That grid spans the
+    interval between the two counter-rotating passages at the station --
+    ``|n - 2 i - 1| / n`` of a revolution -- so it is **not** a full turn:
+    0.9375 turn at RCS1's station 0, but only 0.4375 turn at station 4,
+    and the missing part is exactly where the other beam passes.
+
+    This observation instead records at **every** passage of **both**
+    beams.  The feedback rebuilds its grid at each passage, running from
+    the other beam's previous passage up to this one, so the two records
+    of a turn abut without gap or overlap and their union is the whole
+    revolution.  Measured on RCS1 station 0: the co-rotating passage
+    covers ``[0.0312, 0.0937]`` turn and the counter-rotating one
+    ``[0.0937, 1.0312]``.
+
+    Both fine grids are kept separately, one per beam, because each beam
+    sees its own passage: the fine arrays are rebuilt per passage and the
+    end-of-turn record only ever holds the last beam's.
+
+    Parameters
+    ----------
+    each_turn_i
+        Record every ``each_turn_i``-th turn.
+    feedback
+        The cavity feedback to watch.
+    beams
+        ``(co_rotating, counter_rotating)``, in that order.  Held to read
+        each passage's arrival time from ``beam.reference.time``.
+    section_index
+        Index of the RF station the feedback belongs to (bookkeeping only).
+    folder
+        Target folder for :meth:`Simulation.save_results`.  Must end in a
+        path separator when non-empty.
+
+    Attributes
+    ----------
+    counter_arm
+        The observable that takes the counter-rotating slot.  Attach it
+        alongside this object; both must reach the feedback through
+        ``add_observable``.
+
+    Notes
+    -----
+    Coarse voltages are **per cavity** [V] and fine-grid voltages carry the
+    station total, following ``IQCavityFeedbackTimingClass``.
+
+    Rows are NaN-padded to a fixed width, sized as in
+    ``IQCavityFeedbackObservation``: one turn of coarse grid plus one
+    section of overshoot, plus one cell per possible segment.  Both
+    passages share that width even though one is usually much shorter, so
+    a row of either can be read with the same mask.
+
+    Memory is the price of the whole turn: two passages of coarse grid per
+    turn instead of one, i.e. about twice ``IQCavityFeedbackObservation``.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        feedback: IQCavityFeedbackBase,
+        beams: tuple[BeamBaseClass, BeamBaseClass],
+        section_index: int = 0,
+        folder: str = "",
+    ) -> None:
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._feedback = feedback
+        self._beams = tuple(beams)
+        self.section_index = int(section_index)
+        self.counter_arm = _CounterRotatingPassage(
+            each_turn_i=each_turn_i, parent=self, folder=folder
+        )
+
+        self._len_coarse_max: int | None = None
+        self._n_samples_fine: int | None = None
+        self._v_ant_coarse: list[DenseArrayRecorder] = []
+        self._i_gen_coarse: list[DenseArrayRecorder] = []
+        self._i_beam_coarse: list[DenseArrayRecorder] = []
+        self._i_refl_coarse: list[DenseArrayRecorder] = []
+        self._v_ant_fine: list[DenseArrayRecorder] = []
+        self._i_gen_fine: list[DenseArrayRecorder] = []
+        self._i_beam_fine: list[DenseArrayRecorder] = []
+        self._v_corr: list[DenseArrayRecorder] = []
+        self._phi_corr: list[DenseArrayRecorder] = []
+        self._arrival_time: list[DenseArrayRecorder] = []
+        self._forward_offset: list[DenseArrayRecorder] = []
+
+    @requires(["IQCavityFeedbackBase"])
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # always beams[0]; unused here
+        n_turns: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Allocate one set of recorders per passage.
+
+        Parameters
+        ----------
+        simulation
+            The running :class:`~blond.Simulation`.
+        beam
+            Ignored -- this observable watches a feedback, not a beam.
+        n_turns
+            Number of turns the simulation will run.
+        **kwargs
+            Unused, kept for interface compatibility.
+        """
+        super().on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=n_turns
+        )
+        if self._v_ant_coarse:  # both arms reach this; allocate once
+            return
+        self._n_samples_fine = int(self._feedback.profile.n_bins)
+        n_entries = self._calc_n_entries(n_turns=n_turns) + 2
+        # Same bound as IQCavityFeedbackObservation: one turn of coarse
+        # grid plus one section of overshoot, plus a margin of one cell
+        # per possible segment, because each np.arange segment walk can
+        # yield one cell more than the analytic fraction.
+        n_stations = int(self._feedback.n_rf_stations_in_ring)
+        self._len_coarse_max = (
+            int(
+                np.ceil(
+                    (1 + 1 / n_stations)
+                    * self._feedback.harmonic
+                    / self._feedback.n_rf_periods_per_coarse_grid
+                )
+            )
+            + n_stations
+            + 1
+        )
+        shape_coarse = (n_entries, self._len_coarse_max)
+        shape_fine = (n_entries, self._n_samples_fine)
+
+        prefix = f"{self.common_filepath}_fullturn_s{self.section_index}"
+        for name in ("co", "counter"):
+            stem = f"{prefix}_{name}"
+            self._v_ant_coarse.append(
+                DenseArrayRecorder(
+                    f"{stem}_v_ant_coarse", shape_coarse, dtype=complex
+                )
+            )
+            self._i_gen_coarse.append(
+                DenseArrayRecorder(
+                    f"{stem}_i_gen_coarse", shape_coarse, dtype=complex
+                )
+            )
+            self._i_beam_coarse.append(
+                DenseArrayRecorder(
+                    f"{stem}_i_beam_coarse", shape_coarse, dtype=complex
+                )
+            )
+            self._i_refl_coarse.append(
+                DenseArrayRecorder(
+                    f"{stem}_i_refl_coarse", shape_coarse, dtype=complex
+                )
+            )
+            self._v_ant_fine.append(
+                DenseArrayRecorder(
+                    f"{stem}_v_ant_fine", shape_fine, dtype=complex
+                )
+            )
+            self._i_gen_fine.append(
+                DenseArrayRecorder(
+                    f"{stem}_i_gen_fine", shape_fine, dtype=complex
+                )
+            )
+            self._i_beam_fine.append(
+                DenseArrayRecorder(
+                    f"{stem}_i_beam_fine", shape_fine, dtype=complex
+                )
+            )
+            self._v_corr.append(
+                DenseArrayRecorder(f"{stem}_v_corr", shape_fine)
+            )
+            self._phi_corr.append(
+                DenseArrayRecorder(f"{stem}_phi_corr", shape_fine)
+            )
+            self._arrival_time.append(
+                DenseArrayRecorder(f"{stem}_arrival_time", n_entries)
+            )
+            self._forward_offset.append(
+                DenseArrayRecorder(f"{stem}_forward_offset", n_entries)
+            )
+
+    def _update(self) -> None:
+        """Record the co-rotating passage; the arm records the other."""
+        self.record_passage(0)
+
+    def record_passage(self, index: int) -> None:
+        """
+        Store the feedback state at one beam's passage.
+
+        Parameters
+        ----------
+        index
+            ``0`` for the co-rotating beam, ``1`` for the counter-rotating
+            one.
+
+        Raises
+        ------
+        RuntimeError
+            If the coarse grid of this passage is wider than the allocated
+            row, which would otherwise truncate the record silently.
+        """
+        feedback = self._feedback
+        n_grid = len(feedback.antenna_voltage_coarse_grid)
+        forward_offset = int(feedback.forward_offset)
+        n_forward = len(feedback.beam_current_forward_coarse_grid)
+        n_needed = max(n_grid, forward_offset + n_forward)
+        if n_needed > self._len_coarse_max:
+            raise RuntimeError(
+                f"FullTurnCavityObservation of section {self.section_index}: "
+                f"the coarse grid of this passage has {n_needed} cells, but "
+                f"only {self._len_coarse_max} columns were allocated. "
+                "Increase the per-segment margin in `on_run_simulation`."
+            )
+
+        whole_mask = np.zeros(self._len_coarse_max, dtype=bool)
+        whole_mask[:n_grid] = True
+        self._v_ant_coarse[index].write(
+            feedback.antenna_voltage_coarse_grid, mask=whole_mask
+        )
+        self._i_gen_coarse[index].write(
+            feedback.generator_current_coarse_grid, mask=whole_mask
+        )
+        # Computed here, at the passage, rather than derived at plot time:
+        # it is a property of the field and the drive as they stood during
+        # this passage, and costs one complex subtract per cell.
+        self._i_refl_coarse[index].write(
+            feedback.reflected_current(), mask=whole_mask
+        )
+
+        # The beam current is forward-segment-local: shift its columns by
+        # the forward offset so that they index the same cells as the
+        # whole-grid antenna voltage and generator current.
+        forward_mask = np.zeros(self._len_coarse_max, dtype=bool)
+        forward_mask[forward_offset : forward_offset + n_forward] = True
+        self._i_beam_coarse[index].write(
+            feedback.beam_current_forward_coarse_grid, mask=forward_mask
+        )
+
+        self._v_ant_fine[index].write(feedback.antenna_voltage_fine_grid)
+        self._i_gen_fine[index].write(feedback.generator_current_fine_grid)
+        self._i_beam_fine[index].write(feedback.beam_current_fine_grid)
+        self._v_corr[index].write(feedback.relative_voltage_correction)
+        self._phi_corr[index].write(feedback.phase_correction)
+
+        self._arrival_time[index].write(
+            float(self._beams[index].reference.time)
+        )
+        self._forward_offset[index].write(float(forward_offset))
+
+    @property
+    def antenna_voltage_coarse(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Antenna voltage on the coarse grid per passage, in [V] per cavity.
+
+        Returns
+        -------
+        antenna_voltage_coarse
+            ``(co_rotating, counter_rotating)``, each of shape
+            ``(n_records, len_coarse_max)`` and NaN-padded to the
+            right.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._v_ant_coarse)
+
+    @property
+    def generator_current_coarse(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Generator current on the coarse grid per passage, in [A] per cavity.
+
+        Returns
+        -------
+        generator_current_coarse
+            ``(co_rotating, counter_rotating)``, NaN-padded to the right.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._i_gen_coarse)
+
+    @property
+    def beam_current_coarse(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Beam current on the coarse grid per passage, in [A].
+
+        Returns
+        -------
+        beam_current_coarse
+            ``(co_rotating, counter_rotating)``, shifted by
+            :attr:`forward_offset` so that its columns index the
+            same cells as :attr:`antenna_voltage_coarse`; cells
+            outside the forward segment are ``NaN``.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._i_beam_coarse)
+
+    @property
+    def reflected_current_coarse(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Reflected current on the coarse grid per passage, in [A] per cavity.
+
+        Returns
+        -------
+        reflected_current_coarse
+            ``(co_rotating, counter_rotating)``. Evaluated at the passage
+            as ``V_ant / ((R/Q) Q_L) - I_gen``. Zero only when the
+            beam absorbs the whole forward wave; with no beam a
+            superconducting cavity reflects all of it -- see
+            :meth:`~blond.physics.feedbacks.generator_regulation.GeneratorRegulationMixin.reflected_current`.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._i_refl_coarse)
+
+    @property
+    def antenna_voltage_fine(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Antenna voltage on the fine grid per passage, in [V].
+
+        Returns
+        -------
+        antenna_voltage_fine
+            ``(co_rotating, counter_rotating)``, carrying the station
+            total rather than the per-cavity value.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._v_ant_fine)
+
+    @property
+    def generator_current_fine(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Generator current on the fine grid per passage, in [A].
+
+        Returns
+        -------
+        generator_current_fine
+            ``(co_rotating, counter_rotating)``.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._i_gen_fine)
+
+    @property
+    def beam_current_fine(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Beam current on the fine grid per passage, in [A].
+
+        Returns
+        -------
+        beam_current_fine
+            ``(co_rotating, counter_rotating)``.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._i_beam_fine)
+
+    @property
+    def relative_voltage_correction(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Amplitude correction handed to the beam per passage, in [1].
+
+        Returns
+        -------
+        relative_voltage_correction
+            ``(co_rotating, counter_rotating)``.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._v_corr)
+
+    @property
+    def phase_correction(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Phase correction handed to the beam per passage, in [rad].
+
+        Returns
+        -------
+        phase_correction
+            ``(co_rotating, counter_rotating)``.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._phi_corr)
+
+    @property
+    def arrival_time(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Absolute time of each passage, in [s].
+
+        Returns
+        -------
+        arrival_time
+            ``(co_rotating, counter_rotating)``. ``beam.reference.time``
+            when the feedback tracked that beam, which is what
+            places the two passages of a turn on one axis.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._arrival_time)
+
+    @property
+    def forward_offset(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Backfill cells preceding the forward segment per passage, in [1].
+
+        Returns
+        -------
+        forward_offset
+            ``(co_rotating, counter_rotating)``. The forward segment is
+            the passage itself, so cell ``forward_offset`` of a row
+            is the one the bunch arrives in. This is what turns a
+            column index into an absolute time -- see
+            :meth:`cell_times`.
+        """
+        return tuple(rec.get_valid_entries() for rec in self._forward_offset)
+
+    def cell_times(self, index: int, record: int) -> np.ndarray:
+        """
+        Give the absolute times of one recorded passage's coarse cells.
+
+        Parameters
+        ----------
+        index
+            ``0`` for the co-rotating beam, ``1`` for the counter-rotating
+            one.
+        record
+            Which recorded passage, i.e. which row of the arrays.
+
+        Returns
+        -------
+        times
+            Cell centre times [s], NaN where the row is padded.
+
+        Notes
+        -----
+        Cell ``k`` sits at ``arrival + (k - forward_offset) * dt_cell``,
+        because the forward segment is the passage itself and so its first
+        cell is the arrival.  ``rf_centers`` cannot be used directly here:
+        its entries are segment-local, and the array is not globally
+        monotonic.
+
+        Concatenating both passages of a turn under this rule tiles the
+        revolution exactly, which is the point of the class.
+        """
+        voltage = self._v_ant_coarse[index].get_valid_entries()[record]
+        cell_duration = self._feedback.n_rf_periods_per_coarse_grid * (
+            2.0 * np.pi / self._feedback.omega_rf_design
+        )
+        offset = float(self._forward_offset[index].get_valid_entries()[record])
+        arrival = float(self._arrival_time[index].get_valid_entries()[record])
+        cells = np.arange(voltage.size, dtype=float)
+        times = arrival + (cells - offset) * cell_duration
+        return np.where(np.isfinite(voltage), times, np.nan)

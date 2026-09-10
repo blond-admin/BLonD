@@ -554,6 +554,105 @@ class TestGeneratorPower(unittest.TestCase):
         self.assertGreater(np.max(cav.generator_power()), 0.0)
 
 
+class TestReflectedPower(unittest.TestCase):
+    """Tests for the reflected-power diagnostic on the feedback.
+
+    The definition has no free parameter once two limits are imposed,
+    and those two limits are what these tests pin.  The cavity solver
+    drives the envelope with ``2 I_gen - I_beam``, so the forward wave
+    is ``V_for = (R/Q) Q_L I_gen``.
+    """
+
+    def test_superconducting_cavity_without_beam_reflects_everything(self):
+        """No beam and no wall losses leaves the power nowhere to go.
+
+        In steady state the cavity settles at ``V = 2 (R/Q) Q_L I_gen``,
+        and with ``Q_0 -> infinity`` every watt has to come back out of
+        the coupler.
+        """
+        cav = build_feedback()
+        i_gen = 0.02 + 0.0j
+        v_ant = 2.0 * R_OVER_Q * Q_L * i_gen
+        self.assertAlmostEqual(
+            cav.reflected_power(i_gen, v_ant) / cav.generator_power(i_gen),
+            1.0,
+            places=9,
+        )
+
+    def test_detuned_cavity_without_beam_still_reflects_everything(self):
+        """Detuning rotates the field but cannot dissipate power.
+
+        The detuned steady state is ``V = 2 (R/Q) Q_L I_gen / (1 - i t)``
+        with ``t = tan(psi)``; the reflection ratio ``(1 + i t)/(1 - i t)``
+        has unit modulus for every ``t``.
+        """
+        cav = build_feedback()
+        i_gen = 0.02 + 0.0j
+        for tan_psi in (-2.071, -0.5, 0.0, 1.3):
+            with self.subTest(tan_psi=tan_psi):
+                v_ant = 2.0 * R_OVER_Q * Q_L * i_gen / (1.0 - 1j * tan_psi)
+                self.assertAlmostEqual(
+                    cav.reflected_power(i_gen, v_ant)
+                    / cav.generator_power(i_gen),
+                    1.0,
+                    places=9,
+                )
+
+    def test_beam_matched_cavity_reflects_nothing(self):
+        """The point a linac coupler is matched to.
+
+        When the beam draws exactly the forward wave the cavity sits at
+        ``V = (R/Q) Q_L I_gen`` and the reflection vanishes.
+        """
+        cav = build_feedback()
+        i_gen = 0.02 + 0.0j
+        v_ant = R_OVER_Q * Q_L * i_gen
+        self.assertAlmostEqual(
+            cav.reflected_power(i_gen, v_ant), 0.0, places=9
+        )
+
+    def test_power_balance_forward_minus_reflected_is_beam_power(self):
+        """``P_for - P_refl = 0.5 Re(V I_beam*)`` in steady state.
+
+        Checked on the on-resonance steady state ``V = (R/Q) Q_L
+        (2 I_gen - I_beam)`` for arbitrary complex currents, which is the
+        identity that fixes the factor in front of ``V_ant``.
+        """
+        cav = build_feedback()
+        rng = np.random.default_rng(0)
+        for trial in range(5):
+            with self.subTest(trial=trial):
+                i_gen = 0.02 * (rng.normal() + 1j * rng.normal())
+                i_beam = 0.02 * (rng.normal() + 1j * rng.normal())
+                v_ant = R_OVER_Q * Q_L * (2.0 * i_gen - i_beam)
+                p_beam = 0.5 * np.real(v_ant * np.conj(i_beam))
+                self.assertAlmostEqual(
+                    cav.generator_power(i_gen)
+                    - cav.reflected_power(i_gen, v_ant),
+                    p_beam,
+                    delta=1e-9 * abs(cav.generator_power(i_gen)),
+                )
+
+    def test_reflected_power_defaults_to_the_coarse_grid(self):
+        """Without arguments both readouts are taken on the coarse grid."""
+        cav = build_feedback()
+        cav.generator_current_coarse_grid = np.array(
+            [0.01 + 0.0j, 0.02j, -0.03 + 0.0j]
+        )
+        cav.antenna_voltage_coarse_grid = (
+            2.0 * R_OVER_Q * Q_L * cav.generator_current_coarse_grid
+        )
+        np.testing.assert_allclose(
+            cav.reflected_power(),
+            cav.reflected_power(
+                cav.generator_current_coarse_grid,
+                cav.antenna_voltage_coarse_grid,
+            ),
+        )
+        # Non-vacuous: the default readout carries real watts.
+        self.assertGreater(np.max(cav.reflected_power()), 0.0)
+
+
 class _RecordingController:
     """
     Stub controller recording its calls and returning a sentinel.

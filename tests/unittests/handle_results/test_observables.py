@@ -32,6 +32,7 @@ from blond.handle_results.observables import (
     BeamStatisticsOncePerTurn,
     DriftObservation,
     DynamicProfileConstNBinsObservation,
+    FullTurnCavityObservation,
     IQCavityFeedbackObservation,
     ObservablesOncePerTurnBase,
     RFStationPhaseObservation,
@@ -1392,3 +1393,202 @@ class TestDriftObservation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFullTurnCavityObservation(unittest.TestCase):
+    """Whole-turn recording of a cavity feedback, both passages.
+
+    ``IQCavityFeedbackObservation`` records once per turn, at the end, so
+    it keeps only the coarse grid standing at that moment -- the interval
+    between the two counter-rotating passages, which is not a full turn.
+    This observation records at every passage of both beams, so the union
+    of the two records is the whole revolution.
+    """
+
+    N_BINS = 8
+    HARMONIC = 8.0
+    N_STATIONS = 1
+
+    def _feedback_stub(self, rf_centers_lengths=(13, 4), n_bins=None):
+        """Mock feedback exposing everything the observation reads.
+
+        Parameters
+        ----------
+        rf_centers_lengths
+            Cells per coarse-grid segment; the last is the forward one.
+        n_bins
+            Fine-grid bin count.
+
+        Returns
+        -------
+        feedback
+            The configured stub.
+        """
+        n_bins = self.N_BINS if n_bins is None else n_bins
+        total = int(sum(rf_centers_lengths))
+        feedback = _DerivedForwardOffsetFeedback()
+        feedback.profile.n_bins = n_bins
+        feedback.harmonic = self.HARMONIC
+        feedback.n_rf_periods_per_coarse_grid = 1
+        feedback.n_rf_stations_in_ring = self.N_STATIONS
+        feedback.omega_rf_design = 2.0 * np.pi
+        feedback._rf_centers = np.zeros(total)
+        feedback._rf_centers_lengths = np.asarray(
+            rf_centers_lengths, dtype=int
+        )
+        feedback.antenna_voltage_coarse_grid = np.arange(total, dtype=complex)
+        feedback.generator_current_coarse_grid = np.ones(total, dtype=complex)
+        feedback.beam_current_forward_coarse_grid = np.full(
+            int(rf_centers_lengths[-1]), 7.0, dtype=complex
+        )
+        feedback.reflected_current.return_value = np.full(
+            total, 3.0, dtype=complex
+        )
+        feedback.antenna_voltage_fine_grid = np.zeros(n_bins, dtype=complex)
+        feedback.beam_current_fine_grid = np.zeros(n_bins, dtype=complex)
+        feedback.generator_current_fine_grid = np.zeros(n_bins, dtype=complex)
+        feedback.relative_voltage_correction = np.zeros(n_bins)
+        feedback.phase_correction = np.zeros(n_bins)
+        return feedback
+
+    @staticmethod
+    def _beams(time_co, time_counter):
+        """Two beams whose reference clocks read the given times.
+
+        Parameters
+        ----------
+        time_co
+            Arrival time of the co-rotating beam, in [s].
+        time_counter
+            Arrival time of the counter-rotating beam, in [s].
+
+        Returns
+        -------
+        beams
+            ``(co_rotating, counter_rotating)``.
+        """
+        co, counter = Mock(), Mock()
+        co.reference.time = time_co
+        counter.reference.time = time_counter
+        return (co, counter)
+
+    def _observation_for(self, feedback, beams):
+        """Late-initialised observation, driven by hand.
+
+        Parameters
+        ----------
+        feedback
+            The stub feedback to watch.
+        beams
+            ``(co_rotating, counter_rotating)``.
+
+        Returns
+        -------
+        observation
+            The observation, after ``on_run_simulation``.
+        """
+        sim = Mock(Simulation)
+        sim.turn_counter = DynamicParameter(None)
+        sim.turn_counter.value = 3
+        sim.ring.elements.get_elements.return_value = [Mock()]
+        observation = FullTurnCavityObservation(
+            each_turn_i=1, feedback=feedback, beams=beams
+        )
+        observation.on_run_simulation(simulation=sim, beam=beams[0], n_turns=4)
+        return observation
+
+    def test_both_passages_are_recorded_separately(self):
+        """The parent takes one slot, ``counter_arm`` the other."""
+        feedback = self._feedback_stub()
+        observation = self._observation_for(feedback, self._beams(1.0, 2.0))
+
+        observation._update()
+        observation.counter_arm._update()
+
+        co_row, counter_row = observation.antenna_voltage_coarse
+        self.assertEqual(co_row.shape[0], 1)
+        self.assertEqual(counter_row.shape[0], 1)
+        self.assertEqual(observation.arrival_time[0][0], 1.0)
+        self.assertEqual(observation.arrival_time[1][0], 2.0)
+
+    def test_the_arm_owns_no_storage(self):
+        """The arm forwards to the parent instead of recording itself.
+
+        One instance cannot serve both beams: ``add_observable`` keys on
+        ``id(beam)`` and ``update`` refuses a second call within a turn.
+        """
+        feedback = self._feedback_stub()
+        observation = self._observation_for(feedback, self._beams(1.0, 2.0))
+        self.assertFalse(hasattr(observation.counter_arm, "_v_ant_coarse"))
+
+    def test_beam_current_columns_align_with_the_whole_grid(self):
+        """``I_beam`` is shifted by the forward offset, not left-packed.
+
+        It exists only on the forward segment; writing it at column zero
+        would make column ``k`` mean a different cell in that matrix than
+        in the antenna-voltage one.
+        """
+        feedback = self._feedback_stub(rf_centers_lengths=(13, 4))
+        observation = self._observation_for(feedback, self._beams(1.0, 2.0))
+        observation._update()
+
+        row = observation.beam_current_coarse[0][0]
+        self.assertTrue(np.all(np.isnan(row[:13])))
+        np.testing.assert_array_equal(
+            row[13:17], np.full(4, 7.0, dtype=complex)
+        )
+
+    def test_cell_times_make_the_two_passages_abut(self):
+        """The union of a turn's two records tiles the revolution.
+
+        Cell ``k`` sits at ``arrival + (k - forward_offset) * dt_cell``,
+        so the arrival lands on the first forward cell of each record --
+        which is what lets the two passages be concatenated on one axis.
+        """
+        feedback = self._feedback_stub(rf_centers_lengths=(13, 4))
+        observation = self._observation_for(feedback, self._beams(1.0, 2.0))
+        observation._update()
+        observation.counter_arm._update()
+
+        co_times = observation.cell_times(0, 0)
+        counter_times = observation.cell_times(1, 0)
+        finite_co = co_times[np.isfinite(co_times)]
+        finite_counter = counter_times[np.isfinite(counter_times)]
+        self.assertAlmostEqual(float(finite_co[13]), 1.0)
+        self.assertAlmostEqual(float(finite_counter[13]), 2.0)
+        self.assertAlmostEqual(float(np.diff(finite_co)[0]), 1.0)
+
+    def test_recorder_filepaths_are_pairwise_distinct(self):
+        """Two passages times eleven quantities are distinct files.
+
+        The sibling observation once built three recorders with the same
+        suffix, so they silently overwrote each other on disk; doubling
+        the recorders doubles the opportunity.
+        """
+        feedback = self._feedback_stub()
+        observation = self._observation_for(feedback, self._beams(1.0, 2.0))
+        paths = [
+            recorder.filepath
+            for group in (
+                observation._v_ant_coarse,
+                observation._i_gen_coarse,
+                observation._i_beam_coarse,
+                observation._i_refl_coarse,
+                observation._v_ant_fine,
+                observation._i_gen_fine,
+                observation._i_beam_fine,
+                observation._v_corr,
+                observation._phi_corr,
+                observation._arrival_time,
+                observation._forward_offset,
+            )
+            for recorder in group
+        ]
+        self.assertEqual(len(set(paths)), len(paths))
+
+    def test_overflowing_grid_raises_descriptive_error(self):
+        """A grid beyond allocation names the widths, not a shape error."""
+        feedback = self._feedback_stub(rf_centers_lengths=(36, 4))
+        observation = self._observation_for(feedback, self._beams(1.0, 2.0))
+        with self.assertRaisesRegex(RuntimeError, r"40.*columns"):
+            observation._update()
