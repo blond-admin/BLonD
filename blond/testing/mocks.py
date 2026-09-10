@@ -25,6 +25,8 @@ simulation_mock = Mock(Simulation)
 
 beam_mock = Mock(Beam)
 beam_mock.reference = Mock(ReferenceCoordinates)
+# ``time`` is a plain instance attribute of the clock, invisible to ``spec``.
+beam_mock.reference.time = 0.0
 beam_mock.is_counter_rotating = False
 # Direction-signed charge (see BeamBaseClass.signed_charge_with_direction):
 # computed at call time from the mock's current particle_type / direction, so

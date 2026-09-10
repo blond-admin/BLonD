@@ -8,7 +8,7 @@ import sympy
 from scipy.constants import c
 from scipy.constants import speed_of_light as c0
 
-from blond import Simulation, momentum_compaction_factor
+from blond import Beam, Simulation, momentum_compaction_factor
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
@@ -1233,3 +1233,95 @@ class TestDriftSubstepped(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDecayDuringTracking(unittest.TestCase):
+    """Every ``track`` that makes time pass decays an active muon beam.
+
+    The hook sits in ``SimulationElementBase.track`` and reads the
+    reference time before and after ``_track``; a drift advances it by
+    ``orbit_length / velocity``, so one ``track`` must scale the
+    intensity by ``exp(-that * rate / gamma)``, and an element that does
+    not move the clock must not touch it.
+    """
+
+    def _beam(self, particle_type, gamma: float) -> Beam:
+        beam = Beam(intensity=2.7e12, particle_type=particle_type)
+        beam.setup_beam(
+            dt=np.zeros(1000),
+            dE=np.zeros(1000),
+            reference_total_energy=gamma * particle_type.mass,
+        )
+        return beam
+
+    def _drift(self, orbit_length: float) -> DriftSimple:
+        return DriftSimple.headless(
+            momentum_compaction_factor=1e-3,
+            orbit_length=orbit_length,
+            section_index=0,
+        )
+
+    def test_one_drift_decays_by_its_transit_time(self):
+        from blond import mu_plus
+
+        particle = mu_plus.with_decay_active(True)
+        beam = self._beam(particle, gamma=1000.0)
+        drift = self._drift(orbit_length=5990.0)
+        transit = drift.orbit_length / beam.reference.velocity
+        time_before = beam.reference.time
+        drift.track(beam)
+        self.assertAlmostEqual(
+            beam.reference.time - time_before, transit, delta=1e-15
+        )
+        expected = 2.7e12 * np.exp(
+            -transit * particle.user_decay_rate / beam.reference.gamma
+        )
+        self.assertAlmostEqual(beam.intensity / expected, 1.0, places=12)
+        # Non-vacuous: 20 us at gamma 1000 against a 2.2 us lifetime is a
+        # 0.9 % loss per turn, well above any rounding.
+        self.assertLess(beam.intensity, 0.995 * 2.7e12)
+        self.assertGreater(beam.intensity, 0.985 * 2.7e12)
+
+    def test_many_turns_compound_exponentially(self):
+        from blond import mu_plus
+
+        particle = mu_plus.with_decay_active(True)
+        beam = self._beam(particle, gamma=1000.0)
+        drift = self._drift(orbit_length=5990.0)
+        for _ in range(50):
+            drift.track(beam)
+        elapsed = beam.reference.time
+        expected = 2.7e12 * np.exp(
+            -elapsed * particle.user_decay_rate / beam.reference.gamma
+        )
+        self.assertAlmostEqual(beam.intensity / expected, 1.0, places=10)
+        self.assertEqual(beam.common_array_size, 1000)
+
+    def test_inactive_muon_beam_keeps_its_intensity(self):
+        from blond import mu_plus
+
+        beam = self._beam(mu_plus, gamma=1000.0)
+        drift = self._drift(orbit_length=5990.0)
+        for _ in range(5):
+            drift.track(beam)
+        self.assertGreater(beam.reference.time, 0.0)
+        self.assertEqual(beam.intensity, 2.7e12)
+
+    def test_element_that_does_not_advance_time_does_not_decay(self):
+        from blond import mu_plus
+
+        beam = self._beam(mu_plus.with_decay_active(True), gamma=1000.0)
+        # A zero-length drift moves nothing, so the hook must see dt == 0.
+        self._drift(orbit_length=0.0).track(beam)
+        self.assertEqual(beam.reference.time, 0.0)
+        self.assertEqual(beam.intensity, 2.7e12)
+
+    def test_inactive_element_does_not_decay(self):
+        from blond import mu_plus
+
+        beam = self._beam(mu_plus.with_decay_active(True), gamma=1000.0)
+        drift = self._drift(orbit_length=5990.0)
+        drift.active = False
+        drift.track(beam)
+        self.assertEqual(beam.reference.time, 0.0)
+        self.assertEqual(beam.intensity, 2.7e12)

@@ -14,7 +14,12 @@ from scipy.constants import (
 
 from blond import proton
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.beam.particle_types import ParticleType, electron, mu_plus
+from blond.core.beam.particle_types import (
+    ParticleType,
+    electron,
+    mu_minus,
+    mu_plus,
+)
 
 
 class TestParticleType(unittest.TestCase):
@@ -85,3 +90,52 @@ class TestParticleType(unittest.TestCase):
         self.assertFalse(self.particle_type.__eq__(proton))
         self.assertFalse(self.particle_type.__eq__(electron))
         self.assertTrue(self.particle_type.__eq__(self.particle_type))
+
+
+class TestDecayToggle(unittest.TestCase):
+    """The decay is metadata until switched on; the toggle is a copy."""
+
+    def test_inactive_by_default_and_rate_is_then_zero(self):
+        particle = ParticleType(mass=1e8, charge=1, user_decay_rate=3.0)
+        self.assertFalse(particle.decay_active)
+        self.assertEqual(particle.user_decay_rate, 3.0)
+        self.assertEqual(particle.decay_rate, 0.0)
+
+    def test_active_applies_the_user_rate(self):
+        particle = ParticleType(
+            mass=1e8, charge=1, user_decay_rate=3.0, decay_active=True
+        )
+        self.assertTrue(particle.decay_active)
+        self.assertEqual(particle.decay_rate, 3.0)
+
+    def test_with_decay_active_returns_a_distinct_equal_but_for_flag(self):
+        inactive = ParticleType(mass=1e8, charge=1, user_decay_rate=3.0)
+        active = inactive.with_decay_active(True)
+        self.assertIsNot(active, inactive)
+        self.assertFalse(inactive.decay_active)
+        self.assertTrue(active.decay_active)
+        self.assertEqual(active.mass, inactive.mass)
+        self.assertEqual(active.charge, inactive.charge)
+        self.assertEqual(active.user_decay_rate, inactive.user_decay_rate)
+        # Different physics, so not equal and not the same hash key.
+        self.assertNotEqual(active, inactive)
+        self.assertNotEqual(hash(active), hash(inactive))
+        # Round trip.
+        self.assertEqual(active.with_decay_active(False), inactive)
+        self.assertEqual(hash(active.with_decay_active(False)), hash(inactive))
+
+    def test_muons_carry_the_rate_but_are_inactive(self):
+        """The shipped ``mu_plus`` must not change any existing result."""
+        self.assertFalse(mu_plus.decay_active)
+        self.assertFalse(mu_minus.decay_active)
+        self.assertAlmostEqual(
+            mu_plus.user_decay_rate, 1 / 2.1969811e-6, delta=1e-3
+        )
+        self.assertEqual(mu_plus.decay_rate, 0.0)
+        self.assertEqual(
+            mu_plus.with_decay_active().decay_rate, mu_plus.user_decay_rate
+        )
+
+    def test_repr_states_the_toggle(self):
+        self.assertIn("inactive", repr(mu_plus))
+        self.assertIn("(active)", repr(mu_plus.with_decay_active()))

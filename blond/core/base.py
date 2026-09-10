@@ -482,6 +482,15 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         Check if the element is active this turn and then call _track.
 
+        If ``_track`` advanced the beam's reference time -- a drift did,
+        an RF station did not -- the beam is asked to apply its particle
+        decay over that interval (:meth:`~blond.core.beam.base.BeamBaseClass.decay`),
+        which is a no-op unless the particle type's decay is active.
+        Doing it here rather than in each element keeps every present and
+        future element that makes time pass covered by construction.  A
+        beam-like object without a reference clock (a test double) is
+        simply tracked without it.
+
         Additionally, if any observables are attached to this element via
         self.observables, they will be called.
 
@@ -491,7 +500,14 @@ class SimulationElementBase(MainLoopRelevant, ABC):
             The beam object whose state will be updated by this element.
         """
         if self.active:
+            time_before = getattr(
+                getattr(beam, "reference", None), "time", None
+            )
             self._track(beam=beam)
+            if isinstance(time_before, numbers.Real):
+                time_elapsed = beam.reference.time - time_before
+                if time_elapsed != 0.0:
+                    beam.decay(time_elapsed)
         if id(beam) in self.observables:
             self.observables[id(beam)].update()
 

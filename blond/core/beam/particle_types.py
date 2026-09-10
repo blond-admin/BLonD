@@ -44,15 +44,30 @@ class ParticleType:
     charge : float
         Number of electric charges of the particle, in [].
     user_decay_rate : float, optional
-        Optional user-specified decay rate. Default is 0.0.
+        Optional user-specified decay rate, in [1/s], in the particle's
+        rest frame. Default is 0.0.
+    decay_active : bool, optional
+        Whether the decay is applied during tracking. Default is False,
+        so that a particle type carrying a decay rate (``mu_plus``,
+        ``mu_minus``) is only metadata until switched on with
+        :meth:`with_decay_active`. When active, every element whose
+        ``track`` advances the reference time by ``dt`` scales the beam
+        intensity by ``exp(-dt * user_decay_rate / gamma)``, ``gamma``
+        being the reference Lorentz factor (time dilation). The number
+        of macro-particles is unchanged; only the charge each carries.
     """
 
     def __init__(
-        self, mass: float, charge: float, user_decay_rate: float = 0.0
+        self,
+        mass: float,
+        charge: float,
+        user_decay_rate: float = 0.0,
+        decay_active: bool = False,
     ):
         self._mass = float(mass)
         self._charge = float(charge)
         self._user_decay_rate = float(user_decay_rate)
+        self._decay_active = bool(decay_active)
 
         self._mass_inv = 1 / mass
 
@@ -80,6 +95,7 @@ class ParticleType:
         string = (
             f"Mass: {format.si_format(self._mass)}eV, charge: {self._charge}e, "
             f"decay rate: {self._user_decay_rate}s^-1"
+            f" ({'active' if self._decay_active else 'inactive'})"
         )
         return string
 
@@ -88,8 +104,8 @@ class ParticleType:
         Equality comparison of the particle.
 
         Compares with another ParticleType object to ensure they have
-        the same value.  The values of mass, charge, decay rate and
-        particle radius are compared.
+        the same value.  The values of mass, charge, decay rate, whether
+        the decay is active, and particle radius are compared.
 
         Parameters
         ----------
@@ -108,11 +124,13 @@ class ParticleType:
             other._mass,
             other._charge,
             other._user_decay_rate,
+            other._decay_active,
         )
         self_tuple = (
             self._mass,
             self._charge,
             self._user_decay_rate,
+            self._decay_active,
         )
 
         return other_tuple == self_tuple
@@ -122,7 +140,8 @@ class ParticleType:
         Compute the hash of the particle.
 
         Compares the hash value of the particle.  Uses the hash of a
-        tuple of (mass, charge, decay rate, particle radius).
+        tuple of (mass, charge, decay rate, decay active, particle
+        radius).
 
         Returns
         -------
@@ -134,6 +153,7 @@ class ParticleType:
                 self._mass,
                 self._charge,
                 self._user_decay_rate,
+                self._decay_active,
                 self._classical_particle_radius,
             )
         )
@@ -173,6 +193,67 @@ class ParticleType:
             Optional user-specified decay rate. Default is 0.0.
         """
         return self._user_decay_rate
+
+    @property
+    def decay_active(self) -> bool:
+        """
+        Whether the decay is applied during tracking.
+
+        Returns
+        -------
+        decay_active
+            True if tracking scales the beam intensity by the decay.
+        """
+        return self._decay_active
+
+    @property
+    def decay_rate(self) -> float:
+        """
+        Decay rate that tracking actually applies, in [1/s].
+
+        ``user_decay_rate`` when the decay is active, ``0.0`` otherwise.
+        This is the single value the tracking consults, so an inactive
+        particle type costs nothing in the main loop.
+
+        Returns
+        -------
+        decay_rate
+            Rest-frame decay rate applied during tracking, in [1/s].
+        """
+        return self._user_decay_rate if self._decay_active else 0.0
+
+    def with_decay_active(self, active: bool = True) -> ParticleType:
+        """
+        Copy of this particle type with the decay switched on or off.
+
+        ``ParticleType`` instances are immutable and hashable (the module
+        level ``mu_plus`` is shared by every beam that uses it), so the
+        toggle returns a new instance rather than flipping a flag.
+
+        Parameters
+        ----------
+        active
+            Whether the returned particle type decays during tracking.
+
+        Returns
+        -------
+        particle_type
+            A new instance, equal to this one except for ``decay_active``.
+
+        Examples
+        --------
+        >>> from blond import Beam, mu_plus
+        >>> beam = Beam(
+        ...     intensity=2.7e12,
+        ...     particle_type=mu_plus.with_decay_active(True),
+        ... )
+        """
+        return type(self)(
+            mass=self._mass,
+            charge=self._charge,
+            user_decay_rate=self._user_decay_rate,
+            decay_active=active,
+        )
 
     @property
     def mass_inv(self) -> float:

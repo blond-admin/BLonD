@@ -429,6 +429,35 @@ class BeamBaseClass(Preparable, ABC):
         """
         return self.reference._particle_type
 
+    def decay(self, time_elapsed: float) -> None:
+        """
+        Reduce the intensity by the particle decay over ``time_elapsed``.
+
+        ``intensity *= exp(-time_elapsed * decay_rate / gamma)`` with the
+        rest-frame ``decay_rate`` of the particle type and the reference
+        Lorentz factor ``gamma`` for the time dilation. The number of
+        macro-particles is unchanged; each simply represents fewer real
+        particles, so every intensity-weighted quantity (beam current,
+        induced voltage, beam loading) follows.
+
+        Called by :meth:`~blond.core.base.SimulationElementBase.track`
+        with the reference time an element advanced, so it applies to
+        any element that makes time pass. A particle type whose decay is
+        not active (:attr:`~blond.core.beam.particle_types.ParticleType.decay_active`)
+        has ``decay_rate == 0.0`` and returns immediately.
+
+        Parameters
+        ----------
+        time_elapsed
+            Laboratory time that passed, in [s]. Must not be negative.
+        """
+        rate = self.particle_type.decay_rate
+        if rate == 0.0 or time_elapsed == 0.0:
+            return
+        if time_elapsed < 0.0:
+            raise ValueError(f"time cannot run backwards: {time_elapsed=} s")
+        self.intensity *= np.exp(-time_elapsed * rate / self.reference.gamma)
+
     @abstractmethod  # pragma: no cover
     def setup_beam(
         self,

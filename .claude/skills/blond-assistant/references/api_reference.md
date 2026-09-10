@@ -198,6 +198,25 @@ beam = make_multibunch_beam(n_bunches=4, intensity_per_bunch=1e9, particle_type=
 from blond import proton, electron, positron, mu_plus, mu_minus, uranium_29
 ```
 
+**Particle decay.** `mu_plus` / `mu_minus` carry the muon decay rate
+(`user_decay_rate = 1 / 2.1969811 us`) but are *inactive* by default, so
+nothing changes unless switched on. `ParticleType` is immutable, so the
+toggle returns a copy:
+
+```python
+beam = Beam(intensity=2.7e12, particle_type=mu_plus.with_decay_active(True))
+```
+
+With the decay active, every element whose `track` advances the beam's
+reference time (a drift; an RF station does not) scales `beam.intensity` by
+`exp(-dt * decay_rate / gamma)` -- rest-frame rate, lab-frame time, reference
+Lorentz factor for the dilation. The macroparticle count is unchanged; each
+macroparticle just represents fewer real particles, so beam current, induced
+voltage and beam loading follow. The hook lives in
+`SimulationElementBase.track` (`beam.decay(dt)`), so it covers every element
+that makes time pass. `particle_type.decay_rate` is `0.0` when inactive and is
+the single value tracking consults.
+
 ### EmptyBeam
 
 Beam with no particles (useful for testing machine setup):

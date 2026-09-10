@@ -183,6 +183,132 @@ class GeneratorRegulationMixin:
             generator_current = self.generator_current_coarse_grid
         return 0.5 * self.R_over_Q * self.Q_L * np.abs(generator_current) ** 2
 
+    def reflected_current(
+        self: IQCavityFeedbackTimingClass,
+        generator_current: complex | NumpyArray | None = None,
+        antenna_voltage: complex | NumpyArray | None = None,
+    ) -> complex | NumpyArray:
+        r"""
+        Current reflected back out of the coupler, per cavity.
+
+        .. math::
+            I_\mathsf{refl} = \frac{V_\mathsf{ant}}{(R/Q)\,Q_L}
+                              - I_\mathsf{gen}
+
+        Parameters
+        ----------
+        generator_current
+            Generator current [A]; defaults to the coarse-grid generator
+            current of the current turn.
+        antenna_voltage
+            Antenna voltage [V] **per cavity**; defaults to the coarse-grid
+            antenna voltage of the current turn.
+
+        Returns
+        -------
+        reflected_current
+            Reflected current [A], same shape as the inputs.
+
+        Notes
+        -----
+        The cavity solver drives the envelope with ``2 I_gen - I_beam``,
+        so the forward wave in that convention is
+        :math:`V_\mathsf{for} = (R/Q) Q_L I_\mathsf{gen}` and the
+        reflected wave is the usual superposition
+        :math:`V_\mathsf{refl} = V_\mathsf{ant} - V_\mathsf{for}`, which
+        is what the expression above states divided through by
+        :math:`(R/Q) Q_L`. It is fixed by the two limits that leave no
+        freedom, and it satisfies
+        :math:`P_\mathsf{for} - P_\mathsf{refl} = P_\mathsf{beam}` in
+        steady state exactly:
+
+        * **no beam** -- the cavity settles at
+          :math:`V^* = 2 Q_L (R/Q) I_\mathsf{gen}`, giving
+          :math:`I_\mathsf{refl} = I_\mathsf{gen}`, i.e. **total**
+          reflection. That is the correct answer for a superconducting
+          cavity: with :math:`Q_0 \to \infty` there is nowhere for the
+          power to go, so all of it comes back out of the coupler.
+        * **beam-matched** -- when the beam absorbs the whole forward
+          wave (:math:`I_\mathsf{beam} = I_\mathsf{gen}`, on crest, on
+          resonance) the cavity sits at
+          :math:`V = (R/Q) Q_L I_\mathsf{gen}` and the reflection is
+          exactly zero. This is the point a linac coupler is matched to.
+
+        Between those, what shows up here is beam loading (the passage
+        drops ``V_ant`` while the generator still drives), detuning
+        (``V_ant`` and ``I_gen`` acquire a relative phase, so the
+        difference is non-zero even at matched magnitude -- a detuned
+        cavity reflects) and transients.
+
+        The unloaded quality factor :math:`Q_0` does not appear
+        separately: for the superconducting cavities used here
+        :math:`Q_0 \gg Q_L`, so :math:`Q_L \simeq Q_\mathsf{ext}` and the
+        wall dissipation is negligible against the coupler outflow. That
+        matters because the machine files carry ``Q_L_TESLA`` but no
+        ``Q_0``.
+
+        Both arguments are per cavity, matching
+        :meth:`generator_power`; the coarse grid of
+        ``IQCavityFeedbackTimingClass`` is normalised per cavity while the
+        fine grid carries the station total.
+        """
+        if generator_current is None:
+            generator_current = self.generator_current_coarse_grid
+        if antenna_voltage is None:
+            antenna_voltage = self.antenna_voltage_coarse_grid
+        return antenna_voltage / (self.R_over_Q * self.Q_L) - generator_current
+
+    def reflected_power(
+        self: IQCavityFeedbackTimingClass,
+        generator_current: complex | NumpyArray | None = None,
+        antenna_voltage: complex | NumpyArray | None = None,
+    ) -> float | NumpyArray:
+        r"""
+        Power reflected back out of the coupler, per cavity.
+
+        .. math::
+            P_\mathsf{refl} = 0.5\,(R/Q)\,Q_L\,|I_\mathsf{refl}|^2
+
+        The same convention as :meth:`generator_power`, applied to
+        :meth:`reflected_current`, so the two are directly comparable and
+        their ratio is the fraction of forward power the cavity throws
+        back.
+
+        Parameters
+        ----------
+        generator_current
+            Generator current [A]; defaults to the coarse-grid generator
+            current of the current turn.
+        antenna_voltage
+            Antenna voltage [V] per cavity; defaults to the coarse-grid
+            antenna voltage of the current turn.
+
+        Returns
+        -------
+        reflected_power
+            Reflected power [W], same shape as the inputs.
+
+        Notes
+        -----
+        This is the *instantaneous* reflected power on whichever grid it
+        is evaluated, not a pulse average: during a bunch passage it rises
+        sharply and it is largest exactly where the loop is fighting
+        hardest. A klystron sees the peak, not the mean, so the peak is
+        usually the number that sizes the circulator load.
+        """
+        return (
+            0.5
+            * self.R_over_Q
+            * self.Q_L
+            * np.abs(
+                self.reflected_current(
+                    generator_current=generator_current,
+                    antenna_voltage=antenna_voltage,
+                )
+            )
+            ** 2
+        )
+
     def _update_generator_current(
         self: IQCavityFeedbackTimingClass,
         omega_times_dt: float,

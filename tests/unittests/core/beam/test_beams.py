@@ -420,3 +420,60 @@ class TestWeightenedBeam(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBeamDecay(unittest.TestCase):
+    """``Beam.decay`` scales the intensity, not the macro-particles."""
+
+    def _beam(self, particle_type, total_energy: float) -> Beam:
+        beam = Beam(intensity=2.7e12, particle_type=particle_type)
+        beam.setup_beam(
+            dt=np.zeros(100),
+            dE=np.zeros(100),
+            reference_total_energy=total_energy,
+        )
+        return beam
+
+    def test_active_muon_decays_with_time_dilation(self):
+        from blond import mu_plus
+
+        particle = mu_plus.with_decay_active(True)
+        # 10 x rest mass: gamma == 10.
+        beam = self._beam(particle, total_energy=10.0 * particle.mass)
+        n_before = beam.common_array_size
+        beam.decay(time_elapsed=1e-6)
+        expected = 2.7e12 * np.exp(-1e-6 * particle.user_decay_rate / 10.0)
+        self.assertAlmostEqual(beam.intensity / expected, 1.0, places=12)
+        # Non-vacuous: at gamma = 10 a microsecond is a 4.4 % loss.
+        self.assertLess(beam.intensity, 0.96 * 2.7e12)
+        self.assertGreater(beam.intensity, 0.95 * 2.7e12)
+        self.assertEqual(beam.common_array_size, n_before)
+
+    def test_inactive_muon_and_zero_time_are_no_ops(self):
+        from blond import mu_plus
+
+        beam = self._beam(mu_plus, total_energy=10.0 * mu_plus.mass)
+        beam.decay(time_elapsed=1e-6)
+        self.assertEqual(beam.intensity, 2.7e12)
+
+        active = self._beam(
+            mu_plus.with_decay_active(True),
+            total_energy=10.0 * mu_plus.mass,
+        )
+        active.decay(time_elapsed=0.0)
+        self.assertEqual(active.intensity, 2.7e12)
+
+    def test_stable_particle_is_untouched(self):
+        beam = self._beam(proton, total_energy=10.0 * proton.mass)
+        beam.decay(time_elapsed=1.0)
+        self.assertEqual(beam.intensity, 2.7e12)
+
+    def test_negative_time_is_refused(self):
+        from blond import mu_plus
+
+        beam = self._beam(
+            mu_plus.with_decay_active(True),
+            total_energy=10.0 * mu_plus.mass,
+        )
+        with self.assertRaises(ValueError):
+            beam.decay(time_elapsed=-1e-9)
