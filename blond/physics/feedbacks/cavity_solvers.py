@@ -56,6 +56,62 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
 
+def propagate_beam_free_voltage(
+    initial_voltage: complex,
+    generator_current: NumpyArray,
+    rf_centers: NumpyArray,
+    end_time: float,
+    omega: float,
+    R_over_Q: float,
+    Q_L: float,
+    delta_omega: float,
+) -> complex:
+    """
+    Evolve a coarse seed to a new time without depositing beam charge.
+
+    Parameters
+    ----------
+    initial_voltage
+        Per-cavity envelope at ``rf_centers[0]`` [V].
+    generator_current
+        Applied, limited generator commands [A], in the voltage's IQ frame.
+        Command ``i`` is held from centre ``i`` to centre ``i + 1``.
+    rf_centers
+        Increasing command timestamps [s], in the passage-local frame.
+    end_time
+        Target time [s]. Outside the grid, the nearest command is held.
+        Backward evolution is only appropriate for a charge-free window;
+        the caller must reject a charged window preceding its seed.
+    omega
+        Carrier angular frequency of this segment [rad/s].
+    R_over_Q
+        Cavity R over Q [ohm].
+    Q_L
+        Loaded quality factor.
+    delta_omega
+        Cavity detuning [rad/s].
+
+    Returns
+    -------
+    voltage
+        Per-cavity envelope at ``end_time`` [V]. No controller is stepped.
+    """
+    voltage = initial_voltage
+    start_time = float(rf_centers[0])
+    stop_index = np.searchsorted(rf_centers, end_time, side="left")
+    endpoints = np.append(rf_centers[1:stop_index], end_time)
+    for index, next_time in enumerate(endpoints):
+        time_step = next_time - start_time
+        step_exponent = (-omega / (2 * Q_L) + 1j * delta_omega) * time_step
+        voltage = np.exp(
+            step_exponent
+        ) * voltage + R_over_Q * omega * time_step * generator_current[
+            index
+        ] * exponential_drive_weight(step_exponent)
+        start_time = next_time
+    return voltage
+
+
 def cavity_response_sparse_matrix(
     I_beam: NumpyArray,
     I_gen: NumpyArray,
@@ -65,6 +121,8 @@ def cavity_response_sparse_matrix(
     R_over_Q: float,
     Q_L: float,
     relative_detuning: float,
+    *,
+    initial_at_bin_edge: bool = False,
 ):
     """
     Solver for the ACS cavity response model as a sparse matrix problem.
@@ -96,6 +154,12 @@ def cavity_response_sparse_matrix(
         The loaded quality factor of the cavity.
     relative_detuning : float
         The detuning of the cavity in frequency divided by the rf frequency.
+    initial_at_bin_edge
+        If True, the initial state is at the first histogram bin's left
+        edge and output samples are at bin centres. The first step is a
+        half step. Beam current is a bin density: later steps integrate
+        half of each adjacent bin. Voltage and generator drive retain
+        forward-Euler stepping. False preserves the uniform-step API.
 
     Returns
     -------
@@ -121,8 +185,11 @@ def cavity_response_sparse_matrix(
     )
 
     # Initialize the two sparse matrices needed to find antenna voltage
+    sub_diagonal = np.full(n_samples - 1, -B, dtype=complex)
+    if initial_at_bin_edge and n_samples > 1:
+        sub_diagonal[0] = -(1 + 0.5 * (B - 1))
     B_matrix = diags(
-        [-B, 1],
+        [sub_diagonal, 1],
         [-1, 0],
         (n_samples, n_samples),
         dtype=complex,
@@ -133,6 +200,9 @@ def cavity_response_sparse_matrix(
     # Find vector on the "current" side of the equation
     b = I_matrix.dot(2 * internal_I_gen - internal_I_beam)
     b[0] = V_ant_init
+    if initial_at_bin_edge and n_samples > 1:
+        b[1] = 0.5 * A * (2 * I_gen_init - I_beam[0])
+        b[2:] = A * (2 * I_gen[:-1] - 0.5 * (I_beam[:-1] + I_beam[1:]))
 
     # Solve the sparse linear system of equations and return
     return spsolve(B_matrix, b)[1:]
@@ -148,6 +218,8 @@ def cavity_response_sparse_matrix_second_order(
     R_over_Q: float,
     Q_L: float,
     relative_detuning: float,
+    *,
+    initial_at_bin_edge: bool = False,
 ):
     r"""
     Second-order (trapezoidal / Crank-Nicolson) ACS cavity response solver.
@@ -197,6 +269,11 @@ def cavity_response_sparse_matrix_second_order(
         The loaded quality factor of the cavity.
     relative_detuning : float
         The detuning of the cavity in frequency divided by the rf frequency.
+    initial_at_bin_edge
+        If True, the initial state is at the first histogram bin's left
+        edge. The first step reaches its centre with half a step of decay
+        and generator drive, and half a bin of beam charge. Subsequent
+        steps span adjacent centres. False preserves the uniform-step API.
 
     Returns
     -------
@@ -226,6 +303,9 @@ def cavity_response_sparse_matrix_second_order(
     diagonal = np.full(n_samples, 1 - 0.5 * lam, dtype=complex)
     diagonal[0] = 1.0
     sub_diagonal = np.full(n_samples - 1, -(1 + 0.5 * lam), dtype=complex)
+    if initial_at_bin_edge and n_samples > 1:
+        diagonal[1] = 1 - 0.25 * lam
+        sub_diagonal[0] = -(1 + 0.25 * lam)
     cn_matrix = diags(
         [sub_diagonal, diagonal],
         [-1, 0],
@@ -237,6 +317,8 @@ def cavity_response_sparse_matrix_second_order(
     b = np.empty(n_samples, dtype=complex)
     b[0] = V_ant_init
     b[1:] = 0.5 * (s[:-1] + s[1:])
+    if initial_at_bin_edge and n_samples > 1:
+        b[1] = 0.5 * A * (I_gen_init + I_gen[0] - I_beam[0])
 
     return spsolve(cn_matrix, b)[1:]
     # first value is the initial condition

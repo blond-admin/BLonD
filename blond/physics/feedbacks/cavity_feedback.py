@@ -41,6 +41,7 @@ from blond.physics.feedbacks.cavity_solvers import (
     exponential_drive_weight,
     exponential_voltage_multiplier,
     pretrack_fill_voltage,
+    propagate_beam_free_voltage,
 )
 from blond.physics.feedbacks.envelope_kernel import (
     envelope_pi_scan,
@@ -3076,10 +3077,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         The second half of :meth:`circuit_track`, run only when the segment
         carries beam. The coarse recursion has just filled the forward
-        segment; this takes its FIRST forward cell as the initial condition,
-        interpolates the forward generator current onto ``profile.hist_x``
-        and hands both to :meth:`cavity_response_fine`, which integrates the
-        fine-grid antenna voltage the station readout is built from.
+        segment; its first forward cell is a charge-free voltage seed.
+        Propagate that seed to ``profile.cut_left`` with the recorded
+        generator drive, then integrate the beam-loaded fine response at
+        histogram centres. No later coarse voltage enters the seed.
 
         Writes ``generator_current_fine_grid`` (the interpolation) and, via
         :meth:`cavity_response_fine`, ``antenna_voltage_fine_grid``.
@@ -3105,41 +3106,44 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         self._check_fine_grid_initial_condition_is_causal(init_beam_time)
 
-        # The last _rf_centers_lengths entry is the forward segment, so
-        # the slice below is this passage's forward grid.
-        # Index [0] -- the FIRST forward coarse centre -- is the correct
-        # initial condition, and must stay. Do NOT "improve" this into an
-        # interpolation of the coarse envelope onto ``init_beam_time``:
-        # coarse cell 0 is charge-free by construction
-        # (``forbid_charge_in_first_coarse_cell`` in
-        # calculate_rf_beam_current_partial), but cell 1 typically already
-        # holds a large part of the bunch and therefore its beam-induced
-        # voltage step. Interpolating from cell 0 toward cell 1 pulls that
-        # beam loading BACKWARDS in time, into an initial condition that
-        # predates the charge which produced it -- and the fine solve then
-        # integrates the very same current a second time. (Measured: the
-        # interpolated variant injects up to ~10% of the beam kick early
-        # and breaks the independent-model comparisons against
-        # MultiPassResonatorSolver.) The guard above enforces the other
-        # half of the invariant, that this centre is not itself later than
-        # the start of the fine window.
-        antenna_voltage_init = self.antenna_voltage_coarse_grid[
-            -self._rf_centers_lengths[-1] :
-        ][0]
+        forward = slice(-self._rf_centers_lengths[-1], None)
+        rf_centers = self._rf_centers[forward]
+        generator_current = self.generator_current_coarse_grid[forward]
+        if self._controller is not None:
+            generator_current = self._controller.limit(generator_current)
 
-        generator_current_init = self.generator_current_coarse_grid[
-            -self._rf_centers_lengths[-1] :
-        ][0]
+        # Coarse command i drives the interval AFTER centre i. Reconstruct
+        # the empty interval with that held, already-computed current;
+        # stepping the PI again would advance its delay and integral twice.
+        generator_current_in_frame = generator_current
+        if self._generator_active:
+            generator_current_in_frame = (
+                generator_current * self._generator_frame_rotation
+            )
+        antenna_voltage_init = propagate_beam_free_voltage(
+            initial_voltage=self.antenna_voltage_coarse_grid[forward][0],
+            generator_current=generator_current_in_frame,
+            rf_centers=rf_centers,
+            end_time=init_beam_time,
+            omega=omega_input,
+            R_over_Q=self.R_over_Q,
+            Q_L=self.Q_L,
+            delta_omega=self.delta_omega,
+        )
+        initial_current_index = np.clip(
+            np.searchsorted(rf_centers, init_beam_time, side="right") - 1,
+            0,
+            len(rf_centers) - 1,
+        )
+        generator_current_init = generator_current[initial_current_index]
 
         omega_times_dt_fine_grid = omega_input * self.profile.hist_step
         # copy_to_cpu: the feedback signal processing is host-side
         # (scipy), so a GPU-backend profile grid must be brought to host.
         self.generator_current_fine_grid = np.interp(
             copy_to_cpu(self.profile.hist_x),
-            self._rf_centers[-self._rf_centers_lengths[-1] :],
-            self.generator_current_coarse_grid[
-                -self._rf_centers_lengths[-1] :
-            ],
+            rf_centers,
+            generator_current,
         )
 
         relative_detuning = self.delta_omega / omega_input
@@ -3148,6 +3152,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             initial_generator_current_fine_grid=generator_current_init,
             omega_times_dt_fine_grid=omega_times_dt_fine_grid,
             relative_detuning=relative_detuning,
+            initial_at_bin_edge=True,
         )
 
     def cavity_response_fine(
@@ -3156,6 +3161,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         initial_generator_current_fine_grid: float,
         omega_times_dt_fine_grid: float,
         relative_detuning: float,
+        *,
+        initial_at_bin_edge: bool = False,
     ):
         r"""
         ACS cavity response model in matrix form on the fine-grid.
@@ -3171,6 +3178,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             ``omega * profile.hist_step``.
         relative_detuning
             Cavity detuning relative to the center frequency.
+        initial_at_bin_edge
+            True when the initial state is at ``profile.cut_left`` and
+            returned voltages must lie at histogram centres. False keeps
+            the direct-call convention: the seed precedes the first
+            output sample by one full fine step.
         """
         # Clamp to the actuator limit BEFORE the solve; see
         # ``_limit_fine_grid_generator_current`` on
@@ -3182,7 +3194,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
 
         # The fine solve runs in the DEMODULATION frame: its seed (the
-        # first forward coarse cell of the composed sum) carries the
+        # state propagated from the first forward coarse cell) carries the
         # generator component rotated by the generator frame rotation,
         # and its beam current was demodulated in that frame. The raw
         # (design-frame) generator current is rotated the same way into
@@ -3216,6 +3228,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
             relative_detuning=relative_detuning,
+            initial_at_bin_edge=initial_at_bin_edge,
         )
 
         self.antenna_voltage_fine_grid *= self.n_cavities

@@ -1641,14 +1641,15 @@ convolution (``retune_to_rf=True``, no ``delta_f`` offset).
 ``test_accel_feedback_matches_two_beam_convolution``
     After a non-degeneracy guard (the last-turn convolution carries real
     voltage), the beam-induced gap voltage matches the retuning
-    convolution at every station and turn (gate 0.5 %; measured 0.13 % on
-    turn 0 falling to 0.025 % on turn 4 -- the error *shrinks* as the
-    carried wake builds up).
-``test_accel_error_does_not_grow_per_turn``
-    Bounded and non-ramping: the worst-section error stays under the 0.5 %
+    convolution at every station and turn (gate 0.5 %; with bin-centred
+    sampling, measured 0.00085 % on turn 0 and 0.00596 % on turn 4).
+``test_accel_error_growth_stays_within_budget``
+    Bounded growth: the worst-section error stays under the 0.5 %
     gate on every turn, the fitted slope over the post-transient turns
-    1..4 stays below 0.05 pp/turn (measured ~-0.011 pp/turn) and the
-    last-turn error is no larger than turn 0. A mis-composed frame-slip x
+    1..4 stays below 0.05 pp/turn and total growth from the first to last
+    turn stays below 0.01 percentage points. Strict monotonic decrease is
+    not required: the corrected first sample removes the formerly dominant
+    turn-0 error. A mis-composed frame-slip x
     reverse-traversal correction would instead ramp several pp/turn.
 
 ``TestTwoBeamDeltaOmegaRfOffsetPassages``
@@ -1700,7 +1701,8 @@ two-section class rather than fitted to the measurement.
     Fast ramp at four sections: more sections mean more mid-turn grid
     re-seedings per turn, each at its own past-station RF frequency, so a
     mis-composed frame-slip correction has more chances to accumulate.
-    Bounded and non-growing. This is the test that catches a backfill-walk
+    Bounded by the same absolute and accumulated-error budgets as the
+    two-section accelerating test. This catches a backfill-walk
     defect the whole two-section class misses: dropping the last backfilled
     element leaves every two-section comparison green and fails this one --
     a mutation check made off-line, not a standing guard in the module.
@@ -2114,6 +2116,15 @@ feedback kernel to compare against. What is pinned is the closed loop
 
 Shared feedback-machinery tests
 -------------------------------
+
+``test_fine_grid_initialization.py`` checks the physical timestamps of the
+coarse-to-fine handoff against analytic decay, detuning, constant drive and
+a generator pulse entirely before the profile. It also checks the
+zero-exponent limit, actuator limiting and frame rotation, one-time cavity
+scaling, overlapping empty windows, localized charge's half-bin self-kick,
+and that later beam-loaded coarse voltages cannot contaminate the seed.
+The integration case exercises the handoff after ``circuit_track`` has
+computed the coarse response. Both fine solver orders are exercised.
 
 The modules below live one directory *above* the accelerator packages::
 

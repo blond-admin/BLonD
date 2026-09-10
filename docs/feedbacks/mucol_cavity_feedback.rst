@@ -80,8 +80,9 @@ amplitude. Every voltage and current on this page is such an envelope.
 on a sparse **coarse grid** (one point per RF period, or a fraction of one)
 that spans the turn cheaply -- this is where the feedback loop lives. The
 bunch, by contrast, samples the field over picoseconds, so the voltage it
-actually receives is resolved on the dense **fine grid** (the profile grid),
-onto which the coarse-grid result is interpolated.
+actually receives is resolved on the dense **fine grid** (the profile grid).
+That solve evolves a timestamped, charge-free coarse seed; it does not
+interpolate beam-loaded coarse voltages onto the profile.
 
 The coarse grid has two properties a reader will not guess from the array:
 its entries are segment-*local* times (so the flat array is *not* globally
@@ -638,6 +639,16 @@ scaled by ``n_cavities`` before the readout phase converts it into the
 voltage correction and phase correction the parent RF station applies to
 its kick. The initial condition it starts from is described next.
 
+The passage handoff uses ``initial_at_bin_edge=True``: the initial voltage
+is at ``profile.cut_left`` and the first output is at
+``profile.hist_x[0] = cut_left + hist_step / 2``. The first step therefore
+spans half a bin. Beam current is a bin density, so this first sample
+includes half the first bin's charge; each later centre-to-centre step
+includes half of each adjacent bin. The Euler option retains first-order
+stepping for voltage decay and generator drive. Direct calls to the sparse
+solvers or ``cavity_response_fine`` retain the uniform-step convention
+unless this keyword is explicitly enabled.
+
 
 Initial conditions and cavity pre-fill
 --------------------------------------
@@ -682,18 +693,38 @@ previous passage (both turn-dependent under acceleration and sub-stepping)
 and ``cut_left`` is itself settable. The remedy is to move the profile
 window right, to ``cut_left >= max(t_rf / 2, sampling_time_coarse)``.
 
-The second is that the seed is deliberately the coarse value *at index*
-``[0]``, and deliberately *not* interpolated onto ``cut_left``. This looks
-like an easy accuracy win and is not: coarse cell 0 is charge-free by
-construction (``forbid_charge_in_first_coarse_cell``), but cell 1
-typically already holds about half the bunch and therefore its beam-induced
-voltage step, so interpolating from cell 0 towards cell 1 drags up to ~10 %
-of the beam-induced voltage *backwards* in time, into an initial condition
-that predates the charge which produced it -- and the fine grid then
-re-integrates that same current. Trying it broke 57 tests at the time --
-a one-off count, not a regression-guarded number -- including the
-independent comparisons against the multi-pass wake solver. Do not
-"improve" it.
+The second is that only the coarse voltage *at index* ``[0]`` enters the
+initial condition. That cell is charge-free by construction
+(``forbid_charge_in_first_coarse_cell``). Later coarse cells can already
+contain this passage's beam loading: interpolating their voltages would
+introduce charge before its arrival and then count it again in the fine
+solve.
+
+The seed's timestamp must also be respected. Before integrating the
+profile, ``propagate_beam_free_voltage`` advances the seed from the first
+forward centre to ``cut_left`` with zero new beam current. It includes
+decay, detuning and the recorded generator commands, held from each coarse
+centre to the next as in the coarse recursion. For a constant command
+over an interval :math:`h`, it evaluates
+
+.. math::
+
+   V(t+h) = e^{\lambda h} V(t)
+     + (R/Q)\,\omega I_{\mathrm{gen}}
+       \frac{e^{\lambda h}-1}{\lambda},
+   \qquad \lambda = -\frac{\omega}{2Q_L} + i\Delta\omega.
+
+The drive weight uses ``expm1`` and its finite zero-exponent limit. Current
+is actuator-limited and rotated into the seed's IQ frame before this
+propagation. The controller is not stepped again, and cavity-count scaling
+is applied only to the final fine-grid voltage. Thus a later profile
+window includes the elapsed empty interval instead of restarting the
+cavity clock at the old voltage. Within the fine window, generator current
+retains the interpolated representation described above.
+
+An empty diagnostic window may precede the first centre; the same
+beam-free equation then evolves backward with the first available command
+held constant. A charged window in that position remains rejected.
 
 
 Interplay with the RF station
@@ -1134,8 +1165,9 @@ Known limitations
   ``cut_left >= max(t_rf / 2, sampling_time_coarse)``. All three are now
   enforced; see *the fine-grid initial condition* under *Initial
   conditions and cavity pre-fill*. Seeding from coarse index ``[0]``
-  rather than interpolating to the profile edge is a deliberate, measured
-  choice there, not an approximation waiting to be improved.
+  rather than interpolating later beam-loaded voltages avoids double
+  counting. The seed is then evolved to the profile edge through the
+  beam-free interval; retaining its old value at a later time is incorrect.
 * A configuration whose walked intervals are shorter than two coarse
   steps -- an RF-station section (or the partial first-turn stretch
   before a station, half a section in the symmetric layout) spanning
