@@ -843,6 +843,14 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     :meth:`on_wakefield_init_simulation`, before the storage time is
     derived from the resulting decay time.
 
+    **Multiple resonances with retuning.** Initialization warns when
+    ``retune_to_rf=True`` and the sources contain more than one resonance
+    frequency in total. Only the first frequency of the first source is
+    retuned, but its carried-wake phase correction rotates the sum of all
+    modes. Other modes therefore receive an incorrect phase correction
+    under a ramp. The warning does not reject the configuration or change
+    this calculation. Use separate solvers for retuned and fixed modes.
+
     **Frame-time fidelity (fixed-frequency wakes under a fast ramp).** With
     ``retune_to_rf=False`` the resonator does not retune, so the carried-wake
     phase is just ``omega_0`` times the gap between arrival times and the
@@ -1018,6 +1026,22 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 raise RuntimeError(
                     f"Expected `Resonators` and not source.is_dynamic, but got {type(source)=}."
                 )
+
+        n_frequencies = sum(
+            len(source._center_frequencies)
+            for source in self._parent_wakefield.sources
+        )
+        if self.retune_to_rf and n_frequencies > 1:
+            warnings.warn(
+                f"retune_to_rf=True with {n_frequencies} resonance "
+                "frequencies: only the first frequency of the first "
+                "source is retuned, but its phase correction is applied "
+                "to all modes. Multi-mode carried wakes can therefore "
+                "be incorrect under a frequency ramp. Use separate "
+                "solvers for retuned and fixed-frequency modes.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         self._apply_fixed_frequency_offset()
 

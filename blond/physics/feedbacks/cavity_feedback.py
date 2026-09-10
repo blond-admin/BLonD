@@ -1176,11 +1176,12 @@ class IQCavityFeedbackTimingClass(
         ``_residual_time_last_rf_centers_calculation`` is the unfilled
         tail between the last coarse centre generated before a passage
         and that passage; :meth:`calculate_rf_beam_current_partial`
-        consumes it as the demodulation frame ``dT``. The fundamental
-        theorem of beam loading -- a bunch must LOSE energy to its own
-        wake -- holds only when the demodulation phase
-        ``omega_c * dT`` comes out to ``pi`` (mod ``2 pi``); half an
-        RF period off, and the bunch is accelerated by its own wake.
+        consumes it as the demodulation frame ``dT``. This implementation's
+        mixing and kick-phase convention reproduces the beam-loading
+        phase when ``omega_c * dT`` is ``pi`` (mod ``2 pi``). Half an RF
+        period off, it gives the wrong sign and accelerates the bunch by
+        its own wake. This is a grid-frame constraint, not a universal
+        restriction imposed by the physical beam-loading theorem.
 
         Every later passage gets that tail from the segment
         generation. The very first one does not whenever the parent
@@ -3263,11 +3264,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         cancels the station phase and the readout phase identically.
         Neither ``phi_rf_design`` nor ``delta_omega_rf`` survives -- the
         grid geometry is design-clock only -- so ``omega_c * dT`` is the
-        ONLY free phase left in the sign of beam loading. The fundamental
-        theorem (a bunch must LOSE energy to its own wake) is therefore
-        exactly ``cos(omega_c * dT) < 0``, and the frame is aligned only at
+        ONLY free phase left in the implemented beam-loading expression.
+        Its energy-loss sign requires ``cos(omega_c * dT) < 0``; recovering
+        the full magnitude and phase in this convention requires
         ``omega_c * dT == pi`` (mod ``2 pi``) -- the value
         :meth:`_seed_initial_demodulation_frame` already seeds turn 0 to.
+        The physical theorem itself does not prescribe this grid offset.
 
         Half an RF period off and the induced voltage is sign-inverted: the
         bunch is ACCELERATED by its own wake, and the wrongly signed deposit
@@ -3308,7 +3310,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         raise ValueError(
             "The beam-current demodulation frame is not aligned with the "
-            "RF bucket. The fundamental theorem of beam loading requires "
+            "RF bucket. The implemented mixing and kick convention requires "
             "omega_c * dT == pi (mod 2 pi), but "
             f"omega_c * dT = {theta / np.pi:.9f} pi, off by "
             f"{deviation / np.pi:.9f} pi. With "

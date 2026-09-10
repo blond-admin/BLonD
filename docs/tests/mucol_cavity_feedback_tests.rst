@@ -44,6 +44,17 @@ the multi-section registration phase -- are defined in
 :ref:`mucol_cavity_feedback_overview`; this page assumes them, and adds only
 the recurring test-side conventions of `Common physics context`_ below.
 
+This inventory describes coverage, not general certification. Consult the
+test's actual parameter choices and error threshold before applying its
+result to a different machine. Backend parity and stored trajectories
+complement, but do not replace, independent physical references.
+
+The retuning tests in ``physics/impedances/test_solvers.py`` also check the
+multiple-frequency advisory: retuning warns for two frequencies inside one
+source or spread across two sources. A single retuned frequency and
+multiple fixed frequencies do not emit that warning. This checks the
+diagnostic only; it does not certify retuned multi-mode wake accuracy.
+
 .. contents:: Contents
    :local:
    :depth: 3

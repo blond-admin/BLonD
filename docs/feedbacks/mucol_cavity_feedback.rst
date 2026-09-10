@@ -7,12 +7,131 @@ This page gives an architectural overview of the RF cavity-feedback model in
 ``blond.physics.feedbacks``, developed for the muon-collider Rapid-Cycling
 Synchrotron (RCS) studies. It describes what the classes do and how the pieces
 fit together; the API reference is generated from the docstrings (see
-:mod:`blond.physics.feedbacks.cavity_feedback`), and the behaviour is certified
-by the test suite documented in :ref:`mucol_cavity_feedback_tests`.
+:mod:`blond.physics.feedbacks.cavity_feedback`). The tested configurations,
+reference models and tolerances are documented in
+:ref:`mucol_cavity_feedback_tests`; they do not establish correctness for
+every possible configuration.
 
 .. contents:: Contents
    :local:
    :depth: 2
+
+.. toctree::
+   :hidden:
+
+   mucol_feedback_history
+
+
+Setup contract
+--------------
+
+Check these conditions before building a run. They describe the current
+implementation; the detailed numerical limits appear under *Known
+limitations* below.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Item
+     - Required setup
+   * - Backend
+     - Use a supported 64-bit BLonD backend. Feedback signal processing
+       uses host NumPy/SciPy arrays even when particle tracking uses a GPU;
+       a CPU run does not validate GPU execution.
+   * - RF geometry
+     - For the symmetric half-drift/station/half-drift layout, choose
+       ``harmonic % (2 * n_sections) == 0``. Each walked segment needs at
+       least two coarse centres. This is a grid/demodulation constraint,
+       not a restriction on which physical cavities can exist.
+   * - Sampling
+     - Use a static profile with ``hist_step <= sampling_time_coarse``.
+       The standard coarse step is one RF period; ``0.5`` is the supported
+       sub-step. Check the Euler validity guard or use the exponential
+       coarse solver and resolve the fine dynamics sufficiently finely.
+   * - Profile placement
+     - Keep the entire bunch inside the profile and the seeding coarse
+       cell charge-free. A charged fine window must begin at or after the
+       first forward coarse centre. Recheck this under a ramp.
+   * - Ownership and initialization
+     - Give each station its own profile, feedback and controller. Attach
+       feedback before ``Simulation.run_simulation``; late initialization
+       supplies ring geometry and station parameters. Let the RF station
+       invoke its feedback and the simulation establish passage order.
+   * - Two beams
+     - Pass both beams to one simulation, with opposite rotation flags.
+       They share each physical station's feedback state. Use stations
+       away from the beams' meeting azimuths; coincident passages are
+       unsupported. Do not run two independent feedback loops for one cavity.
+       Live profiles must have a placement the counter-rotating mainloop
+       can verify; a shared frozen line density is suitable for circuit
+       comparisons but does not follow evolving bunch shapes.
+
+**Units and timestamps at the handoff**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Quantity
+     - Meaning
+   * - ``initial_voltage``, coarse antenna voltage
+     - Complex per-cavity envelopes [V]. Each coarse value belongs to its
+       own segment-local centre timestamp; the full concatenated time
+       array is not globally monotonic.
+   * - Generator current, controller output
+     - Per-cavity current [A]. Command at coarse centre ``i`` drives the
+       interval to centre ``i + 1``. The seed-to-window reconstruction
+       uses this history without updating controller state again.
+   * - ``rf_beam_current`` return values
+     - Demodulated charge [C] per bin. Divide by the corresponding bin
+       duration to obtain the currents [A] supplied to the response solver.
+   * - Fine initial voltage
+     - Propagated per-cavity envelope at ``profile.cut_left``. The first
+       output is half a fine bin later, at ``profile.hist_x[0]``.
+   * - ``antenna_voltage_fine_grid``
+     - Station-total complex envelope [V], already multiplied by
+       ``n_cavities``. Do not multiply it again. The station projects it
+       with the carrier phase to obtain the real voltage applied to particles.
+   * - Station voltage and controller setpoint
+     - Station voltage is total [V]; the feedback derives the per-cavity
+       controller target by dividing by ``n_cavities``.
+
+
+Minimal executable setup
+------------------------
+
+The downloadable :download:`example <examples/minimal_feedback.py>` runs
+one turn on a constant-energy ring without writing output files. Run it
+with a Python environment in which BLonD is installed:
+
+.. code-block:: console
+
+   python docs/feedbacks/examples/minimal_feedback.py
+
+It runs both ``run_example(two_beams=False)`` and
+``run_example(two_beams=True)``. The latter uses two offset stations and
+shares each station's feedback between a co-rotating mu+ beam and a
+counter-rotating mu- beam. Their macroparticles have zero total intensity
+for this initialization check: the expected fine envelope at each station
+is ``1e6 + 0j`` V. Each station represents two cavities initialized at
+``0.5e6`` V apiece, with the resonant equilibrium current
+``I_gen = V_per_cavity / (2 * (R/Q) * Q_L)``.
+
+The two-beam example freezes the initial histogram shared by the equal
+bunches. It demonstrates the circuit and passage ordering, not
+self-consistent evolution of both bunch shapes.
+Call ``run_example(two_beams=True, intensity=1e9)`` to include beam loading.
+The return value contains each station's envelope after its last passage;
+record per-passage observations when both beams' individual kicks matter.
+The demonstration controller gains are not an RCS tuning prescription.
+For an accelerating machine study, use the outer project's
+``muon_collider_blonder.rcs_two_beam_example`` and its machine parameters.
+
+.. literalinclude:: examples/minimal_feedback.py
+   :language: python
+   :start-at: import numpy
+   :end-before: if __name__
 
 
 Concepts and notation
@@ -46,7 +165,8 @@ beam loading
     the feedback's main job.
 gap voltage
     The accelerating voltage the bunch actually *sees* at the cavity gap:
-    the fine-grid antenna voltage scaled by ``n_cavities``. Distinct from
+    the real carrier projection of the fine-grid antenna voltage, whose
+    array already includes ``n_cavities``. Distinct from
     the coarse ``antenna_voltage_coarse_grid``, which is the envelope the
     loop regulates and which never kicks the beam.
 kick
@@ -183,10 +303,12 @@ residual
 demodulation frame (``dT``)
     The time offset the beam current is demodulated against: the residual
     left by the coarse segment preceding the forward one, carried on the
-    span as ``residual_from_backfill_span``. The fundamental theorem of
-    beam loading requires ``omega * dT = pi`` (mod ``2 pi``) -- a bunch
-    must *lose* energy to its own wake -- which is why the grid seeds
-    every segment half an RF period into the bucket. Everything that can
+    span as ``residual_from_backfill_span``. This implementation's mixing
+    and kick-phase convention requires ``omega * dT = pi`` (mod ``2 pi``)
+    to align the beam-loading sign and phase. It seeds each segment half
+    an RF period into the bucket. This is a convention-specific alignment
+    condition, not a universal statement of the beam-loading theorem.
+    Everything that can
     perturb ``dT`` (a harmonic not divisible by ``2 * n_sections``, a
     sub-step other than ``0.5``, a stale segment frequency under a
     violent ramp) rotates the beam-induced voltage, and past a quarter
@@ -290,7 +412,7 @@ Classes at a glance
     the tripwires that decide whether the forward-Euler discretisation is
     admissible at all (per-step decay, detuning phase, the coupled
     Euler-multiplier magnitude they do not imply, and the beam kick) --
-    pure numerics kept beside the solvers they certify. The feedback owns one
+    numerical checks kept beside the solvers they constrain. The feedback owns one
     instance and passes the cavity parameters per call; it is constructed
     disabled for the exact exponential propagator, which is subject to none
     of these caps.
@@ -816,42 +938,15 @@ field, which carries no registration error, turning a phase error into an
 amplitude drift. See ``_accumulate_registration_phase`` for the
 implementation.
 
-*Why the wrong reference survived so long.* The increment used to be
-referenced to the carrier of the passage that ENDS the interval, with the
-opposite sign: ``sum_k (omega_k - omega_0) T_seg,k``, with ``omega_0``
-the forward frequency of the passage doing the correcting. The two forms
-differ by
+The reference-choice regression uses a curved frequency programme; see
+``test_registration_phase_uses_previous_passage_carrier``. Historical
+diagnostics are in :ref:`mucol_feedback_development_history`.
 
-   ``sum_k (omega_prev - 2 omega_k + omega_0) T_seg,k``
-
-which is a *second* difference of the design-frequency programme, and it
-vanishes identically when ``omega`` varies linearly in time. Every
-first-order check therefore agreed: on a linear ramp the wrong expression
-is numerically the right one, and only the curvature of the programme
-survived. What that left was a small residual scaling as the *square* of
-the registration phase, which read exactly like an accepted second-order
-discretisation artefact rather than a sign-and-reference mistake, and it
-was carried as a known limitation for that reason. The lesson generalises:
-a bookkeeping term validated only against a linear programme has not been
-validated against its own reference choice at all -- pick a test case with
-curvature, or compare the two candidate forms directly, as
-``test_registration_phase_uses_previous_passage_carrier`` now does.
-
-The source-split coarse state (see *Signal path of one turn*) is what
-lets ``Psi`` reach exactly the signal that needs it: the beam-sourced
-component's demodulation/readout closure carries ``Psi``, while the
-design-anchored generator component sees no registration phase at
-readout at all, and the PI regulates the kick-frame sum. This closed
-the former driven multi-section readout-phase offset -- one shared
-readout phase used to hand ``Psi`` to the generator-driven field too,
-walking the RF bucket off the design synchronous phase with no beam at
-all -- and it is why the zero-intensity phase neutrality of the readout
-is exact rather than approximate (the amplitude-drift half of the same
-history, percent-level ``|V_ant|`` growth per turn from rotating the
-state, had already been fixed by carrying ``Psi`` on the carrier; both
-are pinned by ``TestDrivenSteadyStateFastRamp``,
-``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` and
-``TestPIFullTrackingMultiSectionFastRamp``).
+The source-split coarse state lets ``Psi`` affect only the beam-sourced
+component. The generator component remains design-anchored, and the PI
+regulates their kick-frame sum. The equilibrium checks are
+``TestDrivenSteadyStateFastRamp`` and
+``TestDrivenFeedbackIsPhaseNeutralWithoutBeam``.
 
 One reading rule follows for driven runs: ``antenna_voltage_coarse_grid``
 is the demodulation-frame sum, so under an accumulated slip its
@@ -862,21 +957,10 @@ rotation, so the magnitude moves too. Either way a naive complex
 comparison against the setpoint is the wrong check; compare in the kick
 frame, as the PI does.
 
-Referencing the increment to the previous passage's carrier is also what
-removed the former secular drift of the undriven multi-section fast-ramp
-carried wake against the convolution. Over 20 turns the per-turn error
-slope went from ``+0.03184`` to ``-0.00255`` pp/turn at two sections
-(turn-19 error ``0.66788 %`` -> ``0.02149 %``) and from ``+0.04275`` to
-``-0.00219`` pp/turn at four. What is left is negative at every section
-count and bounded: at two sections the endpoint residual sits *below*
-the single-section control (``0.02618 %``, slope ``-0.00225``) that
-bounds the irreducible multi-turn discretisation residual from below, so
-there is no registration artefact left to attribute it to.
-``test_multiturn_secular_drift_long_horizon`` records the two- and
-single-section post-fix numbers and gates them at slope ``< 0.005``
-pp/turn and endpoint ``< 0.05 %``. Single-section rings and
-unaccelerated multi-section rings are bit-identical across the fix,
-because ``Psi`` is exactly ``0.0`` on both paths.
+The long-horizon carried-wake comparison is covered by
+``test_multiturn_secular_drift_long_horizon``. Its assertions state the
+allowed endpoint error and slope; past measurements are retained in the
+development history rather than presented as current performance claims.
 
 Multi-harmonic stations
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -958,7 +1042,7 @@ gate: on the static cycle four and six sections match the two-beam
 convolution to 0.128 % on the first turn, falling to 0.039 %, within
 0.001 percentage points of the two-section numbers. The accelerating
 fast ramp and the ``delta_omega_rf`` regimes are carried to four
-sections only, where the error is likewise bounded and non-growing.
+sections only, where the tests bound the error and its accumulated growth.
 That matters because two sections is also the only count
 at which the backfill interval is empty at every station, so the backfill
 reference walk is never entered; a 16-section RCS enters it at 14 stations
@@ -1018,8 +1102,13 @@ nothing validates the sign you pass.
 Validation
 ----------
 
-The model is certified against independent references rather than against
-itself (see :ref:`mucol_cavity_feedback_tests` for the full inventory):
+The following comparisons constrain the error for their tested parameters
+(see :ref:`mucol_cavity_feedback_tests` for configurations and tolerances).
+Agreement between backends checks implementation parity; it cannot detect
+an assumption shared by both. Analytic decay, driven equilibrium, localized
+charge and physical-time handoff checks provide complementary references.
+An error bound belongs to its tested ramp, geometry, binning and solver
+options, not to every use of the model:
 
 * single-turn beam loading against a ``Resonators`` convolution (< 1 % NRMSE,
   on and off resonance);
@@ -1047,6 +1136,18 @@ itself (see :ref:`mucol_cavity_feedback_tests` for the full inventory):
 Known limitations
 -----------------
 
+* Coarse charge re-binning currently splits at the last fine index of the
+  preceding cell rather than after it. This shifts one boundary slice
+  into the next cell while preserving total charge. Per-cell timing needs
+  a separate correction and boundary-bin regression checks; global charge
+  conservation alone does not establish correct coarse beam loading.
+* ``MultiPassResonatorSolver(retune_to_rf=True)`` warns during initialization
+  if there is more than one resonance frequency across its sources. Only
+  the first resonance is retuned, but its carried-wake phase correction
+  acts on the sum of all modes. The warning is advisory: execution
+  continues with that limitation. Use separate solvers for the retuned
+  fundamental and fixed-frequency modes when their phases must be correct.
+
 * A harmonic number that is not divisible by ``2 * n_sections`` de-aligns
   the coarse-grid tiling from the RF bucket. **Every such case is
   refused**: ``_assert_demodulation_frame_aligned``
@@ -1062,8 +1163,11 @@ Known limitations
   Why it has to be refused. The grid seeds every segment half an RF
   period in, so a segment spanning a fractional number of RF periods
   leaves a residual different from ``t_rf / 2``; that residual is the
-  demodulation frame ``dT``, and the fundamental theorem of beam loading
-  needs ``omega * dT = pi`` (mod ``2 pi``). Which fraction it is decides
+  demodulation frame ``dT``. The implemented mixing and kick convention
+  needs ``omega * dT = pi`` (mod ``2 pi``) to reproduce the physical
+  beam-loading phase. Other geometries require a different frame treatment;
+  the physical theorem itself does not impose this grid alignment.
+  Which fraction it is decides
   what the run *would* have done:
 
   - ``1/4`` and ``3/4`` of a period leave ``omega * dT`` a quarter turn
