@@ -290,9 +290,16 @@ class TestHalfOptions(unittest.TestCase):
         # value — a regression that returned inf (and, once sanitized,
         # F(0) = 0) on the second branch.
         n_time = 2000  # even: minimum falls between two equal samples
-        time_array = backend.linspace(
-            -HALF_SPAN, HALF_SPAN, n_time, dtype=backend.float
+
+        # Construct one half grid then invert it to ensure bit-wise
+        # identical values.
+        half_grid = backend.linspace(
+            HALF_SPAN / (n_time - 1),
+            HALF_SPAN,
+            n_time // 2,
+            dtype=backend.float,
         )
+        time_array = backend.concatenate((-half_grid[::-1], half_grid))
         well = CURVATURE * time_array**2
         self.assertEqual(
             float(well[n_time // 2 - 1]), float(well[n_time // 2])
