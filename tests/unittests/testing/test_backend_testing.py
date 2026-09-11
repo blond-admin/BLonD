@@ -286,3 +286,134 @@ class TestPinFastTestBackends(unittest.TestCase):
             bend_test.pin_fast_test_backends()
 
             self.assertIs(backend.backend.__class__, backend.Cupy64Bit)
+
+
+class DummyBackendAwareCase(bend_test.BLonDTestCase):
+    """Test methods driven by `TestBackendAwareTestCase`, not run directly."""
+
+    # Exclude from pytest's own collection - these are fixtures run
+    # manually by `TestBackendAwareTestCase`, not real tests.
+    __test__ = False
+
+    def test_pass(self):
+        self.assertTrue(True)
+
+    def test_fail(self):
+        self.assertTrue(False)
+
+    def test_error(self):
+        raise ValueError("boom")
+
+    def test_skip(self):
+        self.skipTest("skip reason")
+
+    def test_mutates_then_fails(self):
+        backend.backend.set_specials("numba")
+        self.assertTrue(False)
+
+    def test_changes_backend_and_specials_then_fails(self):
+        backend.backend.change_backend(LeakedBackend)
+        backend.backend.set_specials("numba")
+        self.assertTrue(False)
+
+
+class TestBackendAwareTestCase(unittest.TestCase):
+    """Tests for `BackendAwareTestCase`."""
+
+    def setUp(self):
+        self.init_backend = backend.backend.__class__
+        self.init_specials = backend.backend.specials_mode
+        backend.backend.change_backend(backend.Numpy64Bit)
+        backend.backend.set_specials("python")
+
+    def tearDown(self):
+        backend.backend.change_backend(self.init_backend)
+        if backend.backend.specials_mode != self.init_specials:
+            backend.backend.set_specials(self.init_specials)
+
+    @staticmethod
+    def _run(test_name):
+        result = unittest.TestResult()
+        DummyBackendAwareCase(test_name).run(result)
+        return result
+
+    def test_backend_state(self):
+        self.assertEqual(bend_test._backend_state(), ("Numpy64Bit", "python"))
+
+        backend.backend.set_specials("numba")
+        self.assertEqual(bend_test._backend_state(), ("Numpy64Bit", "numba"))
+
+    def test_passing_test_is_unaffected(self):
+        result = self._run("test_pass")
+
+        self.assertTrue(result.wasSuccessful())
+        self.assertEqual(result.failures, [])
+        self.assertEqual(result.errors, [])
+
+    def test_failure_message_reports_backend_state(self):
+        result = self._run("test_fail")
+
+        self.assertEqual(len(result.failures), 1)
+        _, traceback_text = result.failures[0]
+        self.assertIn("False is not true", traceback_text)
+        self.assertIn(
+            "[backend at start: Numpy64Bit, at failure: Numpy64Bit]",
+            traceback_text,
+        )
+        self.assertIn(
+            "[specials at start: python, at failure: python]",
+            traceback_text,
+        )
+
+    def test_error_message_reports_backend_state(self):
+        result = self._run("test_error")
+
+        self.assertEqual(len(result.errors), 1)
+        self.assertEqual(result.failures, [])
+        _, traceback_text = result.errors[0]
+        self.assertIn("boom", traceback_text)
+        self.assertIn(
+            "[backend at start: Numpy64Bit, at failure: Numpy64Bit]",
+            traceback_text,
+        )
+        self.assertIn(
+            "[specials at start: python, at failure: python]",
+            traceback_text,
+        )
+
+    def test_skip_is_not_annotated(self):
+        result = self._run("test_skip")
+
+        self.assertEqual(len(result.skipped), 1)
+        _, reason = result.skipped[0]
+        self.assertEqual(reason, "skip reason")
+
+    @pytest.mark.backend_mutation
+    def test_failure_reports_backend_changed_during_test(self):
+        result = self._run("test_mutates_then_fails")
+
+        self.assertEqual(len(result.failures), 1)
+        _, traceback_text = result.failures[0]
+        self.assertIn(
+            "[backend at start: Numpy64Bit, at failure: Numpy64Bit]",
+            traceback_text,
+        )
+        self.assertIn(
+            "[specials at start: python, at failure: numba]",
+            traceback_text,
+        )
+
+    @pytest.mark.backend_mutation
+    def test_failure_reports_backend_class_changed_during_test(self):
+        result = self._run("test_changes_backend_and_specials_then_fails")
+
+        self.assertEqual(len(result.failures), 1)
+        _, traceback_text = result.failures[0]
+        self.assertIn(
+            "[backend at start: Numpy64Bit, at failure: LeakedBackend]",
+            traceback_text,
+        )
+        self.assertIn(
+            "[specials at start: python, at failure: numba]",
+            traceback_text,
+        )
