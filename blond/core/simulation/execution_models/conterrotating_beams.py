@@ -41,6 +41,48 @@ class MainloopCounterRotatingBeams(ExecutionModel):
     """Executor where one beams rotates forward, and the second backwards."""
 
     @staticmethod
+    def _check_two_beam_element_order(simulation: Simulation) -> None:
+        """
+        Reject a ring whose element order was permuted by reordering.
+
+        With two counter-rotating beams the element order the user wrote
+        is the machine layout: the co-rotating beam tracks the element list
+        forwards and the counter-rotating beam backwards, so that order
+        fixes when each beam reaches every RF station, and hence whether a
+        station sits at a meeting azimuth of the two beams. Sorting a
+        section into natural order silently moves the stations -- a
+        symmetric (half drift, profile, station, profile, half drift)
+        section becomes (profile, profile, station, drift, drift), which
+        also breaks the two-beam profile placement. Only an actual
+        permutation is rejected; reordering that leaves every section as
+        written is harmless.
+
+        Parameters
+        ----------
+        simulation
+            Adapter for the Simulation object holding the ring elements.
+
+        Raises
+        ------
+        ValueError
+            When reordering has permuted the ring's element order.
+        """
+        if not simulation._ring.elements.order_changed_by_reordering:
+            return
+        raise ValueError(
+            "Two counter-rotating beams need the element order as "
+            "written, but reordering (``reorder=True``, which "
+            "``Simulation.from_locals`` also applies) has permuted the "
+            "ring's elements into natural order. The co-rotating beam "
+            "tracks the element list forwards and the counter-rotating "
+            "beam backwards, so the permutation silently moves every RF "
+            "station relative to the beams' meeting azimuths and breaks "
+            "the profile placement around them. Build the ring with "
+            "``ring.add_elements(..., reorder=False)`` in every "
+            "``add_elements`` call."
+        )
+
+    @staticmethod
     def _check_two_beam_profile_placement(simulation: Simulation) -> None:
         """
         Validate live-profile placement for two counter-rotating beams.
@@ -324,6 +366,9 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             "First beam must be co-rotating, second beam must be counter-rotating."
         )
 
+        # Order first: on a reordered ring the placement check below would
+        # otherwise report a less specific profile-clobbering error.
+        self._check_two_beam_element_order(simulation)
         self._check_two_beam_profile_placement(simulation)
 
         if callbacks is not None:

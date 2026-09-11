@@ -51,6 +51,9 @@ class BeamPhysicsRelevantElements(Preparable):
         self.elements: list[SimulationElementBase] = []
         self._on_init_simulation_passed = False
         self._check_section_indices = check_section_indices
+        # Sticky: set once `reorder_section` actually moves an element and
+        # never cleared, so no later `add_elements` call can hide it.
+        self._order_changed_by_reordering = False
 
         self._get_element_cache = {}
 
@@ -488,9 +491,36 @@ class BeamPhysicsRelevantElements(Preparable):
                     ordered_elements.append(e)
                     _seen.add(e)
         assert len(ordered_elements) == len(elements_in_section)
-        self.elements = list(
+        reordered_elements = (
             elements_before_section + ordered_elements + elements_after_section
         )
+        # Record an actual permutation, not the request to reorder: a list
+        # already in natural order keeps the order the user wrote, which
+        # two counter-rotating beams depend on. Detected here rather than
+        # against an insertion-order record, because `insert` and the
+        # section-grouped `add_element` legitimately place elements away
+        # from the end of the list.
+        if any(
+            new is not old
+            for new, old in zip(reordered_elements, self.elements, strict=True)
+        ):
+            self._order_changed_by_reordering = True
+        self.elements = reordered_elements
+
+    @property  # as readonly attributes
+    def order_changed_by_reordering(self) -> bool:
+        """
+        Whether reordering has permuted the element order.
+
+        Returns
+        -------
+        order_changed_by_reordering
+            ``True`` once :meth:`reorder_section` has moved any element,
+            also when called through :meth:`reorder` or
+            ``Ring.add_elements(..., reorder=True)``. Stays ``False`` while
+            reordering leaves every section in the order it was written.
+        """
+        return self._order_changed_by_reordering
 
     def count(
         self,

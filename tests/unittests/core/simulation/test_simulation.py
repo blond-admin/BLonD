@@ -1147,5 +1147,241 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
         )
 
 
+class TestTwoBeamReorderedRingCheck(unittest.TestCase):
+    """
+    Two counter-rotating beams refuse a ring permuted by reordering.
+
+    The counter-rotating mainloop tracks the element list forwards for the
+    first beam and backwards for the second, so the element order the user
+    wrote fixes where every RF station sits relative to the beams' meeting
+    azimuths. ``add_elements(..., reorder=True)`` re-sorts each section
+    into natural order and silently moves the stations, so a two-beam run
+    must refuse such a ring at run start. Lists already in natural order
+    and single-beam runs must stay unaffected.
+    """
+
+    CIRCUMFERENCE = 5990.0
+    N_SECTIONS = 2
+    HARMONIC = 25900
+    ENERGY = 63e9
+
+    def _half_drift(self, section_index):
+        """
+        A drift spanning half of one section.
+
+        Parameters
+        ----------
+        section_index
+            Section the drift belongs to.
+
+        Returns
+        -------
+        DriftSimple
+            Drift of length ``circumference / n_sections / 2``.
+        """
+        return DriftSimple(
+            momentum_compaction_factor=11.4e-4,
+            orbit_length=self.CIRCUMFERENCE / self.N_SECTIONS / 2,
+            section_index=section_index,
+        )
+
+    def _station(self, section_index):
+        """
+        A single-harmonic RF station.
+
+        Parameters
+        ----------
+        section_index
+            Section the station belongs to.
+
+        Returns
+        -------
+        SingleHarmonicRFStation
+            Station with a small voltage, enough for one tracked turn.
+        """
+        return SingleHarmonicRFStation(
+            voltage=1e6,
+            phi_rf=0,
+            harmonic=self.HARMONIC,
+            section_index=section_index,
+        )
+
+    def _symmetric_section(self, section_index):
+        """
+        The symmetric ``(half drift, station, half drift)`` section.
+
+        Natural order puts the station first, so reordering permutes it.
+
+        Parameters
+        ----------
+        section_index
+            Section the elements belong to.
+
+        Returns
+        -------
+        list
+            The three elements in the order the user wrote them.
+        """
+        return [
+            self._half_drift(section_index),
+            self._station(section_index),
+            self._half_drift(section_index),
+        ]
+
+    def _natural_order_section(self, section_index):
+        """
+        A ``(station, half drift, half drift)`` section.
+
+        This is already the natural order, so reordering leaves it as is.
+
+        Parameters
+        ----------
+        section_index
+            Section the elements belong to.
+
+        Returns
+        -------
+        list
+            The three elements, already in natural order.
+        """
+        return [
+            self._station(section_index),
+            self._half_drift(section_index),
+            self._half_drift(section_index),
+        ]
+
+    def _run(self, ring, n_beams):
+        """
+        Track one turn on a ring with one or two beams.
+
+        Parameters
+        ----------
+        ring
+            Fully populated ring.
+        n_beams
+            ``1`` for a single co-rotating beam, ``2`` to add the
+            counter-rotating beam (selects the counter-rotating mainloop).
+        """
+        magnetic_cycle = MagneticCyclePerTurn(
+            value_init=self.ENERGY,
+            values_after_turn=np.full(2, self.ENERGY),
+            in_unit="kinetic energy",
+            reference_particle=mu_plus,
+        )
+        simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+        beams = []
+        for particle_type, is_counter_rotating in (
+            (mu_plus, False),
+            (mu_minus, True),
+        )[:n_beams]:
+            beam = Beam(
+                intensity=1e9,
+                particle_type=particle_type,
+                is_counter_rotating=is_counter_rotating,
+            )
+            beam.setup_beam(
+                dt=np.linspace(-1e-9, 1e-9, 10),
+                dE=np.linspace(-1e6, 1e6, 10),
+                reference_time=0,
+                reference_total_energy=self.ENERGY,
+            )
+            beams.append(beam)
+        simulation.run_simulation(
+            beams=tuple(beams),
+            n_turns=1,
+            show_progressbar=False,
+            verbose=False,
+        )
+
+    def _symmetric_elements(self):
+        """
+        Symmetric sections for the whole ring, in written order.
+
+        Returns
+        -------
+        list
+            ``N_SECTIONS`` symmetric sections, concatenated.
+        """
+        elements = []
+        for section_index in range(self.N_SECTIONS):
+            elements += self._symmetric_section(section_index)
+        return elements
+
+    def test_reordered_two_beam_ring_is_rejected_at_run_start(self):
+        """A two-beam run on a ring permuted by reordering raises."""
+        ring = Ring(circumference=self.CIRCUMFERENCE)
+        ring.add_elements(self._symmetric_elements(), reorder=True)
+        # precondition: reordering really moved the stations to the front
+        self.assertIsInstance(
+            ring.elements.elements[0], SingleHarmonicRFStation
+        )
+
+        with self.assertRaisesRegex(ValueError, "reorder=False") as ctx:
+            self._run(ring, n_beams=2)
+        message = str(ctx.exception)
+        self.assertIn("counter-rotating", message)
+        self.assertIn("permuted", message)
+
+    def test_unreordered_two_beam_ring_runs(self):
+        """The same layout added with ``reorder=False`` runs."""
+        ring = Ring(circumference=self.CIRCUMFERENCE)
+        elements = self._symmetric_elements()
+        ring.add_elements(elements, reorder=False)
+
+        self._run(ring, n_beams=2)
+
+        self.assertEqual(
+            [id(element) for element in ring.elements.elements],
+            [id(element) for element in elements],
+        )
+
+    def test_natural_order_list_with_reordering_is_accepted(self):
+        """Reordering that moves nothing does not trip the check."""
+        ring = Ring(circumference=self.CIRCUMFERENCE)
+        elements = []
+        for section_index in range(self.N_SECTIONS):
+            elements += self._natural_order_section(section_index)
+        ring.add_elements(elements, reorder=True)
+        # precondition: reordering was enabled but left the order intact
+        self.assertEqual(
+            [id(element) for element in ring.elements.elements],
+            [id(element) for element in elements],
+        )
+
+        self._run(ring, n_beams=2)
+
+    def test_single_beam_on_reordered_ring_is_unaffected(self):
+        """A single-beam run never checks the element order."""
+        ring = Ring(circumference=self.CIRCUMFERENCE)
+        ring.add_elements(self._symmetric_elements(), reorder=True)
+
+        self._run(ring, n_beams=1)
+
+    def test_permutation_cannot_be_hidden_by_later_calls(self):
+        """
+        Splitting the ring over several ``add_elements`` calls is caught.
+
+        A permutation in an early reordered call must survive a later
+        ``reorder=False`` call, and a later reordered call re-sorts the
+        sections added before it without reordering.
+        """
+        cases = {
+            "reordered call, then unreordered call": (True, False),
+            "unreordered call, then reordered call": (False, True),
+        }
+        for name, (reorder_first, reorder_second) in cases.items():
+            with self.subTest(name):
+                ring = Ring(circumference=self.CIRCUMFERENCE)
+                ring.add_elements(
+                    self._symmetric_section(0), reorder=reorder_first
+                )
+                # the second section alone would not be permuted
+                ring.add_elements(
+                    self._natural_order_section(1), reorder=reorder_second
+                )
+                with self.assertRaisesRegex(ValueError, "reorder=False"):
+                    self._run(ring, n_beams=2)
+
+
 if __name__ == "__main__":
     unittest.main()
