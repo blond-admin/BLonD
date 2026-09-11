@@ -100,18 +100,16 @@ _phase_shifts = [0, -1, 1]
 # spacing or seed-time change, so the distance checks compare against the
 # design period regardless of the offset.
 _delta_omega_factors = [0.0, 0.13, -0.13]
-# Each entry is (n_rf_periods_per_coarse_grid, Q_L). The per-step decay is
-# n * pi / Q_L and must stay below the hard cap of 1.0, above which the
-# forward-Euler decay factor (1 - decay) turns negative (an unphysical
-# per-step sign inversion) and _check_step_sizes raises:
-#   - integer n >= 1 places one coarse point every n RF periods; even n = 1
-#     gives decay = pi / Q_L, so a large Q_L is needed to stay stable;
+# Each entry is (n_rf_periods_per_coarse_grid, Q_L):
+#   - integer n >= 1 places one coarse point every n RF periods;
 #   - n < 1 is the sub-stepping mode (several coarse points per RF period);
 #     0.4 and 0.6 deliberately do not divide the harmonic evenly, exercising
-#     the inter-turn carry-over. Their Q_L only has to keep the per-step
-#     decay under the cap (0.6 * pi / 4 ~ 0.47); these are pure grid-geometry
-#     cases (R_over_Q = 0, no generator bias), so Q_L does not affect what
-#     they measure.
+#     the inter-turn carry-over.
+# The Q_L values date from the retired forward-Euler step-size check, which
+# required the per-step decay n * pi / Q_L to stay below 1; the exact coarse
+# propagator has no such limit. They are kept unchanged: the grid-geometry
+# cases (R_over_Q = 0, no generator bias) do not depend on Q_L, and the
+# matched-generator envelope test holds its fixed point for any Q_L.
 _n_ql_settings = [
     (1, 100),
     (2, 100),
@@ -184,39 +182,6 @@ class TestIQCavityFeedbackTimingClass:
         with pytest.raises(ValueError, match="must be > 0"):
             self._make_timing_feedback(0)
 
-    def test_stability_check_reflects_actual_step_decay(self) -> None:
-        # The forward-Euler decay applied in cavity_response() is
-        #   0.5 * omega_rf * dt / Q_L = n_rf_periods_per_coarse_grid * pi / Q_L,
-        # i.e. it scales with the number of RF periods per coarse step. The
-        # sanity check must reflect that actual step, not collapse to the
-        # n-independent carrier-frequency product
-        # (omega_rf / n) * sampling_time_coarse == 2*pi.
-        #
-        # With Q_L = 2.0 a two-period step (n=2) gives decay = pi ~ 3.14,
-        # far above the hard cap of 1.0, and must be rejected. (A
-        # single-period step, n=1, would give pi/2 ~ 1.57 -- also above the
-        # cap since it was tightened to the sign-flip boundary, so this
-        # check is not sensitive to which of the two is used; n=2 keeps the
-        # margin large.)
-        backend.change_backend(Numpy64Bit)
-        self.harmonic = 5
-        self.setup_simulation()
-        cav_fdbk_timing = IQCavityFeedbackTimingClass(
-            profile=self.profile,
-            n_rf_periods_per_coarse_grid=2,
-            R_over_Q=0,
-            Q_L=2.0,
-            generator_current_bias=0,
-            n_cavities=1,
-        )
-        self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
-        cnst_cycle = ConstantMagneticCycle(
-            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
-        )
-        sim = Simulation(self.ring, cnst_cycle)
-        with pytest.raises(ValueError, match="decay_per_step"):
-            sim.run_simulation(self.beam, n_turns=1)
-
     @pytest.mark.backend_mutation
     @pytest.mark.parametrize(
         "phase_shift,delta_omega_factor,n_rf_points,Q_L",
@@ -229,7 +194,6 @@ class TestIQCavityFeedbackTimingClass:
         n_rf_points: float,
         Q_L: float,
     ) -> None:
-        backend.change_backend(Numpy64Bit)
         # A single-section turn is ONE segment and every segment must hold
         # at least two coarse centres (RFCenterSegment); the tiling
         # carry-over places the first centre up to n coarse periods into
@@ -245,13 +209,6 @@ class TestIQCavityFeedbackTimingClass:
             Q_L=Q_L,
             generator_current_bias=0,
             n_cavities=1,
-            # The low-Q_L sub-stepped parametrizations put the Euler decay
-            # n * pi / Q_L into the forbidden sign-flip band (> 1.0), which
-            # the step-size check now rejects. Grid geometry is independent
-            # of the coarse propagator, so use the exact exponential solver
-            # there (the check's own sanctioned escape) and keep plain
-            # Euler coverage for the legal parametrizations.
-            exponential_coarse_solver_enable=(n_rf_points * np.pi / Q_L > 1.0),
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -375,12 +332,12 @@ class TestIQCavityFeedbackTimingClass:
         Q_L: float,
     ) -> None:
         """
-        Matched-generator antenna envelope is the exact Euler fixed point.
+        Matched-generator antenna envelope is the exact coarse fixed point.
 
         Physics extension of the (grid-only) discontinuity sweep: with the
         cavity on resonance (``delta_omega = 0``) and the generator current
         matched to the setpoint, ``V_ss = 2 (R/Q) Q_L I_g`` is the *exact*
-        fixed point of the coarse-grid forward-Euler step -- both the step
+        fixed point of the exact coarse-grid step -- both the step
         size and the RF frequency cancel out of the fixed-point condition.
         The generator-sourced antenna component must therefore stay at
         ``V_ss`` (at phase 0: the drive is design-locked, and that
@@ -395,7 +352,6 @@ class TestIQCavityFeedbackTimingClass:
         design-locked drive under a station RF-frequency offset (see
         ``_update_frame_rotations``), so only its ``abs`` is invariant.
         """
-        backend.change_backend(Numpy64Bit)
         # Keep the single-segment turn at least two coarse steps long --
         # see the discontinuity test above (the >=2-centres invariant of
         # RFCenterSegment rejects the former n = 3 / harmonic 5 geometry).
@@ -413,12 +369,6 @@ class TestIQCavityFeedbackTimingClass:
             generator_current_bias=i_gen,
             n_cavities=1,
             initial_voltage=v_ss,
-            # See the discontinuity test above: the low-Q_L sub-stepped
-            # parametrizations exceed the Euler sign-flip cap (> 1.0), so
-            # they run on the exact exponential solver. Note V_ss is the
-            # exact fixed point of BOTH coarse propagators, so the matched
-            # steady state below is propagator-independent.
-            exponential_coarse_solver_enable=(n_rf_points * np.pi / Q_L > 1.0),
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -493,7 +443,6 @@ class TestIQCavityFeedbackTimingClass:
         n_rf_points: float,
         Q_L: float,
     ) -> None:
-        backend.change_backend(Numpy64Bit)
         # Keep the single-segment turn at least two coarse steps long --
         # see the no-acceleration discontinuity test above (the
         # >=2-centres invariant of RFCenterSegment rejects the former
@@ -507,13 +456,6 @@ class TestIQCavityFeedbackTimingClass:
             Q_L=Q_L,
             generator_current_bias=0,
             n_cavities=1,
-            # The low-Q_L sub-stepped parametrizations put the Euler decay
-            # n * pi / Q_L into the forbidden sign-flip band (> 1.0), which
-            # the step-size check now rejects. Grid geometry is independent
-            # of the coarse propagator, so use the exact exponential solver
-            # there (the check's own sanctioned escape) and keep plain
-            # Euler coverage for the legal parametrizations.
-            exponential_coarse_solver_enable=(n_rf_points * np.pi / Q_L > 1.0),
         )
         self.rf_station.attach_cavity_feedback(cav_fdbk_timing)
         self.rf_station.phi_rf_design = phase_shift
@@ -690,10 +632,8 @@ class TestIQCavityFeedbackTimingClass:
                     # ``debug`` flag used to imply.
                     grid_only_no_correction=True,
                     R_over_Q=0,
-                    # Q_L only needs to keep the forward-Euler cavity step
-                    # stable; these tests check rf-center timing/geometry, not
-                    # the cavity voltage, so a comfortably high Q_L is used to
-                    # stay below the stability cap.
+                    # Q_L is immaterial here: these tests check rf-center
+                    # timing/geometry, not the cavity voltage (R_over_Q = 0).
                     Q_L=100,
                     generator_current_bias=0,
                     n_cavities=1,
@@ -752,7 +692,6 @@ class TestIQCavityFeedbackTimingClass:
         # Here: 10 sections at harmonic 20 give 2 RF periods per section,
         # so the turn-0 backfill before station 0 spans half a
         # section = 1 RF period -- one coarse centre.
-        backend.change_backend(Numpy64Bit)
         self.harmonic = 20
         self.setup_simulation()
 
@@ -775,7 +714,6 @@ class TestIQCavityFeedbackTimingClass:
     def test_get_slice_of_elements_this_section_cnst_cycle_fwrd(
         self, n_sections: int
     ):
-        backend.change_backend(Numpy64Bit)
         self.harmonic = 20
         self.setup_simulation()
 
@@ -863,12 +801,10 @@ class TestIQCavityFeedbackTimingClass:
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
 
-    @pytest.mark.backend_mutation
     @pytest.mark.parametrize("n_sections", [1, 4, 20])
     def test_get_slice_of_elements_this_section_cnst_cycle_reverse(
         self, n_sections: int
     ):
-        backend.change_backend(Numpy64Bit)
         # Keep every section at >= 5 RF buckets: the turn-0 reverse
         # back-fill spans only half a section, and every segment must hold
         # at least two coarse centres (enforced in RFCenterSegment) -- at
@@ -951,12 +887,10 @@ class TestIQCavityFeedbackTimingClass:
             self.beam, callbacks=(callback,), n_turns=n_turns_to_simulate
         )
 
-    @pytest.mark.backend_mutation
     @pytest.mark.parametrize("n_sections", [1, 2, 4, 10])
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse(
         self, n_sections: int
     ):
-        backend.change_backend(Numpy64Bit)
         # >= 5 RF buckets per section, see cnst_cycle_reverse above (at
         # harmonic 20 the 10-section variant produced a single-centre
         # turn-0 segment, now rejected by RFCenterSegment).
@@ -1134,14 +1068,10 @@ class TestIQCavityFeedbackTimingClass:
                     atol=0,
                 )  # shifted by one, but otherwise equal
 
-    @pytest.mark.backend_mutation
     @pytest.mark.parametrize("n_sections", [1, 2, 4, 10, 20])
     def test_get_slice_of_elements_this_section_accelerating_cycle_cycle_reverse_rf_centers(
         self, n_sections: int
     ):
-        backend.set_specials("cpp")
-        backend.change_backend(Numpy64Bit)
-        backend.set_specials("cpp")
         # >= 5 RF buckets per section, see cnst_cycle_reverse above (at
         # harmonic 20 the 10- and 20-section variants produced the
         # now-rejected sub-2-centre turn-0 segments).
@@ -1408,9 +1338,6 @@ class TestIQCavityFeedbackTimingClass:
 
     @pytest.mark.parametrize("n_sections", [2, 4, 10])
     def test_rf_centers_full_counterrotation_equality(self, n_sections):
-        backend.set_specials("cpp")
-        backend.change_backend(Numpy64Bit)
-        backend.set_specials("cpp")
         # >= 5 RF buckets per section, see cnst_cycle_reverse above (at
         # harmonic 20 the 10-section variant produced the now-rejected
         # sub-2-centre segments).

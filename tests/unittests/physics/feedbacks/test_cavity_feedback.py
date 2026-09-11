@@ -346,7 +346,6 @@ def _run_simulation_turns(rf_station, n_turns: int) -> Beam:
     beam
         The tracked beam, after ``n_turns``.
     """
-    backend.change_backend(Numpy64Bit)
     ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
     ring.add_elements(
         [

@@ -1686,10 +1686,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         if start_index == 0:
             voltage_gen_init = complex(self._last_val_ant_voltage_gen)
             voltage_beam_init = complex(self._last_val_ant_voltage_beam)
-            # The carried demodulation-frame sum; only the beam-kick guard
-            # reads it, and only on a segment that does NOT start at the
-            # carried cell (skip_first) -- kept for the guard's signature.
-            voltage_init = complex(self._last_val_ant_voltage)
             generator_current_init = complex(self._last_val_generator_current)
         else:
             voltage_gen_init = self.antenna_voltage_gen_coarse_grid[
@@ -1698,7 +1694,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             voltage_beam_init = self.antenna_voltage_beam_coarse_grid[
                 start_index - 1
             ]
-            voltage_init = self.antenna_voltage_coarse_grid[start_index - 1]
             generator_current_init = self.generator_current_coarse_grid[
                 start_index - 1
             ]
@@ -1777,15 +1772,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         if controller_active:
             self._controller.absorb_envelope_scan_state(
                 (delay_buffer, delay_head, integral)
-            )
-
-        if not no_beam:
-            self._check_beam_kicks(
-                beam_current,
-                omega_times_dt,
-                voltage_init,
-                voltage_out,
-                skip_first=(start_index == 0),
             )
 
     def _coarse_step_sizes(
@@ -3341,6 +3327,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # coarse cell (see circuit_track), so that cell must stay
             # charge-free or its beam kick would be double-counted.
             forbid_charge_in_first_coarse_cell=True,
+            # The last cell's beam current is carried into the first coarse
+            # step of a later passage and counted twice there (see the carry
+            # above), so charge reaching it must be reported.
+            warn_charge_in_last_coarse_cell=True,
         )
 
         # Convert RF beam currents to be in units of Amperes

@@ -147,6 +147,7 @@ def rf_beam_current(
     dT: float = 0.0,
     carrier_phase_offset: float = 0.0,
     forbid_charge_in_first_coarse_cell: bool = False,
+    warn_charge_in_last_coarse_cell: bool = False,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Turn the beam profile into the complex IQ beam-current envelope.
@@ -231,6 +232,14 @@ def rf_beam_current(
         fine-grid initial antenna voltage from that cell (e.g.
         ``IQCavityFeedbackTimingClass``) must keep it charge-free, since
         a populated first cell would double-count its kick.
+    warn_charge_in_last_coarse_cell : bool
+        If True, warn when the downsampling assigns beam charge to the
+        last coarse-grid cell. ``IQCavityFeedbackTimingClass`` carries
+        that cell's beam current into the first coarse step of a later
+        passage, although it already drove the last step of the passage
+        that demodulated it, so a populated last cell is counted twice.
+        Uses the same relative threshold as
+        ``forbid_charge_in_first_coarse_cell``.
 
     Returns
     -------
@@ -253,6 +262,12 @@ def rf_beam_current(
         downsampled onto, or maps past the last coarse cell, or carries
         charge before the start of it; or if the profile binning
         (``hist_step``) is coarser than ``sampling_time``.
+
+    Warns
+    -----
+    UserWarning
+        If ``warn_charge_in_last_coarse_cell`` is True and the
+        downsampling assigns beam charge to the last coarse-grid cell.
     """
     # The cavity-feedback signal processing runs on the host (the cavity
     # response solvers downstream use scipy, which is host-only). Bring the
@@ -442,6 +457,25 @@ def rf_beam_current(
                 "double-counted by the fine grid. Shift the profile "
                 "window (cut_left) or the bunch so that no charge lies "
                 "in the first coarse cell."
+            )
+
+    if warn_charge_in_last_coarse_cell:
+        # IQCavityFeedbackTimingClass carries the last cell's beam current
+        # into the first coarse step of a later passage, although it
+        # already drove the last step of the passage that demodulated it,
+        # so any charge here is counted twice. Same relative threshold as
+        # the first-cell guard; a constant message, so the default warning
+        # filter reports it once per call site instead of every passage.
+        total_charge = np.sum(np.abs(charges_fine))
+        if np.abs(charges_coarse[-1]) > 1e-9 * total_charge:
+            warnings.warn(
+                "Beam charge was downsampled into the last coarse-grid "
+                "cell. The cavity feedback carries this cell's beam "
+                "current into the first coarse step of a later passage, "
+                "so that charge is counted twice. Keep the profile "
+                "window, including the bunch tails, clear of the end of "
+                "the forward coarse segment.",
+                stacklevel=2,
             )
 
     return charges_fine, charges_coarse
