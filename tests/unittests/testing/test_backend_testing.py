@@ -145,12 +145,19 @@ class TestBackendTesting(unittest.TestCase):
         used_backends = []
         bend_test.FORCE_ALL_BACKENDS = True
 
-        @bend_test.multi_backend_testcase
-        def a_test(self):
-            used_backends.append(backend.backend.__class__.__name__)
+        class DummyCase(unittest.TestCase):
+            @bend_test.multi_backend_testcase
+            def test_method(self):
+                used_backends.append(backend.backend.__class__.__name__)
 
-        with self.assertRaises(InvalidBackendTestError):
-            a_test(self)
+        result = unittest.TestResult()
+        DummyCase("test_method").run(result)
+
+        self.assertFalse(result.wasSuccessful())
+        self.assertEqual(result.failures, [])
+        self.assertEqual(len(result.errors), 1)
+        failing_subtest, _ = result.errors[0]
+        self.assertEqual(failing_subtest.params["backend"], "InvalidBackend")
 
         self.assertListEqual(
             used_backends, list(backend.AVAILABLE_BACKENDS.keys())
@@ -166,12 +173,45 @@ class TestBackendTesting(unittest.TestCase):
 
         test_init_backend = backend.backend.__class__
 
-        @bend_test.multi_backend_testcase
-        def a_test(self):
-            raise RuntimeError
+        # Each test spawns a subtest for each backend, testing requires
+        # a new TestCase and TestResult to handle the behaviour.
+        class ErrorCase(unittest.TestCase):
+            @bend_test.multi_backend_testcase
+            def test_method(self):
+                raise RuntimeError
 
-        with self.assertRaises(RuntimeError):
-            a_test(self)
+        class FailureCase(unittest.TestCase):
+            @bend_test.multi_backend_testcase
+            def test_method(self):
+                self.fail("deliberate assertion failure")
+
+        error_result = unittest.TestResult()
+        ErrorCase("test_method").run(error_result)
+
+        failure_result = unittest.TestResult()
+        FailureCase("test_method").run(failure_result)
+
+        self.assertFalse(error_result.wasSuccessful())
+        self.assertFalse(failure_result.wasSuccessful())
+
+        # Assertion errors route through TestResult.failure, other
+        # exceptions route through TestResult.errors
+        self.assertEqual(error_result.failures, [])
+        self.assertEqual(
+            len(error_result.errors), len(backend.AVAILABLE_BACKENDS)
+        )
+        self.assertEqual(failure_result.errors, [])
+        self.assertEqual(
+            len(failure_result.failures), len(backend.AVAILABLE_BACKENDS)
+        )
+
+        for result_list in (error_result.errors, failure_result.failures):
+            tested_backends = [
+                test.params["backend"] for test, _ in result_list
+            ]
+            self.assertListEqual(
+                tested_backends, list(backend.AVAILABLE_BACKENDS.keys())
+            )
 
         self.assertTrue(backend.backend.__class__ is test_init_backend)
 

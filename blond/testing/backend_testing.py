@@ -142,9 +142,12 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
     with all available backends.  If called with a list of str, only
     the corresponding backends will be run.
 
-    The test case function will be called multiple times from within
-    a for loop with the backend changed before each call of the
-    function.  At the end, the backend will be changed to its initial
+    Each backend is run as its own `TestCase.subTest`, labelled with
+    the backend's class name: a failure under one backend is recorded
+    against that subtest (keeping its original exception) and does not
+    stop the remaining backends from being tried. The overall test is
+    reported as failed if any backend failed, with every failure shown
+    separately. At the end, the backend is changed back to its initial
     value.
 
     `setUp` and `tearDown` will be called before and after each run
@@ -183,25 +186,19 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
 
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
-        def multi_test(self):
-            init_backend = backend.backend.__class__.__name__
-            for t in tested_backends:
-                backend.backend.change_backend(t)
-                self.setUp()
-                try:
-                    fn(self)
-                except Exception as exc:
-                    failed_on = backend.backend.__class__.__name__
-                    # If a function call fails, force return to the
-                    # initial condition, then re-raise the exception.
-                    backend.backend.change_backend(
-                        backend.ALL_BACKENDS[init_backend]
-                    )
-                    raise RuntimeError(
-                        f"Failed with backend {failed_on}"
-                    ) from exc
-                self.tearDown()
-            backend.backend.change_backend(backend.ALL_BACKENDS[init_backend])
+        def multi_test(self: unittest.TestCase):
+            init_backend = backend.backend.__class__
+            try:
+                for t in tested_backends:
+                    with self.subTest(backend=t.__name__):
+                        backend.backend.change_backend(t)
+                        self.setUp()
+                        try:
+                            fn(self)
+                        finally:
+                            self.tearDown()
+            finally:
+                backend.backend.change_backend(init_backend)
 
         return multi_test
 
@@ -313,9 +310,11 @@ class BLonDTestCase(unittest.TestCase):
 
     Notes
     -----
-    Tests run through `multi_backend_testcase` bypass this, since that
-    decorator drives `setUp` and the test body directly rather than
-    through `TestCase.run`; it already reports the backend itself.
+    Tests decorated with `multi_backend_testcase` are not annotated:
+    that decorator runs each backend inside a `TestCase.subTest`, which
+    records the exception itself instead of letting it reach the
+    annotating hook here.  Nothing is lost, since each subtest is
+    already labelled with the backend it ran under.
     """
 
     def run(
