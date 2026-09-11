@@ -18,6 +18,7 @@ Simon Albright
 from __future__ import annotations
 
 import os
+import unittest
 import warnings
 from functools import partial, wraps
 from typing import TYPE_CHECKING
@@ -288,3 +289,72 @@ class ArrayLikeScan:
             value = no_cupy.copy_to_cpu(value)
 
         return type_(value)
+
+
+def _backend_state() -> tuple[str, str]:
+    # e.g. "Numpy64Bit, cpp" or "Cupy64Bit, cuda"
+    return backend.backend.__class__.__name__, backend.backend.specials_mode
+
+
+class BLonDTestCase(unittest.TestCase):
+    """
+    `TestCase` base class that reports the active backend on failure.
+
+    Records the backend class and specials mode active at the start of
+    each test and, if the test raises, the ones active at the point of
+    failure, then appends both to the failure/error message. Passing
+    tests are unaffected.
+
+    This exists because `backend_mutation` tests change the global
+    backend as a side effect; if one leaves it changed, the next test
+    can fail under an unexpected backend. Comparing the start/failure
+    states reported here distinguishes that from a genuine per-backend
+    bug.
+
+    Notes
+    -----
+    Tests run through `multi_backend_testcase` bypass this, since that
+    decorator drives `setUp` and the test body directly rather than
+    through `TestCase.run`; it already reports the backend itself.
+    """
+
+    def run(
+        self, result: unittest.TestResult | None = None
+    ) -> unittest.TestResult | None:
+        """
+        Run the test, recording the backend state active at the start.
+
+        Parameters
+        ----------
+        result
+            The result object the test outcome is recorded on. If None,
+            a default result is created, matching `TestCase.run`.
+
+        Returns
+        -------
+        unittest.TestResult or None
+            The `result` passed in, or the default created in its
+            place.
+        """
+        self._backend_at_start, self._specials_at_start = _backend_state()
+        return super().run(result)
+
+    def _callTestMethod(self, method: Callable) -> None:
+        try:
+            super()._callTestMethod(method)
+        except unittest.SkipTest:
+            raise
+        except Exception as exc:
+            bend_state = _backend_state()
+            note = (
+                f"\n[backend at start: {self._backend_at_start}, "
+                f"at failure: {bend_state[0]}]"
+                f"\n[specials at start: {self._specials_at_start}, "
+                f"at failure: {bend_state[1]}]"
+
+            )
+            if exc.args:
+                exc.args = (f"{exc.args[0]} {note}", *exc.args[1:])
+            else:
+                exc.args = (note,)
+            raise
