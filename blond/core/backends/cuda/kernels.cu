@@ -12,10 +12,13 @@
     typedef double real_t;
 #endif
 
-// Integer type of macro-particle counts, particle loop counters and the
-// shared-memory histogram counters.
+// Integer type of macro-particle counts and particle loop counters.
 // Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
 typedef long long index_t;
+
+// Shared-memory histogram counters: as wide as `index_t`, but unsigned,
+// because `atomicAdd` has no signed `long long` overload.
+typedef unsigned long long hist_count_t;
 
 extern "C"
 __global__ void drift_simple(
@@ -184,7 +187,7 @@ __global__ void hybrid_histogram(
                                  const int capacity
                                  )
 {
-    extern __shared__ index_t block_hist[];
+    extern __shared__ hist_count_t block_hist[];
     //reset shared memory
     for (int i = threadIdx.x; i < capacity; i += blockDim.x)
         block_hist[i] = 0;
@@ -201,7 +204,7 @@ __global__ void hybrid_histogram(
         if (input[i] == cut_right){
             target_bin = n_slices - 1;
             if (target_bin >= low_tbin && target_bin < high_tbin)
-                atomicAdd(&(block_hist[target_bin - low_tbin]), (index_t)1);
+                atomicAdd(&(block_hist[target_bin - low_tbin]), (hist_count_t)1);
             else
                 atomicAdd(&(output[target_bin]), 1);
             continue;
@@ -210,7 +213,7 @@ __global__ void hybrid_histogram(
         if (target_bin < 0 || target_bin >= n_slices)
             continue;
         if (target_bin >= low_tbin && target_bin < high_tbin)
-            atomicAdd(&(block_hist[target_bin - low_tbin]), (index_t)1);
+            atomicAdd(&(block_hist[target_bin - low_tbin]), (hist_count_t)1);
         else
             atomicAdd(&(output[target_bin]), 1);
 
@@ -229,7 +232,7 @@ __global__ void sm_histogram(const real_t * __restrict__  input,
                              const unsigned int n_slices,
                              const index_t n_macroparticles)
 {
-    extern __shared__ index_t block_hist[];
+    extern __shared__ hist_count_t block_hist[];
     for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
         block_hist[i] = 0;
     __syncthreads();
@@ -241,14 +244,14 @@ __global__ void sm_histogram(const real_t * __restrict__  input,
 
         if (input[i] == cut_right){
             target_bin = n_slices - 1;
-            atomicAdd(&(block_hist[target_bin]), (index_t)1);
+            atomicAdd(&(block_hist[target_bin]), (hist_count_t)1);
             continue;
         }
 
         if (target_bin < 0 || target_bin >= n_slices)
             continue;
 
-        atomicAdd(&(block_hist[target_bin]), (index_t)1);
+        atomicAdd(&(block_hist[target_bin]), (hist_count_t)1);
     }
     __syncthreads();
     for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
