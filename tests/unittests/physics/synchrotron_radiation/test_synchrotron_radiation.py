@@ -26,6 +26,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from tests.unittests.core.beam.test_base import BeamBaseClassTester
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -33,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-class TestSynchrotronRadiationMaster(unittest.TestCase):
+class TestSynchrotronRadiationMaster(BLonDTestCase):
     def setUp(self):
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")

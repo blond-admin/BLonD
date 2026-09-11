@@ -34,6 +34,7 @@ from blond.physics.impedances.solvers import (
     MultiPoleSparseSolve,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 
 def gauss(x, width, center):
@@ -66,7 +67,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
 DEBUG_PLOTTING = False
 
 
-class TestInducedVoltageResonatorPhysics(unittest.TestCase):
+class TestInducedVoltageResonatorPhysics(BLonDTestCase):
     def setUp(self):
         self.n_slices = 2**12
         self.cut_left = 0

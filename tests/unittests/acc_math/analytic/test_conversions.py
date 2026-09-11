@@ -9,13 +9,13 @@ import scipy.constants as cont
 
 from blond.acc_math.analytic import conversions as conv
 from blond.core.backends import backend
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 
 if TYPE_CHECKING:
     ...
 
 
-class TestConversionFunctions(unittest.TestCase):
+class TestConversionFunctions(BLonDTestCase):
     @multi_backend_testcase
     @pytest.mark.backend_mutation
     def test_magnetic_rigidity_to_momentum(self):

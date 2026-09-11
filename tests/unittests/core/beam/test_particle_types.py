@@ -15,9 +15,10 @@ from scipy.constants import (
 from blond import proton
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.particle_types import ParticleType, electron, mu_plus
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestParticleType(unittest.TestCase):
+class TestParticleType(BLonDTestCase):
     def setUp(self):
         self.mass = 1e-10
         self.user_decay_rate = 1e-5

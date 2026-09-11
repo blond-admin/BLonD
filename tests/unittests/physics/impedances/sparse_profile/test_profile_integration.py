@@ -25,6 +25,7 @@ from blond import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.testing.backend_testing import BLonDTestCase
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -40,7 +41,7 @@ f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
 
-class TestSparseProfileIntegration(unittest.TestCase):
+class TestSparseProfileIntegration(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_compare_both_profiles(self):
         backend.change_backend(Numpy64Bit)

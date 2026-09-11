@@ -12,9 +12,10 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestGPUDev(unittest.TestCase):
+class TestGPUDev(BLonDTestCase):
     """
     Test to verify the functionality of the fix/bug, originating from scipy
     deepcopy errors in new scipy version.

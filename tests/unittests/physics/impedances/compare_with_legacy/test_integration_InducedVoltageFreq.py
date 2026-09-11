@@ -19,6 +19,7 @@ from blond import (
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 R_shunt = np.array(
     [
@@ -323,7 +324,7 @@ class Blond3:
         self.induced_voltage = induced_voltage
 
 
-class TestBothBlonds(unittest.TestCase):
+class TestBothBlonds(BLonDTestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()

@@ -5,9 +5,10 @@ import numpy as np
 from blond import Resonators, TimeDomainFftSolver, proton
 from blond.convenience.single_section_setup import single_section_simulation
 from blond.core.base import ScheduledArray
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_executes(self):
         for cycle in (1e12, 1e12 * np.ones(10)):
             single_section_simulation(

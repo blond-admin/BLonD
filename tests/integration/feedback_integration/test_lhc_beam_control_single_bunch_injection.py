@@ -2,6 +2,8 @@ import unittest
 
 import numpy as np
 
+from blond.testing.backend_testing import BLonDTestCase
+
 DEBUG_PLOTTING = False
 
 circumference = 26658.8832  # [m]
@@ -20,7 +22,7 @@ number_of_bunches = 1  # Length of the batch [number of bunches]
 bunch_spacing = 10  # Bunch spacing [number of rf buckets]
 
 
-class TestSingleBunchInjectionWithPhaseLoop(unittest.TestCase):
+class TestSingleBunchInjectionWithPhaseLoop(BLonDTestCase):
     @classmethod
     def setUpClass(cls):
         """

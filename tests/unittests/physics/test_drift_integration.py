@@ -24,10 +24,11 @@ from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
     MagneticCyclePerTurn,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import simulation_mock
 
 
-class TestDriftIntegration(unittest.TestCase):
+class TestDriftIntegration(BLonDTestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")

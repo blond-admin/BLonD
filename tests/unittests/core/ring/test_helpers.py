@@ -8,6 +8,7 @@ from blond.core.ring.helpers import (
     get_required_order,
     requires,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class A:
@@ -50,7 +51,7 @@ class AD(A, D):
         super().__init__()
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_requires_raises(self):
         with self.assertRaisesRegex(
             TypeError, "All dependencies must be strings."

@@ -20,6 +20,7 @@ from blond import (
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import InductiveImpedance
+from blond.testing.backend_testing import BLonDTestCase
 
 DEV_PLOT = False
 
@@ -143,7 +144,7 @@ class Blond3:
             plt.legend()
 
 
-class TestBothBlonds(unittest.TestCase):
+class TestBothBlonds(BLonDTestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()

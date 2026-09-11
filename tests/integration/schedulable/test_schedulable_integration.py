@@ -53,6 +53,7 @@ from blond.physics.feedbacks.accelerators.sps import SPSBeamControl
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 CIRCUMFERENCE = 26658.883
 N_TURNS = 5
@@ -101,7 +102,7 @@ def _assert_all_changed_as_scheduled(recorded, schedules):
         ), f"attribute {attribute!r} never changed across turns"
 
 
-class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
+class TestSingleHarmonicRFStationScheduling(BLonDTestCase):
     """`RFManipulationBaseClass` schedulable path, via `SingleHarmonicRFStation`."""
 
     def setUp(self):
@@ -153,7 +154,7 @@ class TestSingleHarmonicRFStationScheduling(unittest.TestCase):
         _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
-class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
+class TestMultiHarmonicRFStationScheduling(BLonDTestCase):
     """`RFManipulationBaseClass` schedulable path, via `MultiHarmonicRFStation`."""
 
     def setUp(self):
@@ -212,7 +213,7 @@ class TestMultiHarmonicRFStationScheduling(unittest.TestCase):
         _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
-class TestBarrierRFScheduling(unittest.TestCase):
+class TestBarrierRFScheduling(BLonDTestCase):
     """`RFManipulationBaseClass` schedulable path, via `BarrierRF`."""
 
     def setUp(self):
@@ -276,7 +277,7 @@ class TestBarrierRFScheduling(unittest.TestCase):
         _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
-class TestDriftSimpleScheduling(unittest.TestCase):
+class TestDriftSimpleScheduling(BLonDTestCase):
     """`DriftSimple.momentum_compaction_factor` scheduling."""
 
     def setUp(self):
@@ -325,7 +326,7 @@ class TestDriftSimpleScheduling(unittest.TestCase):
         _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
-class TestDriftExactScheduling(unittest.TestCase):
+class TestDriftExactScheduling(BLonDTestCase):
     """`DriftExact` schedulable path: `momentum_compaction_factor`
     (inherited from `DriftSimple`) and `higher_order_alpha`."""
 
@@ -377,7 +378,7 @@ class TestDriftExactScheduling(unittest.TestCase):
         _assert_all_changed_as_scheduled(callback.recorded, schedules)
 
 
-class TestSynchrotronRadiationMasterScheduling(unittest.TestCase):
+class TestSynchrotronRadiationMasterScheduling(BLonDTestCase):
     """`SynchrotronRadiationMaster.radiation_integrals` scheduling.
 
     Note
@@ -547,7 +548,7 @@ def _build_beam_feedback_scenario(beam_control_cls, beam_control_kwargs):
     return sim, beam, cavity, beam_control
 
 
-class TestBeamFeedbackScheduling(unittest.TestCase):
+class TestBeamFeedbackScheduling(BLonDTestCase):
     """`BeamFeedbackBase` schedulable path, for every accelerator flavour."""
 
     def setUp(self):

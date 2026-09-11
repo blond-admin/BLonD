@@ -17,6 +17,7 @@ from blond.core.beam.particle_types import lead_82
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import simulation_mock
 
 
@@ -41,7 +42,7 @@ class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
         pass
 
 
-class TestRing(unittest.TestCase):
+class TestRing(BLonDTestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
         self.ring = Ring(10.0)

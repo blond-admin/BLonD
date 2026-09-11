@@ -13,9 +13,10 @@ from blond.acc_math.analytic.longitudinal_beam_dynamics import (
     get_small_amplitude_angular_synchrotron_tune,
 )
 from blond.generals.exceptions_ import UnevenArraySizes
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
+class TestLongitudinalBeamDynamics_float_inputs(BLonDTestCase):
     def setUp(self):
         # FCC-ee high-energy booster at injection energy
         self.particle_type = electron
@@ -128,7 +129,7 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
         )
 
 
-class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
+class TestLongitudinalBeamDynamics_array_inputs(BLonDTestCase):
     def setUp(self):
         # Physically consistent electron beam (total energy > rest mass) so
         # that the reference beta can be derived from the energy.

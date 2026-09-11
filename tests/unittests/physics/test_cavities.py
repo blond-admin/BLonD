@@ -53,7 +53,7 @@ from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 
 
@@ -69,7 +69,7 @@ def _fixed_total_energy_cycle(total_energy: float):
     return SimpleNamespace(get_target_total_energy=lambda **_: total_energy)
 
 
-class TestRFStationBaseClass(unittest.TestCase):
+class TestRFStationBaseClass(BLonDTestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
         self.beam.reference = Mock(ReferenceCoordinates)
@@ -643,7 +643,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_valid_purely_real_or_imaginary(self):
         """Test that purely real, purely imaginary, and zero pass."""
         for val in [5 + 0j, 0 + 3j, 0j]:
@@ -678,7 +678,7 @@ class TestCallables(unittest.TestCase):
             )  # Should  raise
 
 
-class TestMultiHarmonicCavity(unittest.TestCase):
+class TestMultiHarmonicCavity(BLonDTestCase):
     def setUp(self) -> None:
         from blond.core.beam.base import BeamBaseClass
 
@@ -1189,7 +1189,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
 
-class TestSingleHarmonicRFStation(unittest.TestCase):
+class TestSingleHarmonicRFStation(BLonDTestCase):
     def setUp(self) -> None:
         from blond.core.beam.base import BeamBaseClass
 
@@ -1555,7 +1555,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
-class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
+class TestCavityFeedbackSparseProfileIntegration(BLonDTestCase):
     @pytest.mark.backend_mutation
     @multi_backend_testcase("Numpy64Bit")
     def test_cavity_feedback_kick_with_gapped_filling_pattern_does_not_raise(

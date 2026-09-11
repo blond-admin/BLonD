@@ -9,9 +9,10 @@ from blond.core.reference_clock.reference_clock_numba import (
     gamma,
     velocity,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def setUp(self):
         mass = uranium_29.mass  # in eV
         # https://fr.wikipedia.org/wiki/Facteur_de_Lorentz

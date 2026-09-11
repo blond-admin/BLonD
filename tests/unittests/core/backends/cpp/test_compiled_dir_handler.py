@@ -18,6 +18,7 @@ import unittest
 from unittest import mock
 
 from blond.core.backends.cpp import compiled_dir_handler as lc
+from blond.testing.backend_testing import BLonDTestCase
 
 EXPECTED_KEYS = sorted(
     set(inspect.signature(lc.cpp_compiled_dir).parameters) - {"folder"}
@@ -43,7 +44,7 @@ def _default_options(**overrides):
     return options
 
 
-class TestSaveAndLoadBuildOptions(unittest.TestCase):
+class TestSaveAndLoadBuildOptions(BLonDTestCase):
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.folder = self.tmp_dir.name
@@ -99,7 +100,7 @@ class TestSaveAndLoadBuildOptions(unittest.TestCase):
         self.assertIsNone(lc.load_build_options(self.folder))
 
 
-class TestCheckHelpers(unittest.TestCase):
+class TestCheckHelpers(BLonDTestCase):
     def test_check_build_keys(self):
         self.assertTrue(lc._check_build_keys({"a": 1, "b": 2}, ["a", "b"]))
         self.assertFalse(lc._check_build_keys({"a": 1}, ["a", "b"]))
@@ -153,7 +154,7 @@ class TestCheckHelpers(unittest.TestCase):
             self.skipTest("needs g++")
 
 
-class TestBuildOptionsValid(unittest.TestCase):
+class TestBuildOptionsValid(BLonDTestCase):
     def test_default_options(self):
         if not _HAS_GPP:
             self.skipTest("needs g++")

@@ -26,6 +26,7 @@ from blond.handle_results.observables_as_elements import (
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 simulation = Mock(Simulation)
 simulation.ring = Mock(Ring)
@@ -47,7 +48,7 @@ beam.read_partial_flags.return_value = np.ones(4, dtype=int)
 beam._is_counter_rotating = True
 
 
-class TestBeamObservationInRingElement(unittest.TestCase):
+class TestBeamObservationInRingElement(BLonDTestCase):
     def setUp(self) -> None:
         self.observation = BeamObservationInRingElement(
             each_turn_i=1,
@@ -157,7 +158,7 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         self.assertEqual(len(observation._flags.get_valid_entries()), 0)
 
 
-class TestBunchObservationMetaParams(unittest.TestCase):
+class TestBunchObservationMetaParams(BLonDTestCase):
     def test_ignores_probe_beam(self):
         observation = BunchObservationMetaParams(
             each_turn_i=1,
@@ -195,7 +196,7 @@ class TestBunchObservationMetaParams(unittest.TestCase):
         self.assertEqual(len(observation.rms_emittance), 0)
 
 
-class TestInducedVoltageObservationCR(unittest.TestCase):
+class TestInducedVoltageObservationCR(BLonDTestCase):
     def test_no_induced_voltage(self):
         wakefield = WakeField(
             solver=SingleTurnResonatorConvolutionSolver(),

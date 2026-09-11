@@ -12,14 +12,15 @@ from blond.core.ring.beam_physics_relevant_elements import (
 )
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_pprint_executes(self):
         pretty_string(v=np.array(10))
 
 
-class TestBeamPhysicsRelevantElements(unittest.TestCase):
+class TestBeamPhysicsRelevantElements(BLonDTestCase):
     def setUp(self):
         self.beam_physics_relevant_elements = BeamPhysicsRelevantElements()
         element1 = Mock(spec=DriftBaseClass)

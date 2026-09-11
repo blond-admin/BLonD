@@ -20,6 +20,7 @@ import numpy as np
 
 from blond.core.backends.cpp import callables
 from blond.core.backends.cpp import compiled_dir_handler as lc
+from blond.testing.backend_testing import BLonDTestCase
 
 _HAS_GPP = shutil.which("g++") is not None
 
@@ -41,7 +42,7 @@ def _default_options(**overrides):
     return options
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.folder = self.tmp_dir.name

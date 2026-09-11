@@ -17,6 +17,7 @@ from blond.core.backends.backend import Numpy64Bit
 from blond.physics.feedbacks.accelerators.psb import (
     PSBBeamControl,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 circumference = 2 * np.pi * 25  # [m]
 momentum = 310891054.809
@@ -34,7 +35,7 @@ reference = -20
 voltage = 8e3
 
 
-class TestPSBBeamFeedback(unittest.TestCase):
+class TestPSBBeamFeedback(BLonDTestCase):
     def create_scenario(
         self,
         pl_gain=0.0,

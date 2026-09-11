@@ -8,6 +8,7 @@ from scipy.signal import fftconvolve
 from blond import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
 def get_poles(
@@ -75,7 +76,7 @@ def get_test_data():
     return centers_extended, hist_y_extended
 
 
-class TestPole(unittest.TestCase):
+class TestPole(BLonDTestCase):
     def test_pole(self):
         from blond.legacy.blond2.impedances.impedance_sources import Resonators
 
@@ -292,7 +293,7 @@ class TestPole(unittest.TestCase):
         )
 
 
-class TestRealPoleConvention(unittest.TestCase):
+class TestRealPoleConvention(BLonDTestCase):
     """A real pole has no implicit complex conjugate (vector-fitting
     convention): its contribution must be ``Re[residue * state]``, not
     ``2 * Re[residue * state]`` (the latter is only correct for one pole
@@ -410,7 +411,7 @@ class TestRealPoleConvention(unittest.TestCase):
         )
 
 
-class TestWakeFromPoleResidueBranches(unittest.TestCase):
+class TestWakeFromPoleResidueBranches(BLonDTestCase):
     """Targeted tests for branch coverage inside `wake_from_pole_residue`."""
 
     def test_bin_i_zero_uses_t_start(self):

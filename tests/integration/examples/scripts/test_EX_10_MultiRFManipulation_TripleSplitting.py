@@ -7,9 +7,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_10_MultiRFManipulation_TripleSplitting(unittest.TestCase):
+class TestEX_10_MultiRFManipulation_TripleSplitting(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)

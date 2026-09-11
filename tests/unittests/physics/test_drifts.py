@@ -17,7 +17,7 @@ from blond.core.beam.particle_types import lead_82
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftBaseClass, DriftExact, DriftSimple
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 
 
 class DriftBaseClassHelper(DriftBaseClass):
@@ -31,7 +31,7 @@ class DriftBaseClassHelper(DriftBaseClass):
         pass
 
 
-class TestDriftBaseClass(unittest.TestCase):
+class TestDriftBaseClass(BLonDTestCase):
     def setUp(self):
         self.drift_base_class = DriftBaseClassHelper(
             orbit_length=123, section_index=0
@@ -79,7 +79,7 @@ class TestDriftBaseClass(unittest.TestCase):
         )
 
 
-class TestDriftSimple(unittest.TestCase):
+class TestDriftSimple(BLonDTestCase):
     def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
@@ -290,7 +290,7 @@ class TestDriftSimple(unittest.TestCase):
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
-class TestDriftExact(unittest.TestCase):
+class TestDriftExact(BLonDTestCase):
     def setUp(self):
         self.gamma = 2.5
         # params from
@@ -521,7 +521,7 @@ class TestDriftExact(unittest.TestCase):
                     self.assertIn(f"alpha_{k}", free_names)
 
 
-class TestDriftSpecial(unittest.TestCase):
+class TestDriftSpecial(BLonDTestCase):
     @unittest.skip
     def test_on_init_simulation(self):
         # TODO: implement test for `on_init_simulation`
@@ -533,7 +533,7 @@ class TestDriftSpecial(unittest.TestCase):
         self.drift_special.track(beam=None)
 
 
-class TestDriftXSuite(unittest.TestCase):
+class TestDriftXSuite(BLonDTestCase):
     @unittest.skip
     def test_on_init_simulation(self):
         # TODO: implement test for `on_init_simulation`

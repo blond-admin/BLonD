@@ -11,9 +11,10 @@ from blond.experimental.beam_preparation.density_functions import (
 from blond.experimental.beam_preparation.metric_functions import (
     rms_emittance,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestMultibunchMatchMetricToHamilton(unittest.TestCase):
+class TestMultibunchMatchMetricToHamilton(BLonDTestCase):
     def setUp(self):
         grid_size = 100
         self.time_grid, self.deltaE_grid = np.meshgrid(

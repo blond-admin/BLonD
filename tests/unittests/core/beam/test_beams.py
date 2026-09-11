@@ -17,9 +17,10 @@ from blond.generals.distributed.helpers import (
     MPI_SIZE,
     mpi_is_distributed,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestBeam(unittest.TestCase):
+class TestBeam(BLonDTestCase):
     def setUp(self) -> None:
         self.beam = Beam(
             intensity=1e12, particle_type=proton, is_counter_rotating=False
@@ -358,7 +359,7 @@ class TestBeam(unittest.TestCase):
             beam.plot_scatter()
 
 
-class TestProbeBunch(unittest.TestCase):
+class TestProbeBunch(BLonDTestCase):
     def setUp(self) -> None:
         self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))
 
@@ -393,7 +394,7 @@ class TestProbeBunch(unittest.TestCase):
             self.probe_bunch = ProbeBeam(particle_type=proton)
 
 
-class TestWeightenedBeam(unittest.TestCase):
+class TestWeightenedBeam(BLonDTestCase):
     @unittest.skip
     def setUp(self) -> None:
         # TODO: implement test for `__init__`

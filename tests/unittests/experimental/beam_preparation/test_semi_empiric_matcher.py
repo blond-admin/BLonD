@@ -15,9 +15,10 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     get_hamilton_semi_analytic,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestSemiEmpiricMatcher(unittest.TestCase):
+class TestSemiEmpiricMatcher(BLonDTestCase):
     def test_roughly_correct_no_intensity_above_transition(self):
         # check if the mean and the 10% and 90% percentiles are correct
         from blond.testing.simulation import SimulationTwoRFStations
@@ -343,7 +344,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         return matcher
 
 
-class TestSemiEmpiricMatcherWarmup(unittest.TestCase):
+class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
     """Wiring of the frozen-beam ``warmup`` into the matcher iteration."""
 
     def _run_matching(self, **matcher_kwargs):

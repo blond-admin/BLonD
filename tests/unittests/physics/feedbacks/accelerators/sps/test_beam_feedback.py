@@ -22,6 +22,7 @@ from blond.experimental.physics.feedbacks.base import (
 from blond.physics.feedbacks.accelerators.sps import (
     SPSBeamControl,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 circumference = 2 * np.pi * 1100.009  # [m]
 momentum = 25.92e9
@@ -50,7 +51,7 @@ k_b_n = 0.0
 action_delay = 0
 
 
-class TestSPSBeamFeedback(unittest.TestCase):
+class TestSPSBeamFeedback(BLonDTestCase):
     def create_scenario(
         self,
         k_phi_n,

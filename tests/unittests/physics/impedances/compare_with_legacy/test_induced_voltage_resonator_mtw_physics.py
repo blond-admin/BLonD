@@ -39,6 +39,7 @@ from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
 from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators as res_b3
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.helpers import enforce_64_bit_backend
 
 
@@ -71,7 +72,7 @@ plt.rcParams["font.size"] = 12
 plt.rcParams["lines.linewidth"] = 2.0
 
 
-class TestInducedVoltageResonatorComparison(unittest.TestCase):
+class TestInducedVoltageResonatorComparison(BLonDTestCase):
     def setUp(self):
         self.n_slices = 2**10
         self.cut_left = 0

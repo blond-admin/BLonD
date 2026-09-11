@@ -19,6 +19,7 @@ from blond.generals.distributed.helpers import (
     mpi_barrier,
     mpi_is_distributed,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -110,7 +111,7 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
 
-class TestBeamBaseClass(unittest.TestCase):
+class TestBeamBaseClass(BLonDTestCase):
     def setUp(self):
         self.beam_base_class = BeamBaseClassTester(
             intensity=1e12,
@@ -598,7 +599,7 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
 
-class TestSortByDt(unittest.TestCase):
+class TestSortByDt(BLonDTestCase):
     def _beam(self, dt, dE, ids, flags, is_distributed=False):
         beam = BeamBaseClassTester(
             intensity=1e12,
