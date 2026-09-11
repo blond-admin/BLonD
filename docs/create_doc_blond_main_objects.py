@@ -63,6 +63,7 @@ ASSIGNED_CATEGORIES = {
     # Diagnostics
     "RFStationPhaseObservation": Categories.DIAGNOSTICS.value,
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,
+    "DynamicProfileConstNBinsObservation": Categories.DIAGNOSTICS.value,
     "BeamObservationInRingElement": Categories.DIAGNOSTICS.value,
     "BeamObservationOncePerTurn": Categories.DIAGNOSTICS.value,
     "DriftObservation": Categories.DIAGNOSTICS.value,
@@ -72,6 +73,8 @@ ASSIGNED_CATEGORIES = {
     "WakeFieldObservation": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
+    # Misc
+    "SymbolicSeparatrixHelper": Categories.MISC.value,
     # Backend / Precision
     "Cupy64Bit": Categories.BACKEND.value,
     "Numpy64Bit": Categories.BACKEND.value,
