@@ -676,10 +676,70 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Number of turns to simulate.
         **kwargs
             Simulation-extracted kwargs collected by the MRO chain.
+
+        Raises
+        ------
+        TypeError
+            If `beam` is a ``ProbeBeam`` and this station carries a cavity
+            feedback; see ``_refuse_probe_beam_through_cavity_feedback``.
         """
+        # First, so that a refused run leaves no run-start state behind.
+        self._refuse_probe_beam_through_cavity_feedback(beam=beam)
         super().on_run_simulation(simulation, beam, n_turns, **kwargs)
         self._update_n_rf_stations_in_ring(simulation)
         self._update_beam_feedback_presence(simulation)
+
+    def _refuse_probe_beam_through_cavity_feedback(
+        self, beam: BeamBaseClass
+    ) -> None:
+        """
+        Refuse a probe beam if this station carries a cavity feedback.
+
+        Parameters
+        ----------
+        beam
+            Beam about to be run or tracked through this station.
+
+        Raises
+        ------
+        TypeError
+            If `beam` is a ``ProbeBeam`` and any slot of
+            ``cavity_feedback_list`` holds a cavity feedback.
+
+        Notes
+        -----
+        A cavity feedback computes the gap voltage from the beam it tracks,
+        while a probe beam is a test particle set that loads nothing, so
+        there is no voltage the probe could meaningfully be kicked with.
+        Skipping the feedback for the probe is no way out: the kick would
+        still be built from the feedback's corrections, either left behind
+        by another beam's passage (silently wrong) or still ``None`` on a
+        first passage.
+
+        Checked in two places. At run start (``on_run_simulation``), so
+        that ``run_simulation`` fails before any element has tracked the
+        probe -- but that hook only sees the first beam of a run. And on
+        every passage (``_track``), which also covers the second beam of a
+        two-beam run, a direct ``track`` call and a ``mainloop`` driven
+        without ``finalize``. Each is one type check per station passage,
+        not per macroparticle.
+
+        A station without a cavity feedback accepts a probe beam unchanged.
+        A beam feedback (phase or radial loop) is not a cavity feedback and
+        does not trigger this refusal.
+        """
+        if isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
+            raise TypeError(
+                "A ProbeBeam cannot be tracked through a cavity feedback, "
+                f"but RF station '{self.name}' (section "
+                f"{self.section_index}) carries one. A cavity feedback "
+                "computes the gap voltage from the beam it tracks, and a "
+                "probe beam is a test particle set that loads nothing. "
+                "Track probe beams (as Simulation.get_potential_well_empiric, "
+                "Simulation.get_drift_term_empiric and SemiEmpiricMatcher do "
+                "internally) on a ring whose RF stations are built without a "
+                "cavity feedback, e.g. a feedback-free twin of the lattice."
+            )
 
     def _update_beam_feedback_presence(self, simulation: Simulation) -> None:
         """
@@ -1276,11 +1336,19 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         ----------
         beam
             Beam class to interact with this element.
+
+        Raises
+        ------
+        TypeError
+            If `beam` is a ``ProbeBeam`` and this station carries a cavity
+            feedback; see ``_refuse_probe_beam_through_cavity_feedback``.
         """
+        # Before the beam, the schedules or any feedback are touched.
+        self._refuse_probe_beam_through_cavity_feedback(beam=beam)
         super()._track(beam=beam)
 
         # Correction from cavity loop
-        if not isinstance(beam, ProbeBeam) and self.any_feedback_not_none:
+        if self.any_feedback_not_none:
             for feedback in self.cavity_feedback_list:
                 if feedback is not None:
                     feedback.track(beam=beam)

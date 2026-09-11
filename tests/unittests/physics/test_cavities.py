@@ -2277,5 +2277,257 @@ class TestCounterRotatingSynchronousPhase(unittest.TestCase):
         np.testing.assert_allclose(tune_cr, tune_co, rtol=1e-12, atol=0)
 
 
+class TestProbeBeamRefusedByCavityFeedback(unittest.TestCase):
+    """A probe beam must not be tracked through a cavity feedback.
+
+    A cavity feedback computes the gap voltage from the beam it tracks,
+    while a ``ProbeBeam`` is a test particle set that loads nothing. The
+    station used to skip ``feedback.track`` for a probe but still built
+    the kick from the feedback's corrections -- left over from another
+    beam's passage, or ``None`` on a first passage. The probe is now
+    refused; a station without a cavity feedback still accepts it, and a
+    real beam through a cavity feedback is tracked as before.
+    """
+
+    VOLTAGE = 1e6  # [V]
+    PHI_RF = 0.3  # [rad]
+    HARMONIC = 5
+    CIRCUMFERENCE = 456.0  # [m]
+    TOTAL_ENERGY = 1e9  # [eV]
+    N_BINS = 64
+
+    def setUp(self) -> None:
+        self.dt = np.linspace(-5e-9, 5e-9, 11)  # [s], inside the grid
+        self.dE = np.linspace(-1e5, 1e5, 11)  # [eV]
+        self.beta = self._probe().reference.beta
+
+    def _probe(self) -> ProbeBeam:
+        """Probe beam on the shared coordinates."""
+        return ProbeBeam(
+            particle_type=proton,
+            dt=self.dt.copy(),
+            dE=self.dE.copy(),
+            reference_total_energy=self.TOTAL_ENERGY,
+        )
+
+    def _beam(self) -> Beam:
+        """Ordinary beam on the same coordinates as the probe."""
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=self.dt.copy(),
+            dE=self.dE.copy(),
+            reference_total_energy=self.TOTAL_ENERGY,
+        )
+        return beam
+
+    def _feedback(self) -> Mock:
+        """Cavity-feedback double with a neutral readout on its own grid."""
+        feedback = Mock(spec=LocalFeedback)
+        feedback.profile = Mock(spec=StaticProfile)
+        feedback.profile.n_bins = self.N_BINS
+        feedback.profile.hist_x = np.linspace(-1e-8, 1e-8, self.N_BINS)
+        feedback.relative_voltage_correction = np.ones(self.N_BINS)
+        feedback.phase_correction = np.zeros(self.N_BINS)
+        return feedback
+
+    def _single_harmonic_station(
+        self, cavity_feedback: Mock | None = None
+    ) -> SingleHarmonicRFStation:
+        """Headless station, optionally carrying ``cavity_feedback``."""
+        return SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=self.VOLTAGE,
+            phi_rf=self.PHI_RF,
+            harmonic=self.HARMONIC,
+            circumference=self.CIRCUMFERENCE,
+            beam_reference_beta=self.beta,
+            cavity_feedback=cavity_feedback,
+        )
+
+    @staticmethod
+    def _simulation_double(station: SingleHarmonicRFStation) -> Mock:
+        """Simulation double whose ring holds ``station`` and nothing else."""
+
+        def get_elements(element_type, **_):
+            return (station,) if isinstance(station, element_type) else ()
+
+        simulation = Mock(Simulation)
+        simulation.turn_counter = DynamicParameter(0)
+        simulation.ring.elements.get_elements.side_effect = get_elements
+        return simulation
+
+    def _assert_refusal(self, error: BaseException) -> None:
+        """The refusal says what is refused, why, and what to do instead."""
+        self.assertIsInstance(error, TypeError)
+        message = str(error)
+        self.assertIn("cannot be tracked through a cavity feedback", message)
+        self.assertIn(
+            "computes the gap voltage from the beam it tracks", message
+        )
+        self.assertIn("without a cavity feedback", message)
+
+    def test_probe_through_single_harmonic_feedback_raises(self):
+        """The probe is refused before it is kicked or seen by the feedback."""
+        feedback = self._feedback()
+        station = self._single_harmonic_station(cavity_feedback=feedback)
+        probe = self._probe()
+
+        with self.assertRaises(TypeError) as caught:
+            station.track(beam=probe)
+
+        self._assert_refusal(caught.exception)
+        feedback.track.assert_not_called()
+        np.testing.assert_array_equal(probe.dE.copy_as_numpy(), self.dE)
+
+    def test_probe_through_multi_harmonic_feedback_raises(self):
+        """A feedback on any harmonic slot refuses, not only the main one."""
+        feedback = self._feedback()
+        station = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([self.VOLTAGE, 0.2 * self.VOLTAGE]),
+            phi_rf=np.array([self.PHI_RF, 0.0]),
+            harmonic=np.array([self.HARMONIC, 2 * self.HARMONIC]),
+            circumference=self.CIRCUMFERENCE,
+            main_harmonic_idx=0,
+            beam_reference_beta=self.beta,
+            cavity_feedback=[None, feedback],
+        )
+        probe = self._probe()
+
+        with self.assertRaises(TypeError) as caught:
+            station.track(beam=probe)
+
+        self._assert_refusal(caught.exception)
+        feedback.track.assert_not_called()
+        np.testing.assert_array_equal(probe.dE.copy_as_numpy(), self.dE)
+
+    def test_probe_refused_at_run_start(self):
+        """``on_run_simulation`` refuses the probe before any tracking."""
+        station = self._single_harmonic_station(
+            cavity_feedback=self._feedback()
+        )
+
+        with self.assertRaises(TypeError) as caught:
+            station.on_run_simulation(
+                simulation=self._simulation_double(station),
+                beam=self._probe(),
+                n_turns=1,
+            )
+
+        self._assert_refusal(caught.exception)
+
+    def test_probe_without_feedback_tracks_like_a_beam(self):
+        """Without a cavity feedback the probe is accepted and kicked."""
+        probe_station = self._single_harmonic_station()
+        beam_station = self._single_harmonic_station()
+        probe, beam = self._probe(), self._beam()
+
+        for station, tracked in ((probe_station, probe), (beam_station, beam)):
+            station.on_run_simulation(
+                simulation=self._simulation_double(station),
+                beam=tracked,
+                n_turns=1,
+            )
+            station.track(beam=tracked)
+
+        kicked = probe.dE.copy_as_numpy()
+        self.assertFalse(np.array_equal(kicked, self.dE))
+        np.testing.assert_array_equal(kicked, beam.dE.copy_as_numpy())
+
+    def test_beam_through_feedback_is_unaffected(self):
+        """A real beam still runs the feedback and gets its corrected kick."""
+        feedback = self._feedback()
+        station = self._single_harmonic_station(cavity_feedback=feedback)
+        beam = self._beam()
+
+        station.on_run_simulation(
+            simulation=self._simulation_double(station),
+            beam=beam,
+            n_turns=1,
+        )
+        with patch.object(
+            station, "_track_interp", wraps=station._track_interp
+        ) as interpolated_kick:
+            station.track(beam=beam)
+
+        feedback.track.assert_called_once_with(beam=beam)
+        interpolated_kick.assert_called_once()
+        kick = interpolated_kick.call_args.kwargs
+        np.testing.assert_array_equal(
+            kick["time_axis"], feedback.profile.hist_x
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(kick["voltage"]),
+            copy_to_cpu(station.calc_gap_voltage_with_feedbacks()),
+        )
+        self.assertFalse(np.array_equal(beam.dE.copy_as_numpy(), self.dE))
+
+    def test_run_simulation_refuses_probe_before_tracking(self):
+        """A real run with a real feedback stops before any element tracks."""
+        energy = 63e9  # [eV]
+        circumference = 5990.0  # [m]
+        harmonic = 2590
+        voltage = 30e6  # [V]
+        r_over_q = 518.0  # [Ohm]
+        q_loaded = 1.29e4
+        cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=energy, in_unit="total energy"
+        )
+        t_rf = (
+            cycle.get_t_rev_init(circumference, particle_type=mu_plus)
+            / harmonic
+        )
+        profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 256, t_rf)
+        feedback = IQCavityFeedbackTimingClass(
+            profile=profile,
+            R_over_Q=r_over_q,
+            Q_L=q_loaded,
+            generator_current_bias=voltage / (2.0 * r_over_q * q_loaded),
+            n_cavities=1,
+            initial_voltage=voltage,
+            n_rf_periods_per_coarse_grid=1,
+            delta_omega=0.0,
+        )
+        station = SingleHarmonicRFStation(
+            voltage=voltage,
+            phi_rf=0.0,
+            harmonic=harmonic,
+            cavity_feedback=feedback,
+        )
+        drift = DriftSimple(
+            orbit_length=circumference, momentum_compaction_factor=1e-3
+        )
+        ring = Ring(circumference=circumference, check_section_indices=False)
+        ring.add_elements([drift, station], reorder=False)
+        simulation = Simulation(ring=ring, magnetic_cycle=cycle)
+
+        # A non-zero dE, so the drift ahead of the station would move dt.
+        probe = ProbeBeam(
+            particle_type=mu_plus,
+            dt=np.linspace(1.0 * t_rf, 2.0 * t_rf, 11),
+            dE=np.full(11, 1e7),
+            reference_total_energy=energy,
+        )
+        dt_before = probe.dt.copy_as_numpy()
+
+        with (
+            patch.object(
+                IQCavityFeedbackTimingClass, "_track", autospec=True
+            ) as feedback_track,
+            self.assertRaises(TypeError) as caught,
+        ):
+            simulation.run_simulation(
+                beams=(probe,),
+                n_turns=1,
+                show_progressbar=False,
+                verbose=False,
+            )
+
+        self._assert_refusal(caught.exception)
+        feedback_track.assert_not_called()
+        np.testing.assert_array_equal(probe.dt.copy_as_numpy(), dt_before)
+        self.assertEqual(simulation.turn_counter.value, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
