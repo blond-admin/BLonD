@@ -652,6 +652,75 @@ class TestReflectedPower(unittest.TestCase):
         # Non-vacuous: the default readout carries real watts.
         self.assertGreater(np.max(cav.reflected_power()), 0.0)
 
+    def test_generator_current_is_rotated_into_the_antenna_frame(self):
+        """The drive is subtracted in the frame the grids are composed in.
+
+        The composed antenna voltage carries the generator component
+        rotated by the generator frame rotation, while the stored
+        generator current stays in the design frame.  A no-beam steady
+        state composed that way must still reflect exactly everything;
+        the unrotated difference would give ``|2 r - 1|**2`` instead.
+        """
+        cav = build_feedback()
+        rotation = np.exp(-1j * np.deg2rad(20.0))
+        cav._generator_frame_rotation = complex(rotation)
+        i_gen = 0.02 + 0.0j
+        v_gen = 2.0 * R_OVER_Q * Q_L * i_gen  # design-frame steady state
+        v_ant = v_gen * rotation  # composed grid, no beam component
+        ratio = cav.reflected_power(i_gen, v_ant) / cav.generator_power(i_gen)
+        self.assertAlmostEqual(ratio, 1.0, places=12)
+        # Non-vacuous: without the rotation this is not total reflection.
+        unrotated = cav.reflected_power(
+            i_gen, v_ant, generator_frame_rotation=1.0
+        ) / cav.generator_power(i_gen)
+        self.assertAlmostEqual(
+            unrotated, abs(2.0 * rotation - 1.0) ** 2, places=12
+        )
+        # Mixing frames does not just shift the answer, it can push the
+        # reflected power above the forward power: 1.24 at 20 degrees.
+        self.assertGreater(abs(unrotated - 1.0), 0.1)
+
+    def test_power_balance_holds_in_the_composed_frame(self):
+        """``P_for - P_refl = 0.5 Re(V_ant I_beam*)`` with a rotated grid.
+
+        On-resonance steady state of each component in its own frame --
+        ``V_gen = 2 (R/Q) Q_L I_gen`` in the design frame and
+        ``V_beam = -(R/Q) Q_L I_beam`` in the antenna frame -- composed as
+        ``V_beam + r V_gen``.  The beam power is taken in the antenna
+        frame, where the beam current lives.
+        """
+        cav = build_feedback()
+        rng = np.random.default_rng(3)
+        for trial in range(5):
+            with self.subTest(trial=trial):
+                rotation = np.exp(1j * rng.uniform(-np.pi, np.pi))
+                cav._generator_frame_rotation = complex(rotation)
+                i_gen = 0.02 * (rng.normal() + 1j * rng.normal())
+                i_beam = 0.02 * (rng.normal() + 1j * rng.normal())
+                v_ant = R_OVER_Q * Q_L * (2.0 * rotation * i_gen - i_beam)
+                p_beam = 0.5 * np.real(v_ant * np.conj(i_beam))
+                self.assertAlmostEqual(
+                    cav.generator_power(i_gen)
+                    - cav.reflected_power(i_gen, v_ant),
+                    p_beam,
+                    delta=1e-9 * abs(cav.generator_power(i_gen)),
+                )
+
+    def test_default_rotation_is_the_feedbacks_current_one(self):
+        """Without the argument the instance's rotation is used."""
+        cav = build_feedback()
+        cav._generator_frame_rotation = complex(np.exp(0.4j))
+        cav.generator_current_coarse_grid = np.array([0.01 + 0.0j, 0.02j])
+        cav.antenna_voltage_coarse_grid = np.array([3.0e6 + 1.0e6j, 2.0e6j])
+        np.testing.assert_allclose(
+            cav.reflected_current(),
+            cav.reflected_current(generator_frame_rotation=np.exp(0.4j)),
+        )
+        # A fresh feedback carries the identity rotation.
+        self.assertEqual(
+            build_feedback()._generator_frame_rotation, 1.0 + 0.0j
+        )
+
 
 class _RecordingController:
     """

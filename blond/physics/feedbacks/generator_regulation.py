@@ -187,22 +187,31 @@ class GeneratorRegulationMixin:
         self: IQCavityFeedbackTimingClass,
         generator_current: complex | NumpyArray | None = None,
         antenna_voltage: complex | NumpyArray | None = None,
+        generator_frame_rotation: complex | None = None,
     ) -> complex | NumpyArray:
         r"""
         Current reflected back out of the coupler, per cavity.
 
         .. math::
             I_\mathsf{refl} = \frac{V_\mathsf{ant}}{(R/Q)\,Q_L}
-                              - I_\mathsf{gen}
+                              - r_\mathsf{gen}\,I_\mathsf{gen}
 
         Parameters
         ----------
         generator_current
-            Generator current [A]; defaults to the coarse-grid generator
-            current of the current turn.
+            Generator current [A] in the design frame it is stored in on
+            the grids; defaults to the coarse-grid generator current of
+            the current turn.
         antenna_voltage
-            Antenna voltage [V] **per cavity**; defaults to the coarse-grid
-            antenna voltage of the current turn.
+            Antenna voltage [V] **per cavity**, as composed on the grids;
+            defaults to the coarse-grid antenna voltage of the current
+            turn.
+        generator_frame_rotation
+            The rotation :math:`r_\mathsf{gen}` that takes the design-frame
+            generator current into the frame of ``antenna_voltage``;
+            defaults to the feedback's current generator frame rotation,
+            which is the one the grids of this passage were composed
+            with.  Pass ``1`` for arrays that are already in one frame.
 
         Returns
         -------
@@ -251,17 +260,36 @@ class GeneratorRegulationMixin:
         :meth:`generator_power`; the coarse grid of
         ``IQCavityFeedbackTimingClass`` is normalised per cavity while the
         fine grid carries the station total.
+
+        **The two grids are not in the same frame.**  The composed
+        antenna voltage is ``V_beam + V_gen * r_gen``: the generator
+        component is rotated by the generator frame rotation (station
+        clock, kick-clock gap and registration phase), while the stored
+        generator current stays in the design frame that drives
+        ``V_gen``.  Subtracting it unrotated mixes frames, which on an
+        accelerating multi-section ring -- where the rotation grows turn
+        by turn -- leaves the cavity energy balance
+        :math:`P_\mathsf{for} - P_\mathsf{refl} = P_\mathsf{beam} +
+        \mathrm{d}U/\mathrm{d}t` open by a few per cent.  With the
+        rotation it closes to rounding.  :meth:`generator_power` depends
+        only on :math:`|I_\mathsf{gen}|` and needs no rotation.
         """
         if generator_current is None:
             generator_current = self.generator_current_coarse_grid
         if antenna_voltage is None:
             antenna_voltage = self.antenna_voltage_coarse_grid
-        return antenna_voltage / (self.R_over_Q * self.Q_L) - generator_current
+        if generator_frame_rotation is None:
+            generator_frame_rotation = self._generator_frame_rotation
+        return (
+            antenna_voltage / (self.R_over_Q * self.Q_L)
+            - generator_frame_rotation * generator_current
+        )
 
     def reflected_power(
         self: IQCavityFeedbackTimingClass,
         generator_current: complex | NumpyArray | None = None,
         antenna_voltage: complex | NumpyArray | None = None,
+        generator_frame_rotation: complex | None = None,
     ) -> float | NumpyArray:
         r"""
         Power reflected back out of the coupler, per cavity.
@@ -282,6 +310,10 @@ class GeneratorRegulationMixin:
         antenna_voltage
             Antenna voltage [V] per cavity; defaults to the coarse-grid
             antenna voltage of the current turn.
+        generator_frame_rotation
+            Frame rotation of the generator current, see
+            :meth:`reflected_current`; defaults to the feedback's current
+            one.
 
         Returns
         -------
@@ -304,6 +336,7 @@ class GeneratorRegulationMixin:
                 self.reflected_current(
                     generator_current=generator_current,
                     antenna_voltage=antenna_voltage,
+                    generator_frame_rotation=generator_frame_rotation,
                 )
             )
             ** 2
