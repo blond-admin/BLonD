@@ -95,7 +95,7 @@ threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
 # Bytes per bin of the shared-memory histogram counters (`block_hist` in
-# kernels.cu), which are `index_t` wide.
+# kernels.cu), whose `hist_count_t` is as wide as `index_t`.
 _HIST_COUNT_ITEMSIZE = np.dtype(INDEX_DTYPE).itemsize
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
