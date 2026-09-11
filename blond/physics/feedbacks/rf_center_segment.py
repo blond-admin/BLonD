@@ -15,7 +15,8 @@ the cavity-feedback timing class builds; :class:`PerTurnGridSpan` is the
 per-turn span one grid rebuild produces out of those segments. Both value
 types are kept in this module so they and their validation stay independent
 of the (much larger) feedback and grid-construction code, together with
-:func:`accumulated_phases`, the phase each backfill segment stores.
+:func:`accumulated_phases`, the phase each backfill segment stores, and
+:func:`accumulated_phases_at_centers`, the phase at each of its centres.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -245,3 +248,75 @@ def accumulated_phases(
         ],
         dtype=float,
     )
+
+
+def accumulated_phases_at_centers(
+    carried_phase: float,
+    carrier_omega: float | None,
+    segments: Sequence[RFCenterSegment],
+) -> NumpyArray:
+    """
+    Accumulated phase at every coarse centre of a passage's backfill span.
+
+    :func:`accumulated_phases` gives the phase at the END of each backfill
+    segment. The coarse recursion, however, samples the envelope at the
+    segment's centres, and a frame rotation applied to a backfill cell has
+    to carry the phase accumulated up to THAT cell: over segment ``k`` the
+    grid and the carrier part at the constant rate
+    ``omega_carrier - omega_k``.
+
+    Parameters
+    ----------
+    carried_phase
+        Accumulated phase [rad] the previous passage's forward segment
+        ended on, i.e. the phase at the start of the first segment.
+    carrier_omega
+        Design frequency [rad/s] of that forward segment, or ``None`` when
+        nothing accumulates (see :func:`accumulated_phases`).
+    segments
+        The backfill segments of the passage, in grid order, each storing
+        the phase at its end (``RFCenterSegment.accumulated_phase``).
+
+    Returns
+    -------
+    phases
+        One phase [rad] per centre, in grid order. A centre at
+        segment-local time ``c`` of segment ``k`` gets
+        ``phi_start_k + (carrier_omega - omega_k) c``, with
+        ``phi_start_0 = carried_phase`` and ``phi_start_k`` the stored
+        phase of segment ``k - 1``. Every entry is ``carried_phase`` when
+        ``carrier_omega`` is ``None``.
+
+    Notes
+    -----
+    Time convention: the phase is evaluated AT the centre, because a
+    centre is the time the coarse recursion advances the envelope to (the
+    step into cell ``i`` ends at ``rf_centers[i]``). ``centers`` are
+    measured from the start of their segment, and the step into a
+    segment's first centre spans the preceding segment's ``residual`` plus
+    that centre's local time. Anchoring each segment on the stored phase
+    of the one before therefore makes the phase continuous across a
+    segment boundary: over that step it changes by
+    ``(omega_carrier - omega_{k-1}) residual_{k-1} +
+    (omega_carrier - omega_k) c_0``, exactly the drift over the time the
+    step spans. Carried over its ``residual``, the last centre of a
+    segment lands on the phase the segment stores, up to rounding -- for
+    the last segment, the phase the forward segment inherits.
+    """
+    if not segments:
+        return np.zeros(0)
+    lengths = [len(segment) for segment in segments]
+    if carrier_omega is None:
+        return np.full(sum(lengths), float(carried_phase))
+    start_phases = np.repeat(
+        [float(carried_phase)]
+        + [segment.accumulated_phase for segment in segments[:-1]],
+        lengths,
+    )
+    rates = np.repeat(
+        [carrier_omega - segment.omega for segment in segments], lengths
+    )
+    centers = np.concatenate(
+        [np.asarray(segment.centers, dtype=float) for segment in segments]
+    )
+    return start_phases + rates * centers

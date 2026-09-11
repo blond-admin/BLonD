@@ -33,7 +33,9 @@ below -- initialises in ``__init__`` / ``on_run_simulation``.
   boundary; ``_forward_segment_carried_into_turn``, the forward segment
   the previous passage ended on, from whose ``omega`` and
   ``accumulated_phase`` ``RFCenterGridMixin._backfill_accumulated_phases``
-  continues the accumulated phase; and ``_last_rf_centers_entry``, the
+  continues the accumulated phase (and
+  ``RFCenterGridMixin._backfill_center_phases`` the phase at every backfill
+  centre); and ``_last_rf_centers_entry``, the
   previous turn's last centre -- the only piece the host reads back (as a
   first-turn ``None`` / not-``None`` flag in its per-cell step sizing).
 - Walk results: ``_backfill_time_array`` /
@@ -95,6 +97,7 @@ from blond.physics.cavities import RFStationBaseClass
 from blond.physics.feedbacks.rf_center_segment import (
     RFCenterSegment,
     accumulated_phases,
+    accumulated_phases_at_centers,
 )
 
 if TYPE_CHECKING:
@@ -856,6 +859,37 @@ class RFCenterGridMixin:
         self._last_segment_omega_design = omega_design
         return rf_centers
 
+    def _carried_phase_reference(
+        self: IQCavityFeedbackTimingClass,
+    ) -> tuple[float, float | None]:
+        """
+        Phase and carrier this passage's backfill continues from.
+
+        The single rule both the per-segment and the per-centre phases of
+        the backfill span are built on: continue the forward segment the
+        previous passage ended on (``_forward_segment_carried_into_turn``),
+        against its carrier.
+
+        Returns
+        -------
+        carried_phase
+            Accumulated phase [rad] of that forward segment; ``0.0`` on a
+            station's first passage.
+        carrier_omega
+            Its design frequency [rad/s], or ``None`` when nothing
+            accumulates: a station's first passage (no carried segment)
+            and a single-station ring, whose passage is built at one
+            frequency.
+        """
+        carried = self._forward_segment_carried_into_turn
+        carrier_omega = (
+            carried.omega
+            if carried is not None and self._n_rf_stations_in_ring > 1
+            else None
+        )
+        carried_phase = 0.0 if carried is None else carried.accumulated_phase
+        return carried_phase, carrier_omega
+
     def _backfill_accumulated_phases(
         self: IQCavityFeedbackTimingClass,
     ) -> NumpyArray:
@@ -890,19 +924,47 @@ class RFCenterGridMixin:
         whose precession the coarse recursion already applies on every
         step.
         """
-        carried = self._forward_segment_carried_into_turn
-        carrier_omega = (
-            carried.omega
-            if carried is not None and self._n_rf_stations_in_ring > 1
-            else None
-        )
+        carried_phase, carrier_omega = self._carried_phase_reference()
         return accumulated_phases(
-            carried_phase=(
-                0.0 if carried is None else carried.accumulated_phase
-            ),
+            carried_phase=carried_phase,
             carrier_omega=carrier_omega,
             segment_omegas=self._backfill_segment_omega_design_list,
             segment_durations=self._backfill_time_array,
+        )
+
+    def _backfill_center_phases(
+        self: IQCavityFeedbackTimingClass,
+    ) -> NumpyArray:
+        """
+        Accumulated phase at every backfill centre of the current grid.
+
+        The per-centre counterpart of :meth:`_backfill_accumulated_phases`,
+        read off the backfill segment records (``_segments[:-1]``) and
+        continued from the same carried phase and carrier; see
+        :func:`~blond.physics.feedbacks.rf_center_segment.accumulated_phases_at_centers`.
+
+        Returns
+        -------
+        phases
+            One accumulated phase [rad] per backfill centre, in grid order;
+            empty when the passage has no backfill span.
+
+        Notes
+        -----
+        ORDERING: the forward segment must already be appended, since the
+        backfill segments are taken as every segment before it. The carried
+        forward segment is still the previous passage's until the next
+        ``_close_previous_turn_grid``.
+
+        Nothing accumulates on a station's first passage or on a
+        single-station ring, and without a ramp every rate is exactly zero:
+        all three give exactly ``+0.0`` at every centre.
+        """
+        carried_phase, carrier_omega = self._carried_phase_reference()
+        return accumulated_phases_at_centers(
+            carried_phase=carried_phase,
+            carrier_omega=carrier_omega,
+            segments=self._segments[:-1],
         )
 
     def _accumulated_phase_for_forward_segment(

@@ -42,8 +42,8 @@ limitations* below.
    * - Sampling
      - Use a static profile with ``hist_step <= sampling_time_coarse``.
        The standard coarse step is one RF period; ``0.5`` is the supported
-       sub-step. Check the Euler validity guard or use the exponential
-       coarse solver and resolve the fine dynamics sufficiently finely.
+       sub-step. The coarse step is the exact exponential propagator for
+       any step length; resolve the fine dynamics sufficiently finely.
    * - Profile placement
      - Keep the entire bunch inside the profile and the seeding coarse
        cell charge-free. A charged fine window must begin at or after the
@@ -398,22 +398,15 @@ Classes at a glance
     :func:`~blond.physics.feedbacks.cavity_solvers.cavity_response_sparse_matrix_second_order`
     (trapezoidal / Crank-Nicolson) and the feedforward fill seed
     :func:`~blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage`.
-    It also holds the coarse-grid step arithmetic shared by the per-cell and
-    vectorised recursions --
+    It also holds the arithmetic of the exact exponential coarse-grid step,
+    shared by the per-cell and vectorised recursions --
     :func:`~blond.physics.feedbacks.cavity_solvers.coarse_step_exponent`,
-    :func:`~blond.physics.feedbacks.cavity_solvers.euler_voltage_multiplier`,
     :func:`~blond.physics.feedbacks.cavity_solvers.exponential_voltage_multiplier`
     and
     :func:`~blond.physics.feedbacks.cavity_solvers.exponential_drive_weight`
-    -- and
-    :class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`,
-    the tripwires that decide whether the forward-Euler discretisation is
-    admissible at all (per-step decay, detuning phase, the coupled
-    Euler-multiplier magnitude they do not imply, and the beam kick) --
-    numerical checks kept beside the solvers they constrain. The feedback owns one
-    instance and passes the cavity parameters per call; it is constructed
-    disabled for the exact exponential propagator, which is subject to none
-    of these caps.
+    -- and the beam-free seed propagation ``propagate_beam_free_voltage``.
+    The forward-Euler coarse step and its validity guard were removed on
+    2026-09-11 (see *Coarse-grid cavity update*).
 
 :mod:`blond.physics.feedbacks.envelope_kernel`
     The compiled numba host kernel (``envelope_pi_scan``) the coarse
@@ -628,10 +621,14 @@ Coarse-grid cavity update
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Inside ``circuit_track``. The antenna voltage is advanced cell by cell
-with the forward-Euler discretisation of
-the cavity-envelope ODE: generator drive ``I_gen (R/Q) omega dt``,
-decay/detuning multiplier ``1 - 0.5 omega dt / Q_L + i delta_omega dt``
-and beam loading ``-0.5 I_beam (R/Q) omega dt``. The ODE is linear, so
+with the exact exponential propagator of the cavity-envelope ODE
+``dV/dt = lambda V + s``, ``lambda = -omega / (2 Q_L) + i delta_omega``,
+for a source ``s = (R/Q) omega (I_gen - I_beam / 2)`` held constant over
+the step: ``V[n+1] = e^L V[n] + s dt (e^L - 1) / L`` with
+``L = lambda dt``, i.e. the decay/detuning multiplier ``e^L`` and the drive
+weight ``(e^L - 1) / L`` on the per-step generator drive
+``I_gen (R/Q) omega dt`` and beam loading ``-0.5 I_beam (R/Q) omega dt``.
+The ODE is linear, so
 the state is *source-split* and the same recursion runs once per source
 -- exact superposition. The beam-sourced component
 ``antenna_voltage_beam_coarse_grid`` is driven by ``-I_beam / 2`` alone
@@ -653,12 +650,14 @@ byte-identical to the former single-state recursion.
 
 .. note::
 
-   The forward-Euler description is exact for the GENERATOR term only.
-   The coarse recursion takes ``I_gen`` from cell ``c-1`` (left
-   endpoint, i.e. forward Euler) but ``I_beam`` from cell ``c`` itself,
-   so the bunch's own slice enters with weight 1. The three
-   discretisations in the code therefore disagree on that self-slice
-   weight: coarse = 1, fine first-order = 0, fine second-order = 1/2 --
+   The zero-order hold is taken from different cells for the two
+   sources. The coarse recursion holds ``I_gen`` from cell ``c-1`` (the
+   command issued one step earlier) but ``I_beam`` from cell ``c``
+   itself, so the bunch's own slice enters with the drive weight
+   ``(e^L - 1) / L = 1 + O(L)``, i.e. weight 1 to a few ``1e-6``. The
+   three discretisations in the code therefore disagree on that
+   self-slice weight: coarse ~ 1, fine first-order = 0, fine
+   second-order = 1/2 --
    and 1/2 is the value the fundamental theorem of beam loading calls
    for. The difference does not move any published number (the coarse
    voltage never kicks the beam; the kicks come from the fine grid,
@@ -669,30 +668,22 @@ byte-identical to the former single-state recursion.
    bit-for-bit, so changing the weights, or the default, is a deliberate
    decision rather than a cleanup.
 
-Discretisation validity is enforced by
-:class:`~blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard`
-(the timing class's ``_check_step_sizes``, ``_check_beam_kicks`` and
-``_check_beam_kick_magnitude`` only supply it the cavity's current
-parameters): it warns above a per-step decay/rotation of 0.1 and raises
-above 1.0 -- there the Euler decay factor ``1 - 0.5 omega dt / Q_L`` turns
-negative and the discretised voltage flips sign every step, which the
-exact (always positive) decay never does; use
-``exponential_coarse_solver_enable=True`` for larger steps. A third,
-*coupled* tripwire raises whenever the Euler multiplier itself grows,
-``|1 - d + i p| > 1`` (equivalently ``p**2 > d (2 - d)``, for a per-step
-decay ``d`` and detuning phase ``p``). It is not implied by the two
-separate caps, which bound ``d`` and ``p`` independently: at a
-superconducting cavity's ``d ~ 1e-6`` it admits a detuning phase of only
-``|p| ~ 1.4e-3`` rad -- three orders of magnitude below the ``1.0`` cap
--- so there it, and not the cap, is what a divergent step trips. A
-fourth check warns/raises when the per-step beam kick is large relative
-to the antenna voltage. With ``exponential_coarse_solver_enable=True``
-the exact exponential propagator
-``V[n+1] = e^L V[n] + src (e^L - 1)/L`` replaces
-the Euler step: it is exact in decay and detuning rotation (a pure
-detuning becomes a pure rotation instead of growing ``|V|`` by
-``sqrt(1 + (delta_omega dt)^2)`` per step) and is the accurate alternative
-to sub-stepping at low ``Q_L`` or large detuning.
+The derivation of this step -- and why the forward-Euler update
+``V[n+1] = (1 + L) V[n] + s dt`` that BLonD 2's ``LHCCavityLoop`` used, and
+that this class inherited as its default, is only its first-order truncation
+-- is in the Notes of ``IQCavityFeedbackTimingClass._advance_coarse_voltage``.
+In short: the exponential step is exact for a piecewise-constant source at
+any step length, ``|e^L| <= 1`` for every step, and a pure detuning is a pure
+rotation. The Euler step has an ``O(L^2)`` local error, grows ``|V|`` by
+``sqrt(1 + (delta_omega dt)^2)`` per step under pure detuning, flips the sign
+of its decay factor once ``omega dt / (2 Q_L) > 1`` and diverges once
+``|1 + L| > 1``. The Euler step, the coarse-solver switch that selected the
+exact one, and the forward-Euler validity guard that policed the Euler step
+(per-step decay, detuning phase, multiplier magnitude and beam kick) were
+removed on 2026-09-11. On the shipped parameters (``|L|`` of a few ``1e-6``
+per step) the two steps differed by ~1e-6 relative in the tracked
+beam-induced voltage, and the exact step costs the same, because its
+multipliers are precomputed per cell.
 
 A *coincident* coarse point -- two centres a step of ``delta_t == 0``
 apart, which a segment or turn boundary can produce (and which float noise
@@ -768,10 +759,10 @@ is at ``profile.cut_left`` and the first output is at
 ``profile.hist_x[0] = cut_left + hist_step / 2``. The first step therefore
 spans half a bin. Beam current is a bin density, so this first sample
 includes half the first bin's charge; each later centre-to-centre step
-includes half of each adjacent bin. The Euler option retains first-order
-stepping for voltage decay and generator drive. Direct calls to the sparse
-solvers or ``cavity_response_fine`` retain the uniform-step convention
-unless this keyword is explicitly enabled.
+includes half of each adjacent bin. The first-order fine-grid solver
+retains forward-Euler stepping for voltage decay and generator drive.
+Direct calls to the sparse solvers or ``cavity_response_fine`` retain the
+uniform-step convention unless this keyword is explicitly enabled.
 
 
 Initial conditions and cavity pre-fill
@@ -787,7 +778,7 @@ reaches that target (beam injected part-way through the fill). The fill is
 feedforward-only by design: a controller, if attached, regulates from the
 first tracked turn after injection. On resonance the steady state reduces to
 ``V_ss = 2 (R/Q) Q_L I_gen``, which is also the exact fixed point of the
-coarse-grid Euler step. The fill is evaluated on the **design** clock
+coarse-grid step. The fill is evaluated on the **design** clock
 (``omega_rf_design``), the same clock the coarse recursion it seeds is
 driven at, and ``t_rev`` is read on that clock too. It previously mixed
 clocks: evaluating the fill at the actual (offset) RF frequency misses the
@@ -896,10 +887,11 @@ Two distinct frequency knobs exist and must not be confused:
     slip bookkeeping only runs when a beam feedback (phase loop) exists in
     the simulation or the offset is nonzero.
 
-For low loaded quality factors the per-RF-period Euler step can violate the
-step-size limits; the sub-stepping mode
-(``n_rf_periods_per_coarse_grid < 1``) subdivides the RF period, with the
-coarse centres tiling continuously across turn boundaries. ``n = 0.5`` is
+The sub-stepping mode (``n_rf_periods_per_coarse_grid < 1``) subdivides the
+RF period, with the coarse centres tiling continuously across turn
+boundaries. It is not a stability device -- the exact coarse step holds for
+any step length and ``Q_L`` -- but a finer sampling of the held generator
+command, of the controller and of the coarse beam current. ``n = 0.5`` is
 the only usable sub-step: that tiling makes the demodulation frame one
 previous coarse step, ``omega_c * dT = 2 pi n``, which is an odd multiple
 of ``pi`` only there, so ``n = 0.25`` or ``0.9`` is rejected by

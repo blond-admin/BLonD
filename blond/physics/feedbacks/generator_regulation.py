@@ -46,12 +46,15 @@ look there:
 - **The compiled envelope scan** (``_circuit_track_cells_kernel``) marshals
   the controller's own compiled kernel, tuning and carried state into one
   call and writes the returned state back through
-  ``absorb_envelope_scan_state``. It is not moved because it reads every
-  coarse grid (the summed, generator- and beam-sourced antenna voltages
-  and the generator current) and all five values carried across the turn
-  boundary (``_last_val_ant_voltage``, ``_last_val_ant_voltage_gen``,
+  ``absorb_envelope_scan_state``. It is not moved because it works on every
+  coarse grid (it reads the beam current, the generator- and beam-sourced
+  antenna voltages and the generator current, and writes the last three
+  and their summed voltage) and reads four of the five values carried
+  across the turn boundary (``_last_val_ant_voltage_gen``,
   ``_last_val_ant_voltage_beam``, ``_last_val_generator_current``,
-  ``_last_val_beam_current``), and because it depends on ``pi_setpoint``
+  ``_last_val_beam_current``; the summed ``_last_val_ant_voltage`` was read
+  only by the forward-Euler beam-kick guard removed on 2026-09-11), and
+  because it depends on ``pi_setpoint``
   staying **unevaluated** on a span with no controller attached -- that
   property may reach through to the parent rf station. Moving it would
   relocate that coupling, not remove it.
@@ -358,9 +361,11 @@ class GeneratorRegulationMixin:
         written to the coarse grid.
 
         The error is formed in the KICK frame: the demodulation-frame sum
-        of this cell rotated by ``_kick_frame_rotation`` (the per-passage
-        scalar ``exp(+i * carrier slip gap)``), i.e. the envelope of the
-        kick the station actually applies against ``phi_rf`` -- so the
+        of this cell rotated by this cell's kick-frame rotation
+        ``exp(+i * carrier slip gap)`` -- the passage's gap over the forward
+        span, and on a backfill cell the gap with the phase accumulated up
+        to that cell (see ``_update_frame_rotations``) -- i.e. the envelope
+        of the kick the station actually applies against ``phi_rf``, so the
         loop regulates the applied voltage, not a bookkeeping frame. The
         rotation is exactly unity without an RF-frequency offset and
         without multi-section acceleration.
@@ -386,12 +391,10 @@ class GeneratorRegulationMixin:
                 " controller needs omega_input to recover the sampling time."
             )
         idx = coarse_grid_index_to_update
+        _, kick_frame_rotation = self._frame_rotations_of_cell(idx)
         error = (
             self.pi_setpoint
-            - (
-                self.antenna_voltage_coarse_grid[idx]
-                * self._kick_frame_rotation
-            )
+            - (self.antenna_voltage_coarse_grid[idx] * kick_frame_rotation)
         ) * self._pi_error_frame_rotation
         delta_t = omega_times_dt / self._omega_input_for_pi
         self.generator_current_coarse_grid[idx] = (

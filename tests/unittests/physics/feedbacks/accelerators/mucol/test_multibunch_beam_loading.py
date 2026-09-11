@@ -532,8 +532,9 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
             )
             collected = local_wf
         else:
-            # Operating-point cavity (V_init = V_design): a cold start trips the
-            # coarse-grid beam-kick magnitude check.
+            # Operating-point cavity (V_init = V_design), chosen when a cold
+            # start still tripped the coarse-grid beam-kick check (removed
+            # 2026-09-11); kept so the compared runs stay unchanged.
             feedback = IQCavityFeedbackTimingClass(
                 profile=profile,
                 R_over_Q=base.MULTITURN_R_OVER_Q,

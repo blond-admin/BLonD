@@ -20,6 +20,7 @@ any change of the tracked feedback numerics shows up here first).
 import os
 import unittest
 import warnings
+from collections.abc import Callable
 from unittest import mock
 
 import numpy as np
@@ -38,6 +39,7 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.generator_current_controller import (
+    GeneratorCurrentController,
     GeneratorCurrentPIController,
 )
 
@@ -74,6 +76,10 @@ def _run_config(
     use_controller: bool = True,
     detuning_half_bandwidths: float = 0.0,
     delta_omega_rf: float = 0.0,
+    controller_factory: Callable[[], GeneratorCurrentController] | None = None,
+    generator_current_bias: complex = I_GEN_BIAS + 0.0j,
+    initial_voltage: float = V_DESIGN,
+    per_turn_hook: Callable[[list, list], None] | None = None,
 ) -> dict:
     """
     Track a matched bunch with PI-regulated feedbacks on every station.
@@ -108,6 +114,19 @@ def _run_config(
         Station RF-frequency offset [rad/s], set on every station before
         the run (from turn 0). ``0`` (the default) keeps every existing
         call site bit-unchanged.
+    controller_factory
+        If given, called once per station to build the controller that
+        replaces the PI controller (still subject to ``use_controller``).
+    generator_current_bias
+        Feedforward generator-current bias [A] of every feedback; the
+        matched bias by default.
+    initial_voltage
+        Initial antenna voltage [V] of every feedback; ``V_DESIGN`` by
+        default.
+    per_turn_hook
+        If given, called at the end of every turn as
+        ``per_turn_hook(feedbacks, stations)``, so a test can record state
+        that the grids of the next passage overwrite.
 
     Returns
     -------
@@ -155,6 +174,8 @@ def _run_config(
             generator_current_bias=I_GEN_BIAS + 0.0j,
             n_delay=N_DELAY,
         )
+        if controller_factory is not None:
+            controller = controller_factory()
         if controller_call_counter is not None:
             _orig_update = controller.update_generator_current
 
@@ -169,9 +190,9 @@ def _run_config(
             profile=profile,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,
-            generator_current_bias=I_GEN_BIAS + 0.0j,
+            generator_current_bias=generator_current_bias,
             n_cavities=1,
-            initial_voltage=V_DESIGN,
+            initial_voltage=initial_voltage,
             n_rf_periods_per_coarse_grid=1,
             delta_omega=delta_omega,
             controller=controller,
@@ -345,6 +366,8 @@ def _run_config(
         rec["delta_phi_rf"].append([float(s.delta_phi_rf) for s in stations])
         rec["ref_energy"].append(float(b.reference.total_energy))
         rec["sigma_dt"].append(float(np.std(copy_to_cpu(b.dt.array_local))))
+        if per_turn_hook is not None:
+            per_turn_hook(feedbacks, stations)
 
     sim.run_simulation(
         (beam,), n_turns=n_turns, callbacks=callback, show_progressbar=False
@@ -456,6 +479,399 @@ class TestPIStepsOnEveryTrackedCell(unittest.TestCase):
             "generator current is constant over the backfill span: the "
             "controller is not being stepped there",
         )
+
+
+class _ZeroDriveRecordingController(GeneratorCurrentController):
+    """
+    Controller that commands no generator current and records its errors.
+
+    Zero gains and zero bias by construction: every command is exactly
+    ``0 + 0j``. It does not advertise ``supports_envelope_scan``, so the
+    feedback drives it cell by cell on the reference path, and every error
+    reaches :meth:`update_generator_current` in the order the cells are
+    tracked.
+    """
+
+    def __init__(self) -> None:
+        self.errors: list[complex] = []
+
+    def update_generator_current(
+        self, error: complex, delta_t: float
+    ) -> complex:
+        """
+        Record the error and command no current.
+
+        Parameters
+        ----------
+        error
+            Antenna-voltage error of this cell [V].
+        delta_t
+            Time step of this cell [s]; unused.
+
+        Returns
+        -------
+        generator_current
+            Exactly ``0 + 0j`` [A].
+        """
+        self.errors.append(complex(error))
+        return 0.0 + 0.0j
+
+
+def _design_omega_rf(total_energy: float, harmonic: int) -> float:
+    """
+    Design RF angular frequency of the test ring at a reference energy.
+
+    Parameters
+    ----------
+    total_energy
+        Reference total energy [eV].
+    harmonic
+        RF harmonic.
+
+    Returns
+    -------
+    omega_rf
+        ``2 pi harmonic / t_rev`` [rad/s].
+    """
+    from blond import ConstantMagneticCycle
+
+    t_rev = ConstantMagneticCycle(
+        reference_particle=mu_plus, value=total_energy, in_unit="total energy"
+    ).get_t_rev_init(CIRCUMFERENCE, particle_type=mu_plus)
+    return 2.0 * np.pi * harmonic / t_rev
+
+
+class TestKickFrameVoltageIsContinuousAcrossBackfill(unittest.TestCase):
+    r"""
+    The kick-frame antenna voltage must not jump where nothing happens.
+
+    The controller regulates, and the station applies, the antenna voltage
+    in the KICK frame. With beam but no generator drive, on resonance and
+    without an RF-frequency offset, that voltage is the beam-induced
+    envelope rotated by the grid-vs-carrier phase accumulated so far, and
+    between two adjacent coarse cells without a beam deposit only two
+    things may change it:
+
+    - the cavity decay, ``|V_next| / |V_prev| = exp(-omega dt / (2 Q_L))``
+      (the exact propagator, on resonance);
+    - the smooth drift of the accumulated phase, ``(omega_carrier -
+      omega_k) dt``, of the backfill segment ``k`` being replayed against
+      the previous passage's forward carrier.
+
+    It is checked at every place where the grid changes hands -- (a) the
+    last forward cell of passage ``m`` to the first backfill cell of
+    passage ``m + 1``, (b) a backfill segment boundary, (c) the last
+    backfill cell to the first forward cell, which
+    ``forbid_charge_in_first_coarse_cell`` keeps charge-free -- and at
+    every step inside a backfill segment, from passage 1 on (passage 0
+    carries no beam-induced voltage before its own deposit).
+
+    **Gates.** A coarse step is at most ``1.5 t_rf``: a segment's unfilled
+    tail (at most one period) plus the next segment's first local centre
+    (half a period into it). The frequency spread over one passage
+    interval is below the one-turn change ``omega(E + dE_turn) -
+    omega(E)``, largest at the injection energy: ``2.8e4`` rad/s on this
+    fast ramp. So a phase step is below ``3.3e-5`` rad and a magnitude
+    step below ``1.5 pi / Q_L = 3.7e-6``; the gates sit ``GATE_FACTOR``
+    above both, at ``3.3e-4`` rad and ``3.7e-5``.
+
+    **What it catches.** Rotating the whole backfill span of passage
+    ``m + 1`` with that passage's FINAL accumulated phase, while the last
+    forward cell of passage ``m`` carries passage ``m``'s, makes the
+    voltage jump at (a) by the whole per-passage increment -- measured
+    0.136 .. 0.140 rad on two sections and 0.203 .. 0.211 rad on four,
+    400 to 650 times the phase gate. A frame rotation never changes
+    ``|V|``, so that defect leaves the magnitude alone; the magnitude gate
+    guards the per-cell rotation against changing it.
+
+    **Fixture.** A zero-gain, zero-bias controller and a zero feedforward
+    bias and initial voltage keep the generator-sourced component exactly
+    zero, so the composed sum IS the beam-sourced component; the
+    controller records every error, so the kick-frame voltage of each
+    tracked cell is ``pi_setpoint - error`` (the actuator rotation is
+    exactly unity without an RF-frequency offset). The coarse grid runs on
+    the exact exponential propagator, so between deposit-free cells the
+    magnitude changes by exactly the decay; the frame rotation is applied
+    outside the propagator.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 3
+    GATE_FACTOR = 10.0
+    # The recovered voltage carries rounding of order |V_set| * eps ~ 7e-9
+    # V; a deposit leaves ~1.6 MV, so every checked cell must hold far more
+    # than that floor for its phase to mean anything.
+    MIN_CHECKED_VOLTAGE = 1.0e5
+
+    @classmethod
+    def _gates(cls, n_sections: int) -> tuple[float, float]:
+        """
+        Phase and magnitude gates for adjacent cells without a deposit.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations, which fixes the harmonic.
+
+        Returns
+        -------
+        phase_gate, magnitude_gate
+            Largest admissible ``|angle(V_next / V_prev)|`` [rad] and
+            ``| |V_next| / |V_prev| - 1 |``.
+        """
+        harmonic = int(HARMONIC - HARMONIC % (2 * n_sections))
+        omega_rf = _design_omega_rf(cls.ENERGY, harmonic)
+        largest_step = 1.5 * 2.0 * np.pi / omega_rf
+        frequency_spread = (
+            _design_omega_rf(cls.ENERGY + cls.DELTA_E_TURN, harmonic)
+            - omega_rf
+        )
+        phase_bound = frequency_spread * largest_step
+        decay_bound = omega_rf * largest_step / (2.0 * Q_L)
+        return cls.GATE_FACTOR * phase_bound, cls.GATE_FACTOR * decay_bound
+
+    def _record(self, n_sections: int, delta_e_turn: float) -> tuple:
+        """
+        Track the ring and record every error and every passage's grid.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations.
+        delta_e_turn
+            Reference energy gain per turn [eV].
+
+        Returns
+        -------
+        controllers, passages
+            One recording controller per station, and per turn one record
+            per station of that passage's grid and composition.
+        """
+        controllers = []
+        passages = []
+
+        def build_controller():
+            controller = _ZeroDriveRecordingController()
+            controllers.append(controller)
+            return controller
+
+        def record_passage(feedbacks, stations):
+            passages.append(
+                [
+                    {
+                        "segment_lengths": np.array(
+                            feedback.rf_centers_lengths
+                        ),
+                        "sum_is_beam_component": bool(
+                            np.array_equal(
+                                feedback.antenna_voltage_coarse_grid,
+                                feedback.antenna_voltage_beam_coarse_grid,
+                            )
+                        ),
+                        "generator_silent": not (
+                            np.any(feedback.antenna_voltage_gen_coarse_grid)
+                            or np.any(feedback.generator_current_coarse_grid)
+                        ),
+                        "edge_beam_currents": (
+                            complex(
+                                feedback.beam_current_forward_coarse_grid[0]
+                            ),
+                            complex(
+                                feedback.beam_current_forward_coarse_grid[-1]
+                            ),
+                        ),
+                        "pi_setpoint": complex(feedback.pi_setpoint),
+                        "delta_phi_rf": float(station.delta_phi_rf),
+                    }
+                    for feedback, station in zip(feedbacks, stations)
+                ]
+            )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _run_config(
+                n_sections,
+                self.ENERGY,
+                delta_e_turn,
+                self.N_TURNS,
+                controller_factory=build_controller,
+                generator_current_bias=0.0 + 0.0j,
+                initial_voltage=0.0,
+                per_turn_hook=record_passage,
+            )
+        return controllers, passages
+
+    def _assert_fixture_premises(self, controllers, passages) -> None:
+        """
+        Assert the recorded errors are the kick-frame beam voltage per cell.
+
+        Parameters
+        ----------
+        controllers
+            The recording controllers, one per station.
+        passages
+            The per-turn passage records of :meth:`_record`.
+        """
+        for station_index, controller in enumerate(controllers):
+            records = [turn[station_index] for turn in passages]
+            n_cells = sum(int(np.sum(r["segment_lengths"])) for r in records)
+            with self.subTest(station=station_index, premise="alignment"):
+                # One error per tracked cell, none skipped: the errors line
+                # up with the cells passage by passage.
+                self.assertEqual(len(controller.errors), n_cells)
+            for passage, record in enumerate(records):
+                with self.subTest(station=station_index, passage=passage):
+                    self.assertTrue(record["generator_silent"])
+                    self.assertTrue(record["sum_is_beam_component"])
+                    self.assertEqual(record["pi_setpoint"], V_DESIGN + 0.0j)
+                    # exp(+i delta_phi_rf) short-circuits to exactly 1.
+                    self.assertEqual(record["delta_phi_rf"], 0.0)
+                    self.assertEqual(record["edge_beam_currents"], (0j, 0j))
+
+    @staticmethod
+    def _later_cells_by_boundary(segment_lengths_per_passage) -> dict:
+        """
+        Later cell of every checked pair of adjacent cells, by kind.
+
+        Parameters
+        ----------
+        segment_lengths_per_passage
+            ``rf_centers_lengths`` of each passage of one station.
+
+        Returns
+        -------
+        dict
+            Kind of step -> whole-run indices of the later cell of each
+            pair (the earlier one is the index before it).
+        """
+        later_cells = {
+            "passage": [],
+            "backfill segment": [],
+            "backfill to forward": [],
+            "inside backfill segment": [],
+        }
+        passage_start = 0
+        for passage, lengths in enumerate(segment_lengths_per_passage):
+            n_backfill = int(np.sum(lengths[:-1]))
+            if passage >= 1:
+                later_cells["passage"].append([passage_start])
+                segment_start = passage_start
+                for length in lengths[:-1]:
+                    later_cells["inside backfill segment"].append(
+                        np.arange(segment_start + 1, segment_start + length)
+                    )
+                    if segment_start > passage_start:
+                        later_cells["backfill segment"].append([segment_start])
+                    segment_start += int(length)
+                if n_backfill > 0:
+                    later_cells["backfill to forward"].append(
+                        [passage_start + n_backfill]
+                    )
+            passage_start += int(np.sum(lengths))
+        return {
+            kind: np.concatenate(cells).astype(int)
+            if cells
+            else np.zeros(0, dtype=int)
+            for kind, cells in later_cells.items()
+        }
+
+    def _assert_continuous(self, n_sections: int, delta_e_turn: float) -> dict:
+        """
+        Track, check the premises and gate every checked step.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations.
+        delta_e_turn
+            Reference energy gain per turn [eV].
+
+        Returns
+        -------
+        dict
+            Station index -> number of checked pairs per kind, for the
+            callers' non-vacuity checks.
+        """
+        controllers, passages = self._record(n_sections, delta_e_turn)
+        self._assert_fixture_premises(controllers, passages)
+        phase_gate, magnitude_gate = self._gates(n_sections)
+        checked = {}
+        for station_index, controller in enumerate(controllers):
+            voltage = V_DESIGN - np.array(controller.errors)
+            later_cells = self._later_cells_by_boundary(
+                [turn[station_index]["segment_lengths"] for turn in passages]
+            )
+            checked[station_index] = {
+                kind: len(cells) for kind, cells in later_cells.items()
+            }
+            for kind, later in later_cells.items():
+                if len(later) == 0:
+                    continue
+                ratio = voltage[later] / voltage[later - 1]
+                phase_step = np.abs(np.angle(ratio))
+                magnitude_step = np.abs(np.abs(ratio) - 1.0)
+                worst = int(np.argmax(phase_step))
+                with self.subTest(station=station_index, step=kind):
+                    self.assertGreater(
+                        float(np.abs(voltage[np.r_[later, later - 1]]).min()),
+                        self.MIN_CHECKED_VOLTAGE,
+                    )
+                    self.assertLess(
+                        float(phase_step.max()),
+                        phase_gate,
+                        f"{n_sections} section(s), station {station_index}: "
+                        f"the kick-frame voltage turns by "
+                        f"{float(phase_step.max()):.4e} rad at a "
+                        f"'{kind}' step (cell {int(later[worst])}; all such "
+                        f"steps: {np.array2string(phase_step[:6])}), gate "
+                        f"{phase_gate:.3e} rad",
+                    )
+                    self.assertLess(
+                        float(magnitude_step.max()),
+                        magnitude_gate,
+                        f"{n_sections} section(s), station {station_index}: "
+                        f"|V| steps by {float(magnitude_step.max()):.4e} at a "
+                        f"'{kind}' step, gate {magnitude_gate:.3e}",
+                    )
+        return checked
+
+    def test_two_sections_fast_ramp(self):
+        """Two sections: one backfill segment per passage."""
+        checked = self._assert_continuous(2, self.DELTA_E_TURN)
+        for counts in checked.values():
+            self.assertEqual(counts["passage"], self.N_TURNS - 1)
+            self.assertEqual(counts["backfill to forward"], self.N_TURNS - 1)
+
+    def test_four_sections_fast_ramp(self):
+        """Four sections: three backfill segments per passage."""
+        checked = self._assert_continuous(4, self.DELTA_E_TURN)
+        for counts in checked.values():
+            self.assertEqual(counts["passage"], self.N_TURNS - 1)
+            self.assertEqual(
+                counts["backfill segment"], 2 * (self.N_TURNS - 1)
+            )
+            self.assertEqual(counts["backfill to forward"], self.N_TURNS - 1)
+
+    def test_constant_energy_control_four_sections(self):
+        """
+        Control: without a ramp the accumulated phase is exactly zero.
+
+        Same ring, recording and gates; only ``delta_e_turn = 0``. The
+        voltage must be continuous whatever the rotation bookkeeping, so a
+        failure of the ramped cases comes from the ramp, not the fixture.
+        """
+        self._assert_continuous(4, 0.0)
+
+    def test_single_section_control_fast_ramp(self):
+        """
+        Control: a single section accumulates no phase, ramp or not.
+
+        Its later passages have no backfill span at all, so only the
+        passage boundary is checked, on the same fast ramp.
+        """
+        checked = self._assert_continuous(1, self.DELTA_E_TURN)
+        self.assertEqual(checked[0]["passage"], self.N_TURNS - 1)
 
 
 class TestDrivenSteadyStateFastRamp(unittest.TestCase):
@@ -881,29 +1297,33 @@ class TestPIFullTrackingSingleSectionFastRamp(unittest.TestCase):
 
     # Regenerated for the timestamped fine-grid handoff and bin-centred
     # sampling (2026-09-10). The independent sag/recovery gates are unchanged.
+    # Regenerated 2026-09-11 for the exact exponential coarse step (forward
+    # Euler retired): i_max_dev moved by <= 1.22e-6 relative and v_min by
+    # <= 5.6e-8. Patching the Euler step back in reproduced the previous
+    # pins exactly, so the move is the Euler truncation alone.
     # Regenerate with PI_TRACKING_PRINT_PINS=1.
     PIN_V_MIN = np.array(
         [
-            28874968.09500346,
-            28844505.88884946,
-            28792088.93513492,
-            28734778.61559068,
-            28687938.41210964,
-            28660077.151130296,
-            28657064.65436279,
-            28679679.78937612,
+            28874969.432303112,
+            28844507.26413691,
+            28792090.37687803,
+            28734780.130662423,
+            28687939.987144604,
+            28660078.762072034,
+            28657066.26975915,
+            28679681.376705285,
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            57.50127701204232,
-            57.46709979631065,
-            57.244928417764854,
-            56.88479161047287,
-            56.55483449221774,
-            56.276858415192265,
-            55.95843584384972,
-            55.59690727435881,
+            57.50120699475231,
+            57.467029820637215,
+            57.24485871262254,
+            56.88472234385635,
+            56.55476562737862,
+            56.27678988883557,
+            55.958367705224816,
+            55.5968395759544,
         ]
     )
 
@@ -988,24 +1408,28 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
     # where the effect is large.
     # Regenerated for bin-centred fine sampling (2026-09-10): voltage moves
     # by <= 1.28e-5 relative; the physical validation gates remain unchanged.
+    # Regenerated 2026-09-11 for the exact exponential coarse step (forward
+    # Euler retired): i_max_dev moved by <= 1.22e-6 relative and v_min by
+    # <= 1.5e-8. Patching the Euler step back in reproduced the previous
+    # pins to <= 9.3e-10, so the move is the Euler truncation.
     PIN_V_MIN = np.array(
         [
-            [29720241.870437264, 29718281.40064307],
-            [29714413.873711642, 29708787.59586844],
-            [29701375.52165232, 29691965.18957602],
-            [29681187.245490152, 29669361.158770554],
-            [29657143.389012754, 29644958.736940276],
-            [29633286.208665922, 29622239.471202694],
+            [29720242.194671847, 29718281.72720342],
+            [29714414.203314707, 29708787.932021037],
+            [29701375.86495218, 29691965.543755144],
+            [29681187.610761583, 29669361.537674204],
+            [29657143.780837268, 29644959.143025886],
+            [29633286.627059486, 29622239.902350448],
         ]
     )
     PIN_I_MAX_DEV = np.array(
         [
-            [56.62027262356418, 56.62026881695404],
-            [56.62325875666628, 56.62326754655699],
-            [56.62752962508498, 56.629314381090154],
-            [56.63756594966389, 56.64483848970001],
-            [56.65719863693892, 56.66868325006434],
-            [56.69242952290599, 56.71735042001875],
+            [56.6202036789715, 56.6201998723662],
+            [56.6231898063932, 56.62319859551216],
+            [56.62746066373908, 56.629245415704844],
+            [56.637496965218205, 56.644769493713795],
+            [56.657129613371076, 56.6686142098662],
+            [56.69236043931437, 56.717281304850594],
         ]
     )
 

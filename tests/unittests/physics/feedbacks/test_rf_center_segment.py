@@ -35,6 +35,7 @@ from blond.physics.feedbacks.rf_center_segment import (
     PerTurnGridSpan,
     RFCenterSegment,
     accumulated_phases,
+    accumulated_phases_at_centers,
 )
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
@@ -614,6 +615,172 @@ class TestAccumulatedPhases(unittest.TestCase):
         self.assertEqual(len(phases), 0)
 
 
+class TestAccumulatedPhasesAtCenters(unittest.TestCase):
+    """
+    ``accumulated_phases_at_centers``: the phase at every backfill centre.
+
+    ``accumulated_phases`` gives the phase at the END of each backfill
+    segment, but the coarse recursion samples the envelope at the
+    segment's centres, and the frame rotation of a backfill cell has to
+    follow the phase as it accumulates across the span. A centre of
+    segment ``k`` at segment-local time ``c`` therefore sits at the phase
+    its segment started from plus ``(omega_carrier - omega_k) c``: the
+    carried phase for the first segment, the stored phase of its
+    predecessor for every later one.
+    """
+
+    CARRIED_PHASE = 0.25
+
+    @classmethod
+    def _segments(
+        cls,
+        carrier_omega=FORWARD_OMEGA,
+        carried_phase=CARRIED_PHASE,
+        segment_omegas=SECOND_BACKFILL_OMEGAS,
+    ):
+        """
+        Backfill segments storing the phases ``accumulated_phases`` gives.
+
+        Parameters
+        ----------
+        carrier_omega
+            Carrier the stored phases refer to [rad/s], or None.
+        carried_phase
+            Phase [rad] the previous passage handed over.
+        segment_omegas
+            Design frequency [rad/s] of each backfill segment.
+
+        Returns
+        -------
+        segments
+            One segment per entry of ``BACKFILL_LENGTHS``, centres half a
+            period into each period, spanning one period more than its
+            centres.
+        """
+        durations = np.array(
+            [(n_centers + 1) * T_RF_BOUNDARY for n_centers in BACKFILL_LENGTHS]
+        )
+        stored_phases = accumulated_phases(
+            carried_phase=carried_phase,
+            carrier_omega=carrier_omega,
+            segment_omegas=np.array(segment_omegas),
+            segment_durations=durations,
+        )
+        segments = []
+        for omega, n_centers, duration, stored_phase in zip(
+            segment_omegas, BACKFILL_LENGTHS, durations, stored_phases
+        ):
+            centers = (np.arange(n_centers) + 0.5) * T_RF_BOUNDARY
+            segments.append(
+                RFCenterSegment(
+                    omega=omega,
+                    duration=float(duration),
+                    residual=float(duration - centers[-1]),
+                    centers=centers,
+                    accumulated_phase=float(stored_phase),
+                )
+            )
+        return segments
+
+    def test_one_phase_per_centre_in_grid_order(self):
+        segments = self._segments()
+        phases = accumulated_phases_at_centers(
+            self.CARRIED_PHASE, FORWARD_OMEGA, segments
+        )
+        self.assertEqual(len(phases), sum(BACKFILL_LENGTHS))
+
+    def test_first_segment_starts_from_the_carried_phase(self):
+        segments = self._segments()
+        phases = accumulated_phases_at_centers(
+            self.CARRIED_PHASE, FORWARD_OMEGA, segments
+        )
+        first = segments[0]
+        np.testing.assert_array_equal(
+            phases[: len(first)],
+            self.CARRIED_PHASE + (FORWARD_OMEGA - first.omega) * first.centers,
+        )
+
+    def test_later_segments_start_from_the_stored_phase_before_them(self):
+        segments = self._segments()
+        phases = accumulated_phases_at_centers(
+            self.CARRIED_PHASE, FORWARD_OMEGA, segments
+        )
+        offset = len(segments[0])
+        for index in range(1, len(segments)):
+            segment = segments[index]
+            with self.subTest(segment=index):
+                np.testing.assert_array_equal(
+                    phases[offset : offset + len(segment)],
+                    segments[index - 1].accumulated_phase
+                    + (FORWARD_OMEGA - segment.omega) * segment.centers,
+                )
+            offset += len(segment)
+
+    def test_phase_is_the_running_phase_of_the_elapsed_time(self):
+        # Implementation-independent reference: integrate the grid-vs-
+        # carrier frequency difference over the absolute time elapsed since
+        # the start of the backfill span, segment by segment.
+        segments = self._segments()
+        phases = accumulated_phases_at_centers(
+            self.CARRIED_PHASE, FORWARD_OMEGA, segments
+        )
+        expected = []
+        phase_at_segment_start = self.CARRIED_PHASE
+        for segment in segments:
+            rate = FORWARD_OMEGA - segment.omega
+            expected.extend(phase_at_segment_start + rate * segment.centers)
+            phase_at_segment_start += rate * segment.duration
+        np.testing.assert_allclose(phases, expected, rtol=0, atol=1e-12)
+        # Non-vacuous: the phase really moves within and between segments.
+        self.assertGreater(float(np.ptp(phases)), 1.0)
+
+    def test_a_segment_ends_on_its_stored_phase(self):
+        # Carrying the last centre's phase over the unfilled tail lands on
+        # the phase the segment stores -- for the last one, the phase the
+        # forward segment inherits.
+        segments = self._segments()
+        phases = accumulated_phases_at_centers(
+            self.CARRIED_PHASE, FORWARD_OMEGA, segments
+        )
+        offset = 0
+        for index, segment in enumerate(segments):
+            offset += len(segment)
+            end_phase = (
+                phases[offset - 1]
+                + (FORWARD_OMEGA - segment.omega) * segment.residual
+            )
+            with self.subTest(segment=index):
+                self.assertAlmostEqual(
+                    end_phase, segment.accumulated_phase, delta=1e-12
+                )
+
+    def test_without_a_carrier_every_centre_keeps_the_carried_phase(self):
+        segments = self._segments(carrier_omega=None, carried_phase=0.0)
+        phases = accumulated_phases_at_centers(0.0, None, segments)
+        self.assertEqual(len(phases), sum(BACKFILL_LENGTHS))
+        self.assertTrue(np.all(phases == 0.0))
+        # Exactly +0.0, so single-section and first-passage runs keep their
+        # unit rotations bit for bit.
+        self.assertFalse(np.any(np.signbit(phases)))
+
+    def test_an_unaccelerated_passage_accumulates_exactly_zero(self):
+        # Every segment at the carrier: no ramp, so every rate is exactly
+        # zero and so is every centre's phase.
+        segments = self._segments(
+            carried_phase=0.0,
+            segment_omegas=(FORWARD_OMEGA,) * len(BACKFILL_LENGTHS),
+        )
+        phases = accumulated_phases_at_centers(0.0, FORWARD_OMEGA, segments)
+        self.assertTrue(np.all(phases == 0.0))
+        self.assertFalse(np.any(np.signbit(phases)))
+
+    def test_no_segments_give_no_phases(self):
+        phases = accumulated_phases_at_centers(
+            self.CARRIED_PHASE, FORWARD_OMEGA, []
+        )
+        self.assertEqual(len(phases), 0)
+
+
 class TestSegmentsCarryTheAccumulatedPhase(unittest.TestCase):
     """
     The grid sets each segment's accumulated phase and carries it on.
@@ -718,6 +885,79 @@ class TestSegmentsCarryTheAccumulatedPhase(unittest.TestCase):
         fdbk = TestRFCenterSegment._bare_feedback()
         fdbk._clear_segments()
         self.assertEqual(fdbk._accumulated_phase_for_forward_segment(), 0.0)
+
+    def _feedback_with_passage_grid(self, n_stations, carried):
+        """
+        Feedback holding a backfill + forward grid after a carried passage.
+
+        Parameters
+        ----------
+        n_stations
+            Number of RF stations in the ring.
+        carried
+            Forward segment the previous passage ended on, or None.
+
+        Returns
+        -------
+        fdbk, backfill_segments
+            The feedback, and the backfill segments of its grid.
+        """
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._n_rf_stations_in_ring = n_stations
+        fdbk._forward_segment_carried_into_turn = carried
+        backfill_segments = TestAccumulatedPhasesAtCenters._segments(
+            carrier_omega=None if carried is None else carried.omega,
+            carried_phase=0.0
+            if carried is None
+            else carried.accumulated_phase,
+        )
+        fdbk._clear_segments()
+        for segment in backfill_segments:
+            fdbk._append_segment(segment)
+        fdbk._append_segment(
+            RFCenterSegment(
+                omega=SECOND_FORWARD_OMEGA,
+                duration=4 * T_RF_BOUNDARY,
+                residual=0.5 * T_RF_BOUNDARY,
+                centers=np.arange(3) * T_RF_BOUNDARY + 0.5 * T_RF_BOUNDARY,
+                accumulated_phase=backfill_segments[-1].accumulated_phase,
+            )
+        )
+        return fdbk, backfill_segments
+
+    def test_backfill_centre_phases_continue_the_carried_forward_segment(self):
+        carried = self._carried_forward()
+        fdbk, backfill_segments = self._feedback_with_passage_grid(2, carried)
+
+        np.testing.assert_array_equal(
+            fdbk._backfill_center_phases(),
+            accumulated_phases_at_centers(
+                carried.accumulated_phase, carried.omega, backfill_segments
+            ),
+        )
+
+    def test_single_station_ring_centre_phases_are_zero(self):
+        fdbk, _ = self._feedback_with_passage_grid(
+            1, self._carried_forward(accumulated_phase=0.0)
+        )
+        phases = fdbk._backfill_center_phases()
+        self.assertEqual(len(phases), sum(BACKFILL_LENGTHS))
+        self.assertTrue(np.all(phases == 0.0))
+        self.assertFalse(np.any(np.signbit(phases)))
+
+    def test_first_passage_centre_phases_are_zero(self):
+        fdbk, _ = self._feedback_with_passage_grid(2, None)
+        phases = fdbk._backfill_center_phases()
+        self.assertEqual(len(phases), sum(BACKFILL_LENGTHS))
+        self.assertTrue(np.all(phases == 0.0))
+
+    def test_a_grid_without_backfill_has_no_centre_phases(self):
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._forward_segment_carried_into_turn = self._carried_forward()
+        fdbk._n_rf_stations_in_ring = 2
+        fdbk._clear_segments()
+        fdbk._append_segment(self._carried_forward())
+        self.assertEqual(len(fdbk._backfill_center_phases()), 0)
 
 
 class TestBackfillSpanWalksSegments(unittest.TestCase):

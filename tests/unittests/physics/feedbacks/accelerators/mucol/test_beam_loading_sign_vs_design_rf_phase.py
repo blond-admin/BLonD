@@ -17,8 +17,9 @@ The beam-induced part of the kick is isolated exactly, by linearity of the
 cavity equation, as the difference between a nominal-intensity run and a
 zero-intensity reference run on the same operating-point cavity
 (``V_init = V_design`` held by the matched generator current
-``I_g = V / (2 (R/Q) Q_L)``; a cold cavity would trip the coarse-grid
-beam-kick magnitude check). Ring, cavity and bunch are the ones of
+``I_g = V / (2 (R/Q) Q_L)``, chosen when a cold cavity still tripped the
+coarse-grid beam-kick check removed on 2026-09-11). Ring, cavity and bunch
+are the ones of
 ``test_energy_gain_ind_voltage_vs_nondriven_feedback``, which pins that same
 induced kick against the independent ``MultiPassResonatorSolver`` at
 ``phi_rf_design = 0`` -- so here that already-validated case is the reference
@@ -32,6 +33,7 @@ least-decelerated -9.11 eV) and is the same array for ``phi_rf_design`` in
 
 import io
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -47,6 +49,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 
 #: RCS1-like cavity and ring parameters, shared with the sibling
@@ -129,9 +132,9 @@ class TestBeamLoadingSignVsDesignRfPhase(unittest.TestCase):
         )
         # Operating-point cavity: V_init = V_design held steady by the
         # matched generator current (the steady state of the cavity
-        # equation at zero detuning). A cold or undriven cavity trips the
-        # coarse-grid beam-kick magnitude check, whose heuristic assumes an
-        # established antenna voltage.
+        # equation at zero detuning). A cold or undriven cavity used to
+        # trip the coarse-grid beam-kick check (removed 2026-09-11); the
+        # operating point is kept.
         feedback = IQCavityFeedbackTimingClass(
             profile=profile,
             R_over_Q=R_OVER_Q,
@@ -281,6 +284,32 @@ class TestBeamLoadingSignVsDesignRfPhase(unittest.TestCase):
         # the test pins the scale without being brittle.
         self.assertLess(mean_loss, -4.0e4, msg=f"{mean_loss=}")
         self.assertGreater(mean_loss, -1.6e5, msg=f"{mean_loss=}")
+
+    def test_feedback_requests_the_last_coarse_cell_warning(self):
+        """
+        Every coarse demodulation of the timing class asks for the warning.
+
+        The beam current of the last forward coarse cell is carried into
+        the first coarse step of the next passage, which counts it a second
+        time, so the feedback must call ``rf_beam_current`` with
+        ``warn_charge_in_last_coarse_cell=True`` whenever it downsamples
+        onto the coarse grid.
+        """
+        with mock.patch(
+            "blond.physics.feedbacks.cavity_feedback.rf_beam_current",
+            wraps=rf_beam_current,
+        ) as spy:
+            self._applied_kick(0.0, INTENSITY)
+        coarse_calls = [
+            call
+            for call in spy.call_args_list
+            if call.kwargs.get("sampling_time") is not None
+        ]
+        self.assertGreater(len(coarse_calls), 0)
+        for call in coarse_calls:
+            self.assertIs(
+                call.kwargs.get("warn_charge_in_last_coarse_cell"), True
+            )
 
     def test_bunch_loses_energy_to_its_own_wake_at_zero_design_phase(self):
         """Control: at ``phi_rf_design = 0`` every particle is decelerated."""

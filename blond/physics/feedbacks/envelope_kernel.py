@@ -28,22 +28,28 @@ components through the same propagator -- superposition is exact:
   anchored to the piecewise design clock the coarse grid samples.
 
 Each cell also composes the demodulation-frame sum
-``V = V_beam + V_gen * generator_frame_rotation`` (the per-passage scalar
-``generator_frame_rotation = exp(-i (delta_phi_rf + carrier slip gap +
-registration phase))`` rotates the design-anchored component into the
-demodulation frame; see ``IQCavityFeedbackTimingClass._track``), which is
-what the PI regulates -- in the *kick frame*,
-``error = (V_set - V * kick_frame_rotation) * pi_error_frame_rotation``.
+``V = V_beam + V_gen * generator_frame_rotation[c]`` (the rotation
+``exp(-i (delta_phi_rf + carrier slip gap + accumulated phase))`` of cell
+``c`` takes the design-anchored component into the demodulation frame; see
+``IQCavityFeedbackTimingClass._update_frame_rotations``), which is what the
+PI regulates -- in the *kick frame*,
+``error = (V_set - V * kick_frame_rotation[c]) * pi_error_frame_rotation``.
+Both rotations are per cell because a backfill span replays an interval
+over which the accumulated phase is still growing; over a forward span
+every entry holds the same per-passage value.
 
-The kernel is deliberately *solver-agnostic*: the per-cell voltage multiplier
-``B`` (``1 + L`` for forward Euler, ``e^L`` for the exponential propagator) and
-the drive weight ``W`` (``1`` or ``(e^L - 1) / L``) depend only on the step
-size and detuning, not on the recursion state, so they are precomputed on the
-host (see ``_circuit_track_cells_kernel``) and passed in. The kernel then only
-carries the state-dependent update ``V = V_prev * B + drive * W`` and the PI
-controller, which keeps it identical -- byte-for-byte on complex128 -- to both
-the Euler and the exponential Python paths without numba ever evaluating
-``exp``/``expm1``.
+The kernel does not evaluate the propagator itself: the per-cell voltage
+multiplier ``B = e^L`` and drive weight ``W = (e^L - 1) / L`` of the exact
+exponential step depend only on the step size and detuning, not on the
+recursion state, so they are precomputed on the host (see
+``_circuit_track_cells_kernel``) and passed in, as are the per-cell frame
+rotations. The kernel then only carries the state-dependent update
+``V = V_prev * B + drive * W`` and the PI controller, which keeps it
+identical -- byte-for-byte on complex128 -- to the Python reference path
+without numba ever evaluating ``exp``/``expm1``. The derivation of ``B`` and
+``W``, and why the retired forward-Euler ``B = 1 + L``, ``W = 1`` was only
+their first-order truncation, is in the Notes of
+``IQCavityFeedbackTimingClass._advance_coarse_voltage``.
 
 The PI delay line is passed as a circular buffer (``delay_buffer`` + a head
 index) rather than a :class:`collections.deque`; ``_circuit_track_cells_kernel``
@@ -128,9 +134,9 @@ def envelope_pi_scan(
               I_{\mathrm{gen},c-1}\,W_c,
 
     composes the demodulation-frame sum
-    ``V_c = V_beam,c + V_gen,c * generator_frame_rotation`` and, when
+    ``V_c = V_beam,c + V_gen,c * generator_frame_rotation[c]`` and, when
     ``controller_active``, updates the generator current from the kick-frame
-    antenna-voltage error ``V_set - V_c * kick_frame_rotation`` with a
+    antenna-voltage error ``V_set - V_c * kick_frame_rotation[c]`` with a
     saturating PI controller (conditional anti-windup, magnitude clamp).
     ``max_output = inf`` disables the clamp and the saturation check,
     matching an unlimited controller.
@@ -176,14 +182,17 @@ def envelope_pi_scan(
         composition multiply are skipped, so an undriven feedback stays
         bit-identical to the former single-state recursion.
     generator_frame_rotation
-        Per-passage scalar ``exp(-i (delta_phi_rf + carrier slip gap))``
-        rotating the design-anchored generator component into the
-        demodulation frame of the beam component (unity without an
-        RF-frequency offset and without multi-section acceleration).
+        Per-cell rotation ``exp(-i (delta_phi_rf + carrier slip gap))``
+        (complex128, length ``N``) taking the design-anchored generator
+        component of that cell into the demodulation frame of the beam
+        component; on a backfill cell the carrier slip gap carries the
+        phase accumulated up to it (unity without an RF-frequency offset
+        and without multi-section acceleration).
     kick_frame_rotation
-        Per-passage scalar ``exp(+i * carrier slip gap)`` rotating the
-        demodulation-frame sum into the frame of the applied kick, in which
-        the PI error is formed.
+        Per-cell rotation ``exp(+i * carrier slip gap)`` (complex128,
+        length ``N``), with the same gap as ``generator_frame_rotation``,
+        taking the demodulation-frame sum of that cell into the frame of
+        the applied kick, in which the PI error is formed.
     pi_error_frame_rotation
         Per-passage scalar ``exp(+i * delta_phi_rf)`` rotating the kick-frame
         error into the actuator (design) frame the generator current acts in,
@@ -265,13 +274,15 @@ def envelope_pi_scan(
             )
             voltage_gen_out[cell] = voltage_gen
             voltage_gen_prev = voltage_gen
-            voltage = voltage_beam + voltage_gen * generator_frame_rotation
+            voltage = (
+                voltage_beam + voltage_gen * generator_frame_rotation[cell]
+            )
         else:
             voltage = voltage_beam
         voltage_out[cell] = voltage
         if controller_active:
             error = (
-                pi_setpoint - voltage * kick_frame_rotation
+                pi_setpoint - voltage * kick_frame_rotation[cell]
             ) * pi_error_frame_rotation
             delta_t = omega_times_dt[cell] / omega_input
             delay_buffer[delay_head] = error

@@ -379,6 +379,10 @@ backfill re-pass, bistable demod residual.
 
 ### 2.2 P1 — exact exponential coarse propagator (option)
 
+> **RETIRED 2026-09-11 (§2.19).** The "default forward-Euler" below, the
+> switch and the guard no longer exist: the exact propagator is the only
+> coarse step. Kept as a record.
+
 `exponential_coarse_solver_enable: bool = False`. `cavity_response` routes
 through `_advance_coarse_voltage`, which does either forward-Euler (default,
 **bit-unchanged**) or the exact `V_{n+1} = e^L V_n + src·(e^L−1)/L`. Under
@@ -1166,6 +1170,49 @@ with a cavity feedback; if that is ever lifted, the offset's history across
 the backfill segments needs the same per-segment accumulation, and the
 segment records are the natural place for it.
 
+### 2.19 Forward-Euler coarse step retired (2026-09-11)
+
+**User decision:** "Remove the Euler solver entirely, keep a note in the
+calculation of the voltage of how this is derived from the Euler and why the
+Euler is an approximation of the exact solver."
+
+**What went.** The `exponential_coarse_solver_enable` switch (passing it now
+raises `TypeError`); `euler_voltage_multiplier`; `ForwardEulerValidityGuard`
+with all four tripwires (per-step decay, detuning phase, coupled `|1 + L|`,
+relative beam kick) and `self._euler_guard`; the wrappers
+`_check_step_sizes`, `_check_beam_kick_magnitude`, `_check_beam_kicks` and
+their call sites (`on_run_simulation`, `cavity_response`, the kernel glue);
+the kernel glue's `voltage_init` local, which only the kick guard read. The
+`@requires` on `_check_step_sizes` was inert metadata: the simulation only
+collects `.requires` from the `on_*` hook it executes. Kept, because other
+code or tests still use them: `_last_val_ant_voltage` (written by
+`reset_arrays`, read by tests), `sampling_time_coarse` (public; named in the
+causality-error remedy; it now has no reader in the tracking code), the
+sub-stepping mode, the fine-grid solvers, `propagate_beam_free_voltage` and
+the kernel with its bit-identity to the Python path.
+
+**Why.** Euler had stayed the default after f0e7b68ce only to keep numbers
+bit-unchanged. It is the first-order truncation of the exact step, needed a
+guard of its own, and costs the same, because the multipliers are
+precomputed per cell.
+
+**The note** (envelope ODE, the exact step, Euler as its truncation, why
+Euler is only an approximation, size and cost) lives in the Notes of
+`IQCavityFeedbackTimingClass._advance_coarse_voltage`. The docstrings of
+`exponential_voltage_multiplier`, `exponential_drive_weight`,
+`_kernel_step_multipliers` and the `envelope_kernel` module point to it.
+
+**Measured.** On the multi-turn convolution harness, Euler and the exact
+step differ by 3e-14, 7.1e-7 and 8.5e-7 relative on turns 0/1/2 (1 section
+static, and 4 sections accelerating alike). Re-baselined:
+`TestPIFullTrackingSingleSectionFastRamp` and
+`TestPIFullTrackingMultiSectionSlowRamp` pins (<= 1.22e-6; with Euler
+patched back in, the old pins were reproduced exactly and to 9.3e-10). NOT
+re-baselined: `TestPIFullTrackingMultiSectionFastRamp`. With Euler patched
+back in it still misses its pin by 3.5e-6 (`v_min`) and 1.0e-4
+(`i_max_dev`), so work running concurrently in the tree moved it, not this
+change, whose own share there is 4.0e-8 / 1.22e-6.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam
@@ -1617,10 +1664,10 @@ sizes.
 
 | module | holds |
 |---|---|
-| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **nine** phase methods (§2.11, incl. `_update_frame_rotations`), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `reset_arrays` (incl. `_generator_active` refresh and the gen-component seeding), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_check_fine_grid_initial_condition_is_causal`, the pre-fill call. `_check_step_sizes`, `_check_beam_kick_magnitude`, `_check_beam_kicks` are thin wrappers delegating to `self._euler_guard` |
+| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **nine** phase methods (§2.11, incl. `_update_frame_rotations`), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial`, `reset_arrays` (incl. `_generator_active` refresh and the gen-component seeding), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_check_fine_grid_initial_condition_is_causal`, the pre-fill call. The `_check_step_sizes` / `_check_beam_kick_magnitude` / `_check_beam_kicks` wrappers and `self._euler_guard` were removed 2026-09-11 (§2.19) |
 | `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` construction: the forward and **backfill** reference walks, `_generate_rf_centers`, segment generation (`_append_segment` / `_clear_segments` / `_rebuild_grid_arrays` / `_close_previous_turn_grid`), `_preceding_segment_residual`, `_validate_grid`, and the two direction selectors (`_reference_list_for_direction`, `_own_index_for_direction` — the *space*-sense reverse, §1.3). `_segments` is the single source of truth; the flat arrays are derived. Its module docstring is the canonical statement of the backfill-vs-reverse rule and of the design-clock-only geometry |
 | `rf_center_segment.py` | The two value classes and one pure helper: `RFCenterSegment` (the four original fields load-bearing — see the correction in §2.11 — plus `accumulated_phase` since §2.18, with the ≥ 2-centres, `residual ∈ [0, duration]` and finite-phase validation), `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`) and `accumulated_phases` (§2.18). Imported by `cavity_feedback.py` and `rf_center_grid.py` |
-| `cavity_solvers.py` | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the coarse-step arithmetic `coarse_step_exponent`, `euler_voltage_multiplier`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`; and `ForwardEulerValidityGuard` — the discretisation tripwires, beside the solvers they certify. Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
+| `cavity_solvers.py` | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the exact coarse-step arithmetic `coarse_step_exponent`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`. (`euler_voltage_multiplier` and `ForwardEulerValidityGuard` were removed 2026-09-11, §2.19.) Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
 | `envelope_kernel.py` | numba host kernel `envelope_pi_scan` + `inactive_controller_scan_state` — the sequential coarse-envelope + PI recursion; solver-agnostic and byte-identical to the Python reference. Since §2.13 it advances the two source-split components, composes the demod-frame sum per cell and forms the PI error in the kick frame; the signature carries the component in/out arrays, the `generator_active` gate and the **three** per-passage rotation scalars (`_generator_frame_rotation`, `_kick_frame_rotation`, `_pi_error_frame_rotation` — this row said two until 2026-09-02). Reached through the **controller's** `supports_envelope_scan` capability, not called by the feedback directly |
 | `generator_regulation.py` | `GeneratorRegulationMixin` — `_controller_active`, `pi_setpoint`, `_validate_voltage_setpoint`, `generator_power`, `_update_generator_current` (forms the PI error in the KICK frame via `_kick_frame_rotation`, §2.13). **What it does NOT own** (and its module docstring says so): the compiled envelope scan and the per-cell stepping decision stay on the timing class, because they need **every** coarse grid (the summed, generator- and beam-sourced antenna voltages plus the generator current) and **all five** values carried across the turn boundary (`_last_val_ant_voltage`, `_last_val_ant_voltage_gen`, `_last_val_ant_voltage_beam`, `_last_val_generator_current`, `_last_val_beam_current` — this row said "both coarse grids and the three values" until 2026-09-02, a pre-envelope-split count the module docstring had already outgrown), and because the scan depends on `pi_setpoint` staying *unevaluated* on a span with no controller attached (that property may reach through to the parent station). Since 2026-09-02 the controller runs on every tracked span, the no-beam backfill segments included (§2.3) |
 | `generator_current_controller.py` | `GeneratorCurrentController` ABC + `GeneratorCurrentPIController`; the envelope-scan capability hooks (`supports_envelope_scan`, `envelope_scan_kernel`, `envelope_scan_state`, `absorb_envelope_scan_state`); `current_limit_from_power`, `clamp_magnitude` |

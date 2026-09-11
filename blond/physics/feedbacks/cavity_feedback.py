@@ -33,11 +33,9 @@ from blond.physics.cavities import (
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_solvers import (
-    ForwardEulerValidityGuard,
     cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
     coarse_step_exponent,
-    euler_voltage_multiplier,
     exponential_drive_weight,
     exponential_voltage_multiplier,
     pretrack_fill_voltage,
@@ -136,9 +134,11 @@ class IQCavityFeedbackBase(LocalFeedback):
 
         # Ratio between rf periods and coarse grid sampling period.
         # A value in (0, 1) is the sub-stepping mode: several coarse-grid
-        # points per RF period, used to keep the forward-Euler cavity step
-        # stable for low Q_L (see _check_step_sizes). It is a deliberate
-        # configuration and is therefore accepted without warning.
+        # points per RF period, i.e. a finer sampling of the generator
+        # command and of the coarse beam current. The coarse step itself is
+        # exact for any step length (see _advance_coarse_voltage), so this
+        # is not a stability device. It is a deliberate configuration and
+        # is therefore accepted without warning.
         if n_rf_periods_per_coarse_grid <= 0:
             raise ValueError(f"{n_rf_periods_per_coarse_grid=} must be > 0.")
         # A non-integer number of *whole* RF periods (n >= 1) de-aligns the
@@ -239,7 +239,9 @@ class IQCavityFeedbackBase(LocalFeedback):
         antenna_voltage_gen_coarse_grid * generator frame rotation``
         (see ``IQCavityFeedbackTimingClass._update_frame_rotations``). The
         components are the propagated state; this sum is (re)composed from
-        them with the CURRENT passage's rotation. While the generator
+        them cell by cell: with the CURRENT passage's rotation over the
+        forward span, and over the backfill span with the rotation of the
+        phase accumulated up to each cell. While the generator
         component is inactive -- no controller, zero
         ``generator_current_bias``, and neither a carried generator
         current nor a carried generator-sourced voltage (the
@@ -544,10 +546,10 @@ class IQCavityFeedbackBase(LocalFeedback):
         ``delta_omega_rf / omega_rf``. Do not use this value to build grid
         geometry -- take the step from the design frequency instead.
 
-        Its only consumer is ``_check_step_sizes``, where the companion
-        factor ``omega_rf * sampling_time_coarse`` cancels to exactly
-        ``2 * pi * n_rf_periods_per_coarse_grid``, so the forward-Euler decay
-        bound is unaffected by the clock this property uses.
+        No tracking code reads it. Its one consumer, the forward-Euler
+        step-size check, was removed with the Euler coarse step on
+        2026-09-11; it remains a public, user-facing estimate of the coarse
+        cell width, e.g. in the remedy of the fine-grid causality error.
 
         Returns
         -------
@@ -593,17 +595,19 @@ class IQCavityFeedbackTimingClass(
     of :ref:`mucol_cavity_feedback_overview`.
 
     The antenna voltage is advanced on a coarse grid (the ``rf_centers``) with
-    a forward-Euler discretisation of the cavity ODE; see ``cavity_response``
-    and ``_check_step_sizes``.
+    the exact exponential propagator of the cavity-envelope ODE for a source
+    held constant over each step; see ``cavity_response`` and, for the
+    derivation, ``_advance_coarse_voltage``.
 
     By default (no ``controller``) the generator current is a constant value
     (``generator_current_bias``). Passing a
     :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`
     instead turns it into a regulated generator current: each coarse-grid
     step the feedback forms the antenna-voltage error in the *kick frame*
-    -- ``V_set - V_sum[n] * exp(+i (gap + phi_acc))``, the envelope the
-    station actually applies, ``phi_acc`` being the forward segment's
-    accumulated phase -- and lets the controller convert it into the
+    -- ``V_set - V_sum[n] * exp(+i (gap + phi_acc[n]))``, the envelope the
+    station actually applies, ``phi_acc[n]`` being the grid-vs-carrier
+    phase accumulated up to cell ``n`` (the forward segment's value over
+    the whole forward span) -- and lets the controller convert it into the
     generator current (see ``_update_generator_current``). All control
     tuning (gains, loop delay, klystron limit) lives on the controller.
 
@@ -662,15 +666,6 @@ class IQCavityFeedbackTimingClass(
         first-order forward-Euler one. The second-order solver is much more
         accurate at coarse profile binning (its error scales as the bin size
         squared rather than linearly). Default is False.
-    exponential_coarse_solver_enable
-        If True, advance the *coarse* grid with the exact exponential
-        propagator ``V_{n+1} = e^{L} V_n + src (e^{L}-1)/L`` (exact in decay
-        and detuning rotation, unconditionally stable) instead of the default
-        forward-Euler step. Same cost per step; removes the Euler step-size
-        cap and the ``(delta_omega dt)^2`` per-step rotation error, so it is
-        the accurate alternative to sub-stepping for low ``Q_L`` / large
-        detuning. Reduces to the Euler update as the step shrinks. Default is
-        False (forward-Euler, bit-unchanged).
     controller
         Optional generator-current controller (a
         :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController`)
@@ -795,30 +790,22 @@ class IQCavityFeedbackTimingClass(
     their default (``False``) the tracked result is bit-for-bit what
     ``debug=False`` produced before the split.
 
-    **Sub-stepping (** ``n_rf_periods_per_coarse_grid`` **< 1).** The
-    forward-Euler step in ``cavity_response`` advances the antenna voltage by a
-    decay factor ``1 - 0.5 * omega_rf * dt / Q_L`` with
-    ``dt = n_rf_periods_per_coarse_grid * t_rf``, so the per-step decay is
-
-        decay_per_step = 0.5 * omega_rf * dt / Q_L
-                       = n_rf_periods_per_coarse_grid * pi / Q_L .
-
-    This must stay below the hard cap of 1.0 -- the sign-flip boundary, where
-    the Euler decay factor ``1 - decay_per_step`` turns negative and the
-    discretized voltage inverts every step, which the exact factor
-    ``exp(-omega_rf * dt / (2 * Q_L))``, positive for any step, never does.
-    (Beyond ``decay_per_step > 2`` the factor magnitude also exceeds 1 and the
-    response diverges outright; in between it inverts yet still contracts,
-    which is unphysical all the same.) Ideally the decay is ``<< 1`` for
-    accuracy; ``_check_step_sizes`` enforces the cap and warns above 0.1.
-    Steps that must stay larger belong on the exact propagator
-    (``exponential_coarse_solver_enable=True``), which integrates the decay
-    exactly and is exempt from the check. For a low ``Q_L`` even a
-    single RF period per step (``n = 1``) can be unstable (``decay = pi/Q_L``),
-    so ``n`` is lowered below 1 to sub-divide the RF period and shrink the step
-    proportionally. In this mode the coarse grid no longer re-aligns to an RF
-    bucket each turn; the centres tile continuously across the turn boundary
-    (see ``_generate_rf_centers``).
+    **Sub-stepping (** ``n_rf_periods_per_coarse_grid`` **< 1).** A
+    fractional ``n`` places several coarse samples per RF period,
+    ``dt = n_rf_periods_per_coarse_grid * t_rf``. The coarse step is exact
+    for any step length -- it integrates the decay and the detuning rotation
+    in closed form for a source held over the step (see
+    ``_advance_coarse_voltage``) -- so sub-stepping is not needed for
+    stability at low ``Q_L`` or large detuning. What it changes is the
+    sampling: the generator command is held, and the controller stepped,
+    over shorter cells, and the beam current is binned onto them. In this
+    mode the coarse grid no longer re-aligns to an RF bucket each turn; the
+    centres tile continuously across the turn boundary (see
+    ``_generate_rf_centers``). That tiling makes the demodulation frame one
+    previous coarse step, ``omega * dT = 2 pi n``, an odd multiple of ``pi``
+    only at ``n = 0.5``, so ``0.5`` is the only sub-step
+    ``_assert_demodulation_frame_aligned`` accepts once the beam loading is
+    observable.
 
     **RF-frequency offset.** The coarse-grid geometry (spacing, tiling,
     residuals) *and* the beam-current demodulation carrier both stay on the
@@ -863,7 +850,6 @@ class IQCavityFeedbackTimingClass(
         delta_omega: float = 0.0,
         debug: bool = False,
         second_order_fine_grid_solver_enable: bool = False,
-        exponential_coarse_solver_enable: bool = False,
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
         n_pretrack: int | None = None,
@@ -976,18 +962,8 @@ class IQCavityFeedbackTimingClass(
         self._second_order_fine_grid_solver_enable = (
             second_order_fine_grid_solver_enable
         )
-        self._exponential_coarse_solver_enable = (
-            exponential_coarse_solver_enable
-        )
 
         self._generator_current_bias = generator_current_bias
-
-        # Forward-Euler validity tripwires (per-step decay, detuning phase and
-        # beam kick). Disabled in one place for the exact exponential
-        # propagator, which is not subject to any of them.
-        self._euler_guard = ForwardEulerValidityGuard(
-            enabled=not exponential_coarse_solver_enable
-        )
 
         # --- Optional generator-current controller ---
         # When ``controller`` is None the generator current stays at the
@@ -1142,8 +1118,9 @@ class IQCavityFeedbackTimingClass(
         tolerance), the live tail of the RF-frequency-offset phase
         slip (the slip accumulated since the station kick clock's last
         end-of-track tick; ``0.0`` without an offset) and the carrier slip
-        gap it is folded into. The accumulated grid-vs-carrier phase is not
-        state of the feedback: each coarse-grid segment record stores it
+        gap it is folded into, and the frame rotations derived from them.
+        The accumulated grid-vs-carrier phase is not state of the feedback:
+        each coarse-grid segment record stores it
         (``RFCenterSegment.accumulated_phase``).
         """
         self._last_track_arrival_time: float | None = None
@@ -1161,6 +1138,17 @@ class IQCavityFeedbackTimingClass(
         self._generator_frame_rotation: complex = 1.0 + 0.0j
         self._kick_frame_rotation: complex = 1.0 + 0.0j
         self._pi_error_frame_rotation: complex = 1.0 + 0.0j
+        # The generator and kick rotations of the BACKFILL cells, one per
+        # backfill centre, each with the phase accumulated up to its cell
+        # (see ``_update_frame_rotations``). Empty until a passage computes
+        # them: every cell beyond them -- the forward span, and any grid
+        # driven directly -- takes the per-passage scalars above.
+        self._backfill_generator_frame_rotations: NumpyArray = np.zeros(
+            0, dtype=np.complex128
+        )
+        self._backfill_kick_frame_rotations: NumpyArray = np.zeros(
+            0, dtype=np.complex128
+        )
 
     def _seed_initial_demodulation_frame(self) -> None:
         r"""
@@ -1224,22 +1212,6 @@ class IQCavityFeedbackTimingClass(
             self.n_rf_periods_per_coarse_grid * t_rf_design - t_rf_design / 2.0
         )
 
-    @requires(["RFStationBaseClass"])
-    def _check_step_sizes(self) -> None:
-        """
-        Hand this cavity's parameters to the forward-Euler step-size guard.
-
-        See Also
-        --------
-        blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard.check_step_sizes : The thresholds, the messages and why the step must stay small.
-        """
-        self._euler_guard.check_step_sizes(
-            omega_rf=self.omega_rf,
-            sampling_time=self.sampling_time_coarse,
-            Q_L=self.Q_L,
-            delta_omega=self.delta_omega,
-        )
-
     def _validate_multi_harmonic_slot(self) -> None:
         """
         Enforce slot/index agreement on a multi-harmonic parent station.
@@ -1261,7 +1233,7 @@ class IQCavityFeedbackTimingClass(
         ``__init__`` with the feedback as an argument), so ``__init__``
         cannot see it. ``on_run_simulation`` is the first hook that both
         knows the parent and still precedes every grid build -- the same
-        reason ``_check_step_sizes`` is called from there.
+        reason the first passage's demodulation frame is seeded there.
 
         Raises
         ------
@@ -1375,12 +1347,10 @@ class IQCavityFeedbackTimingClass(
         self._reference_state_until_tracked = deepcopy(beam.reference)
 
         # The parent RF station is fully initialised at this point (see
-        # docstring), so the step-size sanity check can read omega_rf.
-        self._check_step_sizes()
-
-        # ... and so can the first passage's demodulation frame, which
-        # the segment generation cannot supply when this station is the
-        # ring's first reference-altering element (see the method).
+        # docstring), so the first passage's demodulation frame can be
+        # seeded -- the segment generation cannot supply it when this
+        # station is the ring's first reference-altering element (see the
+        # method).
         self._seed_initial_demodulation_frame()
 
         # Feedforward cavity pre-fill: seed the initial antenna voltage from
@@ -1618,8 +1588,8 @@ class IQCavityFeedbackTimingClass(
                         self.generator_current_coarse_grid[rf_centers_idx - 1]
                     )
                 # The demodulation-frame sum duplicates with its parts
-                # (composed with THIS passage's rotation -- the sum is
-                # derived from the component state, never propagated).
+                # (composed with THIS cell's rotation -- the sum is derived
+                # from the component state, never propagated).
                 self.antenna_voltage_coarse_grid[rf_centers_idx] = (
                     self._compose_coarse_sum(rf_centers_idx)
                 )
@@ -1643,8 +1613,9 @@ class IQCavityFeedbackTimingClass(
         """
         Compiled coarse-grid recursion over one segment.
 
-        Precomputes on the host the per-cell step sizes and the solver-specific
-        voltage multiplier / drive weight (both state-independent), marshals the
+        Precomputes on the host the per-cell step sizes, the exact
+        propagator's voltage multiplier / drive weight and the frame rotations
+        (all state-independent), marshals the
         PI controller state into a circular buffer, and runs the sequential
         recursion in a single :func:`~blond.physics.feedbacks.envelope_kernel.\
 envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
@@ -1727,6 +1698,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         generator_current_out = self.generator_current_coarse_grid[
             start_index:end_index
         ].astype(np.complex128)
+        # Per cell, like the multipliers: a backfill cell carries the phase
+        # accumulated up to it, a forward cell the passage's rotation.
+        generator_frame_rotations, kick_frame_rotations = (
+            self._frame_rotations_of_cells(start_index, end_index)
+        )
 
         delay_buffer, delay_head, integral = envelope_scan(
             voltage_multiplier,
@@ -1742,8 +1718,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             generator_current_init,
             float(self.R_over_Q),
             bool(self._generator_active),
-            complex(self._generator_frame_rotation),
-            complex(self._kick_frame_rotation),
+            generator_frame_rotations,
+            kick_frame_rotations,
             complex(self._pi_error_frame_rotation),
             controller_active,
             voltage_setpoint,
@@ -1851,29 +1827,16 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         r"""
         Advance the coarse-grid antenna voltage by one step.
 
-        Integrates the cavity envelope ODE
-        ``dV/dt = lambda V + (R/Q) omega (I_gen - I_beam/2)`` with
-        ``lambda = -omega/(2 Q_L) + i delta_omega`` over one coarse step,
-        using either the default forward-Euler discretisation or (when
-        ``exponential_coarse_solver_enable`` is set) the exact exponential
-        propagator for the piecewise-constant drive:
-
-        .. math::
-            V_{n+1} = e^{L} V_n
-                + \mathrm{src}\,\frac{e^{L} - 1}{L},
-            \quad L = -\frac{\omega\,\Delta t}{2 Q_L}
-                + i\,\Delta\omega\,\Delta t,
-
-        with the per-step drive ``src = (R/Q) omega dt (I_gen - I_beam/2)``
-        (identical to the Euler source term). The exponential form is exact
-        in both decay and detuning rotation and unconditionally stable, so
-        it removes the forward-Euler step-size cap; as ``L -> 0`` it reduces
-        to the Euler update. Default (Euler) behaviour is bit-unchanged.
+        Applies the exact exponential propagator of the cavity-envelope ODE
+        for a source held constant over the step,
+        ``V_next = e^L * v_prev + drive * (e^L - 1) / L``, with the per-step
+        drive ``drive = (R/Q) omega dt (I_gen - I_beam/2)``. The Notes below
+        derive it and explain why the forward-Euler step this class took
+        until 2026-09-11 is only its first-order truncation.
 
         The step exponent and the propagator weights come from
-        :mod:`~blond.physics.feedbacks.cavity_solvers`, beside the
-        ``ForwardEulerValidityGuard`` that caps them, so this per-cell path
-        and the vectorised :meth:`_kernel_step_multipliers` spell the
+        :mod:`~blond.physics.feedbacks.cavity_solvers`, so this per-cell
+        path and the vectorised :meth:`_kernel_step_multipliers` spell the
         recursion once.
 
         Parameters
@@ -1895,6 +1858,79 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         -------
         complex
             The advanced antenna voltage [V].
+
+        Notes
+        -----
+        **Envelope ODE.** Per cavity, the IQ envelope of the antenna voltage
+        obeys
+
+        .. math::
+            \frac{\mathrm{d}V}{\mathrm{d}t} = \lambda V + s, \qquad
+            \lambda = -\frac{\omega}{2 Q_L} + i\,\Delta\omega, \qquad
+            s = \frac{R}{Q}\,\omega
+                \left(I_\mathrm{gen} - \frac{I_\mathrm{beam}}{2}\right).
+
+        The coarse model holds ``s`` constant over one step: ``I_gen`` is the
+        zero-order-held command of the previous cell (the controller output,
+        or the bias, written there one step earlier) and ``I_beam`` is the
+        beam current binned onto this cell.
+
+        **Exact step.** For constant ``s`` the ODE integrates in closed form
+        over a step ``dt``:
+
+        .. math::
+            V_{n+1} = e^{L} V_n
+                + \int_0^{\Delta t} e^{\lambda (\Delta t - \tau)}\,
+                  s\,\mathrm{d}\tau
+              = e^{L} V_n + s\,\Delta t\,\frac{e^{L} - 1}{L},
+            \qquad L = \lambda\,\Delta t.
+
+        Nothing is expanded or truncated: for a piecewise-constant source this
+        is the solution of the ODE at the end of the step, for any ``dt``,
+        ``Q_L`` and ``delta_omega``. The code spells it
+        ``v_prev * B + drive * W`` with ``B = e^L``, ``W = (e^L - 1) / L``
+        and ``drive = s dt``.
+
+        **Forward Euler is its first-order truncation.** Keeping only
+        ``e^L ~ 1 + L`` and ``(e^L - 1) / L ~ 1`` gives
+
+        .. math::
+            V_{n+1} = (1 + L)\,V_n + s\,\Delta t,
+
+        the update of BLonD 2's ``LHCCavityLoop.cavity_response``; with
+        ``samples = omega dt`` and ``detuning = delta_omega / omega`` it reads
+        ``V[n] = V[n-1] (1 - samples / (2 Q_L) + i detuning samples) +
+        (R/Q) samples (I_gen[n-1] - I_beam[n-1] / 2)``. This class inherited
+        that form as its default coarse step; the forward-Euler step, the
+        switch to the exact one and the Euler validity guard were removed on
+        2026-09-11.
+
+        **Why Euler is only an approximation.**
+
+        * Its local error is ``e^L - (1 + L) = L^2 / 2 + O(L^3)`` per step,
+          so it is only first order globally.
+        * Pure detuning: ``|1 + i delta_omega dt| =
+          sqrt(1 + (delta_omega dt)^2) > 1``, so the Euler envelope grows
+          every step where the exact one, ``|exp(i delta_omega dt)| = 1``,
+          only rotates.
+        * Decay: the Euler factor ``1 - d`` with the per-step decay
+          ``d = omega dt / (2 Q_L)`` changes sign once ``d > 1``, and the
+          recursion diverges once ``|1 + L| > 1`` -- with detuning already
+          at a tiny ``d`` once ``(delta_omega dt)^2 > d (2 - d)``. The exact
+          ``|e^L| = exp(-d)`` is at most 1 for every step.
+        * Deposit weight: Euler weights the held source by ``1`` instead of
+          ``(e^L - 1) / L = 1 + L / 2 + O(L^2)``.
+
+        **Size and cost.** For the shipped muon-collider parameters (one RF
+        period per coarse cell, ``Q_L ~ 1.3e6``, detuning of order kHz)
+        ``|L|`` is a few ``1e-6`` per step. On the multi-turn convolution
+        harness of the unit tests (one section static, and four sections
+        accelerating) the two steps gave beam-induced voltages differing by
+        7.1e-7 and 8.5e-7 relative on the second and third turn (measured
+        2026-09-11). The exact step costs the same: ``B`` and ``W`` depend
+        only on the step length and the cavity parameters, so the kernel
+        path precomputes them per cell (:meth:`_kernel_step_multipliers`)
+        and the recursion is the same multiply-and-add either way.
         """
         drive = (
             self.R_over_Q
@@ -1905,11 +1941,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         step_exponent = coarse_step_exponent(
             omega_times_dt, self.Q_L, relative_detuning
         )
-        if not self._exponential_coarse_solver_enable:
-            return v_prev * euler_voltage_multiplier(step_exponent) + drive
-        # Exact exponential propagator; the drive weight (e^L - 1) / L stays
-        # accurate (-> 1) as L -> 0 and is guarded at the exact zero, which
-        # this scalar path -- unlike the vectorised one -- can be handed.
+        # The drive weight (e^L - 1) / L stays accurate (-> 1) as L -> 0 and
+        # is guarded at the exact zero, which this scalar path -- unlike the
+        # vectorised one -- can be handed.
         growth = exponential_voltage_multiplier(step_exponent)
         drive_weight = exponential_drive_weight(step_exponent)
         return v_prev * growth + drive * drive_weight
@@ -1923,10 +1957,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         Per-cell voltage multiplier and drive weight for the kernel.
 
         Both depend only on the step size and detuning (not the recursion
-        state), so they are precomputed here on the host: ``B = 1 + L`` /
-        ``W = 1`` for forward Euler, ``B = e^L`` / ``W = (e^L - 1) / L`` for
-        the exponential propagator, with ``L`` the per-cell growth exponent.
-        The arithmetic itself is the shared one of
+        state), so they are precomputed here on the host: ``B = e^L`` and
+        ``W = (e^L - 1) / L`` of the exact exponential propagator, with ``L``
+        the per-cell growth exponent (derivation, and the forward-Euler
+        ``B = 1 + L``, ``W = 1`` it replaced: Notes of
+        :meth:`_advance_coarse_voltage`). The arithmetic itself is the shared
+        one of
         :mod:`~blond.physics.feedbacks.cavity_solvers`
         (:func:`~blond.physics.feedbacks.cavity_solvers.coarse_step_exponent`
         and the propagator weights), so this vectorised path and the per-cell
@@ -1951,16 +1987,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         step_exponent = coarse_step_exponent(
             omega_times_dt, self.Q_L, relative_detuning
         )
-        if self._exponential_coarse_solver_enable:
-            voltage_multiplier = exponential_voltage_multiplier(step_exponent)
-            # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
-            # well defined -- the weight's zero guard is never reached here.
-            drive_weight = exponential_drive_weight(step_exponent)
-        else:
-            voltage_multiplier = euler_voltage_multiplier(step_exponent)
-            drive_weight = np.ones(
-                omega_times_dt.shape[0], dtype=np.complex128
-            )
+        voltage_multiplier = exponential_voltage_multiplier(step_exponent)
+        # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
+        # well defined -- the weight's zero guard is never reached here.
+        drive_weight = exponential_drive_weight(step_exponent)
         return voltage_multiplier, drive_weight
 
     def _compose_coarse_sum(self, coarse_grid_index: int) -> complex:
@@ -1969,8 +1999,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
 
         ``V_beam + V_gen * generator frame rotation``: the beam component
         already lives in the demodulation frame, the design-anchored
-        generator component is rotated into it with this passage's
-        rotation (see :meth:`_update_frame_rotations`). While the
+        generator component is rotated into it with this cell's rotation
+        (see :meth:`_frame_rotations_of_cell`). While the
         generator component is inactive the sum IS the beam component --
         assigned, not added, so an undriven feedback stays bit-identical
         to the former single-state recursion.
@@ -1989,10 +2019,92 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         voltage_beam = self.antenna_voltage_beam_coarse_grid[coarse_grid_index]
         if not self._generator_active:
             return voltage_beam
+        generator_frame_rotation, _ = self._frame_rotations_of_cell(
+            coarse_grid_index
+        )
         return voltage_beam + (
             self.antenna_voltage_gen_coarse_grid[coarse_grid_index]
-            * self._generator_frame_rotation
+            * generator_frame_rotation
         )
+
+    def _frame_rotations_of_cell(
+        self, coarse_grid_index: int
+    ) -> tuple[complex, complex]:
+        """
+        Generator and kick frame rotation of one coarse cell.
+
+        A backfill cell takes the rotations of the phase accumulated up to
+        it; every other cell -- the forward span, and every cell of a grid
+        driven directly rather than through :meth:`_track` -- takes the
+        per-passage scalars (see :meth:`_update_frame_rotations`).
+
+        Parameters
+        ----------
+        coarse_grid_index
+            Whole-turn coarse-grid index of the cell.
+
+        Returns
+        -------
+        generator_frame_rotation
+            Rotation the design-anchored generator component of this cell
+            is composed with.
+        kick_frame_rotation
+            Rotation taking this cell's demodulation-frame sum into the kick
+            frame, in which the PI error is formed.
+        """
+        if coarse_grid_index < len(self._backfill_generator_frame_rotations):
+            return (
+                self._backfill_generator_frame_rotations[coarse_grid_index],
+                self._backfill_kick_frame_rotations[coarse_grid_index],
+            )
+        return self._generator_frame_rotation, self._kick_frame_rotation
+
+    def _frame_rotations_of_cells(
+        self, start_index: int, end_index: int
+    ) -> tuple[NumpyArray, NumpyArray]:
+        """
+        Generator and kick frame rotations of a span of coarse cells.
+
+        The vectorised twin of :meth:`_frame_rotations_of_cell`, for the
+        compiled scan and the whole-grid readouts; the two must agree cell
+        by cell, or the kernel-vs-reference byte identity breaks.
+
+        Parameters
+        ----------
+        start_index
+            First whole-turn coarse-grid index of the span.
+        end_index
+            One past the last index of the span.
+
+        Returns
+        -------
+        generator_frame_rotations
+            Per-cell generator frame rotation (complex128, length
+            ``end_index - start_index``).
+        kick_frame_rotations
+            Per-cell kick frame rotation (complex128, same length).
+        """
+        n_cells = end_index - start_index
+        generator_frame_rotations = np.full(
+            n_cells, self._generator_frame_rotation, dtype=np.complex128
+        )
+        kick_frame_rotations = np.full(
+            n_cells, self._kick_frame_rotation, dtype=np.complex128
+        )
+        backfill_end = min(
+            end_index, len(self._backfill_generator_frame_rotations)
+        )
+        if start_index < backfill_end:
+            n_backfill_cells = backfill_end - start_index
+            generator_frame_rotations[:n_backfill_cells] = (
+                self._backfill_generator_frame_rotations[
+                    start_index:backfill_end
+                ]
+            )
+            kick_frame_rotations[:n_backfill_cells] = (
+                self._backfill_kick_frame_rotations[start_index:backfill_end]
+            )
+        return generator_frame_rotations, kick_frame_rotations
 
     def cavity_response(
         self,
@@ -2030,11 +2142,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 beam_current = self.beam_current_forward_coarse_grid[
                     index - self.forward_offset
                 ]
-            self._check_beam_kick_magnitude(
-                beam_current=beam_current,
-                omega_times_dt=omega_times_dt,
-                previous_voltage=self.antenna_voltage_coarse_grid[index - 1],
-            )
             voltage_gen_prev = self.antenna_voltage_gen_coarse_grid[index - 1]
             voltage_beam_prev = self.antenna_voltage_beam_coarse_grid[
                 index - 1
@@ -2081,14 +2188,15 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # confined to the forward passage would be open-loop for
         # (N - 1) / N of every turn on an N-section ring, merely holding the
         # current the forward pass last commanded. The error on a backfill
-        # cell is formed with this passage's frame rotations
-        # (``_update_frame_rotations`` runs before the backfill replay);
-        # those are exactly unity without an RF-frequency offset and without
-        # multi-section acceleration. Under a ramp the backfill cells carry
-        # a small per-segment frame residual -- each backfill segment stores
-        # its own accumulated phase, while the rotation uses the passage's
-        # -- that this per-passage rotation does not resolve; that is a
-        # second-order correction, not a reason to leave the loop open.
+        # cell is formed in the frame of THAT cell: its rotations carry the
+        # phase accumulated up to the cell (``_update_frame_rotations``
+        # computes them per backfill cell before the replay), not the
+        # passage's final phase, which would rotate the beam-induced part of
+        # the carried voltage by the phase still to accumulate over the rest
+        # of the span and make the regulated voltage jump by one passage's
+        # increment where the previous forward span hands over. All of them
+        # are exactly unity without an RF-frequency offset and without
+        # multi-section acceleration.
         if self._controller_active:
             self._update_generator_current(
                 omega_times_dt=omega_times_dt,
@@ -2140,75 +2248,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             global_indices[local_start:] - self.forward_offset
         ]
         return beam_current
-
-    def _check_beam_kick_magnitude(
-        self,
-        beam_current: complex | float | int,
-        omega_times_dt: float | int,
-        previous_voltage: complex | float | int,
-    ) -> None:
-        """
-        Hand one cell's beam kick to the forward-Euler validity guard.
-
-        Parameters
-        ----------
-        beam_current
-            Beam current sample used for this step [A].
-        omega_times_dt
-            RF phase advanced in this step [rad], i.e. ``omega * dt``.
-        previous_voltage
-            Antenna voltage of the previous coarse-grid step, which the
-            kick is added to/subtracted from.
-
-        See Also
-        --------
-        blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard.check_beam_kick_magnitude : The thresholds, the messages and what an excessive kick means.
-        """
-        self._euler_guard.check_beam_kick_magnitude(
-            beam_current,
-            omega_times_dt,
-            previous_voltage,
-            self.R_over_Q,
-        )
-
-    def _check_beam_kicks(
-        self,
-        beam_current: NumpyArray,
-        omega_times_dt: NumpyArray,
-        voltage_init: complex,
-        voltage_out: NumpyArray,
-        skip_first: bool,
-    ) -> None:
-        """
-        Hand a whole kernel segment's beam kicks to the guard at once.
-
-        Parameters
-        ----------
-        beam_current
-            Per-cell beam current of the segment.
-        omega_times_dt
-            Per-cell RF phase advanced in one step [rad], i.e.
-            ``omega * dt``.
-        voltage_init
-            Antenna voltage preceding the first cell.
-        voltage_out
-            Per-cell antenna voltage just computed for the segment.
-        skip_first
-            Whether to skip the first cell (the carried ``rf_centers`` index 0,
-            which the reference never checks).
-
-        See Also
-        --------
-        blond.physics.feedbacks.cavity_solvers.ForwardEulerValidityGuard.check_beam_kicks : The vectorised sweep, and why it reproduces the per-cell ordering exactly.
-        """
-        self._euler_guard.check_beam_kicks(
-            beam_current,
-            omega_times_dt,
-            voltage_init,
-            voltage_out,
-            skip_first,
-            self.R_over_Q,
-        )
 
     def reset_arrays(self, n_backfill_cells: int = 0) -> None:
         """
@@ -2435,8 +2474,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         which :meth:`_update_frame_rotations` folds together with the
         station clock ``delta_phi_rf`` -- the generator-component rotation
         uses the full gap, not the kick-clock part alone.
-        ``_kick_clock_slip_gap`` is retained only as the named intermediate
-        of that sum.
+        ``_kick_clock_slip_gap`` is retained as the named intermediate of
+        that sum, and as the gap the per-cell backfill rotations add their
+        own accumulated phases to (see :meth:`_update_frame_rotations`).
         """
         # Live tail of the RF-frequency-offset phase slip: the station's
         # kick clock (delta_phi_rf) is accumulated only at the END of each
@@ -2572,6 +2612,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         forward generation then appends exactly one more. So the backfill
         segments are ``_segments[:-1]``, and their frequencies and lengths
         are the ones the flat parallel arrays used to be sliced for.
+
+        FRAME: every replayed cell is composed, and regulated, in the frame
+        of the phase accumulated up to THAT cell -- the per-cell
+        ``_backfill_generator_frame_rotations`` and
+        ``_backfill_kick_frame_rotations`` -- rather than in the passage's
+        final frame, which the forward span keeps. So
+        :meth:`_update_frame_rotations` must have run for this passage
+        first.
         """
         assert (
             self.antenna_voltage_coarse_grid is not None
@@ -2624,8 +2672,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         .. math::
             e^{-i(\Delta\phi_\mathsf{rf} + \mathrm{gap} + \phi_\mathsf{acc})}
 
-        (station kick clock + live kick-clock gap + the forward segment's
-        accumulated phase ``phi_acc``): the readout later adds
+        (station kick clock + live kick-clock gap + the accumulated
+        grid-vs-carrier phase ``phi_acc``): the readout later adds
         ``gap + phi_acc`` back and the
         station adds ``delta_phi_rf`` through ``phi_rf``, so the
         generator component nets to its design-clock phase -- under an
@@ -2648,18 +2696,39 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         rotations, which is why this third one uses ``delta_phi_rf``
         alone.
 
+        **Which** ``phi_acc``. The forward span, the fine grid and the
+        readout use the forward segment's accumulated phase: the scalars
+        ``_generator_frame_rotation`` and ``_kick_frame_rotation``. The
+        backfill span replays the interval since this station's previous
+        passage, over which the phase is still accumulating, so every
+        backfill cell takes the phase accumulated up to THAT cell
+        (:meth:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin._backfill_center_phases`),
+        running from the previous passage's phase to this one's:
+        ``_backfill_generator_frame_rotations`` and
+        ``_backfill_kick_frame_rotations``, one entry per backfill centre.
+        With the passage's final phase there instead, the beam-induced part
+        of the carried voltage would be rotated by the phase still to
+        accumulate, and the kick-frame voltage would jump by one passage's
+        increment where the previous forward span hands over to this
+        backfill span. Both rotations of a cell use the same phase, so the
+        generator component still nets to its design-clock phase on every
+        cell.
+
         The first two are exactly ``1 + 0j`` without an RF-frequency
-        offset and without multi-section acceleration; the third is
+        offset and without multi-section acceleration, on every backfill
+        cell too; the third is
         exactly ``1 + 0j`` whenever ``delta_phi_rf`` is zero, independently
         of ``gap`` and ``phi_acc`` (the zero short-circuits keep the unrotated
         path free of ``exp`` sign dust).
 
         Notes
         -----
-        ORDERING: needs ``delta_phi_rf`` (per-passage station clock) and
-        the completed ``_carrier_slip_gap`` of this passage; must precede
-        every :meth:`circuit_track` of the passage, whose per-cell sum
-        composition and PI error read the rotations off the instance.
+        ORDERING: needs ``delta_phi_rf`` (per-passage station clock), the
+        completed ``_kick_clock_slip_gap`` and ``_carrier_slip_gap`` of
+        this passage and its complete grid (the backfill segments are
+        ``_segments[:-1]``); must precede every :meth:`circuit_track` of the
+        passage, whose per-cell sum composition and PI error read the
+        rotations off the instance.
         """
         total_generator_slip = self.delta_phi_rf + self._carrier_slip_gap
         self._generator_frame_rotation = (
@@ -2671,6 +2740,26 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             1.0 + 0.0j
             if self._carrier_slip_gap == 0.0
             else complex(np.exp(1j * self._carrier_slip_gap))
+        )
+        # The same two rotations per backfill cell, with the phase
+        # accumulated up to the cell in place of the forward segment's, and
+        # the same exact-zero short-circuit: an unrotated passage composes
+        # and regulates every backfill cell with exactly 1 + 0j.
+        backfill_carrier_slip_gaps = (
+            self._kick_clock_slip_gap + self._backfill_center_phases()
+        )
+        backfill_generator_slips = (
+            self.delta_phi_rf + backfill_carrier_slip_gaps
+        )
+        self._backfill_generator_frame_rotations = np.where(
+            backfill_generator_slips == 0.0,
+            1.0 + 0.0j,
+            np.exp(-1j * backfill_generator_slips),
+        )
+        self._backfill_kick_frame_rotations = np.where(
+            backfill_carrier_slip_gaps == 0.0,
+            1.0 + 0.0j,
+            np.exp(1j * backfill_carrier_slip_gaps),
         )
         # Actuator frame of the PI error. The error is read out in the
         # KICK frame, but the controller's output is a generator
@@ -3188,19 +3277,23 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             * np.pi
             / self._forward_segment_omega_design
         )
-        # Carried into the NEXT turn's cell 0. Note the asymmetry with
-        # the generator current: the forward span consumes this grid
-        # INCLUSIVE of its last element, so the sample carried here has
-        # already been used by this turn's final step and is re-consumed
-        # at the turn boundary -- the beam term does not have the
-        # generator's ``i-1`` offset. It is inert in every shipped
-        # configuration (measured exactly 0.0 over 495 demodulations
-        # across the multi-section, sub-stepped, accelerating, multibunch
-        # and counter-rotating suites): the forward coarse grid spans the
-        # whole inter-station drift while the profile window is a few RF
-        # periods at its start, so the last cell is never written. A
-        # section-filling bunch train would bias the steady-state loading
-        # by ~1/n_points, i.e. 4e-5 to 8e-5.
+        # Carried into the first coarse step (index 0) of a later span: the
+        # backfill replay of the next passage, or its forward span when it
+        # has no backfill. Note the asymmetry with the generator current:
+        # the forward span consumes this grid INCLUSIVE of its last element,
+        # so the sample carried here has already driven the last step of the
+        # passage that demodulated it -- the beam term does not have the
+        # generator's ``i-1`` offset -- and any charge in it is counted
+        # twice. It is read BEFORE this passage's demodulation overwrites
+        # the grid, so it is the previous demodulation's last cell. Inert in
+        # every shipped configuration (measured exactly 0.0 over 495
+        # demodulations across the multi-section, sub-stepped, accelerating,
+        # multibunch and counter-rotating suites, and in the RCS example):
+        # the forward coarse grid spans the whole inter-station drift while
+        # the profile window is a few RF periods at its start, so the last
+        # cell is never written. A window reaching the last cell would bias
+        # the loading by about one cell in n_points; rf_beam_current warns
+        # when that happens (warn_charge_in_last_coarse_cell below).
         self._last_val_beam_current = (
             self.beam_current_forward_coarse_grid[-1]
             if self.beam_current_forward_coarse_grid is not None

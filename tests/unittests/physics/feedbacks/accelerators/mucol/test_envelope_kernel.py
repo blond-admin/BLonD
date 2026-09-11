@@ -6,7 +6,7 @@ The coarse-grid antenna-voltage recursion in
 is compiled to a numba host kernel
 (:func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`). The kernel
 must reproduce the pure-Python per-cell path **byte-for-byte** (complex128
-``np.array_equal``), including the forward-Euler and exponential propagators,
+``np.array_equal``), including the exact exponential propagator,
 the PI generator-current controller (delay line, conditional anti-windup,
 klystron clamp) and the multi-section backfill/forward segment structure.
 
@@ -42,7 +42,6 @@ def _make_feedback(
     *,
     controller=None,
     voltage_setpoint=None,
-    exponential=False,
     delta_omega=0.0,
 ):
     """
@@ -56,8 +55,6 @@ def _make_feedback(
         Optional PI controller to attach.
     voltage_setpoint
         Explicit IQ voltage setpoint (avoids needing a parent RF station).
-    exponential
-        Select the exponential coarse solver.
     delta_omega
         Cavity detuning [rad/s].
 
@@ -73,7 +70,6 @@ def _make_feedback(
         generator_current_bias=BIAS,
         n_cavities=1,
         delta_omega=delta_omega,
-        exponential_coarse_solver_enable=exponential,
         controller=controller,
         voltage_setpoint=voltage_setpoint,
     )
@@ -259,7 +255,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         *,
         no_beam,
         controller_kw=None,
-        exponential=False,
         delta_omega=0.0,
         n=64,
         v_init=3.0e7 + 1.0e6j,
@@ -280,8 +275,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             Whether the segment carries no beam.
         controller_kw
             Kwargs for the PI controller, or None for constant current.
-        exponential
-            Select the exponential coarse solver.
         delta_omega
             Cavity detuning [rad/s].
         n
@@ -316,7 +309,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             use_kernel,
             controller=controller,
             voltage_setpoint=setpoint,
-            exponential=exponential,
             delta_omega=delta_omega,
         )
         rng = np.random.default_rng(1234)
@@ -484,11 +476,10 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             )
         )
 
-    def test_exponential_solver_pi(self):
-        """Exponential propagator with an active PI controller."""
+    def test_forward_pi_one_sample_delay(self):
+        """PI controller with a one-sample loop delay (below the clamp)."""
         self._compare(
             no_beam=False,
-            exponential=True,
             controller_kw={
                 "gain_proportional": 1e-9,
                 "gain_integral": 5e-4,

@@ -76,8 +76,9 @@ Non-driven / operating-point cavity
     With the generator current set to zero (and ``initial_voltage = 0``) the
     feedback's antenna voltage is *only* the beam-induced voltage, so it can be
     compared directly with a resonator wake. When a full ``Simulation`` is
-    tracked, a cold cavity instead trips the coarse-grid beam-kick magnitude
-    check, so the cavity is held at its operating point
+    tracked, the cavity is instead held at its operating point -- chosen
+    while a cold cavity still tripped the coarse-grid beam-kick check,
+    removed on 2026-09-11 --
     (``initial_voltage = V_design`` with the matched generator current
     ``I_g = V / (2 (R/Q) Q_L)``) and the beam-induced part is isolated by
     subtracting a **zero-intensity reference run** (exact, by linearity of the
@@ -124,56 +125,25 @@ Test modules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Unit tests for the I/Q cavity-feedback timing class
-(``IQCavityFeedbackTimingClass``): the discrete step-size sanity checks, a
+(``IQCavityFeedbackTimingClass``): the coarse step on RCS1 parameters, a
 single-turn benchmark of the beam-loading response, the cavity pre-fill /
-injection matching, the exponential coarse solver, the shared coarse-step
-arithmetic behind both propagator paths, the constructor validation of an
-explicit ``voltage_setpoint``, the causality of the fine-grid initial
-condition and the coupled forward-Euler stability guard.
+injection matching, the exact exponential coarse propagator, the shared
+coarse-step arithmetic behind both propagator paths, the constructor
+validation of an explicit ``voltage_setpoint`` and the causality of the
+fine-grid initial condition.
 
 ``TestCavityFeedback``
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Step-size sanity checks. ``setUp`` builds a feedback instance with RCS1
-four-station parameters on a mocked ``StaticProfile``.
+The coarse step on RCS1 parameters. ``setUp`` builds a feedback instance with
+RCS1 four-station parameters on a mocked ``StaticProfile``. The step-size and
+beam-kick tripwire tests that used to live here were deleted with the
+forward-Euler validity guard on 2026-09-11.
 
 ``test_circuit_track_applies_delta_omega_phase_shift``
     Drives ``circuit_track`` with zero generator/beam current and a constant
     step grid, and checks the antenna voltage evolves purely by the per-step
-    complex multiplier ``1 - 0.5 omega dt / Q_L + 1j delta_omega dt``.
-``test_step_size_check_warns_for_large_decay_per_step``
-    ``_check_step_sizes`` warns when the per-step decay sits between the soft
-    (0.1) and hard (1.0) limits.
-``test_step_size_check_warns_for_large_detuning_phase_per_step``
-    Warns when the per-step detuning phase ``delta_omega * dt`` exceeds the
-    soft limit.
-``test_step_size_check_no_warning_for_small_step_parameters``
-    No warning when both per-step parameters are well below the limit.
-``test_cavity_response_warns_for_large_beam_kick``
-    ``cavity_response`` warns when the relative beam kick is between the soft
-    (0.1) and hard (1.0) limits.
-``test_cavity_response_no_warning_for_small_beam_kick``
-    No warning when the relative beam kick is negligible.
-``test_step_size_check_raises_for_unphysical_decay_per_step``
-    Raises ``ValueError`` when the per-step decay exceeds the hard limit of
-    1.0 (the Euler decay factor ``1 - decay_per_step`` then turns negative,
-    so the discretised voltage inverts every step -- unphysical, since the
-    exact factor ``exp(-omega dt / (2 Q_L))`` is always positive). Checked
-    just above the cap and far beyond it.
-``test_step_size_check_raises_for_unphysical_detuning_phase_per_step``
-    Raises when the per-step detuning phase exceeds the hard limit.
-``test_step_size_check_fires_on_run_simulation``
-    End-to-end companion: an unphysical detuning aborts the run-start
-    initialisation inside ``on_run_simulation`` with a real RF station and a
-    stubbed beam/simulation.
-``test_cavity_response_raises_for_unphysical_beam_kick``
-    Raises when the beam-induced kick exceeds the previous antenna voltage.
-``test_decay_hard_cap_forbids_sign_flip``
-    Pins the hard cap at the sign-flip boundary: a per-step decay of 0.9
-    (Euler factor still positive) only warns, while 1.1 -- negative factor,
-    yet ``|factor| < 1`` and hence still contracting -- raises, with a message
-    naming the sign inversion and ``exponential_coarse_solver_enable=True``
-    as the sanctioned option for such steps.
+    exact multiplier ``exp(-0.5 omega dt / Q_L + 1j delta_omega dt)``.
 
 ``TestFineGridResonatorBenchmark``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -211,7 +181,7 @@ returns the complex seed antenna voltage, and ``n_pretrack`` /
     A target above the steady-state fill cannot be reached, so it raises.
 ``test_fill_seed_is_an_equilibrium_of_the_coarse_step``
     A no-beam cavity started at the fill seed does not drift (the seed is the
-    exact fixed point of the coarse Euler step).
+    exact fixed point of the coarse step).
 ``test_detuned_fill_seed_is_an_equilibrium_of_the_coarse_step``
     The phase companion of the test above. On resonance the fixed point is
     real and positive, so a seed in the wrong frame is indistinguishable from
@@ -238,41 +208,35 @@ returns the complex seed antenna voltage, and ``n_pretrack`` /
     that the two clocks really disagree), 300 no-beam coarse steps must
     leave the voltage at the seed to ``1e-9`` relative.
 
-``TestExponentialCoarseSolver``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``TestExactCoarsePropagator``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The optional exact exponential coarse-grid propagator.
-``_advance_coarse_voltage`` integrates one coarse step of the cavity-envelope
-ODE with either forward-Euler (the default, bit-unchanged) or, with
-``exponential_coarse_solver_enable=True``, the exact ``V_{n+1} = e^L V_n + src
-(e^L - 1)/L`` (``L = -omega dt / (2 Q_L) + 1j delta_omega dt``). The
-exponential form is the accurate alternative to sub-stepping when the per-step
-decay/detuning phase is not small.
+The coarse-grid step is the exact exponential propagator. Over one step the
+per-cavity envelope obeys ``dV/dt = lambda V + s`` with the source ``s`` held
+constant, so ``V_{n+1} = e^L V_n + s dt (e^L - 1)/L`` with ``L = lambda dt``
+(the derivation, and why the retired forward-Euler step was only its
+first-order truncation, is in the Notes of
+``IQCavityFeedbackTimingClass._advance_coarse_voltage``). The expected values
+are spelled out by hand with ``np.exp``, on steps large enough that a
+first-order truncation would be off by percent rather than by ULPs.
 
-``test_euler_branch_matches_the_forward_euler_formula``
-    The default branch reproduces the forward-Euler update exactly.
-``test_exponential_branch_matches_the_closed_form``
-    The exponential branch matches ``e^L V + src (e^L - 1)/L``.
+``test_default_reference_step_is_the_closed_form``
+    One ``_advance_coarse_voltage`` step of a default-constructed feedback
+    (``Q_L = 20``, ``delta_omega dt = 0.3``) equals
+    ``e^L V + s dt (e^L - 1)/L`` to ``rtol = 1e-13``.
+``test_default_kernel_and_reference_paths_advance_the_closed_form``
+    Five cells of a hand-seeded single segment (``Q_L = 50``,
+    ``delta_omega dt = 0.2``, a carried generator current on cell 0 and the
+    bias afterwards, beam on cells 1-4) follow the exact recursion to
+    ``rtol = 1e-12`` for both source components and their sum, on the numba
+    kernel and on the Python reference path alike (one subtest each).
 ``test_pure_detuning_preserves_magnitude``
-    Under pure detuning the exact step is a rotation (``|V|`` preserved),
-    whereas forward-Euler grows the magnitude unphysically -- the ``O((delta_omega
-    dt)^2)`` truncation error the exponential solver removes.
-``test_small_step_reduces_to_euler``
-    As the step shrinks the two solvers converge at ``O(step^2)``.
-``test_beam_kick_guard_skipped_for_exponential_solver``
-    The forward-Euler beam-kick guard (``_check_beam_kick_magnitude``)
-    measures the *Euler* per-step beam increment, which the exact propagator
-    does not take; a kick past the hard cap raises in Euler mode but must
-    return without raising in exponential mode.
-``test_beam_kick_guard_silent_at_zero_previous_voltage``
-    The guard measures the kick *relative* to the antenna voltage it is
-    added to, so with ``|V_prev| = 0`` there is no reference to compare
-    against. Even a ``1e9`` A kick must then neither raise nor warn
-    (checked with ``warnings.simplefilter("error")``), and the
-    once-only warning budget (``_euler_guard._beam_kick_warning_issued``)
-    must stay unconsumed.
-``test_beam_kicks_kernel_guard_skipped_for_exponential_solver``
-    Same skip for the kernel-path per-cell guard (``_check_beam_kicks``).
+    Under pure detuning (``delta_omega dt = 0.5``, no decay, no drive) the
+    exact step is a rotation by 0.5 rad with ``|V|`` preserved; the retired
+    forward-Euler step grew ``|V|`` by ``sqrt(1.25)`` there.
+``test_solver_switch_is_rejected``
+    Passing the retired coarse-solver switch keyword (``True`` or ``False``)
+    to the constructor raises ``TypeError``.
 
 ``TestSharedCoarseStepArithmetic``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -282,27 +246,23 @@ recursion exists twice -- ``_advance_coarse_voltage`` (per cell, the reference)
 and ``_kernel_step_multipliers`` (vectorised, feeding the numba kernel) -- and
 both must be built from the module-level helpers in
 ``blond.physics.feedbacks.cavity_solvers`` (``coarse_step_exponent``,
-``euler_voltage_multiplier``, ``exponential_voltage_multiplier``,
-``exponential_drive_weight``), beside the ``ForwardEulerValidityGuard`` that
-caps them. Two independent spellings are exactly how the two paths drifted
-apart before (the vectorised one lacked the scalar zero-step guard), so these
-tests pin them to the shared functions **bit-for-bit**, not to within a
-tolerance.
+``exponential_voltage_multiplier``, ``exponential_drive_weight``). Two
+independent spellings are exactly how the two paths drifted apart before (the
+vectorised one lacked the scalar zero-step guard), so these tests pin them to
+the shared functions **bit-for-bit**, not to within a tolerance.
 
 ``test_step_exponent_is_shape_agnostic``
     A scalar step and a one-element array give the identical exponent
     ``L = -omega dt / (2 Q_L) + 1j relative_detuning omega dt``.
-``test_euler_update_is_the_shared_multiplier``
-    The per-cell Euler update equals ``v * euler_voltage_multiplier(L) +
-    drive`` exactly (``assertEqual``, no tolerance).
 ``test_exponential_update_is_the_shared_propagator``
     The per-cell exact update equals ``v * exponential_voltage_multiplier(L)
-    + drive * exponential_drive_weight(L)`` exactly.
+    + drive * exponential_drive_weight(L)`` exactly (``assertEqual``, no
+    tolerance).
 ``test_kernel_multipliers_match_the_per_cell_step``
     The invariant the numba-vs-Python bit-identity pin rests on: over three
-    step sizes (``2 pi``, ``0.5 pi``, ``1e-6``) and both branches as
-    subtests, ``_kernel_step_multipliers`` returns exactly the per-cell
-    multiplier and drive weight (``1 + 0j`` in the Euler branch).
+    step sizes (``2 pi``, ``0.5 pi``, ``1e-6``, one subtest per cell),
+    ``_kernel_step_multipliers`` returns exactly the per-cell multiplier and
+    drive weight.
 ``test_drive_weight_guards_the_scalar_zero_step_only``
     The removable singularity of ``W = (e^L - 1) / L`` is guarded only where
     it is reachable: a scalar zero step takes the limit ``1``, while an
@@ -311,7 +271,7 @@ tolerance.
     the per-cell loop), so an elementwise guard would only cost the hot
     recursion an extra pass.
 ``test_zero_step_leaves_the_voltage_untouched``
-    Both branches advance a zero-length step to exactly the input voltage.
+    A zero-length step returns exactly the input voltage.
 
 ``TestVoltageSetpointValidation``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -360,31 +320,6 @@ consumes. Driven on a hand-built 8-cell constant-step grid whose centres are
 ``test_charge_right_of_first_coarse_centre_is_allowed``
     The physical geometry (``cut_left = 1.5 pi >= c0``) with charge stays
     accepted.
-
-``TestForwardEulerStabilityGuard``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The guard must reject a *divergent* recursion, not merely a large step. The
-Euler multiplier of one coarse step is ``B = 1 + L`` with ``L = -d + 1j p``,
-``d`` the per-step decay and ``p`` the per-step detuning phase, so the
-recursion contracts only while ``p**2 <= d (2 - d)``. Separate caps on ``d``
-and ``p`` cannot express that coupling: at a superconducting ``Q_L`` the
-admissible ``p`` is ``~sqrt(2 d)``, orders of magnitude below the ``1.0`` cap.
-Driven on RCS1's own operating point (1.3 GHz, one RF period per coarse cell,
-``Q_L ~ 1.29e6``).
-
-``test_divergent_step_is_rejected``
-    1 MHz of detuning gives ``p = 4.85e-3`` rad -- far below the ``1.0``
-    per-step cap on the detuning phase, but well above the stability limit
-    ``sqrt(d (2 - d)) = 2.21e-3`` rad that the decay sets. ``|B| > 1`` is
-    asserted first, then ``check_step_sizes`` must raise ``ValueError``.
-``test_contracting_step_is_accepted``
-    RCS1's own operating point (``delta_omega = -2 pi * 1040`` rad/s) has
-    ``|B| < 1`` and must pass in silence (checked under
-    ``warnings.simplefilter("error")``).
-``test_disabled_guard_stays_a_no_op``
-    ``ForwardEulerValidityGuard(enabled=False)`` must not start raising on
-    the new check.
 
 
 ``test_generator_current_controller.py``
@@ -1037,6 +972,16 @@ the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
 ``test_no_error_when_first_coarse_cell_empty``
     A mid-window bunch leaves the first cell numerically empty (the guard uses
     a relative threshold, not ``!= 0``).
+``test_warns_when_last_coarse_cell_populated``
+    With ``warn_charge_in_last_coarse_cell=True`` (used by the feedback),
+    charge in the last coarse cell warns: the feedback carries that cell's
+    beam current into the first coarse step of a later passage, which counts
+    it twice. Downsampled onto three cells, so a late bunch sits in the last.
+``test_no_warning_when_last_coarse_cell_empty``
+    A mid-window bunch leaves the last cell numerically empty and does not
+    warn (same relative threshold as the first-cell guard).
+``test_last_coarse_cell_warning_is_opt_in``
+    Without the flag a populated last cell stays silent.
 ``test_incomplete_capture_is_not_warned_about_here``
     Incomplete capture is NOT reported by this consumer. The check moved
     to ``ProfileBaseClass._warn_if_beam_not_captured`` (see *Guards
@@ -1322,48 +1267,35 @@ overrides).
 ``TestExponentialSolverEndToEnd``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-End-to-end validation of the exact exponential coarse-grid propagator
-(``exponential_coarse_solver_enable=True``; the unit-level closed-form checks
-live in ``TestExponentialCoarseSolver`` under ``test_mucol_cav_fdbk.py``).
-Reuses the full-``Simulation`` harness of
-``TestMultiTurnFeedbackVsConvolution`` -- convolution reference, beam feedback
-and no-beam feedback reference per config -- with the feedback switched from
-forward Euler to the exponential coarse propagator; like the counter-rotating
-runs, the extra feedback runs call ``_run_multiturn_case`` directly (the flag
-and the ``q_l_override`` are deliberately not part of the
-``_feedback_vs_convolution`` cache key).
+End-to-end accuracy of the exact exponential coarse-grid propagator in the two
+regimes where its exactness matters (the unit-level closed-form checks live in
+``TestExactCoarsePropagator`` under ``test_mucol_cav_fdbk.py``). Reuses the
+full-``Simulation`` harness of ``TestMultiTurnFeedbackVsConvolution`` --
+convolution reference, beam feedback and no-beam feedback reference per
+config; the low-``Q_L`` runs call ``_run_multiturn_case`` directly (the
+``q_l_override`` is deliberately not part of the ``_feedback_vs_convolution``
+cache key). A third test, which compared the exponential run at the standard
+operating point with the then-default forward-Euler run, was deleted with the
+Euler step on 2026-09-11; its convolution gate is the one the undetuned
+multi-turn tests above already hold.
 
-``test_exponential_solver_matches_convolution_standard_q_l``
-    At the standard operating point (``Q_L = 1.29e6``, per-step decay
-    ``pi / Q_L ~ 2.4e-6``, where Euler and exponential are numerically
-    near-identical) the exponential run holds the established 2 %
-    convolution gate and reproduces the cached Euler beam-induced voltage
-    to < 1e-5 per turn (measured <= 8.5e-7) -- pinning that the
-    exponential branch composes with the full tracking machinery (grids,
-    demodulation, carried deposits) without touching anything else.
 ``test_exponential_solver_low_q_l_agreement``
     Low-``Q_L`` absolute accuracy pin: harmonic 20 and ``Q_L = 32`` give
-    the largest per-step Euler decay any end-to-end test exercises
+    the largest per-step decay any end-to-end test exercises
     (``pi / Q_L ~ 0.098``) while ~14 % of the wake survives each turn.
-    Gates: < 3 % vs the convolution per turn, < 5 % on the carried-wake
-    increment ``v(k) - v(0)``, plus a non-triviality guard that the two
-    propagators genuinely diverge here (> 5e-3 on the last turn), so a
-    regression that ignored the flag fails. Honest caveat: both
-    propagators share common ``O(1/Q_L)`` floors (IQ-envelope
-    truncation, within-cell charge placement), so this observable does
-    not rank their accuracy -- the discriminating test is the detuning
-    one below.
-``test_exponential_solver_large_detuning_beats_euler``
+    Gates: < 3 % vs the convolution per turn and < 5 % on the carried-wake
+    increment ``v(k) - v(0)``. Honest caveat: a first-order and the exact
+    coarse step share common ``O(1/Q_L)`` floors (IQ-envelope truncation,
+    within-cell charge placement), so this observable does not rank their
+    accuracy -- the discriminating test is the detuning one below.
+``test_exponential_solver_large_detuning_matches_convolution``
     The discriminating regime: a static detuning of 3.5e6 rad/s (~1100
-    half-bandwidths) at the standard operating point. Euler's per-step
-    magnitude factor ``sqrt(1 + theta^2)`` silently compounds to ~10 %
-    per turn on the carried wake (far below its own step-size warning)
-    while the exponential propagator rotates at magnitude 1 (exact).
-    Gates: exponential < 1 % vs the detuned convolution on every turn,
-    Euler > 5x the exponential error on carried turns (measured
-    38x / 98x) and > 2 % on the last turn -- the mutation-sensitivity
-    anchor of the exponential end-to-end suite (flipping the flag fails
-    the 1 % gate by ~13x).
+    half-bandwidths) at the standard operating point. The exact propagator
+    rotates at magnitude 1 and stays < 1 % from the detuned convolution on
+    every turn. The retired forward-Euler step's per-step factor
+    ``sqrt(1 + theta^2)`` compounded to ~10 % per turn on the carried wake
+    here, so the gate would fail a reintroduced first-order step by ~13x on
+    the last turn.
 
 
 ``test_energy_gain_ind_voltage_vs_nondriven_feedback.py``
@@ -1428,6 +1360,10 @@ this fixture: the induced kick is negative for every macroparticle (mean
 ``-7.8483e5`` eV) and is the same array for ``phi_rf_design`` in ``{0, pi/2,
 pi, -0.7}`` to ``2.6e-7`` eV, i.e. ``2e-13`` of the peak.
 
+``test_feedback_requests_the_last_coarse_cell_warning``
+    Wraps ``rf_beam_current`` during one tracked turn and checks that every
+    coarse demodulation of the timing class passes
+    ``warn_charge_in_last_coarse_cell=True``.
 ``test_bunch_loses_energy_to_its_own_wake_at_zero_design_phase``
     Control: at ``phi_rf_design = 0`` every particle is decelerated.
 ``test_bunch_loses_energy_to_its_own_wake_at_pi_design_phase``
@@ -1873,8 +1809,8 @@ integral and delay line.
     PI controller with a two-sample loop delay (the delay line).
 ``test_forward_pi_saturating``
     PI controller hitting the klystron clamp (the anti-windup path).
-``test_exponential_solver_pi``
-    The exponential propagator with an active PI controller.
+``test_forward_pi_one_sample_delay``
+    PI controller with a one-sample loop delay, below the klystron clamp.
 ``test_detuned_pi``
     Non-zero detuning with an active PI controller.
 ``test_no_beam_carried_generator_current_off_bias``
@@ -2400,7 +2336,7 @@ Per-cell step sizing of the coarse recursion, driven on hand-built grids with
 
 Coarse-grid (``rf_centers``) construction for the timing class, moved here
 alongside the ``RFCenterGridMixin`` extraction. By collected count this is
-the largest module of the whole feedback tree (196 tests), 185 of them
+the largest module of the whole feedback tree (195 tests), 184 of them
 parametrisations of the geometry sweeps in the first class -- re-derive the
 total whenever tests are added.
 
@@ -2412,19 +2348,18 @@ total whenever tests are added.
 ``TestIQCavityFeedbackTimingClass``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Grid geometry, end to end through a real ``Simulation``. Thirteen methods
-expand to 185 collected tests through two shared sweeps:
+Grid geometry, end to end through a real ``Simulation``. Twelve methods
+expand to 184 collected tests through two shared sweeps:
 ``test_data_discontinuity`` (phase shift x ``delta_omega_factor`` in ``{0,
 +0.13, -0.13}`` x six ``(n_rf_periods_per_coarse_grid, Q_L)`` settings,
 covering integer ``n`` of 1/2/3 and the sub-stepping cases 0.25/0.4/0.6), and a
-section-count sweep. Each ``Q_L`` is picked only to keep the per-step Euler
-decay ``n * pi / Q_L`` under the hard cap -- worst case 0.785 at ``n = 0.25``
--- so the sweep runs on plain forward Euler throughout, with the exponential
-coarse solver armed as an escape (``n * pi / Q_L > 1.0``) that no current
-parametrisation trips. The coarse-grid *geometry* stays on the design RF clock
-under an RF-frequency offset -- the offset enters only as explicit
-carrier/kick-clock phases -- so the distance checks compare against the design
-period regardless of ``delta_omega_factor``.
+section-count sweep. The ``Q_L`` values date from the retired forward-Euler
+step-size check (per-step decay ``n * pi / Q_L`` below 1) and are kept
+unchanged: the exact coarse propagator has no such limit, and neither the grid
+geometry nor the matched fixed point depends on ``Q_L``. The coarse-grid
+*geometry* stays on the design RF clock under an RF-frequency offset -- the
+offset enters only as explicit carrier/kick-clock phases -- so the distance
+checks compare against the design period regardless of ``delta_omega_factor``.
 
 ``test_fractional_n_below_one_is_supported_without_warning``
     ``n`` in ``(0, 1)`` is the deliberate sub-stepping mode, so construction
@@ -2434,12 +2369,6 @@ period regardless of ``delta_omega_factor``.
     coarse grid from the RF buckets and must still warn.
 ``test_non_positive_n_is_rejected``
     ``n = 0`` raises ``ValueError`` (``must be > 0``).
-``test_stability_check_reflects_actual_step_decay``
-    The step-size check must measure the *actual* Euler decay
-    ``n * pi / Q_L``, not the ``n``-independent carrier product
-    ``(omega_rf / n) * sampling_time_coarse == 2 pi``. With ``Q_L = 2`` and
-    ``n = 2`` the decay is ``pi``, far past the hard cap, and running the
-    simulation must raise ``ValueError`` naming ``decay_per_step``.
 ``test_for_discontinuity_distances_single_section_no_acceleration``
     The full sweep on a static cycle: consecutive coarse centres are spaced
     by exactly one coarse step, and the turn-to-turn seam
@@ -2450,7 +2379,7 @@ period regardless of ``delta_omega_factor``.
 ``test_matched_generator_envelope_invariant_acceleration``
     Physics extension of the same sweep: on resonance with the generator
     matched to the setpoint, ``V_ss = 2 (R/Q) Q_L I_g`` is the *exact* fixed
-    point of the coarse forward-Euler step. The design-anchored
+    point of the exact coarse step. The design-anchored
     generator-sourced component must hold ``V_ss`` exactly (phase
     included) under acceleration, while the composed demodulation-frame
     sum holds the same magnitude but, under the sweep's RF-frequency

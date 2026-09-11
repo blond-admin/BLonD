@@ -663,6 +663,107 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         )
         self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
 
+    def _downsampled_onto_three_cells(self, profile, **kwargs):
+        """
+        Call rf_beam_current onto a coarse grid of three cells.
+
+        The ``0.75 .. 2.25 t_rf`` window of ``_profile_with_bunch_at`` then
+        maps onto cells 0, 1 and 2, so a bunch late in the window sits in
+        the last coarse cell.
+
+        Parameters
+        ----------
+        profile
+            Static profile to demodulate.
+        **kwargs
+            Extra keyword arguments forwarded to ``rf_beam_current``.
+
+        Returns
+        -------
+        charges_fine
+            Demodulated charge on the fine grid.
+        charges_coarse
+            Demodulated charge on the coarse grid.
+        """
+        return rf_beam_current(
+            beam=StubBeam(self.intensity),
+            profile=profile,
+            omega_c=self.omega_rf,
+            use_lowpass_filter=False,
+            dT=0.0,
+            sampling_time=self.t_rf,
+            n_points=3,
+            **kwargs,
+        )
+
+    def _last_cell_warnings(self, caught):
+        """
+        Messages of the recorded last-coarse-cell warnings.
+
+        Parameters
+        ----------
+        caught
+            Warnings recorded by ``warnings.catch_warnings(record=True)``.
+
+        Returns
+        -------
+        list of str
+            The messages that report charge in the last coarse cell.
+        """
+        return [
+            str(entry.message)
+            for entry in caught
+            if "last coarse-grid cell" in str(entry.message)
+        ]
+
+    def test_warns_when_last_coarse_cell_populated(self):
+        """
+        Charge in the last coarse cell warns when asked to.
+
+        ``IQCavityFeedbackTimingClass`` carries the beam current of the
+        last forward coarse cell into the first coarse step of its next
+        passage. That sample has already driven the last step of the
+        passage that demodulated it, so a populated last cell is counted
+        twice; the class therefore calls ``rf_beam_current`` with
+        ``warn_charge_in_last_coarse_cell=True``.
+        """
+        profile = self._profile_with_bunch_at(0.9)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            charges_fine, charges_coarse = self._downsampled_onto_three_cells(
+                profile, warn_charge_in_last_coarse_cell=True
+            )
+        self.assertEqual(len(self._last_cell_warnings(caught)), 1)
+        # Not vacuous: the bunch really sits in the last cell.
+        self.assertGreater(
+            np.abs(charges_coarse[-1]),
+            0.5 * np.sum(np.abs(charges_fine)),
+        )
+
+    def test_no_warning_when_last_coarse_cell_empty(self):
+        """
+        A mid-window bunch leaves the last cell numerically empty.
+
+        Its far Gaussian tail reaches the last cell only at the ~1e-100
+        level, so the check must use the same relative threshold as the
+        first-coarse-cell guard rather than ``!= 0``.
+        """
+        profile = self._profile_with_bunch_at(0.5)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._downsampled_onto_three_cells(
+                profile, warn_charge_in_last_coarse_cell=True
+            )
+        self.assertEqual(self._last_cell_warnings(caught), [])
+
+    def test_last_coarse_cell_warning_is_opt_in(self):
+        """Without the flag a populated last cell does not warn."""
+        profile = self._profile_with_bunch_at(0.9)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._downsampled_onto_three_cells(profile)
+        self.assertEqual(self._last_cell_warnings(caught), [])
+
     def test_incomplete_capture_is_not_warned_about_here(self):
         """
         Incomplete capture is the profile's report, not this one's.

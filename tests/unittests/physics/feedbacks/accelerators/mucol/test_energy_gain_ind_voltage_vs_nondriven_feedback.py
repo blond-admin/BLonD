@@ -12,9 +12,8 @@ particles is the same whether it comes from
   ``I_g = V / (2 (R/Q) Q_L)``, ``n_cavities = 1``), whose gap voltage is the
   lab-frame antenna voltage; the beam-induced part is isolated by subtracting
   a zero-intensity reference run (exact, by linearity of the cavity
-  equation). A cold or undriven cavity is not usable here: it trips the
-  coarse-grid beam-kick magnitude check, whose heuristic assumes an
-  established antenna voltage.
+  equation). The operating point dates from the coarse-grid beam-kick
+  check, removed 2026-09-11, which a cold or undriven cavity used to trip.
 
 Both runs share the same minimal ring (one ``DriftSimple`` + one
 ``SingleHarmonicRFStation``) and the same initial bunch.  The design RF kick is
@@ -169,8 +168,8 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             # Operating-point cavity: V_init = V_design held steady by the
             # matched generator current I_g = V / (2 (R/Q) Q_L) (steady
             # state of the cavity equation at zero detuning). A cold or
-            # undriven cavity trips the coarse-grid beam-kick magnitude
-            # check, whose heuristic assumes an established antenna voltage.
+            # undriven cavity used to trip the coarse-grid beam-kick check
+            # (removed 2026-09-11); the operating point is kept.
             # The beam-induced part is isolated by subtracting a
             # zero-intensity reference run (exact, by linearity).
             matched_generator_current = self.V_design / (
