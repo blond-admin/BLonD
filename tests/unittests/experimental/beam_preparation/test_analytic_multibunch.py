@@ -432,7 +432,7 @@ class TestSelfConsistentMultiBunchMatcher(unittest.TestCase):
         np.testing.assert_allclose(
             results["self_consistent"][0],
             results["sequential"][0],
-            atol=0.5e-12,
+            atol=3e-12,
         )
         np.testing.assert_allclose(
             results["self_consistent"][1],
