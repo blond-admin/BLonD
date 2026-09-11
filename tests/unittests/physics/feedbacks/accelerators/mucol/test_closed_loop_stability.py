@@ -159,9 +159,10 @@ N_DELAY = 25
 
 # --- Robinson knob: the cavity resonance detuning sign ---------------------
 # Nominal uses -DELTA_OMEGA (empirically stabilizing here); perturbed flips it
-# to +DELTA_OMEGA (destabilizing). |delta_omega| ~ 2e5 rad/s is small vs the
-# cavity bandwidth omega_rf/(2 Q_L) ~ 3e3 rad/s * ... (per-step detuning
-# phase delta_omega * t_rf ~ 1.5e-4 rad).
+# to +DELTA_OMEGA (destabilizing). |delta_omega| ~ 2e5 rad/s is ~65x LARGER
+# than the cavity bandwidth omega_rf/(2 Q_L) ~ 3e3 rad/s -- this detuning is
+# well outside the cavity's own resonance width, not a small perturbation of
+# it (per-step detuning phase delta_omega * t_rf ~ 1.5e-4 rad).
 DELTA_OMEGA = 200_000.0
 
 # Fit the envelope growth over turns [FIT_START, N_TURNS], skipping the first
