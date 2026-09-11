@@ -43,12 +43,12 @@ and line-density shapes.
 from __future__ import annotations
 
 import warnings
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond.core.backends.backend import backend
+from blond.generals.str_enum import StrEnum
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Self
