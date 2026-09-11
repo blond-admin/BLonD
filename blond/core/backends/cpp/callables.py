@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.backends.backend import Specials, backend
+from blond.core.backends.backend import INDEX_DTYPE, Specials, backend
 from blond.core.backends.cpp.compile import add_dll_directory_once
 from blond.core.backends.cpp.compiled_dir_handler import cpp_compiled_dir
 from blond.generals.compiled_cache import mark_used
@@ -31,6 +31,9 @@ if TYPE_CHECKING:  # pragma: no cover
 # Upper bound on the number of cached array-pointer entries; the cache is
 # cleared wholesale once it grows past this to keep memory bounded.
 _PTR_CACHE_MAX_SIZE = 4096
+
+# ctypes twin of `INDEX_DTYPE`, matching `index_t` in `blond_common.h`.
+c_index_t = np.ctypeslib.as_ctypes_type(INDEX_DTYPE)
 
 
 def c_real(
@@ -213,6 +216,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
         """
         Return the length of ``x`` as a ``c_int``.
 
+        Only for short arrays (bins, harmonics, poles); arrays that scale
+        with the number of macroparticles use `_get_index_len`.
+
         Parameters
         ----------
         x
@@ -224,6 +230,23 @@ def reload_cpp_backend(  # NOQA: PLR0915
             ``len(x)`` wrapped as a ctypes ``c_int``.
         """
         return ct.c_int(len(x))
+
+    def _get_index_len(x: NumpyArray) -> ct.c_int64:
+        """
+        Return the length of ``x`` as the C++ ``index_t``.
+
+        Parameters
+        ----------
+        x
+            Array whose length, e.g. the number of macroparticles, is passed
+            to the C++ kernel.
+
+        Returns
+        -------
+        ct.c_int64
+            ``len(x)`` wrapped as `c_index_t`.
+        """
+        return c_index_t(len(x))
 
     def _is_valid(*pairs: tuple[NumpyArray, type]) -> bool:
         """
@@ -250,6 +273,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.move_flagged_elements_to_end.restype = c_index_t
     _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
     _LIBBLOND.blond_omp_get_max_threads.argtypes = []
 
@@ -323,7 +347,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(start, floattype),
                 c_real(stop, floattype),
                 ct.c_int(len(array_write)),
-                ct.c_int(len(array_read)),
+                _get_index_len(array_read),
             )
 
         @staticmethod
@@ -376,7 +400,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     bin_centers.ctypes.data_as(ct.c_void_p),
                     c_real(charge, floattype),
                     ct.c_int(len(bin_centers)),
-                    ct.c_int(len(dt)),
+                    _get_index_len(dt),
                     c_real(acceleration_kick, floattype),
                 )
                 return
@@ -393,7 +417,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 bin_centers.ctypes.data_as(ct.c_void_p),
                 c_real(charge, floattype),
                 ct.c_int(len(bin_centers)),
-                ct.c_int(len(dt)),
+                _get_index_len(dt),
                 c_real(acceleration_kick, floattype),
                 c_real(floattype(first_left_cut), floattype),
                 c_real(floattype(left_cut_distance), floattype),
@@ -428,7 +452,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(dt),
                 _get_pointer(dE),
                 _get_pointer(flags),
-                _get_len(dt),
+                _get_index_len(dt),
             )
 
         @staticmethod
@@ -457,7 +481,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(voltage, floattype),
                 c_real(omega_rf, floattype),
                 c_real(phi_rf, floattype),
-                ct.c_int(len(dt)),
+                _get_index_len(dt),
                 c_real(acceleration_kick, floattype),
             )
 
@@ -492,7 +516,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(voltage),
                 _get_pointer(omega_rf),
                 _get_pointer(phi_rf),
-                _get_len(dt),
+                _get_index_len(dt),
                 c_real(acceleration_kick, floattype),
             )
 
@@ -502,7 +526,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
             # reload function
             return floattype(
-                _LIBBLOND.sum_1d_array(_get_pointer(array), _get_len(array))
+                _LIBBLOND.sum_1d_array(
+                    _get_pointer(array), _get_index_len(array)
+                )
             )
 
         @staticmethod
@@ -519,7 +545,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _LIBBLOND.dot_product_1d_array(
                     _get_pointer(array_1),
                     _get_pointer(array_2),
-                    ct.c_int(len(array_2)),
+                    _get_index_len(array_2),
                 )
             )
 
@@ -547,7 +573,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _get_len(dt),
+                _get_index_len(dt),
             )
 
         @staticmethod
@@ -583,7 +609,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_len(higher_alpha),  # const int n_alpha
                 c_real(beta, floattype),  # const real_t beta
                 c_real(energy, floattype),  # const real_t energy
-                _get_len(dt),  # const int n_macroparticles
+                _get_index_len(dt),  # const index_t n_macroparticles
             )
 
         @staticmethod
@@ -606,7 +632,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     _get_pointer(beam_dE),
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
-                    _get_len(beam_dE),
+                    _get_index_len(beam_dE),
                 )
             else:
                 noise_scale = floattype(
@@ -620,7 +646,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
                     c_real(noise_scale, floattype),
-                    _get_len(beam_dE),
+                    _get_index_len(beam_dE),
                 )
 
         @staticmethod
@@ -635,7 +661,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 (dt, floattype),
                 (dE, floattype),
                 (flags, np.int32),
-                (ids, np.int32),
+                (ids, INDEX_DTYPE),
             )
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
@@ -644,7 +670,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
                 ids.ctypes.data_as(ct.c_void_p),
-                ct.c_int32(len(dt)),  # n_macroparticles
+                _get_index_len(dt),  # n_macroparticles
             )
             n_new = int(n_new)
             return n_new
@@ -706,7 +732,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(bins_per_profile),  # bins_per_profile
                 ct.c_int(n_active_profiles),  # n_profiles
                 ct.c_int(len(filling_pattern)),  # n_buckets
-                ct.c_int(len(x)),  # n_macroparticles # n_macroparticles
+                _get_index_len(x),  # n_macroparticles
                 _get_pointer(filling_pattern),  # filling_pattern
                 _get_pointer(
                     bucket_index_to_memory_index
@@ -824,7 +850,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(beam_dE),
                 _get_pointer(induced_voltage),
                 _get_pointer(parameter_array),
-                ct.c_int(len(beam_dt)),
+                _get_index_len(beam_dt),
                 c_real(alpha, floattype),
                 c_real(omega_bar, floattype),
                 c_real(const, floattype),

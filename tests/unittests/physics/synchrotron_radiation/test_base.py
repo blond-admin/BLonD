@@ -16,7 +16,7 @@ from blond import (
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import INDEX_DTYPE, backend
 from blond.core.base import DynamicParameter, SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
@@ -61,7 +61,7 @@ class BeamBaseClassTester(BeamBaseClass):
         )  # delta t
         # in s
         self._flags = backend.zeros(10, dtype=np.int32)
-        self._ids = backend.arange(10, dtype=np.int32)
+        self._ids = backend.arange(10, dtype=INDEX_DTYPE)
 
     @cached_property
     def ratio(self) -> float:

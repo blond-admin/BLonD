@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
+#: Integer dtype of macroparticle counts, particle loop counters and particle
+#: ids, so a single process can hold more than 2**31 - 1 macroparticles.
+#: Must match `index_t` in `cpp/blond_common.h` and `cuda/kernels.cu`.
+INDEX_DTYPE = np.int64
+
 ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
 # `AVAILABLE_BACKENDS` is provided lazily via the module-level
 # `__getattr__` below; see `_probe_available_backends`.

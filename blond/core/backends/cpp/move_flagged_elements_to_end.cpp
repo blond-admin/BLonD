@@ -13,13 +13,13 @@
 
 #include "blond_common.h"
 
-extern "C" int move_flagged_elements_to_end(
+extern "C" index_t move_flagged_elements_to_end(
     const int flag,
     int* __restrict__ flags,
     real_t* __restrict__ dt,
     real_t* __restrict__ dE,
-    int* __restrict__ ids,
-    const int n_macroparticles
+    index_t* __restrict__ ids,
+    const index_t n_macroparticles
 ) {
 
     // Empty input: nothing to partition, no flagged elements.
@@ -34,8 +34,8 @@ extern "C" int move_flagged_elements_to_end(
     // end of the array.
     // Use sequential two-pointer approach for correctness
     // Parallelizing in-place partition with swaps causes data races
-    int i = 0;  // scan from front
-    int j = n_macroparticles - 1;  // scan from back
+    index_t i = 0;  // scan from front
+    index_t j = n_macroparticles - 1;  // scan from back
 
     while (i < j) {
         // Find next flagged element from front
@@ -63,7 +63,7 @@ extern "C" int move_flagged_elements_to_end(
             flags[i] = flags[j];
             flags[j] = flags_tmp;
 
-            int ids_tmp = ids[i];
+            index_t ids_tmp = ids[i];
             ids[i] = ids[j];
             ids[j] = ids_tmp;
 

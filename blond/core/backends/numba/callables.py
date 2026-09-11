@@ -19,7 +19,7 @@ import numba  # type: ignore
 import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
-from blond.core.backends.backend import Specials
+from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
@@ -210,8 +210,9 @@ sig_beam_phase = nb_f(
 
 sig_flag = numba.int32
 sig_flags = numba.int32[:]
-sig_ids = nb_i[:]
-sig_move_flagged_elements_to_end = nb_i(
+nb_index = numba.from_dtype(np.dtype(INDEX_DTYPE))
+sig_ids = nb_index[:]
+sig_move_flagged_elements_to_end = nb_index(
     sig_flag,
     sig_flags,
     sig_dt,

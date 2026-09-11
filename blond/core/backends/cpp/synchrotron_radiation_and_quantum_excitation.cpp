@@ -34,10 +34,10 @@ extern "C" void apply_synchrotron_radiation_no_excitation(
     real_t* __restrict__ beam_dE,
     const real_t damping_factor,
     const real_t energy_lost,
-    const int n_macroparticles
+    const index_t n_macroparticles
 ) {
 #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
         beam_dE[i] = damping_factor * beam_dE[i] - energy_lost;
     }
 }
@@ -47,7 +47,7 @@ extern "C" void apply_synchrotron_radiation_and_quantum_excitation(
     const real_t damping_factor,
     const real_t energy_lost,
     const real_t noise_scale,
-    const int n_macroparticles
+    const index_t n_macroparticles
 ) {
 #pragma omp parallel
     {
@@ -69,7 +69,7 @@ extern "C" void apply_synchrotron_radiation_and_quantum_excitation(
         }
 
 #pragma omp for
-        for (int i = 0; i < n_macroparticles; i++) {
+        for (index_t i = 0; i < n_macroparticles; i++) {
             beam_dE[i] = damping_factor * beam_dE[i] - energy_lost
                        + noise_scale * standard_normal(generator);
         }

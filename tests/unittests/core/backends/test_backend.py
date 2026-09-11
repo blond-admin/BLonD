@@ -11,6 +11,7 @@ from scipy.constants import elementary_charge
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
+    INDEX_DTYPE,
     Cupy64Bit,
     CupyBackend,
     Numpy64Bit,
@@ -1982,7 +1983,7 @@ class TestSpecials(unittest.TestCase):
             flags[[0, 1, -1]] = 0
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2061,7 +2062,7 @@ class TestSpecials(unittest.TestCase):
             dE = backend.array(
                 backend.linspace(0, 10, len(flags)), backend.float
             )
-            ids = backend.array(backend.arange(0, len(flags)), np.int32)
+            ids = backend.array(backend.arange(0, len(flags)), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2107,7 +2108,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2137,7 +2138,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2166,7 +2167,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -3136,7 +3137,7 @@ class TestSpecials(unittest.TestCase):
                 dE = backend.array(
                     backend.linspace(0, 1, n), dtype=backend.float
                 )
-                ids = backend.arange(0, n, dtype=np.int32)
+                ids = backend.arange(0, n, dtype=INDEX_DTYPE)
                 n_new = int(
                     backend.specials.move_flagged_elements_to_end(
                         flag=0,
@@ -3194,7 +3195,7 @@ class TestSpecials(unittest.TestCase):
             flags = backend.zeros(0, dtype=np.int32)
             dt = backend.zeros(0, dtype=backend.float)
             dE = backend.zeros(0, dtype=backend.float)
-            ids = backend.zeros(0, dtype=np.int32)
+            ids = backend.zeros(0, dtype=INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=0,
                 flags=flags,

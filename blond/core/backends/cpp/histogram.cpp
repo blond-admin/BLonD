@@ -19,14 +19,17 @@
 extern "C" void histogram(const real_t *__restrict__ input,
                           real_t *__restrict__ output, const real_t cut_left,
                           const real_t cut_right, const int n_slices,
-                          const int n_macroparticles) {
+                          const index_t n_macroparticles) {
   // Number of Iterations of the inner loop
   const int STEP = 16;
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
 
-  // allocate memory for the thread_private histogram
-  int **histo = (int **)malloc(omp_get_max_threads() * sizeof(int *));
-  histo[0] = (int *)malloc(omp_get_max_threads() * n_slices * sizeof(int));
+  // allocate memory for the thread_private histogram; index_t counters, so a
+  // single bin can collect more than 2^31 - 1 particles
+  index_t **histo =
+      (index_t **)malloc(omp_get_max_threads() * sizeof(index_t *));
+  histo[0] = (index_t *)malloc(omp_get_max_threads() * n_slices *
+                               sizeof(index_t));
   for (int i = 0; i < omp_get_max_threads(); i++)
     histo[i] = (*histo + n_slices * i);
 
@@ -34,16 +37,16 @@ extern "C" void histogram(const real_t *__restrict__ input,
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
-    memset(histo[id], 0, n_slices * sizeof(int));
+    memset(histo[id], 0, n_slices * sizeof(index_t));
     // Keep the bin index in double until it is range-checked: a float
     // cannot represent indices above 2^24 exactly, and converting an
     // out-of-range double to int is undefined behaviour.
     double fbin[STEP] = {-1};
 #pragma omp for
-    for (int i = 0; i < n_macroparticles; i += STEP) {
+    for (index_t i = 0; i < n_macroparticles; i += STEP) {
 
       const int loop_count =
-          n_macroparticles - i > STEP ? STEP : n_macroparticles - i;
+          n_macroparticles - i > STEP ? STEP : (int)(n_macroparticles - i);
 
       // First calculate the index to update
       for (int j = 0; j < loop_count; j++) {
@@ -80,7 +83,7 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
                                  real_t *__restrict__ output,
                                  const real_t cut_left, const real_t cut_right,
                                  const int n_slices,
-                                 const int n_macroparticles) {
+                                 const index_t n_macroparticles) {
   // Constants init
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
   const real_t bin_width = (cut_right - cut_left) / n_slices;
@@ -102,7 +105,7 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
 
 // main caclulation
 #pragma omp for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       int fffbin = 0;
       real_t a = input[i];
       if ((a < const1) || (a > const2))

@@ -188,10 +188,14 @@ class BeamBaseClass(Preparable, ABC):
                 f"{dt.global_size=}, {dE.global_size=}"
             )
 
-        id_max = np.int32(self._ids.max())
+        from blond.core.backends.backend import (
+            INDEX_DTYPE,  # prevent cyclic import
+        )
+
+        id_max = INDEX_DTYPE(self._ids.max())
         local_size = self._dt.local_size
 
-        new_ids = dist_help.distributed_arange(local_size, np.int32)
+        new_ids = dist_help.distributed_arange(local_size, INDEX_DTYPE)
         new_ids.array_local += id_max + 1
 
         new_flags = dist_help.distributed_zeros(local_size, np.int32)
