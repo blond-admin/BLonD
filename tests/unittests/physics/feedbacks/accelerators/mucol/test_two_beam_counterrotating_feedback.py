@@ -440,6 +440,12 @@ class TestTwoBeamOffsetPassages(unittest.TestCase):
 # percentage points per turn, so five turns make it unmistakable.
 ACCEL_N_TURNS = 5
 
+# Allow 0.01 percentage points of accumulated discretization/model error.
+# The bin-centred fine solve removes the large first-turn sampling error;
+# the much smaller carried-wake error need not decrease from that new floor.
+# A frame-slip sign error grows by percentage points, far above this budget.
+MAX_ACCEL_ERROR_GROWTH = 1e-4
+
 # Static RF-frequency offset for the two-beam delta_omega_rf coverage (the
 # same 2000 rad/s the single-beam multi-section delta_omega_rf test uses), run
 # over five turns so any per-turn slip-anchor error accumulates visibly.
@@ -468,13 +474,11 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
     the cavity equation, which also cancels the common acceleration kick)
     must track the two-beam multi-pass **retuning** convolution
     (``retune_to_rf=True``, the accelerating counterpart of the static
-    reference) with no per-turn-growing error.
+    reference) within absolute and accumulated-error budgets.
 
-    Measured (deterministic, both sections identical): 0.13 % on turn 0
-    falling to 0.025 % on turn 4 -- the relative error *shrinks* as the
-    carried wake accumulates (the discretization floor stays roughly
-    constant while the beam loading builds up), the opposite of the ramping
-    signature a mis-composed frame-slip correction would show. A sign or
+    With bin-centred fine sampling, measured relative errors range from
+    0.00085 % on turn 0 to 0.00596 % on turn 4. The former uniform-step
+    sampling error was larger: 0.13 % falling to 0.025 %. A sign or
     ordering error in that composition produced multi-percent-per-turn
     growth in the single-beam multi-section case (turn 4 reached ~29 % /
     ~57 % for 2 / 4 sections without the correction).
@@ -546,7 +550,7 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
         opposite element orders. The beam-induced gap voltage must still
         match the retuning convolution at every station and turn, to the
         same order of tolerance as the static offset-passage test (0.5 %;
-        measured max ~0.13 %).
+        measured max ~0.006 % with bin-centred sampling).
         """
         convolution = self._accel_two_beam("mtw")
         induced_per_turn = self._beam_induced_per_turn()
@@ -566,7 +570,7 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
                     f"turn {turn_i} section {sec_i}",
                 )
 
-    def test_accel_error_does_not_grow_per_turn(self):
+    def test_accel_error_growth_stays_within_budget(self):
         """
         The carried two-beam wake error stays bounded, not ramping per turn.
 
@@ -575,13 +579,10 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
         with the reverse traversal would leave a per-turn-growing phase error
         in the carried two-beam wake. This fits the worst-section relative
         error against the turn number (skipping the turn-0 single-pass
-        transient) and requires a non-positive-trending slope, plus a
-        last-turn error no larger than turn 0 -- i.e. the error does not grow
-        as the wake is carried turn over turn.
-
-        Measured slope over turns 1..4 is ~-0.011 pp/turn (the error
-        *shrinks*); a mis-composed correction would instead ramp at several
-        percentage points per turn.
+        transient) and bounds both the slope and accumulated growth.
+        A small carried-wake error can grow from the much lower first-turn
+        floor of the bin-centred solve. A mis-composed correction instead
+        ramps at several percentage points per turn.
         """
         convolution = self._accel_two_beam("mtw")
         induced_per_turn = self._beam_induced_per_turn()
@@ -606,9 +607,8 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
             f"unbounded error {worst_per_turn}",
         )
 
-        # Non-growing: fit the post-transient trend (turns 1..end). A real
-        # frame-slip x reverse-traversal composition error ramps positively;
-        # the healthy behaviour is flat-to-decreasing.
+        # Fit the post-transient trend (turns 1..end). A frame-slip sign
+        # error grows much faster than the residual discretization floor.
         turns = np.arange(ACCEL_N_TURNS)
         slope_pp_per_turn = np.polyfit(
             turns[1:], 100.0 * worst_per_turn[1:], 1
@@ -620,11 +620,11 @@ class TestTwoBeamAcceleratingOffsetPassages(unittest.TestCase):
             f"(worst_per_turn={worst_per_turn})",
         )
 
-        # Explicitly non-ramping: the carried-wake error at the last turn is
-        # no larger than the turn-0 single-pass floor.
+        # Do not require monotonic decrease: correcting the first sample
+        # removes the large turn-0 error that used to dominate this ratio.
         self.assertLessEqual(
-            float(worst_per_turn[-1]),
-            float(worst_per_turn[0]),
+            float(worst_per_turn[-1] - worst_per_turn[0]),
+            MAX_ACCEL_ERROR_GROWTH,
             f"error grew across the run {worst_per_turn}",
         )
 
@@ -954,13 +954,15 @@ class TestTwoBeamOffsetPassagesManySections(unittest.TestCase):
         more mid-turn grid re-seedings per turn, each at its own past-station
         RF frequency, so a sign or ordering error in the frame-slip
         correction composed with the reverse traversal has more chances to
-        accumulate. Bounded *and* non-growing, as there.
+        accumulate. The same absolute and accumulated-error budgets apply.
         """
         worst = self._worst_error_per_turn(
             4, ACCEL_N_TURNS, acceleration=True, fast_ramp=True
         )
         self.assertLess(float(worst.max()), 0.005, f"{worst}")
-        self.assertLessEqual(float(worst[-1]), float(worst[0]), f"{worst}")
+        self.assertLessEqual(
+            float(worst[-1] - worst[0]), MAX_ACCEL_ERROR_GROWTH, f"{worst}"
+        )
 
     def test_delta_omega_rf_feedback_matches_two_beam_convolution(self):
         """

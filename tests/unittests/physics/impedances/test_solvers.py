@@ -5291,6 +5291,62 @@ class TestMultiPassResonatorSolverRetuneToRf(unittest.TestCase):
         station = solver._parent_wakefield._parent_rf_station
         return station.n_track_reference_calls
 
+    def test_retuning_warns_for_multiple_resonance_frequencies(self):
+        """Count modes both within a source and across separate sources."""
+        for separate_sources in (False, True):
+            with self.subTest(separate_sources=separate_sources):
+                solver, wakefield, simulation = self._parts(retune_to_rf=True)
+                if separate_sources:
+                    wakefield.sources = (
+                        *wakefield.sources,
+                        Resonators(
+                            shunt_impedances=[1e6],
+                            center_frequencies=[700e6],
+                            quality_factors=[1e3],
+                        ),
+                    )
+                else:
+                    wakefield.sources = (
+                        Resonators(
+                            shunt_impedances=[1e6, 1e6],
+                            center_frequencies=[500e6, 700e6],
+                            quality_factors=[1e3, 1e3],
+                        ),
+                    )
+                with self.assertWarnsRegex(
+                    UserWarning, "retune_to_rf=True with 2 resonance"
+                ):
+                    solver.on_wakefield_init_simulation(
+                        simulation=simulation, parent_wakefield=wakefield
+                    )
+
+    def test_supported_mode_counts_do_not_warn_about_retuning(self):
+        """One retuned mode and several fixed modes need no advisory."""
+        for retune in (False, True):
+            with self.subTest(retune=retune):
+                solver, wakefield, simulation = self._parts(
+                    retune_to_rf=retune
+                )
+                if not retune:
+                    wakefield.sources = (
+                        Resonators(
+                            shunt_impedances=[1e6, 1e6],
+                            center_frequencies=[500e6, 700e6],
+                            quality_factors=[1e3, 1e3],
+                        ),
+                    )
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    solver.on_wakefield_init_simulation(
+                        simulation=simulation, parent_wakefield=wakefield
+                    )
+                self.assertFalse(
+                    any(
+                        "resonance frequencies" in str(item.message)
+                        for item in caught
+                    )
+                )
+
     def test_retune_to_rf_true_retunes_every_pass(self):
         """
         ``retune_to_rf=True`` follows the RF, with no offset by default.
