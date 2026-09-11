@@ -19,14 +19,17 @@ that need nothing but the attached controller and the voltage setpoint:
 - ``_controller_active``, whether a controller is attached at all;
 - ``generator_power``, the klystron forward power readout;
 - ``_update_generator_current``, the error-to-current step the reference
-  per-cell path takes;
-- ``_limit_fine_grid_generator_current``, the actuator (klystron) clamp
-  applied to the fine grid before the fine solve.
+  per-cell path takes.
+
+The klystron limit is enforced in exactly one place: by the controller, on
+every coarse command it returns. The fine-grid generator current is a linear
+interpolation of those commands, and a straight line between two points
+inside the limit circle stays inside it, so no second clamp is needed there.
 
 It is a *mixin*: those methods read and write host state
 (``_controller``, ``_voltage_setpoint``, ``n_cavities``, ``R_over_Q``,
 ``Q_L``, ``generator_current_coarse_grid``, ``antenna_voltage_coarse_grid``,
-``generator_current_fine_grid``, ``_omega_input_for_pi``, ...) that
+``_omega_input_for_pi``, ...) that
 ``IQCavityFeedbackTimingClass`` owns. Every method therefore annotates its
 ``self`` as that host, exactly as ``rf_center_grid.py`` does: the dependency
 exists either way, and stating it in the signature is what lets a reader and
@@ -62,7 +65,7 @@ look there:
   timing class's business.
 
 So: this module owns the control *law's* interface to the feedback (setpoint,
-error step, limits, power); the timing class owns *when and over which cells*
+error step, power); the timing class owns *when and over which cells*
 the controller runs, and the state it runs on.
 """
 
@@ -394,39 +397,3 @@ class GeneratorRegulationMixin:
         self.generator_current_coarse_grid[idx] = (
             self._controller.update_generator_current(error, delta_t)
         )
-
-    def _limit_fine_grid_generator_current(
-        self: IQCavityFeedbackTimingClass,
-        initial_generator_current_fine_grid: complex,
-    ) -> complex:
-        """
-        Clamp the fine-grid generator current to the actuator limit.
-
-        Rewrites the host's ``generator_current_fine_grid`` with the
-        controller's klystron-limited version and returns the scalar initial
-        condition limited the same way; a no-op without a controller. Must
-        run *before* the fine-grid solve, so the response matrix never sees a
-        current above the limit.
-
-        Parameters
-        ----------
-        initial_generator_current_fine_grid
-            Initial condition of the generator current on the fine grid [A].
-
-        Returns
-        -------
-        initial_generator_current_fine_grid
-            The initial condition, limited to the actuator range.
-        """
-        # Enforce the controller's actuator (klystron) limit on the fine grid
-        # too, so the response matrix never sees a current above the limit.
-        # The coarse values are already clamped; this guards the interpolated
-        # initial condition and any externally set fine-grid current.
-        if self._controller is not None:
-            self.generator_current_fine_grid = self._controller.limit(
-                self.generator_current_fine_grid
-            )
-            initial_generator_current_fine_grid = self._controller.limit(
-                initial_generator_current_fine_grid
-            )
-        return initial_generator_current_fine_grid

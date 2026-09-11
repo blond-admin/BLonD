@@ -10,9 +10,6 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackTimingClass,
 )
-from blond.physics.feedbacks.cavity_solvers import (
-    cavity_response_sparse_matrix,
-)
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
@@ -1131,56 +1128,47 @@ class TestLoopDelaySampleSemantics(unittest.TestCase):
         self.assertGreaterEqual(offset_standard, N_DELAY - 1)
 
 
-class TestResponseMatrixClamping(unittest.TestCase):
-    """The fine-grid response matrix only sees the limited current."""
+class TestFineGridCurrentInheritsTheKlystronLimit(unittest.TestCase):
+    """
+    The fine-grid current stays within the limit without a clamp of its own.
 
-    def test_fine_grid_solve_uses_clamped_generator_current(self):
-        """Clamp I_gen before the fine-grid response-matrix solve."""
-        i_max = 0.03
-        cav = build_feedback(controller=build_controller(max_output=i_max))
-        profile = cav.profile
-        omega_times_dt = OMEGA_RF * profile.hist_step
+    The controller clamps every coarse command; the fine-grid current is a
+    linear interpolation of those commands, and a chord between two points
+    inside the limit circle stays inside it. This pins that invariant on the
+    real ``circuit_track`` path, with the generator driven into saturation,
+    in place of the second clamp the fine grid used to apply.
+    """
 
-        # Fine-grid current partly above the limit, with varying phase
-        phases = np.linspace(0.0, 1.0, N_BINS)
-        i_gen_fine = np.linspace(0.5 * i_max, 2.0 * i_max, N_BINS) * np.exp(
-            1j * phases
-        )
-        cav.beam_current_fine_grid = np.zeros(N_BINS, dtype=complex)
-        cav.generator_current_fine_grid = i_gen_fine.copy()
+    n_turns = 70
+    peak_beam_current = 0.4
+    # Well below the compensation current the bunch needs, so it saturates.
+    i_max = I_gen_bias + I_BEAM / 4.0
 
-        i_gen_init = 2.0 * i_max + 0.0j
-        cav.cavity_response_fine(
-            initial_voltage_fine_grid=0.0,
-            initial_generator_current_fine_grid=i_gen_init,
-            omega_times_dt_fine_grid=omega_times_dt,
-            relative_detuning=0.0,
+    def test_fine_grid_current_never_exceeds_the_limit(self):
+        """Saturated coarse commands interpolate to a fine grid within it."""
+        cav = build_feedback(
+            controller=build_controller(
+                n_delay=1,
+                gain_integral=GAIN_I * 15.0,
+                max_output=self.i_max,
+            )
         )
-
-        # The stored fine-grid current was clamped in place
-        self.assertLessEqual(
-            np.max(np.abs(cav.generator_current_fine_grid)),
-            i_max * (1.0 + 1e-12),
-        )
-
-        # And the matrix solve used exactly the clamped current
-        magnitude = np.abs(i_gen_fine)
-        clamped = np.where(
-            magnitude > i_max, i_gen_fine * (i_max / magnitude), i_gen_fine
-        )
-        expected = cavity_response_sparse_matrix(
-            I_beam=np.zeros(N_BINS, dtype=complex),
-            I_gen=clamped,
-            V_ant_init=0.0,
-            I_gen_init=i_max + 0.0j,
-            omega_times_dt=omega_times_dt,
-            R_over_Q=R_OVER_Q,
-            Q_L=Q_L,
-            relative_detuning=0.0,
-        )
-        np.testing.assert_allclose(
-            cav.antenna_voltage_fine_grid, expected, rtol=1e-12
-        )
+        peak_coarse = 0.0
+        peak_fine = 0.0
+        for _ in range(self.n_turns):
+            # One turn per call; the bunch is present from the first turn.
+            run_multi_turn_fine_grid(cav, 1, 0, self.peak_beam_current)
+            peak_coarse = max(
+                peak_coarse,
+                float(np.max(np.abs(cav.generator_current_coarse_grid))),
+            )
+            peak_fine = max(
+                peak_fine,
+                float(np.max(np.abs(cav.generator_current_fine_grid))),
+            )
+        # The test only has teeth if the klystron actually saturates.
+        np.testing.assert_allclose(peak_coarse, self.i_max, rtol=1e-12)
+        self.assertLessEqual(peak_fine, self.i_max * (1.0 + 1e-12))
 
 
 class TestPerProfileVoltageOverTurns(unittest.TestCase):
