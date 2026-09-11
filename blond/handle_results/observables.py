@@ -2610,8 +2610,9 @@ class FullTurnCavityObservation(ObservablesOncePerTurnBase):
         -------
         reflected_current_coarse
             ``(co_rotating, counter_rotating)``. Evaluated at the passage
-            as ``V_ant / ((R/Q) Q_L) - I_gen``. Zero only when the
-            beam absorbs the whole forward wave; with no beam a
+            as ``V_ant / ((R/Q) Q_L) - r_gen I_gen``, the generator current
+            rotated into the frame each cell was composed in. Zero only
+            when the beam absorbs the whole forward wave; with no beam a
             superconducting cavity reflects all of it -- see
             :meth:`~blond.physics.feedbacks.generator_regulation.GeneratorRegulationMixin.reflected_current`.
         """

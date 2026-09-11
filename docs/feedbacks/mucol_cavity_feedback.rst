@@ -249,12 +249,13 @@ appear:
    * - kick frame
      - The frame the station's applied kick lives in: the demodulation
        frame rotated by ``exp(+i (gap + phi_acc))`` (the live kick-clock
-       gap plus the forward segment's accumulated phase). The PI error is
-       formed
-       here, so the loop regulates the applied voltage rather than a
-       bookkeeping frame. Exactly the demodulation frame without an
-       RF-frequency offset and without multi-section acceleration. Not the
-       same thing as the *kick clock* above.
+       gap plus the accumulated phase: the forward segment's on the
+       forward span, the phase accumulated up to the cell on a backfill
+       cell). The PI error is formed here, so the loop regulates the
+       applied voltage rather than a bookkeeping frame. Exactly the
+       demodulation frame without an RF-frequency offset and without
+       multi-section acceleration. Not the same thing as the *kick clock*
+       above.
    * - actuator frame
      - The frame the commanded generator current acts in: the kick frame
        rotated by ``exp(+i delta_phi_rf)``. The PI error is taken here
@@ -359,7 +360,10 @@ Classes at a glance
     forward segment; the ``omega`` and ``duration`` are what the
     backfill-span replay walks, and ``accumulated_phase`` is the
     grid-vs-carrier phase accumulated up to the segment's end (see
-    *Multi-section registration phase*).
+    *Multi-section registration phase*). Two pure helpers compute that
+    phase: ``accumulated_phases`` at each backfill segment's end (what the
+    records store) and ``accumulated_phases_at_centers`` at each backfill
+    centre (from the records).
     ``PerTurnGridSpan`` (below) is the per-turn span built out of those
     segments.
 
@@ -377,11 +381,12 @@ Classes at a glance
     ``GeneratorRegulationMixin``: the parts of the timing class that need
     only the controller and the setpoint -- the setpoint policy
     (constructor validation and the per-cavity IQ ``pi_setpoint``), the
-    klystron power readout, the per-step generator-current update and the
-    fine-grid actuator clamp. The compiled envelope scan and the per-cell
-    stepping decision stay on the timing class in ``cavity_feedback.py``:
-    they need the coarse grids and the state carried across the turn
-    boundary.
+    klystron power and the reflected current and power readouts (see
+    *Multi-section registration phase* for their frame), the per-step
+    generator-current update and the fine-grid actuator clamp. The
+    compiled envelope scan and the per-cell stepping decision stay on the
+    timing class in ``cavity_feedback.py``: they need the coarse grids and
+    the state carried across the turn boundary.
 
 :mod:`blond.physics.feedbacks.beam_current`
     The beam-current demodulation:
@@ -413,7 +418,8 @@ Classes at a glance
     per-cell recursion runs on by default
     (``use_numba_envelope_kernel``); it advances the two source-split
     envelope components, composes their demodulation-frame sum and runs
-    the kick-frame PI per cell. It is byte-identical to the
+    the kick-frame PI per cell, taking the generator and kick frame
+    rotations as per-cell arrays. It is byte-identical to the
     pure-Python per-cell reference wherever the klystron clamp does not
     fire, and agrees with it to ``SATURATED_RTOL`` (1e-12) where it does:
     numba's complex ``abs`` and numpy's differ by one or two ULP, which
@@ -511,7 +517,7 @@ Each turn the timing class runs:
    ``+0.0`` for a single section, for an unaccelerated ring and on a
    station's very first passage, is under *Multi-section registration
    phase* below. ``_update_frame_rotations`` then derives the three
-   per-passage frame rotations every later cell update reads:
+   frame rotations every later cell update reads:
 
    * the *generator* frame rotation ``exp(-i (delta_phi_rf + gap +
      phi_acc))``, which rotates the design-anchored generator component
@@ -524,17 +530,26 @@ Each turn the timing class runs:
      two rotations, which is why this third one carries the station
      clock alone.
 
-   The first two are exactly ``1 + 0j`` without an RF-frequency offset
-   and without multi-section acceleration; the third is exactly
-   ``1 + 0j`` whenever ``delta_phi_rf`` is zero, independently of
-   ``gap`` and ``phi_acc``. Those paths therefore stay bit-identical.
+   The actuator rotation is one scalar per passage. The first two exist
+   twice: as passage scalars with the forward segment's ``phi_acc``, which
+   the forward span and the fine grid use, and as one value per backfill
+   centre (``_backfill_generator_frame_rotations``,
+   ``_backfill_kick_frame_rotations``) with the phase accumulated up to
+   that centre in place of ``phi_acc`` (see *Multi-section registration
+   phase*); ``_frame_rotations_of_cell`` / ``_frame_rotations_of_cells``
+   hand each cell its own. The first two are exactly ``1 + 0j`` without
+   an RF-frequency offset and without multi-section acceleration, on
+   every cell; the third is exactly ``1 + 0j`` whenever ``delta_phi_rf``
+   is zero, independently of ``gap`` and ``phi_acc``. Those paths
+   therefore stay bit-identical.
 
 5. ``_replay_backfill_span`` -- re-walks this passage's backfill segments
    with ``no_beam=True``, one ``circuit_track`` per backfill segment at
    that segment's own ``omega``, so that the envelope carries the
    already-elapsed interval forward. A passage that generated no backfill
    segments skips the replay entirely. It runs after step 4 because its
-   cell updates already compose the sum with this passage's rotations.
+   cell updates compose the sum, and form the PI error, with the
+   per-cell backfill rotations of step 4.
 
 6. ``_write_no_correction_readout`` -- only with
    ``grid_only_no_correction=True``: writes the neutral readout (unit
@@ -642,11 +657,13 @@ segment is exactly right and the component carries neither the
 kick-clock slip nor the accumulated phase (``initial_voltage`` and the
 pre-fill seed this component -- they model a generator-established
 field). The public ``antenna_voltage_coarse_grid`` remains the
-DEMODULATION-FRAME SUM, (re)composed per passage as
-``V_beam + V_gen * exp(-i (delta_phi_rf + gap + phi_acc))`` -- a rotation
-that is exactly ``1 + 0j`` without an RF-frequency offset and without
-multi-section acceleration, which is why undriven runs stay
-byte-identical to the former single-state recursion.
+DEMODULATION-FRAME SUM, composed per cell as
+``V_beam + V_gen * exp(-i (delta_phi_rf + gap + phi_acc))``, with
+``phi_acc`` the forward segment's on the forward span and the phase
+accumulated up to the cell on a backfill cell (step 4 of *Signal path of
+one turn*) -- a rotation that is exactly ``1 + 0j`` without an
+RF-frequency offset and without multi-section acceleration, which is why
+undriven runs stay byte-identical to the former single-state recursion.
 
 .. note::
 
@@ -704,7 +721,7 @@ Optional generator-current control
 
 With a ``controller`` attached, each coarse step forms the error in the
 KICK frame,
-``V_set - V_ant[n] * exp(+i (gap + phi_acc))`` -- the envelope of the kick
+``V_set - V_ant[n] * exp(+i (gap + phi_acc[n]))`` -- the envelope of the kick
 the station actually applies against ``phi_rf``, so the loop regulates
 the applied voltage rather than a bookkeeping frame -- and then rotates
 that error into the ACTUATOR frame by ``exp(+i delta_phi_rf)`` before
@@ -722,14 +739,18 @@ cell, the backfill reconstruction segments included: a real LLRF regulates
 continuously, and a loop confined to the forward passage would be
 open-loop for ``(N - 1) / N`` of every turn on an ``N``-section ring,
 merely holding the current the forward pass last commanded (a 6 % duty
-cycle on 16-section RCS1). The error on a backfill cell is formed with the
-passage's frame rotations, which are set before the backfill replay and
-are exactly unity in the unrotated regime above; under a ramp the backfill
-cells carry a small per-segment frame residual (each backfill segment
-stores its own accumulated phase, the rotation uses the passage's) that
-the per-passage rotation does not resolve -- a second-order
-correction, not a reason to leave the loop open. ``reset_arrays`` seeds the
-backfill span of the generator grid with the *last commanded* current
+cycle on 16-section RCS1). The error on a backfill cell is formed with that
+cell's own rotations, set before the backfill replay: ``phi_acc[n]`` is the
+phase accumulated up to the cell (step 4 of *Signal path of one turn*), not
+the passage's final phase. With the final phase there, as until 2026-09-11,
+the beam-induced part of the carried voltage is rotated by the phase still
+to accumulate, and the regulated kick-frame voltage jumps by one passage's
+increment where the previous passage's forward span hands over to this
+backfill span (0.14 and 0.21 rad at two and four sections on the fast test
+ramp, a one-off measurement; the continuity is pinned by
+``TestKickFrameVoltageIsContinuousAcrossBackfill``). ``reset_arrays``
+seeds the backfill span of the generator grid with the *last commanded*
+current
 rather than the feedforward bias: that is the loop's initial condition for
 the span it then regulates over, since those cells replay an interval that
 began with the generator running at whatever it was last told. Resetting
@@ -916,9 +937,18 @@ backfill segment ``k`` the two part by
 Every segment record stores the running sum of those differences up to
 its end, continued from the forward segment the previous passage ended
 on, as ``RFCenterSegment.accumulated_phase`` (``phi_acc``); the forward
-segment of a passage inherits the value of its last backfill segment,
-and that is the phase the passage uses. It is a pure bookkeeping
-mismatch -- identically zero for a single section, which is why
+segment of a passage inherits the value of its last backfill segment.
+That forward value is the phase of the demodulation, the readout, the
+forward span and the fine grid. The backfill span replays an interval
+over which the phase is still accumulating, so a backfill cell takes the
+phase accumulated up to its own centre instead: a centre at
+segment-local time ``c`` of backfill segment ``k`` gets
+``phi_start,k + (omega_prev - omega_k) c``, with ``phi_start,0`` the
+carried forward segment's phase and ``phi_start,k`` the stored phase of
+segment ``k - 1`` (``accumulated_phases_at_centers`` in
+``rf_center_segment.py``, read off the grid by
+``RFCenterGridMixin._backfill_center_phases``). The phase is a pure
+bookkeeping mismatch -- identically zero for a single section, which is why
 single-section rings need no correction at all, and zero on a station's
 first passage, which has no previous carrier. The reference is the
 previous passage's carrier and not the current one because the quantity
@@ -938,7 +968,10 @@ and ``RFCenterGridMixin._backfill_accumulated_phases`` for the
 implementation. Until 2026-09-11 the feedback kept this phase as a
 separate running total with its own copy of the previous carrier;
 storing it on the segment records removed that parallel bookkeeping
-without changing any result.
+without changing any result. The per-centre phases of the backfill cells
+date from the same day and did change results: before, every backfill
+cell was composed and regulated with the forward segment's phase (see
+*Optional generator-current control*).
 
 The reference-choice regression uses a curved frequency programme; see
 ``test_phase_refers_to_the_previous_carrier``. The historical diagnostics
@@ -960,6 +993,19 @@ but a run with beam loading is not -- the beam component carries no such
 rotation, so the magnitude moves too. Either way a naive complex
 comparison against the setpoint is the wrong check; compare in the kick
 frame, as the PI does.
+
+A related frame rule applies to the reflected current
+``V_ant / ((R/Q) Q_L) - r_gen I_gen``: the design-frame generator current
+has to be rotated into the frame each cell was composed in.
+``GeneratorRegulationMixin.reflected_current`` and ``reflected_power`` do
+that by default -- per cell for this passage's coarse-grid antenna voltage
+(the default argument, or that very array), with the passage's rotation
+for any other antenna voltage -- and
+``FullTurnCavityObservation.reflected_current_coarse`` records that
+default. With the passage's rotation on a backfill cell a driven,
+beam-free cavity would appear to reflect
+``|2 exp(i delta) - 1|^2 ~ 1 + 2 delta^2`` of its forward power, ``delta``
+being the phase still to accumulate there.
 
 The long-horizon carried-wake comparison is covered by
 ``test_multiturn_secular_drift_long_horizon``. Its assertions state the

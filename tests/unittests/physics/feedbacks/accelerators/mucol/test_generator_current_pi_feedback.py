@@ -704,7 +704,7 @@ class TestReflectedPower(unittest.TestCase):
                 )
 
     def test_default_rotation_is_the_feedbacks_current_one(self):
-        """Without the argument the instance's rotation is used."""
+        """Without backfill rotations the default is the passage's one."""
         cav = build_feedback()
         cav._generator_frame_rotation = complex(np.exp(0.4j))
         cav.generator_current_coarse_grid = np.array([0.01 + 0.0j, 0.02j])
@@ -717,6 +717,52 @@ class TestReflectedPower(unittest.TestCase):
         self.assertEqual(
             build_feedback()._generator_frame_rotation, 1.0 + 0.0j
         )
+
+    def test_default_rotation_is_per_cell_on_the_coarse_grid(self):
+        """
+        On the coarse grid itself the default rotation is each cell's own.
+
+        A backfill cell is composed with the phase accumulated up to it, so
+        the default readout of the coarse grid -- or of that very array
+        passed explicitly -- must take each cell's rotation. Any other
+        antenna voltage (a copy, a slice, the fine grid) takes the passage's.
+        """
+        cav = build_feedback()
+        backfill_rotations = np.exp(-1j * np.array([0.3, 0.2]))
+        passage_rotation = complex(np.exp(-0.1j))
+        cav._backfill_generator_frame_rotations = backfill_rotations
+        cav._backfill_kick_frame_rotations = np.conj(backfill_rotations)
+        cav._generator_frame_rotation = passage_rotation
+        cav.generator_current_coarse_grid = np.array(
+            [0.01 + 0.0j, 0.02j, -0.03 + 0.0j]
+        )
+        cav.antenna_voltage_coarse_grid = np.array(
+            [3.0e6 + 1.0e6j, 2.0e6j, -1.0e6 + 0.0j]
+        )
+        per_cell = cav.reflected_current(
+            generator_frame_rotation=np.append(
+                backfill_rotations, passage_rotation
+            )
+        )
+        passage = cav.reflected_current(
+            generator_frame_rotation=passage_rotation
+        )
+        np.testing.assert_array_equal(cav.reflected_current(), per_cell)
+        np.testing.assert_array_equal(
+            cav.reflected_current(
+                antenna_voltage=cav.antenna_voltage_coarse_grid
+            ),
+            per_cell,
+        )
+        np.testing.assert_array_equal(
+            cav.reflected_current(
+                antenna_voltage=cav.antenna_voltage_coarse_grid.copy()
+            ),
+            passage,
+        )
+        # Non-vacuous: the two readouts differ on the backfill cells only.
+        self.assertTrue(np.all(per_cell[:2] != passage[:2]))
+        self.assertEqual(per_cell[2], passage[2])
 
 
 class _RecordingController:

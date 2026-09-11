@@ -193,7 +193,7 @@ class GeneratorRegulationMixin:
         self: IQCavityFeedbackTimingClass,
         generator_current: complex | NumpyArray | None = None,
         antenna_voltage: complex | NumpyArray | None = None,
-        generator_frame_rotation: complex | None = None,
+        generator_frame_rotation: complex | NumpyArray | None = None,
     ) -> complex | NumpyArray:
         r"""
         Current reflected back out of the coupler, per cavity.
@@ -214,10 +214,15 @@ class GeneratorRegulationMixin:
             turn.
         generator_frame_rotation
             The rotation :math:`r_\mathsf{gen}` that takes the design-frame
-            generator current into the frame of ``antenna_voltage``;
-            defaults to the feedback's current generator frame rotation,
-            which is the one the grids of this passage were composed
-            with.  Pass ``1`` for arrays that are already in one frame.
+            generator current into the frame of ``antenna_voltage``, one
+            value or one per cell. Defaults to the rotation
+            ``antenna_voltage`` was composed with: for the coarse-grid
+            antenna voltage of this passage (the default, or that very
+            array) one per cell, a backfill cell carrying the phase
+            accumulated up to it; for any other antenna voltage the
+            passage's rotation, which the forward span and the fine grid
+            are composed with.  Pass ``1`` for arrays that are already in
+            one frame.
 
         Returns
         -------
@@ -270,7 +275,7 @@ class GeneratorRegulationMixin:
         **The two grids are not in the same frame.**  The composed
         antenna voltage is ``V_beam + V_gen * r_gen``: the generator
         component is rotated by the generator frame rotation (station
-        clock, kick-clock gap and registration phase), while the stored
+        clock, kick-clock gap and accumulated phase), while the stored
         generator current stays in the design frame that drives
         ``V_gen``.  Subtracting it unrotated mixes frames, which on an
         accelerating multi-section ring -- where the rotation grows turn
@@ -279,13 +284,28 @@ class GeneratorRegulationMixin:
         \mathrm{d}U/\mathrm{d}t` open by a few per cent.  With the
         rotation it closes to rounding.  :meth:`generator_power` depends
         only on :math:`|I_\mathsf{gen}|` and needs no rotation.
+
+        The rotation has to be the cell's own.  Over the backfill span the
+        phase is still accumulating, so each backfill cell is composed
+        with the phase accumulated up to it; the passage's rotation there
+        misses it by the phase still to come, :math:`\delta`, and a
+        driven, beam-free cavity would appear to reflect
+        :math:`|2 e^{i\delta} - 1|^2 \simeq 1 + 2\delta^2` of its forward
+        power.
         """
         if generator_current is None:
             generator_current = self.generator_current_coarse_grid
         if antenna_voltage is None:
             antenna_voltage = self.antenna_voltage_coarse_grid
         if generator_frame_rotation is None:
-            generator_frame_rotation = self._generator_frame_rotation
+            if antenna_voltage is self.antenna_voltage_coarse_grid:
+                # Composed per cell: a backfill cell with the phase
+                # accumulated up to it, the forward span with the passage's.
+                generator_frame_rotation, _ = self._frame_rotations_of_cells(
+                    0, len(antenna_voltage)
+                )
+            else:
+                generator_frame_rotation = self._generator_frame_rotation
         return (
             antenna_voltage / (self.R_over_Q * self.Q_L)
             - generator_frame_rotation * generator_current
@@ -295,7 +315,7 @@ class GeneratorRegulationMixin:
         self: IQCavityFeedbackTimingClass,
         generator_current: complex | NumpyArray | None = None,
         antenna_voltage: complex | NumpyArray | None = None,
-        generator_frame_rotation: complex | None = None,
+        generator_frame_rotation: complex | NumpyArray | None = None,
     ) -> float | NumpyArray:
         r"""
         Power reflected back out of the coupler, per cavity.
@@ -317,9 +337,8 @@ class GeneratorRegulationMixin:
             Antenna voltage [V] per cavity; defaults to the coarse-grid
             antenna voltage of the current turn.
         generator_frame_rotation
-            Frame rotation of the generator current, see
-            :meth:`reflected_current`; defaults to the feedback's current
-            one.
+            Frame rotation of the generator current, one value or one per
+            cell; defaults as in :meth:`reflected_current`.
 
         Returns
         -------

@@ -393,13 +393,12 @@ class TestPIStepsOnEveryTrackedCell(unittest.TestCase):
     the generator current over the backfill span must not be a constant
     hold: a stepped loop varies it there.
 
-    Both are asserted in the regime where the per-passage frame rotations
-    are exactly unity (multi-section, constant energy, no RF-frequency
-    offset -- ``Psi = gap = delta_phi_rf = 0``), so stepping the controller
-    on the backfill segments needs no per-segment frame treatment and the
-    expectation is unambiguous. Under a ramp the backfill cells carry a
-    small per-segment frame residual; that is a separate concern and not
-    what these tests pin.
+    Both are asserted in the regime where every frame rotation is exactly
+    unity (multi-section, constant energy, no RF-frequency offset --
+    ``phi_acc = gap = delta_phi_rf = 0``), so the expectation is
+    unambiguous. Under a ramp each backfill cell is regulated in the frame
+    of the phase accumulated up to it; that frame is pinned by
+    ``TestKickFrameVoltageIsContinuousAcrossBackfill``, not here.
     """
 
     ENERGY = 4.0e9
@@ -946,6 +945,171 @@ class TestDrivenSteadyStateFastRamp(unittest.TestCase):
         self._assert_holds_steady_state(4)
 
 
+class TestReflectedPowerIsTotalOnEveryCell(unittest.TestCase):
+    r"""
+    A driven, beam-free cavity reflects its whole forward power on every cell.
+
+    With no beam, on resonance and with the matched generator bias the
+    cavity holds ``V_ss = 2 (R/Q) Q_L I_gen`` on the fast ramp (see
+    ``TestDrivenSteadyStateFastRamp``), and a superconducting cavity has
+    nowhere else to put the power: ``reflected_power() /
+    generator_power()`` must be 1 on every coarse cell of every passage,
+    the backfill span included (``TestReflectedPower`` pins that limit on
+    single samples).
+
+    The composed grid carries the generator component rotated per cell --
+    a backfill cell by the phase accumulated up to it, the forward span by
+    the passage's -- so the default readout must subtract the generator
+    current with the same per-cell rotation. With the passage's rotation on
+    a backfill cell instead, the two differ by the phase ``delta`` still to
+    accumulate there, and the ratio becomes ``|2 exp(i delta) - 1|**2 ~
+    1 + 2 delta**2``. The same readout with the passage's rotation passed
+    explicitly shows that such cells exist, so a pass is not vacuous.
+
+    Measured with the passage's rotation as the default, on the first
+    backfill cell of every station's second and later passages: 3.8e-2 ..
+    3.9e-2 on two sections and 8.4e-2 .. 8.9e-2 on four -- ``2 delta**2``
+    of the 0.14 and 0.21 rad passage increments that
+    ``TestKickFrameVoltageIsContinuousAcrossBackfill`` measures.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 3
+    #: Measured on this ramp: the default readout sits within 2.2e-15 of 1
+    #: on every cell; the passage's rotation on a backfill cell moves it by
+    #: ``2 delta**2``, i.e. by 1e-2 already at 0.07 rad.
+    GATE = 1.0e-8
+    #: Smallest deviation the passage's rotation must produce somewhere on
+    #: the backfill span of a ramped multi-section run (non-vacuity).
+    MIN_PASSAGE_ROTATION_ERROR = 1.0e-3
+
+    def _record(self, n_sections: int, delta_e_turn: float) -> list:
+        """
+        Track a driven, beam-free ring and record the reflection ratios.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations.
+        delta_e_turn
+            Reference energy gain per turn [eV].
+
+        Returns
+        -------
+        list
+            One record per passage of every station: the station index,
+            the forward cell count, the ratio of the default readout and
+            the ratio with the passage's generator frame rotation on every
+            cell.
+        """
+        records = []
+
+        def record_passage(feedbacks, stations):
+            for station_index, feedback in enumerate(feedbacks):
+                forward_power = feedback.generator_power()
+                passage_rotation = feedback._generator_frame_rotation
+                records.append(
+                    {
+                        "station": station_index,
+                        "n_forward": int(feedback.rf_centers_lengths[-1]),
+                        "ratio": feedback.reflected_power() / forward_power,
+                        "ratio_passage_rotation": (
+                            feedback.reflected_power(
+                                generator_frame_rotation=passage_rotation
+                            )
+                            / forward_power
+                        ),
+                    }
+                )
+
+        _run_config(
+            n_sections,
+            self.ENERGY,
+            delta_e_turn,
+            self.N_TURNS,
+            intensity=0.0,
+            use_controller=False,
+            per_turn_hook=record_passage,
+        )
+        return records
+
+    def _assert_total_reflection(
+        self, n_sections: int, delta_e_turn: float
+    ) -> float:
+        """
+        Gate the default readout on every cell of every passage.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations.
+        delta_e_turn
+            Reference energy gain per turn [eV].
+
+        Returns
+        -------
+        float
+            Largest deviation from 1 of the ratio with the passage's
+            rotation over all backfill cells, for the non-vacuity checks.
+        """
+        records = self._record(n_sections, delta_e_turn)
+        worst_passage_rotation_error = 0.0
+        for index, record in enumerate(records):
+            n_cells = len(record["ratio"])
+            n_backfill = n_cells - record["n_forward"]
+            deviation = np.abs(record["ratio"] - 1.0)
+            forward_deviation = np.abs(
+                record["ratio_passage_rotation"][n_backfill:] - 1.0
+            )
+            with self.subTest(
+                n_sections=n_sections,
+                station=record["station"],
+                record=index,
+            ):
+                self.assertLess(
+                    float(deviation.max()),
+                    self.GATE,
+                    f"{n_sections} section(s): reflected / forward power "
+                    f"is off 1 by {float(deviation.max()):.4e} at cell "
+                    f"{int(np.argmax(deviation))} of {n_cells} "
+                    f"({n_backfill} backfill cells)",
+                )
+                # The forward span is composed with the passage's rotation,
+                # so there both readouts must agree with total reflection.
+                self.assertLess(float(forward_deviation.max()), self.GATE)
+            if n_backfill > 0:
+                worst_passage_rotation_error = max(
+                    worst_passage_rotation_error,
+                    float(
+                        np.abs(
+                            record["ratio_passage_rotation"][:n_backfill] - 1.0
+                        ).max()
+                    ),
+                )
+        return worst_passage_rotation_error
+
+    def test_two_sections_fast_ramp(self):
+        """Two sections: the backfill span is half of every passage."""
+        worst = self._assert_total_reflection(2, self.DELTA_E_TURN)
+        self.assertGreater(worst, self.MIN_PASSAGE_ROTATION_ERROR)
+
+    def test_four_sections_fast_ramp(self):
+        """Four sections: three backfill segments per passage."""
+        worst = self._assert_total_reflection(4, self.DELTA_E_TURN)
+        self.assertGreater(worst, self.MIN_PASSAGE_ROTATION_ERROR)
+
+    def test_constant_energy_control_four_sections(self):
+        """
+        Control: without a ramp every rotation is exactly unity.
+
+        The passage's rotation is then right on every backfill cell too, so
+        a failure of the ramped cases comes from the ramp, not the fixture.
+        """
+        worst = self._assert_total_reflection(4, 0.0)
+        self.assertLess(worst, self.GATE)
+
+
 class TestTrackReadsTheForwardSegmentPhase(unittest.TestCase):
     """
     Each passage takes its accumulated phase from its forward segment.
@@ -1403,9 +1567,10 @@ class TestPIFullTrackingMultiSectionSlowRamp(unittest.TestCase):
     # Regenerated 2026-09-02 for the PI-on-every-tracked-cell change: the
     # loop now regulates over the backfill span rather than holding the
     # forward pass's last command. On this slow ramp the move is only
-    # ~1.8e-6 relative (the ramped per-segment frame residual, just over
-    # the 1e-6 pin tolerance); the fast-ramp class shows the ~0.75 % move
-    # where the effect is large.
+    # ~1.8e-6 relative (just over the 1e-6 pin tolerance; the backfill
+    # cells then still took the passage's frame rotation, per cell only
+    # since 2026-09-11); the fast-ramp class shows the ~0.75 % move where
+    # the effect is large.
     # Regenerated for bin-centred fine sampling (2026-09-10): voltage moves
     # by <= 1.28e-5 relative; the physical validation gates remain unchanged.
     # Regenerated 2026-09-11 for the exact exponential coarse step (forward
@@ -1524,6 +1689,13 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
     # these numbers.
     # Regenerated for bin-centred fine sampling (2026-09-10): voltage moves
     # by <= 2.19e-5 relative; the physical validation gates remain unchanged.
+    # Regenerated (2026-09-11) for the per-cell backfill frame rotations and
+    # the removal of the forward-Euler coarse step: ``v_min`` moved by at
+    # most 3.46e-6 relative (101.7 V, turn 5 / section 1) and ``i_max_dev``
+    # by at most 1.03e-4 (5.8 mA, turn 4 / section 0). The exact coarse step
+    # accounts for 4.0e-8 / 1.22e-6 of that, including the whole turn-0 move;
+    # the rest is the per-cell rotation, which has no phase to act on before
+    # turn 1. The physical validation gates remain unchanged.
     PIN_V_MIN = np.array(
         [
             [29587395.018831506, 29543722.390324343],

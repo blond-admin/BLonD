@@ -582,6 +582,8 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         *,
         last_val_generator_current=BIAS,
         last_val_beam_current=0.0 + 0.0j,
+        backfill_phases=None,
+        forward_phase=0.0,
     ):
         """
         Drive a backfill + forward two-segment layout on one path.
@@ -595,6 +597,13 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             the backfill-segment drive divergence).
         last_val_beam_current
             Carried index-0 beam current seeding the run.
+        backfill_phases
+            Accumulated phase [rad] of each of the 20 backfill cells,
+            installed as their per-cell generator and kick frame rotations;
+            None installs none, so every cell takes the per-passage scalars.
+        forward_phase
+            Accumulated phase [rad] of the forward span, installed as the
+            per-passage rotations; only used with ``backfill_phases``.
 
         Returns
         -------
@@ -636,6 +645,20 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             (rng.standard_normal(n_frwrd) + 1j * rng.standard_normal(n_frwrd))
             * 1e-4
         ).astype(complex)
+        if backfill_phases is not None:
+            self.assertEqual(len(backfill_phases), n_backfill)
+            # As ``_update_frame_rotations`` builds them: the generator
+            # component turns by minus the phase, the kick frame by plus it.
+            feedback._backfill_generator_frame_rotations = np.exp(
+                -1j * np.asarray(backfill_phases)
+            )
+            feedback._backfill_kick_frame_rotations = np.exp(
+                1j * np.asarray(backfill_phases)
+            )
+            feedback._generator_frame_rotation = complex(
+                np.exp(-1j * forward_phase)
+            )
+            feedback._kick_frame_rotation = complex(np.exp(1j * forward_phase))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             # Backfill (no-beam) segment, then the forward (beam+PI) segment.
@@ -679,6 +702,32 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             last_val_beam_current=8.0e-3 + 2.0e-3j,
         )
         _assert_bit_identical(self, kernel_snap, python_snap)
+
+    def test_multi_section_per_cell_backfill_rotations(self):
+        """
+        Two-segment run with its own frame rotation on every backfill cell.
+
+        The ramped multi-section condition: each backfill cell is composed
+        and regulated with the phase accumulated up to it, rising towards
+        the passage's, which the forward span then takes. The kernel gets
+        the rotations as per-cell arrays and the reference reads them cell
+        by cell; the two must agree bit-for-bit.
+        """
+        rotations = {
+            "backfill_phases": np.linspace(0.0, 0.28, 20),
+            "forward_phase": 0.3,
+        }
+        kernel_snap = self._run_multi_section(True, **rotations)
+        python_snap = self._run_multi_section(False, **rotations)
+        _assert_bit_identical(self, kernel_snap, python_snap)
+        # Non-vacuous: the per-cell kick rotations reach the loop, so the
+        # backfill current differs from the passage's rotation on every cell.
+        passage_snap = self._run_multi_section(
+            False, backfill_phases=np.full(20, 0.3), forward_phase=0.3
+        )
+        self.assertFalse(
+            np.array_equal(python_snap["I"][:20], passage_snap["I"][:20])
+        )
 
 
 class TestDegenerateCoarseSteps(unittest.TestCase):

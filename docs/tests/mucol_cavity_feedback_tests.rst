@@ -619,10 +619,11 @@ reference tracking, under acceleration, with a
 configuration asserts physical behaviour and then *pins* the end-of-turn
 antenna-voltage and generator-current trajectories against hardcoded
 reference values (characterization: any change of the tracked feedback
-numerics shows up here first); the driven open-loop steady state, the
-zero-intensity phase neutrality, the design-locked drive walk-off under
-an RF-frequency offset and the numba-kernel bit identity are guarded
-end to end here as well.
+numerics shows up here first); the driven open-loop steady state, total
+reflection on every cell, the continuity of the kick-frame voltage across
+the backfill span, the zero-intensity phase neutrality, the design-locked
+drive walk-off under an RF-frequency offset and the numba-kernel bit
+identity are guarded end to end here as well.
 Setting the ``PI_TRACKING_PRINT_PINS`` environment variable prints the
 recorded trajectories instead (used to regenerate the pins); while the pins
 are unrecorded (``None``) the pin tests skip.
@@ -654,6 +655,36 @@ state rotation produced.
 ``test_four_sections_hold_steady_state``
     Four stations: three backfill segments per passage.
 
+``TestReflectedPowerIsTotalOnEveryCell``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A driven, beam-free, on-resonance cavity with the matched bias reflects its
+whole forward power on every coarse cell of every passage, backfill span
+included: ``reflected_power() / generator_power()`` is gated at ``1e-8``
+from ``1`` over three fast-ramp turns (``TestReflectedPower`` in
+``test_generator_current_pi_feedback.py`` pins that limit on single
+samples). The grid composes the generator component with each cell's own
+rotation, so the default readout must subtract the generator current with
+the same one; with the passage's rotation on a backfill cell the ratio
+becomes ``|2 exp(i delta) - 1|^2 ~ 1 + 2 delta^2``, ``delta`` being the phase
+still to accumulate there. Measured with the passage's rotation as the
+default: 1.038 to 1.039 on two sections and 1.084 to 1.089 on four, on the
+first backfill cell of every station's second and later passages; with the
+per-cell default the ratio is within 2.2e-15 of 1 on every cell. The
+forward span must pass under both readouts, and each ramped test requires
+the readout with the passage's rotation passed explicitly to deviate by
+more than ``1e-3`` somewhere on the backfill span, so a pass is not
+vacuous.
+
+``test_two_sections_fast_ramp``
+    Two sections: the backfill span is half of every passage.
+``test_four_sections_fast_ramp``
+    Four sections: three backfill segments per passage.
+``test_constant_energy_control_four_sections``
+    Control: without a ramp every rotation is exactly unity, so the
+    passage's rotation must pass the ``1e-8`` gate on the backfill cells
+    too; a failure of the ramped cases then comes from the ramp.
+
 ``TestTrackReadsTheForwardSegmentPhase``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -671,6 +702,43 @@ only thing under test.
     the ramp really accumulates a non-zero phase.
 ``test_single_section_accumulates_exactly_zero``
     With one section every segment of every passage stores exactly ``0.0``.
+
+``TestKickFrameVoltageIsContinuousAcrossBackfill``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The kick-frame antenna voltage must not jump where the grid only changes
+hands. Fast ramp, three turns, beam on, on resonance, no RF-frequency
+offset. A zero-gain, zero-bias recording controller, with zero feedforward
+bias and initial voltage, keeps the generator component exactly zero, so
+the kick-frame voltage of each tracked cell is ``pi_setpoint - error``; the
+premises (one error per cell, silent generator, sum equal to the beam
+component, ``delta_phi_rf == 0``, charge-free edge cells) are asserted
+first. Between adjacent deposit-free cells only the cavity decay and the
+drift ``(omega_carrier - omega_k) dt`` of the accumulated phase may change
+it. Checked from passage 1 on: every passage boundary (last forward cell of
+passage ``m`` to first backfill cell of ``m + 1``), backfill segment
+boundary, backfill-to-forward step and step inside a backfill segment. The
+gates sit ``GATE_FACTOR = 10`` above the bounds the class docstring derives
+from a largest coarse step of ``1.5 t_rf`` and the one-turn frequency
+change: about ``3.3e-4`` rad in phase and ``3.7e-5`` in magnitude, on cells
+holding more than ``1e5`` V. Composing and regulating the backfill span
+with the passage's final phase made the voltage jump at the passage
+boundary by the whole per-passage increment, 0.136 to 0.140 rad on two
+sections and 0.203 to 0.211 rad on four, 400 to 650 times the phase gate.
+
+``test_two_sections_fast_ramp``
+    Two sections, one backfill segment per passage; also asserts that the
+    passage and backfill-to-forward steps were actually checked.
+``test_four_sections_fast_ramp``
+    Four sections, three backfill segments per passage, so the segment
+    boundaries are checked (and counted) too.
+``test_constant_energy_control_four_sections``
+    Control: without a ramp the accumulated phase is exactly zero; same
+    ring, recording and gates, so a failure of the ramped cases comes from
+    the ramp, not the fixture.
+``test_single_section_control_fast_ramp``
+    Control: one section accumulates no phase and has no backfill span on
+    its later passages, so only the passage boundary is checked.
 
 ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -807,11 +875,12 @@ current the forward pass last commanded (a 6 % duty cycle on 16-section
 RCS1, which is what pinned the generator at the klystron limit for 100 % of
 the recorded cells). The tests instrument the controller call count against
 the recorded per-turn forward and total cell counts, and read the
-generator current over the backfill span. All run in the regime where the
-per-passage frame rotations are exactly unity (multi-section, constant
-energy, no RF-frequency offset), so stepping on the backfill cells needs no
-per-segment frame treatment; the ramped-case frame residual is a separate
-concern. Replaces the inverted ``TestPIBackfillSpanFrameConsistency``.
+generator current over the backfill span. All run in the regime where every
+frame rotation is exactly unity (multi-section, constant energy, no
+RF-frequency offset), so the expectation does not depend on the frame; the
+per-cell rotations of a ramped backfill span are pinned by
+``TestKickFrameVoltageIsContinuousAcrossBackfill``. Replaces the inverted
+``TestPIBackfillSpanFrameConsistency``.
 
 ``test_controller_stepped_on_every_cell_two_sections``
     Two sections, constant energy: controller calls equal the *total* cell
@@ -832,11 +901,13 @@ concern. Replaces the inverted ``TestPIBackfillSpanFrameConsistency``.
 Two sections on the transition-adjacent fast (4 GeV + 20 MeV/turn) ramp -- 5x
 steeper at 1/16 the energy of the slow-ramp pins. What the pins characterise
 **now**: the split coarse envelope with a design-anchored generator component,
-the PI regulating the kick-frame sum, and the registration-phase increment
+the PI regulating the kick-frame sum, the registration-phase increment
 referred to the PREVIOUS passage's design carrier (see
-``RFCenterSegment.accumulated_phase``). The pin runs at ``rtol=1e-6``; the four
-physics gates in the class -- sag, loop response, setpoint recovery, bounded
-bunch -- are independent of it and sit at their own thresholds.
+``RFCenterSegment.accumulated_phase``), per-cell frame rotations on the
+backfill span and the exact exponential coarse step. The pin runs at
+``rtol=1e-6``; the four physics gates in the class -- sag, loop response,
+setpoint recovery, bounded bunch -- are independent of it and sit at their
+own thresholds.
 ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the zero-intensity
 behaviour these numbers build on.
 
@@ -862,6 +933,14 @@ exists to expose (``Psi ~ 0.14`` rad/turn/station handed to the
 generator-driven field too, with the PI partially fighting the bookkeeping
 rotation), and design-anchoring the generator component moved ``|V_ant|`` by
 up to 1.8e-2 relative and the current response by up to ~9 %.
+
+The latest regeneration, on 2026-09-11, is for the per-cell backfill frame
+rotations and the exact exponential coarse step: ``v_min`` moved by at most
+``3.46e-6`` relative (101.7 V, turn 5, section 1) and ``i_max_dev`` by at
+most ``1.03e-4`` (5.8 mA, turn 4, section 0). The exact step accounts for
+``4.0e-8`` / ``1.22e-6`` of that, including the whole turn-0 move; the rest
+is the per-cell rotation, which has no accumulated phase to act on before
+turn 1.
 
 ``test_reference_follows_energy_program``
     The reference energy gains exactly ``DELTA_E_TURN`` per turn.
@@ -1840,6 +1919,15 @@ integral and delay line.
 ``test_multi_section_carried_state_off_trivial``
     Two segments with off-bias / nonzero carried state, reproducing the
     live multi-section turn >= 1 condition end to end.
+``test_multi_section_per_cell_backfill_rotations``
+    The ramped multi-section condition: each of the 20 backfill cells
+    carries its own generator and kick frame rotation (phases
+    ``linspace(0, 0.28, 20)``), the forward span the passage's (``0.3``
+    rad), under a PI with a two-sample loop delay. The kernel takes the
+    rotations as per-cell arrays and the reference reads them cell by
+    cell; the two must agree bit-for-bit. Non-vacuous: the regulated
+    backfill generator current differs from a run with the passage's
+    rotation on every backfill cell.
 
 ``TestDegenerateCoarseSteps``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2635,11 +2723,47 @@ the envelope carried across the interval was demodulated against.
 ``test_no_backfill_segments_give_no_phases``
     An empty backfill yields an empty result.
 
+``TestAccumulatedPhasesAtCenters``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``accumulated_phases_at_centers`` computes the phase at every backfill
+centre, from which the per-cell frame rotations of the backfill span are
+built: a centre at segment-local time ``c`` of segment ``k`` gets
+``phi_start,k + (omega_carrier - omega_k) c``, with ``phi_start,0`` the
+carried phase and ``phi_start,k`` the stored phase of segment ``k - 1``.
+The fixture's segments store the phases ``accumulated_phases`` gives.
+
+``test_one_phase_per_centre_in_grid_order``
+    One entry per backfill centre.
+``test_first_segment_starts_from_the_carried_phase``
+    The first segment's centres get the carried phase plus its rate times
+    their local times, exactly.
+``test_later_segments_start_from_the_stored_phase_before_them``
+    Every later segment starts from the ``accumulated_phase`` of the
+    segment before it, exactly.
+``test_phase_is_the_running_phase_of_the_elapsed_time``
+    Implementation-independent reference: integrating the frequency
+    difference over the absolute time since the start of the span gives
+    the same phases to ``1e-12`` rad, and they move by more than 1 rad
+    across the span.
+``test_a_segment_ends_on_its_stored_phase``
+    Carrying a segment's last centre over its ``residual`` lands on the
+    phase the segment stores (to ``1e-12`` rad) -- for the last segment,
+    the phase the forward segment inherits.
+``test_without_a_carrier_every_centre_keeps_the_carried_phase``
+    With no carrier every centre is the carried phase, exactly ``+0.0``
+    for a zero carry.
+``test_an_unaccelerated_passage_accumulates_exactly_zero``
+    Every segment at the carrier frequency: every centre is exactly
+    ``+0.0``.
+``test_no_segments_give_no_phases``
+    No backfill segments yield an empty result.
+
 ``TestSegmentsCarryTheAccumulatedPhase``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The grid sets each segment's accumulated phase and carries it across
-passages.
+The grid sets each segment's accumulated phase, carries it across
+passages and reads the backfill-centre phases off the segment records.
 
 ``test_a_new_feedback_carries_no_forward_segment``
     Before the first passage there is nothing to continue from.
@@ -2658,6 +2782,16 @@ passages.
     The forward segment adds no increment of its own: it takes the last
     backfill segment's phase, the carried phase without backfill, and
     ``0.0`` on a first passage.
+``test_backfill_centre_phases_continue_the_carried_forward_segment``
+    ``_backfill_center_phases`` equals ``accumulated_phases_at_centers``
+    over the backfill segments (``_segments[:-1]``), continued from the
+    carried segment's ``accumulated_phase`` against its ``omega``.
+``test_single_station_ring_centre_phases_are_zero``
+    On a single-station ring every backfill centre is exactly ``+0.0``.
+``test_first_passage_centre_phases_are_zero``
+    Without a carried segment every backfill centre is ``0.0``.
+``test_a_grid_without_backfill_has_no_centre_phases``
+    A grid holding only a forward segment yields no centre phases.
 
 ``TestBackfillSpanWalksSegments``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2673,8 +2807,9 @@ three backfill segments at different frequencies (the middle one at the
 two-centre minimum) plus the forward one, with ``circuit_track`` recorded
 instead of executed. The class inherits ``unittest.TestCase`` and uses its
 assertions throughout. Its five registration-phase tests, which drove the
-feedback's former running total directly, were replaced on 2026-09-11 by the
-two classes above, when the phase moved onto the segment records.
+feedback's former running total directly, were replaced on 2026-09-11 by
+``TestAccumulatedPhases`` and ``TestSegmentsCarryTheAccumulatedPhase``, when
+the phase moved onto the segment records.
 
 ``test_replay_walks_backfill_segments_only``
     ``_replay_backfill_span`` makes exactly one no-beam pass per backfill
