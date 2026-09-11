@@ -30,9 +30,12 @@ below -- initialises in ``__init__`` / ``on_run_simulation``.
   ``RFCenterGridMixin._close_previous_turn_grid`` before it clears the
   previous turn's segments: ``_residual_time_carried_into_turn``, which
   ``RFCenterGridMixin._preceding_segment_residual`` reads back at a turn
-  boundary, and ``_last_rf_centers_entry``, the previous turn's last
-  centre -- the only piece the host reads back (as a first-turn
-  ``None`` / not-``None`` flag in its per-cell step sizing).
+  boundary; ``_forward_segment_carried_into_turn``, the forward segment
+  the previous passage ended on, from whose ``omega`` and
+  ``accumulated_phase`` ``RFCenterGridMixin._backfill_accumulated_phases``
+  continues the accumulated phase; and ``_last_rf_centers_entry``, the
+  previous turn's last centre -- the only piece the host reads back (as a
+  first-turn ``None`` / not-``None`` flag in its per-cell step sizing).
 - Walk results: ``_backfill_time_array`` /
   ``_backfill_segment_omega_design_list``, which stay inside this module (the
   backfill generation turns them into segments, and the tracking loop then
@@ -49,8 +52,8 @@ below -- initialises in ``__init__`` / ``on_run_simulation``.
   ``RFCenterGridMixin.get_passed_time_forward_direction`` projection, and
   every read is gated on ``_last_tracked_beam_state_frwrd is not None``.
 - Plain host configuration: ``n_rf_periods_per_coarse_grid``,
-  ``section_index``, ``_parent_rf_station``, ``_ring_circumference`` and
-  ``_debug`` -- the last of which additionally gates the inspection-only
+  ``section_index``, ``_parent_rf_station``, ``_ring_circumference``,
+  ``_n_rf_stations_in_ring`` and ``_debug`` -- the last of which additionally gates the inspection-only
   ``current_slice_elements_forward`` / ``reference_time_after_backfill`` /
   ``reference_energy_after_backfill`` / ``current_beam_reference_time`` /
   ``current_beam_reference_energy`` diagnostics written here (nothing in
@@ -89,9 +92,14 @@ import numpy as np
 
 from blond.core.base import AltersReference
 from blond.physics.cavities import RFStationBaseClass
-from blond.physics.feedbacks.rf_center_segment import RFCenterSegment
+from blond.physics.feedbacks.rf_center_segment import (
+    RFCenterSegment,
+    accumulated_phases,
+)
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.feedbacks.cavity_feedback import (
         IQCavityFeedbackTimingClass,
@@ -524,7 +532,7 @@ class RFCenterGridMixin:
 
         Notes
         -----
-        ORDERING: both carries must be captured while the previous turn's
+        ORDERING: the carries must be captured while the previous turn's
         grid is still standing. The centre sentinel needs ``_rf_centers``,
         which :meth:`_clear_segments` empties; the residual needs
         ``_residual_time_last_rf_centers_calculation``, which this turn's
@@ -535,6 +543,13 @@ class RFCenterGridMixin:
         """
         if len(self._rf_centers) != 0:
             self._last_rf_centers_entry = self._rf_centers[-1]
+
+        # The forward segment the previous passage ended on: its carrier and
+        # accumulated phase are what this passage's backfill segments
+        # continue the accumulated phase from (see
+        # _backfill_accumulated_phases).
+        if self._segments:
+            self._forward_segment_carried_into_turn = self._segments[-1]
 
         # The first coarse cell of the new turn steps across the turn
         # boundary, so it needs the tail the PREVIOUS turn ended on -- which
@@ -841,6 +856,77 @@ class RFCenterGridMixin:
         self._last_segment_omega_design = omega_design
         return rf_centers
 
+    def _backfill_accumulated_phases(
+        self: IQCavityFeedbackTimingClass,
+    ) -> NumpyArray:
+        """
+        Accumulated phase of each backfill segment about to be generated.
+
+        Continues the phase of the forward segment the previous passage
+        ended on (``_forward_segment_carried_into_turn``), against that
+        segment's carrier, over the frequency spans of the backfill walk
+        (``_backfill_segment_omega_design_list`` /
+        ``_backfill_time_array``); see
+        :func:`~blond.physics.feedbacks.rf_center_segment.accumulated_phases`.
+
+        Returns
+        -------
+        phases
+            One accumulated phase [rad] per backfill span, in order.
+
+        Notes
+        -----
+        Nothing accumulates on a station's first passage (no carried
+        segment) or on a single-station ring, whose passage is built at one
+        frequency; both keep the phase at exactly ``+0.0``, so those runs
+        stay bit-identical.
+
+        The phase is carried on the demodulation and readout carrier and
+        must never be applied as a rotation of the antenna-voltage state:
+        that would also rotate the generator-driven field, which is
+        re-injected on the current grid every coarse cell and carries no
+        such phase, and the phase error would become an amplitude drift. It
+        is also separate from the cavity resonance detuning ``delta_omega``,
+        whose precession the coarse recursion already applies on every
+        step.
+        """
+        carried = self._forward_segment_carried_into_turn
+        carrier_omega = (
+            carried.omega
+            if carried is not None and self._n_rf_stations_in_ring > 1
+            else None
+        )
+        return accumulated_phases(
+            carried_phase=(
+                0.0 if carried is None else carried.accumulated_phase
+            ),
+            carrier_omega=carrier_omega,
+            segment_omegas=self._backfill_segment_omega_design_list,
+            segment_durations=self._backfill_time_array,
+        )
+
+    def _accumulated_phase_for_forward_segment(
+        self: IQCavityFeedbackTimingClass,
+    ) -> float:
+        """
+        Accumulated phase the forward segment of this passage stores.
+
+        The forward segment adds no increment of its own -- its interval is
+        corrected by the NEXT passage's backfill -- so it inherits the phase
+        of this passage's last backfill segment, or the carried phase when
+        this passage has no backfill.
+
+        Returns
+        -------
+        accumulated_phase
+            The passage's accumulated phase [rad]; ``0.0`` on a station's
+            first passage without backfill.
+        """
+        if self._segments:
+            return self._segments[-1].accumulated_phase
+        carried = self._forward_segment_carried_into_turn
+        return 0.0 if carried is None else carried.accumulated_phase
+
     def calculate_rf_centers_for_forward_direction(
         self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
     ) -> None:
@@ -873,6 +959,9 @@ class RFCenterGridMixin:
                 duration=self._forward_tracking_time,
                 residual=self._residual_time_last_rf_centers_calculation,
                 centers=new_rf_centers,
+                accumulated_phase=(
+                    self._accumulated_phase_for_forward_segment()
+                ),
             )
         )
 
@@ -923,6 +1012,7 @@ class RFCenterGridMixin:
             return
 
         self.get_time_omega_array_backfill(beam=beam)
+        backfill_phases = self._backfill_accumulated_phases()
 
         for time_ind, time in enumerate(self._backfill_time_array):
             # if time == 0:  # cavities may cause this in debug mode
@@ -941,5 +1031,6 @@ class RFCenterGridMixin:
                     duration=time,
                     residual=self._residual_time_last_rf_centers_calculation,
                     centers=new_rf_centers,
+                    accumulated_phase=float(backfill_phases[time_ind]),
                 )
             )

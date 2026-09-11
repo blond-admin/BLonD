@@ -1114,3 +1114,37 @@ class TestVestigialPhaseOffsetsStayDeleted(unittest.TestCase):
         source = inspect.getsource(cavity_feedback_module)
 
         self.assertNotIn("_phase_offset_frwrd", source)
+
+
+class TestRegistrationPhaseRunningTotalStaysDeleted(unittest.TestCase):
+    """
+    The feedback keeps no registration-phase bookkeeping of its own.
+
+    The grid-vs-carrier phase a passage needs is stored on the coarse-grid
+    segment records (``RFCenterSegment.accumulated_phase``) and read off the
+    forward segment. The former parallel bookkeeping on the feedback -- a
+    running total, the method that advanced it, and a held copy of the
+    previous passage's carrier, which the carried forward segment already
+    stores -- is gone, so the phase cannot again be tracked in two places
+    that drift apart.
+    """
+
+    REMOVED_NAMES = (
+        "_grid_carrier_phase",
+        "_previous_forward_segment_omega_design",
+        "_accumulate_registration_phase",
+    )
+
+    def test_feedback_has_none_of_the_removed_names(self) -> None:
+        feedback = _make_bare_feedback()
+
+        for name in self.REMOVED_NAMES:
+            with self.subTest(name=name):
+                self.assertFalse(hasattr(feedback, name))
+
+    def test_module_source_never_mentions_the_removed_names(self) -> None:
+        source = inspect.getsource(cavity_feedback_module)
+
+        for name in self.REMOVED_NAMES:
+            with self.subTest(name=name):
+                self.assertNotIn(name, source)

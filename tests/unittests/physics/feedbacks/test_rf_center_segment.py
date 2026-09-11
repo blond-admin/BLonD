@@ -34,6 +34,7 @@ from blond.physics.feedbacks.cavity_feedback import (
 from blond.physics.feedbacks.rf_center_segment import (
     PerTurnGridSpan,
     RFCenterSegment,
+    accumulated_phases,
 )
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
@@ -502,25 +503,235 @@ SECOND_BACKFILL_OMEGAS = (
 SECOND_FORWARD_OMEGA = 1.35 * OMEGA_BOUNDARY
 
 
+class TestAccumulatedPhaseField(unittest.TestCase):
+    """``RFCenterSegment.accumulated_phase``: optional, zero, finite."""
+
+    def test_accumulated_phase_defaults_to_zero(self):
+        # Hand-built segments (tests, direct callers) need not state it.
+        segment = RFCenterSegment(
+            omega=2.0, duration=1.0, residual=0.2, centers=np.array([0.3, 0.8])
+        )
+        self.assertEqual(segment.accumulated_phase, 0.0)
+
+    def test_rejects_non_finite_accumulated_phase(self):
+        for value in (np.nan, np.inf, -np.inf):
+            with (
+                self.subTest(value=value),
+                self.assertRaisesRegex(ValueError, "accumulated_phase"),
+            ):
+                RFCenterSegment(
+                    omega=2.0,
+                    duration=1.0,
+                    residual=0.2,
+                    centers=np.array([0.3, 0.8]),
+                    accumulated_phase=value,
+                )
+
+
+class TestAccumulatedPhases(unittest.TestCase):
+    """
+    ``accumulated_phases``: the phase each backfill segment record stores.
+
+    A passage's backfill segments rebuild the interval since this station's
+    previous passage, each at its own design frequency, while the envelope
+    carried across that interval was demodulated against ONE carrier -- the
+    forward-segment frequency of the previous passage. Each segment stores
+    the phase the piecewise grid has accumulated against that carrier up to
+    its end, on top of the phase the previous passage handed over.
+    """
+
+    CARRIED_PHASE = 0.25
+
+    @staticmethod
+    def _durations():
+        return np.array([(n + 1) * T_RF_BOUNDARY for n in BACKFILL_LENGTHS])
+
+    def _increments(self, carrier_omega):
+        return (carrier_omega - np.array(SECOND_BACKFILL_OMEGAS)) * (
+            self._durations()
+        )
+
+    def _phases(self, carrier_omega=FORWARD_OMEGA):
+        return accumulated_phases(
+            carried_phase=self.CARRIED_PHASE,
+            carrier_omega=carrier_omega,
+            segment_omegas=np.array(SECOND_BACKFILL_OMEGAS),
+            segment_durations=self._durations(),
+        )
+
+    def test_each_segment_stores_its_running_phase(self):
+        phases = self._phases()
+        increments = self._increments(FORWARD_OMEGA)
+
+        self.assertEqual(len(phases), len(SECOND_BACKFILL_OMEGAS))
+        for index, phase in enumerate(phases):
+            with self.subTest(segment=index):
+                self.assertEqual(
+                    phase,
+                    self.CARRIED_PHASE
+                    + float(np.sum(increments[: index + 1])),
+                )
+
+    def test_last_segment_is_the_passage_total_bit_for_bit(self):
+        # The value the passage reads off its forward segment: the carried
+        # phase plus the whole passage increment, summed as one array, so
+        # that storing the phase per segment changes no tracked result.
+        increments = self._increments(FORWARD_OMEGA)
+        self.assertEqual(
+            self._phases()[-1],
+            self.CARRIED_PHASE + float(np.sum(increments)),
+        )
+        self.assertNotEqual(float(np.sum(increments)), 0.0)
+
+    def test_phase_refers_to_the_previous_carrier(self):
+        # Referring to THIS passage's forward carrier, with the opposite
+        # sign, is the former defect. The two agree only for a linear
+        # frequency programme, so the fixture pulls them apart by more than
+        # 10 % of the increment.
+        increment = self._phases()[-1] - self.CARRIED_PHASE
+        former = -float(np.sum(self._increments(SECOND_FORWARD_OMEGA)))
+        self.assertGreater(abs(increment - former), 0.1 * abs(increment))
+
+    def test_without_a_carrier_every_segment_keeps_the_carried_phase(self):
+        phases = accumulated_phases(
+            carried_phase=0.0,
+            carrier_omega=None,
+            segment_omegas=np.array(SECOND_BACKFILL_OMEGAS),
+            segment_durations=self._durations(),
+        )
+        self.assertTrue(np.all(phases == 0.0))
+        # Exactly +0.0, so single-section and first-passage runs stay
+        # bit-identical.
+        self.assertFalse(np.any(np.signbit(phases)))
+
+    def test_no_backfill_segments_give_no_phases(self):
+        phases = accumulated_phases(
+            carried_phase=self.CARRIED_PHASE,
+            carrier_omega=FORWARD_OMEGA,
+            segment_omegas=np.array([]),
+            segment_durations=np.array([]),
+        )
+        self.assertEqual(len(phases), 0)
+
+
+class TestSegmentsCarryTheAccumulatedPhase(unittest.TestCase):
+    """
+    The grid sets each segment's accumulated phase and carries it on.
+
+    The backfill segments take their phases from the forward segment the
+    previous passage ended on, which closing that passage's grid keeps; the
+    forward segment then inherits the phase of the last backfill segment
+    (or the carried one, when this passage has no backfill). A single-
+    station ring and a station's first passage accumulate nothing.
+    """
+
+    @staticmethod
+    def _durations():
+        return np.array([(n + 1) * T_RF_BOUNDARY for n in BACKFILL_LENGTHS])
+
+    @staticmethod
+    def _carried_forward(accumulated_phase=0.25):
+        return RFCenterSegment(
+            omega=FORWARD_OMEGA,
+            duration=4 * T_RF_BOUNDARY,
+            residual=0.5 * T_RF_BOUNDARY,
+            centers=np.arange(3) * T_RF_BOUNDARY + 0.5 * T_RF_BOUNDARY,
+            accumulated_phase=accumulated_phase,
+        )
+
+    def _feedback_after_backfill_walk(self, n_stations, carried):
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._n_rf_stations_in_ring = n_stations
+        fdbk._forward_segment_carried_into_turn = carried
+        fdbk._backfill_segment_omega_design_list = np.array(
+            SECOND_BACKFILL_OMEGAS
+        )
+        fdbk._backfill_time_array = self._durations()
+        return fdbk
+
+    def test_a_new_feedback_carries_no_forward_segment(self):
+        fdbk = TestRFCenterSegment._bare_feedback()
+        self.assertIsNone(fdbk._forward_segment_carried_into_turn)
+
+    def test_closing_a_passage_carries_its_forward_segment(self):
+        fdbk = TestBackfillSpanWalksSegments._passage_feedback()
+        forward = fdbk._segments[-1]
+
+        fdbk._close_previous_turn_grid()
+
+        self.assertIs(fdbk._forward_segment_carried_into_turn, forward)
+        self.assertEqual(fdbk._segments, [])
+
+    def test_backfill_phases_refer_to_the_carried_forward_segment(self):
+        carried = self._carried_forward()
+        fdbk = self._feedback_after_backfill_walk(2, carried)
+
+        np.testing.assert_array_equal(
+            fdbk._backfill_accumulated_phases(),
+            accumulated_phases(
+                carried_phase=carried.accumulated_phase,
+                carrier_omega=carried.omega,
+                segment_omegas=np.array(SECOND_BACKFILL_OMEGAS),
+                segment_durations=self._durations(),
+            ),
+        )
+
+    def test_single_station_ring_accumulates_nothing(self):
+        # One section builds the passage at one frequency: nothing to
+        # register, and the phase must stay EXACTLY +0.0.
+        fdbk = self._feedback_after_backfill_walk(
+            1, self._carried_forward(accumulated_phase=0.0)
+        )
+        phases = fdbk._backfill_accumulated_phases()
+        self.assertTrue(np.all(phases == 0.0))
+        self.assertFalse(np.any(np.signbit(phases)))
+
+    def test_first_passage_accumulates_nothing(self):
+        fdbk = self._feedback_after_backfill_walk(2, None)
+        phases = fdbk._backfill_accumulated_phases()
+        self.assertEqual(len(phases), len(SECOND_BACKFILL_OMEGAS))
+        self.assertTrue(np.all(phases == 0.0))
+
+    def test_forward_segment_inherits_the_last_backfill_phase(self):
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._forward_segment_carried_into_turn = self._carried_forward(0.7)
+        fdbk._clear_segments()
+        for accumulated_phase in (0.1, 0.4):
+            fdbk._append_segment(
+                RFCenterSegment(
+                    omega=OMEGA_BOUNDARY,
+                    duration=3 * T_RF_BOUNDARY,
+                    residual=0.5 * T_RF_BOUNDARY,
+                    centers=np.arange(2) * T_RF_BOUNDARY + 0.5 * T_RF_BOUNDARY,
+                    accumulated_phase=accumulated_phase,
+                )
+            )
+        self.assertEqual(fdbk._accumulated_phase_for_forward_segment(), 0.4)
+
+    def test_forward_segment_without_backfill_keeps_the_carried_phase(self):
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._clear_segments()
+        fdbk._forward_segment_carried_into_turn = self._carried_forward(0.7)
+        self.assertEqual(fdbk._accumulated_phase_for_forward_segment(), 0.7)
+
+    def test_forward_segment_of_a_first_passage_is_zero(self):
+        fdbk = TestRFCenterSegment._bare_feedback()
+        fdbk._clear_segments()
+        self.assertEqual(fdbk._accumulated_phase_for_forward_segment(), 0.0)
+
+
 class TestBackfillSpanWalksSegments(unittest.TestCase):
     """
     The per-passage walks read the segment records, not parallel arrays.
 
     ``RFCenterSegment`` carries the frequency and the time span its centres
-    were generated over, so the backfill-span replay and the multi-section
-    registration phase take omega_k and T_seg,k from the segments
-    themselves. The backfill segments of a passage are ``_segments[:-1]``:
-    the grid is cleared at the start of every passage, the backfill
-    generation appends exactly one segment per elapsed frequency span, and
-    the forward generation then appends exactly one more.
-
-    The registration phase additionally spans TWO passages: the carried
-    envelope a backfill segment corrects was demodulated against the
-    carrier of the passage that STARTED the interval, so the increment is
-    ``sum_k (omega_prev - omega_k) T_seg,k`` with ``omega_prev`` the
-    forward-segment design frequency of the PREVIOUS passage of this
-    station -- not the one of the passage that ends the interval. Those
-    tests therefore load two successive passages into the same feedback.
+    were generated over, so the backfill-span replay takes omega_k and
+    T_seg,k from the segments themselves. The backfill segments of a
+    passage are ``_segments[:-1]``: the grid is cleared at the start of
+    every passage, the backfill generation appends exactly one segment per
+    elapsed frequency span, and the forward generation then appends exactly
+    one more. The phase each segment stores is tested in
+    ``TestAccumulatedPhases`` and ``TestSegmentsCarryTheAccumulatedPhase``.
     """
 
     @staticmethod
@@ -595,37 +806,6 @@ class TestBackfillSpanWalksSegments(unittest.TestCase):
         )
 
     @staticmethod
-    def _expected_increment(fdbk, omega_previous):
-        """
-        ``sum_k (omega_prev - omega_k) T_seg,k`` over the loaded backfill.
-
-        Parameters
-        ----------
-        fdbk
-            Feedback holding the passage whose backfill segments
-            (``_segments[:-1]``) supply omega_k and T_seg,k.
-        omega_previous
-            The previous passage's forward-segment design frequency
-            [rad/s] -- the carrier the carried envelope was demodulated
-            against.
-
-        Returns
-        -------
-        float
-            The registration-phase increment [rad] this passage must add.
-        """
-        backfill_segments = fdbk._segments[:-1]
-        segment_omegas = np.array(
-            [segment.omega for segment in backfill_segments]
-        )
-        segment_durations = np.array(
-            [segment.duration for segment in backfill_segments]
-        )
-        return float(
-            np.sum((omega_previous - segment_omegas) * segment_durations)
-        )
-
-    @staticmethod
     def _recorded_replay(fdbk, n_backfill_centers):
         """
         Run the replay with ``circuit_track`` recorded instead of executed.
@@ -673,171 +853,3 @@ class TestBackfillSpanWalksSegments(unittest.TestCase):
         # anything (a stale frequency list used to re-run the whole grid).
         fdbk = self._passage_feedback()
         self.assertEqual(self._recorded_replay(fdbk, 0), [])
-
-    def test_registration_phase_uses_previous_passage_carrier(self):
-        """
-        ``dPsi = sum_k (omega_prev - omega_k) T_seg,k`` across two passages.
-
-        The backfill segments of a passage reconstruct the interval since
-        this station's PREVIOUS passage, and the carried envelope they
-        correct was demodulated against the carrier of that previous
-        passage. The increment is therefore referenced to ``omega_prev``,
-        the forward-segment design frequency as it stood one passage ago --
-        and it enters with that sign, ``omega_prev`` minus omega_k.
-
-        Passage 1 has no predecessor, so it contributes exactly ``+0.0``
-        and only records its carrier. Passage 2 (different backfill
-        frequencies AND a different forward frequency, so the two candidate
-        references are cleanly separated) must add the increment built from
-        passage 1's carrier.
-        """
-        fdbk = self._passage_feedback()
-        fdbk._n_rf_stations_in_ring = 2
-        fdbk._forward_segment_omega_design = FORWARD_OMEGA
-        n_backfill_centers = sum(BACKFILL_LENGTHS)
-
-        first_passage_phase = fdbk._accumulate_registration_phase(
-            n_backfill_centers=n_backfill_centers
-        )
-
-        # Nothing to correct yet: there is no previous carrier to refer to.
-        self.assertEqual(first_passage_phase, 0.0)
-
-        self._load_passage(
-            fdbk,
-            backfill_omegas=SECOND_BACKFILL_OMEGAS,
-            forward_omega=SECOND_FORWARD_OMEGA,
-        )
-        fdbk._forward_segment_omega_design = SECOND_FORWARD_OMEGA
-
-        second_passage_phase = fdbk._accumulate_registration_phase(
-            n_backfill_centers=n_backfill_centers
-        )
-
-        expected = self._expected_increment(fdbk, FORWARD_OMEGA)
-        self.assertEqual(second_passage_phase, expected)
-        # The segments really do differ from the previous carrier, so the
-        # pin above is not trivially satisfied by zero.
-        self.assertNotEqual(expected, 0.0)
-        # ... and it is not the former expression either (which referenced
-        # THIS passage's carrier, with the opposite sign). The two agree
-        # only for a linear frequency programme -- that second difference
-        # is exactly what used to hide the defect -- so the fixture pulls
-        # them apart by more than 10 % of the increment.
-        former_expression = -self._expected_increment(
-            fdbk, SECOND_FORWARD_OMEGA
-        )
-        self.assertGreater(
-            abs(second_passage_phase - former_expression),
-            0.1 * abs(second_passage_phase),
-        )
-
-    def test_registration_phase_accumulates_a_running_total(self):
-        # The method returns the RUNNING TOTAL, not the increment: a third
-        # passage adds its own increment (built from passage 2's carrier)
-        # on top of what passage 2 left.
-        fdbk = self._passage_feedback()
-        fdbk._n_rf_stations_in_ring = 2
-        fdbk._forward_segment_omega_design = FORWARD_OMEGA
-        n_backfill_centers = sum(BACKFILL_LENGTHS)
-        fdbk._accumulate_registration_phase(
-            n_backfill_centers=n_backfill_centers
-        )
-
-        self._load_passage(
-            fdbk,
-            backfill_omegas=SECOND_BACKFILL_OMEGAS,
-            forward_omega=SECOND_FORWARD_OMEGA,
-        )
-        fdbk._forward_segment_omega_design = SECOND_FORWARD_OMEGA
-        after_second = fdbk._accumulate_registration_phase(
-            n_backfill_centers=n_backfill_centers
-        )
-
-        self._load_passage(fdbk)
-        fdbk._forward_segment_omega_design = FORWARD_OMEGA
-        after_third = fdbk._accumulate_registration_phase(
-            n_backfill_centers=n_backfill_centers
-        )
-
-        increment = self._expected_increment(fdbk, SECOND_FORWARD_OMEGA)
-        self.assertEqual(after_third, after_second + increment)
-
-    def test_registration_phase_snapshot_is_the_live_design_carrier(self):
-        # The snapshot must take the instance scalar
-        # ``_forward_segment_omega_design`` -- the live design clock the
-        # demodulation and readout reference -- and NOT ``_segments[-1]
-        # .omega``. Here the two are deliberately pulled apart so a
-        # segment-sourced snapshot gives a different second passage.
-        fdbk = self._passage_feedback()
-        fdbk._n_rf_stations_in_ring = 2
-        held_carrier = 1.15 * OMEGA_BOUNDARY
-        self.assertNotEqual(held_carrier, fdbk._segments[-1].omega)
-        fdbk._forward_segment_omega_design = held_carrier
-        n_backfill_centers = sum(BACKFILL_LENGTHS)
-        fdbk._accumulate_registration_phase(
-            n_backfill_centers=n_backfill_centers
-        )
-
-        self._load_passage(
-            fdbk,
-            backfill_omegas=SECOND_BACKFILL_OMEGAS,
-            forward_omega=SECOND_FORWARD_OMEGA,
-        )
-        fdbk._forward_segment_omega_design = SECOND_FORWARD_OMEGA
-
-        self.assertEqual(
-            fdbk._accumulate_registration_phase(
-                n_backfill_centers=n_backfill_centers
-            ),
-            self._expected_increment(fdbk, held_carrier),
-        )
-
-    def test_registration_phase_snapshot_is_taken_outside_the_gate(self):
-        # A passage that the gate skips (no backfill centres, or a
-        # single-station ring) still records its carrier: the snapshot sits
-        # OUTSIDE the gate, so the NEXT passage has a carrier to refer to.
-        # Without that, a skipped passage would silently reset the
-        # reference and the following increment would be dropped.
-        fdbk = self._passage_feedback()
-        fdbk._n_rf_stations_in_ring = 2
-        fdbk._forward_segment_omega_design = FORWARD_OMEGA
-
-        self.assertEqual(
-            fdbk._accumulate_registration_phase(n_backfill_centers=0), 0.0
-        )
-
-        self._load_passage(
-            fdbk,
-            backfill_omegas=SECOND_BACKFILL_OMEGAS,
-            forward_omega=SECOND_FORWARD_OMEGA,
-        )
-        fdbk._forward_segment_omega_design = SECOND_FORWARD_OMEGA
-
-        self.assertEqual(
-            fdbk._accumulate_registration_phase(
-                n_backfill_centers=sum(BACKFILL_LENGTHS)
-            ),
-            self._expected_increment(fdbk, FORWARD_OMEGA),
-        )
-
-    def test_registration_phase_is_zero_for_a_single_station_ring(self):
-        # A single section builds the whole passage from one segment at
-        # omega_0: Psi is identically zero and must stay EXACTLY +0.0 over
-        # repeated passages, so single-section runs stay bit-identical.
-        fdbk = self._passage_feedback()
-        fdbk._n_rf_stations_in_ring = 1
-        fdbk._forward_segment_omega_design = FORWARD_OMEGA
-        n_backfill_centers = sum(BACKFILL_LENGTHS)
-
-        for _ in range(3):
-            phase = fdbk._accumulate_registration_phase(
-                n_backfill_centers=n_backfill_centers
-            )
-            self.assertEqual(phase, 0.0)
-            self._load_passage(
-                fdbk,
-                backfill_omegas=SECOND_BACKFILL_OMEGAS,
-                forward_omega=SECOND_FORWARD_OMEGA,
-            )
-            fdbk._forward_segment_omega_design = SECOND_FORWARD_OMEGA

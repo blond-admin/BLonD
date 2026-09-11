@@ -14,7 +14,8 @@ The coarse-grid value classes of the cavity feedback.
 the cavity-feedback timing class builds; :class:`PerTurnGridSpan` is the
 per-turn span one grid rebuild produces out of those segments. Both value
 types are kept in this module so they and their validation stay independent
-of the (much larger) feedback and grid-construction code.
+of the (much larger) feedback and grid-construction code, together with
+:func:`accumulated_phases`, the phase each backfill segment stores.
 """
 
 from __future__ import annotations
@@ -73,8 +74,21 @@ class RFCenterSegment:
     centers: NumpyArray
     """The coarse-grid centre times [s] of this segment. Always holds at
     least two centres -- enforced in ``__post_init__``, and relied on by the
-    coincidence-guard cell width and the registration-phase gate of
+    coincidence-guard cell width of
     :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`."""
+    accumulated_phase: float = 0.0
+    """Grid-vs-carrier phase [rad] accumulated up to the end of this segment.
+
+    A multi-section passage builds its grid piecewise, each backfill segment
+    at the design frequency of the station it reconstructs, while the
+    envelope carried across that interval was demodulated against a single
+    carrier: the forward-segment frequency of this station's previous
+    passage. This is the running phase difference between the two,
+    continued from passage to passage (see :func:`accumulated_phases`). The
+    forward segment holds the value of its passage, which the demodulation
+    subtracts and the readout adds back. Exactly ``0.0`` for a single
+    section, for an unaccelerated ring and on a station's first passage;
+    the default, so hand-built segments need not state it."""
 
     def __post_init__(self) -> None:
         """Validate the segment fields (frequency, duration, residual, shape)."""
@@ -91,16 +105,14 @@ class RFCenterSegment:
                 "RFCenterSegment.centers must be 1-D, got ndim "
                 f"{np.ndim(self.centers)}"
             )
-        # Every segment must hold at least two coarse centres. Three
+        # Every segment must hold at least two coarse centres. Two
         # correctness properties rest on this invariant (do not relax it
         # without revisiting them): the counter-rotating coincidence-guard
         # tolerance rf_centers[-1] - rf_centers[-2] only measures a genuine
         # forward cell width when both entries lie inside the forward
-        # segment; an empty segment would carry the preceding residual
+        # segment; and an empty segment would carry the preceding residual
         # through without adding its own duration to the bridging coarse
-        # step; and the registration-phase gate n_backfill_centers > 0 is
-        # only equivalent to "no backfill segments at all" when no segment
-        # can be empty.
+        # step.
         min_centers_per_segment = 2
         if len(self.centers) < min_centers_per_segment:
             t_rf = 2 * np.pi / self.omega
@@ -124,6 +136,11 @@ class RFCenterSegment:
             raise ValueError(
                 f"RFCenterSegment.residual {self.residual} outside "
                 f"[0, duration={self.duration}]"
+            )
+        if not np.isfinite(self.accumulated_phase):
+            raise ValueError(
+                "RFCenterSegment.accumulated_phase must be finite, got "
+                f"{self.accumulated_phase}"
             )
 
     def __len__(self) -> int:
@@ -164,3 +181,67 @@ class PerTurnGridSpan:
     :meth:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass.calculate_rf_beam_current_partial`
     needs; re-reading the host attribute later yields the forward value and
     silently shifts the frame."""
+
+
+def accumulated_phases(
+    carried_phase: float,
+    carrier_omega: float | None,
+    segment_omegas: NumpyArray,
+    segment_durations: NumpyArray,
+) -> NumpyArray:
+    """
+    Accumulated phase at the end of each backfill segment of a passage.
+
+    The backfill segments rebuild the interval since this station's
+    previous passage, segment ``k`` spanning ``T_k`` at the design frequency
+    ``omega_k`` of the station it reconstructs. The envelope carried across
+    that interval was demodulated against the carrier in force when the
+    interval STARTED -- the previous passage's forward-segment frequency --
+    so over segment ``k`` the grid and that carrier part by
+    ``(omega_carrier - omega_k) T_k``.
+
+    Parameters
+    ----------
+    carried_phase
+        Accumulated phase [rad] the previous passage's forward segment
+        ended on.
+    carrier_omega
+        Design frequency [rad/s] of that forward segment, or ``None`` when
+        nothing accumulates: a station's first passage and a single-station
+        ring.
+    segment_omegas
+        Design frequency [rad/s] of each backfill segment, in order.
+    segment_durations
+        Duration [s] of each backfill segment, in order.
+
+    Returns
+    -------
+    phases
+        ``carried_phase + sum_{j <= k} (carrier_omega - omega_j) T_j`` [rad]
+        for each segment ``k``; every entry is ``carried_phase`` when
+        ``carrier_omega`` is ``None``.
+
+    Notes
+    -----
+    The reference is the PREVIOUS passage's carrier. Referring the increment
+    to the carrier of the passage that ends the interval, with the opposite
+    sign, differs by a second difference of the frequency programme; that
+    vanishes for a linear ramp, which hid a secular drift against the
+    multi-pass convolution.
+
+    Each prefix is summed as one array slice, so the last entry equals
+    ``carried_phase + float(np.sum(increments))`` bit-for-bit -- the value a
+    passage reads off its forward segment.
+    """
+    omegas = np.asarray(segment_omegas, dtype=float)
+    durations = np.asarray(segment_durations, dtype=float)
+    if carrier_omega is None:
+        return np.full(len(omegas), float(carried_phase))
+    increments = (carrier_omega - omegas) * durations
+    return np.array(
+        [
+            carried_phase + float(np.sum(increments[: index + 1]))
+            for index in range(len(increments))
+        ],
+        dtype=float,
+    )

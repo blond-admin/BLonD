@@ -1329,7 +1329,8 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
         skipping the turn 0/1 transient before the carried wake settles.
 
         This is the regression guard for the registration-phase reference
-        fix (``_accumulate_registration_phase``). While that phase was
+        fix (the phase is now ``RFCenterSegment.accumulated_phase``). While
+        that phase was
         referenced to the CURRENT passage's carrier instead of the previous
         one, a real secular drift existed here: the error rose essentially
         linearly from ~0.14 % at turn 2 to 0.66788 % at turn 19, a slope of

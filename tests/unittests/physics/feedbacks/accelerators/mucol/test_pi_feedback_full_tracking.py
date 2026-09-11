@@ -20,6 +20,7 @@ any change of the tracked feedback numerics shows up here first).
 import os
 import unittest
 import warnings
+from unittest import mock
 
 import numpy as np
 
@@ -529,6 +530,110 @@ class TestDrivenSteadyStateFastRamp(unittest.TestCase):
         self._assert_holds_steady_state(4)
 
 
+class TestTrackReadsTheForwardSegmentPhase(unittest.TestCase):
+    """
+    Each passage takes its accumulated phase from its forward segment.
+
+    On a driven, beam-free fast ramp every passage must hand the
+    demodulation and the readout the kick-clock gap plus the forward
+    segment's ``accumulated_phase``, and that phase must grow from one
+    passage to the next by exactly the increment of this passage's backfill
+    segments against the previous passage's forward carrier. The run is
+    beam-free because the phase bookkeeping is the only thing under test.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 4
+
+    def _record_passages(self, n_sections: int) -> dict:
+        """
+        Track the ring and record every passage of every station.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations in the ring.
+
+        Returns
+        -------
+        dict
+            Per station index, one ``(segments, kick_clock_slip_gap,
+            carrier_slip_gap)`` tuple per passage, in passage order.
+        """
+        passages: dict = {}
+        original_track = IQCavityFeedbackTimingClass._track
+
+        def recording_track(feedback, beam):
+            original_track(feedback, beam)
+            passages.setdefault(feedback.section_index, []).append(
+                (
+                    tuple(feedback._segments),
+                    feedback._kick_clock_slip_gap,
+                    feedback._carrier_slip_gap,
+                )
+            )
+
+        with mock.patch.object(
+            IQCavityFeedbackTimingClass, "_track", recording_track
+        ):
+            _run_config(
+                n_sections,
+                self.ENERGY,
+                self.DELTA_E_TURN,
+                self.N_TURNS,
+                intensity=0.0,
+                use_controller=False,
+            )
+        return passages
+
+    def test_carrier_phase_is_the_forward_segment_phase(self):
+        passages = self._record_passages(2)
+        for section, records in passages.items():
+            for index, (segments, kick_gap, carrier_gap) in enumerate(records):
+                with self.subTest(section=section, passage=index):
+                    self.assertEqual(
+                        carrier_gap, kick_gap + segments[-1].accumulated_phase
+                    )
+
+    def test_forward_phase_grows_by_the_backfill_increment(self):
+        passages = self._record_passages(2)
+        n_checked = 0
+        for section, records in passages.items():
+            for index in range(1, len(records)):
+                previous_forward = records[index - 1][0][-1]
+                segments = records[index][0]
+                backfill = segments[:-1]
+                increments = (
+                    previous_forward.omega
+                    - np.array([segment.omega for segment in backfill])
+                ) * np.array([segment.duration for segment in backfill])
+                with self.subTest(section=section, passage=index):
+                    self.assertEqual(
+                        segments[-1].accumulated_phase,
+                        previous_forward.accumulated_phase
+                        + float(np.sum(increments)),
+                    )
+                n_checked += 1
+        self.assertGreater(n_checked, 0)
+        # The fast ramp really accumulates a phase, so the pin is not
+        # satisfied by zeros.
+        self.assertGreater(
+            max(
+                abs(records[-1][0][-1].accumulated_phase)
+                for records in passages.values()
+            ),
+            0.0,
+        )
+
+    def test_single_section_accumulates_exactly_zero(self):
+        passages = self._record_passages(1)
+        for records in passages.values():
+            for segments, _, _ in records:
+                for segment in segments:
+                    self.assertEqual(segment.accumulated_phase, 0.0)
+
+
 class TestDrivenFeedbackIsPhaseNeutralWithoutBeam(unittest.TestCase):
     """
     A driven, beam-free cavity on its setpoint must hand the station NO phase.
@@ -984,7 +1089,7 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
     # zero-intensity behaviour these numbers now build on.
     # Regenerated again for the registration-phase reference fix (the
     # increment is now referred to the PREVIOUS passage's design carrier;
-    # see ``_accumulate_registration_phase``). See
+    # see ``RFCenterSegment.accumulated_phase``). See
     # ``test_pinned_trajectories`` for the size of that move.
     # Regenerated once more (2026-09-02) for the PI-on-every-tracked-cell
     # change: the loop now regulates over the backfill span instead of
@@ -1063,7 +1168,9 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
         Characterization: the exact recorded trajectories.
 
         MOVED by the registration-phase reference fix. The per-passage
-        increment of ``_accumulate_registration_phase`` is now referred to
+        increment of the accumulated phase (stored per segment as
+        ``RFCenterSegment.accumulated_phase`` since 2026-09-11, without
+        moving any number) is now referred to
         the PREVIOUS passage's forward-segment design carrier,
         ``sum_k (omega_prev - omega_k) T_seg,k``, instead of to this
         passage's carrier with the opposite sign. This configuration --

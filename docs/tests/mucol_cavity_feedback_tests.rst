@@ -642,13 +642,17 @@ shrinks with the sub-step.
     The generator current first reacts at the same *sample* offset after
     beam-on for the standard (``n = 1``) and sub-stepped (``n = 0.5``) grid.
 
-``TestResponseMatrixClamping``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``TestFineGridCurrentInheritsTheKlystronLimit``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``test_fine_grid_solve_uses_clamped_generator_current``
-    The fine-grid response-matrix solve (``cavity_response_sparse_matrix``)
-    sees the clamped generator current, and the stored fine-grid current is
-    clamped in place.
+The klystron limit is enforced once, by the controller on every coarse
+command. The fine-grid generator current is a linear interpolation of those
+commands and therefore needs no clamp of its own.
+
+``test_fine_grid_current_never_exceeds_the_limit``
+    With the generator driven into saturation over many turns on the real
+    ``circuit_track`` path, the coarse commands reach the limit and the
+    interpolated fine-grid current never exceeds it.
 
 ``TestPerProfileVoltageOverTurns``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -714,6 +718,24 @@ state rotation produced.
     Two stations must hold it too -- the regression under test.
 ``test_four_sections_hold_steady_state``
     Four stations: three backfill segments per passage.
+
+``TestTrackReadsTheForwardSegmentPhase``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Records every passage of a driven, beam-free fast ramp and checks where the
+accumulated phase comes from; beam-free because the phase bookkeeping is the
+only thing under test.
+
+``test_carrier_phase_is_the_forward_segment_phase``
+    On two sections, every passage's ``_carrier_slip_gap`` is exactly the
+    kick-clock gap plus the forward segment's ``accumulated_phase``.
+``test_forward_phase_grows_by_the_backfill_increment``
+    From one passage to the next the forward segment's phase grows by exactly
+    ``sum_k (omega_prev - omega_k) T_seg,k`` over the backfill segment
+    records, ``omega_prev`` being the previous forward segment's frequency;
+    the ramp really accumulates a non-zero phase.
+``test_single_section_accumulates_exactly_zero``
+    With one section every segment of every passage stores exactly ``0.0``.
 
 ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -877,7 +899,7 @@ steeper at 1/16 the energy of the slow-ramp pins. What the pins characterise
 **now**: the split coarse envelope with a design-anchored generator component,
 the PI regulating the kick-frame sum, and the registration-phase increment
 referred to the PREVIOUS passage's design carrier (see
-``_accumulate_registration_phase``). The pin runs at ``rtol=1e-6``; the four
+``RFCenterSegment.accumulated_phase``). The pin runs at ``rtol=1e-6``; the four
 physics gates in the class -- sag, loop response, setpoint recovery, bounded
 bunch -- are independent of it and sit at their own thresholds.
 ``TestDrivenFeedbackIsPhaseNeutralWithoutBeam`` pins the zero-intensity
@@ -1171,11 +1193,10 @@ overrides).
     retuning convolution in the fast frame-slip regime.
 ``test_multiturn_fast_ramp_multisection``
     Multi-section (2 and 4 stations) on the fast ramp matches the retuning
-    convolution: the grid-vs-carrier registration phase ``Psi``, the
-    running total of the per-passage increments
-    ``dPsi = sum_k (omega_prev - omega_k) T_seg,k`` which the other
-    stations' mid-turn grid re-seeding accumulates in
-    ``_accumulate_registration_phase``, is carried on the
+    convolution: the grid-vs-carrier phase the other stations' mid-turn
+    grid re-seeding accumulates, ``sum_k (omega_prev - omega_k) T_seg,k``
+    per passage and stored on the segment records as
+    ``RFCenterSegment.accumulated_phase``, is carried on the
     demodulation/readout carrier -- *not* applied as a rotation of the
     antenna-voltage state (see ``TestDrivenSteadyStateFastRamp`` in
     ``test_pi_feedback_full_tracking.py``). Uncorrected, the arrival time
@@ -2648,31 +2669,83 @@ the forward segment for that difference to be a genuine cell width -- which the
     the forward segment's own cell spacing -- even when that differs from the
     backfill segment's.
 
+``TestAccumulatedPhaseField``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``test_accumulated_phase_defaults_to_zero``
+    A hand-built ``RFCenterSegment`` need not state ``accumulated_phase``;
+    it defaults to ``0.0``.
+``test_rejects_non_finite_accumulated_phase``
+    ``nan`` and ``+-inf`` are rejected at construction.
+
+``TestAccumulatedPhases``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``accumulated_phases`` computes the phase each backfill segment record
+stores: the carried phase plus the running sum of
+``(omega_carrier - omega_k) T_k``, where ``omega_carrier`` is the
+forward-segment frequency of this station's previous passage -- the carrier
+the envelope carried across the interval was demodulated against.
+
+``test_each_segment_stores_its_running_phase``
+    Every entry equals the carried phase plus the prefix sum of the
+    increments up to that segment.
+``test_last_segment_is_the_passage_total_bit_for_bit``
+    The last entry, which the forward segment inherits and the passage uses,
+    equals ``carried + float(np.sum(increments))`` exactly -- the expression
+    of the former running total -- and the increment is non-zero.
+``test_phase_refers_to_the_previous_carrier``
+    The contract of the reference fix: the increment differs by more than
+    10 % from the former expression, which referred to this passage's
+    carrier with the opposite sign. The two agree exactly for a linear
+    frequency programme, which is what hid the defect, so the fixture puts
+    curvature between them.
+``test_without_a_carrier_every_segment_keeps_the_carried_phase``
+    With no carrier (a first passage, a single-station ring) every entry is
+    the carried phase, exactly ``+0.0`` for a zero carry.
+``test_no_backfill_segments_give_no_phases``
+    An empty backfill yields an empty result.
+
+``TestSegmentsCarryTheAccumulatedPhase``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The grid sets each segment's accumulated phase and carries it across
+passages.
+
+``test_a_new_feedback_carries_no_forward_segment``
+    Before the first passage there is nothing to continue from.
+``test_closing_a_passage_carries_its_forward_segment``
+    ``_close_previous_turn_grid`` keeps the forward segment the passage ended
+    on before clearing the grid.
+``test_backfill_phases_refer_to_the_carried_forward_segment``
+    ``_backfill_accumulated_phases`` continues from the carried segment's
+    ``accumulated_phase`` against its ``omega``.
+``test_single_station_ring_accumulates_nothing``
+    On a single-station ring the phase stays exactly ``+0.0``, which keeps
+    single-section runs bit-identical.
+``test_first_passage_accumulates_nothing``
+    Without a carried segment every backfill segment stores ``0.0``.
+``test_forward_segment_inherits_the_last_backfill_phase``, ``test_forward_segment_without_backfill_keeps_the_carried_phase``, ``test_forward_segment_of_a_first_passage_is_zero``
+    The forward segment adds no increment of its own: it takes the last
+    backfill segment's phase, the carried phase without backfill, and
+    ``0.0`` on a first passage.
+
 ``TestBackfillSpanWalksSegments``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The per-passage walks read the segment records rather than parallel arrays.
 ``RFCenterSegment`` carries the frequency and the time span its centres were
-generated over, so the backfill replay and the multi-section registration phase
-take ``omega_k`` and ``T_seg,k`` from the segments themselves. The backfill
-segments of a passage are ``_segments[:-1]``: the grid is cleared at the start
-of every passage, the backfill generation appends exactly one segment per
-elapsed frequency span, and the forward generation then appends exactly one
-more. The fixture holds three backfill segments at different frequencies (the
-middle one at the two-centre minimum) plus the forward one, with
-``circuit_track`` recorded instead of executed. The class inherits
-``unittest.TestCase`` and uses its assertions throughout.
-
-The registration-phase tests span **two passages**: the increment corrects an
-envelope that was demodulated against the carrier of the passage which
-STARTED the reconstructed interval, so a single passage cannot exercise the
-contract at all. The fixture is therefore loaded twice into the same feedback
-through ``_load_passage``, with the second passage given different backfill
-frequencies *and* a different forward frequency so the two candidate
-references are cleanly separated. (This replaced a single-passage test that
-pinned the former expression ``sum_k (omega_k - omega_0) T_seg,k``; under the
-corrected contract that call returns exactly ``+0.0`` and only snapshots the
-carrier, leaving it nothing to pin. The class grew from three tests to seven.)
+generated over, so the backfill replay takes ``omega_k`` and ``T_seg,k`` from
+the segments themselves. The backfill segments of a passage are
+``_segments[:-1]``: the grid is cleared at the start of every passage, the
+backfill generation appends exactly one segment per elapsed frequency span,
+and the forward generation then appends exactly one more. The fixture holds
+three backfill segments at different frequencies (the middle one at the
+two-centre minimum) plus the forward one, with ``circuit_track`` recorded
+instead of executed. The class inherits ``unittest.TestCase`` and uses its
+assertions throughout. Its five registration-phase tests, which drove the
+feedback's former running total directly, were replaced on 2026-09-11 by the
+two classes above, when the phase moved onto the segment records.
 
 ``test_replay_walks_backfill_segments_only``
     ``_replay_backfill_span`` makes exactly one no-beam pass per backfill
@@ -2682,37 +2755,6 @@ carrier, leaving it nothing to pin. The class grew from three tests to seven.)
 ``test_replay_is_a_no_op_without_backfill_centers``
     The gate: a passage that generated no backfill centre must not walk
     anything (a stale frequency list used to re-run the whole grid).
-``test_registration_phase_uses_previous_passage_carrier``
-    The contract test for the reference fix. Passage 1 returns exactly
-    ``+0.0`` -- there is no previous carrier, so there is nothing to correct
-    -- and only records its carrier; passage 2 must add exactly
-    ``dPsi = sum_k (omega_prev - omega_k) T_seg,k``, with ``omega_k`` and
-    ``T_seg,k`` taken from the segment records and ``omega_prev`` from
-    passage 1. Two further assertions keep the pin from being satisfied by
-    accident: the increment must be non-zero, and it must differ from the
-    former expression ``-sum_k (omega_0 - omega_k) T_seg,k`` by more than
-    10 %. The second one is the point -- the two forms agree exactly for a
-    linear frequency programme, which is what hid the defect, so the fixture
-    deliberately puts curvature between them.
-``test_registration_phase_accumulates_a_running_total``
-    Three passages: the method returns the running total, so passage 3
-    equals passage 2's total plus passage 3's own increment (built from
-    passage 2's carrier).
-``test_registration_phase_snapshot_is_the_live_design_carrier``
-    Pins the *source* of the snapshot: the instance scalar
-    ``_forward_segment_omega_design`` -- the live design clock the
-    demodulation and the readout reference -- and not ``_segments[-1].omega``.
-    The fixture pulls the two apart, so a segment-sourced snapshot gives a
-    different second passage.
-``test_registration_phase_snapshot_is_taken_outside_the_gate``
-    Pins that the snapshot is unconditional: a passage the gate skips
-    (``n_backfill_centers == 0``) still records its carrier, so the next
-    passage has a reference. Inside the gate, a skipped passage would
-    silently drop the following increment.
-``test_registration_phase_is_zero_for_a_single_station_ring``
-    With ``_n_rf_stations_in_ring == 1`` the phase stays exactly ``+0.0``
-    over repeated passages -- ``assertEqual``, not ``assertAlmostEqual``.
-    This is the invariant that keeps single-section runs bit-identical.
 
 
 ``test_beam_feedback.py``
@@ -3147,6 +3189,14 @@ cannot silently regress, and one deletion is pinned beside them.
     catches a restored constructor declaration) and as an absent *name in
     the module source* (which catches a write reintroduced anywhere else,
     ``on_run_simulation`` being where the merge put the second one).
+``TestRegistrationPhaseRunningTotalStaysDeleted``
+    (``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) The
+    feedback keeps no registration-phase bookkeeping of its own since the
+    accumulated phase moved onto the segment records
+    (``RFCenterSegment.accumulated_phase``). The former running total, the
+    method that advanced it and the held copy of the previous passage's
+    carrier are pinned absent, as instance attributes and as names in the
+    module source, so the phase cannot again be tracked in two places.
 
 
 Support modules
