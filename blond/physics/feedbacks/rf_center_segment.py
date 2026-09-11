@@ -28,9 +28,13 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
 
-# Absolute tolerance [s] for the residual bound check in RFCenterSegment: the
-# residual is a float difference of times, so allow a few ULPs of slack.
-_RF_CENTER_SEGMENT_RESIDUAL_TOL = 1e-9
+# Tolerance for the residual bound check in RFCenterSegment, as a fraction of
+# the segment's RF period. The residual is a float difference of times, so
+# rounding contributes a few ULPs; a millionth of an RF period is far above
+# that, yet far below any genuine error, which is of order a coarse step.
+# The former absolute 1e-9 s exceeded a whole RF period at 1.3 GHz and could
+# not catch such an error.
+_RF_CENTER_SEGMENT_RESIDUAL_RTOL = 1e-6
 
 
 @dataclass(frozen=True, eq=False)
@@ -114,12 +118,9 @@ class RFCenterSegment:
                 "at least two coarse cells."
             )
         # residual is the time left after the last centre, so it must fall
-        # within [0, duration] (up to float noise).
-        if not (
-            -_RF_CENTER_SEGMENT_RESIDUAL_TOL
-            <= self.residual
-            <= self.duration + _RF_CENTER_SEGMENT_RESIDUAL_TOL
-        ):
+        # within [0, duration] (up to float noise, scaled to the RF period).
+        tolerance = _RF_CENTER_SEGMENT_RESIDUAL_RTOL * 2 * np.pi / self.omega
+        if not (-tolerance <= self.residual <= self.duration + tolerance):
             raise ValueError(
                 f"RFCenterSegment.residual {self.residual} outside "
                 f"[0, duration={self.duration}]"

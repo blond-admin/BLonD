@@ -27,7 +27,6 @@ from tqdm import tqdm  # type: ignore
 
 from blond import Simulation
 from blond.core.simulation.execution_models.base import ExecutionModel
-from blond.generals.warnings_ import NotTestedWarning
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
@@ -324,7 +323,6 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         ), (
             "First beam must be co-rotating, second beam must be counter-rotating."
         )
-        warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
 
         self._check_two_beam_profile_placement(simulation)
 

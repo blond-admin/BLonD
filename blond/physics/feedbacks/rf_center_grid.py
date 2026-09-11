@@ -702,8 +702,13 @@ class RFCenterGridMixin:
         is_above = walked_time > beam_reference_time
         if is_above and not is_close:
             warnings.warn(
-                "Inconsistency with references, is a "
-                "delta_omega_rf applied to the rf_stations?",
+                "Inconsistency with references: the backfill walk "
+                "overshot the beam's arrival (walked reference time "
+                f"{walked_time!r} s > beam reference time "
+                f"{beam_reference_time!r} s). The walked "
+                "reference-altering elements do not reproduce the beam's "
+                "reference clock; the overshot interval is replayed as "
+                "elapsed time.",
                 stacklevel=2,
             )
         return is_close or is_above

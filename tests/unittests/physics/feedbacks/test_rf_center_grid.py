@@ -1774,9 +1774,9 @@ class TestBackfillWalkGuards:
 
     def test_reference_overshoot_warns_about_inconsistency(self) -> None:
         # The walked reference lands ABOVE the beam's reference time: the
-        # two clocks disagree (e.g. a delta_omega_rf applied directly to
-        # the stations), which the walk must flag rather than silently
-        # accept the overshot interval.
+        # two clocks disagree (the walked elements do not reproduce the
+        # beam's reference clock), which the walk must flag rather than
+        # silently accept the overshot interval.
         feedback = self._bare_feedback(turn=3)
         feedback._last_tracked_turn_frwrd = 3
         feedback._reference_state_until_tracked = _ReferenceStub(0.0)

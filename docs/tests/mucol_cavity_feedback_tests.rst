@@ -2480,8 +2480,8 @@ needed.
     (``was a turn skipped``).
 ``test_reference_overshoot_warns_about_inconsistency``
     When the walked reference lands *above* the beam's reference time the two
-    clocks disagree (e.g. a ``delta_omega_rf`` applied directly to the
-    stations), which must be flagged with an ``Inconsistency with references``
+    clocks disagree (the walked elements do not reproduce the beam's
+    reference clock), which must be flagged with an ``Inconsistency with references``
     warning rather than silently accepted -- while the walk still completes
     and records the overshot interval in ``_backfill_time_array`` and
     ``_backfill_segment_omega_design_list``.

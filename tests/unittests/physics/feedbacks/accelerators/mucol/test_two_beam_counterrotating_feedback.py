@@ -336,8 +336,8 @@ def _run_two_beam_case(
             )
 
     with warnings.catch_warnings():
-        # The counter-rotating mainloop itself warns "Untested code" and
-        # about callbacks receiving only the first beam; both are expected.
+        # The counter-rotating mainloop warns about callbacks receiving
+        # only the first beam; that is expected.
         warnings.simplefilter("ignore")
         sim.run_simulation(
             beams, n_turns=n_turns, callbacks=collect, show_progressbar=False
