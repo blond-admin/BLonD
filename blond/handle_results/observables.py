@@ -2278,7 +2278,7 @@ class _CounterRotatingPassage(ObservablesOncePerTurnBase):
     parent
         The observation that owns the recorders.
     folder
-        Target folder for :meth:`Simulation.save_results`.
+        Target folder for :meth:`~blond.core.simulation.simulation.Simulation.save_results`.
 
     Notes
     -----
@@ -2338,7 +2338,7 @@ class FullTurnCavityObservation(ObservablesOncePerTurnBase):
     section_index
         Index of the RF station the feedback belongs to (bookkeeping only).
     folder
-        Target folder for :meth:`Simulation.save_results`.  Must end in a
+        Target folder for :meth:`~blond.core.simulation.simulation.Simulation.save_results`.  Must end in a
         path separator when non-empty.
 
     Attributes
@@ -2407,7 +2407,7 @@ class FullTurnCavityObservation(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            The running :class:`~blond.Simulation`.
+            The running :class:`~blond.core.simulation.simulation.Simulation`.
         beam
             Ignored -- this observable watches a feedback, not a beam.
         n_turns
@@ -2764,7 +2764,7 @@ class CavityEnvelopeSummary(ObservablesOncePerTurnBase):
     section_index
         Index of the RF station the feedback belongs to (bookkeeping only).
     folder
-        Target folder for :meth:`Simulation.save_results`.  Must end in a
+        Target folder for :meth:`~blond.core.simulation.simulation.Simulation.save_results`.  Must end in a
         path separator when non-empty.
 
     Notes
@@ -2804,7 +2804,7 @@ class CavityEnvelopeSummary(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            The running :class:`~blond.Simulation`.
+            The running :class:`~blond.core.simulation.simulation.Simulation`.
         beam
             Ignored -- this observable watches a feedback, not a beam.
         n_turns
@@ -2948,7 +2948,7 @@ class ControllerCorrectionSummary(ObservablesOncePerTurnBase):
         beam.  Bookkeeping: it keeps the recorder filenames unique and
         labels the plot.
     folder
-        Target folder for :meth:`Simulation.save_results`.
+        Target folder for :meth:`~blond.core.simulation.simulation.Simulation.save_results`.
 
     Notes
     -----
@@ -3002,7 +3002,7 @@ class ControllerCorrectionSummary(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            The running :class:`~blond.Simulation`.
+            The running :class:`~blond.core.simulation.simulation.Simulation`.
         beam
             Ignored -- this observable watches a feedback, not a beam.
         n_turns

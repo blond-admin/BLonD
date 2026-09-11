@@ -16,11 +16,6 @@ every possible configuration.
    :local:
    :depth: 2
 
-.. toctree::
-   :hidden:
-
-   mucol_feedback_history
-
 
 Setup contract
 --------------
@@ -954,8 +949,9 @@ storing it on the segment records removed that parallel bookkeeping
 without changing any result.
 
 The reference-choice regression uses a curved frequency programme; see
-``test_phase_refers_to_the_previous_carrier``. Historical
-diagnostics are in :ref:`mucol_feedback_development_history`.
+``test_phase_refers_to_the_previous_carrier``. The historical diagnostics
+and retired approaches are recorded in the development log
+``MUCOL_FEEDBACK_CONTEXT.md`` in the BLonD repository root.
 
 The source-split coarse state lets the accumulated phase affect only the
 beam-sourced
