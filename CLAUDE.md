@@ -83,6 +83,39 @@ Backend-relevant env vars and markers:
   failure only reproduces under some seeds, suspect leaked global state, not a
   flaky test.
 
+**Test classes inherit `BLonDTestCase`, not `unittest.TestCase`**
+(`from blond.testing.backend_testing import BLonDTestCase`). It behaves like
+`unittest.TestCase` on a passing test, but annotates a failure with the backend class and
+specials mode active **at the start of the test** and **at the point of failure**:
+
+```
+[backend at start: Numpy64Bit, at failure: LeakedBackend]
+[specials at start: python, at failure: numba]
+```
+
+Differing start/failure states mean an earlier `backend_mutation` test leaked global
+state, rather than a genuine per-backend bug — making that distinction cheap is why the
+base class exists. The only classes left on plain `unittest.TestCase` are the throwaway
+fixtures inside `tests/unittests/testing/test_backend_testing.py`, which are what this
+machinery is tested against.
+
+**`@multi_backend_testcase` runs each backend as its own `TestCase.subTest`.** Every
+backend is tried even after an earlier one fails, and each failure is recorded against
+`subTest(backend=<ClassName>)` keeping its original exception type and traceback — the
+test no longer aborts on the first failing backend. What that changes when writing or
+reading these tests:
+- **Nothing propagates out of the decorated method.** A failing backend leaves a recorded
+  subtest result, not a raised exception, so `assertRaises` around such a call will not
+  see it — inspect a `unittest.TestResult` instead.
+- `subTest` files an `AssertionError` under `result.failures` and **everything else under
+  `result.errors`**. Entries unpack as `(test, traceback_str)`, with the backend name in
+  `test.params["backend"]`.
+- `setUp`/`tearDown` run **once per backend** (with that backend active), on top of the
+  single outer pair `unittest` itself runs — N+1 in total, so keep those fixtures cheap.
+- The `BLonDTestCase` annotation above does **not** apply to these failures: `subTest`
+  catches the exception before it can reach the annotating hook. Nothing is lost, since
+  each subtest is already labelled with the backend it ran under.
+
 ## Backend conventions
 
 A numeric kernel exists once **per backend** under
@@ -224,7 +257,7 @@ One GitLab MR per item, each on its own branch off `blonder`
 - **Strict TDD with visible RED:** write the failing test, run it, show it failing,
   *then* implement. (User explicitly requires seeing RED.)
 - Tests mirror the `blond/` tree under `tests/unittests/`.
-- **Every test class must inherit from `unittest.TestCase` and use its
+- **Every test class must inherit from `BLonDTestCase` and use the `TestCase`
   assertions (`assertEqual`, `assertTrue`, `assertRaises`, …) — never a bare
   `assert` statement.** This is a different `assert` than the one in *Backend
   conventions* above: that note is about production wrapper code, where a
@@ -232,8 +265,11 @@ One GitLab MR per item, each on its own branch off `blonder`
   bare `assert` is a bug risk, not a convention — it gives no diagnostic on
   failure (no expected-vs-actual) and is *also* silently stripped under
   `python -O`, which can turn a failing test into a silent pass. Write
-  `class TestFoo(unittest.TestCase):` with `test_*` methods, not
-  module-level `def test_...():` functions with bare `assert`.
+  `class TestFoo(BLonDTestCase):` with `test_*` methods, not module-level
+  `def test_...():` functions with bare `assert`. `BLonDTestCase` is a
+  `unittest.TestCase` subclass (see *Test* above), so everything `unittest`
+  offers still applies; inheriting `unittest.TestCase` directly just loses the
+  backend annotation on failure.
 - **Pre-commit before every `git commit`** — see the callout above; this is not
   optional.
 - Commit messages: past tense ("Fixed …", "Added …"), body explains *why*.
