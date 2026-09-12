@@ -630,7 +630,7 @@ class TestRing(unittest.TestCase):
         beam.setup_beam(
             dt=np.array([1]),
             dE=np.array([2]),
-            flags=np.array([3]),
+            flags=np.array([1]),
             ids=np.array([4]),
         )
 
@@ -676,7 +676,7 @@ class TestRing(unittest.TestCase):
         beam.setup_beam(
             dt=np.array([1]),
             dE=np.array([2]),
-            flags=np.array([3]),
+            flags=np.array([1]),
             ids=np.array([4]),
         )
         sim.finalize((beam,), n_turns=1)

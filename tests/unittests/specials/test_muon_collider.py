@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from blond import Beam, proton
+from blond import Beam, copy_to_cpu, proton
 from blond.specifics.muon_collider.beam_preparation import (
     copy_beam_data_from_other_beam,
     load_beam_coordinates_counterrot_from_file,
@@ -65,10 +65,22 @@ class TestBeamPreparationMuCol(unittest.TestCase):
 
         copy_beam_data_from_other_beam(beam_CR, beam)
 
-        assert np.allclose(beam._dE, beam_CR._dE)
-        assert np.allclose(beam._flags, beam_CR._flags)
-        assert np.allclose(beam._ids, beam_CR._ids)
-        assert np.allclose(beam._dt, beam_CR._dt)
+        assert np.allclose(
+            copy_to_cpu(beam._dE.array_local),
+            copy_to_cpu(beam_CR._dE.array_local),
+        )
+        assert np.allclose(
+            copy_to_cpu(beam._flags.array_local),
+            copy_to_cpu(beam_CR._flags.array_local),
+        )
+        assert np.allclose(
+            copy_to_cpu(beam._ids.array_local),
+            copy_to_cpu(beam_CR._ids.array_local),
+        )
+        assert np.allclose(
+            copy_to_cpu(beam._dt.array_local),
+            copy_to_cpu(beam_CR._dt.array_local),
+        )
         assert beam.intensity == beam_CR.intensity
 
         beam._is_distributed = True

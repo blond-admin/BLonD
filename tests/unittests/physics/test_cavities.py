@@ -684,7 +684,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         self.beam.setup_beam(
             dt=np.linspace(-1e-6, 1e-6, 10),
             dE=np.linspace(-1e-6, 1e-6, 10),
-            reference_total_energy=938,
+            reference_total_energy=42e9,
             reference_time=0,
         )
 
@@ -790,8 +790,10 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
         phi_a = self.multi_harmonic_cavity.delta_phi_rf.copy()
         self.multi_harmonic_cavity.track(beam=self.beam)
+        self.beam.reference.total_energy = 42e9  # transparency of tracking
         phi_b = self.multi_harmonic_cavity.delta_phi_rf.copy()
         self.multi_harmonic_cavity.track(beam=self.beam)
+        self.beam.reference.total_energy = 42e9  # transparency of tracking
         phi_c = self.multi_harmonic_cavity.delta_phi_rf.copy()
         print(phi_a, phi_b, phi_c)
         self.assertTrue(phi_a[0] == phi_b[0] < phi_c[0])
@@ -808,26 +810,28 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             raise TypeError("32 bit backends have been removed.")
 
         np.testing.assert_allclose(  # changer/ test pinned to some value
-            copy_to_cpu(self.beam.dE),
+            copy_to_cpu(self.beam._dE.array_local),
             [
-                -3553222.1295187217,
-                229103.39306234661,
-                -2334151.389566862,
-                -1291443.680401674,
-                1796893.796132672,
-                -1195065.0503718334,
-                1768699.6153487992,
-                2588047.0010012407,
-                -251122.31467230315,
-                3259845.9525205432,
+                42002571186.29307,
+                41999067639.08523,
+                41997304062.653114,
+                42000254452.35986,
+                42001353809.25522,
+                41999198414.73523,
+                41999862939.869606,
+                42002284900.45459,
+                42000313982.50683,
+                41997086892.72768,
             ],
             rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
-            copy_to_cpu(self.beam.dt),
+            copy_to_cpu(self.beam.dt.array_local),
             np.linspace(-1e-6, 1e-6, 10),
         )
+
+        self.beam.reference.total_energy = 42e9  # transparency of tracking
 
     def test_wrong_array(self) -> None:
         local_cav = MultiHarmonicRFStation(
