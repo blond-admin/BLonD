@@ -45,9 +45,11 @@ limitations* below.
        sub-step. The coarse step is the exact exponential propagator for
        any step length; resolve the fine dynamics sufficiently finely.
    * - Profile placement
-     - Keep the entire bunch inside the profile and the seeding coarse
-       cell charge-free. A charged fine window must begin at or after the
-       first forward coarse centre. Recheck this under a ramp.
+     - Keep the entire bunch inside the profile, and keep the window --
+       tails included -- clear of the END of the coarse grid: the step
+       into the next passage carries no beam current. The start is free;
+       the fine solve is seeded before the first forward cell, so a
+       window may begin before the first forward centre.
    * - Ownership and initialization
      - Give each station its own profile, feedback and controller. Attach
        feedback before ``Simulation.run_simulation``; late initialization
@@ -294,23 +296,33 @@ residual
     segment-*local*, so the coarse step into the first cell of a segment
     is that cell's local time plus the *preceding* segment's residual.
     The *same* residual, snapshotted between the backfill and the forward
-    generation, is the demodulation frame of the forward segment (next
+    generation, is the tail ``dT`` the forward segment's beam current is
+    binned against, and the grid geometry the frame guard checks (next
     entry). Which reader takes it from where, and why the snapshot has to
-    exist, is in step 3 of *Signal path of one turn*.
-demodulation frame (``dT``)
-    The time offset the beam current is demodulated against: the residual
-    left by the coarse segment preceding the forward one, carried on the
-    span as ``residual_from_backfill_span``. This implementation's mixing
-    and kick-phase convention requires ``omega * dT = pi`` (mod ``2 pi``)
-    to align the beam-loading sign and phase. It seeds each segment half
-    an RF period into the bucket. This is a convention-specific alignment
-    condition, not a universal statement of the beam-loading theorem.
-    Everything that can
-    perturb ``dT`` (a harmonic not divisible by ``2 * n_sections``, a
-    sub-step other than ``0.5``, a stale segment frequency under a
-    violent ramp) rotates the beam-induced voltage, and past a quarter
-    period inverts it; any frame more than ``1e-3 pi`` off an odd
-    multiple of ``pi`` is refused outright (see *Known limitations*).
+    exist, is in step 3 of *Signal path of one turn*. On a station's very
+    first passage no segment has been generated yet, so
+    ``_close_previous_turn_grid`` continues the tiling backwards --
+    ``n t_rf - t_rf / 2``, i.e. ``omega_c * dT = pi`` (mod ``2 pi``) --
+    to supply the tail the walk cannot.
+demodulation frame
+    The phase the beam current is demodulated in. This implementation's
+    mixing and kick-phase convention requires ``pi`` (mod ``2 pi``) to
+    align the beam-loading sign and phase, and the grid delivers it by
+    seeding each segment half an RF period into the bucket. This is a
+    convention-specific alignment condition, not a universal statement of
+    the beam-loading theorem. Since 2026-09-12 the frame is *stated*, not
+    derived: ``calculate_rf_beam_current_partial`` passes
+    ``demodulation_phase=pi``, while the tail ``dT`` -- the residual
+    above, carried on the span as ``residual_from_backfill_span`` -- is
+    passed on only as the fine-to-coarse binning shift, which follows
+    physical sample times. ``_assert_demodulation_frame_aligned`` checks
+    the grid against that stated value instead of handing it over.
+    Everything that can perturb ``omega_c * dT`` (a harmonic not
+    divisible by ``2 * n_sections``, a sub-step other than ``0.5``) moves
+    the grid away from where the stated frame assumes it sits, which
+    rotates the beam-induced voltage and past a quarter period inverts
+    it; any geometry more than ``1e-3 pi`` off an odd multiple of ``pi``
+    is refused outright (see *Known limitations*).
 carried deposit
     Beam-induced voltage laid onto the grid on one turn that must then be
     propagated ("carried") consistently across later turns and segments.
@@ -356,9 +368,10 @@ Classes at a glance
     and its ``residual`` -- the unfilled tail between its last centre and
     its end. The ``residual`` is read back by
     ``_preceding_segment_residual`` to form the coarse step into the
-    *following* segment's first cell, and is the demodulation frame of the
-    forward segment; the ``omega`` and ``duration`` are what the
-    backfill-span replay walks, and ``accumulated_phase`` is the
+    *following* segment's first cell, and is the tail the forward
+    segment's beam current is binned against (and whose product with the
+    carrier the frame guard checks); the ``omega`` and ``duration`` are
+    what the backfill-span replay walks, and ``accumulated_phase`` is the
     grid-vs-carrier phase accumulated up to the segment's end (see
     *Multi-section registration phase*). Two pure helpers compute that
     phase: ``accumulated_phases`` at each backfill segment's end (what the
@@ -374,8 +387,9 @@ Classes at a glance
     backfill and the forward generation. Returning it rather than leaving
     it on the feedback is
     what makes the per-turn phase ordering enforceable by the data flow --
-    the demodulation frame can only be read from a span object, and a span
-    is only produced by a rebuild that snapshotted it in time.
+    the tail the demodulation consumes can only be read from a span
+    object, and a span is only produced by a rebuild that snapshotted it
+    in time.
 
 :mod:`blond.physics.feedbacks.generator_regulation`
     ``GeneratorRegulationMixin``: the parts of the timing class that need
@@ -393,7 +407,13 @@ Classes at a glance
     :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` (fine-grid
     demodulation, optionally re-binned onto the coarse grid when
     ``sampling_time``/``n_points`` are given) and the ``low_pass_filter``
-    it applies under ``use_lowpass_filter``.
+    it applies under ``use_lowpass_filter``. Its demodulation-carrier
+    rotation is ``dT * omega_c`` unless the caller states the frame
+    through ``demodulation_phase``, which replaces that rotation and
+    nothing else -- ``dT`` keeps its second role, the fine-to-coarse
+    binning shift -- while ``carrier_phase_offset`` still adds on top.
+    The coarse-grid caller states ``pi``; every other caller (the
+    fine-grid-only reference calls, at ``dT = 0.0``) leaves it ``None``.
 
 :mod:`blond.physics.feedbacks.cavity_solvers`
     The muon-collider-only numerics: the first-order (forward-Euler)
@@ -502,12 +522,29 @@ Each turn the timing class runs:
    fall-back for a segment-less hand-built grid (tests, direct
    ``circuit_track`` callers): on a real per-turn grid a start index that
    is not a segment boundary trips an assertion instead of silently
-   returning this turn's forward tail. The *demodulation frame* is the
-   same tail, but it has to be snapshotted onto the span between the
-   backfill and the forward generation, because the forward generation
-   overwrites the live scalar; under ``validate_grid_each_turn`` an
-   assertion ties the snapshot and the segment-list lookup together so
-   they cannot silently drift apart.
+   returning this turn's forward tail. The tail the *demodulation*
+   consumes is the same one, but it has to be snapshotted onto the span
+   between the backfill and the forward generation, because the forward
+   generation overwrites the live scalar; the test variant's
+   ``validate_grid_each_turn`` switch (step 6) asserts that the snapshot
+   and the segment-list lookup agree, so they cannot silently drift
+   apart.
+
+   ``_close_previous_turn_grid`` also produces the tail of the very
+   first passage. A station that is the ring's FIRST reference-altering
+   element generates no backfill on turn 0 -- there is no elapsed span
+   to reconstruct -- so before the snapshot is taken the live scalar is
+   continued backwards out of the segment tiling: segments seed at
+   ``t_rf / 2`` and step by ``n t_rf``, so the tail from the virtual
+   centre one step earlier is ``n t_rf - t_rf / 2``, i.e.
+   ``omega_c * dT = 2 pi n - pi``, which is ``pi`` (mod ``2 pi``) for
+   integer ``n``. Continued rather than guarded
+   against: a ring is a loop, so which element the element list starts
+   at is a bookkeeping choice and no physics may depend on it. Only the
+   time is continued, never the taps -- the first forward segment must
+   still be seeded at the design bucket phase -- so the grid geometry is
+   unchanged. A hand-built grid with no parent station (tests, direct
+   ``circuit_track`` callers) keeps the ``__init__`` placeholder.
 
 4. ``_carrier_slip_gap`` is formed as the kick-clock gap of step 2 plus
    the forward segment's ``accumulated_phase`` ``phi_acc`` -- the
@@ -551,19 +588,20 @@ Each turn the timing class runs:
    cell updates compose the sum, and form the PI error, with the
    per-cell backfill rotations of step 4.
 
-6. ``_write_no_correction_readout`` -- only with
-   ``grid_only_no_correction=True``: writes the neutral readout (unit
-   relative voltage, zero phase, i.e. **no correction at all**) and ends
-   the turn there, so neither the demodulation nor the forward pass
-   runs. The three diagnostic switches are independent: ``debug`` only
-   records the inspection-only grid snapshots,
-   ``validate_grid_each_turn`` only runs the per-turn grid integrity
-   check (including the residual-versus-demodulation-frame assertion),
-   and only this one -- ``grid_only_no_correction`` -- stops the physics.
-   They were once a single ``debug`` flag doing all three at once, so
-   asking for diagnostics silently switched the feedback off entirely
-   (unit gain, zero phase). With all three at their ``False`` default the
-   tracked result is bit-for-bit what the old ``debug=False`` produced.
+6. *Test variant only.* The production class goes straight on to step 7.
+   ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+   adds three switches there that only tests consume. With
+   ``grid_only_no_correction=True`` it ends the passage here: it skips
+   the forward span and writes the neutral readout (unit relative
+   voltage, zero phase, i.e. **no correction at all**) in place of the
+   station readout. The other two only observe: ``debug`` records the
+   inspection-only grid snapshots, and ``validate_grid_each_turn`` runs
+   the grid integrity check of step 3 on every passage, including the
+   residual-versus-demodulation-frame assertion. They were once a single
+   ``debug`` flag on this class doing all three at once, so asking for
+   diagnostics silently switched the feedback off; since 2026-09-11 they
+   exist only on the test variant, which with all three off tracks
+   bit-for-bit like the production class.
 
 7. ``_track_forward_span`` -- the real work of the turn, in two steps.
 
@@ -571,7 +609,7 @@ Each turn the timing class runs:
    :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` to
    convert the beam profile into the complex IQ beam-current envelope at
    the *design* carrier (factor-2 single-sideband demodulation), rotate it
-   by the reference-frame phase and by the constant
+   by the demodulation frame and by the constant
    ``-(phi_rf + _carrier_slip_gap)``, and re-bin the fine-grid charge
    onto the coarse cells charge-conservingly. That constant is the
    *full* station phase ``phi_rf = phi_rf_design + delta_phi_rf`` plus
@@ -579,14 +617,24 @@ Each turn the timing class runs:
    dropping ``phi_rf_design`` would rotate the beam-induced voltage by
    ``-phi_rf_design``, and at the ordinary above-transition
    ``phi_rf_design = pi`` that inverts the beam loading outright. The
-   demodulation frame is the span's ``residual_from_backfill_span``
-   (step 3), and ``_assert_demodulation_frame_aligned`` refuses the
-   passage unless ``omega_c * dT`` is an odd multiple of ``pi`` (see
-   *Known limitations*). Several further guards protect this path, all
+   frame itself is *stated*: the call passes
+   ``demodulation_phase=pi``, the one value the convention admits, and
+   hands the span's ``residual_from_backfill_span`` (step 3) over as
+   ``dT`` for the fine-to-coarse binning only. Before the call,
+   ``_assert_demodulation_frame_aligned`` checks the grid against that
+   value and refuses the passage unless ``omega_c * dT`` is an odd
+   multiple of ``pi`` (see *Known limitations*), so a grid that does not
+   sit at ``pi`` still raises rather than being silently demodulated at
+   the stated value. Several further guards protect this path, all
    of them raising rather than correcting:
 
-   * charge in the *first* coarse cell -- that cell seeds the fine-grid
-     initial condition, so its kick would be double-counted;
+   * charge in the *last* coarse cell -- the step from this passage's
+     last centre into the next passage's grid has no cell of its own, so
+     that charge would drive no step at all. Until 2026-09-12 it was the
+     *first* cell that was refused, because the fine solve was seeded
+     there; the seed now sits before the forward span (see *the fine-grid
+     initial condition* under *Initial conditions and cavity pre-fill*),
+     which makes the first cell an ordinary one;
    * a profile window longer than the coarse grid it is re-binned onto,
      rejected by ``ProfileBaseClass.check_fits_in_span`` (the forward
      span is not periodic, so a wrapped group would overwrite an earlier
@@ -662,8 +710,19 @@ DEMODULATION-FRAME SUM, composed per cell as
 ``phi_acc`` the forward segment's on the forward span and the phase
 accumulated up to the cell on a backfill cell (step 4 of *Signal path of
 one turn*) -- a rotation that is exactly ``1 + 0j`` without an
-RF-frequency offset and without multi-section acceleration, which is why
-undriven runs stay byte-identical to the former single-state recursion.
+RF-frequency offset and without multi-section acceleration.
+
+With nothing driving the generator -- no controller, zero
+``generator_current_bias`` and neither a carried generator current nor a
+carried generator-sourced voltage -- the generator component stays
+identically zero, so the sum is the beam component byte-for-byte
+*whatever* the rotation, and an undriven run reproduces the former
+single-state recursion under acceleration too. Until 2026-09-12 a
+``_generator_active`` gate skipped the component update, the kernel's
+write of its grid and every composition multiply in order to guarantee
+that. The guarantee needs no branch -- ``0 * rotation`` and ``x + 0`` are
+exact in IEEE double -- so the gate is gone and the identity is pinned
+directly by ``TestUndrivenGeneratorComponentNeedsNoGate``.
 
 .. note::
 
@@ -810,35 +869,30 @@ generator-established field, so it seeds the *generator* component of
 the source-split coarse state (the beam component starts empty).
 
 **The fine-grid initial condition.** The fine solve is seeded with the
-coarse antenna voltage at index ``[0]`` of the forward segment -- the
-*first* forward coarse centre -- and then integrates the beam current over
-``[cut_left, cut_right]``. Two halves of one invariant keep that causal.
+coarse antenna voltage at the centre BEFORE the forward segment -- the last
+backfill centre, or the state carried across the passage boundary when the
+passage has no backfill -- and then integrates the beam current over
+``[cut_left, cut_right]``.
 
-The first is a per-turn guard,
-``_check_fine_grid_initial_condition_is_causal``: the centre the seed comes
-from must not be later than the start of the window it initialises,
+Seeding before the span is what makes the window start free. That centre
+lies at or before the passage origin while ``cut_left`` is positive, so the
+seed always predates the window; and it predates every deposit of the
+passage, the first forward cell's included, so that cell is an ordinary
+one: its charge drives the coarse step into its own centre once, and the
+fine solve integrates the same charge once. Seeding at the first forward
+centre instead -- as this class did until 2026-09-12 -- folds that cell's
+own deposit into its initial condition, which is why the window then had to
+begin at or after that centre with a charge-free first cell
+(``_check_fine_grid_initial_condition_is_causal`` and
+``forbid_charge_in_first_coarse_cell``, both retired with the move).
 
-   ``first forward centre <= profile.cut_left``,
-
-checked whenever the window carries charge, and raising otherwise -- the
-seed would then be taken from later in the turn than the interval it
-initialises, and the beam current would be integrated twice. It is checked
-every turn rather than once at setup, because the first forward centre
-moves with the design frequency and with the residual carried from the
-previous passage (both turn-dependent under acceleration and sub-stepping)
-and ``cut_left`` is itself settable. The remedy is to move the profile
-window right, to ``cut_left >= max(t_rf / 2, sampling_time_coarse)``.
-
-The second is that only the coarse voltage *at index* ``[0]`` enters the
-initial condition. That cell is charge-free by construction
-(``forbid_charge_in_first_coarse_cell``). Later coarse cells can already
-contain this passage's beam loading: interpolating their voltages would
-introduce charge before its arrival and then count it again in the fine
-solve.
+No LATER coarse voltage enters the seed. Later cells can already contain
+this passage's beam loading: interpolating their voltages would introduce
+charge before its arrival and then count it again in the fine solve.
 
 The seed's timestamp must also be respected. Before integrating the
-profile, ``propagate_beam_free_voltage`` advances the seed from the first
-forward centre to ``cut_left`` with zero new beam current. It includes
+profile, ``propagate_beam_free_voltage`` advances the seed from its own
+centre to ``cut_left`` with zero new beam current. It includes
 decay, detuning and the recorded generator commands, held from each coarse
 centre to the next as in the coarse recursion. For a constant command
 over an interval :math:`h`, it evaluates
@@ -858,9 +912,9 @@ window includes the elapsed empty interval instead of restarting the
 cavity clock at the old voltage. Within the fine window, generator current
 retains the interpolated representation described above.
 
-An empty diagnostic window may precede the first centre; the same
-beam-free equation then evolves backward with the first available command
-held constant. A charged window in that position remains rejected.
+A window may begin before the first forward centre, charged or not: the
+seed centre precedes it either way, and the same beam-free equation
+evolves forward to it with the command of the seed centre held constant.
 
 
 Interplay with the RF station
@@ -913,8 +967,8 @@ RF period, with the coarse centres tiling continuously across turn
 boundaries. It is not a stability device -- the exact coarse step holds for
 any step length and ``Q_L`` -- but a finer sampling of the held generator
 command, of the controller and of the coarse beam current. ``n = 0.5`` is
-the only usable sub-step: that tiling makes the demodulation frame one
-previous coarse step, ``omega_c * dT = 2 pi n``, which is an odd multiple
+the only usable sub-step: that tiling puts the grid one previous coarse
+step from the bucket, ``omega_c * dT = 2 pi n``, which is an odd multiple
 of ``pi`` only there, so ``n = 0.25`` or ``0.9`` is rejected by
 ``_assert_demodulation_frame_aligned`` (see *Known limitations*).
 
@@ -1213,28 +1267,33 @@ Known limitations
   Why it has to be refused. The grid seeds every segment half an RF
   period in, so a segment spanning a fractional number of RF periods
   leaves a residual different from ``t_rf / 2``; that residual is the
-  demodulation frame ``dT``. The implemented mixing and kick convention
-  needs ``omega * dT = pi`` (mod ``2 pi``) to reproduce the physical
-  beam-loading phase. Other geometries require a different frame treatment;
-  the physical theorem itself does not impose this grid alignment.
-  Which fraction it is decides
+  tail ``dT``. The implemented mixing and kick convention needs
+  ``omega * dT = pi`` (mod ``2 pi``) to reproduce the physical
+  beam-loading phase, and the beam current is demodulated at that
+  convention value outright -- so a grid sitting elsewhere puts the
+  deposit at that angle in the bucket. Other geometries require a
+  different frame treatment; the physical theorem itself does not impose
+  this grid alignment. Which fraction it is decides
   what the run *would* have done:
 
   - ``1/4`` and ``3/4`` of a period leave ``omega * dT`` a quarter turn
     off ``pi``, which rotates the beam-induced voltage by that angle.
     Such a geometry also pushes beam charge into the first coarse cell,
-    which ``rf_beam_current`` refuses on its own -- but the
-    demodulation-frame guard catches it one step earlier, and by root
-    cause rather than by symptom. That refusal is pinned as a contract
+    which is harmless in itself since 2026-09-12 (the fine solve is seeded
+    before that cell), so the demodulation-frame guard is what catches the
+    geometry -- by root cause rather than by symptom. That refusal is
+    pinned as a contract
     by ``test_multiturn_nondivisible_harmonic_is_rejected`` in the
     multi-turn comparison suite, which asserts the ``ValueError`` and
     that its message still names ``omega_c * dT`` and the divisibility
     cause.
   - ``1/2`` of a period (``harmonic % (2 * n_sections) == n_sections``,
     which includes every odd harmonic on a one-station ring) gives
-    ``omega * dT = 2 pi``, i.e. the demodulation factor would be ``+1``
-    where it must be ``-1``: the beam-induced voltage would be
-    sign-inverted, the bunch would be **accelerated by its own wake**,
+    ``omega * dT = 2 pi``: the grid sits a whole RF period from the
+    bucket where the convention needs half, so the deposit lands ``pi``
+    away from the phase the stated frame assumes. The beam-induced
+    voltage would be sign-inverted, the bunch would be
+    **accelerated by its own wake**,
     and the wrongly signed deposit would then decay only over
     ``2 Q_L / omega``, i.e. over many turns. The guard raises before any
     voltage is produced. (Historically this case was unguarded and did
@@ -1258,27 +1317,35 @@ Known limitations
   or ``0.9`` is rejected by the same guard
   (``TestDemodulationFrameGuard.test_misaligned_sub_step_is_rejected``
   pins that raise).
-* **The demodulation frame carries a stale-frequency lag under a ramp.**
-  The tail ``dT`` that sets the beam-current demodulation frame is left by
-  the *preceding* coarse segment, but is consumed against the *current*
-  segment's design carrier. Under acceleration the two frequencies differ,
-  so the frame is short (or long) by ``(omega_fwd - omega_prod) * dT``.
-  Because ``dT ~ t_rf / 2 = pi / omega``, that error expressed in ``pi`` is
+* **The grid's own frame carries a stale-frequency lag under a ramp.**
+  The tail ``dT`` is left by the *preceding* coarse segment, but is
+  measured against the *current* segment's design carrier. Under
+  acceleration the two frequencies differ, so ``omega_c * dT`` misses
+  ``pi`` by ``(omega_fwd - omega_prod) * dT``. Because
+  ``dT ~ t_rf / 2 = pi / omega``, that error expressed in ``pi`` is
   simply the fractional per-segment frequency change::
 
       frame lag [pi]  ~  (omega_fwd - omega_prod) / omega
 
-  This is an accepted approximation, not a defect to work around: measured
-  over the shipped programmes it is ``7.9e-8 pi`` on RCS1 -- the fastest
-  ramp, ~23 % energy gain per turn -- and ``9.4e-10 pi`` on RCS2, against
-  the ``1e-3 pi`` tolerance of the demodulation-frame guard. The margin is
-  ~1.3e4.
+  Since 2026-09-12 this lag no longer reaches the beam current: the
+  demodulation frame is stated as ``pi`` and ``dT`` is passed on as the
+  binning shift only, so the lag is consumed by nothing but
+  ``_assert_demodulation_frame_aligned``, inside whose ``1e-3 pi``
+  tolerance the geometry has to stay. Measured over the shipped
+  programmes it is ``7.9e-8 pi`` on RCS1 -- the fastest ramp, ~23 %
+  energy gain per turn -- and ``9.4e-10 pi`` on RCS2; the 4 GeV /
+  20 MeV-per-turn test ramp is the other end of the range, at
+  ``3.5e-6 pi`` at one section, ``1.7e-6 pi`` at two and ``8.7e-7 pi``
+  at four -- more sections, smaller frequency step per segment --
+  against ``1.9e-11 pi`` at constant energy
+  (``TestDemodulationFrameIsStatedNotDerived``). The worst of those
+  leaves a ~290x margin to the guard.
 
   A substantially more violent ramp would erode it. The failure is loud
   rather than silent -- the guard raises as soon as the lag reaches
   ``1e-3 pi`` -- and the fix is local: ``RFCenterSegment`` already stores
-  ``omega`` beside ``residual``, so the frame can be rebuilt from the
-  carrier that actually produced the residual.
+  ``omega`` beside ``residual``, so the grid's own frame can be rebuilt
+  from the carrier that actually produced the residual.
 
 * In a ring with more than one RF station the ``delta_omega_rf`` offset
   cannot be changed during the run (the station raises). The former
@@ -1313,15 +1380,17 @@ Known limitations
   guards bound the input, they do not extend the assumption. Sub-stepped
   beam loading itself is validated against the convolution, including with
   detuning and on the fast ramp.
-* The profile window must lie inside the forward coarse grid, with its
-  first coarse cell charge-free and its left edge not earlier than the
-  first forward coarse centre -- in practice
-  ``cut_left >= max(t_rf / 2, sampling_time_coarse)``. All three are now
-  enforced; see *the fine-grid initial condition* under *Initial
-  conditions and cavity pre-fill*. Seeding from coarse index ``[0]``
-  rather than interpolating later beam-loaded voltages avoids double
-  counting. The seed is then evolved to the profile edge through the
-  beam-free interval; retaining its old value at a later time is incorrect.
+* The profile window must lie inside the forward coarse grid, and its LAST
+  coarse cell must stay charge-free: the coarse step from this passage's
+  last centre into the next passage's grid has no cell of its own and
+  carries no beam current, while charge past that centre is rejected
+  outright. Both are enforced. The window START is free -- the fine solve
+  is seeded at the centre BEFORE the forward span, so the first forward
+  cell may carry charge; see *the fine-grid initial condition* under
+  *Initial conditions and cavity pre-fill*. Seeding there rather than
+  interpolating later beam-loaded voltages avoids double counting. The
+  seed is then evolved to the profile edge through the beam-free interval;
+  retaining its old value at a later time is incorrect.
 * A configuration whose walked intervals are shorter than two coarse
   steps -- an RF-station section (or the partial first-turn stretch
   before a station, half a section in the symmetric layout) spanning

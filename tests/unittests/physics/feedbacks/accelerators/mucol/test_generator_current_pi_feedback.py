@@ -222,7 +222,6 @@ def run_multi_turn_fine_grid(
             coarse_beam[middle] = coarse_bunch
             fine_beam = peak_beam_current * bunch_shape
         cav.beam_current_forward_coarse_grid = coarse_beam
-        cav._last_val_beam_current = coarse_beam[-1]
         cav.beam_current_fine_grid = fine_beam
 
         cav.circuit_track(

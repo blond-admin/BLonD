@@ -129,8 +129,7 @@ Unit tests for the I/Q cavity-feedback timing class
 single-turn benchmark of the beam-loading response, the cavity pre-fill /
 injection matching, the exact exponential coarse propagator, the shared
 coarse-step arithmetic behind both propagator paths, the constructor
-validation of an explicit ``voltage_setpoint`` and the causality of the
-fine-grid initial condition.
+validation of an explicit ``voltage_setpoint`` and the fine-grid seed.
 
 ``TestCavityFeedback``
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -296,29 +295,30 @@ rather than silently splitting the two frames.
 ``test_negative_setpoint_raises``
     A negative (phase pi) setpoint raises ``ValueError``.
 
-``TestFineGridInitialConditionCausality``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``TestFineGridSeedPrecedesTheWindow``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Causality of the fine-grid initial condition in ``circuit_track``. The fine
-solve is seeded with the coarse envelope at the **first forward coarse centre**
-``c0`` and then integrates the beam current over ``[profile.cut_left,
-profile.cut_right]``. Both times live in the same segment-local frame, so the
-seed is causal only when ``c0 <= cut_left``: otherwise the coarse cell that
-produced the seed already sits *after* the start of the fine window and any
-charge there would be integrated twice. A charge-free window has nothing to be
-causal about, so the guard is gated on the beam current the fine solve actually
-consumes. Driven on a hand-built 8-cell constant-step grid whose centres are
-``(k + 0.5) t_rf``.
+The fine-grid seed is the coarse state BEFORE the forward span: the centre
+preceding the first forward cell, propagated beam-free to
+``profile.cut_left``. That centre lies at or before the passage origin, so the
+seed always predates the window -- and it predates every deposit of the
+passage, the first forward cell's included, which is what lets a window begin
+before the first forward centre. Driven on a hand-built 8-cell constant-step
+grid whose centres are ``(k + 0.5) t_rf``.
 
-``test_charge_before_first_coarse_centre_raises``
-    A window starting at ``0.5 pi`` (left of ``c0``) *with* charge raises
-    ``ValueError``, with a message naming ``cut_left``, the
-    ``first forward coarse centre`` and ``sampling_time_coarse``.
+``test_charge_before_first_coarse_centre_is_accepted``
+    A window starting at ``0.5 pi`` (left of ``c0``) *with* charge is tracked
+    and produces a fine-grid antenna voltage. Until 2026-09-12 it raised.
+``test_first_cell_deposit_stays_out_of_the_seed``
+    Undriven cavity with zero carried state, a 50 A deposit in the FIRST
+    coarse cell and a charge-free fine window: the coarse grid shows the
+    deposit (``> 1e4`` V) while the fine grid stays at zero. A seed taken AT
+    ``c0`` would start from that deposit instead.
 ``test_charge_free_window_before_first_centre_is_allowed``
-    The same acausal geometry with a zero fine-grid beam current completes
+    The same early geometry with a zero fine-grid beam current completes
     and produces a fine-grid antenna voltage.
 ``test_charge_right_of_first_coarse_centre_is_allowed``
-    The physical geometry (``cut_left = 1.5 pi >= c0``) with charge stays
+    The ordinary geometry (``cut_left = 1.5 pi >= c0``) with charge stays
     accepted.
 
 
@@ -955,6 +955,36 @@ turn 1.
 ``test_pinned_trajectories``
     Characterization pin of the exact recorded fast-ramp trajectories.
 
+``TestDemodulationFrameIsStatedNotDerived``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The beam current is demodulated at exactly ``pi``, not at the geometry. The
+convention fixes the frame at ``omega_c * dT = pi`` (mod ``2 pi``) and the
+coarse grid is built to deliver it, but the product is only approximately
+that: ``dT`` is the tail left by the PRECEDING segment while ``omega_c`` is
+THIS segment's carrier, so under a ramp the two part by the fractional
+per-segment frequency change. The frame is therefore stated
+(``demodulation_phase=np.pi``) and ``_assert_demodulation_frame_aligned``
+checks the geometry against it instead of handing it over; ``dT`` keeps its
+second role, the binning shift. The class wraps ``rf_beam_current`` in a mock
+around tracked runs of the module's ``_run_config`` fixture (4 GeV,
+20 MeV/turn, 3 turns). Stating the frame moved the pinned trajectories by at
+most ``4.8e-7`` (``v_min``) and ``8.3e-8`` (``i_max_dev``) relative, inside
+the ``1e-6`` pin tolerance, so no pin was regenerated; ``phi_corr``, which no
+pin covers, moved by up to ``1.1e-5`` relative of ~``0.029`` rad.
+
+``test_every_passage_is_demodulated_at_exactly_pi``
+    All six passages of the two-section run are called with
+    ``demodulation_phase == np.pi``.
+``test_the_geometry_it_replaces_carries_the_ramp_lag``
+    Non-vacuity: on the ramp the derived frame misses ``pi`` by more than
+    ``1e-7 pi`` on every passage and stays below the guard's ``1e-3 pi``, at
+    1, 2 and 4 sections (measured worst case ``3.5e-6``, ``1.7e-6`` and
+    ``8.7e-7 pi`` -- more sections, smaller frequency step per segment).
+``test_constant_energy_needs_no_correction``
+    Control: without a ramp the geometry lands on ``pi`` to better than
+    ``1e-9 pi`` (measured ``1.9e-11``).
+
 ``TestKernelMatchesReferenceEndToEnd``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1033,8 +1063,8 @@ the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
     ``dT = -2 t_rf`` the whole bunch maps to ``ind_fine < 0``; NumPy negative
     indexing would deposit it in the *last* coarse cells (measured: 100 % of
     the fine-grid charge in negative-mapping bins, peak at index 25899 of
-    25900) -- roughly a forward-segment span late and out of reach of the
-    first-coarse-cell guard, which only inspects cell 0. The message names
+    25900) -- roughly a forward-segment span late, and reported by nothing
+    else once it has wrapped. The message names
     ``before the start of the coarse grid``. This method previously pinned
     the warn-only behaviour; it became a raise-test once the charge fraction
     in the negative-mapping bins was measured to be 1.0.
@@ -1044,23 +1074,24 @@ the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
     long-standing ``before turn time 0`` warning must survive without a raise
     -- and the charge must still be conserved. The raise is reserved for bins
     that actually carry charge, using the same relative-threshold idiom as
-    the first-coarse-cell guard.
-``test_error_when_first_coarse_cell_populated``
-    With ``forbid_charge_in_first_coarse_cell=True`` (used by the feedback to
-    avoid double-counting), charge in the first cell raises.
-``test_no_error_when_first_coarse_cell_empty``
-    A mid-window bunch leaves the first cell numerically empty (the guard uses
+    the last-coarse-cell guard.
+``test_first_coarse_cell_carries_its_own_charge``
+    A bunch in the first coarse cell is downsampled into it like any other.
+    The feedback seeds the fine solve BEFORE that cell, so nothing
+    double-counts it; the guard that used to reject it is retired.
+``test_first_coarse_cell_guard_is_gone``
+    Passing ``forbid_charge_in_first_coarse_cell`` now raises ``TypeError``.
+``test_error_when_last_coarse_cell_populated``
+    With ``forbid_charge_in_last_coarse_cell=True`` (used by the feedback),
+    charge in the last coarse cell raises: a cell's beam current drives the
+    step that ends at its own centre, and the step from this passage's last
+    centre into the next passage's grid has no cell -- and no charge -- of
+    its own. Downsampled onto three cells, so a late bunch sits in the last.
+``test_no_error_when_last_coarse_cell_empty``
+    A mid-window bunch leaves the last cell numerically empty (the guard uses
     a relative threshold, not ``!= 0``).
-``test_warns_when_last_coarse_cell_populated``
-    With ``warn_charge_in_last_coarse_cell=True`` (used by the feedback),
-    charge in the last coarse cell warns: the feedback carries that cell's
-    beam current into the first coarse step of a later passage, which counts
-    it twice. Downsampled onto three cells, so a late bunch sits in the last.
-``test_no_warning_when_last_coarse_cell_empty``
-    A mid-window bunch leaves the last cell numerically empty and does not
-    warn (same relative threshold as the first-cell guard).
-``test_last_coarse_cell_warning_is_opt_in``
-    Without the flag a populated last cell stays silent.
+``test_last_coarse_cell_guard_is_opt_in``
+    Without the flag a populated last cell is accepted.
 ``test_incomplete_capture_is_not_warned_about_here``
     Incomplete capture is NOT reported by this consumer. The check moved
     to ``ProfileBaseClass._warn_if_beam_not_captured`` (see *Guards
@@ -1116,6 +1147,31 @@ the bunch at 0.08, 0.2, 0.5 and 0.9 of a 1.5-``t_rf`` window on an RCS1-like
     0.62 -- the widest legitimate one in the suite), so the threshold may
     not creep below it.
 
+``TestRfBeamCurrentDemodulationPhase``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``demodulation_phase`` states the frame ``dT`` would otherwise derive. ``dT``
+carries two roles -- it rotates the demodulation carrier by ``dT * omega_c``,
+and it shifts the fine-to-coarse binning, which follows physical sample times.
+The coarse-grid caller needs the frame to be exactly the convention value
+``pi`` (its grid is built to deliver it, but the product of a tail measured
+against one carrier with the next segment's carrier only approximates it)
+while the binning must keep following the real tail; stating the phase
+separates the two. The fixture demodulates a mid-window Gaussian with a tail
+of a third of an RF period -- far enough from ``pi`` that the stated and the
+derived rotation cannot coincide by accident.
+
+``test_the_stated_phase_replaces_the_derived_rotation``
+    With ``demodulation_phase=pi`` the fine-grid envelope is the derived one
+    turned by ``exp(1j * (pi - dT * omega_c))`` to ``1e-12``, and the two
+    really differ on this fixture.
+``test_the_binning_still_follows_the_time``
+    Stating the phase leaves every coarse cell's charge magnitude unchanged
+    -- and, non-vacuously, changing ``dT`` by one RF period does move them.
+``test_the_carrier_phase_offset_still_adds_on_top``
+    ``carrier_phase_offset`` rotates the stated frame by exactly its own
+    value (``1e-12``), independently of it.
+
 ``TestRfBeamCurrentCounterRotating``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1148,8 +1204,7 @@ Migration pin of the unified ``rf_beam_current`` coarse path. The recorded
 values were produced by driving the pre-merge ``rf_beam_current_partial`` (the
 timing-class forward-pass variant that was folded into ``rf_beam_current``) on
 this exact fixture -- mid-window Gaussian, 1024 bins -- with ``dT`` and
-``carrier_phase_offset`` both nonzero and
-``forbid_charge_in_first_coarse_cell=True``. The unified function must
+``carrier_phase_offset`` both nonzero. The unified function must
 reproduce them byte-exactly, pinning the merged coarse path (bin-centre offset
 ``sampling_time / 2``, carrier-phase rotation, downsampling loop, remainder
 handling) to the pre-merge behaviour.
@@ -1229,12 +1284,14 @@ overrides).
     Sub-stepped (n = 0.5) carried wake holds on the fast ramp: the stale
     backfill-segment re-pass is removed (it corrupted the demodulation frame
     by ``-(turn+1) * 2 pi S`` per turn for single-section rings) and the
-    sub-stepped demodulation frame is the tiling boundary gap (a pure time,
-    immune to the float-bistable residual landing flip). ~0.1 %, was ~40 %.
+    sub-stepped grid's own frame -- the ``dT`` the guard checks, since
+    2026-09-12 no longer the value demodulated at -- is the tiling boundary
+    gap (a pure time, immune to the float-bistable residual landing flip).
+    ~0.1 %, was ~40 %.
 ``test_multiturn_fast_ramp_multisection_substepped``
     The full combination (2 sections, fast ramp, n = 0.5) passes: the
-    tiling-gap demodulation frame also covers the multi-section
-    backfill-to-forward handover.
+    tiling-gap frame also covers the multi-section backfill-to-forward
+    handover.
 ``test_multiturn_delta_omega_rf_with_beam``
     A beam-driven RF-frequency offset ``delta_omega_rf`` is *exercised* and
     stays consistent. Two checks: (1) a **non-triviality guard** that the offset
@@ -1263,8 +1320,8 @@ overrides).
     spurious move was 0.9-1.7 % of ``|V|``.
 ``test_multiturn_delta_omega_rf_substepped``
     The large offset also holds on the sub-stepped grid (n = 0.5): tiling
-    residual carry-over and the tiling-gap demodulation frame compose with
-    the carrier anchoring.
+    residual carry-over and the tiling-gap frame compose with the carrier
+    anchoring.
 ``test_multiturn_delta_omega_rf_multisection``
     The large offset also holds with two RF stations: backfill-tracked
     segments, per-station kick clocks and the multi-section frame
@@ -1300,9 +1357,11 @@ overrides).
     accelerated by its own wake. The configuration is **refused** rather than
     computed. ``_assert_demodulation_frame_aligned`` (in
     ``cavity_feedback.py``, called unconditionally before every coarse
-    demodulation) raises ``ValueError`` before any voltage is produced, one
-    step earlier than -- and by root cause rather than by symptom of -- the
-    first-coarse-cell charge check the same geometry would otherwise trip.
+    demodulation) raises ``ValueError`` before any voltage is produced, and
+    by root cause rather than by symptom: the same geometry also pushes
+    charge into the first coarse cell, which has been harmless since
+    2026-09-12 (the fine solve is seeded before that cell), so nothing
+    downstream would flag the geometry at all.
     The gap versus the geometry-agnostic solver is real, but it is a refusal,
     not a silently wrong answer. The test asserts that ``ValueError`` and
     that its message stays actionable (it must still name ``omega_c * dT``
@@ -1439,10 +1498,11 @@ this fixture: the induced kick is negative for every macroparticle (mean
 ``-7.8483e5`` eV) and is the same array for ``phi_rf_design`` in ``{0, pi/2,
 pi, -0.7}`` to ``2.6e-7`` eV, i.e. ``2e-13`` of the peak.
 
-``test_feedback_requests_the_last_coarse_cell_warning``
+``test_feedback_forbids_charge_in_the_last_coarse_cell``
     Wraps ``rf_beam_current`` during one tracked turn and checks that every
     coarse demodulation of the timing class passes
-    ``warn_charge_in_last_coarse_cell=True``.
+    ``forbid_charge_in_last_coarse_cell=True`` and no longer passes the
+    retired first-cell guard.
 ``test_bunch_loses_energy_to_its_own_wake_at_zero_design_phase``
     Control: at ``phi_rf_design = 0`` every particle is decelerated.
 ``test_bunch_loses_energy_to_its_own_wake_at_pi_design_phase``
@@ -1462,7 +1522,7 @@ pi, -0.7}`` to ``2.6e-7`` eV, i.e. ``2e-13`` of the peak.
 ``TestDemodulationFrameGuard``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The demodulation frame must be an odd multiple of ``pi``. With
+The coarse grid must sit an odd multiple of ``pi`` from the RF bucket. With
 ``carrier_phase_offset`` cancelling the station and readout phases, ``omega_c *
 dT`` is the only phase left in the sign of beam loading, and the bunch loses
 energy only while ``cos(omega_c * dT) < 0``. The coarse grid delivers that by
@@ -1471,15 +1531,74 @@ seeding every segment half an RF period in, but a sub-stepped grid tiles at
 = 0.5``. So ``n = 0.9`` is an ordinary-looking input that would invert the
 loading (measured on this fixture: the bunch would GAIN ``+8.43e4`` eV instead
 of losing ``-7.87e4``), and ``_assert_demodulation_frame_aligned`` -- called
-unconditionally before every coarse demodulation -- refuses it.
+unconditionally before every coarse demodulation -- refuses it. Since
+2026-09-12 the beam current is demodulated at the *stated* convention value
+``pi`` (``demodulation_phase``), so the guard is what keeps the geometry and
+that value consistent: it checks the grid against ``pi`` rather than handing
+the grid's own product over to the demodulation.
 
 ``test_aligned_steps_decelerate_the_bunch``
     ``n = 0.5`` and ``n = 1`` are both aligned: both decelerate, and they
     agree to within 1 eV.
 ``test_misaligned_sub_step_is_rejected``
     ``n = 0.9`` raises ``ValueError``, and the message must still name
-    ``demodulation frame is not aligned with the RF bucket`` and
-    ``n_rf_periods_per_coarse_grid``.
+    ``not aligned with the RF bucket`` and ``n_rf_periods_per_coarse_grid``.
+
+``TestBunchInTheFirstCoarseCell``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A bunch in the first forward coarse cell is tracked, not refused. The fine
+solve is seeded from the coarse state BEFORE the first forward centre and
+propagated beam-free to ``cut_left``, so the seed predates every deposit of
+the passage however early in the forward segment the bunch sits; that cell
+is then an ordinary one, its charge driving the coarse step into its own
+centre once and the fine solve integrating it once. The window used to be
+constrained to ``cut_left >= first forward centre`` with a charge-free first
+cell; this replaces both. On this fixture's grid the forward centres sit at
+``(k + 0.5) t_rf`` after a 0.5 ``t_rf`` residual, so the first cell spans
+``(-0.5, +0.5] t_rf``: a bunch at ``0.3 t_rf`` sits in it, and the same
+bunch one RF period later sits in the second cell -- the geometry every
+other test in this module runs, and therefore the reference.
+
+``test_bunch_in_the_first_coarse_cell_is_downsampled_into_it``
+    Non-vacuity: more than half of the demodulated coarse charge really
+    lands in cell 0.
+``test_bunch_in_the_first_coarse_cell_loses_energy_to_its_wake``
+    The fundamental theorem holds there too: no particle gains energy and
+    the mean induced kick is negative.
+``test_induced_kick_does_not_depend_on_which_coarse_cell``
+    Window and bunch shifted together by exactly one RF period give the
+    same induced kick to ``1e-6`` of the peak, so the wake is a property of
+    cavity and bunch, not of the cell the demodulation bins it into. A seed
+    taken at the first forward centre instead of before it would count that
+    cell's deposit twice and roughly double the kick.
+
+``TestFirstPassageDemodulationFrame``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A station that opens the ring is demodulated like every other passage.
+``calculate_rf_centers_for_backfill`` generates nothing on the first passage
+of a station that is the ring's FIRST reference-altering element -- there is
+no elapsed span to reconstruct -- so the tail that passage is binned against
+is continued backwards out of the segment tiling instead: segments seed at
+``t_rf / 2`` and step by ``n t_rf``, so the tail from the virtual centre one
+step earlier is ``n t_rf - t_rf / 2``, i.e. ``omega_c * dT = 2 pi n - pi``,
+which is ``pi`` (mod ``2 pi``) for integer ``n``. Without it turn 0 alone
+would be demodulated exactly ``pi`` out of phase, and that wrongly signed
+deposit decays only over ``2 Q_L / omega``. Since 2026-09-12 the rule lives
+in the grid bookkeeping (``RFCenterGridMixin._close_previous_turn_grid``),
+which produces every other segment tail, instead of in a run-start hook that
+had to be ordered by hand against the first ``_track``. The fixture reuses
+this module's cycle, profile and template bunch on a ring whose RF station
+comes first, tracked three turns with ``rf_beam_current`` wrapped in a mock.
+
+``test_first_passage_is_in_the_same_frame_as_the_later_ones``
+    Every passage's ``omega_c * dT`` is within ``1e-6`` rad of ``pi``, and
+    the first agrees with the second to ``1e-9``.
+``test_the_feedback_has_no_run_start_seed_hook``
+    ``IQCavityFeedbackTimingClass._seed_initial_demodulation_frame`` must
+    stay absent -- the tail is produced by the grid, not by a run-start
+    hook.
 
 
 ``test_feedback_phase_under_acceleration.py``
@@ -1616,12 +1735,12 @@ tracking, no ``Simulation``).
 ``test_three_bunch_trailing_matches_solver``
     Three unevenly-spaced bunches (2, 4, 7 ``t_rf``): the last bunch integrates
     two upstream wakes at different lags and still matches locally (gate 0.6 %).
-``test_first_coarse_cell_precondition``
-    Drives the *real* mucol coarse downsampling (``rf_beam_current`` with
-    ``forbid_charge_in_first_coarse_cell=True``, exactly as the forward pass
-    calls it) and asserts it returns without raising and the first coarse
-    cell carries negligible charge -- the actual invariant, not a re-read of
-    the builder's zeroed fine bins.
+``test_first_coarse_cell_is_empty_on_this_fixture``
+    Drives the *real* mucol coarse downsampling and asserts the first coarse
+    cell carries negligible charge -- the fixture's coarse alignment, not a
+    re-read of the builder's zeroed fine bins. No longer a constraint (the
+    fine solve is seeded before that cell), but it is the alignment the
+    convolution comparisons above are measured against.
 
 ``TestMultiBunchMultiTurn``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1897,12 +2016,6 @@ integral and delay line.
     reference drives carried cell 0 from ``last_val_generator_current``
     but every later cell from the reset-bias grid; a kernel that held the
     carried value for all cells would diverge.
-``test_no_beam_carried_beam_current_nonzero``
-    Backfill segment whose carried index-0 beam current is nonzero.
-    ``cavity_response`` uses ``last_val_beam_current`` at the carried cell
-    even for a no-beam segment; a kernel that zeroed it would diverge.
-``test_forward_pi_carried_beam_current_nonzero``
-    Forward PI segment with a nonzero carried index-0 beam current.
 ``test_split_components_with_frame_rotations``
     Both carried components plus non-unit frame rotations -- the live
     multi-section / RF-offset condition: the generator and beam
@@ -1928,6 +2041,36 @@ integral and delay line.
     cell; the two must agree bit-for-bit. Non-vacuous: the regulated
     backfill generator current differs from a run with the passage's
     rotation on every backfill cell.
+
+``TestUndrivenGeneratorComponentNeedsNoGate``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The source split used to carry a ``_generator_active`` gate: while
+nothing could source the generator component -- no controller, zero bias,
+no carried generator current and no carried generator-sourced voltage
+(which an initial or pre-fill voltage seeds) -- its update, the kernel's
+write of its grid and every composition multiply were skipped, so that an
+undriven feedback stayed bit-identical to the former single-state
+recursion. It was never a physics switch: with nothing driving it the
+component is identically zero, and ``0 * rotation`` and ``x + 0`` are
+exact in IEEE double. These tests pin that property on both paths and the
+gate itself gone. The frame rotation is deliberately away from unity
+(``exp(-0.7j)``), which is what the skipped multiply used, so the
+equality is not an artefact of a trivial rotation.
+
+``test_the_feedback_has_no_generator_active_gate``
+    The attribute is absent, before any tracking, on both paths.
+``test_undriven_generator_component_is_exactly_zero``
+    Zero drive propagated from a zero seed gives exact zeros -- the
+    premise everything else rests on.
+``test_undriven_sum_is_exactly_the_beam_component``
+    The composed sum equals the beam component bit-for-bit although the
+    rotation is not unity, which is the equality the gate used to assign
+    by branch. Non-vacuous: the beam component itself is nonzero.
+``test_undriven_paths_stay_bit_identical``
+    Kernel and reference agree byte-for-byte on the undriven segment,
+    which is where the two implementations of the gate could have
+    diverged.
 
 ``TestDegenerateCoarseSteps``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2208,41 +2351,85 @@ helpers.
 
 What is left of the original cavity-feedback test module after the grid
 builder and the segment value class moved out (to ``test_rf_center_grid.py``
-and ``test_rf_center_segment.py``): the diagnostic flags, the
-multi-harmonic-station support, the coarse-cell step sizing and two
-attribute contracts (documented under `Mixin host contract`_ and
-`Attribute visibility contracts`_). The
+and ``test_rf_center_segment.py``): the multi-harmonic-station support,
+the coarse-cell step sizing and two attribute contracts (documented under
+`Mixin host contract`_ and `Attribute visibility contracts`_). The
+diagnostic-switch tests documented next moved on 2026-09-11, with the
+switches, to ``tests/unittests/testing/test_cavity_feedback.py``. The
 full-tracking tests use a tiny ring (harmonic 5, circumference 5 m, one
 station plus one ``DriftSimple``) at 63 GeV/c.
 ``TestIQCavityFeedbackObservationClass`` is an empty placeholder and
 collects nothing.
 
+``TestProductionFeedbackHasNoDiagnosticSwitches``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+(``tests/unittests/testing/test_cavity_feedback.py``, like the three classes
+after it.) The switches ``debug``, ``validate_grid_each_turn`` and
+``grid_only_no_correction`` are consumed only by tests, so since 2026-09-11
+they live on the test variant
+``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+and not on ``IQCavityFeedbackTimingClass``. The module's helper ``_track``
+tracks one or two turns of an undriven, beam-loading-free cavity
+(``R_over_Q = 0``, zero generator bias) on a single-station ring, harmonic
+5 and 5 m at 63 GeV/c. Its antenna voltage simply decays from
+``initial_voltage``, which is enough to tell a real readout (relative
+voltage correction ~6) from the neutral one (exactly 1 with zero phase).
+
+``test_constructor_rejects_every_switch``
+    Each switch is an unexpected keyword of the production class
+    (``TypeError``, one subtest per switch).
+``test_tracking_never_validates_the_grid``
+    Two production turns never call ``_validate_grid``.
+``test_tracking_records_no_grid_snapshot``
+    None of the five inspection-only snapshots appears on a production
+    instance.
+
 ``TestDiagnosticsDoNotDisableTheFeedback``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The debug flags must not switch the physics off. Three flags used to look
-alike; only one of them disables the correction, and it now says so in its
-name. The helper ``_run_one_turn`` tracks one turn of an undriven,
-beam-loading-free cavity (``R_over_Q = 0``, zero generator bias) that simply
-decays from ``initial_voltage``, which is enough to tell a real readout
-(relative voltage correction ~6) from the neutral one (exactly 1 with zero
-phase).
+Only ``grid_only_no_correction`` switches the physics off. The three
+switches were once a single ``debug`` flag that did all three things, so
+asking for diagnostics silently turned the feedback off.
 
 ``test_default_applies_a_real_correction``
-    The baseline readout is not the neutral one.
-``test_diagnostics_still_apply_a_real_correction``
-    ``debug=True`` used to short-circuit ``_track`` and write the neutral
-    readout -- turning diagnostics on silently turned the feedback off.
+    With no switch set the variant's readout is not the neutral one.
+``test_snapshots_still_apply_a_real_correction``
+    ``debug=True`` records without writing the neutral readout.
 ``test_grid_validation_still_applies_a_real_correction``
     Same for ``validate_grid_each_turn=True``.
-``test_diagnostic_flags_leave_the_readout_bit_identical``
-    Both flags are observation-only, so a run with both enabled reproduces
-    the default run bit-for-bit in the relative voltage correction, the
-    phase correction and the coarse antenna voltage.
+``test_observing_switches_leave_the_production_result_unchanged``
+    Over two turns, the variant with ``debug`` and
+    ``validate_grid_each_turn`` both on reproduces the production class
+    bit-for-bit in the relative voltage correction, the phase correction
+    and the coarse antenna voltage.
 ``test_grid_only_mode_applies_no_correction``
-    ``grid_only_no_correction=True`` is the one mode that *does* switch the
-    physics off: the readout is neutral, yet the grid is still built
-    (``_rf_centers`` non-empty) -- which is the point of the mode.
+    ``grid_only_no_correction=True`` gives the neutral readout, yet the
+    grid is still built (``rf_centers`` non-empty) -- which is the point
+    of the mode.
+
+``TestGridValidationSwitch``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``_validate_grid`` is wrapped and counted over two turns of the one-station
+ring.
+
+``test_validates_every_passage``
+    ``validate_grid_each_turn=True`` validates once per passage: two calls.
+``test_off_by_default``
+    Without the switch: no call.
+
+``TestGridSnapshotSwitch``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``test_debug_records_the_forward_slice``
+    ``debug=True`` records ``current_slice_elements_forward``, and the
+    slice holds the feedback's own station. The backfill snapshots need a
+    ring whose station is not the first reference-altering element, so
+    their values are checked by the multi-section fixture of
+    ``test_rf_center_grid.py``, which builds the variant.
+``test_off_by_default``
+    Without the switch no snapshot appears, over two turns.
 
 ``TestConstructorHarmonicIndexValidation``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

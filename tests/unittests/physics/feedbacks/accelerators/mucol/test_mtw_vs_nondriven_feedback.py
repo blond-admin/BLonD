@@ -1469,10 +1469,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                 # leaves a quarter-period residual per half-drift, so
                 # omega_c * dT lands away from pi and the beam-induced
                 # voltage would be rotated (past 0.5 pi, sign-inverted).
-                self.assertIn(
-                    "demodulation frame is not aligned with the RF bucket",
-                    message,
-                )
+                self.assertIn("not aligned with the RF bucket", message)
                 # The diagnostic must stay actionable: it has to say what is
                 # wrong, not merely that something went wrong.
                 self.assertIn("omega_c * dT", message)

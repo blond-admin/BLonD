@@ -630,38 +630,28 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             **kwargs,
         )
 
-    def test_error_when_first_coarse_cell_populated(self):
+    def test_first_coarse_cell_carries_its_own_charge(self):
         """
-        Charge in the first coarse cell raises when forbidden.
+        A bunch in the first coarse cell is downsampled like any other.
 
-        The fine-grid initial antenna voltage of
-        ``IQCavityFeedbackTimingClass`` is taken from the first coarse cell
-        (see ``circuit_track``), so beam charge there would be
-        double-counted; the class therefore calls ``rf_beam_current`` with
-        ``forbid_charge_in_first_coarse_cell=True``. A bunch early in the
-        window (before the first cell boundary) populates exactly that cell.
+        ``IQCavityFeedbackTimingClass`` seeds the fine solve from the
+        coarse state BEFORE the first forward cell, so that cell's own
+        deposit is not part of its seed and nothing double-counts it. The
+        guard that used to reject charge here
+        (``forbid_charge_in_first_coarse_cell``) is gone.
         """
         profile = self._profile_with_bunch_at(0.08)
-        with self.assertRaises(ValueError) as cm:
-            self._downsampled(profile, forbid_charge_in_first_coarse_cell=True)
-        self.assertIn("first coarse-grid cell", str(cm.exception))
-
-    def test_no_error_when_first_coarse_cell_empty(self):
-        """
-        A mid-window bunch leaves the first cell numerically empty.
-
-        The far Gaussian tail is non-zero in float arithmetic (~1e-100), so
-        the guard must use a relative threshold rather than ``!= 0``.
-        """
-        profile = self._profile_with_bunch_at(0.5)
-        charges_fine, charges_coarse = self._downsampled(
-            profile, forbid_charge_in_first_coarse_cell=True
-        )
-        self.assertLess(
+        charges_fine, charges_coarse = self._downsampled(profile)
+        self.assertGreater(
             np.abs(charges_coarse[0]),
-            1e-9 * np.sum(np.abs(charges_fine)),
+            0.5 * np.sum(np.abs(charges_fine)),
         )
-        self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
+
+    def test_first_coarse_cell_guard_is_gone(self):
+        """``forbid_charge_in_first_coarse_cell`` is no longer a parameter."""
+        profile = self._profile_with_bunch_at(0.08)
+        with self.assertRaises(TypeError):
+            self._downsampled(profile, forbid_charge_in_first_coarse_cell=True)
 
     def _downsampled_onto_three_cells(self, profile, **kwargs):
         """
@@ -696,73 +686,54 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             **kwargs,
         )
 
-    def _last_cell_warnings(self, caught):
+    def test_error_when_last_coarse_cell_populated(self):
         """
-        Messages of the recorded last-coarse-cell warnings.
+        Charge in the last coarse cell raises when forbidden.
 
-        Parameters
-        ----------
-        caught
-            Warnings recorded by ``warnings.catch_warnings(record=True)``.
-
-        Returns
-        -------
-        list of str
-            The messages that report charge in the last coarse cell.
-        """
-        return [
-            str(entry.message)
-            for entry in caught
-            if "last coarse-grid cell" in str(entry.message)
-        ]
-
-    def test_warns_when_last_coarse_cell_populated(self):
-        """
-        Charge in the last coarse cell warns when asked to.
-
-        ``IQCavityFeedbackTimingClass`` carries the beam current of the
-        last forward coarse cell into the first coarse step of its next
-        passage. That sample has already driven the last step of the
-        passage that demodulated it, so a populated last cell is counted
-        twice; the class therefore calls ``rf_beam_current`` with
-        ``warn_charge_in_last_coarse_cell=True``.
+        A cell's beam current drives the coarse step that ENDS at its own
+        centre, and the first step of the next passage's span -- from this
+        passage's last centre to the next first centre -- has no charge of
+        its own to drive it. The boundary between two passages must
+        therefore stay charge-free, and no reasonable profile window
+        reaches the end of the forward coarse segment;
+        ``IQCavityFeedbackTimingClass`` calls ``rf_beam_current`` with
+        ``forbid_charge_in_last_coarse_cell=True``.
         """
         profile = self._profile_with_bunch_at(0.9)
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            charges_fine, charges_coarse = self._downsampled_onto_three_cells(
-                profile, warn_charge_in_last_coarse_cell=True
+        with self.assertRaises(ValueError) as cm:
+            self._downsampled_onto_three_cells(
+                profile, forbid_charge_in_last_coarse_cell=True
             )
-        self.assertEqual(len(self._last_cell_warnings(caught)), 1)
-        # Not vacuous: the bunch really sits in the last cell.
-        self.assertGreater(
-            np.abs(charges_coarse[-1]),
-            0.5 * np.sum(np.abs(charges_fine)),
-        )
+        self.assertIn("last coarse-grid cell", str(cm.exception))
 
-    def test_no_warning_when_last_coarse_cell_empty(self):
+    def test_no_error_when_last_coarse_cell_empty(self):
         """
         A mid-window bunch leaves the last cell numerically empty.
 
         Its far Gaussian tail reaches the last cell only at the ~1e-100
-        level, so the check must use the same relative threshold as the
-        first-coarse-cell guard rather than ``!= 0``.
+        level, so the check must use a relative threshold rather than
+        ``!= 0``.
         """
         profile = self._profile_with_bunch_at(0.5)
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            self._downsampled_onto_three_cells(
-                profile, warn_charge_in_last_coarse_cell=True
-            )
-        self.assertEqual(self._last_cell_warnings(caught), [])
+        charges_fine, charges_coarse = self._downsampled_onto_three_cells(
+            profile, forbid_charge_in_last_coarse_cell=True
+        )
+        self.assertLess(
+            np.abs(charges_coarse[-1]),
+            1e-9 * np.sum(np.abs(charges_fine)),
+        )
+        self.assertGreater(np.abs(np.sum(charges_fine)), 0.0)
 
-    def test_last_coarse_cell_warning_is_opt_in(self):
-        """Without the flag a populated last cell does not warn."""
+    def test_last_coarse_cell_guard_is_opt_in(self):
+        """Without the flag a populated last cell is accepted."""
         profile = self._profile_with_bunch_at(0.9)
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            self._downsampled_onto_three_cells(profile)
-        self.assertEqual(self._last_cell_warnings(caught), [])
+        charges_fine, charges_coarse = self._downsampled_onto_three_cells(
+            profile
+        )
+        self.assertGreater(
+            np.abs(charges_coarse[-1]),
+            0.5 * np.sum(np.abs(charges_fine)),
+        )
 
     def test_incomplete_capture_is_not_warned_about_here(self):
         """
@@ -1022,6 +993,106 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         )
 
 
+class TestRfBeamCurrentDemodulationPhase(unittest.TestCase):
+    """
+    ``demodulation_phase`` states the frame ``dT`` would otherwise derive.
+
+    ``dT`` carries two roles: it rotates the demodulation carrier by
+    ``dT * omega_c``, and it shifts the fine-to-coarse binning, which
+    follows physical sample times. The coarse-grid caller needs the frame
+    to be exactly the convention value ``pi`` -- the grid is built to
+    deliver it, but the product of a tail measured against one carrier
+    with the next segment's carrier only approximates it -- while the
+    binning must keep following the real tail. Stating the phase separates
+    the two: given, it replaces the ``dT``-derived rotation and nothing
+    else, and ``carrier_phase_offset`` still adds on top of it.
+    """
+
+    def setUp(self):
+        """RF, bunch and coarse-grid parameters."""
+        self.t_rf = 1.0e-9
+        self.omega_rf = 2.0 * np.pi / self.t_rf
+        self.intensity = 2.7e12
+        self.n_points_coarse = 4
+        # A tail of a third of an RF period: a frame far from pi, so the
+        # stated and the derived rotation cannot coincide by accident.
+        self.dT = self.t_rf / 3.0
+        profile = StaticProfile.from_rad(
+            np.pi * 1.5, np.pi * 4.5, 1024, self.t_rf
+        )
+        times = copy_to_cpu(profile.hist_x)
+        centre = times[0] + 0.5 * (times[-1] - times[0])
+        hist_y = np.exp(-0.5 * ((times - centre) / (0.02 * self.t_rf)) ** 2)
+        hist_y[:5] = 0.0
+        hist_y[-5:] = 0.0
+        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
+        self.profile = profile
+
+    def _current(self, **kwargs):
+        """
+        Fine and coarse demodulated beam current for one set of options.
+
+        Parameters
+        ----------
+        **kwargs
+            Overrides forwarded to ``rf_beam_current``.
+
+        Returns
+        -------
+        charges_fine, charges_coarse
+            The demodulated fine-grid and coarse-grid currents.
+        """
+        options = {
+            "beam": StubBeam(self.intensity),
+            "profile": self.profile,
+            "omega_c": self.omega_rf,
+            "use_lowpass_filter": False,
+            "dT": self.dT,
+            "sampling_time": self.t_rf,
+            "n_points": self.n_points_coarse,
+        }
+        options.update(kwargs)
+        return rf_beam_current(**options)
+
+    def test_the_stated_phase_replaces_the_derived_rotation(self):
+        """The envelope turns by the stated phase instead of ``dT * w``."""
+        derived_fine, _ = self._current()
+        stated_fine, _ = self._current(demodulation_phase=np.pi)
+        rotation = np.exp(1j * (np.pi - self.dT * self.omega_rf))
+        np.testing.assert_allclose(
+            stated_fine, derived_fine * rotation, rtol=1e-12, atol=0.0
+        )
+        # Non-vacuous: the two frames really differ on this fixture.
+        self.assertFalse(np.allclose(stated_fine, derived_fine))
+
+    def test_the_binning_still_follows_the_time(self):
+        """Only the phase moves: the coarse cells keep their charge."""
+        _, derived_coarse = self._current()
+        _, stated_coarse = self._current(demodulation_phase=np.pi)
+        np.testing.assert_allclose(
+            np.abs(stated_coarse), np.abs(derived_coarse), rtol=1e-12
+        )
+        # Non-vacuous: the binning does move when the TIME changes.
+        _, shifted_coarse = self._current(
+            dT=self.dT + self.t_rf, demodulation_phase=np.pi
+        )
+        self.assertFalse(
+            np.allclose(np.abs(shifted_coarse), np.abs(stated_coarse))
+        )
+
+    def test_the_carrier_phase_offset_still_adds_on_top(self):
+        """The caller's carrier phase is independent of the frame."""
+        offset = -0.37
+        stated_fine, _ = self._current(demodulation_phase=np.pi)
+        both_fine, _ = self._current(
+            demodulation_phase=np.pi, carrier_phase_offset=offset
+        )
+        np.testing.assert_allclose(
+            both_fine, stated_fine * np.exp(1j * offset), rtol=1e-12, atol=0.0
+        )
+
+
 class TestRfBeamCurrentCounterRotating(unittest.TestCase):
     """
     Direction-signed charge in the RF beam current.
@@ -1103,7 +1174,6 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
             sampling_time=self.t_rf,
             n_points=8,
             dT=0.0,
-            forbid_charge_in_first_coarse_cell=True,
         )
 
     def test_counter_rotating_mu_minus_matches_co_rotating_mu_plus(self):
@@ -1237,7 +1307,6 @@ class TestUnifiedRfBeamCurrentMigrationPin(unittest.TestCase):
             n_points=8,
             dT=0.1 * self.t_rf,
             carrier_phase_offset=0.123,
-            forbid_charge_in_first_coarse_cell=True,
         )
 
         # Fine-grid checksums, recorded from the pre-merge partial path.

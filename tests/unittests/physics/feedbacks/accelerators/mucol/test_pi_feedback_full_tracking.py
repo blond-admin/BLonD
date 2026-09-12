@@ -37,6 +37,7 @@ from blond import (
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
@@ -560,8 +561,8 @@ class TestKickFrameVoltageIsContinuousAcrossBackfill(unittest.TestCase):
     It is checked at every place where the grid changes hands -- (a) the
     last forward cell of passage ``m`` to the first backfill cell of
     passage ``m + 1``, (b) a backfill segment boundary, (c) the last
-    backfill cell to the first forward cell, which
-    ``forbid_charge_in_first_coarse_cell`` keeps charge-free -- and at
+    backfill cell to the first forward cell, which this fixture's window
+    placement keeps charge-free -- and at
     every step inside a backfill segment, from passage 1 on (passage 0
     carries no beam-induced voltage before its own deposit).
 
@@ -1800,6 +1801,111 @@ class TestPIFullTrackingMultiSectionFastRamp(unittest.TestCase):
         np.testing.assert_allclose(
             self.rec["i_max_dev"], self.PIN_I_MAX_DEV, rtol=1e-6
         )
+
+
+class TestDemodulationFrameIsStatedNotDerived(unittest.TestCase):
+    r"""
+    The beam current is demodulated at exactly ``pi``, not at the geometry.
+
+    The convention fixes the demodulation frame at ``omega_c * dT = pi``
+    (mod ``2 pi``), and the coarse grid is built to deliver it: segments
+    seed half an RF period into the segment and step by whole RF periods.
+    The product is nevertheless only approximately that, because ``dT`` is
+    the tail left by the PRECEDING segment while ``omega_c`` is THIS
+    segment's carrier: under a ramp the two part by the fractional
+    per-segment frequency change. Measured on this fixture (4 GeV,
+    20 MeV/turn): 3.5e-6 pi at one section, 1.7e-6 pi at two and 8.7e-7 pi
+    at four -- more sections, smaller frequency step per segment --
+    against 1.9e-11 pi at constant energy.
+
+    The frame is therefore stated, and
+    ``_assert_demodulation_frame_aligned`` checks the geometry against it
+    rather than handing it over: a malformed grid -- a sub-step other than
+    0.5, or a harmonic that is not a whole number of RF periods per
+    segment -- still raises. ``dT`` keeps its second role, the
+    fine-to-coarse binning shift, which is a physical time, not a phase.
+    """
+
+    ENERGY = 4.0e9
+    DELTA_E_TURN = 20.0e6
+    N_TURNS = 3
+    #: Tolerance of ``_assert_demodulation_frame_aligned``, in units of pi.
+    GUARD_TOLERANCE = 1.0e-3
+    #: Smallest lag the ramped fixture must show for the stated frame to be
+    #: more than a restatement of the geometry, in units of pi.
+    MIN_RAMPED_LAG = 1.0e-7
+
+    def _demodulation_calls(self, n_sections: int, delta_e_turn: float):
+        """
+        Record every ``rf_beam_current`` call of a tracked run.
+
+        Parameters
+        ----------
+        n_sections
+            Number of RF stations.
+        delta_e_turn
+            Reference energy gain per turn [eV].
+
+        Returns
+        -------
+        calls
+            One recorded call per passage, in passage order.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with mock.patch(
+                "blond.physics.feedbacks.cavity_feedback.rf_beam_current",
+                wraps=rf_beam_current,
+            ) as demodulation:
+                _run_config(
+                    n_sections, self.ENERGY, delta_e_turn, self.N_TURNS
+                )
+        return demodulation.call_args_list
+
+    @staticmethod
+    def _frame_lags(calls):
+        """
+        Distance of each derived frame from the nearest odd multiple of pi.
+
+        Parameters
+        ----------
+        calls
+            Recorded ``rf_beam_current`` calls.
+
+        Returns
+        -------
+        lags
+            One lag per passage, in units of pi.
+        """
+        theta = np.array(
+            [call.kwargs["dT"] * call.kwargs["omega_c"] for call in calls]
+        )
+        return ((theta % (2.0 * np.pi)) - np.pi) / np.pi
+
+    def test_every_passage_is_demodulated_at_exactly_pi(self):
+        """The stated frame reaches every passage of every station."""
+        calls = self._demodulation_calls(2, self.DELTA_E_TURN)
+        self.assertEqual(len(calls), 2 * self.N_TURNS)
+        for passage, call in enumerate(calls):
+            with self.subTest(passage=passage):
+                self.assertEqual(call.kwargs["demodulation_phase"], np.pi)
+
+    def test_the_geometry_it_replaces_carries_the_ramp_lag(self):
+        """Non-vacuous: under a ramp the derived frame is not ``pi``."""
+        for n_sections in (1, 2, 4):
+            lags = np.abs(
+                self._frame_lags(
+                    self._demodulation_calls(n_sections, self.DELTA_E_TURN)
+                )
+            )
+            with self.subTest(n_sections=n_sections):
+                self.assertGreater(float(lags.min()), self.MIN_RAMPED_LAG)
+                self.assertLess(float(lags.max()), self.GUARD_TOLERANCE)
+
+    def test_constant_energy_needs_no_correction(self):
+        """Control: without a ramp the geometry is ``pi`` to float noise."""
+        lags = np.abs(self._frame_lags(self._demodulation_calls(2, 0.0)))
+        self.assertLess(float(lags.max()), 1.0e-9)
 
 
 class TestKernelMatchesReferenceEndToEnd(unittest.TestCase):

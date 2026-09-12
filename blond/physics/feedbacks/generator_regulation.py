@@ -21,10 +21,16 @@ that need nothing but the attached controller and the voltage setpoint:
 - ``_update_generator_current``, the error-to-current step the reference
   per-cell path takes.
 
-The klystron limit is enforced in exactly one place: by the controller, on
-every coarse command it returns. The fine-grid generator current is a linear
-interpolation of those commands, and a straight line between two points
-inside the limit circle stays inside it, so no second clamp is needed there.
+The klystron limit is enforced by the controller: on every coarse command it
+returns, and once more through ``GeneratorCurrentController.limit`` on the
+forward span's commands, before ``_resolve_fine_grid_voltage`` seeds and
+interpolates the fine grid from them. For ``GeneratorCurrentPIController``
+that second pass changes nothing beyond rounding, because its commands are
+already clamped; it is there for controllers whose
+``update_generator_current`` does not clamp. The fine-grid generator current
+is a linear interpolation of those commands, and a straight line between two
+points inside the limit circle stays inside it, so no clamp follows the
+interpolation.
 
 It is a *mixin*: those methods read and write host state
 (``_controller``, ``_voltage_setpoint``, ``n_cavities``, ``R_over_Q``,
@@ -49,12 +55,12 @@ look there:
   ``absorb_envelope_scan_state``. It is not moved because it works on every
   coarse grid (it reads the beam current, the generator- and beam-sourced
   antenna voltages and the generator current, and writes the last three
-  and their summed voltage) and reads four of the five values carried
+  and their summed voltage) and reads three of the four values carried
   across the turn boundary (``_last_val_ant_voltage_gen``,
-  ``_last_val_ant_voltage_beam``, ``_last_val_generator_current``,
-  ``_last_val_beam_current``; the summed ``_last_val_ant_voltage`` was read
-  only by the forward-Euler beam-kick guard removed on 2026-09-11), and
-  because it depends on ``pi_setpoint``
+  ``_last_val_ant_voltage_beam`` and ``_last_val_generator_current``; the
+  summed ``_last_val_ant_voltage`` was read only by the forward-Euler
+  beam-kick guard removed on 2026-09-11, and no beam current is carried
+  since 2026-09-12), and because it depends on ``pi_setpoint``
   staying **unevaluated** on a span with no controller attached -- that
   property may reach through to the parent rf station. Moving it would
   relocate that coupling, not remove it.

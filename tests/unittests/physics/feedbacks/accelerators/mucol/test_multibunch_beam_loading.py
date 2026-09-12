@@ -39,12 +39,12 @@ test slices the window around the second bunch and asserts the relative error
 floor (trailing/leading/global feedback-vs-solver ~0.19 %/0.46 %/0.11 %), not a
 loose 2 %, so a sub-percent error in the carried inter-cell wake fails.
 
-To keep the first coarse cell charge-free (the
-``forbid_charge_in_first_coarse_cell`` guard in
-:func:`~blond.physics.feedbacks.beam_current.rf_beam_current`, which the
-timing class enforces because it seeds the fine-grid initial antenna voltage from
-that cell), the profile is zeroed below :data:`ZERO_BELOW_TRF` ``t_rf`` -- well
-below the leading bunch's left tail (>6 sigma), so no physical charge is lost.
+The profile is zeroed below :data:`ZERO_BELOW_TRF` ``t_rf`` -- well below the
+leading bunch's left tail (>6 sigma), so no physical charge is lost. It keeps
+the leading edge quiet for the resonator solver and pins this fixture's coarse
+alignment; it dates from the retired ``forbid_charge_in_first_coarse_cell``
+guard, and the timing class now seeds the fine solve BEFORE the first forward
+coarse cell, so charge there would be tracked correctly anyway.
 """
 
 import unittest
@@ -92,8 +92,8 @@ SIGMA_TRF = 0.08  # bunch rms length
 NOISE_LEVEL = 0.03  # additive profile noise (relative to bunch peak)
 # Zero all charge below this (t_rf) so the first coarse cell stays empty. The
 # leading bunch centre is >= 2 t_rf, so this cuts >6 sigma of its left tail:
-# negligible charge, but it guarantees the forbid_charge_in_first_coarse_cell
-# guard of the timing class is satisfied whatever the exact coarse alignment.
+# negligible charge, and the coarse alignment of this fixture stays fixed
+# whatever the exact grid phase.
 ZERO_BELOW_TRF = 1.5
 
 # Fine-grid resolution: ~512 bins per t_rf over the ~8 t_rf window. Enough
@@ -395,29 +395,21 @@ class TestSinglePassMultiBunch(unittest.TestCase):
         self.assertLess(rel_err(v_feedback[last], v_solver[last]), 0.006)
         self.assertLess(rel_err(v_feedback, v_solver), 0.003)
 
-    def test_first_coarse_cell_precondition(self):
+    def test_first_coarse_cell_is_empty_on_this_fixture(self):
         """
         The multi-bunch profile leaves the *first coarse cell* charge-free.
 
-        Exercises the real invariant the timing class relies on by driving the
-        *actual* mucol coarse-grid downsampling,
-        the coarse path of
-        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current` with the
-        first-coarse-cell guard on (as the forward pass calls it -- it seeds the
-        fine-grid initial antenna voltage from the first coarse cell and
-        hard-enforces that it stay
-        charge-free), rather than re-reading the profile builder's hard-zeroed
-        *fine* region. It returns normally and the first *coarse* cell carries
-        negligible charge; a coarse-alignment regression that spilled charge into
-        it (the ``ValueError`` path of
-        ``test_mtw_vs_nondriven_feedback.test_multiturn_nondivisible_harmonic``)
-        would raise here. The guard's teeth themselves are covered by
-        ``test_helpers.py::test_error_when_first_coarse_cell_populated``.
+        No longer a constraint -- the timing class seeds the fine solve
+        before the first forward cell, so that cell may carry charge --
+        but this fixture's window still starts well clear of it, and the
+        coarse alignment that pins is what the comparisons above are
+        measured against. Driving the *actual* mucol coarse-grid
+        downsampling checks the alignment itself rather than re-reading
+        the profile builder's hard-zeroed *fine* region.
         """
         # Drive the real forward-pass coarse path (n_rf_periods_per_coarse_grid
         # = 1 -> sampling_time = t_rf); n_points comfortably exceeds the ~8
-        # coarse indices the ~8 t_rf window spans. Returning without raising
-        # *is* the load-bearing check.
+        # coarse indices the ~8 t_rf window spans.
         charges_fine, charges_coarse = rf_beam_current(
             beam=self.stub_beam,
             profile=self.profile,
@@ -425,11 +417,7 @@ class TestSinglePassMultiBunch(unittest.TestCase):
             sampling_time=self.t_rf,
             n_points=int(np.ceil(WINDOW_TRF[1])) + 4,
             dT=0.0,
-            forbid_charge_in_first_coarse_cell=True,
         )
-        # Explicit companion check, normalised exactly as the guard is
-        # (against the total *fine* charge): the first coarse cell -- whose beam
-        # kick would be double-counted by the fine-grid seed -- is empty.
         total_charge = np.sum(np.abs(charges_fine))
         self.assertGreater(total_charge, 0.0)
         self.assertLess(np.abs(charges_coarse[0]) / total_charge, 1e-9)

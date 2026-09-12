@@ -285,15 +285,18 @@ class TestBeamLoadingSignVsDesignRfPhase(unittest.TestCase):
         self.assertLess(mean_loss, -4.0e4, msg=f"{mean_loss=}")
         self.assertGreater(mean_loss, -1.6e5, msg=f"{mean_loss=}")
 
-    def test_feedback_requests_the_last_coarse_cell_warning(self):
+    def test_feedback_forbids_charge_in_the_last_coarse_cell(self):
         """
-        Every coarse demodulation of the timing class asks for the warning.
+        Every coarse demodulation of the timing class asks for the guard.
 
-        The beam current of the last forward coarse cell is carried into
-        the first coarse step of the next passage, which counts it a second
-        time, so the feedback must call ``rf_beam_current`` with
-        ``warn_charge_in_last_coarse_cell=True`` whenever it downsamples
-        onto the coarse grid.
+        A cell's beam current drives the coarse step that ends at its own
+        centre, and the first step of the next passage's span carries
+        none, so the boundary between two passages must stay charge-free.
+        The feedback calls ``rf_beam_current`` with
+        ``forbid_charge_in_last_coarse_cell=True`` whenever it downsamples
+        onto the coarse grid, and no longer asks for the retired
+        first-coarse-cell guard: the fine solve is seeded before the first
+        forward cell, so that cell may carry charge.
         """
         with mock.patch(
             "blond.physics.feedbacks.cavity_feedback.rf_beam_current",
@@ -308,8 +311,9 @@ class TestBeamLoadingSignVsDesignRfPhase(unittest.TestCase):
         self.assertGreater(len(coarse_calls), 0)
         for call in coarse_calls:
             self.assertIs(
-                call.kwargs.get("warn_charge_in_last_coarse_cell"), True
+                call.kwargs.get("forbid_charge_in_last_coarse_cell"), True
             )
+            self.assertNotIn("forbid_charge_in_first_coarse_cell", call.kwargs)
 
     def test_bunch_loses_energy_to_its_own_wake_at_zero_design_phase(self):
         """Control: at ``phi_rf_design = 0`` every particle is decelerated."""
@@ -439,7 +443,293 @@ class TestDemodulationFrameGuard(unittest.TestCase):
         with self.assertRaises(ValueError) as raised:
             self._induced_mean(0.9)
         message = str(raised.exception)
-        self.assertIn(
-            "demodulation frame is not aligned with the RF bucket", message
-        )
+        self.assertIn("not aligned with the RF bucket", message)
         self.assertIn("n_rf_periods_per_coarse_grid", message)
+
+
+class TestBunchInTheFirstCoarseCell(unittest.TestCase):
+    """
+    A bunch in the first forward coarse cell is tracked, not refused.
+
+    The fine solve is seeded from the coarse state BEFORE the first
+    forward centre and propagated beam-free to ``cut_left``, so the seed
+    predates every deposit of the passage however early in the forward
+    segment the bunch sits. The first coarse cell is then an ordinary
+    one: its charge drives the coarse step into its own centre once, and
+    the fine solve integrates it once. The window used to be constrained
+    to ``cut_left >= first forward centre`` with a charge-free first
+    cell; this replaces both.
+
+    Measured on this fixture's grid: the forward centres sit at
+    ``(k + 0.5) t_rf`` after a 0.5 ``t_rf`` residual, so the first coarse
+    cell spans ``(-0.5, +0.5] t_rf`` and a bunch at ``0.3 t_rf`` sits in
+    it. The same bunch one RF period later sits in the second cell, which
+    is the geometry every other test in this module runs, so it is the
+    reference the first-cell placement must reproduce.
+    """
+
+    #: Bunch centre inside the first forward coarse cell [t_rf].
+    FIRST_CELL_CENTRE = 0.3
+    #: The same bunch one RF period later, in the second coarse cell.
+    SECOND_CELL_CENTRE = 1.3
+    #: Window half-width around the bunch centre [t_rf]. The template
+    #: bunch reaches 0.245 t_rf past its mean, and ``cut_left`` must stay
+    #: positive for the first-cell placement.
+    WINDOW_HALF_WIDTH = 0.26
+
+    @classmethod
+    def setUpClass(cls):
+        """Reuse the sibling fixture's template bunch."""
+        TestBeamLoadingSignVsDesignRfPhase.setUpClass()
+
+    @classmethod
+    def _profile_around(cls, centre_t_rf: float) -> StaticProfile:
+        """
+        Profile window centred on the bunch.
+
+        Parameters
+        ----------
+        centre_t_rf
+            Bunch centre, in RF periods from the passage reference time.
+
+        Returns
+        -------
+        profile
+            Static profile the feedback acts on.
+        """
+        return StaticProfile.from_rad(
+            2.0 * np.pi * (centre_t_rf - cls.WINDOW_HALF_WIDTH),
+            2.0 * np.pi * (centre_t_rf + cls.WINDOW_HALF_WIDTH),
+            N_SLICES,
+            TestBeamLoadingSignVsDesignRfPhase.t_rf,
+        )
+
+    @classmethod
+    def _shifted_dt(cls, centre_t_rf: float):
+        """
+        Template bunch coordinates centred on ``centre_t_rf``.
+
+        Parameters
+        ----------
+        centre_t_rf
+            Bunch centre, in RF periods from the passage reference time.
+
+        Returns
+        -------
+        dt
+            Macroparticle arrival times [s].
+        """
+        base = TestBeamLoadingSignVsDesignRfPhase
+        return (
+            base.dt_template
+            - np.mean(base.dt_template)
+            + centre_t_rf * base.t_rf
+        )
+
+    @classmethod
+    def _applied_kick(cls, centre_t_rf: float, intensity: float):
+        """
+        Energy applied to each macroparticle over one turn [eV].
+
+        Parameters
+        ----------
+        centre_t_rf
+            Bunch centre, in RF periods from the passage reference time.
+        intensity
+            Beam intensity; 0.0 gives the beam-free reference run.
+
+        Returns
+        -------
+        applied
+            Energy kick per macroparticle over the turn [eV].
+        """
+        base = TestBeamLoadingSignVsDesignRfPhase
+        simulation, _ = base._build(0.0, cls._profile_around(centre_t_rf))
+        beam = base._prepare(simulation, intensity)
+        beam.setup_beam(dt=cls._shifted_dt(centre_t_rf), dE=base.dE_template)
+        dE_before = copy_to_cpu(beam.dE.array_local)
+        simulation.run_simulation((beam,), n_turns=1, show_progressbar=False)
+        return copy_to_cpu(beam.dE.array_local) - dE_before
+
+    @classmethod
+    def _induced_kick(cls, centre_t_rf: float):
+        """
+        Beam-induced kick per macroparticle [eV], by reference subtraction.
+
+        Parameters
+        ----------
+        centre_t_rf
+            Bunch centre, in RF periods from the passage reference time.
+
+        Returns
+        -------
+        induced
+            Beam-induced energy kick per macroparticle [eV].
+        """
+        return cls._applied_kick(centre_t_rf, INTENSITY) - cls._applied_kick(
+            centre_t_rf, 0.0
+        )
+
+    def test_bunch_in_the_first_coarse_cell_is_downsampled_into_it(self):
+        """Non-vacuity: the demodulation really fills the first cell."""
+        base = TestBeamLoadingSignVsDesignRfPhase
+        simulation, rf_station = base._build(
+            0.0, self._profile_around(self.FIRST_CELL_CENTRE)
+        )
+        beam = base._prepare(simulation, INTENSITY)
+        beam.setup_beam(
+            dt=self._shifted_dt(self.FIRST_CELL_CENTRE), dE=base.dE_template
+        )
+        simulation.run_simulation((beam,), n_turns=1, show_progressbar=False)
+        feedback = rf_station.get_main_harmonic_cavity_feedback()
+        coarse = np.abs(feedback.beam_current_forward_coarse_grid)
+        self.assertGreater(float(coarse[0]), 0.5 * float(np.sum(coarse)))
+
+    def test_bunch_in_the_first_coarse_cell_loses_energy_to_its_wake(self):
+        """The fundamental theorem still holds for a first-cell bunch."""
+        induced = self._induced_kick(self.FIRST_CELL_CENTRE)
+        self.assertLessEqual(float(np.max(induced)), 0.0)
+        self.assertLess(float(np.mean(induced)), 0.0)
+
+    def test_induced_kick_does_not_depend_on_which_coarse_cell(self):
+        """
+        The same bunch one RF period later takes the same energy.
+
+        The wake a bunch drives is a property of the cavity and the
+        bunch, not of which coarse cell the demodulation happens to bin
+        it into: window and bunch are shifted together by exactly one RF
+        period, so the two runs differ only in that binning. A seed taken
+        at the first forward centre instead of before it would count the
+        first cell's deposit twice and roughly double this kick.
+        """
+        reference = self._induced_kick(self.SECOND_CELL_CENTRE)
+        first_cell = self._induced_kick(self.FIRST_CELL_CENTRE)
+        tolerance = 1e-6 * float(np.max(np.abs(reference)))
+        np.testing.assert_allclose(
+            first_cell,
+            reference,
+            rtol=0,
+            atol=tolerance,
+            err_msg=(
+                "the beam-induced kick changed when the bunch moved into "
+                "the first forward coarse cell"
+            ),
+        )
+
+
+class TestFirstPassageDemodulationFrame(unittest.TestCase):
+    r"""
+    A station that opens the ring is demodulated like every other passage.
+
+    ``calculate_rf_centers_for_backfill`` generates nothing on the first
+    passage of a station that is the ring's FIRST reference-altering
+    element: there is no elapsed span to reconstruct. The tail that
+    passage's demodulation consumes has to be continued backwards out of
+    the segment tiling instead -- segments seed at the falling-edge zero
+    ``t_rf / 2`` and step by ``n t_rf``, so the virtual centre one step
+    before the first lies at ``t_rf / 2 - n t_rf`` and the tail to the
+    passage is ``n t_rf - t_rf / 2``, i.e. ``omega_c * dT = 2 pi n - pi``,
+    which is ``pi`` (mod 2 pi) for integer ``n``. Without it the first
+    passage alone would be demodulated exactly ``pi`` out of phase, and
+    that wrongly signed deposit decays only over ``2 Q_L / omega``.
+
+    The rule belongs to the grid bookkeeping, which produces every other
+    segment tail, not to a run-start hook on the feedback: a hook has to
+    be ordered by hand against the first ``_track``, and the value it
+    writes is consumed by the grid twice over (the demodulation frame and
+    the first coarse step's length).
+    """
+
+    N_TURNS = 3
+    #: The static fixture lands the frame on ``pi`` to float noise; the
+    #: guard itself only demands ``1e-3 pi``.
+    FRAME_TOLERANCE = 1.0e-6
+
+    @classmethod
+    def setUpClass(cls):
+        """Reuse the sibling fixture's cycle and template bunch."""
+        TestBeamLoadingSignVsDesignRfPhase.setUpClass()
+
+    def _demodulation_frames(self) -> list[float]:
+        """
+        ``omega_c * dT`` of every passage of a station-first ring.
+
+        Returns
+        -------
+        frames
+            One demodulation frame [rad] per passage, in passage order.
+        """
+        sibling = TestBeamLoadingSignVsDesignRfPhase
+        profile = sibling._make_profile()
+        ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
+        feedback = IQCavityFeedbackTimingClass(
+            profile=profile,
+            R_over_Q=R_OVER_Q,
+            Q_L=Q_L,
+            generator_current_bias=V_DESIGN / (2.0 * R_OVER_Q * Q_L),
+            n_cavities=1,
+            initial_voltage=V_DESIGN,
+            n_rf_periods_per_coarse_grid=1,
+            delta_omega=0.0,
+        )
+        rf_station = SingleHarmonicRFStation(
+            voltage=V_DESIGN,
+            phi_rf=0.0,
+            harmonic=HARMONIC,
+            cavity_feedback=feedback,
+            profile=profile,
+        )
+        # The RF station opens the ring: the case the backfill walk
+        # cannot supply a tail for.
+        ring.add_elements(
+            [
+                rf_station,
+                DriftSimple(
+                    orbit_length=CIRCUMFERENCE,
+                    momentum_compaction_factor=ALPHA_P,
+                ),
+            ],
+            reorder=False,
+        )
+        simulation = Simulation(ring=ring, magnetic_cycle=sibling.cycle)
+        beam = sibling._prepare(simulation, INTENSITY)
+        beam._dt.array_local += sibling.t_rf
+
+        with mock.patch(
+            "blond.physics.feedbacks.cavity_feedback.rf_beam_current",
+            wraps=rf_beam_current,
+        ) as demodulation:
+            simulation.run_simulation(
+                (beam,), n_turns=self.N_TURNS, show_progressbar=False
+            )
+        return [
+            float(call.kwargs["dT"] * call.kwargs["omega_c"])
+            for call in demodulation.call_args_list
+        ]
+
+    def test_first_passage_is_in_the_same_frame_as_the_later_ones(self):
+        """Every passage, the first included, demodulates at ``pi``."""
+        frames = self._demodulation_frames()
+        self.assertEqual(len(frames), self.N_TURNS)
+        for passage, frame in enumerate(frames):
+            with self.subTest(passage=passage):
+                deviation = (frame % (2.0 * np.pi)) - np.pi
+                self.assertLess(
+                    abs(deviation),
+                    self.FRAME_TOLERANCE,
+                    f"passage {passage} is demodulated at "
+                    f"{frame / np.pi:.9f} pi",
+                )
+        self.assertAlmostEqual(frames[0], frames[1], delta=1e-9)
+
+    def test_the_feedback_has_no_run_start_seed_hook(self):
+        """The tail is produced by the grid, not by a run-start hook."""
+        self.assertFalse(
+            hasattr(
+                IQCavityFeedbackTimingClass,
+                "_seed_initial_demodulation_frame",
+            ),
+            "the first passage's tail is seeded by a run-start hook; it "
+            "belongs to the grid bookkeeping that produces every other "
+            "segment tail",
+        )

@@ -103,7 +103,6 @@ class TestCavityFeedback(unittest.TestCase):
             n_steps, dtype=complex
         )
         self.cav_fdbk._last_val_generator_current = 0.0 + 0.0j
-        self.cav_fdbk._last_val_beam_current = 0.0 + 0.0j
 
         v0 = self.initial_voltage + 0.0j
         # The carried field is generator-established (design-anchored),
@@ -570,7 +569,6 @@ class TestCavityPrefill(unittest.TestCase):
             n_steps, self.I_g, dtype=complex
         )
         cav._last_val_generator_current = self.I_g + 0.0j
-        cav._last_val_beam_current = 0.0 + 0.0j
         # The fill is generator-established: seed the gen component.
         cav._last_val_ant_voltage = v_ss
         cav._last_val_ant_voltage_gen = v_ss
@@ -634,7 +632,6 @@ class TestCavityPrefill(unittest.TestCase):
             n_steps, self.I_g, dtype=complex
         )
         cav._last_val_generator_current = self.I_g + 0.0j
-        cav._last_val_beam_current = 0.0 + 0.0j
         cav._last_val_ant_voltage = v_ss
         cav._last_val_ant_voltage_gen = v_ss
         cav._last_val_ant_voltage_beam = 0.0 + 0.0j
@@ -713,7 +710,6 @@ class TestCavityPrefill(unittest.TestCase):
             n_steps, feedback._generator_current_bias, dtype=complex
         )
         feedback._last_val_generator_current = feedback._generator_current_bias
-        feedback._last_val_beam_current = 0.0 + 0.0j
         # The pre-fill seed is generator-established: gen component.
         feedback._last_val_ant_voltage = feedback._init_voltage
         feedback._last_val_ant_voltage_gen = feedback._init_voltage
@@ -792,8 +788,8 @@ class TestExactCoarsePropagator(unittest.TestCase):
 
         The generator component is driven by the carried current on cell 0
         and by the pre-filled bias grid afterwards; the beam component by
-        the carried beam current on cell 0 and by the forward beam grid
-        afterwards -- the zero-order hold the coarse recursion documents.
+        this passage's own forward beam grid on EVERY cell, cell 0
+        included -- nothing is carried across the passage boundary.
         """
         Q_L = 50.0
         t_rf = 1.0e-9
@@ -802,9 +798,12 @@ class TestExactCoarsePropagator(unittest.TestCase):
         n_cells = 5
         bias = 0.02 + 0.01j
         carried_generator_current = 0.03 - 0.005j
-        carried_beam_current = 0.0 + 0.0j
+        # Cell 0 carries charge of its own: its grid entry drives the step
+        # that ends at its centre, so a path still reading a carried
+        # sample there would diverge from this closed form.
         beam_current = np.array(
-            [0.0, 1e-3 + 2e-4j, -5e-4j, 2e-3 + 0.0j, 1e-3j], dtype=complex
+            [7e-4 - 3e-4j, 1e-3 + 2e-4j, -5e-4j, 2e-3 + 0.0j, 1e-3j],
+            dtype=complex,
         )
         voltage_gen_init = 1.0e6 + 2.0e5j
         voltage_beam_init = -3.0e3 + 1.0e3j
@@ -819,9 +818,7 @@ class TestExactCoarsePropagator(unittest.TestCase):
             generator_current = (
                 carried_generator_current if cell == 0 else bias
             )
-            cell_beam_current = (
-                carried_beam_current if cell == 0 else beam_current[cell]
-            )
+            cell_beam_current = beam_current[cell]
             voltage_gen = propagator * voltage_gen + (
                 self.R_over_Q * omega * t_rf * generator_current * drive_weight
             )
@@ -870,7 +867,6 @@ class TestExactCoarsePropagator(unittest.TestCase):
                 feedback._last_val_generator_current = (
                     carried_generator_current
                 )
-                feedback._last_val_beam_current = carried_beam_current
                 feedback.beam_current_forward_coarse_grid = beam_current
 
                 feedback._circuit_track_cells(
@@ -1100,20 +1096,18 @@ class TestVoltageSetpointValidation(unittest.TestCase):
             self._build(-30e6)
 
 
-class TestFineGridInitialConditionCausality(unittest.TestCase):
+class TestFineGridSeedPrecedesTheWindow(unittest.TestCase):
     """
-    Causality of the fine-grid initial condition in ``circuit_track``.
+    The fine-grid seed is the coarse state BEFORE the forward span.
 
-    The fine solve is seeded with the coarse envelope at the FIRST
-    forward coarse centre ``c0``, and then integrates the beam current
-    over ``[profile.cut_left, profile.cut_right]``. Both times live in
-    the same segment-local frame, so the seed is only causal when
-    ``c0 <= cut_left``: otherwise the coarse cell that produced the
-    seed already sits *after* the start of the fine window, and any
-    charge in that window would be integrated twice.
-
-    A charge-free window has nothing to be causal about, so the guard is
-    gated on the beam current the fine solve actually consumes.
+    ``circuit_track`` seeds the fine solve at the centre preceding the
+    first forward cell and propagates it beam-free to
+    ``profile.cut_left``. That centre lies at or before the passage
+    origin, so the seed always predates the window -- and it predates
+    every deposit of the passage, the first forward cell's included,
+    which is what lets a window start before the first forward centre.
+    Seeding AT that centre instead would fold the first cell's own
+    deposit into its own initial condition.
     """
 
     R_over_Q = 518.0
@@ -1124,13 +1118,14 @@ class TestFineGridInitialConditionCausality(unittest.TestCase):
     n_bins = 128
     n_steps = 8
 
-    def _drive(self, cut_left_rad, with_charge):
+    def _drive(self, cut_left_rad, with_charge, coarse_charge=0.0 + 0.0j):
         """
         Drive ``circuit_track`` over a hand-built constant-step grid.
 
         The coarse centres are ``(k + 0.5) * t_rf``, so the first
         forward centre sits at ``0.5 * t_rf`` (i.e. ``pi`` in the
-        radian units of the profile window).
+        radian units of the profile window) and the first coarse cell
+        is the step that ends there.
 
         Parameters
         ----------
@@ -1139,6 +1134,8 @@ class TestFineGridInitialConditionCausality(unittest.TestCase):
             RF periods wide.
         with_charge
             Whether the fine grid carries a non-zero beam current.
+        coarse_charge
+            Beam current [A] deposited in the FIRST coarse cell.
 
         Returns
         -------
@@ -1165,6 +1162,7 @@ class TestFineGridInitialConditionCausality(unittest.TestCase):
         cav.beam_current_forward_coarse_grid = np.zeros(
             self.n_steps, dtype=complex
         )
+        cav.beam_current_forward_coarse_grid[0] = coarse_charge
         cav.beam_current_fine_grid = np.full(
             self.n_bins, 0.02 + 0.0j if with_charge else 0.0 + 0.0j
         )
@@ -1176,14 +1174,35 @@ class TestFineGridInitialConditionCausality(unittest.TestCase):
         )
         return cav
 
-    def test_charge_before_first_coarse_centre_raises(self):
-        """Charge left of the first forward coarse centre is acausal."""
-        with self.assertRaises(ValueError) as ctx:
-            self._drive(cut_left_rad=0.5 * np.pi, with_charge=True)
-        message = str(ctx.exception)
-        self.assertIn("cut_left", message)
-        self.assertIn("first forward coarse centre", message)
-        self.assertIn("sampling_time_coarse", message)
+    def test_charge_before_first_coarse_centre_is_accepted(self):
+        """A charged window starting before that centre is tracked."""
+        cav = self._drive(cut_left_rad=0.5 * np.pi, with_charge=True)
+        self.assertIsNotNone(cav.antenna_voltage_fine_grid)
+
+    def test_first_cell_deposit_stays_out_of_the_seed(self):
+        """
+        The seed carries no part of the first cell's own deposit.
+
+        Undriven cavity with zero carried state: whatever the first
+        coarse cell deposits, the state BEFORE the forward span is still
+        zero, so a charge-free fine window must come out at zero. A seed
+        taken AT the first forward centre would instead start from that
+        deposit's voltage and the fine solve would go on to integrate the
+        same charge a second time.
+        """
+        cav = self._drive(
+            cut_left_rad=1.5 * np.pi,
+            with_charge=False,
+            coarse_charge=50.0 + 0.0j,
+        )
+        # Not vacuous: the deposit really reaches the coarse grid.
+        self.assertGreater(np.abs(cav.antenna_voltage_coarse_grid[0]), 1.0e4)
+        np.testing.assert_allclose(
+            np.abs(cav.antenna_voltage_fine_grid),
+            0.0,
+            rtol=0,
+            atol=1e-9,
+        )
 
     def test_charge_free_window_before_first_centre_is_allowed(self):
         """A charge-free window has nothing to be causal about."""

@@ -54,13 +54,14 @@ below -- initialises in ``__init__`` / ``on_run_simulation``.
   ``RFCenterGridMixin.get_passed_time_forward_direction`` projection, and
   every read is gated on ``_last_tracked_beam_state_frwrd is not None``.
 - Plain host configuration: ``n_rf_periods_per_coarse_grid``,
-  ``section_index``, ``_parent_rf_station``, ``_ring_circumference``,
-  ``_n_rf_stations_in_ring`` and ``_debug`` -- the last of which additionally gates the inspection-only
-  ``current_slice_elements_forward`` / ``reference_time_after_backfill`` /
-  ``reference_energy_after_backfill`` / ``current_beam_reference_time`` /
-  ``current_beam_reference_energy`` diagnostics written here (nothing in
-  BLonD reads them back; they are the debug feature's assertion interface,
-  consumed by ``tests/unittests/physics/feedbacks/test_rf_center_grid.py``).
+  ``section_index``, ``_parent_rf_station``, ``_ring_circumference`` and
+  ``_n_rf_stations_in_ring``. The inspection-only grid snapshots
+  (``current_slice_elements_forward``, ``reference_time_after_backfill``,
+  ...) are not written here: the test variant
+  ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+  records them, through the no-op hook
+  ``RFCenterGridMixin._record_forward_projection`` and an override of
+  ``RFCenterGridMixin.get_time_omega_array_backfill``.
 
 Two independent notions share the word "backwards" here, and the names keep
 them apart. *Backfill* is a TIME direction: the feedback only runs at its own
@@ -285,28 +286,28 @@ class RFCenterGridMixin:
         self._last_tracked_beam_state_frwrd = beam.is_counter_rotating
         self._reference_state_until_tracked = dummy_reference
 
-        if self._debug:
-            if (
-                next_reference_altering_element_index == -1
-                or next_reference_altering_element_index
-                >= len(self._reference_altering_elements)
-            ):
-                # either none were found or it is around two turns
-                self.current_slice_elements_forward = (
-                    self._reference_altering_elements[
-                        self._own_index_in_reference_list :
-                    ]
-                )
-                self.current_slice_elements_forward += (
-                    self._reference_altering_elements[
-                        0 : next_reference_altering_element_index
-                        - len(self._reference_altering_elements)
-                    ]
-                )
-            else:  # element is in the same turn
-                self.current_slice_elements_forward = self._reference_altering_elements[
-                    self._own_index_in_reference_list : next_reference_altering_element_index
-                ]
+        self._record_forward_projection(next_reference_altering_element_index)
+
+    def _record_forward_projection(
+        self: IQCavityFeedbackTimingClass,
+        next_reference_altering_element_index: int,
+    ) -> None:
+        """
+        Hook at the end of every forward projection; a no-op here.
+
+        The test variant
+        ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+        records the walked element slice through it. The index it needs is
+        local to :meth:`get_passed_time_forward_direction`, which is why this
+        is a hook and not an override.
+
+        Parameters
+        ----------
+        next_reference_altering_element_index
+            Index of the RF station the projection stopped at, counted
+            through the direction's reference-altering elements and on into
+            the next turn; ``-1`` when it found none.
+        """
 
     def get_time_omega_array_backfill(  # noqa: PLR0912, PLR0915
         self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
@@ -476,16 +477,6 @@ class RFCenterGridMixin:
 
         self._unify_same_frequency_time_points_backfill()
 
-        if self._debug:
-            self.reference_time_after_backfill = (
-                self._reference_state_until_tracked.time
-            )
-            self.current_beam_reference_time = beam.reference.time
-            self.reference_energy_after_backfill = (
-                self._reference_state_until_tracked.total_energy
-            )
-            self.current_beam_reference_energy = beam.reference.total_energy
-
     def _rebuild_grid_arrays(
         self: IQCavityFeedbackTimingClass,
     ) -> None:
@@ -543,6 +534,33 @@ class RFCenterGridMixin:
         consumed only as a ``None`` / not-``None`` first-turn flag by the
         host's ``_circuit_track_cells_python`` and ``_coarse_step_sizes``;
         losing it silently reverts every turn to the first-turn step proxy.
+
+        FIRST PASSAGE: nothing has been generated yet, so the live scalar
+        still holds its ``__init__`` placeholder, and a station that is the
+        ring's first reference-altering element gets no tail from the
+        backfill walk either -- there is no elapsed span to reconstruct, so
+        ``calculate_rf_centers_for_backfill`` returns without generating
+        anything. The tail is therefore continued backwards out of the
+        segment tiling itself: segments seed at the falling-edge zero
+        ``t_rf / 2`` and step by ``n t_rf`` (:meth:`_generate_rf_centers`),
+        so the virtual centre one step before the first lies at
+        ``t_rf / 2 - n t_rf`` and the tail from it to this passage is
+        ``n t_rf - t_rf / 2``, i.e. ``omega_c * tail = 2 pi n - pi``, which
+        is ``pi`` (mod ``2 pi``) for integer ``n`` -- the frame every later
+        passage is demodulated in (see
+        ``IQCavityFeedbackTimingClass._assert_demodulation_frame_aligned``).
+        Without it the first passage alone would be demodulated exactly
+        ``pi`` out of phase, and that wrongly signed deposit decays only
+        over ``2 Q_L / omega``. It is continued rather than guarded
+        against: a ring is a loop, so which element the element list starts
+        at is a bookkeeping choice and no physics may depend on it.
+
+        Only the time is continued, never
+        ``_residual_taps_last_rf_centers_calculation``: the taps carry where
+        the NEXT segment is seeded, and the first forward segment must still
+        start at the design bucket phase, which ``taps == 0`` encodes. The
+        grid geometry -- and with it every ``delta_t`` the coarse recursion
+        and its numba twin consume -- therefore stays bit-identical.
         """
         if len(self._rf_centers) != 0:
             self._last_rf_centers_entry = self._rf_centers[-1]
@@ -553,6 +571,21 @@ class RFCenterGridMixin:
         # _backfill_accumulated_phases).
         if self._segments:
             self._forward_segment_carried_into_turn = self._segments[-1]
+
+        # No segment has ever been generated: continue the tiling backwards
+        # so the first passage is demodulated in the same frame as every
+        # later one, and its first coarse cell steps across the same tail
+        # (see the FIRST PASSAGE note above). A feedback that has already
+        # tracked keeps its real carried tail.
+        if (
+            self._last_segment_omega_design is None
+            and self._parent_rf_station is not None
+        ):
+            t_rf_design = 2.0 * np.pi / self.omega_rf_design
+            self._residual_time_last_rf_centers_calculation = (
+                self.n_rf_periods_per_coarse_grid * t_rf_design
+                - t_rf_design / 2.0
+            )
 
         # The first coarse cell of the new turn steps across the turn
         # boundary, so it needs the tail the PREVIOUS turn ended on -- which

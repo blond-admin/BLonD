@@ -43,6 +43,7 @@ def _make_feedback(
     controller=None,
     voltage_setpoint=None,
     delta_omega=0.0,
+    generator_current_bias=BIAS,
 ):
     """
     Build an isolated timing feedback for direct cell-loop driving.
@@ -57,6 +58,9 @@ def _make_feedback(
         Explicit IQ voltage setpoint (avoids needing a parent RF station).
     delta_omega
         Cavity detuning [rad/s].
+    generator_current_bias
+        Feedforward generator-current bias; zero (with no controller)
+        leaves the generator component undriven.
 
     Returns
     -------
@@ -67,7 +71,7 @@ def _make_feedback(
         profile=Mock(StaticProfile),
         R_over_Q=R_OVER_Q,
         Q_L=Q_L,
-        generator_current_bias=BIAS,
+        generator_current_bias=generator_current_bias,
         n_cavities=1,
         delta_omega=delta_omega,
         controller=controller,
@@ -85,8 +89,8 @@ def _seed_single_segment(
     i_init,
     beam,
     last_val_generator_current=None,
-    last_val_beam_current=0.0 + 0.0j,
     v_beam_init=0.0 + 0.0j,
+    generator_current=BIAS,
 ):
     """
     Populate the coarse-grid arrays for a single-segment run.
@@ -110,12 +114,12 @@ def _seed_single_segment(
         ``i_init``. Pass a value off the bias to exercise the backfill-segment
         drive (the reference drives cells >=1 from the reset-bias grid, cell 0
         from the carried value).
-    last_val_beam_current
-        Carried beam current (``last_val_beam_current``) at the carried cell 0,
-        used even by a no-beam segment; defaults to zero.
     v_beam_init
         Carried beam-sourced antenna voltage seeding cell 0
         (``last_val_ant_voltage_beam``); defaults to zero.
+    generator_current
+        Value the generator-current grid is pre-filled with; defaults to
+        the bias. Zero leaves the generator component undriven.
     """
     dt = T_RF
     feedback._rf_centers = np.arange(1, n + 1) * dt
@@ -125,7 +129,9 @@ def _seed_single_segment(
     feedback.antenna_voltage_coarse_grid = np.zeros(n, dtype=complex)
     feedback.antenna_voltage_gen_coarse_grid = np.zeros(n, dtype=complex)
     feedback.antenna_voltage_beam_coarse_grid = np.zeros(n, dtype=complex)
-    feedback.generator_current_coarse_grid = np.full(n, BIAS, dtype=complex)
+    feedback.generator_current_coarse_grid = np.full(
+        n, generator_current, dtype=complex
+    )
     feedback._last_val_ant_voltage_gen = v_init
     feedback._last_val_ant_voltage_beam = v_beam_init
     feedback._last_val_ant_voltage = v_init + v_beam_init
@@ -134,7 +140,6 @@ def _seed_single_segment(
         if last_val_generator_current is None
         else last_val_generator_current
     )
-    feedback._last_val_beam_current = last_val_beam_current
     if beam is not None:
         feedback.beam_current_forward_coarse_grid = beam.astype(complex)
 
@@ -259,7 +264,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         n=64,
         v_init=3.0e7 + 1.0e6j,
         last_val_generator_current=None,
-        last_val_beam_current=0.0 + 0.0j,
         v_beam_init=0.0 + 0.0j,
         generator_frame_rotation=None,
         kick_frame_rotation=None,
@@ -284,8 +288,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         last_val_generator_current
             Carried generator current; defaults to the bias. A value off the
             bias exercises the backfill-segment drive divergence.
-        last_val_beam_current
-            Carried index-0 beam current (used even for a no-beam segment).
         v_beam_init
             Carried beam-sourced antenna voltage seeding cell 0.
         generator_frame_rotation
@@ -324,7 +326,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             i_init=BIAS,
             beam=beam,
             last_val_generator_current=last_val_generator_current,
-            last_val_beam_current=last_val_beam_current,
             v_beam_init=v_beam_init,
         )
         if generator_frame_rotation is not None:
@@ -517,33 +518,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             last_val_generator_current=0.05 + 0.03j,
         )
 
-    def test_no_beam_carried_beam_current_nonzero(self):
-        """
-        Backfill segment whose carried index-0 beam current is nonzero.
-
-        ``cavity_response`` uses ``last_val_beam_current`` at the carried cell 0
-        even for a no-beam segment; a kernel that zeroed it there would diverge.
-        This is the normal state of the first backfill segment once beam has
-        passed on a prior turn.
-        """
-        self._compare(
-            no_beam=True,
-            last_val_beam_current=8.0e-3 + 2.0e-3j,
-        )
-
-    def test_forward_pi_carried_beam_current_nonzero(self):
-        """Forward PI segment with a nonzero carried index-0 beam current."""
-        self._compare(
-            no_beam=False,
-            last_val_beam_current=5.0e-3 + 1.0e-3j,
-            controller_kw={
-                "gain_proportional": 1e-9,
-                "gain_integral": 5e-4,
-                "generator_current_bias": BIAS,
-                "n_delay": 2,
-            },
-        )
-
     def test_split_components_with_frame_rotations(self):
         """
         Both carried components plus non-unit frame rotations.
@@ -581,7 +555,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         use_kernel,
         *,
         last_val_generator_current=BIAS,
-        last_val_beam_current=0.0 + 0.0j,
         backfill_phases=None,
         forward_phase=0.0,
     ):
@@ -595,8 +568,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         last_val_generator_current
             Carried generator current seeding the run (off the bias exercises
             the backfill-segment drive divergence).
-        last_val_beam_current
-            Carried index-0 beam current seeding the run.
         backfill_phases
             Accumulated phase [rad] of each of the 20 backfill cells,
             installed as their per-cell generator and kick frame rotations;
@@ -639,7 +610,6 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             + feedback._last_val_ant_voltage_beam
         )
         feedback._last_val_generator_current = last_val_generator_current
-        feedback._last_val_beam_current = last_val_beam_current
         rng = np.random.default_rng(77)
         feedback.beam_current_forward_coarse_grid = (
             (rng.standard_normal(n_frwrd) + 1j * rng.standard_normal(n_frwrd))
@@ -684,22 +654,19 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
 
     def test_multi_section_carried_state_off_trivial(self):
         """
-        Two-segment run with off-bias / nonzero carried state.
+        Two-segment run with an off-bias carried generator current.
 
-        Reproduces the live multi-section turn >= 1 condition end-to-end: the
-        first backfill segment carries a regulated (off-bias) generator
-        current and a nonzero beam current, and the divergence must still not
-        appear.
+        Reproduces the live multi-section turn >= 1 condition end-to-end:
+        the first backfill segment carries a regulated (off-bias)
+        generator current, and the divergence must still not appear.
         """
         kernel_snap = self._run_multi_section(
             True,
             last_val_generator_current=0.05 + 0.03j,
-            last_val_beam_current=8.0e-3 + 2.0e-3j,
         )
         python_snap = self._run_multi_section(
             False,
             last_val_generator_current=0.05 + 0.03j,
-            last_val_beam_current=8.0e-3 + 2.0e-3j,
         )
         _assert_bit_identical(self, kernel_snap, python_snap)
 
@@ -727,6 +694,115 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
         )
         self.assertFalse(
             np.array_equal(python_snap["I"][:20], passage_snap["I"][:20])
+        )
+
+
+class TestUndrivenGeneratorComponentNeedsNoGate(unittest.TestCase):
+    """Nothing driving the generator gives exact zeros, not a branch.
+
+    The source split used to carry a ``_generator_active`` gate: while
+    nothing could source the generator component -- no controller, zero
+    bias, no carried generator current and no carried generator-sourced
+    voltage (which an initial or pre-fill voltage seeds) -- its update,
+    the kernel's write of its grid and every composition multiply were
+    skipped, so that an undriven feedback stayed bit-identical to the
+    former single-state recursion.
+
+    It was never a physics switch. With nothing driving it the component
+    is identically zero, and both ``0 * rotation`` and ``x + 0`` are exact
+    in IEEE double, so the identity the gate protected is a property of
+    the arithmetic. These tests pin that property -- with a deliberately
+    NON-unity frame rotation, which is what the skipped multiply used --
+    and pin the gate itself gone.
+    """
+
+    #: A rotation far from unity: if the generator component were not
+    #: exactly zero, composing it would be plainly visible.
+    FRAME_ROTATION = np.exp(-0.7j)
+
+    def _run_undriven(self, use_kernel, n=64):
+        """
+        Track one beam-loaded segment with nothing driving the generator.
+
+        Parameters
+        ----------
+        use_kernel
+            Which path to run.
+        n
+            Number of coarse cells.
+
+        Returns
+        -------
+        snapshot
+            The post-run snapshot (see :func:`_snapshot`).
+        """
+        feedback = _make_feedback(
+            use_kernel, generator_current_bias=0.0 + 0.0j
+        )
+        rng = np.random.default_rng(4321)
+        beam = (rng.standard_normal(n) + 1j * rng.standard_normal(n)) * 1e-4
+        _seed_single_segment(
+            feedback,
+            n,
+            v_init=0.0 + 0.0j,
+            i_init=0.0 + 0.0j,
+            beam=beam,
+            generator_current=0.0 + 0.0j,
+            v_beam_init=3.0e7 + 1.0e6j,
+        )
+        feedback._generator_frame_rotation = self.FRAME_ROTATION
+        feedback._kick_frame_rotation = np.conj(self.FRAME_ROTATION)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            feedback._circuit_track_cells(
+                omega_input=OMEGA_RF,
+                no_beam=False,
+                start_index=0,
+                end_index=n,
+            )
+        return _snapshot(feedback)
+
+    def test_the_feedback_has_no_generator_active_gate(self):
+        """The gate is gone, on both paths and before any tracking."""
+        for use_kernel in (True, False):
+            with self.subTest(use_kernel=use_kernel):
+                feedback = _make_feedback(
+                    use_kernel, generator_current_bias=0.0 + 0.0j
+                )
+                self.assertFalse(hasattr(feedback, "_generator_active"))
+
+    def test_undriven_generator_component_is_exactly_zero(self):
+        """Zero drive from a zero seed propagates to exact zeros."""
+        for use_kernel in (True, False):
+            with self.subTest(use_kernel=use_kernel):
+                snapshot = self._run_undriven(use_kernel)
+                np.testing.assert_array_equal(
+                    snapshot["V_gen"],
+                    np.zeros(len(snapshot["V_gen"]), dtype=complex),
+                )
+
+    def test_undriven_sum_is_exactly_the_beam_component(self):
+        """The composed sum is the beam component, bit for bit.
+
+        Composing adds ``0 * FRAME_ROTATION``, which is exactly zero, so
+        the sum is the beam component even though the rotation is not
+        unity -- the equality the retired gate used to assign by branch.
+        """
+        for use_kernel in (True, False):
+            with self.subTest(use_kernel=use_kernel):
+                snapshot = self._run_undriven(use_kernel)
+                self.assertTrue(
+                    np.array_equal(snapshot["V"], snapshot["V_beam"]),
+                    msg="composed sum is not the beam component",
+                )
+                self.assertNotEqual(
+                    complex(snapshot["V_beam"][-1]), 0.0 + 0.0j
+                )
+
+    def test_undriven_paths_stay_bit_identical(self):
+        """The kernel and the reference agree on the undriven segment."""
+        _assert_bit_identical(
+            self, self._run_undriven(True), self._run_undriven(False)
         )
 
 

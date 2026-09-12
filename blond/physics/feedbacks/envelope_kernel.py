@@ -104,7 +104,6 @@ def envelope_pi_scan(
     voltage_beam_init,
     generator_current_init,
     r_over_q,
-    generator_active,
     generator_frame_rotation,
     kick_frame_rotation,
     pi_error_frame_rotation,
@@ -154,8 +153,7 @@ def envelope_pi_scan(
         segment.
     voltage_gen_out
         Output generator-sourced antenna voltage, written in place
-        (complex128, length ``N``). Not written when ``generator_active``
-        is False (the component is identically zero there).
+        (complex128, length ``N``).
     voltage_beam_out
         Output beam-sourced antenna voltage, written in place (complex128,
         length ``N``).
@@ -176,11 +174,6 @@ def envelope_pi_scan(
         segment starting at grid index 0, else the previous grid cell).
     r_over_q
         Cavity ``R/Q`` [Ohm].
-    generator_active
-        Whether the generator-sourced component carries any signal at all
-        (bias, controller or carried voltage). When False its update and the
-        composition multiply are skipped, so an undriven feedback stays
-        bit-identical to the former single-state recursion.
     generator_frame_rotation
         Per-cell rotation ``exp(-i (delta_phi_rf + carrier slip gap))``
         (complex128, length ``N``) taking the design-anchored generator
@@ -261,24 +254,22 @@ def envelope_pi_scan(
         )
         voltage_beam_out[cell] = voltage_beam
         voltage_beam_prev = voltage_beam
-        if generator_active:
-            # Generator-sourced component: same propagator, beam current
-            # pinned to (0 + 0j).
-            drive_gen = (
-                r_over_q
-                * omega_times_dt[cell]
-                * (generator_current_drive - 0.5 * (0.0 + 0.0j))
-            )
-            voltage_gen = voltage_gen_prev * voltage_multiplier[cell] + (
-                drive_gen * drive_weight[cell]
-            )
-            voltage_gen_out[cell] = voltage_gen
-            voltage_gen_prev = voltage_gen
-            voltage = (
-                voltage_beam + voltage_gen * generator_frame_rotation[cell]
-            )
-        else:
-            voltage = voltage_beam
+        # Generator-sourced component: same propagator, beam current
+        # pinned to (0 + 0j). With nothing driving the generator this
+        # component stays exactly zero and the composition below adds an
+        # exact zero, which is why an undriven feedback needs no special
+        # case to stay bit-identical to the former single state.
+        drive_gen = (
+            r_over_q
+            * omega_times_dt[cell]
+            * (generator_current_drive - 0.5 * (0.0 + 0.0j))
+        )
+        voltage_gen = voltage_gen_prev * voltage_multiplier[cell] + (
+            drive_gen * drive_weight[cell]
+        )
+        voltage_gen_out[cell] = voltage_gen
+        voltage_gen_prev = voltage_gen
+        voltage = voltage_beam + voltage_gen * generator_frame_rotation[cell]
         voltage_out[cell] = voltage
         if controller_active:
             error = (

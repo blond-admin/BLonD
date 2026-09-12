@@ -76,11 +76,10 @@ def _check_coarse_index_bounds(
     overwrites an earlier cell (or raises a bare ``IndexError``), and
     below the first cell NumPy's negative indexing deposits the charge
     into the *last* cells instead -- about one forward-segment span late,
-    and out of reach of the ``forbid_charge_in_first_coarse_cell`` guard,
-    which only inspects cell 0. Both ends are therefore bounded here.
+    and reported by nothing. Both ends are therefore bounded here.
 
     The lower bound uses the same relative threshold idiom as the
-    first-coarse-cell guard: far Gaussian tails are non-zero in float
+    last-coarse-cell guard: far Gaussian tails are non-zero in float
     arithmetic (~1e-100) without being physically populated, so a
     charge-free tail sticking out below the grid start only warns, while
     bins that really carry charge raise.
@@ -145,9 +144,9 @@ def rf_beam_current(
     n_points: int | None = None,
     use_lowpass_filter: bool = False,
     dT: float = 0.0,
+    demodulation_phase: float | None = None,
     carrier_phase_offset: float = 0.0,
-    forbid_charge_in_first_coarse_cell: bool = False,
-    warn_charge_in_last_coarse_cell: bool = False,
+    forbid_charge_in_last_coarse_cell: bool = False,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Turn the beam profile into the complex IQ beam-current envelope.
@@ -183,10 +182,11 @@ def rf_beam_current(
     :math:`\cos(\omega_c t)` and :math:`\sin(\omega_c t)`.
 
     The demodulated envelope is then rotated by
-    ``exp(1j * (dT * omega_c + pi/2 + carrier_phase_offset))`` into the
-    antenna-voltage IQ frame: the ``dT``-derived RF-clock slip, the fixed
+    ``exp(1j * (dphi + pi/2 + carrier_phase_offset))`` into the
+    antenna-voltage IQ frame: the RF-clock slip ``dphi``, the fixed
     ``+pi/2`` axis alignment and an optional extra carrier phase (see the
-    parameter descriptions below).
+    parameter descriptions below). ``dphi`` is ``dT * omega_c`` unless the
+    caller states it through ``demodulation_phase``.
 
     For multi-bunch cases, make sure that the real beam intensity is the
     total number of charges in the ring.
@@ -216,7 +216,20 @@ def rf_beam_current(
         The shift in time [s] due to shifting reference frames. Rotates
         the demodulation carrier by ``dT * omega_c`` (the turn-to-turn
         slip of the RF clock from a non-integer harmonic / detuned
-        reference) and shifts the fine-to-coarse binning by ``dT``.
+        reference) unless ``demodulation_phase`` states that rotation,
+        and shifts the fine-to-coarse binning by ``dT``.
+    demodulation_phase : float, optional
+        Demodulation-carrier phase [rad] to use INSTEAD of the
+        ``dT``-derived rotation ``dT * omega_c``; ``dT`` keeps its second
+        role, the fine-to-coarse binning shift, which follows physical
+        sample times. The coarse-grid caller states the convention value
+        ``pi`` here: its grid is built to land on ``pi`` but the product
+        of a tail measured against one segment's carrier with the next
+        segment's carrier only approximates it under a ramp, and the
+        convention admits no tolerance (see
+        ``IQCavityFeedbackTimingClass._assert_demodulation_frame_aligned``,
+        which checks the grid against the stated frame). ``None`` (the
+        default) derives the rotation from ``dT`` as before.
     carrier_phase_offset : float
         Additional demodulation-carrier phase [rad], on top of the
         ``dT``-derived rotation. Used by the timing class to anchor the
@@ -226,20 +239,16 @@ def rf_beam_current(
         is exactly ``0.0`` (bit-identical demodulation). A pure phase: it
         must not (and does not) move the fine-to-coarse binning, which
         follows the physical sample times.
-    forbid_charge_in_first_coarse_cell : bool
+    forbid_charge_in_last_coarse_cell : bool
         If True, raise a ``ValueError`` when the downsampling assigns
-        beam charge to the first coarse-grid cell. Callers that take the
-        fine-grid initial antenna voltage from that cell (e.g.
-        ``IQCavityFeedbackTimingClass``) must keep it charge-free, since
-        a populated first cell would double-count its kick.
-    warn_charge_in_last_coarse_cell : bool
-        If True, warn when the downsampling assigns beam charge to the
-        last coarse-grid cell. ``IQCavityFeedbackTimingClass`` carries
-        that cell's beam current into the first coarse step of a later
-        passage, although it already drove the last step of the passage
-        that demodulated it, so a populated last cell is counted twice.
-        Uses the same relative threshold as
-        ``forbid_charge_in_first_coarse_cell``.
+        beam charge to the last coarse-grid cell. A cell's beam current
+        drives the coarse step that ENDS at its own centre, so the step
+        from the last centre of one passage to the first centre of the
+        next has no cell -- and no charge -- of its own. Callers that
+        chain passages on one grid (e.g.
+        ``IQCavityFeedbackTimingClass``) need that boundary charge-free.
+        Relative threshold: far Gaussian tails are non-zero in float
+        arithmetic (~1e-100) without being physically populated.
 
     Returns
     -------
@@ -256,18 +265,12 @@ def rf_beam_current(
     TypeError
         If ``sampling_time`` is given without ``n_points``.
     ValueError
-        If ``forbid_charge_in_first_coarse_cell`` is True and the
-        downsampling assigns beam charge to the first coarse-grid cell;
+        If ``forbid_charge_in_last_coarse_cell`` is True and the
+        downsampling assigns beam charge to the last coarse-grid cell;
         if the profile window is longer than the coarse grid it is
         downsampled onto, or maps past the last coarse cell, or carries
         charge before the start of it; or if the profile binning
         (``hist_step``) is coarser than ``sampling_time``.
-
-    Warns
-    -----
-    UserWarning
-        If ``warn_charge_in_last_coarse_cell`` is True and the
-        downsampling assigns beam charge to the last coarse-grid cell.
     """
     # The cavity-feedback signal processing runs on the host (the cavity
     # response solvers downstream use scipy, which is host-only). Bring the
@@ -321,8 +324,9 @@ def rf_beam_current(
 
     # Rotate the beam current into the same I/Q frame as the antenna
     # voltage / generator current with three contributions:
-    #   * dphi = dT * omega_c: the turn-to-turn slip of the RF clock from a
-    #     non-integer harmonic / detuned reference (dT == 0 leaves it out).
+    #   * dphi: the turn-to-turn slip of the RF clock from a non-integer
+    #     harmonic / detuned reference, dT * omega_c unless the caller
+    #     states it as demodulation_phase (dT == 0 leaves it out).
     #   * +pi/2: aligns the beam-current demodulation axis (in-phase = cos)
     #     with the antenna-voltage lab-frame convention
     #     V_lab = -Im[V_ant exp(i omega_c t)] (in-phase = -sin), which differ
@@ -337,7 +341,8 @@ def rf_beam_current(
     # the coarse-grid caller establishes, so state it here rather than
     # leaving it to be re-derived:
     #   * dT is the tail left by the PRECEDING coarse segment, normally
-    #     t_rf / 2, so ``dphi = omega_c * dT`` is pi (mod 2 pi);
+    #     t_rf / 2, so the frame is pi (mod 2 pi) -- which the coarse-grid
+    #     caller states exactly rather than deriving;
     #   * carrier_phase_offset is ``-(phi_rf + carrier_slip_gap)``, i.e.
     #     minus the total the station's kick and the readout's
     #     phase_correction add back on top of ``angle(V_ant)``;
@@ -352,7 +357,7 @@ def rf_beam_current(
     # inverts the beam loading. The check that matters is the end-to-end
     # one -- a bunch must LOSE energy to its own wake.
     charges_fine = I_f + 1j * Q_f
-    dphi = dT * omega_c
+    dphi = dT * omega_c if demodulation_phase is None else demodulation_phase
     charges_fine = charges_fine * np.exp(
         1j * (dphi + np.pi / 2 + carrier_phase_offset)
     )
@@ -442,40 +447,24 @@ def rf_beam_current(
             charges_fine[indices[-1] :]
         )
 
-    if forbid_charge_in_first_coarse_cell:
-        # The fine-grid initial antenna voltage is taken from the first
-        # coarse cell (see circuit_track), so it must stay charge-free,
-        # otherwise its beam kick is double-counted by the fine grid.
+    if forbid_charge_in_last_coarse_cell:
+        # A cell's beam current drives the coarse step that ENDS at its
+        # own centre. The step from the last centre of one passage to the
+        # first centre of the next is the one step of a chained grid with
+        # no cell of its own, so it carries no beam current: a window
+        # reaching this far has its tail in (or past) that boundary.
         # Relative threshold: far Gaussian tails are non-zero in float
         # arithmetic (~1e-100) without being physically populated.
         total_charge = np.sum(np.abs(charges_fine))
-        if np.abs(charges_coarse[0]) > 1e-9 * total_charge:
-            raise ValueError(
-                "Beam charge was downsampled into the first coarse-grid "
-                "cell. The fine-grid initial antenna voltage is taken "
-                "from this cell, so its beam kick would be "
-                "double-counted by the fine grid. Shift the profile "
-                "window (cut_left) or the bunch so that no charge lies "
-                "in the first coarse cell."
-            )
-
-    if warn_charge_in_last_coarse_cell:
-        # IQCavityFeedbackTimingClass carries the last cell's beam current
-        # into the first coarse step of a later passage, although it
-        # already drove the last step of the passage that demodulated it,
-        # so any charge here is counted twice. Same relative threshold as
-        # the first-cell guard; a constant message, so the default warning
-        # filter reports it once per call site instead of every passage.
-        total_charge = np.sum(np.abs(charges_fine))
         if np.abs(charges_coarse[-1]) > 1e-9 * total_charge:
-            warnings.warn(
+            raise ValueError(
                 "Beam charge was downsampled into the last coarse-grid "
-                "cell. The cavity feedback carries this cell's beam "
-                "current into the first coarse step of a later passage, "
-                "so that charge is counted twice. Keep the profile "
-                "window, including the bunch tails, clear of the end of "
-                "the forward coarse segment.",
-                stacklevel=2,
+                "cell. The coarse step from this passage's last centre "
+                "into the next passage's grid carries no beam current of "
+                "its own, and charge past that last centre is rejected "
+                "outright, so the profile window -- bunch tails included "
+                "-- must stay clear of the end of the coarse grid. Shift "
+                "the profile window (cut_left) or the bunch."
             )
 
     return charges_fine, charges_coarse

@@ -241,13 +241,13 @@ class IQCavityFeedbackBase(LocalFeedback):
         components are the propagated state; this sum is (re)composed from
         them cell by cell: with the CURRENT passage's rotation over the
         forward span, and over the backfill span with the rotation of the
-        phase accumulated up to each cell. While the generator
-        component is inactive -- no controller, zero
-        ``generator_current_bias``, and neither a carried generator
-        current nor a carried generator-sourced voltage (the
-        ``_generator_active`` gate set in ``reset_arrays``, which an
-        initial or pre-fill voltage also trips) -- it equals the beam
-        component bit-for-bit.
+        phase accumulated up to each cell. With nothing driving the
+        generator -- no controller, zero ``generator_current_bias``, and
+        neither a carried generator current nor a carried
+        generator-sourced voltage (an initial or pre-fill voltage seeds
+        that one) -- the generator component is identically zero and this
+        sum equals the beam component bit-for-bit, the composition adding
+        an exact zero.
         """
         self.antenna_voltage_gen_coarse_grid: NumpyArray | None = None
         """Generator-sourced antenna voltage on the coarse grid, in [V].
@@ -279,9 +279,8 @@ class IQCavityFeedbackBase(LocalFeedback):
         subtracted the accumulated actual-RF slip and the registration
         phase) and the readout adds the identical total back, closing
         the chain for every carried deposit exactly as before the split.
-        While the generator component is inactive (the
-        ``_generator_active`` gate above) this component IS the former
-        single state, bit-for-bit.
+        With nothing driving the generator (see above) this component
+        IS the former single state, bit-for-bit.
         """
         self.antenna_voltage_fine_grid: NumpyArray | None = None
         """Antenna voltage on the fine grid, in [V], times ``n_cavities``.
@@ -653,13 +652,6 @@ class IQCavityFeedbackTimingClass(
         Cavity detuning in [rad/s]. Applied to the cavity response as a
         per-step phase rotation, but *not* to the coarse-grid spacing (see
         Notes). Default is 0.
-    debug
-        Save inspection-only diagnostic parameters during runtime (the
-        element slices and reference time/energy snapshots written by
-        :class:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin`).
-        Pure observation: it does not change the physics and, since the
-        flag split described in Notes, it no longer disables the
-        correction either. Default is False.
     second_order_fine_grid_solver_enable
         If True, integrate the fine-grid cavity response with the second-order
         (trapezoidal / Crank-Nicolson) solver instead of the default
@@ -697,22 +689,6 @@ class IQCavityFeedbackTimingClass(
         the seed is the fill transient at the moment ``|V_ant|`` first reaches
         this value, i.e. the beam is injected part-way through the fill.
         Default None (seed from the fill after ``n_pretrack`` turns).
-    validate_grid_each_turn
-        Re-check every turn that the flat ``rf_centers`` arrays still
-        agree with the ``_segments`` they are derived from, and that the
-        forward segment's boundary residual equals its demodulation
-        frame. A pure integrity check with no effect on the result; it
-        walks the whole grid every turn, which is why it is opt-in.
-        Default is False.
-    grid_only_no_correction
-        Build the coarse grid and replay the elapsed backfill span, then
-        END THE TURN THERE: the beam current is never demodulated, the
-        forward segment is never tracked, and **the feedback applies NO
-        correction to the parent RF station**. It writes the neutral
-        readout instead -- unit relative voltage, zero phase -- so the
-        station kicks as if no feedback were attached. Only for
-        inspecting the grid geometry in isolation; it is not a physical
-        mode. Default is False.
     harmonic_index
         Index into the parent station's harmonic list that this feedback
         regulates: every RF parameter (``omega_rf``, ``phi_rf``, the
@@ -779,16 +755,13 @@ class IQCavityFeedbackTimingClass(
     at ~0 from the second turn on. The grid stays segment-local either
     way, and the local clock still restarts at every segment.
 
-    **The three diagnostic flags.** ``debug``,
-    ``validate_grid_each_turn`` and ``grid_only_no_correction`` were once
-    a single ``debug`` flag that did all three things at once, so asking
-    for diagnostics silently switched the physics off. They are now
-    independent: ``debug`` only records, ``validate_grid_each_turn`` only
-    checks, and ``grid_only_no_correction`` -- and nothing else -- stops
-    the turn before the correction is computed. The former
-    ``debug=True`` behaviour is all three set together. With all three at
-    their default (``False``) the tracked result is bit-for-bit what
-    ``debug=False`` produced before the split.
+    **Diagnostics.** The switches that record grid snapshots
+    (``debug``), re-check the grid every passage
+    (``validate_grid_each_turn``) or end the passage after the grid
+    without a correction (``grid_only_no_correction``) are not part of
+    this class. Only tests consume them, so they live on the test variant
+    ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``,
+    which tracks bit-for-bit like this class with all three off.
 
     **Sub-stepping (** ``n_rf_periods_per_coarse_grid`` **< 1).** A
     fractional ``n`` places several coarse samples per RF period,
@@ -848,14 +821,11 @@ class IQCavityFeedbackTimingClass(
         initial_voltage: float = 30.0e6,
         n_rf_periods_per_coarse_grid: int = 1,
         delta_omega: float = 0.0,
-        debug: bool = False,
         second_order_fine_grid_solver_enable: bool = False,
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
         n_pretrack: int | None = None,
         injection_voltage: float | None = None,
-        validate_grid_each_turn: bool = False,
-        grid_only_no_correction: bool = False,
         harmonic_index: int = 0,
     ):
         super().__init__(
@@ -891,13 +861,12 @@ class IQCavityFeedbackTimingClass(
         # BEFORE the current passage and that passage; the
         # demodulation frame of calculate_rf_beam_current_partial. The
         # 0.0 here is a placeholder: the design RF period is not known
-        # yet, so on_run_simulation overwrites it with the
-        # tiling-consistent first-passage value (see
-        # _seed_initial_demodulation_frame). Without that seed a
-        # station that is the ring's FIRST reference-altering element
-        # generates no backfill on turn 0 and demodulates that turn pi
-        # out of phase -- the beam-induced voltage then comes out with
-        # the wrong sign.
+        # yet, so the first _close_previous_turn_grid replaces it with
+        # the tiling-consistent first-passage value (see its FIRST
+        # PASSAGE note). Without that continuation a station that is the
+        # ring's FIRST reference-altering element generates no backfill
+        # on turn 0 and demodulates that turn pi out of phase -- the
+        # beam-induced voltage then comes out with the wrong sign.
         self._residual_time_last_rf_centers_calculation = 0.0
         # Residual [s] the PREVIOUS turn's last segment ended on. The first
         # segment of a turn steps across the turn boundary from it; the live
@@ -947,17 +916,6 @@ class IQCavityFeedbackTimingClass(
         self._init_turn_boundary_carries()
 
         self._init_voltage = initial_voltage
-
-        # Three independent diagnostic switches (see the class Notes).
-        # ``_debug`` records the inspection-only snapshots of
-        # RFCenterGridMixin, ``_validate_grid_each_turn`` runs the
-        # per-turn grid integrity check, and ``_grid_only_no_correction``
-        # -- alone -- short-circuits _track before any correction is
-        # computed. All three default to False, which is the tracked
-        # (bit-unchanged) path.
-        self._debug = debug
-        self._validate_grid_each_turn = validate_grid_each_turn
-        self._grid_only_no_correction = grid_only_no_correction
 
         self._second_order_fine_grid_solver_enable = (
             second_order_fine_grid_solver_enable
@@ -1090,22 +1048,13 @@ class IQCavityFeedbackTimingClass(
         The two antenna-voltage components are the propagated state (see
         :meth:`reset_arrays` / :meth:`cavity_response`); the un-suffixed
         value is the carried demodulation-frame SUM, kept for diagnostics
-        and the coincident-first-cell duplication. ``_generator_active``
-        says whether the generator-sourced component carries any signal
-        at all this turn (bias, controller, carried current or carried
-        voltage); refreshed by :meth:`reset_arrays`. While False, the
-        component update and every composition multiply are skipped,
-        keeping an undriven feedback bit-identical to the former
-        single-state recursion. True is the safe default for direct
-        (test) driving.
+        and the coincident-first-cell duplication.
         """
         self._last_val_ant_voltage: complex = 0.0
         self._last_val_ant_voltage_gen: complex = 0.0
         self._last_val_ant_voltage_beam: complex = 0.0
-        self._last_val_beam_current: float = 0.0
         self._last_val_generator_current: float = 0.0
         self._last_rf_centers_entry: float | None = None
-        self._generator_active: bool = True
 
     def _init_passage_tracking_state(self) -> None:
         """
@@ -1148,68 +1097,6 @@ class IQCavityFeedbackTimingClass(
         )
         self._backfill_kick_frame_rotations: NumpyArray = np.zeros(
             0, dtype=np.complex128
-        )
-
-    def _seed_initial_demodulation_frame(self) -> None:
-        r"""
-        Seed the demodulation frame of the very first passage.
-
-        Notes
-        -----
-        ``_residual_time_last_rf_centers_calculation`` is the unfilled
-        tail between the last coarse centre generated before a passage
-        and that passage; :meth:`calculate_rf_beam_current_partial`
-        consumes it as the demodulation frame ``dT``. This implementation's
-        mixing and kick-phase convention reproduces the beam-loading
-        phase when ``omega_c * dT`` is ``pi`` (mod ``2 pi``). Half an RF
-        period off, it gives the wrong sign and accelerates the bunch by
-        its own wake. This is a grid-frame constraint, not a universal
-        restriction imposed by the physical beam-loading theorem.
-
-        Every later passage gets that tail from the segment
-        generation. The very first one does not whenever the parent
-        station is the ring's first reference-altering element: there
-        is no elapsed span to reconstruct,
-        ``calculate_rf_centers_for_backfill`` returns without
-        generating anything, and the scalar would still hold its
-        ``__init__`` placeholder -- so turn 0 alone would be
-        demodulated exactly ``pi`` out of phase, and the wrongly
-        signed deposit then decays only over ``2 Q_L / omega``, i.e.
-        many turns.
-
-        The seeded value is the backward continuation of the segment's
-        own tiling. :meth:`_generate_rf_centers` seeds every segment at
-        the falling-edge zero ``t_rf / 2`` and steps by ``n * t_rf``,
-        so the virtual centre one full step before the first lies at
-        ``t_rf / 2 - n * t_rf`` and the tail from it to the passage is
-        ``n * t_rf - t_rf / 2``, giving ``omega_c * r_0 = 2 pi n - pi``,
-        i.e. ``pi`` (mod ``2 pi``) for integer ``n``. Turn 0 is then
-        demodulated in the same frame as every other turn.
-
-        Seeded rather than guarded against: a ring is a loop, so which
-        element the element list starts at is a bookkeeping choice and
-        no physics may depend on it.
-
-        Only the time is seeded, never
-        ``_residual_taps_last_rf_centers_calculation``: the taps carry
-        where the NEXT segment is seeded, and the first forward segment
-        must still start at the design bucket phase, which ``taps == 0``
-        encodes. The grid geometry -- and with it every ``delta_t`` the
-        coarse recursion and its numba twin consume -- therefore stays
-        bit-identical.
-
-        ORDERING: must run before the first :meth:`_track`, i.e. before
-        ``_close_previous_turn_grid`` snapshots
-        ``_residual_time_carried_into_turn`` off this scalar.
-        """
-        if self._last_segment_omega_design is not None:
-            # A segment already exists (a second run_simulation call on
-            # a feedback that has tracked): the live scalar then holds
-            # the real carried tail and must not be clobbered.
-            return
-        t_rf_design = 2.0 * np.pi / self.omega_rf_design
-        self._residual_time_last_rf_centers_calculation = (
-            self.n_rf_periods_per_coarse_grid * t_rf_design - t_rf_design / 2.0
         )
 
     def _validate_multi_harmonic_slot(self) -> None:
@@ -1345,13 +1232,6 @@ class IQCavityFeedbackTimingClass(
         )
 
         self._reference_state_until_tracked = deepcopy(beam.reference)
-
-        # The parent RF station is fully initialised at this point (see
-        # docstring), so the first passage's demodulation frame can be
-        # seeded -- the segment generation cannot supply it when this
-        # station is the ring's first reference-altering element (see the
-        # method).
-        self._seed_initial_demodulation_frame()
 
         # Feedforward cavity pre-fill: seed the initial antenna voltage from
         # the constant-current fill (optionally injection-matched), now that
@@ -1555,7 +1435,7 @@ class IQCavityFeedbackTimingClass(
                 # Duplication also keeps the two downstream readers of the
                 # grid honest: reset_arrays carries the LAST cell into the
                 # next turn, and the fine-grid solver takes its initial
-                # condition from the FIRST forward cell.
+                # condition from the cell BEFORE the first forward one.
                 warnings.warn(
                     "double taking of rf_centers value, duplicating the "
                     "previous cell",
@@ -1717,7 +1597,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             voltage_beam_init,
             generator_current_init,
             float(self.R_over_Q),
-            bool(self._generator_active),
             generator_frame_rotations,
             kick_frame_rotations,
             complex(self._pi_error_frame_rotation),
@@ -1730,13 +1609,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self.antenna_voltage_beam_coarse_grid[start_index:end_index] = (
             voltage_beam_out
         )
-        if self._generator_active:
-            # The kernel writes the generator component only while it is
-            # active; otherwise the grid keeps its zeros prefill, exactly
-            # like the reference path, which skips the component update.
-            self.antenna_voltage_gen_coarse_grid[start_index:end_index] = (
-                voltage_gen_out
-            )
+        self.antenna_voltage_gen_coarse_grid[start_index:end_index] = (
+            voltage_gen_out
+        )
         self.antenna_voltage_coarse_grid[start_index:end_index] = voltage_out
         # Commit the generator grid. Active: the PI outputs. Inactive: the
         # unchanged pre-filled values, i.e. a no-op vs the reference (which
@@ -1749,6 +1624,48 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             self._controller.absorb_envelope_scan_state(
                 (delay_buffer, delay_head, integral)
             )
+
+    def _step_into_first_cell(
+        self,
+        omega_input: float,
+        start_index: int,
+        end_index: int,
+    ) -> float:
+        """
+        Length of the coarse step that ends at a segment's first centre.
+
+        That step crosses a segment (or turn) boundary, so it is the first
+        cell's own local time plus the PRECEDING segment's unfilled tail
+        (see :meth:`_preceding_segment_residual`). The very first centre
+        ever tracked has no predecessor to step from, so the spacing to
+        the next centre of the same segment stands in for it -- or this
+        segment's own coarse step when it holds a single centre, since the
+        next centre would then belong to a segment at another frequency.
+
+        Parameters
+        ----------
+        omega_input
+            Angular frequency of this segment [rad/s].
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+
+        Returns
+        -------
+        delta_t
+            Length of the step ending at ``rf_centers[start_index]`` [s].
+        """
+        if start_index == 0 and self._last_rf_centers_entry is None:
+            if start_index + 1 < end_index:
+                return float(self._rf_centers[1] - self._rf_centers[0])
+            return float(
+                self.n_rf_periods_per_coarse_grid * 2 * np.pi / omega_input
+            )
+        return float(
+            self._rf_centers[start_index]
+            + self._preceding_segment_residual(start_index)
+        )
 
     def _coarse_step_sizes(
         self,
@@ -1787,22 +1704,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # Same per-segment boundary residual the reference loop uses; the two
         # paths MUST take it from the same source or the kernel-vs-python
         # byte-identity pin breaks.
-        preceding_residual = self._preceding_segment_residual(start_index)
-        if start_index == 0:
-            if self._last_rf_centers_entry is None:
-                if start_index + 1 < end_index:
-                    delta_t[0] = self._rf_centers[1] - self._rf_centers[0]
-                else:
-                    delta_t[0] = (
-                        self.n_rf_periods_per_coarse_grid
-                        * 2
-                        * np.pi
-                        / omega_input
-                    )
-            else:
-                delta_t[0] = self._rf_centers[0] + preceding_residual
-        else:
-            delta_t[0] = self._rf_centers[start_index] + preceding_residual
+        delta_t[0] = self._step_into_first_cell(
+            omega_input, start_index, end_index
+        )
         rf_period = 2 * np.pi / omega_input
         tiny_negative = (delta_t > -1e-9 * rf_period) & (delta_t < 0)
         delta_t[tiny_negative] = 0.0
@@ -2000,10 +1904,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ``V_beam + V_gen * generator frame rotation``: the beam component
         already lives in the demodulation frame, the design-anchored
         generator component is rotated into it with this cell's rotation
-        (see :meth:`_frame_rotations_of_cell`). While the
-        generator component is inactive the sum IS the beam component --
-        assigned, not added, so an undriven feedback stays bit-identical
-        to the former single-state recursion.
+        (see :meth:`_frame_rotations_of_cell`). With nothing driving the
+        generator that component is identically zero, so the sum is then
+        the beam component bit-for-bit without a special case.
 
         Parameters
         ----------
@@ -2017,8 +1920,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             The demodulation-frame antenna voltage at that cell [V].
         """
         voltage_beam = self.antenna_voltage_beam_coarse_grid[coarse_grid_index]
-        if not self._generator_active:
-            return voltage_beam
         generator_frame_rotation, _ = self._frame_rotations_of_cell(
             coarse_grid_index
         )
@@ -2135,13 +2036,21 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             If no beam is present, the beam current is set to 0.
         """
         index = coarse_grid_index_to_update
+        # A cell's beam current drives the step that ENDS at its own
+        # centre, so it is read from THIS passage's grid at every index --
+        # index 0 included, where that step crosses the passage boundary.
+        # Nothing is carried from the previous passage: its last cell has
+        # already driven its own step, and re-using it here counted the
+        # same charge twice. The boundary step has no cell of its own,
+        # which is why the demodulation refuses charge in the last cell
+        # (``forbid_charge_in_last_coarse_cell``).
+        if no_beam:
+            beam_current = 0
+        else:
+            beam_current = self.beam_current_forward_coarse_grid[
+                index - self.forward_offset
+            ]
         if index != 0:
-            if no_beam:
-                beam_current = 0
-            else:
-                beam_current = self.beam_current_forward_coarse_grid[
-                    index - self.forward_offset
-                ]
             voltage_gen_prev = self.antenna_voltage_gen_coarse_grid[index - 1]
             voltage_beam_prev = self.antenna_voltage_beam_coarse_grid[
                 index - 1
@@ -2151,7 +2060,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             voltage_gen_prev = self._last_val_ant_voltage_gen
             voltage_beam_prev = self._last_val_ant_voltage_beam
             generator_current = self._last_val_generator_current
-            beam_current = self._last_val_beam_current
         # Beam-sourced component: the former recursion with the generator
         # current pinned to (0 + 0j) -- bit-identical to the old single
         # state for an undriven feedback (whose generator grid is zero).
@@ -2164,18 +2072,17 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 relative_detuning=relative_detuning,
             )
         )
-        if self._generator_active:
-            # Generator-sourced component: same propagator, beam current
-            # pinned to (0 + 0j).
-            self.antenna_voltage_gen_coarse_grid[index] = (
-                self._advance_coarse_voltage(
-                    v_prev=voltage_gen_prev,
-                    generator_current=generator_current,
-                    beam_current=(0.0 + 0.0j),
-                    omega_times_dt=omega_times_dt,
-                    relative_detuning=relative_detuning,
-                )
+        # Generator-sourced component: same propagator, beam current
+        # pinned to (0 + 0j).
+        self.antenna_voltage_gen_coarse_grid[index] = (
+            self._advance_coarse_voltage(
+                v_prev=voltage_gen_prev,
+                generator_current=generator_current,
+                beam_current=(0.0 + 0.0j),
+                omega_times_dt=omega_times_dt,
+                relative_detuning=relative_detuning,
             )
+        )
         self.antenna_voltage_coarse_grid[index] = self._compose_coarse_sum(
             index
         )
@@ -2213,11 +2120,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         Per-cell beam current for a kernel segment.
 
-        Mirrors ``cavity_response``: the carried ``rf_centers`` index 0 (when
-        the segment starts there) always uses ``last_val_beam_current`` -- even
-        for a ``no_beam`` segment, since the reference's idx==0 branch ignores
-        ``no_beam`` -- and every later cell is zero for a no-beam segment or
-        reads the forward beam-current grid otherwise.
+        Mirrors ``cavity_response``: zero for a no-beam segment, and this
+        passage's own forward beam-current grid otherwise -- index 0
+        included, since nothing is carried across the passage boundary.
 
         Parameters
         ----------
@@ -2235,19 +2140,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         beam_current
             Per-cell beam current (complex128, length ``n_cells``).
         """
-        beam_current = np.zeros(n_cells, dtype=np.complex128)
-        if start_index == 0:
-            # Carried index 0 uses last_val_beam_current unconditionally --
-            # cavity_response's idx==0 branch has no no_beam guard.
-            beam_current[0] = self._last_val_beam_current
         if no_beam:
-            return beam_current
-        global_indices = np.arange(start_index, end_index)
-        local_start = 1 if start_index == 0 else 0
-        beam_current[local_start:] = self.beam_current_forward_coarse_grid[
-            global_indices[local_start:] - self.forward_offset
-        ]
-        return beam_current
+            return np.zeros(n_cells, dtype=np.complex128)
+        forward_start = start_index - self.forward_offset
+        return self.beam_current_forward_coarse_grid[
+            forward_start : forward_start + n_cells
+        ].astype(np.complex128)
 
     def reset_arrays(self, n_backfill_cells: int = 0) -> None:
         """
@@ -2322,20 +2220,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             self.generator_current_coarse_grid[:n_backfill_cells] = (
                 self._last_val_generator_current
             )
-        # Whether the generator-sourced component carries any signal this
-        # turn. Everything that can source it is checked: an attached
-        # controller, the feedforward bias seeding the grid, the held
-        # (zero-order-hold) command over the backfill cells and the
-        # carried component voltage. While False, the component update
-        # and every composition multiply are skipped -- the sum is then
-        # assigned from the beam component, keeping an undriven feedback
-        # bit-identical to the former single-state recursion.
-        self._generator_active = (
-            self._controller is not None
-            or self._generator_current_bias != 0
-            or self._last_val_generator_current != 0
-            or self._last_val_ant_voltage_gen != 0
-        )
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -2383,10 +2267,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self._update_frame_rotations()
 
         self._replay_backfill_span(n_backfill_centers=span.n_backfill_centers)
-
-        if self._grid_only_no_correction:
-            self._write_no_correction_readout()
-            return
 
         self._track_forward_span(beam=beam, span=span)
         self._write_station_readout(carrier_slip_gap=self._carrier_slip_gap)
@@ -2537,27 +2417,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
 
         self.calculate_rf_centers_for_forward_direction(beam=beam)
-
-        # The flat rf_centers / rf_centers_lengths arrays are derived from
-        # _segments; assert they stayed consistent after this turn's
-        # generation. This is a per-turn integrity check with no effect on the
-        # result, so it runs only under ``validate_grid_each_turn`` (it walks
-        # the whole grid every turn otherwise).
-        if self._validate_grid_each_turn:
-            self._validate_grid()
-            # The demodulation frame of the forward segment and the coarse
-            # step into its first cell are the same physical quantity -- the
-            # tail of the segment preceding the forward one. They used to be
-            # derived independently (snapshot vs live scalar) and silently
-            # disagreed; tie them together so they cannot drift apart again.
-            assert (
-                self._preceding_segment_residual(n_backfill_centers)
-                == residual_from_backfill_span
-            ), (
-                "forward-segment boundary residual "
-                f"{self._preceding_segment_residual(n_backfill_centers)} != "
-                f"demodulation frame {residual_from_backfill_span}"
-            )
 
         # Coincidence tolerance for the simultaneous-passage guard above:
         # one coarse-cell width, taken from the last two grid centers.
@@ -2779,24 +2638,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             else complex(np.exp(1j * self.delta_phi_rf))
         )
 
-    def _write_no_correction_readout(self) -> None:
-        """
-        Write the neutral readout: unit gain, zero phase.
-
-        Notes
-        -----
-        This is the readout of the ``grid_only_no_correction`` mode, and
-        it means the feedback applies NO correction: unit relative
-        voltage and zero phase make the parent station's
-        ``calc_gap_voltage_with_feedbacks`` reduce to
-        ``voltage * sin(omega_rf * ts + phi_rf)``, i.e. the unperturbed
-        RF wave. The mode stops the turn here: the caller returns from
-        :meth:`_track` right after this call, so neither the beam-current
-        demodulation nor the forward pass runs.
-        """
-        self.relative_voltage_correction = np.ones_like(self.profile.hist_x)
-        self.phase_correction = np.zeros_like(self.profile.hist_x)
-
     def _track_forward_span(
         self, beam: BeamBaseClass, span: PerTurnGridSpan
     ) -> None:
@@ -2926,82 +2767,79 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             + carrier_slip_gap
         )
 
-    def _check_fine_grid_initial_condition_is_causal(
-        self, init_beam_time: float
-    ) -> None:
+    def _state_before_forward_span(
+        self, forward_start: int
+    ) -> tuple[complex, complex]:
         """
-        Reject a fine-grid window that starts before its own seed.
+        Coarse state at the centre preceding the forward segment.
 
-        The fine solve is seeded with the coarse envelope at the first
-        forward coarse centre and then integrates the beam current over
-        ``[profile.cut_left, profile.cut_right]``. Both times are
-        segment-local (origin ``beam.reference.time`` at this passage --
-        the same frame the ``np.interp`` of the generator current onto
-        ``profile.hist_x`` relies on), so the seed is causal only when the
-        centre it comes from is not later than the start of the window:
+        The fine solve is seeded there rather than at the first forward
+        centre, so that no deposit of this passage sits inside its own
+        initial condition. With backfill cells that centre is the last
+        backfill one; without them it is the state carried across the
+        passage boundary.
 
-        ``0 < rf_centers_forward[0] <= profile.cut_left < t_first_charge``
-
-        Checked EVERY turn, not once at setup: the first forward centre
-        depends on the design frequency and on the residual carried from the
-        previous passage, both of which move turn to turn under acceleration
-        and sub-stepping, and ``cut_left`` is itself settable.
-
-        Gated on ``beam_current_fine_grid`` -- the current the fine solve
-        actually consumes, filled by
-        :meth:`calculate_rf_beam_current_partial` immediately before
-        ``circuit_track`` in :meth:`_track_forward_span`. A charge-free
-        window has nothing to be causal about, and grid-geometry tests
-        legitimately drive throwaway empty profiles through this path. It is
-        the right gate rather than ``profile.hist``, which the direct-drive
-        tests never slice even when they hand the fine grid a beam current.
-
-        This guard sits BESIDE ``forbid_charge_in_first_coarse_cell`` (which
-        keeps the seeding cell itself charge-free); neither subsumes the
-        other.
+        The two source-split components are composed with the FORWARD
+        passage's generator rotation -- the frame the fine grid, and the
+        forward span it continues, run in -- rather than with the rotation
+        of the backfill cell the state is taken from.
 
         Parameters
         ----------
-        init_beam_time
-            ``profile.cut_left``, the left edge of the fine grid [s].
+        forward_start
+            Whole-turn coarse index of the first forward cell.
 
-        Raises
-        ------
-        ValueError
-            If the window carries charge and starts before the first
-            forward coarse centre.
+        Returns
+        -------
+        seed_voltage
+            Demodulation-frame antenna voltage at that centre [V].
+        held_generator_current
+            Generator command held over the step into the first forward
+            cell [A], in the design frame the commands are recorded in.
         """
-        beam_current = self.beam_current_fine_grid
-        if beam_current is None or not np.any(beam_current):
-            return
-
-        first_forward_center = float(
-            self._rf_centers[-self._rf_centers_lengths[-1] :][0]
-        )
-        if init_beam_time >= first_forward_center:
-            return
-
-        raise ValueError(
-            f"Acausal fine-grid initial condition: profile.cut_left "
-            f"({init_beam_time:.6g} s) lies before the first forward coarse "
-            f"centre ({first_forward_center:.6g} s), which is the coarse "
-            "sample the fine solve is seeded from, while the window carries "
-            "charge. The seed would then postdate the start of the interval "
-            "it initialises and the beam current would be integrated twice. "
-            "Move the profile window right, to "
-            "cut_left >= max(t_rf / 2, sampling_time_coarse)."
+        if forward_start > 0:
+            voltage_beam = self.antenna_voltage_beam_coarse_grid[
+                forward_start - 1
+            ]
+            voltage_gen = self.antenna_voltage_gen_coarse_grid[
+                forward_start - 1
+            ]
+            held_generator_current = self.generator_current_coarse_grid[
+                forward_start - 1
+            ]
+        else:
+            voltage_beam = self._last_val_ant_voltage_beam
+            voltage_gen = self._last_val_ant_voltage_gen
+            held_generator_current = self._last_val_generator_current
+        return (
+            complex(
+                voltage_beam + voltage_gen * self._generator_frame_rotation
+            ),
+            complex(held_generator_current),
         )
 
     def _resolve_fine_grid_voltage(self, omega_input: float) -> None:
         """
         Resolve this passage's forward segment onto the fine (profile) grid.
 
-        The second half of :meth:`circuit_track`, run only when the segment
-        carries beam. The coarse recursion has just filled the forward
-        segment; its first forward cell is a charge-free voltage seed.
-        Propagate that seed to ``profile.cut_left`` with the recorded
-        generator drive, then integrate the beam-loaded fine response at
-        histogram centres. No later coarse voltage enters the seed.
+        The second half of :meth:`circuit_track`, run only when the
+        segment carries beam. The coarse recursion has just filled the
+        forward segment; the fine solve is seeded from the coarse state at
+        the centre BEFORE its first cell
+        (:meth:`_state_before_forward_span`), propagated to
+        ``profile.cut_left`` with the recorded generator drive, and the
+        beam-loaded fine response is then integrated at histogram centres.
+
+        Seeding before the span rather than at the first forward centre is
+        what lets that first cell carry charge: its deposit drives the
+        coarse step into its own centre once, and the fine solve
+        integrates the same charge once. A seed taken AT that centre would
+        already contain the cell's own deposit, which is why the window
+        used to be constrained to start at or after it with a charge-free
+        first cell. The seed centre is never later than ``cut_left`` -- it
+        lies at or before the passage origin, which ``cut_left`` is
+        asserted to be past -- so the propagation always runs forward, and
+        no later coarse voltage enters the seed.
 
         Writes ``generator_current_fine_grid`` (the interpolation) and, via
         :meth:`cavity_response_fine`, ``antenna_voltage_fine_grid``.
@@ -3012,37 +2850,48 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Frequency of the segment just tracked [rad/s]; sets both the
             fine-grid step phase ``omega * profile.hist_step`` and the
             normalisation of the cavity detuning.
-
-        Raises
-        ------
-        ValueError
-            If the fine-grid window starts before the coarse centre it is
-            seeded from; see
-            ``_check_fine_grid_initial_condition_is_causal``.
         """
         init_beam_time = self.profile.cut_left
         assert init_beam_time > 0, (
             f"{init_beam_time=} has to be > 0, shift profile."
         )
 
-        self._check_fine_grid_initial_condition_is_causal(init_beam_time)
-
-        forward = slice(-self._rf_centers_lengths[-1], None)
-        rf_centers = self._rf_centers[forward]
-        generator_current = self.generator_current_coarse_grid[forward]
+        forward_start = len(self._rf_centers) - self._rf_centers_lengths[-1]
+        seed_voltage, held_generator_current = self._state_before_forward_span(
+            forward_start
+        )
+        # Coarse command i drives the interval AFTER centre i, so the
+        # command held over the step into the first forward cell is the
+        # one of the seed centre: prepending both makes the two arrays
+        # cover the whole interval the fine window may start in.
+        # Reconstructing that interval with these already-computed
+        # commands is what keeps the PI from being stepped a second time,
+        # which would advance its delay and integral twice.
+        rf_centers = np.concatenate(
+            (
+                [
+                    self._rf_centers[forward_start]
+                    - self._step_into_first_cell(
+                        omega_input, forward_start, len(self._rf_centers)
+                    )
+                ],
+                self._rf_centers[forward_start:],
+            )
+        )
+        generator_current = np.concatenate(
+            (
+                [held_generator_current],
+                self.generator_current_coarse_grid[forward_start:],
+            )
+        )
         if self._controller is not None:
             generator_current = self._controller.limit(generator_current)
 
-        # Coarse command i drives the interval AFTER centre i. Reconstruct
-        # the empty interval with that held, already-computed current;
-        # stepping the PI again would advance its delay and integral twice.
-        generator_current_in_frame = generator_current
-        if self._generator_active:
-            generator_current_in_frame = (
-                generator_current * self._generator_frame_rotation
-            )
+        generator_current_in_frame = (
+            generator_current * self._generator_frame_rotation
+        )
         antenna_voltage_init = propagate_beam_free_voltage(
-            initial_voltage=self.antenna_voltage_coarse_grid[forward][0],
+            initial_voltage=seed_voltage,
             generator_current=generator_current_in_frame,
             rf_centers=rf_centers,
             end_time=init_beam_time,
@@ -3120,18 +2969,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # LOCAL inputs -- the solve is linear, so this reproduces the
         # superposition of the two per-component fine solutions exactly.
         # The public ``generator_current_fine_grid`` stays the raw
-        # (klystron-limited) design-frame current. Skipped while the
-        # generator component is inactive, keeping an undriven feedback
-        # bit-identical.
-        generator_current_fine_grid = self.generator_current_fine_grid
-        if self._generator_active:
-            generator_current_fine_grid = (
-                generator_current_fine_grid * self._generator_frame_rotation
-            )
-            initial_generator_current_fine_grid = (
-                initial_generator_current_fine_grid
-                * self._generator_frame_rotation
-            )
+        # (klystron-limited) design-frame current.
+        generator_current_fine_grid = (
+            self.generator_current_fine_grid * self._generator_frame_rotation
+        )
+        initial_generator_current_fine_grid = (
+            initial_generator_current_fine_grid
+            * self._generator_frame_rotation
+        )
 
         cavity_response_solver = (
             cavity_response_sparse_matrix_second_order
@@ -3185,9 +3030,18 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ONLY free phase left in the implemented beam-loading expression.
         Its energy-loss sign requires ``cos(omega_c * dT) < 0``; recovering
         the full magnitude and phase in this convention requires
-        ``omega_c * dT == pi`` (mod ``2 pi``) -- the value
-        :meth:`_seed_initial_demodulation_frame` already seeds turn 0 to.
+        ``omega_c * dT == pi`` (mod ``2 pi``) -- the value the segment
+        tiling delivers on every passage, turn 0 included (see
+        :meth:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin._close_previous_turn_grid`).
         The physical theorem itself does not prescribe this grid offset.
+
+        The demodulation does not consume this product: the frame is
+        stated as exactly ``pi`` (``demodulation_phase`` of
+        :func:`~blond.physics.feedbacks.beam_current.rf_beam_current`), so
+        the residual's frequency lag under a ramp never reaches the beam
+        current. This check is what keeps the two consistent -- a grid
+        whose own frame is not ``pi`` does not sit where the stated frame
+        assumes, and its deposit lands at the wrong phase in the bucket.
 
         Half an RF period off and the induced voltage is sign-inverted: the
         bunch is ACCELERATED by its own wake, and the wrongly signed deposit
@@ -3227,14 +3081,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             return
 
         raise ValueError(
-            "The beam-current demodulation frame is not aligned with the "
-            "RF bucket. The implemented mixing and kick convention requires "
-            "omega_c * dT == pi (mod 2 pi), but "
-            f"omega_c * dT = {theta / np.pi:.9f} pi, off by "
-            f"{deviation / np.pi:.9f} pi. With "
-            f"cos(omega_c * dT) = {np.cos(theta):+.6f} the beam-induced "
-            "voltage is rotated by that angle -- and for an offset beyond "
-            "0.5 pi it is sign-inverted, so the bunch would be ACCELERATED "
+            "The coarse grid is not aligned with the RF bucket. The "
+            "beam current is demodulated at the convention value pi, and "
+            "the grid must sit there too: omega_c * dT == pi (mod 2 pi). "
+            f"Here omega_c * dT = {theta / np.pi:.9f} pi, off by "
+            f"{deviation / np.pi:.9f} pi, so the deposit lands at that "
+            "angle in the bucket -- and beyond 0.5 pi of offset "
+            f"(cos(omega_c * dT) = {np.cos(theta):+.6f}) the beam-induced "
+            "voltage is sign-inverted, so the bunch would be ACCELERATED "
             "by its own wake instead of losing energy to it. Usual causes: "
             "the harmonic is not a whole number of RF periods per segment "
             "(not divisible by the number of reference-altering elements); "
@@ -3276,28 +3130,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             * 2
             * np.pi
             / self._forward_segment_omega_design
-        )
-        # Carried into the first coarse step (index 0) of a later span: the
-        # backfill replay of the next passage, or its forward span when it
-        # has no backfill. Note the asymmetry with the generator current:
-        # the forward span consumes this grid INCLUSIVE of its last element,
-        # so the sample carried here has already driven the last step of the
-        # passage that demodulated it -- the beam term does not have the
-        # generator's ``i-1`` offset -- and any charge in it is counted
-        # twice. It is read BEFORE this passage's demodulation overwrites
-        # the grid, so it is the previous demodulation's last cell. Inert in
-        # every shipped configuration (measured exactly 0.0 over 495
-        # demodulations across the multi-section, sub-stepped, accelerating,
-        # multibunch and counter-rotating suites, and in the RCS example):
-        # the forward coarse grid spans the whole inter-station drift while
-        # the profile window is a few RF periods at its start, so the last
-        # cell is never written. A window reaching the last cell would bias
-        # the loading by about one cell in n_points; rf_beam_current warns
-        # when that happens (warn_charge_in_last_coarse_cell below).
-        self._last_val_beam_current = (
-            self.beam_current_forward_coarse_grid[-1]
-            if self.beam_current_forward_coarse_grid is not None
-            else 0
         )
         # The demodulated current must be rotated into the frame of the
         # coarse-grid envelope recursion. Where that phase lives depends on
@@ -3351,40 +3183,28 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # mismatch delta_omega_rf * hist_x is bunch-local and negligible;
             # see the class docstring).
             #
-            # KNOWN APPROXIMATION -- stale-residual frequency lag.
-            # ``dT_demodulation`` is the tail left by the PRECEDING segment
-            # (``_preceding_segment_residual``), but it is consumed here
-            # against THIS segment's carrier. Under a ramp the two design
-            # frequencies differ, so the demodulation frame
-            # ``omega_c * dT`` is short/long by ``(omega_fwd - omega_prod) *
-            # dT``. Since ``dT ~ t_rf / 2 = pi / omega``, that error in units
-            # of pi is just the FRACTIONAL per-segment frequency change,
-            #     frame lag [pi]  ~  (omega_fwd - omega_prod) / omega .
-            # ``rf_center_grid.py`` makes the same distinction explicitly for
-            # the grid geometry, where it uses ``_last_segment_omega_design``
-            # rather than the current one; the demodulation does not.
-            #
-            # Left as-is deliberately: measured over the shipped programmes
-            # the lag is 7.9e-8 pi on RCS1 -- the FASTEST ramp at ~23 %/turn
-            # -- and 9.4e-10 pi on RCS2, against the 1e-3 pi tolerance of
-            # ``_assert_demodulation_frame_aligned``. That is ~1.3e4 of
-            # margin, i.e. the per-segment frequency step would have to grow
-            # by four orders of magnitude (to ~0.1 % per segment) before the
-            # frame is even flagged, let alone physically wrong.
-            #
-            # A MORE VIOLENT RAMP WOULD CHANGE THAT, and the failure is loud
-            # rather than silent: the guard raises once the lag reaches
-            # 1e-3 pi. If that happens, the fix is cheap and local --
-            # ``RFCenterSegment`` already stores ``omega`` beside
-            # ``residual``, so ``_preceding_segment_residual`` can return the
-            # pair and the frame can be built from the producing carrier.
-            # Do not simply rescale ``dT``: whether the residual should carry
-            # the accumulated slip is a separate question that the comment
-            # above answers in the negative, and no test pins either way.
             omega_c=self._forward_segment_omega_design,
             sampling_time=sampling_time_frwrd,
             n_points=n_points,
+            # The binning shift only: a physical time, the tail this
+            # passage's grid leaves before its first forward centre.
             dT=dT_demodulation,
+            # The frame is STATED, not taken from that tail. The
+            # convention admits exactly one value, ``pi`` (mod 2 pi), and
+            # the grid is built to land on it -- but ``dT_demodulation``
+            # is the tail left by the PRECEDING segment while ``omega_c``
+            # is THIS segment's carrier, so under a ramp their product is
+            # short/long by the fractional per-segment frequency change,
+            #     frame lag [pi]  ~  (omega_fwd - omega_prod) / omega ,
+            # measured 7.9e-8 pi on RCS1 (the fastest shipped ramp) and up
+            # to 3.5e-6 pi on the 4 GeV single-section test ramp. Stating
+            # the frame keeps that lag out of the beam-loading phase;
+            # ``_assert_demodulation_frame_aligned`` above checks the grid
+            # against it, so a grid that does not sit at ``pi`` -- a
+            # sub-step other than 0.5, a harmonic that is not a whole
+            # number of RF periods per segment -- still raises rather than
+            # being silently demodulated at the stated value.
+            demodulation_phase=np.pi,
             # Anchor the demodulation to the phase the BEAM actually
             # sees: minus the total that the station and the readout
             # add back on top of ``angle(V_ant)``. That total is the
@@ -3416,14 +3236,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             # ``phi_rf_design = 0`` runs without an RF-frequency
             # offset.
             carrier_phase_offset=-(self.phi_rf + self._carrier_slip_gap),
-            # The fine-grid initial antenna voltage is taken from the first
-            # coarse cell (see circuit_track), so that cell must stay
-            # charge-free or its beam kick would be double-counted.
-            forbid_charge_in_first_coarse_cell=True,
-            # The last cell's beam current is carried into the first coarse
-            # step of a later passage and counted twice there (see the carry
-            # above), so charge reaching it must be reported.
-            warn_charge_in_last_coarse_cell=True,
+            # The step from this passage's last centre into the next
+            # passage's grid has no cell of its own, so it carries no beam
+            # current, and charge past that centre is rejected outright:
+            # the window must stay clear of the end of the coarse grid.
+            forbid_charge_in_last_coarse_cell=True,
         )
 
         # Convert RF beam currents to be in units of Amperes

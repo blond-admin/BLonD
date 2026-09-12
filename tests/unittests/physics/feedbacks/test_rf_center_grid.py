@@ -39,6 +39,9 @@ from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
+from blond.testing.cavity_feedback import (
+    DiagnosticIQCavityFeedbackTimingClass,
+)
 
 DEBUG_PLOTTING = False
 
@@ -614,7 +617,7 @@ class TestIQCavityFeedbackTimingClass:
                 # counter-rotating mainloop's placement check).
                 element_list.append(self.profile)
             timing_fdbk_list.append(
-                IQCavityFeedbackTimingClass(
+                DiagnosticIQCavityFeedbackTimingClass(
                     profile=self.profile,
                     n_rf_periods_per_coarse_grid=n_rf_points,
                     # ``debug`` records the inspection-only grid
