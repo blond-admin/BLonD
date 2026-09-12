@@ -680,28 +680,11 @@ class TestCallables(unittest.TestCase):
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        from blond.core.beam.base import BeamBaseClass
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
-        beam.particle_type = proton
-        beam._particle_type = beam.particle_type
-        beam.reference.time = 0
-        beam.reference.beta = 0.5
-        beam.reference.velocity = beam.reference.beta * c0
-        beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference.total_energy = 938
-        beam.reference._total_energy = beam.reference.total_energy
-        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
-        # delta E  in eV
-        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
-        # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
-        beam.signed_charge_with_direction.return_value = proton._charge
-
-        self.beam = beam
+        self.beam = Beam(particle_type=proton,intensity=1)
+        self.beam.setup_beam(dt=np.linspace(-1e-6, 1e-6, 10),
+                             dE=np.linspace(-1e-6, 1e-6, 10),
+                             reference_total_energy=938,
+                             reference_time=0)
 
         self.multi_harmonic_cavity = MultiHarmonicRFStation.headless(
             section_index=0,

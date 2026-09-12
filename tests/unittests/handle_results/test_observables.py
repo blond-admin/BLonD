@@ -57,23 +57,12 @@ simulation.ring.circumference = 500
 simulation.turn_counter = DynamicParameter(None)
 simulation.turn_counter.value = 0
 simulation.current_t_rev = 123
-beam = Mock(BeamBaseClass)
-beam._dE = Mock(DistributedArray)
-beam._dt = Mock(DistributedArray)
-beam._flags = Mock(DistributedArray)
-beam.common_array_size = 128
-beam.reference = Mock(ReferenceCoordinates)
-beam.reference.time = 0.8
-beam.reference.beta = 0.9
-beam.reference.total_energy = 11
-beam._dt.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._dE.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
-beam.read_partial_dt.return_value = beam._dt.array_local
-beam.read_partial_dE.return_value = beam._dE.array_local
-beam.read_partial_flags.return_value = beam._flags.array_local
-beam.dt_min = 1
-beam.dt_max = 2
+BEAM_COMMON_ARRAY_SIZE = 128
+beam = Beam(intensity=1, particle_type=proton)
+beam.setup_beam(dt=np.ones(BEAM_COMMON_ARRAY_SIZE),
+                dE=np.append(np.ones(BEAM_COMMON_ARRAY_SIZE - 1), [2]),
+                reference_time=0.8,
+                reference_total_energy=11)
 sep_helper = Mock(SymbolicSeparatrixHelper)
 dE_sep = np.ones(256)
 sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])
@@ -227,18 +216,12 @@ class TestBeamObservation(unittest.TestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference.time = 0.8
-        # self.beam.reference.beta = 0.9
-        self.beam.reference.total_energy = 11
-        self.beam._dt = np.ones(common_array_size, dtype=float)
-        self.beam._dE = np.ones(common_array_size, dtype=float)
-        self.beam._flags = np.ones(common_array_size, dtype=int)
-
         self.beam.setup_beam(
-            dE=np.ones(common_array_size, dtype=float),
-            dt=np.ones(common_array_size, dtype=float),
             reference_time=0.8,
             reference_total_energy=11,
+            dt=np.ones(common_array_size),
+            dE=np.ones(common_array_size),
+            flags=np.ones(common_array_size),
         )
 
     def test___init__(self) -> None:
@@ -422,21 +405,9 @@ class TestBunchStatistics(unittest.TestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference._time = 0.8
-        self.beam.reference._beta = 0.9
-        self.beam.reference._total_energy = 11
-        self.beam._dt = DistributedArray(
-            np.ones(common_array_size, dtype=float)
-        )
-        self.beam._dE = DistributedArray(
-            np.ones(common_array_size, dtype=float)
-        )
-        self.beam._flags = DistributedArray(
-            np.ones(common_array_size, dtype=int)
-        )
         self.beam.setup_beam(
-            dE=np.ones(common_array_size, dtype=float),
-            dt=np.ones(common_array_size, dtype=float),
+            dE=np.ones(common_array_size),
+            dt=np.ones(common_array_size),
             reference_time=0.8,
             reference_total_energy=11,
         )

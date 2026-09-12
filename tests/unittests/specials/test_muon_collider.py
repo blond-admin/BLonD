@@ -54,12 +54,8 @@ class TestBeamPreparationMuCol(unittest.TestCase):
         beam = Beam(
             intensity=1, particle_type=proton, is_counter_rotating=True
         )
-
-        filename = "testfile.npz"
-        beam._dt = np.linspace(-50e-9, 50e-9, num=100)
-        beam._dE = np.linspace(-50e9, 50e9, num=100)
-        beam._flags = np.ones_like(beam._dE)
-        beam._ids = np.arange(len(beam._dE))
+        beam.setup_beam(dt=np.linspace(-50e-9, 50e-9, num=100),
+                        dE=np.linspace(-50e9, 50e9, num=100))
 
         beam_CR = Beam(
             intensity=2, particle_type=proton, is_counter_rotating=False

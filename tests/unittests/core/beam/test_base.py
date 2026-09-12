@@ -605,10 +605,7 @@ class TestSortByDt(unittest.TestCase):
             particle_type=proton,
             is_distributed=is_distributed,
         )
-        beam._dt = DistributedArray(backend.array(dt, dtype=backend.float))
-        beam._dE = DistributedArray(backend.array(dE, dtype=backend.float))
-        beam._ids = DistributedArray(backend.array(ids, dtype=np.int32))
-        beam._flags = DistributedArray(backend.array(flags, dtype=np.int32))
+        beam.setup_beam(dt=dt, dE=dE, ids=ids, flags=flags)
         return beam
 
     def test_permutes_all_arrays_consistently(self):

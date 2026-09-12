@@ -137,8 +137,6 @@ class TestBoxLosses(unittest.TestCase):
             dE=np.linspace(-100, 100, 201),
         )
         self.box_losses.track(beam=beam)
-        print(beam._dt)
-        print(beam._dE)
 
         # np.testing.assert_equal(beam._dt >= 1, True)
         np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) <= 2, True)
@@ -164,8 +162,6 @@ class TestBoxLosses(unittest.TestCase):
             dE=np.linspace(-100, 100, 201),
         )
         self.box_losses.track(beam=beam)
-        print(beam._dt)
-        print(beam._dE)
 
         np.testing.assert_equal(copy_to_cpu(beam.read_partial_dt()) >= 1, True)
         # np.testing.assert_equal(copy_to_cpu()(beam._dt) <= 2, True)

@@ -233,10 +233,7 @@ class TestNestedMocksHashingBug(unittest.TestCase):
         beam = Beam(
             intensity=1, particle_type=mu_plus, is_counter_rotating=False
         )
-        beam._dt = DistributedArray(np.zeros(5))
-        beam._dE = DistributedArray(np.zeros(5))
-        beam._ids = DistributedArray(np.arange(5))
-        beam._flags = DistributedArray(np.zeros(5))
+        beam.setup_beam(dt=np.zeros(5), dE=np.zeros(5))
 
         cnst_cycle = ConstantMagneticCycle(
             reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
