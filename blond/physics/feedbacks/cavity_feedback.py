@@ -675,6 +675,18 @@ class IQCavityFeedbackTimingClass(
         station voltage at phase 0, so a rotated setpoint would be regulated
         but not applied -- a non-real value raises ``ValueError``. Rotate
         ``phi_rf`` on the station instead.
+    controller_update_interval
+        Coarse cells between controller updates [1]. The coarse grid is the
+        *cavity model's* step -- one RF period per cell by default, so
+        1.3 GHz on an RCS -- and no LLRF samples that fast. This decouples
+        the two rates: the controller is evaluated every
+        ``controller_update_interval``-th cell and its command is held
+        (zero order) over the cells in between, exactly as a digital loop
+        holds its DAC between samples, while the cavity recursion keeps
+        stepping every cell. Default 1, which regulates on every cell as
+        before. Note that the controller's own ``n_delay`` then counts
+        *controller* samples, not coarse cells, so a physical loop delay
+        must be discretised on ``controller_update_interval * coarse step``.
     n_pretrack
         Feedforward cavity fill budget in turns. If given, the initial antenna
         voltage is seeded (in ``on_run_simulation``) from the constant-current
@@ -824,6 +836,7 @@ class IQCavityFeedbackTimingClass(
         second_order_fine_grid_solver_enable: bool = False,
         controller: GeneratorCurrentController | None = None,
         voltage_setpoint: complex | None = None,
+        controller_update_interval: int = 1,
         n_pretrack: int | None = None,
         injection_voltage: float | None = None,
         harmonic_index: int = 0,
@@ -935,6 +948,20 @@ class IQCavityFeedbackTimingClass(
         self._validate_voltage_setpoint(voltage_setpoint)
         self._voltage_setpoint = voltage_setpoint
         self._omega_input_for_pi: float | None = None
+        # Sampling rate of the loop, in cavity-model steps. The phase is the
+        # free-running clock: it counts coarse cells across spans and turns,
+        # so a segment boundary or a passage does not re-phase the LLRF.
+        if (
+            int(controller_update_interval) != controller_update_interval
+            or controller_update_interval < 1
+        ):
+            raise ValueError(
+                "controller_update_interval must be a positive whole "
+                f"number of coarse cells, got "
+                f"{controller_update_interval!r}"
+            )
+        self._controller_update_interval = int(controller_update_interval)
+        self._controller_update_phase = 0
 
         # --- Optional feedforward cavity pre-fill / injection matching ---
         # When n_pretrack is set, on_run_simulation seeds the initial antenna
@@ -1040,6 +1067,19 @@ class IQCavityFeedbackTimingClass(
             read this only once the feedback has tracked a passage.
         """
         return len(self._rf_centers) - self._rf_centers_lengths[-1]
+
+    @property
+    def controller_update_interval(self) -> int:
+        """
+        Coarse cells between controller updates [1].
+
+        Returns
+        -------
+        interval
+            1 regulates on every cavity-model step; ``x`` samples the loop
+            ``x`` times slower and holds the command in between.
+        """
+        return self._controller_update_interval
 
     def _init_turn_boundary_carries(self) -> None:
         """
@@ -1347,6 +1387,13 @@ class IQCavityFeedbackTimingClass(
             self._circuit_track_cells_python(
                 omega_input, no_beam, start_index, end_index
             )
+        # Advance the free-running update clock by the cells this span
+        # consumed, so the next span (or turn) continues it instead of
+        # restarting. Coincident cells count: they carry no time, but the
+        # clock is a cell counter and the jitter is one cell of a sub-step.
+        self._controller_update_phase = (
+            self._controller_update_phase + max(end_index - start_index, 0)
+        ) % self._controller_update_interval
 
     def _circuit_track_cells_python(
         self,
@@ -1481,6 +1528,15 @@ class IQCavityFeedbackTimingClass(
                 coarse_grid_index_to_update=rf_centers_idx,
                 relative_detuning=self.delta_omega / omega_input,
                 no_beam=no_beam,
+                update_controller=(
+                    (
+                        self._controller_update_phase
+                        + rf_centers_idx
+                        - start_index
+                    )
+                    % self._controller_update_interval
+                    == 0
+                ),
             )
 
     def _circuit_track_cells_kernel(
@@ -1601,6 +1657,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             kick_frame_rotations,
             complex(self._pi_error_frame_rotation),
             controller_active,
+            self._controller_update_interval,
+            self._controller_update_phase,
             voltage_setpoint,
             float(omega_input),
             *controller_state,
@@ -2013,6 +2071,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         coarse_grid_index_to_update: int,
         relative_detuning: float,
         no_beam: bool = False,
+        update_controller: bool = True,
     ):
         """
         Calculate antenna voltage on the coarse grid for a specific index.
@@ -2034,6 +2093,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Detuning normalized to the current RF frequency.
         no_beam
             If no beam is present, the beam current is set to 0.
+        update_controller
+            Whether this cell is a controller sample. False holds the
+            previous command over the cell (zero order); see
+            ``controller_update_interval``. The cell-loop passes the free-
+            running clock's verdict; a direct caller regulating every cell
+            leaves it True.
         """
         index = coarse_grid_index_to_update
         # A cell's beam current drives the step that ENDS at its own
@@ -2105,10 +2170,15 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # are exactly unity without an RF-frequency offset and without
         # multi-section acceleration.
         if self._controller_active:
-            self._update_generator_current(
-                omega_times_dt=omega_times_dt,
-                coarse_grid_index_to_update=coarse_grid_index_to_update,
-            )
+            if update_controller:
+                self._update_generator_current(
+                    omega_times_dt=omega_times_dt,
+                    coarse_grid_index_to_update=coarse_grid_index_to_update,
+                )
+            else:
+                # Between samples the loop holds its last command, which is
+                # the one that drove this very step.
+                self.generator_current_coarse_grid[index] = generator_current
 
     def _kernel_beam_current(
         self,

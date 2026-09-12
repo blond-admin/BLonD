@@ -2072,6 +2072,41 @@ equality is not an artefact of a trivial rotation.
     which is where the two implementations of the gate could have
     diverged.
 
+``TestControllerUpdateInterval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The loop may sample slower than the cavity model steps. The coarse grid is
+the cavity model's step -- 1.3 GHz on an RCS at one RF period per cell --
+and no LLRF runs that fast, so ``controller_update_interval`` coarse cells
+pass between controller updates and the command is held (zero order) over
+the cells in between. The clock free-runs across spans rather than
+re-phasing at each segment boundary.
+
+``test_the_interval_is_a_constructor_knob``
+    The feedback carries and reports it; the default is 1.
+``test_a_non_positive_interval_is_refused``
+    Zero or a negative count is not a sampling rate and raises
+    ``ValueError``.
+``test_interval_one_is_the_undecimated_loop``
+    The default is bit-for-bit the every-cell loop it replaces, on both
+    paths -- the pin that made this change safe to introduce.
+``test_the_command_is_held_between_updates``
+    The generator-current grid is piecewise constant in blocks of the
+    interval. Non-vacuous: every block's held value differs from its
+    neighbours', so the loop is regulating rather than frozen.
+``test_the_cavity_still_steps_every_cell``
+    Decimating the loop must not decimate the cavity: no antenna-voltage
+    step in the segment is zero.
+``test_the_controller_steps_once_per_interval``
+    The control law itself is evaluated once per update, counted on a
+    controller that records its own calls.
+``test_the_two_paths_agree_when_decimated``
+    Kernel and reference stay bit-identical with the hold in place.
+``test_the_update_clock_runs_free_across_spans``
+    Two six-cell spans at an interval of four update at global cells 0, 4
+    and 8 -- local cell 2 of the second span. A clock that restarted per
+    span would update six times in twelve cells rather than three.
+
 ``TestDegenerateCoarseSteps``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

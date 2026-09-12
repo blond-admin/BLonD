@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from core.beam.beams import Beam
 
 from blond import (
     Beam,
@@ -146,10 +147,7 @@ class TestIQCavityFeedbackTimingClass:
         self.beam = Beam(
             intensity=1, particle_type=mu_plus, is_counter_rotating=False
         )
-        self.beam._dt = DistributedArray(np.zeros(5))
-        self.beam._dE = DistributedArray(np.zeros(5))
-        self.beam._ids = DistributedArray(np.arange(5))
-        self.beam._flags = DistributedArray(np.zeros(5))
+        self.beam.setup_beam(dt=np.zeros(5), dE=np.zeros(5))
 
     def _make_timing_feedback(self, n_rf_periods_per_coarse_grid, **kwargs):
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)

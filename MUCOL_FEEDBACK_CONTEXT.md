@@ -1583,6 +1583,63 @@ subtests (612 / 8 / 323 before, +4 tests / +6 subtests). Full
 `tests/unittests`: **1806 passed / 89 skipped / 382 subtests / 0 failed**,
 362 s.
 
+### 2.25 LLRF sampling rate decoupled from the cavity step (2026-09-12)
+
+The coarse grid is the CAVITY MODEL's step. At the default
+`n_rf_periods_per_coarse_grid = 1` that is one RF period, so stepping the
+controller on every cell modelled an LLRF sampling at **1.3 GHz** — which
+no hardware does. `IQCavityFeedbackTimingClass` now takes
+`controller_update_interval` (default 1): the controller is evaluated every
+x-th coarse cell and its command is held, zero order, over the cells in
+between, while the cavity recursion keeps stepping every cell.
+
+- **Free-running clock.** The phase is carried across spans and turns in
+  `_circuit_track_cells` (`_controller_update_phase`, advanced by the cells
+  each span consumed), and passed to the kernel as an offset, so no extra
+  kernel return value was needed and a segment boundary or a passage does
+  not re-phase the loop. Coincident cells count as cells: they carry no
+  time, but the clock is a cell counter, and the jitter is one cell of a
+  sub-step.
+- **The hold is written, not implied.** Between samples the cell's
+  generator current is set to the command that drove it, so the grid — and
+  the fine-grid solve that interpolates it — is a faithful staircase. The
+  drive chain reads `generator_current_coarse_grid[idx-1]`, so leaving the
+  prefilled bias there would have snapped the drive back between samples.
+- **`n_delay` now counts CONTROLLER samples**, not coarse cells. A physical
+  round-trip delay must therefore be discretised on
+  `controller_update_interval * coarse_step`; the outer `llrf_tuning` does
+  that. Getting this wrong multiplies the latency by x silently.
+- **The integrator credits the whole interval.** `delta_t` is the cavity
+  step times the interval, exact inside a segment (uniform steps) and one
+  sample's approximation across a boundary.
+- **Gains stay physical.** K_p and K_i are A/V and A/(V s); the sampling
+  rate does not rescale them. The outer derivation keeps deriving them
+  from the delay in CAVITY steps, so `stability_product` is unchanged and
+  the shipped tuning is untouched.
+
+**Tests.** `TestControllerUpdateInterval` (`test_envelope_kernel.py`, 8
+tests, incl. the bit-identity pin at interval 1 and the free-running clock
+across two spans). GREEN over `tests/unittests/physics/feedbacks`: 624
+passed, 8 skipped, 335 subtests (616 / 8 / 329 before). The 17-turn RCS1
+example reproduces line for line at the default.
+
+**Shipped default (outer repo).** `RunConfig.llrf_sample_period_s`
+defaults to `LLRF_SAMPLE_PERIOD_S = 12.3e-9` s — 81 MHz, 16 cavity steps on
+every live machine — and `ChainConfig` carries it to every stage. The delay
+line counts controller samples (81 on RCS1, not 1296); the gain and the
+integral time keep being derived from the delay in CAVITY steps, so the
+shipped tuning is numerically unchanged. Full-ramp RCS1 moves in the fifth
+digit: deepest sag 8.46 % unchanged, average 7.56 -> 7.57 %, rigid phase
+-0.892 -> -0.894 deg, bunch length and emittance unchanged.
+
+**Measured** (RCS1, 5 turns, outer sweep): from 1.3 GHz down to 5 MHz the
+loop stays stable and the run barely moves — deepest sag 8.049 % -> 8.172 %,
+injection dipole 0.843 -> 0.873 deg, bunch length and emittance unchanged
+to four digits. The discrete spectral radius FALLS with slower sampling
+(0.99968 -> 0.93746): the delay dominates, and it is the delay measured in
+samples that shrinks. What the decimation really costs is the hold's
+half-sample lag, 6 ns against a 1 us round trip at 81 MHz.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam
@@ -1922,11 +1979,21 @@ subtests (612 / 8 / 323 before, +4 tests / +6 subtests). Full
   construction, 2026-09-02.
 
 - ~~Beam phase loop ↔ cavity feedback coupling~~ **DECIDED (2026-08-12,
-  maintainer ruling): deliberate NON-GOAL — the phase loop must not couple
-  to the cavity feedback at all.** The `NotImplementedError` that
+  maintainer ruling): deliberate NON-GOAL for the GLOBAL, once-per-turn
+  loops — `BeamFeedbackBase` and its LHC/PS/PSB/SPS subclasses must not
+  couple to the cavity feedback at all.** The `NotImplementedError` that
   `cavity_sum_phase` raises whenever a station carries ANY cavity feedback
-  (§2.12(h)) is the intended *permanent contract*, not a stub awaiting an
-  implementation. Background (still accurate): the original body read the
+  (§2.12(h)) is the intended *permanent contract* for those loops, not a
+  stub awaiting an implementation. **Scope narrowed 2026-09-12 (maintainer):
+  the ruling does not cover a PER-STATION phase loop.** On the RCS a
+  once-per-turn loop is aliased (`Q_s = 1.25` per turn on RCS1) and a
+  turn late by 1.25 synchrotron periods, so a future loop has to sample
+  and act at the station, and reading the cavity feedback's demodulated
+  beam current there is the intended sensor — that coupling is allowed.
+  Design notes and the validation battery live in the outer repository
+  (`muon_collider_blonder/rcs_two_beam_example/phase_loop_analysis.py`,
+  `test_muon_collider_blonder/test_rcs_phase_loop.py`); nothing of it is
+  implemented in BLonD yet. Background (still accurate): the original body read the
   deleted blond2 coarse-array API (`I_BEAM_COARSE`, `V_ANT_COARSE`, a
   fixed `n_coarse` per turn), which exists nowhere in the live tree; with
   no such feedback the method stays a silent no-op — a normal, supported

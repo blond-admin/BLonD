@@ -421,7 +421,15 @@ class GeneratorRegulationMixin:
             self.pi_setpoint
             - (self.antenna_voltage_coarse_grid[idx] * kick_frame_rotation)
         ) * self._pi_error_frame_rotation
-        delta_t = omega_times_dt / self._omega_input_for_pi
+        # The command is held until the next controller sample, so the
+        # integrator credits it with the whole update interval rather than
+        # one cavity-model step (``controller_update_interval``). Exact
+        # inside a segment, where the coarse steps are uniform.
+        delta_t = (
+            omega_times_dt
+            / self._omega_input_for_pi
+            * self._controller_update_interval
+        )
         self.generator_current_coarse_grid[idx] = (
             self._controller.update_generator_current(error, delta_t)
         )

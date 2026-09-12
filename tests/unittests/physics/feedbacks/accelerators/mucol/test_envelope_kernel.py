@@ -44,6 +44,7 @@ def _make_feedback(
     voltage_setpoint=None,
     delta_omega=0.0,
     generator_current_bias=BIAS,
+    controller_update_interval=1,
 ):
     """
     Build an isolated timing feedback for direct cell-loop driving.
@@ -61,6 +62,8 @@ def _make_feedback(
     generator_current_bias
         Feedforward generator-current bias; zero (with no controller)
         leaves the generator component undriven.
+    controller_update_interval
+        Coarse cells per controller update; 1 regulates every cell.
 
     Returns
     -------
@@ -76,6 +79,7 @@ def _make_feedback(
         delta_omega=delta_omega,
         controller=controller,
         voltage_setpoint=voltage_setpoint,
+        controller_update_interval=controller_update_interval,
     )
     feedback.use_numba_envelope_kernel = use_kernel
     return feedback
@@ -804,6 +808,222 @@ class TestUndrivenGeneratorComponentNeedsNoGate(unittest.TestCase):
         _assert_bit_identical(
             self, self._run_undriven(True), self._run_undriven(False)
         )
+
+
+class TestControllerUpdateInterval(unittest.TestCase):
+    """The loop may sample slower than the cavity model steps.
+
+    The coarse grid is the cavity model's step, one RF period per cell by
+    default -- 1.3 GHz on an RCS. No LLRF runs that fast. The two rates
+    are therefore separate: ``controller_update_interval`` coarse cells
+    pass between controller updates, and the command issued at an update
+    is held (zero order) over them, which is what a real digital loop
+    does between its own samples. The cavity keeps stepping at the fine
+    rate underneath.
+
+    The clock is free-running: it counts coarse cells across segment and
+    turn boundaries rather than restarting at each span, so a passage
+    does not re-phase the LLRF.
+    """
+
+    N_CELLS = 24
+    INTERVAL = 4
+    PI_KW = {
+        "gain_proportional": 1e-9,
+        "gain_integral": 5e-4,
+        "generator_current_bias": BIAS,
+    }
+
+    def _run(self, use_kernel, *, interval, controller_kw=None, n=None):
+        """
+        Drive one regulated segment at a given update interval.
+
+        Parameters
+        ----------
+        use_kernel
+            Which path to run.
+        interval
+            Coarse cells per controller update.
+        controller_kw
+            Kwargs for the PI controller; the default PI tuning if None.
+        n
+            Number of coarse cells.
+
+        Returns
+        -------
+        snapshot
+            The post-run snapshot (see :func:`_snapshot`).
+        """
+        n = self.N_CELLS if n is None else n
+        controller = GeneratorCurrentPIController(
+            **(self.PI_KW if controller_kw is None else controller_kw)
+        )
+        feedback = _make_feedback(
+            use_kernel,
+            controller=controller,
+            voltage_setpoint=3.0e7 + 0.0j,
+            controller_update_interval=interval,
+        )
+        rng = np.random.default_rng(11)
+        beam = (rng.standard_normal(n) + 1j * rng.standard_normal(n)) * 1e-4
+        _seed_single_segment(
+            feedback, n, v_init=3.0e7 + 1.0e6j, i_init=BIAS, beam=beam
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            feedback._circuit_track_cells(
+                omega_input=OMEGA_RF,
+                no_beam=False,
+                start_index=0,
+                end_index=n,
+            )
+        return _snapshot(feedback)
+
+    def test_the_interval_is_a_constructor_knob(self):
+        """The feedback carries the interval and reports it."""
+        feedback = _make_feedback(True, controller_update_interval=8)
+        self.assertEqual(feedback.controller_update_interval, 8)
+        self.assertEqual(_make_feedback(True).controller_update_interval, 1)
+
+    def test_a_non_positive_interval_is_refused(self):
+        """Zero or negative cells per update is not a sampling rate."""
+        for interval in (0, -1):
+            with self.subTest(interval=interval):
+                with self.assertRaises(ValueError) as caught:
+                    _make_feedback(True, controller_update_interval=interval)
+                self.assertIn(
+                    "controller_update_interval", str(caught.exception)
+                )
+
+    def test_interval_one_is_the_undecimated_loop(self):
+        """The default is exactly the every-cell loop it replaces."""
+        for use_kernel in (True, False):
+            with self.subTest(use_kernel=use_kernel):
+                decimated = self._run(use_kernel, interval=1)
+                feedback = _make_feedback(
+                    use_kernel,
+                    controller=GeneratorCurrentPIController(**self.PI_KW),
+                    voltage_setpoint=3.0e7 + 0.0j,
+                )
+                rng = np.random.default_rng(11)
+                beam = (
+                    rng.standard_normal(self.N_CELLS)
+                    + 1j * rng.standard_normal(self.N_CELLS)
+                ) * 1e-4
+                _seed_single_segment(
+                    feedback,
+                    self.N_CELLS,
+                    v_init=3.0e7 + 1.0e6j,
+                    i_init=BIAS,
+                    beam=beam,
+                )
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    feedback._circuit_track_cells(
+                        omega_input=OMEGA_RF,
+                        no_beam=False,
+                        start_index=0,
+                        end_index=self.N_CELLS,
+                    )
+                _assert_bit_identical(self, decimated, _snapshot(feedback))
+
+    def test_the_command_is_held_between_updates(self):
+        """The generator current is piecewise constant over the interval."""
+        for use_kernel in (True, False):
+            with self.subTest(use_kernel=use_kernel):
+                current = self._run(use_kernel, interval=self.INTERVAL)["I"]
+                blocks = current.reshape(-1, self.INTERVAL)
+                for index, block in enumerate(blocks):
+                    self.assertTrue(
+                        np.all(block == block[0]),
+                        msg=f"block {index} is not held: {block}",
+                    )
+                # Non-vacuous: the held value really moves between blocks.
+                self.assertEqual(len(np.unique(blocks[:, 0])), blocks.shape[0])
+
+    def test_the_cavity_still_steps_every_cell(self):
+        """Decimating the loop does not decimate the cavity model.
+
+        The antenna voltage must keep moving cell by cell: the beam
+        deposits into every coarse cell whatever the loop is doing.
+        """
+        voltage = self._run(True, interval=self.INTERVAL)["V"]
+        steps = np.diff(voltage)
+        self.assertEqual(int(np.count_nonzero(steps == 0)), 0)
+
+    def test_the_controller_steps_once_per_interval(self):
+        """The control law is evaluated once per update, not per cell."""
+        controller = _ProportionalOnlyController(1.0e-9, BIAS)
+        feedback = _make_feedback(
+            False,
+            controller=controller,
+            voltage_setpoint=3.0e7 + 0.0j,
+            controller_update_interval=self.INTERVAL,
+        )
+        rng = np.random.default_rng(3)
+        beam = (
+            rng.standard_normal(self.N_CELLS)
+            + 1j * rng.standard_normal(self.N_CELLS)
+        ) * 1e-4
+        _seed_single_segment(
+            feedback,
+            self.N_CELLS,
+            v_init=3.0e7 + 1.0e6j,
+            i_init=BIAS,
+            beam=beam,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            feedback._circuit_track_cells(
+                omega_input=OMEGA_RF,
+                no_beam=False,
+                start_index=0,
+                end_index=self.N_CELLS,
+            )
+        self.assertEqual(controller.n_updates, self.N_CELLS // self.INTERVAL)
+
+    def test_the_two_paths_agree_when_decimated(self):
+        """Kernel and reference stay bit-identical with the hold."""
+        _assert_bit_identical(
+            self,
+            self._run(True, interval=self.INTERVAL),
+            self._run(False, interval=self.INTERVAL),
+        )
+
+    def test_the_update_clock_runs_free_across_spans(self):
+        """A new span continues the clock instead of re-phasing it.
+
+        Two six-cell spans at an interval of four update at global cells
+        0 and 4 in the first and at global cell 8 -- local cell 2 -- in
+        the second. A clock that restarted per span would update at local
+        0 and 4 instead, i.e. six times per twelve cells rather than
+        three.
+        """
+        controller = _ProportionalOnlyController(1.0e-9, BIAS)
+        feedback = _make_feedback(
+            False,
+            controller=controller,
+            voltage_setpoint=3.0e7 + 0.0j,
+            controller_update_interval=self.INTERVAL,
+        )
+        rng = np.random.default_rng(4)
+        beam = (rng.standard_normal(12) + 1j * rng.standard_normal(12)) * 1e-4
+        _seed_single_segment(
+            feedback, 12, v_init=3.0e7 + 1.0e6j, i_init=BIAS, beam=beam
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for start, end in ((0, 6), (6, 12)):
+                feedback._circuit_track_cells(
+                    omega_input=OMEGA_RF,
+                    no_beam=False,
+                    start_index=start,
+                    end_index=end,
+                )
+        self.assertEqual(controller.n_updates, 3)
+        current = feedback.generator_current_coarse_grid
+        changed = 1 + np.flatnonzero(np.diff(current) != 0)
+        np.testing.assert_array_equal(changed, np.array([4, 8]))
 
 
 class TestDegenerateCoarseSteps(unittest.TestCase):

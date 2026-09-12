@@ -248,10 +248,10 @@ def _run_simulation_turns(rf_station, n_turns: int) -> Beam:
     )
     # One RF period into the window (which starts at 0.75 T_RF), well
     # inside the coarse grid and clear of both its ends.
-    beam._dt = DistributedArray(np.linspace(1.1, 1.9, 5) * T_RF)
-    beam._dE = DistributedArray(np.zeros(5))
-    beam._ids = DistributedArray(np.arange(5))
-    beam._flags = DistributedArray(np.zeros(5))
+    beam.setup_beam(
+        dt=np.linspace(1.1, 1.9, 5) * T_RF,
+        dE=np.zeros(5),
+    )
 
     simulation = Simulation(
         ring,

@@ -108,6 +108,8 @@ def envelope_pi_scan(
     kick_frame_rotation,
     pi_error_frame_rotation,
     controller_active,
+    controller_update_interval,
+    controller_update_phase,
     pi_setpoint,
     omega_input,
     gain_proportional,
@@ -195,6 +197,17 @@ def envelope_pi_scan(
         Whether to run the PI controller; if False each cell's drive uses the
         pre-filled generator grid (cell 0 uses ``generator_current_init``) and
         the grid is left unchanged.
+    controller_update_interval
+        Coarse cells between controller updates. 1 regulates every cell;
+        ``x`` samples the loop ``x`` times slower than the cavity model
+        steps and holds the command (zero order) over the cells in
+        between, which is what a digital LLRF does between its own
+        samples. The cavity recursion itself always steps every cell.
+    controller_update_phase
+        Phase of this span's first cell on that update clock: cell ``c``
+        updates when ``(c + phase) % interval == 0``. The caller carries
+        it across spans and turns, so the clock free-runs rather than
+        re-phasing at every segment boundary.
     pi_setpoint
         PI voltage setpoint in the IQ frame.
     omega_input
@@ -271,11 +284,25 @@ def envelope_pi_scan(
         voltage_gen_prev = voltage_gen
         voltage = voltage_beam + voltage_gen * generator_frame_rotation[cell]
         voltage_out[cell] = voltage
-        if controller_active:
+        if not controller_active:
+            continue
+        if (cell + controller_update_phase) % controller_update_interval != 0:
+            # Between samples the loop holds its last command (zero order),
+            # so this cell drives the cavity with the command the previous
+            # one carried -- the value the next cell reads back as its own
+            # drive. Writing it keeps the grid, and the fine-grid solve
+            # that interpolates it, a faithful staircase.
+            generator_current_out[cell] = generator_current_drive
+        else:
             error = (
                 pi_setpoint - voltage * kick_frame_rotation[cell]
             ) * pi_error_frame_rotation
-            delta_t = omega_times_dt[cell] / omega_input
+            # The command is held for the whole update interval, so the
+            # integrator credits it with that much time. Exact inside a
+            # segment, where the coarse steps are uniform.
+            delta_t = (
+                omega_times_dt[cell] / omega_input * controller_update_interval
+            )
             delay_buffer[delay_head] = error
             delay_head = (delay_head + 1) % buffer_len
             delayed_error = delay_buffer[delay_head]
@@ -292,6 +319,7 @@ def envelope_pi_scan(
             else:
                 integral = candidate_integral
                 generator_current_out[cell] = output
-        # Inactive: leave generator_current_out[cell] at its pre-filled static
-        # grid value -- the constant-current / no-beam path never rewrites it.
+        # No controller: generator_current_out[cell] keeps its pre-filled
+        # static grid value -- the constant-current / no-beam path never
+        # rewrites it.
     return delay_buffer, delay_head, integral

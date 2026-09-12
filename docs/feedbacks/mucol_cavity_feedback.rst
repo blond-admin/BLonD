@@ -726,6 +726,29 @@ directly by ``TestUndrivenGeneratorComponentNeedsNoGate``.
 
 .. note::
 
+   **The loop may sample slower than the cavity model steps.** The coarse
+   grid is the cavity model's step -- one RF period per cell by default,
+   which on an RCS is 1.3 GHz, and no LLRF runs that fast. The two rates
+   are therefore separate: ``controller_update_interval`` coarse cells
+   pass between controller updates, and the command issued at an update is
+   held (zero order) over the cells in between, exactly as a digital loop
+   holds its DAC between its own samples. The cavity recursion keeps
+   stepping every cell, so the beam still deposits into each one.
+
+   The update clock free-runs: it counts coarse cells across segment and
+   turn boundaries rather than restarting per span, so a passage does not
+   re-phase the LLRF. Two consequences are worth stating. The controller's
+   ``n_delay`` then counts *controller* samples, so a physical round-trip
+   delay must be discretised on ``controller_update_interval`` coarse
+   steps -- otherwise decimating by ``x`` silently multiplies the latency
+   by ``x``. And the integrator credits each command with the whole update
+   interval rather than one cavity step, which is exact inside a segment,
+   where the coarse steps are uniform.
+
+   Default 1, which regulates on every cell as before.
+
+.. note::
+
    The zero-order hold is taken from different cells for the two
    sources. The coarse recursion holds ``I_gen`` from cell ``c-1`` (the
    command issued one step earlier) but ``I_beam`` from cell ``c``
