@@ -54,8 +54,10 @@ class TestBeamPreparationMuCol(unittest.TestCase):
         beam = Beam(
             intensity=1, particle_type=proton, is_counter_rotating=True
         )
-        beam.setup_beam(dt=np.linspace(-50e-9, 50e-9, num=100),
-                        dE=np.linspace(-50e9, 50e9, num=100))
+        beam.setup_beam(
+            dt=np.linspace(-50e-9, 50e-9, num=100),
+            dE=np.linspace(-50e9, 50e9, num=100),
+        )
 
         beam_CR = Beam(
             intensity=2, particle_type=proton, is_counter_rotating=False

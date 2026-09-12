@@ -680,11 +680,13 @@ class TestCallables(unittest.TestCase):
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        self.beam = Beam(particle_type=proton,intensity=1)
-        self.beam.setup_beam(dt=np.linspace(-1e-6, 1e-6, 10),
-                             dE=np.linspace(-1e-6, 1e-6, 10),
-                             reference_total_energy=938,
-                             reference_time=0)
+        self.beam = Beam(particle_type=proton, intensity=1)
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-6, 1e-6, 10),
+            dE=np.linspace(-1e-6, 1e-6, 10),
+            reference_total_energy=938,
+            reference_time=0,
+        )
 
         self.multi_harmonic_cavity = MultiHarmonicRFStation.headless(
             section_index=0,

@@ -225,8 +225,10 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
         )
         sim.print_one_turn_execution_order()
 
-        beam.setup_beam(dt=np.zeros(3),
-                        dE=np.zeros(3),)
+        beam.setup_beam(
+            dt=np.zeros(3),
+            dE=np.zeros(3),
+        )
 
         beam_CR = deepcopy(beam)
         beam_CR._is_counter_rotating = True

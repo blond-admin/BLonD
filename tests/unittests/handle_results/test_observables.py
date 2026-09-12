@@ -59,10 +59,12 @@ simulation.turn_counter.value = 0
 simulation.current_t_rev = 123
 BEAM_COMMON_ARRAY_SIZE = 128
 beam = Beam(intensity=1, particle_type=proton)
-beam.setup_beam(dt=np.ones(BEAM_COMMON_ARRAY_SIZE),
-                dE=np.append(np.ones(BEAM_COMMON_ARRAY_SIZE - 1), [2]),
-                reference_time=0.8,
-                reference_total_energy=11)
+beam.setup_beam(
+    dt=np.ones(BEAM_COMMON_ARRAY_SIZE),
+    dE=np.append(np.ones(BEAM_COMMON_ARRAY_SIZE - 1), [2]),
+    reference_time=0.8,
+    reference_total_energy=11,
+)
 sep_helper = Mock(SymbolicSeparatrixHelper)
 dE_sep = np.ones(256)
 sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])

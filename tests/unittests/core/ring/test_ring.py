@@ -627,11 +627,12 @@ class TestRing(unittest.TestCase):
             intensity=1,
             particle_type=lead_82,
         )
-        beam.setup_beam(dt=np.array([1]),
-                        dE=np.array([2]),
-                        flags=np.array([3]),
-                        ids=np.array([4]),
-                        )
+        beam.setup_beam(
+            dt=np.array([1]),
+            dE=np.array([2]),
+            flags=np.array([3]),
+            ids=np.array([4]),
+        )
 
         sim.finalize((beam,), n_turns=1)
 
@@ -672,11 +673,12 @@ class TestRing(unittest.TestCase):
             ring, ConstantMagneticCycle(value=5e3, reference_particle=lead_82)
         )
         beam = Beam(intensity=1, particle_type=lead_82)
-        beam.setup_beam(dt=np.array([1]),
-                        dE=np.array([2]),
-                        flags=np.array([3]),
-                        ids=np.array([4]),
-                        )
+        beam.setup_beam(
+            dt=np.array([1]),
+            dE=np.array([2]),
+            flags=np.array([3]),
+            ids=np.array([4]),
+        )
         sim.finalize((beam,), n_turns=1)
 
     def test_unsafe_element(self):
