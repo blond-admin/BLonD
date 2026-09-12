@@ -28,6 +28,7 @@ from blond import (
     StaticProfile,
     mu_plus,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks import cavity_feedback as cavity_feedback_module
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
@@ -356,14 +357,14 @@ class TestDegenerateMultiHarmonicMatchesSingleHarmonic:
     def test_applied_kick_matches(self) -> None:
         # The kick the beam actually received over the tracked turns.
         np.testing.assert_allclose(
-            np.asarray(self.mhc_beam._dE.array_local),
-            np.asarray(self.shc_beam._dE.array_local),
+            np.asarray(copy_to_cpu(self.mhc_beam._dE.array_local)),
+            np.asarray(copy_to_cpu(self.shc_beam._dE.array_local)),
             rtol=1e-12,
             atol=0.0,
         )
         np.testing.assert_allclose(
-            np.asarray(self.mhc_beam._dt.array_local),
-            np.asarray(self.shc_beam._dt.array_local),
+            np.asarray(copy_to_cpu(self.mhc_beam._dt.array_local)),
+            np.asarray(copy_to_cpu(self.shc_beam._dt.array_local)),
             rtol=1e-12,
             atol=0.0,
         )
