@@ -81,21 +81,15 @@ class StationPhaseLoopRecord:
 
     One record is shared by all the elements acting on one beam, so the
     delayed measurement an element acts on may come from another station.
-
-    Attributes
-    ----------
-    turns
-        Fractional turn of each measurement: the element's passage count
-        plus its ``turn_fraction``.
-    errors
-        Centroid phase error at each measurement [rad].
-    corrections
-        RF phase offset written at each passage [rad].
     """
 
     turns: list[float] = field(default_factory=list)
+    """Fractional turn of each measurement, i.e. the element's passage
+    count plus its ``turn_fraction``."""
     errors: list[float] = field(default_factory=list)
+    """Centroid phase error at each measurement [rad]."""
     corrections: list[float] = field(default_factory=list)
+    """RF phase offset written at each passage [rad]."""
 
     def as_arrays(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """

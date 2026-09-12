@@ -493,7 +493,7 @@ class IQCavityFeedbackBase(LocalFeedback):
         frequency slip: it enters the station clock the frame rotations
         use (``delta_phi_rf + phi_rf_loop``), and a change of it between
         two passages counter-rotates the carried beam-sourced envelope
-        (:meth:`_absorb_phase_loop_step`). Exactly ``0.0`` without such a
+        (``_absorb_phase_loop_step``). Exactly ``0.0`` without such a
         loop.
 
         Returns
