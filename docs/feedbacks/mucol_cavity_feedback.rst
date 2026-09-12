@@ -452,6 +452,23 @@ Classes at a glance
     (``supports_envelope_scan``) is driven cell by cell instead.
     Set the flag ``False`` on an instance to force the reference path.
 
+:mod:`blond.physics.feedbacks.station_phase_loop`
+    ``StationPhaseLoop``, a per-station beam phase loop: a ring element
+    placed in front of an RF station in one beam's traversal order, which
+    at every passage measures that beam's centroid RF phase
+    (``omega_rf_design * mean(dt)``) against a ``reference_phase`` and
+    writes the station's ``phi_rf_loop`` from a ``delay_stations``-old
+    error (``-gain * error``). It is the per-station complement of the
+    global, once-per-turn loops of
+    :mod:`blond.physics.feedbacks.beam_feedback`, which a ring whose
+    synchrotron tune is of order one per turn cannot use (the RCS advance
+    1.25 synchrotron periods per turn at injection). The cavity feedback
+    treats the offset as a phase STEP of the RF reference, see *Interplay
+    with the RF station*. ``StationPhaseLoopRecord`` holds what one beam's
+    elements measured and did (turns, errors, corrections; one record is
+    shared by all elements acting on one beam), ``wrap_phase`` folds a
+    phase into ``(-pi, pi]``.
+
 :mod:`blond.physics.feedbacks.iq`
     IQ / polar conversions (``cartesian_to_polar``, ``polar_to_cartesian``).
 
@@ -943,7 +960,8 @@ evolves forward to it with the command of the seed centre held constant.
 Interplay with the RF station
 -----------------------------
 
-Two distinct frequency knobs exist and must not be confused:
+Two distinct frequency knobs exist and must not be confused, and a third
+knob is a phase, not a frequency:
 
 ``delta_omega`` (feedback constructor)
     The *cavity resonance* detuning [rad/s]. Enters the cavity response as a
@@ -984,6 +1002,54 @@ Two distinct frequency knobs exist and must not be confused:
     one RF station the offset cannot be changed during the run, and the
     slip bookkeeping only runs when a beam feedback (phase loop) exists in
     the simulation or the offset is nonzero.
+
+``phi_rf_loop`` (RF station attribute)
+    The station's per-station phase-loop offset, written by a
+    :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
+    and added to the actual RF phase (``phi_rf = phi_rf_design +
+    delta_phi_rf + phi_rf_loop``; exactly ``0.0`` without such a loop). A
+    phase STEP of the RF reference, not a frequency slip, and the
+    feedback treats the two differently:
+
+    * the demodulation/readout chain keeps every deposit at a fixed phase
+      relative to the RF wave. That is right for the slip -- the tuner
+      makes the cavity follow the RF -- but wrong for a step: the
+      beam-induced field in the cavity does not jump when the reference
+      does. So at the first passage that sees a changed offset
+      ``_absorb_phase_loop_step`` counter-rotates the carried
+      beam-sourced envelope by ``exp(-i step)``, once, on the state the
+      forward span starts from (the last backfill centre, or the value
+      carried across the passage boundary) and on that cell's composed
+      sum; the passage's own deposits are demodulated in the new frame
+      and need nothing. The absolute readout phase of a beam-loaded,
+      undriven cavity is therefore continuous across the step
+      (``TestPhaseStepKeepsTheBeamInducedFieldInPlace``);
+    * the offset is the second term of the *station clock*
+      ``delta_phi_rf + phi_rf_loop`` the three frame rotations compose
+      with, so the design-anchored generator field walks off the actual
+      RF by MINUS the step, exactly as it does under the slip: a
+      beam-free, matched-bias cavity reads out ``phase_correction ==
+      -phi_rf_loop`` from the next passage on
+      (``TestPhaseStepWalksTheGeneratorFieldOff``), and an attached
+      controller then removes the walk-off. The backfill span of the
+      absorbing passage replays the interval BEFORE the step and composes
+      with the previous offset (``_phi_rf_loop_seen``);
+    * every branch is a bit-exact no-op while the offset does not change,
+      so a run without such a loop is unchanged
+      (``TestStationPhaseLoopOnTheRing.test_zero_gain_is_bit_neutral``).
+
+    Why a step and not a slip: the loop rewrites the offset at every
+    passage from a delayed centroid measurement, so the RF reference the
+    bunch is kicked with moves discontinuously from passage to passage; a
+    loop acting on ``delta_omega_rf`` instead would be a frequency loop
+    and be covered by the slip bookkeeping above. An RF phase offset is a
+    thin lens on the bunch's energy coordinate, so the loop damps only
+    with an error about a quarter synchrotron period old; on the
+    muon-collider RCS a positive gain on the previous station's
+    measurement does (``TestStationPhaseLoopOnTheRing``). Sign, gain for
+    a wanted damping time and which delay damps come from the linear
+    model of the lumped lattice in the outer example's
+    ``phase_loop_analysis``.
 
 The sub-stepping mode (``n_rf_periods_per_coarse_grid < 1``) subdivides the
 RF period, with the coarse centres tiling continuously across turn
@@ -1249,6 +1315,12 @@ options, not to every use of the model:
   emittance) against a twin simulation whose only difference is the
   induced-voltage model (wake vs feedback), under strong beam loading on the
   fast ramp;
+* a per-station phase-loop step against the unstepped run (the absolute
+  readout phase of the beam-induced field continuous within 0.03 rad) and
+  against the closed form of the generator walk-off (``-phi_rf_loop`` to
+  1e-9 rad); the loop itself damps a 2 deg launch error on a two-section
+  constant-energy ring, its mirrored gain anti-damps, and zero gain is
+  bit-neutral;
 * a counter-rotating mu- beam against the co-rotating mu+ run (bit-for-bit)
   and the two-beam offset-passage operation against the two-beam multi-pass
   convolution, per station and turn;

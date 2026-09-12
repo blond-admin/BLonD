@@ -43,6 +43,10 @@ from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
     GeneratorCurrentPIController,
 )
+from blond.physics.feedbacks.station_phase_loop import (
+    StationPhaseLoop,
+    StationPhaseLoopRecord,
+)
 
 # Print the recorded trajectories instead of asserting the pins (used once
 # to generate / regenerate the hardcoded reference values below).
@@ -81,6 +85,8 @@ def _run_config(
     generator_current_bias: complex = I_GEN_BIAS + 0.0j,
     initial_voltage: float = V_DESIGN,
     per_turn_hook: Callable[[list, list], None] | None = None,
+    dt_offset: float = 0.0,
+    phase_loop: dict | None = None,
 ) -> dict:
     """
     Track a matched bunch with PI-regulated feedbacks on every station.
@@ -128,6 +134,15 @@ def _run_config(
         If given, called at the end of every turn as
         ``per_turn_hook(feedbacks, stations)``, so a test can record state
         that the grids of the next passage overwrite.
+    dt_offset
+        Launch error [s] added to the matched bunch after its placement:
+        a controlled injection dipole.
+    phase_loop
+        If given, ``{"gain": g, "delay_stations": d}`` places a
+        :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
+        in front of every station, regulating to the bunch's launch
+        phase (before ``dt_offset``); the shared record lands in
+        ``rec["phase_loop"]``.
 
     Returns
     -------
@@ -158,6 +173,12 @@ def _run_config(
 
     ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
     half_drift = CIRCUMFERENCE / n_sections / 2
+    # The beam object is needed by the phase-loop elements (they filter
+    # on it); its coordinates are prepared once the simulation exists.
+    beam = Beam(intensity=intensity, particle_type=mu_plus)
+    beam.reference.total_energy = energy
+    loop_record = StationPhaseLoopRecord()
+    loop_elements: list = []
     stations = []
     feedbacks = []
     elements = []
@@ -225,12 +246,30 @@ def _run_config(
                 station.delta_omega_rf = delta_omega_rf
         stations.append(station)
         feedbacks.append(feedback)
+        # The phase-loop element sits directly in front of its station,
+        # regulating to a launch phase it is told once the bunch exists.
+        loop_slot: list = []
+        if phase_loop is not None:
+            loop_slot.append(
+                StationPhaseLoop(
+                    station=station,
+                    beam=beam,
+                    reference_phase=0.0,
+                    gain=phase_loop["gain"],
+                    delay_stations=phase_loop["delay_stations"],
+                    turn_fraction=section_index / n_sections,
+                    record=loop_record,
+                    section_index=section_index,
+                )
+            )
+            loop_elements.append(loop_slot[0])
         elements += [
             DriftSimple(
                 orbit_length=half_drift,
                 momentum_compaction_factor=ALPHA_P,
                 section_index=section_index,
             ),
+            *loop_slot,
             station,
             DriftSimple(
                 orbit_length=half_drift,
@@ -252,8 +291,6 @@ def _run_config(
     )
     sim = Simulation(ring=ring, magnetic_cycle=cycle)
 
-    beam = Beam(intensity=intensity, particle_type=mu_plus)
-    beam.reference.total_energy = energy
     if intensity > 0:
         sim.prepare_beam(
             beam=beam,
@@ -268,6 +305,10 @@ def _run_config(
         # Shift the bunch one RF period into the profile window (the window
         # starts at 0.75 t_rf; the matched bunch is created around dt ~ 0).
         beam._dt.array_local += t_rf
+        launch_phase = omega_rf * float(np.mean(beam._dt.array_local))
+        for element in loop_elements:
+            element.reference_phase = launch_phase
+        beam._dt.array_local += dt_offset
     else:
         # Empty beam: no beam loading, so a matched-bias PI loop should sit
         # at its no-beam steady state (V = V_ss, I_gen = bias) every turn.
@@ -279,6 +320,7 @@ def _run_config(
         "i_max_dev": [],
         "v_dev_grid": [],
         "phi_corr": [],
+        "phi_rf": [],
         "delta_phi_rf": [],
         "ref_energy": [],
         "sigma_dt": [],
@@ -365,6 +407,7 @@ def _run_config(
             [float(np.mean(f.phase_correction)) for f in feedbacks]
         )
         rec["delta_phi_rf"].append([float(s.delta_phi_rf) for s in stations])
+        rec["phi_rf"].append([float(s.phi_rf) for s in stations])
         rec["ref_energy"].append(float(b.reference.total_energy))
         rec["sigma_dt"].append(float(np.std(copy_to_cpu(b.dt.array_local))))
         if per_turn_hook is not None:
@@ -375,6 +418,7 @@ def _run_config(
     )
     for key, values in rec.items():
         rec[key] = np.array(values)
+    rec["phase_loop"] = loop_record
     return rec
 
 
@@ -515,6 +559,27 @@ class _ZeroDriveRecordingController(GeneratorCurrentController):
         """
         self.errors.append(complex(error))
         return 0.0 + 0.0j
+
+
+def _design_t_rev(total_energy: float) -> float:
+    """
+    Design revolution period of the test ring at a reference energy.
+
+    Parameters
+    ----------
+    total_energy
+        Reference total energy [eV].
+
+    Returns
+    -------
+    t_rev
+        Revolution period [s].
+    """
+    from blond import ConstantMagneticCycle
+
+    return ConstantMagneticCycle(
+        reference_particle=mu_plus, value=total_energy, in_unit="total energy"
+    ).get_t_rev_init(CIRCUMFERENCE, particle_type=mu_plus)
 
 
 def _design_omega_rf(total_energy: float, harmonic: int) -> float:
@@ -1906,6 +1971,246 @@ class TestDemodulationFrameIsStatedNotDerived(unittest.TestCase):
         """Control: without a ramp the geometry is ``pi`` to float noise."""
         lags = np.abs(self._frame_lags(self._demodulation_calls(2, 0.0)))
         self.assertLess(float(lags.max()), 1.0e-9)
+
+
+class TestPhaseStepKeepsTheBeamInducedFieldInPlace(unittest.TestCase):
+    r"""
+    A step of the station's RF phase must not move the wake already there.
+
+    A per-station phase loop acts by stepping ``phi_rf_loop``.  The RF
+    reference then jumps by ``delta``; the beam-induced field in the
+    cavity does not.  The demodulation/readout chain keeps every deposit
+    at a fixed phase relative to the RF wave -- right for a tuner that
+    follows a frequency slip -- so on its own it would carry the old
+    deposits along with the step; the feedback therefore counter-rotates
+    the carried beam-sourced component by ``exp(-i delta)`` when the
+    offset changes.
+
+    Fixture: an undriven cavity (no bias, no initial voltage, no
+    controller) with strong beam loading, so the readout is the
+    beam-induced field alone.  The step is applied at the end of turn 1;
+    on turn 2 the absolute phase of the readout, ``phase_correction +
+    phi_rf``, must match the run without a step -- the bunch that made
+    turn 2's deposit has seen one kick at the new phase, which moves that
+    single deposit by far less than the step would move the two carried
+    ones.  Without the counter-rotation the carried part (two deposits of
+    three) turns by ``delta``.
+    """
+
+    ENERGY = 63.0e9
+    DELTA_E_TURN = 0.0
+    N_TURNS = 4
+    STEP = 0.3
+    GATE = 0.03
+
+    def _record(self, step: float) -> dict:
+        """
+        Track the undriven cavity, stepping ``phi_rf_loop`` after turn 1.
+
+        Parameters
+        ----------
+        step
+            Offset [rad] written at the end of turn 1; ``0`` for the
+            reference run.
+
+        Returns
+        -------
+        dict
+            The harness record.
+        """
+        turns_seen = []
+
+        def hook(feedbacks, stations):
+            turns_seen.append(1)
+            if len(turns_seen) == 2:
+                for station in stations:
+                    station.phi_rf_loop = step
+
+        return _run_config(
+            1,
+            self.ENERGY,
+            self.DELTA_E_TURN,
+            self.N_TURNS,
+            use_controller=False,
+            generator_current_bias=0.0 + 0.0j,
+            initial_voltage=0.0,
+            per_turn_hook=hook,
+        )
+
+    def test_readout_phase_is_continuous_across_the_step(self):
+        """Absolute readout phase on turn 2 agrees with the unstepped run."""
+        stepped = self._record(self.STEP)
+        reference = self._record(0.0)
+        absolute_stepped = stepped["phi_corr"][:, 0] + stepped["phi_rf"][:, 0]
+        absolute_reference = (
+            reference["phi_corr"][:, 0] + reference["phi_rf"][:, 0]
+        )
+        # Identical before the step, and the step really is applied.
+        np.testing.assert_array_equal(
+            absolute_stepped[:2], absolute_reference[:2]
+        )
+        self.assertAlmostEqual(
+            float(stepped["phi_rf"][2, 0] - reference["phi_rf"][2, 0]),
+            self.STEP,
+        )
+        self.assertLess(
+            abs(float(absolute_stepped[2] - absolute_reference[2])),
+            self.GATE,
+            "the beam-induced field followed the RF phase step",
+        )
+
+
+class TestPhaseStepWalksTheGeneratorFieldOff(unittest.TestCase):
+    r"""
+    The design-locked drive appears at minus a phase step, like a slip.
+
+    Twin of ``TestDesignLockedDriveWalkOffUnderRFOffset`` for the
+    per-station loop's channel: a beam-free, matched-bias cavity with no
+    controller sits on its setpoint; step ``phi_rf_loop`` and the readout
+    must report ``phase_correction == -step`` from the next passage on,
+    because the generator field did not move while the RF reference did.
+    With a controller attached this is the error the PI then removes.
+    """
+
+    ENERGY = 63.0e9
+    N_TURNS = 5
+    STEP = 0.2
+    TOLERANCE = 1.0e-9
+
+    def test_readout_reports_minus_the_step(self):
+        turns_seen = []
+
+        def hook(feedbacks, stations):
+            turns_seen.append(1)
+            if len(turns_seen) == 2:
+                for station in stations:
+                    station.phi_rf_loop = self.STEP
+
+        rec = _run_config(
+            1,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            intensity=0.0,
+            use_controller=False,
+            per_turn_hook=hook,
+        )
+        phi_corr = rec["phi_corr"][:, 0]
+        np.testing.assert_allclose(phi_corr[:2], 0.0, atol=self.TOLERANCE)
+        np.testing.assert_allclose(
+            phi_corr[2:], -self.STEP, atol=self.TOLERANCE
+        )
+
+
+class TestStationPhaseLoopOnTheRing(unittest.TestCase):
+    r"""
+    The loop element damps a launch error, and is bit-neutral at zero gain.
+
+    Two sections at constant energy, the PI regulating the cavities, so
+    the launch point is the synchronous phase and the only dipole is the
+    2 RF degrees the bunch is launched late by (the strong beam loading
+    still moves the loaded fixed point ~2 deg off it, the static offset
+    the trace settles on). The cell advances 0.45 rad of synchrotron
+    phase per station (``Q_s = 0.14`` per turn, a 7-turn period), so the
+    loop in front of every station, acting on the error measured one
+    passage earlier with gain 0.5, is in the regime the linear model of
+    the lumped lattice damps in; the record's per-passage errors are the
+    observable. Measured: the scatter of the error about its mean over
+    eight passages falls from 2.4 deg to 0.08 deg over 12 turns, against
+    2.6 to 1.7 deg without the loop (the bare oscillation, sampled over
+    little more than one period) and 2.8 to 6.8 deg with the sign
+    mirrored. The tracked damping is faster than the bare-lattice model's
+    per-turn radius of ~0.9: the PI-regulated, beam-loaded cavities are
+    not the bare lattice.
+    """
+
+    ENERGY = 4.0e9
+    N_TURNS = 12
+    LAUNCH_ERROR_DEG = 2.0
+    GAIN = 0.5
+    WINDOW = 8
+
+    def _errors(self, gain: float, delay: int = 1) -> np.ndarray:
+        """
+        Per-passage centroid phase errors of a run with the loop [deg].
+
+        Parameters
+        ----------
+        gain
+            Loop gain; ``0`` records without acting.
+        delay
+            Age of the measurement the loop acts on, in passages.
+
+        Returns
+        -------
+        errors
+            The recorded errors in passage order.
+        """
+        harmonic = int(HARMONIC - HARMONIC % 4)
+        t_rf = _design_t_rev(self.ENERGY) / harmonic
+        rec = _run_config(
+            2,
+            self.ENERGY,
+            0.0,
+            self.N_TURNS,
+            dt_offset=self.LAUNCH_ERROR_DEG / 360.0 * t_rf,
+            phase_loop={"gain": gain, "delay_stations": delay},
+        )
+        _, errors, _ = rec["phase_loop"].as_arrays()
+        return np.degrees(errors)
+
+    def _scatter(self, errors: np.ndarray) -> tuple[float, float]:
+        """
+        Scatter of the error about its mean, first and last window.
+
+        Parameters
+        ----------
+        errors
+            Per-passage errors [deg].
+
+        Returns
+        -------
+        first, last
+            Standard deviation over the first and the last ``WINDOW``
+            passages [deg].
+        """
+        return (
+            float(np.std(errors[: self.WINDOW])),
+            float(np.std(errors[-self.WINDOW :])),
+        )
+
+    def test_the_loop_damps_the_launch_error(self):
+        errors = self._errors(self.GAIN)
+        # The launch error is what the first passage measures.
+        self.assertAlmostEqual(
+            float(errors[0]), self.LAUNCH_ERROR_DEG, delta=0.1
+        )
+        first, last = self._scatter(errors)
+        self.assertGreater(first, 1.5)
+        self.assertLess(last, 0.15 * first)
+
+    def test_without_the_loop_the_error_keeps_oscillating(self):
+        first, last = self._scatter(self._errors(0.0))
+        self.assertGreater(first, 1.5)
+        self.assertGreater(last, 0.5 * first)
+
+    def test_the_mirrored_gain_anti_damps(self):
+        first, last = self._scatter(self._errors(-self.GAIN, delay=2))
+        self.assertGreater(last, 1.5 * first)
+
+    def test_zero_gain_is_bit_neutral(self):
+        """Recording elements in the ring change no tracked number."""
+        with_elements = _run_config(
+            2,
+            self.ENERGY,
+            0.0,
+            4,
+            phase_loop={"gain": 0.0, "delay_stations": 1},
+        )
+        without = _run_config(2, self.ENERGY, 0.0, 4)
+        for key in ("v_min", "i_max_dev", "v_last", "phi_corr"):
+            with self.subTest(key=key):
+                np.testing.assert_array_equal(with_elements[key], without[key])
 
 
 class TestKernelMatchesReferenceEndToEnd(unittest.TestCase):

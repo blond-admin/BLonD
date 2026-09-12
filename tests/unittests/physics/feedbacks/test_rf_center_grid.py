@@ -11,7 +11,6 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from core.beam.beams import Beam
 
 from blond import (
     Beam,

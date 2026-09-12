@@ -1623,9 +1623,12 @@ across two spans). GREEN over `tests/unittests/physics/feedbacks`: 624
 passed, 8 skipped, 335 subtests (616 / 8 / 329 before). The 17-turn RCS1
 example reproduces line for line at the default.
 
-**Shipped default (outer repo).** `RunConfig.llrf_sample_period_s`
-defaults to `LLRF_SAMPLE_PERIOD_S = 12.3e-9` s — 81 MHz, 16 cavity steps on
-every live machine — and `ChainConfig` carries it to every stage. The delay
+**Shipped default (outer repo).** `RunConfig.llrf_update_interval`
+defaults to `LLRF_UPDATE_INTERVAL = 16` cavity-model steps — 81 MHz at the
+one-RF-period coarse grid — and `ChainConfig` carries it to every stage. It
+is a count, not a time: the controller can only be evaluated on a cell
+boundary, so an integer number of model steps is all the model can express,
+and a period in seconds would only be a number rounded to it. The delay
 line counts controller samples (81 on RCS1, not 1296); the gain and the
 integral time keep being derived from the delay in CAVITY steps, so the
 shipped tuning is numerically unchanged. Full-ramp RCS1 moves in the fifth
@@ -1639,6 +1642,74 @@ to four digits. The discrete spectral radius FALLS with slower sampling
 (0.99968 -> 0.93746): the delay dominates, and it is the delay measured in
 samples that shrinks. What the decimation really costs is the hold's
 half-sample lag, 6 ns against a 1 us round trip at 81 MHz.
+
+### 2.26 Per-station beam phase loop (2026-09-12)
+
+The §3.3 ruling covers only the GLOBAL once-per-turn loops; the per-station
+loop it left open (scope narrowed the same day) is now in BLonD.
+
+- **Station knob.** `RFStationBaseClass.phi_rf_loop` (default `0.0`),
+  third term of `phi_rf = phi_rf_design + delta_phi_rf + phi_rf_loop`.
+  A phase STEP of the RF reference, not the frequency slip that
+  `delta_phi_rf` accumulates — the distinction the feedback acts on.
+- **Element.** `blond/physics/feedbacks/station_phase_loop.py`:
+  `StationPhaseLoop(BeamPhysicsRelevant)`, placed in front of a station
+  in ONE beam's traversal order. Per passage it measures
+  `omega_rf_design * mean(dt)` against `reference_phase`, appends to a
+  `StationPhaseLoopRecord` (turns, errors, corrections; one record shared
+  by all elements acting on one beam) and writes
+  `phi_rf_loop = -gain * error(delay_stations passages ago)`. Probes,
+  other beams and empty beams are ignored. `wrap_phase` folds into
+  `(-pi, pi]`.
+- **What the cavity feedback does with the offset** — two things, both
+  bit-exact no-ops while it does not change:
+  1. the *station clock* `delta_phi_rf + phi_rf_loop` replaces
+     `delta_phi_rf` in `_update_frame_rotations` (generator composition,
+     PI-error rotation; the backfill cells compose with the offset in
+     force BEFORE the passage, `_phi_rf_loop_seen`). So the
+     design-anchored generator field walks off the actual RF by MINUS
+     the step, as under the slip, and an attached controller removes it.
+  2. `_absorb_phase_loop_step`, a new `_track` phase between the backfill
+     replay and the forward span: counter-rotates the carried
+     beam-sourced envelope by `exp(-i step)` on the state the forward
+     span starts from (last backfill centre, or the value carried across
+     the boundary) and on its composed sum. Reason: the
+     demodulation/readout chain keeps deposits fixed RELATIVE TO THE RF
+     WAVE — right for a slip (the tuner makes the cavity follow), wrong
+     for a step (the beam-induced field does not jump).
+- **Why a step actuator damps.** An RF phase offset is a thin lens on the
+  energy coordinate, so the loop needs an error about a quarter
+  synchrotron period old; on RCS1 (cell advance 0.49 rad) the previous
+  station's measurement is close enough and a POSITIVE gain damps. Sign,
+  gain for a damping time and which delay damps are the outer
+  `phase_loop_analysis.DipoleLoop` model's (1.25 `Q_s`/turn: once per
+  turn is aliased and a period late).
+- **Not done / open.** (a) The sensor is the beam's own `mean(dt)`, not
+  the cavity feedback's demodulated beam current that §3.3 names as the
+  intended one — a later swap behind the same element. (b) Two beams:
+  each beam gets its own elements and record; nothing exploits the
+  synchrotron-frame symmetry the maintainer stated (2026-09-12). (c)
+  `reference_phase` is the caller's (the launch phase); no
+  auto-reference. (d) The outer example's prototype
+  `phase_loop.PerStationPhaseLoop` still writes `phi_rf_design` and has
+  not been switched to this element.
+- **Collateral fix.** `test_rf_center_grid.py` carried a stray
+  `from core.beam.beams import Beam` (committed in `0659e3623`) that
+  aborted collection of the WHOLE feedback suite; removed.
+  `TestPIErrorFrame` (`test_generator_current_controller.py`) builds a
+  station-less feedback and patches `delta_phi_rf`; it now patches the
+  new `phi_rf_loop` accessor the same way.
+
+**Tests.** `tests/unittests/physics/feedbacks/test_station_phase_loop.py`
+(11). Full tracking: `TestPhaseStepKeepsTheBeamInducedFieldInPlace`
+(undriven 63 GeV cavity, step 0.3 rad: absolute readout phase continuous
+within 0.03 rad of the unstepped run), `TestPhaseStepWalksTheGeneratorFieldOff`
+(`phase_correction == -phi_rf_loop`, 1e-9), `TestStationPhaseLoopOnTheRing`
+(2 sections, 4 GeV constant, 12 turns, 2° launch error, gain 0.5, delay 1:
+error scatter 2.4° → 0.08°; no loop 2.6° → 1.7°; mirrored gain, delay 2: 2.8° →
+6.8°; zero gain bit-neutral on the pins). Docs: overview *Classes at a
+glance* + *Interplay with the RF station* (`phi_rf_loop` knob) +
+*Validation*; test RST entries.
 
 ## 3. Open items / flagged (NOT done — need decisions)
 
@@ -1992,8 +2063,10 @@ half-sample lag, 6 ns against a 1 us round trip at 81 MHz.
   beam current there is the intended sensor — that coupling is allowed.
   Design notes and the validation battery live in the outer repository
   (`muon_collider_blonder/rcs_two_beam_example/phase_loop_analysis.py`,
-  `test_muon_collider_blonder/test_rcs_phase_loop.py`); nothing of it is
-  implemented in BLonD yet. Background (still accurate): the original body read the
+  `test_muon_collider_blonder/test_rcs_phase_loop.py`); the BLonD
+  implementation landed later the same day (§2.26:
+  `station_phase_loop.StationPhaseLoop`, station knob `phi_rf_loop`,
+  step absorption in the cavity feedback). Background (still accurate): the original body read the
   deleted blond2 coarse-array API (`I_BEAM_COARSE`, `V_ANT_COARSE`, a
   fixed `n_coarse` per turn), which exists nowhere in the live tree; with
   no such feedback the method stays a silent no-op — a normal, supported
@@ -2111,7 +2184,7 @@ sizes.
 
 | module | holds |
 |---|---|
-| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **nine** phase methods (§2.11, incl. `_update_frame_rotations`), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_frame_rotations_of_cell{,s}` (§2.20), `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial` (states the demodulation frame as `demodulation_phase=np.pi` after `_assert_demodulation_frame_aligned` has checked the grid against it, §2.23), `reset_arrays` (incl. the gen-component seeding; its `_generator_active` refresh went 2026-09-12, §2.24), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_state_before_forward_span` and `_step_into_first_cell` (§2.22, which also deleted `_check_fine_grid_initial_condition_is_causal`), the pre-fill call. The `_check_step_sizes` / `_check_beam_kick_magnitude` / `_check_beam_kicks` wrappers and `self._euler_guard` were removed 2026-09-11 (§2.19); `_seed_initial_demodulation_frame` went 2026-09-12 (§2.23), its rule folded into `_close_previous_turn_grid` |
+| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **ten** phase methods (§2.11, incl. `_update_frame_rotations`, which composes with the station clock `delta_phi_rf + phi_rf_loop`, and `_absorb_phase_loop_step`, §2.26), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_frame_rotations_of_cell{,s}` (§2.20), `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial` (states the demodulation frame as `demodulation_phase=np.pi` after `_assert_demodulation_frame_aligned` has checked the grid against it, §2.23), `reset_arrays` (incl. the gen-component seeding; its `_generator_active` refresh went 2026-09-12, §2.24), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_state_before_forward_span` and `_step_into_first_cell` (§2.22, which also deleted `_check_fine_grid_initial_condition_is_causal`), the pre-fill call. The `_check_step_sizes` / `_check_beam_kick_magnitude` / `_check_beam_kicks` wrappers and `self._euler_guard` were removed 2026-09-11 (§2.19); `_seed_initial_demodulation_frame` went 2026-09-12 (§2.23), its rule folded into `_close_previous_turn_grid` |
 | `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` construction: the forward and **backfill** reference walks, `_generate_rf_centers`, segment generation (`_append_segment` / `_clear_segments` / `_rebuild_grid_arrays` / `_close_previous_turn_grid`, which since §2.23 also continues the tiling backwards to produce the FIRST passage's tail when the station opens the ring), `_preceding_segment_residual`, `_backfill_accumulated_phases` / `_backfill_center_phases` (§2.18, §2.20), `_validate_grid`, and the two direction selectors (`_reference_list_for_direction`, `_own_index_for_direction` — the *space*-sense reverse, §1.3). `_segments` is the single source of truth; the flat arrays are derived. Its module docstring is the canonical statement of the backfill-vs-reverse rule and of the design-clock-only geometry |
 | `rf_center_segment.py` | The two value classes and two pure helpers: `RFCenterSegment` (the four original fields load-bearing — see the correction in §2.11 — plus `accumulated_phase` since §2.18, with the ≥ 2-centres, `residual ∈ [0, duration]` and finite-phase validation), `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`), `accumulated_phases` (§2.18) and `accumulated_phases_at_centers` (§2.20). Imported by `cavity_feedback.py` and `rf_center_grid.py` |
 | `cavity_solvers.py` | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the exact coarse-step arithmetic `coarse_step_exponent`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`. (`euler_voltage_multiplier` and `ForwardEulerValidityGuard` were removed 2026-09-11, §2.19.) Its module docstring owns the `omega_times_dt` naming rule (§1.4) |
@@ -2120,6 +2193,7 @@ sizes.
 | `generator_current_controller.py` | `GeneratorCurrentController` ABC + `GeneratorCurrentPIController`; the envelope-scan capability hooks (`supports_envelope_scan`, `envelope_scan_kernel`, `envelope_scan_state`, `absorb_envelope_scan_state`); `current_limit_from_power`, `clamp_magnitude` |
 | `beam_current.py` | `low_pass_filter`, `rf_beam_current` (unified; keyword-only coarse args; no wrap-around; `check_fits_in_span` + `hist_step`/`sampling_time` + `_check_coarse_index_bounds` guards, `forbid_charge_in_last_coarse_cell` since §2.22 and `demodulation_phase` since §2.23 — given, it replaces the `dT`-derived carrier rotation, leaving `dT` as the binning shift only) |
 | `beam_feedback.py` | the surviving phase loop (`BeamFeedbackBase`), incl. `cavity_sum_phase`, whose `NotImplementedError` guard is the permanent contract — coupling is a deliberate non-goal (§3.3) |
+| `station_phase_loop.py` | `StationPhaseLoop` (per-station beam phase loop writing the station's `phi_rf_loop`), `StationPhaseLoopRecord`, `wrap_phase` (§2.26). The per-station complement of `beam_feedback.py`, and the one loop that IS allowed to couple to the cavity feedback |
 | `iq.py` | `cartesian_to_polar`, `polar_to_cartesian` |
 | `base.py` | `FeedbackBaseClass` / `LocalFeedback` / `GlobalFeedback` (unchanged) |
 | `accelerators/{lhc,ps,psb,sps}/beam_feedback.py` | the machine-specific `BeamFeedbackBase` subclasses (four modules + `accelerators/__init__.py`), each with a matching test module. `lhc` and `sps` call `cavity_sum_phase`, i.e. they hit the §3.3 `NotImplementedError` contract when the station carries a cavity feedback. **This subpackage survived the 2026-07-25 LHC/SPS purge** — that purge removed the LHC/SPS *cavity* feedbacks, not the phase loops |
@@ -2136,7 +2210,8 @@ above.
 - `tests/unittests/physics/feedbacks/` — `test_base.py`,
   `test_beam_feedback.py`, `test_cavity_feedback.py`,
   `test_cavity_feedback_requires.py`, `test_helpers.py`,
-  `test_rf_center_grid.py`, `test_rf_center_segment.py`.
+  `test_rf_center_grid.py`, `test_rf_center_segment.py`,
+  `test_station_phase_loop.py` (§2.26).
 - `tests/unittests/physics/feedbacks/accelerators/mucol/` — the mucol test
   modules (17 as of 2026-09-01; `ls .../mucol/test_*.py` is authoritative,
   and the maintained inventory is the test RST's *Test modules* section)
@@ -2159,6 +2234,17 @@ above.
 
 ## 5. Verification status
 
+- **2026-09-12, per-station phase loop (§2.26)**, `.venv_312`, numba, no
+  GPU. `tests/unittests/physics/feedbacks` + `physics/test_cavities.py` +
+  `core/simulation/test_simulation.py`: **759 passed / 12 skipped / 347
+  subtests / 0 failed**, 69 s — after removing the stray `core.beam.beams`
+  import that had aborted collection, and after patching `phi_rf_loop`
+  in the station-less `TestPIErrorFrame` fixture (the only test the new
+  accessor broke). Every pre-existing pin unchanged (the step and clock
+  branches are exact no-ops at zero offset). Pre-commit on all touched
+  files passes except `check copyright` (bare-`python` 9009, §0);
+  `precommit_check_copyright.py` via the venv exits 0 on the new module
+  and test.
 - **2026-09-11, diagnostic switches moved to the test variant (§2.21)**,
   `.venv_312`, numba, no GPU. Full `tests/unittests/`: **1791 passed / 89
   skipped / 364 subtests / 1 failed**, 332 s. The one failure,

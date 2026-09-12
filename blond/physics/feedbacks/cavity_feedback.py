@@ -483,6 +483,27 @@ class IQCavityFeedbackBase(LocalFeedback):
         return self._resolve_main_harmonic(value)
 
     @property
+    def phi_rf_loop(self) -> float:
+        """
+        Per-station phase-loop offset of the parent cavity.
+
+        The offset a
+        :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
+        writes into the station's actual RF phase. A phase STEP, not a
+        frequency slip: it enters the station clock the frame rotations
+        use (``delta_phi_rf + phi_rf_loop``), and a change of it between
+        two passages counter-rotates the carried beam-sourced envelope
+        (:meth:`_absorb_phase_loop_step`). Exactly ``0.0`` without such a
+        loop.
+
+        Returns
+        -------
+        phi_rf_loop
+            The parent station's current offset [rad].
+        """
+        return float(self._parent_rf_station.phi_rf_loop)
+
+    @property
     def omega_rf_design(self) -> float:
         """
         Design RF frequency of the parent cavity at harmonic_index.
@@ -1127,6 +1148,13 @@ class IQCavityFeedbackTimingClass(
         self._generator_frame_rotation: complex = 1.0 + 0.0j
         self._kick_frame_rotation: complex = 1.0 + 0.0j
         self._pi_error_frame_rotation: complex = 1.0 + 0.0j
+        # The parent station's per-station phase-loop offset the carried
+        # beam-sourced envelope was last demodulated and read out in. A
+        # change since then is a STEP of the RF reference, which the next
+        # passage absorbs (see ``_absorb_phase_loop_step``); the backfill
+        # span of that passage still belongs to the interval before the
+        # step and keeps this value.
+        self._phi_rf_loop_seen: float = 0.0
         # The generator and kick rotations of the BACKFILL cells, one per
         # backfill centre, each with the phase accumulated up to its cell
         # (see ``_update_frame_rotations``). Empty until a passage computes
@@ -2312,6 +2340,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         :meth:`_replay_backfill_span` and :meth:`_track_forward_span`, and
         the first of the two is additionally asserted.
 
+        One phase acts on state instead of producing a value:
+        :meth:`_absorb_phase_loop_step`, between the backfill replay and
+        the forward span, counter-rotates the carried beam-sourced
+        envelope when the station's per-station phase-loop offset
+        (``phi_rf_loop``) changed since the previous passage. The
+        backfill span belongs to the interval before that step, the
+        forward span to the one after, which fixes its place.
+
         Parameters
         ----------
         beam
@@ -2337,6 +2373,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self._update_frame_rotations()
 
         self._replay_backfill_span(n_backfill_centers=span.n_backfill_centers)
+        # A per-station phase-loop step happened at THIS passage: the
+        # backfill span above replayed the interval before it, the forward
+        # span below runs after it.
+        self._absorb_phase_loop_step(
+            n_backfill_centers=span.n_backfill_centers
+        )
 
         self._track_forward_span(beam=beam, span=span)
         self._write_station_readout(carrier_slip_gap=self._carrier_slip_gap)
@@ -2586,6 +2628,68 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 )
                 start_index = end_index
 
+    def _absorb_phase_loop_step(self, n_backfill_centers: int) -> None:
+        r"""
+        Keep the carried beam-induced field in place across a phase step.
+
+        A per-station phase loop moves the station's actual RF phase by
+        writing ``phi_rf_loop``. The demodulation/readout chain keeps
+        every deposit at a fixed phase *relative to the RF wave* -- the
+        demodulation subtracts ``phi_rf + carrier_slip_gap`` and the
+        station adds ``phi_rf`` back at the kick -- which is right for a
+        frequency slip, where the tuner makes the cavity follow the RF,
+        but wrong for a step of the RF reference: the beam-induced field
+        in the cavity does not jump. Left alone, the chain would apply
+        every deposit carried from before the step ``delta`` further
+        along, so the carried beam-sourced component is counter-rotated
+        by ``exp(-i delta)`` here, once, at the passage where the change
+        is first seen. Deposits of this passage are demodulated in the
+        new frame and need nothing.
+
+        The generator-sourced component is not touched: it is anchored to
+        the design clock and composed with the station clock, which now
+        includes ``phi_rf_loop`` (:meth:`_update_frame_rotations`), so it
+        appears at MINUS the step relative to the new RF -- the physical
+        walk-off of a drive the reference moved away from, which an
+        attached controller then removes.
+
+        Placement: between the backfill replay and the forward span. The
+        backfill span reconstructs the interval since the previous passage,
+        which lies before the step, so its cells run with the previous
+        offset (``_phi_rf_loop_seen``); the rotation is applied to the state
+        the forward span starts from -- the last backfill centre, or the
+        state carried across the passage boundary when there is no
+        backfill -- and to that cell's composed sum, so the fine-grid seed
+        (:meth:`_state_before_forward_span`) and the forward recursion both
+        read the rotated value.
+
+        Exactly a no-op, to the bit, while the offset does not change --
+        every run without such a loop.
+
+        Parameters
+        ----------
+        n_backfill_centers
+            Number of backfill centres of this passage's grid.
+        """
+        step = self.phi_rf_loop - self._phi_rf_loop_seen
+        self._phi_rf_loop_seen = self.phi_rf_loop
+        if step == 0.0:
+            return
+        rotation = complex(np.exp(-1j * step))
+        if n_backfill_centers > 0:
+            last = n_backfill_centers - 1
+            voltage_beam = self.antenna_voltage_beam_coarse_grid[last]
+            self.antenna_voltage_beam_coarse_grid[last] = (
+                voltage_beam * rotation
+            )
+            self.antenna_voltage_coarse_grid[last] += (
+                rotation - 1.0
+            ) * voltage_beam
+        else:
+            voltage_beam = self._last_val_ant_voltage_beam
+            self._last_val_ant_voltage_beam = voltage_beam * rotation
+            self._last_val_ant_voltage += (rotation - 1.0) * voltage_beam
+
     def _update_frame_rotations(self) -> None:
         r"""
         Compute this passage's component frame rotations.
@@ -2599,30 +2703,34 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         sum therefore rotates the generator component by
 
         .. math::
-            e^{-i(\Delta\phi_\mathsf{rf} + \mathrm{gap} + \phi_\mathsf{acc})}
+            e^{-i(\phi_\mathsf{clock} + \mathrm{gap} + \phi_\mathsf{acc})}
 
-        (station kick clock + live kick-clock gap + the accumulated
-        grid-vs-carrier phase ``phi_acc``): the readout later adds
-        ``gap + phi_acc`` back and the
-        station adds ``delta_phi_rf`` through ``phi_rf``, so the
-        generator component nets to its design-clock phase -- under an
-        RF-frequency offset it appears at MINUS the kick-clock slip
-        relative to the actual RF, the physical walk-off of a
-        design-locked drive (see :meth:`_write_station_readout`).
+        (the station clock + live kick-clock gap + the accumulated
+        grid-vs-carrier phase ``phi_acc``). The station clock
+        ``phi_clock = delta_phi_rf + phi_rf_loop`` is what the station
+        adds to the design phase through ``phi_rf``: the kick clock
+        accumulated from the RF-frequency offset plus the per-station
+        phase-loop offset. The readout later adds ``gap + phi_acc`` back
+        and the station adds the clock, so the generator component nets
+        to its design-clock phase -- it appears at MINUS the station
+        clock relative to the actual RF, the physical walk-off of a
+        design-locked drive under an RF-frequency offset and under a
+        phase-loop step alike (see :meth:`_write_station_readout` and
+        :meth:`_absorb_phase_loop_step`).
 
         The kick-frame rotation ``exp(+i (gap + phi_acc))`` rotates the
         demodulation-frame sum into the frame of the applied kick; the PI
         error is formed there, so the loop regulates the voltage the
         station actually applies.
 
-        The PI-error rotation ``exp(+i delta_phi_rf)`` then takes that
+        The PI-error rotation ``exp(+i phi_clock)`` then takes that
         error into the ACTUATOR frame. The controller returns a generator
         current, which drives the design-anchored generator component, so
         ``d(V_kick) / d(I_gen)`` carries the composition's
-        ``exp(-i delta_phi_rf)``; rotating the error back cancels it, and
+        ``exp(-i phi_clock)``; rotating the error back cancels it, and
         the open-loop gain stays real instead of turning with the station
         clock. Note the ``gap`` and ``phi_acc`` halves cancel between the two
-        rotations, which is why this third one uses ``delta_phi_rf``
+        rotations, which is why this third one uses the station clock
         alone.
 
         **Which** ``phi_acc``. The forward span, the fine grid and the
@@ -2641,25 +2749,35 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         increment where the previous forward span hands over to this
         backfill span. Both rotations of a cell use the same phase, so the
         generator component still nets to its design-clock phase on every
-        cell.
+        cell. The backfill cells also compose with the phase-loop offset
+        in force BEFORE this passage (``_phi_rf_loop_seen``): they replay
+        the interval before a step this passage absorbs.
 
         The first two are exactly ``1 + 0j`` without an RF-frequency
-        offset and without multi-section acceleration, on every backfill
-        cell too; the third is
-        exactly ``1 + 0j`` whenever ``delta_phi_rf`` is zero, independently
+        offset, without a phase-loop offset and without multi-section
+        acceleration, on every backfill cell too; the third is
+        exactly ``1 + 0j`` whenever the station clock is zero, independently
         of ``gap`` and ``phi_acc`` (the zero short-circuits keep the unrotated
         path free of ``exp`` sign dust).
 
         Notes
         -----
-        ORDERING: needs ``delta_phi_rf`` (per-passage station clock), the
+        ORDERING: needs the per-passage station clock (``delta_phi_rf``
+        and ``phi_rf_loop``; the backfill cells read ``_phi_rf_loop_seen``
+        still unchanged, so this must precede
+        :meth:`_absorb_phase_loop_step`), the
         completed ``_kick_clock_slip_gap`` and ``_carrier_slip_gap`` of
         this passage and its complete grid (the backfill segments are
         ``_segments[:-1]``); must precede every :meth:`circuit_track` of the
         passage, whose per-cell sum composition and PI error read the
         rotations off the instance.
         """
-        total_generator_slip = self.delta_phi_rf + self._carrier_slip_gap
+        # The station clock: the kick clock accumulated from the
+        # RF-frequency offset plus the per-station phase-loop offset, both
+        # applied by the station through ``phi_rf`` and both walking the
+        # design-anchored generator component off the actual RF.
+        station_clock = self.delta_phi_rf + self.phi_rf_loop
+        total_generator_slip = station_clock + self._carrier_slip_gap
         self._generator_frame_rotation = (
             1.0 + 0.0j
             if total_generator_slip == 0.0
@@ -2677,8 +2795,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         backfill_carrier_slip_gaps = (
             self._kick_clock_slip_gap + self._backfill_center_phases()
         )
+        # The backfill span replays the interval BEFORE this passage, so
+        # it carries the phase-loop offset that was in force then (see
+        # ``_absorb_phase_loop_step``).
         backfill_generator_slips = (
-            self.delta_phi_rf + backfill_carrier_slip_gaps
+            self.delta_phi_rf
+            + self._phi_rf_loop_seen
+            + backfill_carrier_slip_gaps
         )
         self._backfill_generator_frame_rotations = np.where(
             backfill_generator_slips == 0.0,
@@ -2704,8 +2827,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # whenever no RF-frequency offset ever acted.
         self._pi_error_frame_rotation = (
             1.0 + 0.0j
-            if self.delta_phi_rf == 0.0
-            else complex(np.exp(1j * self.delta_phi_rf))
+            if station_clock == 0.0
+            else complex(np.exp(1j * station_clock))
         )
 
     def _track_forward_span(

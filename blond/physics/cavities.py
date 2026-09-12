@@ -382,6 +382,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         self.delta_phi_rf: NumpyArray | float | None = None
         """Correction term for phi_rf_design, used by feedbacks, in [rad]."""
 
+        self.phi_rf_loop: float = 0.0
+        """Offset of the actual RF phase written by a per-station beam
+        phase loop, in [rad] (see
+        :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`).
+        A phase STEP of the RF reference, unlike the frequency slip that
+        ``delta_phi_rf`` accumulates: a cavity feedback on this station
+        keeps the beam-induced field it carries in place when the offset
+        changes, and lets its generator field walk off by the change."""
+
         # `phase_correction_frequency_offset` is used to apply
         # the phase shift that was caused in
         # last turn to this turn before beam and
@@ -614,9 +623,14 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         Notes
         -----
-        `phi_rf` can not be set, use `phi_rf_design` instead!
+        `phi_rf` can not be set, use `phi_rf_design` instead! The three
+        terms are the design phase, the kick clock accumulated from
+        ``delta_omega_rf`` and the per-station phase-loop offset
+        ``phi_rf_loop``; the latter two are exactly ``0.0`` unless a
+        feedback writes them, so the sum is then the design phase to the
+        bit.
         """
-        return self.phi_rf_design + self.delta_phi_rf
+        return self.phi_rf_design + self.delta_phi_rf + self.phi_rf_loop
 
     @phi_rf.setter
     def phi_rf(self, _) -> None:

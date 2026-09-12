@@ -622,8 +622,10 @@ reference values (characterization: any change of the tracked feedback
 numerics shows up here first); the driven open-loop steady state, total
 reflection on every cell, the continuity of the kick-frame voltage across
 the backfill span, the zero-intensity phase neutrality, the design-locked
-drive walk-off under an RF-frequency offset and the numba-kernel bit
-identity are guarded end to end here as well.
+drive walk-off under an RF-frequency offset, the per-station phase-loop
+step (beam-induced field kept in place, generator walk-off, closed-loop
+damping) and the numba-kernel bit identity are guarded end to end here as
+well.
 Setting the ``PI_TRACKING_PRINT_PINS`` environment variable prints the
 recorded trajectories instead (used to regenerate the pins); while the pins
 are unrecorded (``None``) the pin tests skip.
@@ -984,6 +986,68 @@ pin covers, moved by up to ``1.1e-5`` relative of ~``0.029`` rad.
 ``test_constant_energy_needs_no_correction``
     Control: without a ramp the geometry lands on ``pi`` to better than
     ``1e-9 pi`` (measured ``1.9e-11``).
+
+``TestPhaseStepKeepsTheBeamInducedFieldInPlace``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A per-station phase-loop step of the RF reference must not move the
+beam-induced field. The station's ``phi_rf_loop`` is a STEP, unlike the
+slip ``delta_phi_rf`` accumulates, and the demodulation/readout chain --
+which keeps every deposit fixed relative to the RF wave, right for a slip
+the tuner follows -- would otherwise apply every carried deposit ``step``
+further along. ``_absorb_phase_loop_step`` counter-rotates the carried
+beam-sourced envelope once, at the passage that first sees the change.
+Single section, constant 63 GeV, undriven (zero bias, zero initial voltage,
+no controller) so the readout is the beam-induced field alone; the step
+(0.3 rad) is written after turn 1 and the run compared with an identical
+unstepped one.
+
+``test_readout_phase_is_continuous_across_the_step``
+    The absolute readout phase ``phase_correction + phi_rf`` on the turn
+    after the step agrees with the unstepped run within 0.03 rad (the
+    residual is this passage's own deposit, demodulated in the new frame);
+    without the counter-rotation it would move by the full 0.3 rad.
+
+``TestPhaseStepWalksTheGeneratorFieldOff``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The phase-step twin of ``TestDesignLockedDriveWalkOffUnderRFOffset``: the
+design-anchored generator field does not follow a step of the RF
+reference either, so a beam-free, matched-bias cavity must read out the
+driven field at MINUS the step from the next passage on. The offset is
+the second term of the station clock ``delta_phi_rf + phi_rf_loop`` the
+frame rotations compose with. Single section, constant 63 GeV, no
+controller, five turns, step 0.2 rad written after turn 2.
+
+``test_readout_reports_minus_the_step``
+    ``phase_correction == -phi_rf_loop`` to ``atol=1e-9`` rad on every
+    passage after the step, and zero to the same tolerance before it.
+
+``TestStationPhaseLoopOnTheRing``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The loop closed on a tracked ring. Two sections at constant 4 GeV with a
+``StationPhaseLoop`` in front of each station, twelve turns, the matched
+bunch launched 2 deg late (``dt_offset``), ``reference_phase`` set to the
+launch phase of the unshifted bunch, gain 0.5 on the previous station's
+measurement (``delay_stations = 1``). The observable is the scatter of
+the recorded centroid error about its mean over the last eight passages
+against the first eight.
+
+``test_the_loop_damps_the_launch_error``
+    The first error is the 2 deg launch error and the late scatter is
+    below 15 % of the early one (2.4 deg to 0.08 deg measured).
+``test_without_the_loop_the_error_keeps_oscillating``
+    Gain zero: the late scatter stays above half the early one.
+``test_the_mirrored_gain_anti_damps``
+    Gain -0.5 on a two-stations-old measurement: the late scatter exceeds
+    1.5x the early one -- the sign and delay the linear model predicts to
+    anti-damp, so the damping above is not a coincidence of the fixture.
+``test_zero_gain_is_bit_neutral``
+    Gain zero against no loop element at all: minimum voltage, current
+    deviation, last voltage and readout phase agree bit for bit over
+    four turns, so the loop's bookkeeping in the feedback is exactly
+    inert while the offset does not change.
 
 ``TestKernelMatchesReferenceEndToEnd``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3042,6 +3106,48 @@ the phase moved onto the segment records.
     The gate: a passage that generated no backfill centre must not walk
     anything (a stale frequency list used to re-run the whole grid).
 
+
+``test_station_phase_loop.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Unit tests for the station knob ``phi_rf_loop`` and the per-station
+``StationPhaseLoop`` element (``blond.physics.feedbacks.station_phase_loop``),
+on a stub beam and a station whose ``omega_rf_design`` is set by hand; the
+tracked behaviour is in ``test_pi_feedback_full_tracking.py`` above.
+
+``TestPhiRfLoopEntersTheStationPhase``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``test_default_is_zero_and_bit_neutral``
+    A fresh station has ``phi_rf_loop == 0.0`` and ``phi_rf`` equals the
+    design phase to the bit.
+``test_offset_adds_to_the_actual_phase``
+    Writing the offset moves ``phi_rf`` by exactly that amount.
+
+``TestStationPhaseLoopElement``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``test_first_passage_records_but_has_nothing_to_act_on``
+    With a delay of one the first passage records its error and writes
+    a zero correction.
+``test_correction_uses_the_delayed_measurement``
+    The correction is ``-gain`` times the error recorded ``delay_stations``
+    passages ago, and lands on the station's ``phi_rf_loop``.
+``test_zero_delay_acts_on_its_own_measurement``
+    Delay zero uses the measurement just taken.
+``test_error_is_wrapped_into_the_principal_range``
+    A centroid a full RF period plus 0.1 rad from the reference is a
+    0.1 rad error.
+``test_turns_are_stamped_by_passage_count``
+    The record's turn stamps are the passage count plus ``turn_fraction``.
+``test_other_beams_and_probes_are_ignored``
+    Another beam and a ``ProbeBeam`` neither record nor write.
+``test_an_empty_beam_is_skipped``
+    Zero macroparticles record nothing (no mean of an empty array).
+``test_negative_delay_is_refused``
+    ``delay_stations < 0`` raises ``ValueError``.
+``test_record_arrays_are_time_ordered``
+    ``as_arrays`` returns the three records sorted by turn.
 
 ``test_beam_feedback.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^

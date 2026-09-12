@@ -388,6 +388,16 @@ class TestPIErrorFrame(unittest.TestCase):
         )
         self._delta_phi_patch.start()
         self.addCleanup(self._delta_phi_patch.stop)
+        # So is the per-station phase-loop offset, the other term of the
+        # station clock; no such loop acts here.
+        self._phi_rf_loop_patch = patch.object(
+            IQCavityFeedbackTimingClass,
+            "phi_rf_loop",
+            new_callable=PropertyMock,
+            return_value=0.0,
+        )
+        self._phi_rf_loop_patch.start()
+        self.addCleanup(self._phi_rf_loop_patch.stop)
         feedback._carrier_slip_gap = gap
         feedback._update_frame_rotations()
         feedback._omega_input_for_pi = self.omega_rf
