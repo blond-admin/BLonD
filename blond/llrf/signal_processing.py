@@ -37,7 +37,6 @@ from numpy import (
 from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
-from ..beam.sparse_profiles import SparseBatch
 from ..beam.profile import Profile
 from ..utils.legacy_support import handle_legacy_kwargs
 
@@ -48,7 +47,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .impulse_response import TravellingWaveCavity
     from ..beam.profile import Profile
-    from ..beam.sparse_profiles import SparseBatch
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +166,7 @@ def modulator(
 
 @handle_legacy_kwargs
 def rf_beam_current(
-    profile: Profile | SparseBatch,
+    profile: Profile | SparseProfileBaseClass,
     omega_c: float,
     T_rev: float,
     lpf: bool = True,
@@ -211,9 +209,10 @@ def rf_beam_current(
     Parameters
     ----------
     Profile : class
-        A Profile type class or a SparseBatch class.
-        N.B.: the results are not working for the SparseBucket class at the
-        moment.
+        A Profile, or a sparse profile (SparseBatch or SparseBucket). For a
+        sparse profile the fine grid is extended with empty bins past the
+        last window before downsampling, so that the last coarse sample
+        is complete.
     omega_c : float
         Revolution frequency [1/s] at which the current should be calculated
     T_rev : float
@@ -289,7 +288,7 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
-        if isinstance(profile, SparseBatch):
+        if isinstance(profile, SparseProfileBaseClass):
             order = np.argsort(profile.bin_centers)
             profile_bin_centers = profile.bin_centers[order]
             profile_n_macroparticles = profile.n_macroparticles[order]
@@ -364,7 +363,7 @@ def charges_from_fine_to_coarse(
     for i in range(1, len(indices)):
         charges_coarse[ind_fine[indices[i]] % n_points] = np.sum(
             charges_fine[np.arange(indices[i - 1], indices[i])]
-        )  # TODO: modulo might not be physical
+        )
     return charges_coarse
 
 

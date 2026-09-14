@@ -17,7 +17,7 @@ from scipy.constants import e
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_profiles import SparseBatch
+from blond.beam.sparse_profiles import SparseBatch, SparseBucket
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.signal_processing import (
@@ -41,7 +41,8 @@ MOM_COMPACTION = 1 / GAMMA_TRANSITION**2
 
 N_MACROPARTICLES = int(1e5)
 BUNCH_INTENSITY = 1e20
-BUNCH_SIGMA_DT = 0.5e-9
+BUNCH_SIGMA_DT = 0.25e-9  # [s]; the whole bunch stays inside its RF bucket,
+# so the standard and sparse profiles see the same total charge
 # Warning: for a large number of bunches, the bin_size difference between
 # the sparse profile and the standard profile induces slight mismatches
 # between the indexes. Tests will artificially fail because of this difference.
@@ -95,7 +96,7 @@ def build_beam(ring, rf_station, seed=1234):
     bigaussian(
         ring,
         rf_station,
-        beam,
+        single_bunch,
         sigma_dt=BUNCH_SIGMA_DT,
         seed=seed,
         reinsertion=True,
@@ -173,7 +174,32 @@ def build_sparse_profile(beam, rf_station, n_slices):
     return sparse_profile
 
 
+def build_sparse_bucket_profile(beam, rf_station, n_slices):
+    """A SparseBucket profile with one profile (one RF bucket) per bunch."""
+    bunch_list = np.zeros(HARMONIC_NUMBER)
+    for k in range(number_of_batches):
+        for i in range(number_of_bunches_per_batch):
+            bunch_list[k * batch_spacing + i * bunch_spacing] = 1
+    sparse_profile = SparseBucket(
+        rf_station=rf_station,
+        beam=beam,
+        number_of_slices_per_profile=n_slices,
+        bunch_list=bunch_list,
+        tracker_mode="onebyone",
+    )
+    sparse_profile.track()
+    return sparse_profile
+
+
 class TestRFBeamCurrent(unittest.TestCase):
+    """Compare the rf beam current computed on sparse profiles with the one
+    computed on a standard Profile covering all the buckets.
+
+    Two sparse profiles are built on the same beam, a SparseBatch (one
+    profile per batch) and a SparseBucket (one profile per bunch), and
+    every check runs on both of them.
+    """
+
     N_SLICES = (
         4 * HARMONIC_NUMBER // 5
     )  # fine relative to the coarse (n_coarse) grid
@@ -189,309 +215,230 @@ class TestRFBeamCurrent(unittest.TestCase):
         self.profile_sparse = build_sparse_profile(
             self.beam, self.rf, self.N_SLICES
         )
+        self.profile_bucket = build_sparse_bucket_profile(
+            self.beam, self.rf, self.N_SLICES
+        )
+        self.profiles_sparse = {
+            "SparseBatch": self.profile_sparse,
+            "SparseBucket": self.profile_bucket,
+        }
         self.T_s = 5 * self.rf.t_rev[0] / self.rf.harmonic[0, 0]
         self.n_points = 100
         self.rtol = 1e-15
         self.atol = 1e-12
 
-    def test_bin_centers_match(self):
-        for p, profile in enumerate(self.profile_sparse.profiles_list):
+    # Helpers -----------------------------------------------------------------
+
+    def _windows(self, profile_sparse):
+        """Yield (p, profile, index) for each window of a sparse profile:
+        the profile number, its Profile object and the index of its first
+        bin in the standard profile."""
+        for p, profile in enumerate(profile_sparse.profiles_list):
             index = np.argmin(
                 np.abs(self.profile_std.bin_centers - profile.bin_centers[0])
             )
-            np.testing.assert_allclose(
-                self.profile_std.bin_centers[index],
-                self.profile_sparse.bin_centers[p * profile.n_slices],
-                rtol=self.rtol,
-                atol=self.atol,
-                err_msg="bin centers differ between "
-                "standard Profile and SparseBatch for the same beam, profile number "
-                f"{p}",
-            )
+            yield p, profile, index
 
-    def test_n_macroparticles_match(self):
-        for p, profile in enumerate(self.profile_sparse.profiles_list):
-            index = np.argmin(
-                np.abs(self.profile_std.bin_centers - profile.bin_centers[0])
-            )
+    def _assert_windows_match(
+        self, array_std, array_sparse, profile_sparse, name, what
+    ):
+        """Check an array in sparse layout against the same quantity in the
+        standard profile layout, window by window."""
+        for p, profile, index in self._windows(profile_sparse):
             np.testing.assert_allclose(
-                self.profile_std.bin_centers[index : index + profile.n_slices],
-                profile.bin_centers,
-                rtol=self.rtol,
-                atol=self.atol,
-                err_msg="bin_centers differ between "
-                "standard Profile and SparseBatch for the same beam, profile number "
-                f"{p}",
-            )
-            np.testing.assert_allclose(
-                self.profile_std.n_macroparticles[
-                    index : index + profile.n_slices
-                ],
-                profile.n_macroparticles,
-                rtol=self.rtol,
-                atol=self.atol,
-                err_msg="n_macroparticles differ between "
-                "standard Profile and SparseBatch for the same beam, profile number "
-                f"{p}",
-            )
-
-    def test_bin_size_matches(self):
-        self.assertAlmostEqual(
-            self.profile_std.bin_size, self.profile_sparse.bin_size, places=15
-        )
-
-    def test_charges_fine_grid(self):
-        charges_std = (
-            self.profile_std.beam.ratio
-            * self.profile_std.beam.particle.charge
-            * e
-            * np.copy(self.profile_std.n_macroparticles)
-        )
-
-        charges_sparse = (
-            self.profile_sparse.beam.ratio
-            * self.profile_sparse.beam.particle.charge
-            * e
-            * np.copy(self.profile_sparse.n_macroparticles)
-        )
-        for p, profile in enumerate(self.profile_sparse.profiles_list):
-            index = np.argmin(
-                np.abs(self.profile_std.bin_centers - profile.bin_centers[0])
-            )
-            np.testing.assert_allclose(
-                charges_std[index : index + profile.n_slices],
-                charges_sparse[
+                array_std[index : index + profile.n_slices],
+                array_sparse[
                     p * profile.n_slices : (p + 1) * profile.n_slices
                 ],
                 rtol=self.rtol,
                 atol=self.atol,
-                err_msg="charges differ between "
-                "standard Profile and SparseBatch for the same beam, profile number "
-                f"{p}",
-            )
-        tot_charges = (
-            np.sum(self.profile_std.n_macroparticles)
-            / self.profile_std.beam.n_macroparticles
-            * self.profile_std.beam.intensity
-        )
-        tot_charges_sparse = (
-            np.sum(self.profile_sparse.n_macroparticles)
-            / self.profile_sparse.beam.n_macroparticles
-            * self.profile_sparse.beam.intensity
-        )
-        self.assertEqual(tot_charges, tot_charges_sparse)
-
-        I_f_std = (
-            2.0
-            * charges_std
-            * np.cos(self.omega * self.profile_std.bin_centers)
-        )
-        Q_f_std = (
-            -2.0
-            * charges_std
-            * np.sin(self.omega * self.profile_std.bin_centers)
-        )
-        charges_fine_std = I_f_std + 1j * Q_f_std
-
-        I_f_sparse = (
-            2.0
-            * charges_sparse
-            * np.cos(self.omega * self.profile_sparse.bin_centers)
-        )
-        Q_f_sparse = (
-            -2.0
-            * charges_sparse
-            * np.sin(self.omega * self.profile_sparse.bin_centers)
-        )
-        charges_fine_sparse = I_f_sparse + 1j * Q_f_sparse
-        for p, profile in enumerate(self.profile_sparse.profiles_list):
-            index = np.argmin(
-                np.abs(self.profile_std.bin_centers - profile.bin_centers[0])
-            )
-            np.testing.assert_allclose(
-                I_f_std[index : index + profile.n_slices],
-                I_f_sparse[p * profile.n_slices : (p + 1) * profile.n_slices],
-                rtol=self.rtol,
-                atol=self.atol,
-            )
-            np.testing.assert_allclose(
-                Q_f_std[index : index + profile.n_slices],
-                Q_f_sparse[p * profile.n_slices : (p + 1) * profile.n_slices],
-                rtol=self.rtol,
-                atol=self.atol,
-            )
-            np.testing.assert_allclose(
-                charges_fine_std[index : index + profile.n_slices],
-                charges_fine_sparse[
-                    p * profile.n_slices : (p + 1) * profile.n_slices
-                ],
-                rtol=self.rtol,
-                atol=self.atol,
+                err_msg=f"{what} differ between standard Profile and {name} "
+                f"for the same beam, profile number {p}",
             )
 
-    def test_charges_from_fine_to_coarse(self):
-        charges_std = (
-            self.profile_std.beam.ratio
-            * self.profile_std.beam.particle.charge
+    @staticmethod
+    def _charges(profile):
+        """Charge per bin [C], as in rf_beam_current."""
+        return (
+            profile.beam.ratio
+            * profile.beam.particle.charge
             * e
-            * np.copy(self.profile_std.n_macroparticles)
+            * np.copy(profile.n_macroparticles)
         )
 
-        charges_sparse = (
-            self.profile_sparse.beam.ratio
-            * self.profile_sparse.beam.particle.charge
-            * e
-            * np.copy(self.profile_sparse.n_macroparticles)
-        )
-        I_f_std = (
-            2.0
-            * charges_std
-            * np.cos(self.omega * self.profile_std.bin_centers)
-        )
-        Q_f_std = (
-            -2.0
-            * charges_std
-            * np.sin(self.omega * self.profile_std.bin_centers)
-        )
-        charges_fine_std = I_f_std + 1j * Q_f_std
+    def _demodulate(self, charges, bin_centers):
+        """Demodulated charges at omega: I, Q and I + jQ, as in
+        rf_beam_current."""
+        I_f = 2.0 * charges * np.cos(self.omega * bin_centers)
+        Q_f = -2.0 * charges * np.sin(self.omega * bin_centers)
+        return I_f, Q_f, I_f + 1j * Q_f
 
-        I_f_sparse = (
-            2.0
-            * charges_sparse
-            * np.cos(self.omega * self.profile_sparse.bin_centers)
+    @staticmethod
+    def _total_charge(profile):
+        return (
+            np.sum(profile.n_macroparticles)
+            / profile.beam.n_macroparticles
+            * profile.beam.intensity
         )
-        Q_f_sparse = (
-            -2.0
-            * charges_sparse
-            * np.sin(self.omega * self.profile_sparse.bin_centers)
-        )
-        charges_fine_sparse = I_f_sparse + 1j * Q_f_sparse
 
-        charges_coarse_std = charges_from_fine_to_coarse(
-            T_s=self.T_s,
-            charges_fine=charges_fine_std,
-            dT=0,
-            n_points=self.n_points,
-            omega_c=self.omega,
-            profile_bin_centers=self.profile_std.bin_centers,
-        )
-        charges_coarse_sparse = charges_from_fine_to_coarse(
-            T_s=self.T_s,
-            charges_fine=charges_fine_sparse,
-            dT=0,
-            n_points=self.n_points,
-            omega_c=self.omega,
-            profile_bin_centers=self.profile_sparse.bin_centers,
-        )
-        with self.assertRaises(expected_exception=AssertionError):
-            np.testing.assert_allclose(
-                charges_coarse_std,
-                charges_coarse_sparse,
-                rtol=self.rtol,
-                atol=self.atol,
-            )
-        order = np.argsort(self.profile_sparse.bin_centers)
-        profile_bin_centers = self.profile_sparse.bin_centers[order]
-        profile_n_macroparticles = self.profile_sparse.n_macroparticles[order]
-
-        ind_fine = np.round(
-            (profile_bin_centers - 0 - np.pi / self.omega) / self.T_s
-        )
-        ind_fine = np.array(ind_fine, dtype=int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) >= 1)[0]
+    def _charges_fine_extended(self, profile_sparse):
+        """Demodulated charges of a sparse profile on a fine grid extended
+        with empty bins past the last window, so that the last coarse
+        sample is complete. Returns the charges and the extended grid."""
+        profile_bin_centers = profile_sparse.bin_centers
+        profile_n_macroparticles = profile_sparse.n_macroparticles
         extra_bins = np.arange(
             profile_bin_centers[-1],
-            profile_bin_centers[-1] + self.T_s + 0 + np.pi / self.omega,
-            step=self.profile_sparse.bin_size,
+            profile_bin_centers[-1] + self.T_s + np.pi / self.omega,
+            step=profile_sparse.bin_size,
         )
         profile_bin_centers_for_coarse = np.concatenate(
-            (self.profile_sparse.bin_centers, extra_bins)
+            (profile_bin_centers, extra_bins)
         )
-        profile_n_macroparticles = np.concatenate(
-            (self.profile_sparse.n_macroparticles, np.zeros(len(extra_bins)))
+        profile_n_macroparticles_for_coarse = np.concatenate(
+            (profile_n_macroparticles, np.zeros(len(extra_bins)))
         )
         charges = (
-            self.profile_sparse.beam.ratio
-            * self.profile_sparse.beam.particle.charge
+            profile_sparse.beam.ratio
+            * profile_sparse.beam.particle.charge
             * e
-            * np.copy(profile_n_macroparticles)
+            * profile_n_macroparticles_for_coarse
         )
-        I_f = (
-            2.0 * charges * np.cos(self.omega * profile_bin_centers_for_coarse)
+        _, _, charges_fine = self._demodulate(
+            charges, profile_bin_centers_for_coarse
         )
-        Q_f = (
-            -2.0
-            * charges
-            * np.sin(self.omega * profile_bin_centers_for_coarse)
-        )
-        charges_fine_for_coarse_grid = I_f + 1j * Q_f
-        warnings.warn(
-            "The length of the sparse profile is too "
-            "short to properly convert the charges from the fine to the coarse grid."
-            "Profile has been extented."
-        )
-        # else:
-        #     profile_bin_centers_for_coarse = profile_bin_centers
-        #     charges_extended = (
-        #             self.profile_sparse.beam.ratio
-        #             * self.profile_sparse.beam.particle.charge
-        #             * e
-        #             * np.copy(profile_n_macroparticles)
-        #     )
-        #     I_f = (
-        #             2.0
-        #             * charges_extended
-        #             * np.cos(self.omega * profile_bin_centers)
-        #     )
-        #     Q_f = (
-        #             -2.0
-        #             * charges_extended
-        #             * np.sin(self.omega * profile_bin_centers)
-        #     )
-        #     charges_fine_for_coarse_grid = I_f + 1j * Q_f
-        # # Check internal fix works
-        # profile_bin_centers = np.concatenate((self.profile_sparse.bin_centers,
-        #
-        #                                       np.arange(
-        #                                           self.profile_sparse.bin_centers[
-        #                                               -1],
-        #                                           self.profile_sparse.bin_centers[-1] +
-        #                                           2 *
-        #                                           self.profile_sparse.rf_station.t_rf[
-        #                                               0, 0],
-        #                                           step=self.profile_sparse.bin_size)))
-        # profile_n_macroparticles = np.concatenate((self.profile_sparse.n_macroparticles,
-        #                                            np.zeros(len(np.arange(
-        #                                                self.profile_sparse.bin_centers[-1],
-        #                                                self.profile_sparse.bin_centers[
-        #                                                    -1] +
-        #                                                2 *
-        #                                                self.profile_sparse.rf_station.t_rf[
-        #                                                    0, 0],
-        #                                                step=self.profile_sparse.bin_size)))))
-        # charges_sparse = (
-        #         self.profile_sparse.beam.ratio
-        #         * self.profile_sparse.beam.particle.charge
-        #         * e
-        #         * np.copy(profile_n_macroparticles)
-        # )
-        # I_f = 2.0 * charges_sparse * np.cos(self.omega * profile_bin_centers)
-        # Q_f = -2.0 * charges_sparse * np.sin(self.omega * profile_bin_centers)
-        # charges_fine_sparse = I_f + 1j * Q_f
-        charges_coarse_sparse = charges_from_fine_to_coarse(
+        return charges_fine, profile_bin_centers_for_coarse
+
+    def _charges_coarse(self, charges_fine, bin_centers):
+        return charges_from_fine_to_coarse(
             T_s=self.T_s,
-            charges_fine=charges_fine_for_coarse_grid,
+            charges_fine=charges_fine,
             dT=0,
             n_points=self.n_points,
             omega_c=self.omega,
-            profile_bin_centers=profile_bin_centers_for_coarse,
+            profile_bin_centers=bin_centers,
         )
-        np.testing.assert_allclose(
-            charges_coarse_std,
-            charges_coarse_sparse,
-            rtol=self.rtol,
-            atol=self.atol,
+
+    # Tests -------------------------------------------------------------------
+
+    def test_bin_centers_match(self):
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                for p, profile, index in self._windows(profile_sparse):
+                    np.testing.assert_allclose(
+                        self.profile_std.bin_centers[index],
+                        profile_sparse.bin_centers[p * profile.n_slices],
+                        rtol=self.rtol,
+                        atol=self.atol,
+                        err_msg="bin centers differ between standard "
+                        f"Profile and {name} for the same beam, profile "
+                        f"number {p}",
+                    )
+
+    def test_n_macroparticles_match(self):
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                self._assert_windows_match(
+                    self.profile_std.bin_centers,
+                    profile_sparse.bin_centers,
+                    profile_sparse,
+                    name,
+                    "bin_centers",
+                )
+                self._assert_windows_match(
+                    self.profile_std.n_macroparticles,
+                    profile_sparse.n_macroparticles,
+                    profile_sparse,
+                    name,
+                    "n_macroparticles",
+                )
+
+    def test_bin_size_matches(self):
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                self.assertAlmostEqual(
+                    self.profile_std.bin_size,
+                    profile_sparse.bin_size,
+                    places=15,
+                )
+
+    def test_charges_fine_grid(self):
+        charges_std = self._charges(self.profile_std)
+        I_f_std, Q_f_std, charges_fine_std = self._demodulate(
+            charges_std, self.profile_std.bin_centers
         )
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                charges_sparse = self._charges(profile_sparse)
+                self._assert_windows_match(
+                    charges_std,
+                    charges_sparse,
+                    profile_sparse,
+                    name,
+                    "charges",
+                )
+                self.assertEqual(
+                    self._total_charge(self.profile_std),
+                    self._total_charge(profile_sparse),
+                )
+                I_f, Q_f, charges_fine = self._demodulate(
+                    charges_sparse, profile_sparse.bin_centers
+                )
+                self._assert_windows_match(
+                    I_f_std, I_f, profile_sparse, name, "I_f"
+                )
+                self._assert_windows_match(
+                    Q_f_std, Q_f, profile_sparse, name, "Q_f"
+                )
+                self._assert_windows_match(
+                    charges_fine_std,
+                    charges_fine,
+                    profile_sparse,
+                    name,
+                    "charges_fine",
+                )
+
+    def test_charges_from_fine_to_coarse(self):
+        charges_std = self._charges(self.profile_std)
+        _, _, charges_fine_std = self._demodulate(
+            charges_std, self.profile_std.bin_centers
+        )
+        charges_coarse_std = self._charges_coarse(
+            charges_fine_std, self.profile_std.bin_centers
+        )
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                # On the bare sparse grid the last coarse sample is
+                # incomplete, so the coarse charges cannot match
+                _, _, charges_fine_sparse = self._demodulate(
+                    self._charges(profile_sparse), profile_sparse.bin_centers
+                )
+                charges_coarse_sparse = self._charges_coarse(
+                    charges_fine_sparse, profile_sparse.bin_centers
+                )
+                with self.assertRaises(AssertionError):
+                    np.testing.assert_allclose(
+                        charges_coarse_std,
+                        charges_coarse_sparse,
+                        rtol=self.rtol,
+                        atol=self.atol,
+                    )
+                # Extending the sparse grid with empty bins past the last
+                # window recovers the standard result
+                (
+                    charges_fine_for_coarse_grid,
+                    profile_bin_centers_for_coarse,
+                ) = self._charges_fine_extended(profile_sparse)
+                charges_coarse_sparse = self._charges_coarse(
+                    charges_fine_for_coarse_grid,
+                    profile_bin_centers_for_coarse,
+                )
+                np.testing.assert_allclose(
+                    charges_coarse_std,
+                    charges_coarse_sparse,
+                    rtol=self.rtol,
+                    atol=self.atol,
+                )
 
     def test_rf_beam_current(self):
         rf_current_std = rf_beam_current(
@@ -502,34 +449,29 @@ class TestRFBeamCurrent(unittest.TestCase):
             external_reference=True,
             dT=0,
         )
-
-        rf_current_sparse = rf_beam_current(
-            self.profile_sparse,
-            self.omega,
-            self.ring.t_rev[0],
-            lpf=False,
-            external_reference=True,
-            dT=0,
-        )
-        for p, profile in enumerate(self.profile_sparse.profiles_list):
-            index = np.argmin(
-                np.abs(self.profile_std.bin_centers - profile.bin_centers[0])
-            )
-            np.testing.assert_allclose(
-                rf_current_std[index : index + profile.n_slices],
-                rf_current_sparse[
-                    p * profile.n_slices : (p + 1) * profile.n_slices
-                ],
-                rtol=self.rtol,
-                atol=self.atol,
-            )
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                rf_current_sparse = rf_beam_current(
+                    profile_sparse,
+                    self.omega,
+                    self.ring.t_rev[0],
+                    lpf=False,
+                    external_reference=True,
+                    dT=0,
+                )
+                self._assert_windows_match(
+                    rf_current_std,
+                    rf_current_sparse,
+                    profile_sparse,
+                    name,
+                    "rf beam current",
+                )
 
     def test_downsampling(self):
         downsample_dict = {
             "Ts": self.T_s,
             "points": self.n_points,
         }
-
         rf_current_std, rf_current_coarse_std = rf_beam_current(
             self.profile_std,
             self.omega,
@@ -539,36 +481,33 @@ class TestRFBeamCurrent(unittest.TestCase):
             external_reference=True,
             dT=0,
         )
-        self.profile_sparse.track()
-        rf_current_sparse, rf_current_coarse_sparse = rf_beam_current(
-            self.profile_sparse,
-            self.omega,
-            self.ring.t_rev[0],
-            lpf=False,
-            downsample=downsample_dict,
-            external_reference=True,
-            dT=0,
-        )
-
-        for p, profile in enumerate(self.profile_sparse.profiles_list):
-            index = np.argmin(
-                np.abs(self.profile_std.bin_centers - profile.bin_centers[0])
-            )
-            np.testing.assert_allclose(
-                rf_current_std[index : index + profile.n_slices],
-                rf_current_sparse[
-                    p * profile.n_slices : (p + 1) * profile.n_slices
-                ],
-                rtol=self.rtol,
-                atol=self.atol,
-            )
-
-        np.testing.assert_allclose(
-            rf_current_coarse_std,
-            rf_current_coarse_sparse,
-            rtol=self.rtol,
-            atol=self.atol,
-        )
+        for name, profile_sparse in self.profiles_sparse.items():
+            with self.subTest(profile=name):
+                profile_sparse.track()
+                rf_current_sparse, rf_current_coarse_sparse = rf_beam_current(
+                    profile_sparse,
+                    self.omega,
+                    self.ring.t_rev[0],
+                    lpf=False,
+                    downsample=downsample_dict,
+                    external_reference=True,
+                    dT=0,
+                )
+                self._assert_windows_match(
+                    rf_current_std,
+                    rf_current_sparse,
+                    profile_sparse,
+                    name,
+                    "rf beam current",
+                )
+                np.testing.assert_allclose(
+                    rf_current_coarse_std,
+                    rf_current_coarse_sparse,
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="coarse-grid rf beam current differs between "
+                    f"standard Profile and {name}",
+                )
 
 
 if __name__ == "__main__":
