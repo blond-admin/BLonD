@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from blond import Beam, backend, proton
+from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import EmptyBeam, ProbeBeam
 from blond.core.beam.flags import BeamFlags
 from blond.core.beam.migrations import UnsupportedSchemaVersionError
@@ -33,20 +34,28 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 #    entries describe files that already exist on other people's disks),
 # 4. regenerate the golden fixture for the new version.
 EXPECTED_LAYOUT_FINGERPRINTS = {
-    1: "3a8e0103dfa7946f5966f06f8f472040ca96dbdd4c214c4be0daa90bd574c77d",
+    1: "866ef6e2562bd3d6360ce326a053c9000d22f99aff883d16c2cf4cd96c0da56b",
 }
 
 
-def _dtype_name(value) -> str:
+# Paths whose dtype follows the precision of the active backend instead of
+# being fixed by the format. That their precision is right is checked by
+# ``test_particle_arrays_are_written_at_backend_precision`` instead.
+BACKEND_FLOAT_PATHS = frozenset({"particles/dt", "particles/dE"})
+
+
+def _dtype_name(path: str, value) -> str:
     """Name the on-disk dtype of one attribute or dataset."""
+    if path in BACKEND_FLOAT_PATHS:
+        return "backend_float"
     if isinstance(value, (str, bytes)):
         return "str"
-    dtype = np.asarray(value).dtype
-    if dtype == backend.float:
-        # The particle coordinates follow the precision of the active
-        # backend, which must not change the fingerprint.
-        return "backend_float"
-    return dtype.name
+    if isinstance(value, h5py.Empty):
+        # A null value, e.g. an unset reference energy. HDF5 expresses that
+        # in the dataspace, not the datatype, so it is the value that is
+        # absent while the layout stays the same.
+        return value.dtype.name
+    return np.asarray(value).dtype.name
 
 
 def layout_fingerprint(path: Path) -> str:
@@ -55,12 +64,14 @@ def layout_fingerprint(path: Path) -> str:
 
     def walk(group: h5py.Group, prefix: str) -> None:
         for name, value in sorted(group.attrs.items()):
-            lines.append(f"{prefix}{name}|attribute|{_dtype_name(value)}")
+            full = f"{prefix}{name}"
+            lines.append(f"{full}|attribute|{_dtype_name(full, value)}")
         for name, item in sorted(group.items()):
+            full = f"{prefix}{name}"
             if isinstance(item, h5py.Group):
-                walk(item, f"{prefix}{name}/")
+                walk(item, f"{full}/")
             else:
-                lines.append(f"{prefix}{name}|dataset|{_dtype_name(item[()])}")
+                lines.append(f"{full}|dataset|{_dtype_name(full, item[()])}")
 
     with h5py.File(path, "r") as file:
         walk(file, "")
@@ -107,6 +118,56 @@ def assert_beams_equal(
             rtol=rtol,
             err_msg=f"mismatch in {name}",
         )
+
+
+class TestBeamDict(unittest.TestCase):
+    """``to_dict`` / ``from_dict``, the single definition of beam state."""
+
+    def test_roundtrip_through_a_dict(self):
+        original = build_reference_beam()
+        restored = BeamBaseClass.from_dict(original.to_dict())
+        assert_beams_equal(original, restored)
+
+    def test_dict_identifies_class_and_schema_version(self):
+        dct = build_reference_beam().to_dict()
+        self.assertEqual(dct["__class__"], "Beam")
+        self.assertEqual(dct["schema_version"], BEAM_SCHEMA_VERSION)
+
+    def test_dict_holds_host_arrays(self):
+        """The arrays must be usable without the backend that made them."""
+        dct = build_reference_beam().to_dict()
+        for name in ("dt", "dE", "flags", "ids"):
+            self.assertIsInstance(dct["particles"][name], np.ndarray)
+
+    def test_dict_represents_a_missing_total_energy_as_none(self):
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=backend.array([1.0], dtype=backend.float),
+            dE=backend.array([2.0], dtype=backend.float),
+        )
+        self.assertIsNone(beam.to_dict()["reference"]["total_energy"])
+
+    def test_dict_of_a_subclass_roundtrips_as_that_subclass(self):
+        original = ProbeBeam(particle_type=proton, dt=np.array([1e-9]))
+        restored = BeamBaseClass.from_dict(original.to_dict())
+        assert_beams_equal(original, restored)
+
+    def test_from_dict_rejects_an_unknown_class(self):
+        dct = build_reference_beam().to_dict()
+        dct["__class__"] = "SomeFutureBeam"
+        with pytest.raises(ValueError, match="SomeFutureBeam"):
+            BeamBaseClass.from_dict(dct)
+
+    def test_to_dict_of_a_beam_that_is_not_set_up_raises(self):
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with pytest.raises(ValueError, match="not set up"):
+            beam.to_dict()
+
+    def test_to_dict_of_a_distributed_beam_raises(self):
+        beam = build_reference_beam()
+        beam._is_distributed = True
+        with pytest.raises(NotImplementedError, match="distributed"):
+            beam.to_dict()
 
 
 class TestSaveLoadRoundtrip(unittest.TestCase):
@@ -175,7 +236,7 @@ class TestSaveLoadRoundtrip(unittest.TestCase):
                 self.assertEqual(
                     file.attrs["schema_version"], BEAM_SCHEMA_VERSION
                 )
-                self.assertEqual(file.attrs["blond_class"], "Beam")
+                self.assertEqual(file.attrs["__class__"], "Beam")
 
 
 class TestSaveLoadErrors(unittest.TestCase):
@@ -208,7 +269,7 @@ class TestSaveLoadErrors(unittest.TestCase):
             path = Path(tmp_dir) / "beam.h5"
             build_reference_beam().save(path)
             with h5py.File(path, "r+") as file:
-                file.attrs["blond_class"] = "SomeFutureBeam"
+                file.attrs["__class__"] = "SomeFutureBeam"
             with pytest.raises(ValueError, match="SomeFutureBeam"):
                 load_beam(path)
 
@@ -230,26 +291,60 @@ class TestSchemaFingerprint(unittest.TestCase):
             build_reference_beam().save(path)
             fingerprint = layout_fingerprint(path)
 
-        self.assertIn(
-            BEAM_SCHEMA_VERSION,
-            EXPECTED_LAYOUT_FINGERPRINTS,
-            f"No fingerprint recorded for schema version "
-            f"{BEAM_SCHEMA_VERSION}. Add it to "
-            "EXPECTED_LAYOUT_FINGERPRINTS in this file.",
-        )
+        to_record = f'    {BEAM_SCHEMA_VERSION}: "{fingerprint}",'
+        expected = EXPECTED_LAYOUT_FINGERPRINTS.get(BEAM_SCHEMA_VERSION)
+        if expected is None:
+            self.fail(
+                f"No fingerprint recorded for schema version "
+                f"{BEAM_SCHEMA_VERSION}. Add it to "
+                f"EXPECTED_LAYOUT_FINGERPRINTS in this file:\n{to_record}"
+            )
         self.assertEqual(
             fingerprint,
-            EXPECTED_LAYOUT_FINGERPRINTS[BEAM_SCHEMA_VERSION],
+            expected,
             "The on-disk beam layout changed (a name, a dtype or the "
             "structure). Files written by older BLonD versions can no "
             "longer be read as-is, so you must:\n"
             "  1. bump BEAM_SCHEMA_VERSION in "
             "blond/core/beam/serialization.py,\n"
             "  2. register a migration in blond/core/beam/migrations.py,\n"
-            "  3. add the new fingerprint to EXPECTED_LAYOUT_FINGERPRINTS "
-            "(do not edit existing entries),\n"
+            "  3. record the new fingerprint below the existing entries "
+            f"(do not edit those):\n{to_record}\n"
             "  4. regenerate the golden fixture with "
             "tests/unittests/core/beam/fixtures/generate_beam_fixtures.py.",
+        )
+
+    def test_particle_arrays_are_written_at_backend_precision(self):
+        with TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "beam.h5"
+            build_reference_beam().save(path)
+            with h5py.File(path, "r") as file:
+                for name in ("dt", "dE"):
+                    self.assertEqual(
+                        file["particles"][name].dtype,
+                        backend.float,
+                        f"{name} must be written at backend precision",
+                    )
+                for name in ("flags", "ids"):
+                    self.assertEqual(file["particles"][name].dtype, np.int32)
+
+    def test_layout_does_not_depend_on_an_unset_total_energy(self):
+        """A null value must not change the shape of the file.
+
+        Writing ``None`` as an absent attribute instead of an empty one
+        would make the layout, and hence the fingerprint, depend on the
+        data rather than on the format.
+        """
+        beam = build_reference_beam()
+        beam.reference._total_energy = None
+        with TemporaryDirectory() as tmp_dir:
+            without = Path(tmp_dir) / "without.h5"
+            beam.save(without)
+            fingerprint_without = layout_fingerprint(without)
+
+        self.assertEqual(
+            fingerprint_without,
+            EXPECTED_LAYOUT_FINGERPRINTS[BEAM_SCHEMA_VERSION],
         )
 
     def test_no_fingerprint_is_recorded_for_a_future_version(self):
