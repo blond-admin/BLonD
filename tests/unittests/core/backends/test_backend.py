@@ -2239,6 +2239,9 @@ class TestSpecials(unittest.TestCase):
                 phi_rf=backend.float(3.5),
                 bin_size=backend.float(1.0),
             )
+            self.assertIsInstance(
+                result, backend.float, msg=f"{special=} {type(result)=}"
+            )
             if i == 0:
                 result_python = result
             else:

@@ -412,14 +412,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ) -> float:
             assert _is_valid((hist_x, floattype), (hist_y, floattype))
 
-            # Cast Python floats to backend floattype
-            alpha = floattype(alpha)
-            omega_rf = floattype(omega_rf)
-            phi_rf = floattype(phi_rf)
-            bin_size = floattype(bin_size)
-
-            # requires setting of _LIBBLOND.beam_phase.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.beam_phase.restype` set above; without it
+            # the C double is read as an int. The cast only matches the
+            # `floattype` scalar the other backends return.
             return floattype(
                 _LIBBLOND.beam_phase(
                     hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
@@ -627,8 +622,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
             assert _is_valid((array, floattype))
-            # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.sum_1d_array.restype` set above.
             return floattype(
                 _LIBBLOND.sum_1d_array(_get_pointer(array), _get_len(array))
             )
@@ -641,8 +635,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert _is_valid((array_1, floattype), (array_2, floattype))
             assert len(array_1) == len(array_2)
 
-            # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.dot_product_1d_array.restype` set above.
             return floattype(
                 _LIBBLOND.dot_product_1d_array(
                     _get_pointer(array_1),
