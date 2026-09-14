@@ -453,21 +453,31 @@ Classes at a glance
     Set the flag ``False`` on an instance to force the reference path.
 
 :mod:`blond.physics.feedbacks.station_phase_loop`
-    ``StationPhaseLoop``, a per-station beam phase loop: a ring element
-    placed in front of an RF station in one beam's traversal order, which
-    at every passage measures that beam's centroid RF phase
-    (``omega_rf_design * mean(dt)``) against a ``reference_phase`` and
-    writes the station's ``phi_rf_loop`` from a ``delay_stations``-old
-    error (``-gain * error``). It is the per-station complement of the
-    global, once-per-turn loops of
+    ``StationPhaseLoop``, a beam phase loop attached to one RF station
+    (the station's ``phase_loop`` attribute) and run by that station's
+    cavity feedback on the feedback's controller clock. It is
+    beam-blind: at every passage of whichever bunch the feedback hands it
+    the centroid RF phase (``omega_rf_design * mean(dt)``), which it
+    measures against a ``reference_phase`` and appends to the station's
+    own record, stamped with the coarse cell of the passage. On every
+    controller sample its output is ``-gain`` times the newest record
+    entry at least ``n_delay`` samples old, held between samples; the
+    feedback carries that cell by cell over its whole grid, so the RF
+    reference steps at the sample where a measurement becomes old
+    enough, wherever that falls between passages, the empty tail of a
+    profile window included; the station's ``phi_rf_loop`` is the offset
+    at the bunch's own cell. It is the
+    per-station complement of the global, once-per-turn loops of
     :mod:`blond.physics.feedbacks.beam_feedback`, which a ring whose
     synchrotron tune is of order one per turn cannot use (the RCS advance
     1.25 synchrotron periods per turn at injection). The cavity feedback
     treats the offset as a phase STEP of the RF reference, see *Interplay
-    with the RF station*. ``StationPhaseLoopRecord`` holds what one beam's
-    elements measured and did (turns, errors, corrections; one record is
-    shared by all elements acting on one beam), ``wrap_phase`` folds a
-    phase into ``(-pi, pi]``.
+    with the RF station*; what the bunch is kicked with is the station's
+    field, which the LLRF settles on the written reference after the
+    bunch has left, so a station's own command reaches a bunch a turn
+    later and a counter-rotating bunch's in between. ``StationPhaseLoopRecord``
+    holds what one station measured and did (times, errors, corrections),
+    ``wrap_phase`` folds a phase into ``(-pi, pi]``.
 
 :mod:`blond.physics.feedbacks.iq`
     IQ / polar conversions (``cartesian_to_polar``, ``polar_to_cartesian``).
@@ -1015,25 +1025,29 @@ knob is a phase, not a frequency:
       relative to the RF wave. That is right for the slip -- the tuner
       makes the cavity follow the RF -- but wrong for a step: the
       beam-induced field in the cavity does not jump when the reference
-      does. So at the first passage that sees a changed offset
-      ``_absorb_phase_loop_step`` counter-rotates the carried
-      beam-sourced envelope by ``exp(-i step)``, once, on the state the
-      forward span starts from (the last backfill centre, or the value
-      carried across the passage boundary) and on that cell's composed
-      sum; the passage's own deposits are demodulated in the new frame
-      and need nothing. The absolute readout phase of a beam-loaded,
-      undriven cavity is therefore continuous across the step
+      does. The offset is therefore carried per coarse cell
+      (``_update_frame_rotations`` builds the per-cell offsets of the
+      whole passage grid, backfill cells then forward span), and wherever
+      it steps from one cell to the next the carried beam-sourced
+      envelope is counter-rotated by ``exp(-i step)`` into that cell (the
+      per-cell ``beam_step_rotation`` of the kernel and of the reference
+      recursion, and of the fine-grid seed into the first forward cell);
+      the passage's own deposits are demodulated in the frame of the
+      forward span and need nothing. Without a clocked loop a written
+      ``phi_rf_loop`` is a step at the first forward cell of the next
+      passage; with one the steps fall on the controller samples. The
+      absolute readout phase of a beam-loaded, undriven cavity is
+      continuous across a step
       (``TestPhaseStepKeepsTheBeamInducedFieldInPlace``);
     * the offset is the second term of the *station clock*
       ``delta_phi_rf + phi_rf_loop`` the three frame rotations compose
-      with, so the design-anchored generator field walks off the actual
-      RF by MINUS the step, exactly as it does under the slip: a
-      beam-free, matched-bias cavity reads out ``phase_correction ==
-      -phi_rf_loop`` from the next passage on
-      (``TestPhaseStepWalksTheGeneratorFieldOff``), and an attached
-      controller then removes the walk-off. The backfill span of the
-      absorbing passage replays the interval BEFORE the step and composes
-      with the previous offset (``_phi_rf_loop_seen``);
+      with -- per cell, the PI-error rotation included -- so the
+      design-anchored generator field walks off the actual RF by MINUS
+      the step, exactly as it does under the slip: a beam-free,
+      matched-bias cavity reads out ``phase_correction == -phi_rf_loop``
+      from the next passage on (``TestPhaseStepWalksTheGeneratorFieldOff``),
+      and an attached controller then removes the walk-off from the
+      sample the step lands on;
     * every branch is a bit-exact no-op while the offset does not change,
       so a run without such a loop is unchanged
       (``TestStationPhaseLoopOnTheRing.test_zero_gain_is_bit_neutral``).

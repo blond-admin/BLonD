@@ -623,10 +623,10 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             self.assertEqual(len(backfill_phases), n_backfill)
             # As ``_update_frame_rotations`` builds them: the generator
             # component turns by minus the phase, the kick frame by plus it.
-            feedback._backfill_generator_frame_rotations = np.exp(
+            feedback._cell_generator_frame_rotations = np.exp(
                 -1j * np.asarray(backfill_phases)
             )
-            feedback._backfill_kick_frame_rotations = np.exp(
+            feedback._cell_kick_frame_rotations = np.exp(
                 1j * np.asarray(backfill_phases)
             )
             feedback._generator_frame_rotation = complex(

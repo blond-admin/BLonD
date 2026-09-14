@@ -7,19 +7,27 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Per-station beam phase loop.
+Station-attached beam phase loop, clocked by the station's cavity feedback.
 
-A ring element placed directly in front of an RF station, in one beam's
-traversal order. At every passage it measures that beam's centroid RF
-phase against a reference, remembers the error, and writes the station's
-:attr:`~blond.physics.cavities.RFStationBaseClass.phi_rf_loop` for the kick
-the bunch is about to receive::
+A loop attached to one RF station, the way its cavity feedback is, and run
+on that feedback's controller clock. At every passage of a bunch -- either
+bunch of a counter-rotating pair, the loop does not know which -- the
+feedback hands the loop the bunch's centroid RF phase, which the loop
+measures against a reference and appends to the station's record, stamped
+with the coarse-grid cell of the passage and the bunch's reference time.
+On every controller sample the loop's output is::
 
-    phi_rf_loop = -gain * error(delay_stations passages ago)
+    phi_rf_loop = -gain * error(newest entry >= n_delay samples old)
 
-``delay_stations = 0`` acts on the measurement just taken (an unphysical
-zero-delay loop, useful as a bound), ``delay_stations = 1`` on the one taken
-at the previous station the bunch passed.
+held between samples, and the feedback carries it cell by cell over its
+whole grid, the empty tail of a profile window included: the RF reference
+steps at the sample where a measurement becomes old enough, wherever that
+falls between passages, and the cavity feedback keeps the field in place
+across each step (its per-cell beam step rotations). The station's
+:attr:`~blond.physics.cavities.RFStationBaseClass.phi_rf_loop` is the
+offset in force at the bunch's own cell, which its kick, readout and
+demodulation run in. A measurement cannot reach its own kick: the field
+has no time to move. Nothing old enough writes ``0``.
 
 Why per station and not once per turn: on a ring whose synchrotron tune is
 of order one per turn (the muon-collider RCS advance 1.25 synchrotron
@@ -28,18 +36,17 @@ aliased and a once-per-turn correction is more than a synchrotron period
 late; the stations sample the oscillation many times per period instead.
 The global loops of :mod:`blond.physics.feedbacks.beam_feedback` stay what
 they are -- their coupling to a cavity feedback is a deliberate non-goal --
-while this element couples to the station's own RF phase, and through it
-to the station's cavity feedback, which treats the offset as a step of the
-RF reference (see
-``IQCavityFeedbackTimingClass._absorb_phase_loop_step``).
+while this loop writes the station's own RF phase.
 
-The loop is a phase actuator: an RF phase offset is a thin lens on the
-bunch's energy coordinate, so it damps only when the error it is built
-from is about a quarter synchrotron period old. Which sign damps, and
-the gain for a wanted damping time, follow from the linear model of the
-lumped lattice (the muon-collider example's ``phase_loop_analysis``);
-tracking confirmed that a positive gain damps with a one-station-old
-measurement.
+What the bunch is kicked with is the station's *field*, which the LLRF
+settles on the written reference after the reference moved: a bunch's own
+command reaches it when it returns, a turn later, and a counter-rotating
+bunch's command in between. On a ring symmetric for the two bunches both
+carry the same dipole, so a beam-blind loop acts on one oscillation sampled
+at every passage. The linear model of that (the muon-collider example's
+``phase_loop_analysis``) says which gain and latency damp on which ring.
+
+A station without a cavity feedback never clocks its loop.
 """
 
 from __future__ import annotations
@@ -49,11 +56,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import BeamPhysicsRelevant
-from blond.core.beam.beams import ProbeBeam
-
 if TYPE_CHECKING:  # pragma: no cover
-    from blond.core.beam.base import BeamBaseClass
+    from numpy.typing import NumpyArray
+
     from blond.physics.cavities import RFStationBaseClass
 
 
@@ -77,49 +82,71 @@ def wrap_phase(phase: float) -> float:
 @dataclass
 class StationPhaseLoopRecord:
     """
-    What one beam's loop elements measured and did, newest last.
+    What one station's loop measured and applied, in the order it happened.
 
-    One record is shared by all the elements acting on one beam, so the
-    delayed measurement an element acts on may come from another station.
+    One record per station by default; several loops may share one, in
+    which case ``as_arrays`` interleaves them by time.
     """
 
-    turns: list[float] = field(default_factory=list)
-    """Fractional turn of each measurement, i.e. the element's passage
-    count plus its ``turn_fraction``."""
+    times: list[float] = field(default_factory=list)
+    """Reference time of each passage [s], as the passing bunch carries it."""
+    cells: list[int] = field(default_factory=list)
+    """Coarse-grid cell of each passage, on the feedback's cell clock."""
     errors: list[float] = field(default_factory=list)
-    """Centroid phase error at each measurement [rad]."""
+    """Centroid phase error at each passage [rad]."""
     corrections: list[float] = field(default_factory=list)
-    """RF phase offset written at each passage [rad]."""
+    """RF phase offset in force at each passage's kick [rad]."""
 
     def as_arrays(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        The three records as arrays sorted by turn.
+        Times, errors and corrections as arrays sorted by time.
 
         Returns
         -------
-        turns, errors, corrections
+        times, errors, corrections
             Time-ordered copies.
         """
-        order = np.argsort(self.turns, kind="stable")
+        order = np.argsort(self.times, kind="stable")
         return (
-            np.asarray(self.turns, dtype=float)[order],
+            np.asarray(self.times, dtype=float)[order],
             np.asarray(self.errors, dtype=float)[order],
             np.asarray(self.corrections, dtype=float)[order],
         )
 
+    def newest_at_or_before(self, cell: int) -> int | None:
+        """
+        Index of the newest entry stamped at or before ``cell``.
 
-class StationPhaseLoop(BeamPhysicsRelevant):
+        Parameters
+        ----------
+        cell
+            Cell on the feedback's cell clock.
+
+        Returns
+        -------
+        index
+            Position in the lists, or ``None`` if no entry is that old.
+            Entries are scanned from the newest, so a record appended out
+            of order still yields the newest old-enough one.
+        """
+        best: int | None = None
+        for index in range(len(self.cells) - 1, -1, -1):
+            stamp = self.cells[index]
+            if stamp <= cell and (best is None or stamp > self.cells[best]):
+                best = index
+        return best
+
+
+class StationPhaseLoop:
     """
-    One beam's phase-loop element in front of one RF station.
+    A beam phase loop attached to one RF station, run by its cavity feedback.
 
     Parameters
     ----------
     station
-        The RF station the element precedes in ``beam``'s traversal order;
-        its ``phi_rf_loop`` is written.
-    beam
-        The beam this element acts on; every other beam, and every
-        :class:`~blond.core.beam.beams.ProbeBeam`, is ignored.
+        The RF station; its ``phase_loop`` attribute is set to this loop
+        and its ``phi_rf_loop`` is written by the station's cavity
+        feedback from this loop's output. A station carries at most one.
     reference_phase
         Centroid RF phase the loop regulates to [rad], e.g. the launch
         phase of the matched bunch; may be set later through the attribute
@@ -127,51 +154,65 @@ class StationPhaseLoop(BeamPhysicsRelevant):
     gain
         RF phase offset per radian of measured error [1]; ``0`` records
         without acting.
-    delay_stations
-        Age of the measurement the correction is built from, in passages
-        of this beam: ``0`` its own, ``1`` the previous station's.
-    turn_fraction
-        Fraction of the beam's own turn elapsed where the element sits,
-        used to time-stamp the record.
+    n_delay
+        Latency in controller samples: on a sample the output is built
+        from the newest measurement at least this many samples old,
+        whichever bunch left it. ``0`` acts from the first sample at or
+        after the passage's cell.
     record
-        Shared record of this beam's measurements; a fresh one if
-        ``None``.
-    section_index
-        Ring section the element belongs to.
+        Record to append to; the station's own, fresh, if ``None``.
     name
-        Element name.
+        Loop name, for messages.
 
     Raises
     ------
     ValueError
-        If ``delay_stations`` is negative.
+        If ``n_delay`` is negative, the station already carries a loop, or
+        the station has no cavity feedback -- nothing would clock the loop,
+        so it would silently never run.
     """
 
-    def __init__(  # noqa: PLR0913 - one argument per physical quantity
+    def __init__(
         self,
         *,
         station: RFStationBaseClass,
-        beam: BeamBaseClass,
         reference_phase: float,
         gain: float,
-        delay_stations: int,
-        turn_fraction: float = 0.0,
+        n_delay: int = 1,
         record: StationPhaseLoopRecord | None = None,
-        section_index: int = 0,
         name: str | None = None,
     ) -> None:
-        super().__init__(section_index=section_index, name=name)
-        if delay_stations < 0:
-            raise ValueError(f"delay_stations={delay_stations} must be >= 0")
+        if n_delay < 0:
+            raise ValueError(f"n_delay={n_delay} must be >= 0")
+        if getattr(station, "phase_loop", None) is not None:
+            raise ValueError(
+                f"{station} already carries a phase loop; a station has one"
+            )
+        if not station.any_feedback_not_none:
+            raise ValueError(
+                "RF station has no feedback, per-station phase loop relies "
+                "on feedback stepping."
+            )
         self._station = station
-        self._beam_id = id(beam)
         #: Centroid RF phase the loop regulates to [rad].
         self.reference_phase = float(reference_phase)
         self._gain = float(gain)
-        self._delay = int(delay_stations)
-        self._turn_fraction = float(turn_fraction)
+        self._n_delay = int(n_delay)
         self._record = StationPhaseLoopRecord() if record is None else record
-        self._passages = 0
+        self.name = name
+        station.phase_loop = self
+
+    @property
+    def station(self) -> RFStationBaseClass:
+        """
+        The RF station this loop is attached to.
+
+        Returns
+        -------
+        station
+            Whose ``phi_rf_loop`` its cavity feedback writes.
+        """
+        return self._station
 
     @property
     def gain(self) -> float:
@@ -186,43 +227,102 @@ class StationPhaseLoop(BeamPhysicsRelevant):
         return self._gain
 
     @property
-    def delay_stations(self) -> int:
+    def n_delay(self) -> int:
         """
-        Age of the measurement the correction is built from.
+        Latency of the loop in controller samples.
 
         Returns
         -------
-        delay_stations
-            In passages of the beam this element acts on.
+        n_delay
+            Minimum age, in samples, of the measurement an output is built
+            from.
         """
-        return self._delay
+        return self._n_delay
 
     @property
     def record(self) -> StationPhaseLoopRecord:
         """
-        The shared record of this beam's measurements and corrections.
+        The record of this station's measurements and applied offsets.
 
         Returns
         -------
         record
-            The record this element writes to.
+            The record this loop appends to.
         """
         return self._record
 
-    def _track(self, beam: BeamBaseClass) -> None:
-        if isinstance(beam, ProbeBeam) or id(beam) != self._beam_id:
-            return
-        if beam.n_macroparticles_partial == 0:
-            return
-        omega = float(self._station.omega_rf_design)
-        phase = omega * float(beam._dt.mean())
+    def measure(
+        self, phase: float, *, time: float, cell: int, applied: float
+    ) -> float:
+        """
+        Record one passage: its centroid phase error and the offset it saw.
+
+        Called by the station's cavity feedback once per passage, after it
+        has fixed the offset that passage is kicked with.
+
+        Parameters
+        ----------
+        phase
+            Centroid RF phase of the passing bunch [rad].
+        time
+            The bunch's reference time at the passage [s].
+        cell
+            Coarse-grid cell of the passage on the feedback's cell clock.
+        applied
+            ``phi_rf_loop`` in force at the passage's kick [rad].
+
+        Returns
+        -------
+        error
+            The wrapped centroid phase error [rad].
+        """
         error = wrap_phase(phase - self.reference_phase)
+        self._record.times.append(float(time))
+        self._record.cells.append(int(cell))
+        self._record.errors.append(error)
+        self._record.corrections.append(float(applied))
+        return error
+
+    def offsets_for_cells(
+        self,
+        first_cell: int,
+        n_cells: int,
+        *,
+        controller_update_interval: int,
+        carried: float,
+    ) -> NumpyArray:
+        """
+        The loop's output over a run of coarse cells, held between samples.
+
+        Parameters
+        ----------
+        first_cell
+            Cell clock value of the first cell of the run.
+        n_cells
+            Cells in the run.
+        controller_update_interval
+            Cells per controller sample; a cell is a sample when its cell
+            clock value is a multiple of it.
+        carried
+            Offset in force before the run [rad], held until the first
+            sample.
+
+        Returns
+        -------
+        offsets
+            One offset per cell [rad]: on a sample cell ``-gain`` times the
+            error of the newest measurement at least ``n_delay`` samples
+            old (``0`` if there is none), otherwise the previous cell's.
+        """
+        offsets = np.empty(n_cells)
+        value = float(carried)
         record = self._record
-        record.turns.append(self._passages + self._turn_fraction)
-        record.errors.append(error)
-        self._passages += 1
-        index = len(record.errors) - 1 - self._delay
-        used = record.errors[index] if index >= 0 else 0.0
-        correction = -self._gain * used
-        record.corrections.append(correction)
-        self._station.phi_rf_loop = correction
+        delay_cells = self._n_delay * controller_update_interval
+        for local in range(n_cells):
+            cell = first_cell + local
+            if cell % controller_update_interval == 0:
+                index = record.newest_at_or_before(cell - delay_cells)
+                used = record.errors[index] if index is not None else 0.0
+                value = -self._gain * used
+            offsets[local] = value
+        return offsets

@@ -138,10 +138,11 @@ def _run_config(
         Launch error [s] added to the matched bunch after its placement:
         a controlled injection dipole.
     phase_loop
-        If given, ``{"gain": g, "delay_stations": d}`` places a
+        If given, ``{"gain": g, "n_delay": n}`` attaches a
         :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
-        in front of every station, regulating to the bunch's launch
-        phase (before ``dt_offset``); the shared record lands in
+        to every station, regulating to the bunch's launch phase (before
+        ``dt_offset``) with a latency of ``n`` controller samples (one
+        coarse cell each here); the record shared by all of them lands in
         ``rec["phase_loop"]``.
 
     Returns
@@ -173,8 +174,8 @@ def _run_config(
 
     ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
     half_drift = CIRCUMFERENCE / n_sections / 2
-    # The beam object is needed by the phase-loop elements (they filter
-    # on it); its coordinates are prepared once the simulation exists.
+    # The beam exists before the ring so the phase loops can be told its
+    # launch phase; its coordinates are prepared once the simulation exists.
     beam = Beam(intensity=intensity, particle_type=mu_plus)
     beam.reference.total_energy = energy
     loop_record = StationPhaseLoopRecord()
@@ -246,30 +247,25 @@ def _run_config(
                 station.delta_omega_rf = delta_omega_rf
         stations.append(station)
         feedbacks.append(feedback)
-        # The phase-loop element sits directly in front of its station,
-        # regulating to a launch phase it is told once the bunch exists.
-        loop_slot: list = []
+        # The phase loop is attached to its station (run first in the
+        # station's track), regulating to a launch phase it is told once
+        # the bunch exists.
         if phase_loop is not None:
-            loop_slot.append(
+            loop_elements.append(
                 StationPhaseLoop(
                     station=station,
-                    beam=beam,
                     reference_phase=0.0,
                     gain=phase_loop["gain"],
-                    delay_stations=phase_loop["delay_stations"],
-                    turn_fraction=section_index / n_sections,
+                    n_delay=phase_loop["n_delay"],
                     record=loop_record,
-                    section_index=section_index,
                 )
             )
-            loop_elements.append(loop_slot[0])
         elements += [
             DriftSimple(
                 orbit_length=half_drift,
                 momentum_compaction_factor=ALPHA_P,
                 section_index=section_index,
             ),
-            *loop_slot,
             station,
             DriftSimple(
                 orbit_length=half_drift,
@@ -2104,24 +2100,25 @@ class TestPhaseStepWalksTheGeneratorFieldOff(unittest.TestCase):
 
 class TestStationPhaseLoopOnTheRing(unittest.TestCase):
     r"""
-    The loop element damps a launch error, and is bit-neutral at zero gain.
+    The attached loop damps a launch error, and is bit-neutral at zero gain.
 
     Two sections at constant energy, the PI regulating the cavities, so
     the launch point is the synchronous phase and the only dipole is the
     2 RF degrees the bunch is launched late by (the strong beam loading
     still moves the loaded fixed point ~2 deg off it, the static offset
     the trace settles on). The cell advances 0.45 rad of synchrotron
-    phase per station (``Q_s = 0.14`` per turn, a 7-turn period), so the
-    loop in front of every station, acting on the error measured one
-    passage earlier with gain 0.5, is in the regime the linear model of
-    the lumped lattice damps in; the record's per-passage errors are the
-    observable. Measured: the scatter of the error about its mean over
-    eight passages falls from 2.4 deg to 0.08 deg over 12 turns, against
-    2.6 to 1.7 deg without the loop (the bare oscillation, sampled over
-    little more than one period) and 2.8 to 6.8 deg with the sign
-    mirrored. The tracked damping is faster than the bare-lattice model's
-    per-turn radius of ~0.9: the PI-regulated, beam-loaded cavities are
-    not the bare lattice.
+    phase per station (``Q_s = 0.14`` per turn, a 7-turn period). The
+    loop on every station is clocked by the cavity feedback and acts on
+    the passage's measurement from the first sample after it; the field
+    it writes reaches the bunch a turn later, 0.9 rad of synchrotron
+    phase, so the kick is in quadrature with the error and a positive
+    gain damps. The record's per-passage errors are the observable.
+    Measured at gain 0.5: the scatter of the error about its mean over
+    eight passages falls from 2.4 deg to below 15 % of that over 12
+    turns, against 2.6 to 1.7 deg without the loop (the bare oscillation,
+    sampled over little more than one period) and to more than 1.5x with
+    the sign mirrored; a latency of a full turn (the previous passage's
+    measurement, half a period older) still damps below 20 %.
     """
 
     ENERGY = 4.0e9
@@ -2130,7 +2127,7 @@ class TestStationPhaseLoopOnTheRing(unittest.TestCase):
     GAIN = 0.5
     WINDOW = 8
 
-    def _errors(self, gain: float, delay: int = 1) -> np.ndarray:
+    def _errors(self, gain: float, delay: int = 0) -> np.ndarray:
         """
         Per-passage centroid phase errors of a run with the loop [deg].
 
@@ -2139,7 +2136,8 @@ class TestStationPhaseLoopOnTheRing(unittest.TestCase):
         gain
             Loop gain; ``0`` records without acting.
         delay
-            Age of the measurement the loop acts on, in passages.
+            Latency of the loop in cells (half turns here), converted to
+            controller samples.
 
         Returns
         -------
@@ -2148,13 +2146,15 @@ class TestStationPhaseLoopOnTheRing(unittest.TestCase):
         """
         harmonic = int(HARMONIC - HARMONIC % 4)
         t_rf = _design_t_rev(self.ENERGY) / harmonic
+        # One controller sample per coarse cell per RF period here, so a
+        # cell of latency (half a turn) is harmonic / 2 samples.
         rec = _run_config(
             2,
             self.ENERGY,
             0.0,
             self.N_TURNS,
             dt_offset=self.LAUNCH_ERROR_DEG / 360.0 * t_rf,
-            phase_loop={"gain": gain, "delay_stations": delay},
+            phase_loop={"gain": gain, "n_delay": delay * harmonic // 2},
         )
         _, errors, _ = rec["phase_loop"].as_arrays()
         return np.degrees(errors)
@@ -2195,8 +2195,14 @@ class TestStationPhaseLoopOnTheRing(unittest.TestCase):
         self.assertGreater(last, 0.5 * first)
 
     def test_the_mirrored_gain_anti_damps(self):
-        first, last = self._scatter(self._errors(-self.GAIN, delay=2))
+        first, last = self._scatter(self._errors(-self.GAIN))
         self.assertGreater(last, 1.5 * first)
+
+    def test_a_latency_of_a_turn_still_damps(self):
+        """The previous passage's measurement is half a period older."""
+        first, last = self._scatter(self._errors(self.GAIN, delay=2))
+        self.assertGreater(first, 1.5)
+        self.assertLess(last, 0.2 * first)
 
     def test_zero_gain_is_bit_neutral(self):
         """Recording elements in the ring change no tracked number."""
@@ -2205,7 +2211,7 @@ class TestStationPhaseLoopOnTheRing(unittest.TestCase):
             self.ENERGY,
             0.0,
             4,
-            phase_loop={"gain": 0.0, "delay_stations": 1},
+            phase_loop={"gain": 0.0, "n_delay": 0},
         )
         without = _run_config(2, self.ENERGY, 0.0, 4)
         for key in ("v_min", "i_max_dev", "v_last", "phi_corr"):

@@ -1027,22 +1027,26 @@ controller, five turns, step 0.2 rad written after turn 2.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The loop closed on a tracked ring. Two sections at constant 4 GeV with a
-``StationPhaseLoop`` in front of each station, twelve turns, the matched
+``StationPhaseLoop`` attached to each station, twelve turns, the matched
 bunch launched 2 deg late (``dt_offset``), ``reference_phase`` set to the
-launch phase of the unshifted bunch, gain 0.5 on the previous station's
-measurement (``delay_stations = 1``). The observable is the scatter of
+launch phase of the unshifted bunch, gain 0.5 at zero latency: the field
+the loop writes reaches the bunch a turn later, 0.9 rad of synchrotron
+phase, in quadrature with the error. The observable is the scatter of
 the recorded centroid error about its mean over the last eight passages
 against the first eight.
 
 ``test_the_loop_damps_the_launch_error``
     The first error is the 2 deg launch error and the late scatter is
-    below 15 % of the early one (2.4 deg to 0.08 deg measured).
+    below 15 % of the early one.
 ``test_without_the_loop_the_error_keeps_oscillating``
     Gain zero: the late scatter stays above half the early one.
 ``test_the_mirrored_gain_anti_damps``
-    Gain -0.5 on a two-stations-old measurement: the late scatter exceeds
-    1.5x the early one -- the sign and delay the linear model predicts to
-    anti-damp, so the damping above is not a coincidence of the fixture.
+    Gain -0.5: the late scatter exceeds 1.5x the early one (2.8 to 6.9
+    deg), so the damping above is not a coincidence of the fixture.
+``test_a_latency_of_a_turn_still_damps``
+    A latency of a full turn makes the loop act on the previous
+    passage's measurement, half a period older: 2.6 to 0.29 deg, still
+    below 20 % of the early scatter.
 ``test_zero_gain_is_bit_neutral``
     Gain zero against no loop element at all: minimum voltage, current
     deviation, last voltage and readout phase agree bit for bit over
@@ -3124,30 +3128,38 @@ tracked behaviour is in ``test_pi_feedback_full_tracking.py`` above.
 ``test_offset_adds_to_the_actual_phase``
     Writing the offset moves ``phi_rf`` by exactly that amount.
 
-``TestStationPhaseLoopElement``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``TestStationPhaseLoop``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-``test_first_passage_records_but_has_nothing_to_act_on``
-    With a delay of one the first passage records its error and writes
-    a zero correction.
-``test_correction_uses_the_delayed_measurement``
-    The correction is ``-gain`` times the error recorded ``delay_stations``
-    passages ago, and lands on the station's ``phi_rf_loop``.
-``test_zero_delay_acts_on_its_own_measurement``
-    Delay zero uses the measurement just taken.
+The loop's own arithmetic, without a feedback: passages are recorded
+through ``measure`` and the output sampled through ``offsets_for_cells``
+at a controller update interval of four cells.
+
+``test_attaches_to_its_station_once``
+    Construction sets the station's ``phase_loop``; a second loop on the
+    same station raises ``ValueError``.
+``test_negative_latency_is_refused``
+    ``n_delay < 0`` raises ``ValueError``.
+``test_measure_records_the_passage``
+    Time, cell, wrapped error and the applied offset land in the record.
 ``test_error_is_wrapped_into_the_principal_range``
     A centroid a full RF period plus 0.1 rad from the reference is a
     0.1 rad error.
-``test_turns_are_stamped_by_passage_count``
-    The record's turn stamps are the passage count plus ``turn_fraction``.
-``test_other_beams_and_probes_are_ignored``
-    Another beam and a ``ProbeBeam`` neither record nor write.
-``test_an_empty_beam_is_skipped``
-    Zero macroparticles record nothing (no mean of an empty array).
-``test_negative_delay_is_refused``
-    ``delay_stations < 0`` raises ``ValueError``.
+``test_output_steps_on_samples_and_holds_between``
+    Over cells 0-11 the output changes on cells 0, 4 and 8 only, to
+    ``-gain`` times the newest measurement at least ``n_delay`` samples
+    old, and the carried value holds until the first sample.
+``test_latency_counts_controller_samples``
+    Two samples of latency are eight cells: a measurement qualifies from
+    the sample eight cells after it, whichever bunch left it.
+``test_zero_latency_acts_from_the_next_sample``
+    ``n_delay = 0`` acts on the first sample after the passage.
+``test_any_bunch_is_a_passage``
+    The record is the station's: a second passage supersedes the first
+    at the next sample.
 ``test_record_arrays_are_time_ordered``
-    ``as_arrays`` returns the three records sorted by turn.
+    ``as_arrays`` sorts by time also when appended out of order, and
+    ``newest_at_or_before`` finds the newest old-enough cell.
 
 ``test_beam_feedback.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^

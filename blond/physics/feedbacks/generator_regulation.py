@@ -395,8 +395,8 @@ class GeneratorRegulationMixin:
         rotation is exactly unity without an RF-frequency offset and
         without multi-section acceleration.
 
-        It is then rotated into the ACTUATOR frame by
-        ``_pi_error_frame_rotation`` (``exp(+i * delta_phi_rf)``): the
+        It is then rotated into the ACTUATOR frame by the cell's
+        ``_pi_error_frame_rotation_of_cell`` (``exp(+i * station clock)``): the
         controller returns a generator current, which drives the
         design-anchored generator component, so the loop gain would
         otherwise pick up the composition's ``exp(-i * delta_phi_rf)`` and
@@ -420,7 +420,7 @@ class GeneratorRegulationMixin:
         error = (
             self.pi_setpoint
             - (self.antenna_voltage_coarse_grid[idx] * kick_frame_rotation)
-        ) * self._pi_error_frame_rotation
+        ) * self._pi_error_frame_rotation_of_cell(idx)
         # The command is held until the next controller sample, so the
         # integrator credits it with the whole update interval rather than
         # one cavity-model step (``controller_update_interval``). Exact

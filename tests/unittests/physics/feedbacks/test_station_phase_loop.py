@@ -7,7 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Unit tests of the per-station beam phase loop and its RF-phase channel.
+Unit tests of the clocked, station-attached beam phase loop.
 
 The tracked physics -- a phase step leaving the beam-induced field in
 place, walking the design-locked drive off, and the loop damping a launch
@@ -20,11 +20,11 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import SingleHarmonicRFStation, StaticProfile
-from blond.core.beam.beams import ProbeBeam
+from blond import SingleHarmonicRFStation
 from blond.physics.feedbacks.station_phase_loop import (
     StationPhaseLoop,
     StationPhaseLoopRecord,
+    wrap_phase,
 )
 
 
@@ -38,6 +38,7 @@ class TestPhiRfLoopEntersTheStationPhase(unittest.TestCase):
         """A station without a loop reads exactly design plus kick clock."""
         station = self._station()
         self.assertEqual(station.phi_rf_loop, 0.0)
+        self.assertIsNone(station.phase_loop)
         self.assertEqual(
             station.phi_rf, station.phi_rf_design + station.delta_phi_rf
         )
@@ -50,107 +51,142 @@ class TestPhiRfLoopEntersTheStationPhase(unittest.TestCase):
         self.assertEqual(station.phi_rf_design, 0.3)
 
 
-class _BeamStub:
-    """The two things the loop reads off a beam: its identity and its dt."""
+class TestStationPhaseLoop(unittest.TestCase):
+    """The loop attaches to a station, records passages, samples in cells."""
 
-    def __init__(self, dt):
-        self._dt = Mock()
-        self._dt.mean = Mock(return_value=float(np.mean(dt)))
-        self.n_macroparticles_partial = len(dt)
-
-
-class TestStationPhaseLoopElement(unittest.TestCase):
-    """The element measures, remembers, delays and writes the offset."""
-
-    OMEGA = 2.0 * np.pi * 1.0e9
     REFERENCE = 0.5
+    INTERVAL = 4
 
-    def _loop(self, gain=0.2, delay=1, record=None):
+    def _station_with_feedback(self):
+        """A station the loop will attach to: it needs a feedback.
+
+        The loop is clocked by the station's cavity feedback and refuses
+        to attach without one, because nothing would ever run it.  These
+        tests exercise the loop's own sample-and-hold arithmetic, which
+        does not touch the feedback, so a stand-in is enough.
+        """
         station = SingleHarmonicRFStation(
             voltage=1.0e6, phi_rf=0.0, harmonic=100
         )
-        station.omega_rf_design = self.OMEGA
-        beam = _BeamStub(dt=[0.0])
-        record = StationPhaseLoopRecord() if record is None else record
+        station.cavity_feedback_list = [Mock()]
+        return station
+
+    def _loop(self, gain=0.2, n_delay=1, record=None):
+        station = self._station_with_feedback()
         loop = StationPhaseLoop(
             station=station,
-            beam=beam,
             reference_phase=self.REFERENCE,
             gain=gain,
-            delay_stations=delay,
-            turn_fraction=0.25,
+            n_delay=n_delay,
             record=record,
         )
-        return loop, station, beam, record
+        return loop, station
 
-    def _pass(self, loop, beam, error):
-        """Pass ``beam`` with a centroid ``error`` [rad] off the reference."""
-        dt = (self.REFERENCE + error) / self.OMEGA
-        beam._dt.mean = Mock(return_value=dt)
-        loop.track(beam)
+    def _offsets(self, loop, first_cell, n_cells, carried=0.0):
+        return loop.offsets_for_cells(
+            first_cell,
+            n_cells,
+            controller_update_interval=self.INTERVAL,
+            carried=carried,
+        )
 
-    def test_first_passage_records_but_has_nothing_to_act_on(self):
-        loop, station, beam, record = self._loop(gain=0.2, delay=1)
-        self._pass(loop, beam, 0.1)
-        self.assertEqual(len(record.errors), 1)
-        self.assertAlmostEqual(record.errors[0], 0.1, places=12)
-        self.assertEqual(record.corrections[0], 0.0)
-        self.assertEqual(station.phi_rf_loop, 0.0)
+    def test_attaches_to_its_station_once(self):
+        loop, station = self._loop()
+        self.assertIs(station.phase_loop, loop)
+        self.assertIs(loop.station, station)
+        with self.assertRaises(ValueError):
+            StationPhaseLoop(station=station, reference_phase=0.0, gain=0.1)
 
-    def test_correction_uses_the_delayed_measurement(self):
-        loop, station, beam, record = self._loop(gain=0.2, delay=1)
-        self._pass(loop, beam, 0.1)
-        self._pass(loop, beam, -0.3)
-        # Acts on the PREVIOUS passage's error, with the documented sign.
-        self.assertAlmostEqual(station.phi_rf_loop, -0.2 * 0.1, places=12)
-        self.assertAlmostEqual(record.corrections[1], -0.02, places=12)
-        self._pass(loop, beam, 0.0)
-        self.assertAlmostEqual(station.phi_rf_loop, -0.2 * -0.3, places=12)
+    def test_a_station_without_a_feedback_is_refused(self):
+        """Nothing would clock the loop there, so attaching it is an error."""
+        bare = SingleHarmonicRFStation(voltage=1.0e6, phi_rf=0.0, harmonic=100)
+        self.assertFalse(bare.any_feedback_not_none)
+        with self.assertRaises(ValueError):
+            StationPhaseLoop(
+                station=bare, reference_phase=self.REFERENCE, gain=0.2
+            )
+        self.assertIsNone(bare.phase_loop)
 
-    def test_zero_delay_acts_on_its_own_measurement(self):
-        loop, station, beam, _ = self._loop(gain=0.5, delay=0)
-        self._pass(loop, beam, 0.1)
-        self.assertAlmostEqual(station.phi_rf_loop, -0.05, places=12)
+    def test_negative_latency_is_refused(self):
+        with self.assertRaises(ValueError):
+            self._loop(n_delay=-1)
+
+    def test_measure_records_the_passage(self):
+        loop, _ = self._loop()
+        error = loop.measure(
+            self.REFERENCE + 0.1, time=1.0e-6, cell=7, applied=-0.02
+        )
+        self.assertAlmostEqual(error, 0.1, places=12)
+        self.assertEqual(loop.record.times, [1.0e-6])
+        self.assertEqual(loop.record.cells, [7])
+        self.assertAlmostEqual(loop.record.errors[0], 0.1, places=12)
+        self.assertEqual(loop.record.corrections, [-0.02])
 
     def test_error_is_wrapped_into_the_principal_range(self):
-        loop, _, beam, record = self._loop(gain=0.0, delay=0)
-        self._pass(loop, beam, 2.0 * np.pi + 0.1)
-        self.assertAlmostEqual(record.errors[0], 0.1, places=9)
+        loop, _ = self._loop()
+        loop.measure(
+            self.REFERENCE + 2.0 * np.pi + 0.1, time=0.0, cell=0, applied=0.0
+        )
+        self.assertAlmostEqual(loop.record.errors[0], 0.1, places=9)
+        self.assertAlmostEqual(
+            wrap_phase(np.pi + 0.1), -np.pi + 0.1, places=12
+        )
 
-    def test_turns_are_stamped_by_passage_count(self):
-        loop, _, beam, record = self._loop()
-        for _ in range(3):
-            self._pass(loop, beam, 0.0)
-        np.testing.assert_allclose(record.turns, [0.25, 1.25, 2.25])
+    def test_output_steps_on_samples_and_holds_between(self):
+        """Cells 0..11 at interval 4: samples at 0, 4, 8; held elsewhere."""
+        loop, _ = self._loop(gain=0.5, n_delay=1)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=1, applied=0.0)
+        offsets = self._offsets(loop, 0, 12, carried=0.3)
+        # Sample 0: nothing at least 4 cells old -> 0.  Cells 1-3 hold it.
+        # Sample 4: the measurement at cell 1 is 3 cells old -> not yet.
+        # Sample 8: 7 cells old -> -0.5 * 0.2.
+        np.testing.assert_allclose(offsets, [0.0] * 8 + [-0.1] * 4, atol=1e-15)
+        # The carried value holds only until the first sample.
+        offsets = self._offsets(loop, 1, 3, carried=0.3)
+        np.testing.assert_allclose(offsets, [0.3, 0.3, 0.3])
 
-    def test_other_beams_and_probes_are_ignored(self):
-        loop, station, beam, record = self._loop(gain=0.5, delay=0)
-        other = _BeamStub(dt=[1.0e-9])
-        loop.track(other)
-        loop.track(Mock(spec=ProbeBeam))
-        self.assertEqual(len(record.errors), 0)
-        self.assertEqual(station.phi_rf_loop, 0.0)
-        self._pass(loop, beam, 0.1)
-        self.assertEqual(len(record.errors), 1)
+    def test_latency_counts_controller_samples(self):
+        loop, _ = self._loop(gain=1.0, n_delay=2)
+        loop.measure(self.REFERENCE + 0.1, time=0.0, cell=0, applied=0.0)
+        loop.measure(self.REFERENCE - 0.3, time=1.0, cell=6, applied=0.0)
+        # Delay 2 samples = 8 cells: at cell 8 the first measurement (age
+        # 8) qualifies, the second (age 2) does not; at cell 16 the second.
+        offsets = self._offsets(loop, 0, 20)
+        np.testing.assert_allclose(offsets[:8], 0.0)
+        np.testing.assert_allclose(offsets[8:16], -0.1)
+        np.testing.assert_allclose(offsets[16:], 0.3)
 
-    def test_an_empty_beam_is_skipped(self):
-        loop, _, beam, record = self._loop()
-        beam.n_macroparticles_partial = 0
-        loop.track(beam)
-        self.assertEqual(len(record.errors), 0)
+    def test_zero_latency_acts_from_the_next_sample(self):
+        loop, _ = self._loop(gain=0.5, n_delay=0)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=2, applied=0.0)
+        offsets = self._offsets(loop, 0, 8)
+        np.testing.assert_allclose(offsets, [0.0] * 4 + [-0.1] * 4)
 
-    def test_negative_delay_is_refused(self):
-        with self.assertRaises(ValueError):
-            self._loop(delay=-1)
+    def test_any_bunch_is_a_passage(self):
+        """Beam-blind: the record is the station's, whoever passed."""
+        loop, _ = self._loop(gain=1.0, n_delay=0)
+        loop.measure(self.REFERENCE + 0.1, time=0.0, cell=0, applied=0.0)
+        loop.measure(self.REFERENCE + 0.2, time=0.5, cell=2, applied=0.0)
+        self.assertEqual(len(loop.record.errors), 2)
+        offsets = self._offsets(loop, 0, 8)
+        # At sample 4 the newest entry is the second passage.
+        np.testing.assert_allclose(offsets[4:], -0.2)
 
     def test_record_arrays_are_time_ordered(self):
-        loop, _, beam, record = self._loop(gain=0.1, delay=1)
-        for error in (0.1, 0.2, 0.3):
-            self._pass(loop, beam, error)
-        turns, errors, corrections = record.as_arrays()
-        self.assertTrue(np.all(np.diff(turns) > 0.0))
+        record = StationPhaseLoopRecord()
+        loop, _ = self._loop(record=record)
+        self.assertIs(loop.record, record)
+        for error, time, cell in ((0.1, 0.0, 0), (0.3, 2.0, 8), (0.2, 1.0, 4)):
+            loop.measure(
+                self.REFERENCE + error, time=time, cell=cell, applied=-error
+            )
+        times, errors, corrections = record.as_arrays()
+        np.testing.assert_allclose(times, [0.0, 1.0, 2.0])
         np.testing.assert_allclose(errors, [0.1, 0.2, 0.3])
-        np.testing.assert_allclose(corrections, [0.0, -0.01, -0.02])
+        np.testing.assert_allclose(corrections, [-0.1, -0.2, -0.3])
+        self.assertEqual(record.newest_at_or_before(5), 2)
+        self.assertEqual(record.newest_at_or_before(8), 1)
+        self.assertIsNone(record.newest_at_or_before(-1))
 
 
 if __name__ == "__main__":

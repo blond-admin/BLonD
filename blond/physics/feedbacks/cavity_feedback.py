@@ -491,9 +491,10 @@ class IQCavityFeedbackBase(LocalFeedback):
         :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
         writes into the station's actual RF phase. A phase STEP, not a
         frequency slip: it enters the station clock the frame rotations
-        use (``delta_phi_rf + phi_rf_loop``), and a change of it between
-        two passages counter-rotates the carried beam-sourced envelope
-        (``_absorb_phase_loop_step``). Exactly ``0.0`` without such a
+        use (``delta_phi_rf + phi_rf_loop``), and where it changes from
+        one coarse cell to the next the carried beam-sourced envelope is
+        counter-rotated by the change (``_update_frame_rotations``, the
+        per-cell beam step rotations). Exactly ``0.0`` without such a
         loop.
 
         Returns
@@ -983,6 +984,14 @@ class IQCavityFeedbackTimingClass(
             )
         self._controller_update_interval = int(controller_update_interval)
         self._controller_update_phase = 0
+        # Cells tracked so far, the cell clock a station-attached phase
+        # loop is run on (``_controller_update_phase`` is its residue
+        # modulo the update interval).
+        self._cells_tracked: int = 0
+        # Per-cell phase-loop offsets a clocked loop produced for the
+        # passage being tracked (backfill cells, then the forward offset);
+        # ``None`` without a loop.
+        self._clocked_phase_loop_offsets: NumpyArray | None = None
 
         # --- Optional feedforward cavity pre-fill / injection matching ---
         # When n_pretrack is set, on_run_simulation seeds the initial antenna
@@ -1148,24 +1157,33 @@ class IQCavityFeedbackTimingClass(
         self._generator_frame_rotation: complex = 1.0 + 0.0j
         self._kick_frame_rotation: complex = 1.0 + 0.0j
         self._pi_error_frame_rotation: complex = 1.0 + 0.0j
-        # The parent station's per-station phase-loop offset the carried
-        # beam-sourced envelope was last demodulated and read out in. A
-        # change since then is a STEP of the RF reference, which the next
-        # passage absorbs (see ``_absorb_phase_loop_step``); the backfill
-        # span of that passage still belongs to the interval before the
-        # step and keeps this value.
+        # The phase-loop offset in force at the end of the previous
+        # passage: the first cell of the next grid steps from it (see
+        # ``_update_frame_rotations``).
         self._phi_rf_loop_seen: float = 0.0
-        # The generator and kick rotations of the BACKFILL cells, one per
-        # backfill centre, each with the phase accumulated up to its cell
-        # (see ``_update_frame_rotations``). Empty until a passage computes
-        # them: every cell beyond them -- the forward span, and any grid
-        # driven directly -- takes the per-passage scalars above.
-        self._backfill_generator_frame_rotations: NumpyArray = np.zeros(
+        # Per-cell rotations of the current passage's grid, backfill cells
+        # first, then the forward span (see ``_update_frame_rotations``):
+        # the generator and kick frame rotations, the PI-error rotation
+        # into the actuator frame, and the counter-rotation of the carried
+        # beam-sourced envelope where the phase-loop offset steps between
+        # a cell and the one before. Empty until a passage computes them;
+        # every cell beyond them -- any grid driven directly rather than
+        # through ``_track`` -- takes the per-passage scalars above and
+        # unity for the step.
+        self._cell_generator_frame_rotations: NumpyArray = np.zeros(
             0, dtype=np.complex128
         )
-        self._backfill_kick_frame_rotations: NumpyArray = np.zeros(
+        self._cell_kick_frame_rotations: NumpyArray = np.zeros(
             0, dtype=np.complex128
         )
+        self._cell_pi_error_frame_rotations: NumpyArray = np.zeros(
+            0, dtype=np.complex128
+        )
+        self._cell_beam_step_rotations: NumpyArray = np.zeros(
+            0, dtype=np.complex128
+        )
+        # The phase-loop offset of every cell of the current grid [rad].
+        self._cell_phase_loop_offsets: NumpyArray = np.zeros(0)
 
     def _validate_multi_harmonic_slot(self) -> None:
         """
@@ -1422,6 +1440,7 @@ class IQCavityFeedbackTimingClass(
         self._controller_update_phase = (
             self._controller_update_phase + max(end_index - start_index, 0)
         ) % self._controller_update_interval
+        self._cells_tracked += max(end_index - start_index, 0)
 
     def _circuit_track_cells_python(
         self,
@@ -1664,10 +1683,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         ].astype(np.complex128)
         # Per cell, like the multipliers: a backfill cell carries the phase
         # accumulated up to it, a forward cell the passage's rotation.
-        generator_frame_rotations, kick_frame_rotations = (
-            self._frame_rotations_of_cells(start_index, end_index)
-        )
-
+        (
+            generator_frame_rotations,
+            kick_frame_rotations,
+            pi_error_frame_rotations,
+            beam_step_rotations,
+        ) = self._calculate_coarse_frame_rotations(start_index, end_index)
         delay_buffer, delay_head, integral = envelope_scan(
             voltage_multiplier,
             drive_weight,
@@ -1683,7 +1704,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             float(self.R_over_Q),
             generator_frame_rotations,
             kick_frame_rotations,
-            complex(self._pi_error_frame_rotation),
+            pi_error_frame_rotations,
+            beam_step_rotations,
             controller_active,
             self._controller_update_interval,
             self._controller_update_phase,
@@ -2020,10 +2042,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         """
         Generator and kick frame rotation of one coarse cell.
 
-        A backfill cell takes the rotations of the phase accumulated up to
-        it; every other cell -- the forward span, and every cell of a grid
-        driven directly rather than through :meth:`_track` -- takes the
-        per-passage scalars (see :meth:`_update_frame_rotations`).
+        A cell of the current passage's grid takes its own rotations
+        (backfill cells the phase accumulated up to them, forward cells
+        the forward segment's); every cell beyond the per-cell arrays --
+        a grid driven directly rather than through :meth:`_track` --
+        takes the per-passage scalars (see :meth:`_update_frame_rotations`).
 
         Parameters
         ----------
@@ -2039,12 +2062,53 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             Rotation taking this cell's demodulation-frame sum into the kick
             frame, in which the PI error is formed.
         """
-        if coarse_grid_index < len(self._backfill_generator_frame_rotations):
+        if coarse_grid_index < len(self._cell_generator_frame_rotations):
             return (
-                self._backfill_generator_frame_rotations[coarse_grid_index],
-                self._backfill_kick_frame_rotations[coarse_grid_index],
+                self._cell_generator_frame_rotations[coarse_grid_index],
+                self._cell_kick_frame_rotations[coarse_grid_index],
             )
         return self._generator_frame_rotation, self._kick_frame_rotation
+
+    def _pi_error_frame_rotation_of_cell(
+        self, coarse_grid_index: int
+    ) -> complex:
+        """
+        Rotation of the kick-frame PI error into the actuator frame.
+
+        Parameters
+        ----------
+        coarse_grid_index
+            Whole-turn coarse-grid index of the cell.
+
+        Returns
+        -------
+        pi_error_frame_rotation
+            ``exp(+i station clock)`` of that cell; the per-passage scalar
+            beyond the per-cell arrays.
+        """
+        if coarse_grid_index < len(self._cell_pi_error_frame_rotations):
+            return self._cell_pi_error_frame_rotations[coarse_grid_index]
+        return self._pi_error_frame_rotation
+
+    def _beam_step_rotation_of_cell(self, coarse_grid_index: int) -> complex:
+        """
+        Counter-rotation of the carried beam-sourced envelope into a cell.
+
+        Parameters
+        ----------
+        coarse_grid_index
+            Whole-turn coarse-grid index of the cell.
+
+        Returns
+        -------
+        beam_step_rotation
+            ``exp(-i step)`` for the phase-loop step between the previous
+            cell and this one; exactly ``1 + 0j`` where the offset did not
+            change, and beyond the per-cell arrays.
+        """
+        if coarse_grid_index < len(self._cell_beam_step_rotations):
+            return self._cell_beam_step_rotations[coarse_grid_index]
+        return 1.0 + 0.0j
 
     def _frame_rotations_of_cells(
         self, start_index: int, end_index: int
@@ -2053,8 +2117,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         Generator and kick frame rotations of a span of coarse cells.
 
         The vectorised twin of :meth:`_frame_rotations_of_cell`, for the
-        compiled scan and the whole-grid readouts; the two must agree cell
-        by cell, or the kernel-vs-reference byte identity breaks.
+        whole-grid readouts; the two must agree cell by cell.
 
         Parameters
         ----------
@@ -2071,27 +2134,65 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         kick_frame_rotations
             Per-cell kick frame rotation (complex128, same length).
         """
+        generator, kick, _, _ = self._calculate_coarse_frame_rotations(
+            start_index, end_index
+        )
+        return generator, kick
+
+    def _calculate_coarse_frame_rotations(
+        self, start_index: int, end_index: int
+    ) -> tuple[NumpyArray, NumpyArray, NumpyArray, NumpyArray]:
+        """
+        All four per-cell frame rotations of a span of coarse cells.
+
+        The vectorised twin of the single-cell accessors, for the compiled
+        scan; the two must agree cell by cell, or the kernel-vs-reference
+        byte identity breaks.
+
+        Parameters
+        ----------
+        start_index
+            First whole-turn coarse-grid index of the span.
+        end_index
+            One past the last index of the span.
+
+        Returns
+        -------
+        generator_frame_rotations
+            Per-cell generator frame rotation (complex128).
+        kick_frame_rotations
+            Per-cell kick frame rotation (complex128).
+        pi_error_frame_rotations
+            Per-cell rotation of the PI error into the actuator frame.
+        beam_step_rotations
+            Per-cell counter-rotation of the carried beam-sourced envelope
+            (unity where the phase-loop offset does not step).
+        """
         n_cells = end_index - start_index
-        generator_frame_rotations = np.full(
-            n_cells, self._generator_frame_rotation, dtype=np.complex128
-        )
-        kick_frame_rotations = np.full(
-            n_cells, self._kick_frame_rotation, dtype=np.complex128
-        )
-        backfill_end = min(
-            end_index, len(self._backfill_generator_frame_rotations)
-        )
-        if start_index < backfill_end:
-            n_backfill_cells = backfill_end - start_index
-            generator_frame_rotations[:n_backfill_cells] = (
-                self._backfill_generator_frame_rotations[
-                    start_index:backfill_end
+
+        def span_of(per_cell: NumpyArray, default: complex) -> NumpyArray:
+            values = np.full(n_cells, default, dtype=np.complex128)
+            known_end = min(end_index, len(per_cell))
+            if start_index < known_end:
+                values[: known_end - start_index] = per_cell[
+                    start_index:known_end
                 ]
-            )
-            kick_frame_rotations[:n_backfill_cells] = (
-                self._backfill_kick_frame_rotations[start_index:backfill_end]
-            )
-        return generator_frame_rotations, kick_frame_rotations
+            return values
+
+        return (
+            span_of(
+                self._cell_generator_frame_rotations,
+                self._generator_frame_rotation,
+            ),
+            span_of(
+                self._cell_kick_frame_rotations, self._kick_frame_rotation
+            ),
+            span_of(
+                self._cell_pi_error_frame_rotations,
+                self._pi_error_frame_rotation,
+            ),
+            span_of(self._cell_beam_step_rotations, 1.0 + 0.0j),
+        )
 
     def cavity_response(
         self,
@@ -2156,6 +2257,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         # Beam-sourced component: the former recursion with the generator
         # current pinned to (0 + 0j) -- bit-identical to the old single
         # state for an undriven feedback (whose generator grid is zero).
+        # A phase-loop step between the previous cell and this one: the
+        # carried beam-sourced envelope stays where it is in the cavity,
+        # so in the new demodulation frame it appears counter-rotated.
+        beam_step_rotation = self._beam_step_rotation_of_cell(index)
+        if beam_step_rotation != 1.0:
+            voltage_beam_prev = voltage_beam_prev * beam_step_rotation
         self.antenna_voltage_beam_coarse_grid[index] = (
             self._advance_coarse_voltage(
                 v_prev=voltage_beam_prev,
@@ -2340,13 +2447,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         :meth:`_replay_backfill_span` and :meth:`_track_forward_span`, and
         the first of the two is additionally asserted.
 
-        One phase acts on state instead of producing a value:
-        :meth:`_absorb_phase_loop_step`, between the backfill replay and
-        the forward span, counter-rotates the carried beam-sourced
-        envelope when the station's per-station phase-loop offset
-        (``phi_rf_loop``) changed since the previous passage. The
-        backfill span belongs to the interval before that step, the
-        forward span to the one after, which fixes its place.
+        A change of the station's phase-loop offset (``phi_rf_loop``) is a
+        step of the RF reference. It is placed on the grid cell where it
+        happens by :meth:`_update_frame_rotations`, which counter-rotates
+        the carried beam-sourced envelope into that cell and composes the
+        generator component with the offset in force at every cell; no
+        phase of this method handles it separately.
 
         Parameters
         ----------
@@ -2370,15 +2476,10 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         self._carrier_slip_gap = (
             self._kick_clock_slip_gap + self._segments[-1].accumulated_phase
         )
+        self._clock_phase_loop(beam=beam, span=span)
         self._update_frame_rotations()
 
         self._replay_backfill_span(n_backfill_centers=span.n_backfill_centers)
-        # A per-station phase-loop step happened at THIS passage: the
-        # backfill span above replayed the interval before it, the forward
-        # span below runs after it.
-        self._absorb_phase_loop_step(
-            n_backfill_centers=span.n_backfill_centers
-        )
 
         self._track_forward_span(beam=beam, span=span)
         self._write_station_readout(carrier_slip_gap=self._carrier_slip_gap)
@@ -2585,10 +2686,11 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         are the ones the flat parallel arrays used to be sliced for.
 
         FRAME: every replayed cell is composed, and regulated, in the frame
-        of the phase accumulated up to THAT cell -- the per-cell
-        ``_backfill_generator_frame_rotations`` and
-        ``_backfill_kick_frame_rotations`` -- rather than in the passage's
-        final frame, which the forward span keeps. So
+        of the phase accumulated up to THAT cell -- its entries of the
+        per-cell ``_cell_generator_frame_rotations`` and
+        ``_cell_kick_frame_rotations`` -- rather than in the passage's
+        final frame, which the forward span keeps except where the
+        phase-loop offset steps inside it. So
         :meth:`_update_frame_rotations` must have run for this passage
         first.
         """
@@ -2628,68 +2730,6 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 )
                 start_index = end_index
 
-    def _absorb_phase_loop_step(self, n_backfill_centers: int) -> None:
-        r"""
-        Keep the carried beam-induced field in place across a phase step.
-
-        A per-station phase loop moves the station's actual RF phase by
-        writing ``phi_rf_loop``. The demodulation/readout chain keeps
-        every deposit at a fixed phase *relative to the RF wave* -- the
-        demodulation subtracts ``phi_rf + carrier_slip_gap`` and the
-        station adds ``phi_rf`` back at the kick -- which is right for a
-        frequency slip, where the tuner makes the cavity follow the RF,
-        but wrong for a step of the RF reference: the beam-induced field
-        in the cavity does not jump. Left alone, the chain would apply
-        every deposit carried from before the step ``delta`` further
-        along, so the carried beam-sourced component is counter-rotated
-        by ``exp(-i delta)`` here, once, at the passage where the change
-        is first seen. Deposits of this passage are demodulated in the
-        new frame and need nothing.
-
-        The generator-sourced component is not touched: it is anchored to
-        the design clock and composed with the station clock, which now
-        includes ``phi_rf_loop`` (:meth:`_update_frame_rotations`), so it
-        appears at MINUS the step relative to the new RF -- the physical
-        walk-off of a drive the reference moved away from, which an
-        attached controller then removes.
-
-        Placement: between the backfill replay and the forward span. The
-        backfill span reconstructs the interval since the previous passage,
-        which lies before the step, so its cells run with the previous
-        offset (``_phi_rf_loop_seen``); the rotation is applied to the state
-        the forward span starts from -- the last backfill centre, or the
-        state carried across the passage boundary when there is no
-        backfill -- and to that cell's composed sum, so the fine-grid seed
-        (:meth:`_state_before_forward_span`) and the forward recursion both
-        read the rotated value.
-
-        Exactly a no-op, to the bit, while the offset does not change --
-        every run without such a loop.
-
-        Parameters
-        ----------
-        n_backfill_centers
-            Number of backfill centres of this passage's grid.
-        """
-        step = self.phi_rf_loop - self._phi_rf_loop_seen
-        self._phi_rf_loop_seen = self.phi_rf_loop
-        if step == 0.0:
-            return
-        rotation = complex(np.exp(-1j * step))
-        if n_backfill_centers > 0:
-            last = n_backfill_centers - 1
-            voltage_beam = self.antenna_voltage_beam_coarse_grid[last]
-            self.antenna_voltage_beam_coarse_grid[last] = (
-                voltage_beam * rotation
-            )
-            self.antenna_voltage_coarse_grid[last] += (
-                rotation - 1.0
-            ) * voltage_beam
-        else:
-            voltage_beam = self._last_val_ant_voltage_beam
-            self._last_val_ant_voltage_beam = voltage_beam * rotation
-            self._last_val_ant_voltage += (rotation - 1.0) * voltage_beam
-
     def _update_frame_rotations(self) -> None:
         r"""
         Compute this passage's component frame rotations.
@@ -2715,8 +2755,8 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         to its design-clock phase -- it appears at MINUS the station
         clock relative to the actual RF, the physical walk-off of a
         design-locked drive under an RF-frequency offset and under a
-        phase-loop step alike (see :meth:`_write_station_readout` and
-        :meth:`_absorb_phase_loop_step`).
+        phase-loop step alike (see :meth:`_write_station_readout`; the
+        step itself is carried per cell, see :meth:`_clock_phase_loop`).
 
         The kick-frame rotation ``exp(+i (gap + phi_acc))`` rotates the
         demodulation-frame sum into the frame of the applied kick; the PI
@@ -2740,18 +2780,21 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         passage, over which the phase is still accumulating, so every
         backfill cell takes the phase accumulated up to THAT cell
         (:meth:`~blond.physics.feedbacks.rf_center_grid.RFCenterGridMixin._backfill_center_phases`),
-        running from the previous passage's phase to this one's:
-        ``_backfill_generator_frame_rotations`` and
-        ``_backfill_kick_frame_rotations``, one entry per backfill centre.
+        running from the previous passage's phase to this one's: the
+        backfill entries of ``_cell_generator_frame_rotations`` and
+        ``_cell_kick_frame_rotations``, one per backfill centre.
         With the passage's final phase there instead, the beam-induced part
         of the carried voltage would be rotated by the phase still to
         accumulate, and the kick-frame voltage would jump by one passage's
         increment where the previous forward span hands over to this
         backfill span. Both rotations of a cell use the same phase, so the
         generator component still nets to its design-clock phase on every
-        cell. The backfill cells also compose with the phase-loop offset
-        in force BEFORE this passage (``_phi_rf_loop_seen``): they replay
-        the interval before a step this passage absorbs.
+        cell. Every cell also composes with the phase-loop offset in
+        force at it (:meth:`_phase_loop_offsets_of_grid`), and where that
+        offset steps from one cell to the next the carried beam-sourced
+        envelope is counter-rotated into the new frame by a per-cell beam
+        step rotation -- the field stays put in the cavity while the RF
+        reference moves.
 
         The first two are exactly ``1 + 0j`` without an RF-frequency
         offset, without a phase-loop offset and without multi-section
@@ -2763,20 +2806,35 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         Notes
         -----
         ORDERING: needs the per-passage station clock (``delta_phi_rf``
-        and ``phi_rf_loop``; the backfill cells read ``_phi_rf_loop_seen``
-        still unchanged, so this must precede
-        :meth:`_absorb_phase_loop_step`), the
+        and the phase-loop offsets, whose first step is taken from
+        ``_phi_rf_loop_seen`` as the previous passage left it), the
         completed ``_kick_clock_slip_gap`` and ``_carrier_slip_gap`` of
         this passage and its complete grid (the backfill segments are
         ``_segments[:-1]``); must precede every :meth:`circuit_track` of the
         passage, whose per-cell sum composition and PI error read the
         rotations off the instance.
         """
+        backfill_center_phases = self._backfill_center_phases()
+        n_backfill_cells = len(backfill_center_phases)
+        n_cells = max(len(self._rf_centers), n_backfill_cells)
+        n_forward_cells = n_cells - n_backfill_cells
+        # The phase-loop offset of every cell of this grid: what a clocked
+        # loop wrote, or -- without one -- the offset in force before this
+        # passage on the backfill cells and the station's current offset
+        # on the forward span (a step at the first forward cell).
+        offsets = self._phase_loop_offsets_of_grid(
+            n_backfill_cells=n_backfill_cells, n_forward_cells=n_forward_cells
+        )
+        # The offset the readout, the fine grid and the kick run in: the
+        # station's, which a clocked loop set to the bunch cell's.
+        forward_offset = self.phi_rf_loop
         # The station clock: the kick clock accumulated from the
-        # RF-frequency offset plus the per-station phase-loop offset, both
-        # applied by the station through ``phi_rf`` and both walking the
-        # design-anchored generator component off the actual RF.
-        station_clock = self.delta_phi_rf + self.phi_rf_loop
+        # RF-frequency offset plus the phase-loop offset, both applied by
+        # the station through ``phi_rf`` and both walking the
+        # design-anchored generator component off the actual RF. The
+        # per-passage scalars are the forward span's, which the fine grid
+        # and the readout run in.
+        station_clock = self.delta_phi_rf + forward_offset
         total_generator_slip = station_clock + self._carrier_slip_gap
         self._generator_frame_rotation = (
             1.0 + 0.0j
@@ -2788,48 +2846,209 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             if self._carrier_slip_gap == 0.0
             else complex(np.exp(1j * self._carrier_slip_gap))
         )
-        # The same two rotations per backfill cell, with the phase
-        # accumulated up to the cell in place of the forward segment's, and
-        # the same exact-zero short-circuit: an unrotated passage composes
-        # and regulates every backfill cell with exactly 1 + 0j.
-        backfill_carrier_slip_gaps = (
-            self._kick_clock_slip_gap + self._backfill_center_phases()
-        )
-        # The backfill span replays the interval BEFORE this passage, so
-        # it carries the phase-loop offset that was in force then (see
-        # ``_absorb_phase_loop_step``).
-        backfill_generator_slips = (
-            self.delta_phi_rf
-            + self._phi_rf_loop_seen
-            + backfill_carrier_slip_gaps
-        )
-        self._backfill_generator_frame_rotations = np.where(
-            backfill_generator_slips == 0.0,
-            1.0 + 0.0j,
-            np.exp(-1j * backfill_generator_slips),
-        )
-        self._backfill_kick_frame_rotations = np.where(
-            backfill_carrier_slip_gaps == 0.0,
-            1.0 + 0.0j,
-            np.exp(1j * backfill_carrier_slip_gaps),
-        )
         # Actuator frame of the PI error. The error is read out in the
         # KICK frame, but the controller's output is a generator
         # current, which drives the DESIGN-anchored generator
-        # component: the composition multiplies it by
-        # ``_generator_frame_rotation``, so ``d(V_kick) / d(I_gen)``
-        # carries ``exp(-i delta_phi_rf)``. Handing the kick-frame
-        # error straight to the controller would therefore rotate the
+        # component: the composition multiplies it by the generator
+        # frame rotation, so ``d(V_kick) / d(I_gen)`` carries
+        # ``exp(-i station clock)``. Handing the kick-frame error
+        # straight to the controller would therefore rotate the
         # open-loop gain by that factor, which grows without bound
         # while an RF-frequency offset is applied (the proportional
         # path's sign inverts past |delta_phi_rf| = pi/2). Rotating
         # the error back cancels it exactly. Unity, so bit-identical,
-        # whenever no RF-frequency offset ever acted.
+        # whenever the clock is zero.
         self._pi_error_frame_rotation = (
             1.0 + 0.0j
             if station_clock == 0.0
             else complex(np.exp(1j * station_clock))
         )
+        # The same rotations per cell. Backfill cells take the phase
+        # accumulated up to them and the offset in force at them; the
+        # forward cells take the forward span's scalars (filled from the
+        # scalars, so the two agree to the bit), with the exact-zero
+        # short-circuit everywhere: an unrotated passage composes and
+        # regulates every cell with exactly 1 + 0j.
+        backfill_carrier_slip_gaps = (
+            self._kick_clock_slip_gap + backfill_center_phases
+        )
+        backfill_clocks = self.delta_phi_rf + offsets[:n_backfill_cells]
+        backfill_generator_slips = backfill_clocks + backfill_carrier_slip_gaps
+        generator = np.full(
+            n_cells, self._generator_frame_rotation, dtype=np.complex128
+        )
+        generator[:n_backfill_cells] = np.where(
+            backfill_generator_slips == 0.0,
+            1.0 + 0.0j,
+            np.exp(-1j * backfill_generator_slips),
+        )
+        kick = np.full(n_cells, self._kick_frame_rotation, dtype=np.complex128)
+        kick[:n_backfill_cells] = np.where(
+            backfill_carrier_slip_gaps == 0.0,
+            1.0 + 0.0j,
+            np.exp(1j * backfill_carrier_slip_gaps),
+        )
+        pi_error = np.full(
+            n_cells, self._pi_error_frame_rotation, dtype=np.complex128
+        )
+        pi_error[:n_backfill_cells] = np.where(
+            backfill_clocks == 0.0, 1.0 + 0.0j, np.exp(1j * backfill_clocks)
+        )
+        # A clocked loop may step the offset inside the forward span too
+        # (in the empty tail of a profile window). Forward cells at the
+        # bunch cell's offset keep the scalars, to the bit; the others get
+        # their own rotations, so the generator walk-off and the PI error
+        # are consistent with the beam step rotation on every cell.
+        forward_offsets = offsets[n_backfill_cells:]
+        stepped = forward_offsets != forward_offset
+        if np.any(stepped):
+            forward_clocks = self.delta_phi_rf + forward_offsets
+            forward_generator_slips = forward_clocks + self._carrier_slip_gap
+            generator[n_backfill_cells:] = np.where(
+                stepped,
+                np.where(
+                    forward_generator_slips == 0.0,
+                    1.0 + 0.0j,
+                    np.exp(-1j * forward_generator_slips),
+                ),
+                self._generator_frame_rotation,
+            )
+            pi_error[n_backfill_cells:] = np.where(
+                stepped,
+                np.where(
+                    forward_clocks == 0.0,
+                    1.0 + 0.0j,
+                    np.exp(1j * forward_clocks),
+                ),
+                self._pi_error_frame_rotation,
+            )
+        # Where the offset steps from one cell to the next (the first cell
+        # steps from the offset the previous passage ended on), the carried
+        # beam-sourced envelope -- which stays put in the cavity -- is
+        # counter-rotated into the new frame. Exactly unity elsewhere.
+        steps = np.diff(offsets, prepend=self._phi_rf_loop_seen)
+        beam_step = np.where(steps == 0.0, 1.0 + 0.0j, np.exp(-1j * steps))
+        self._cell_generator_frame_rotations = generator
+        self._cell_kick_frame_rotations = kick
+        self._cell_pi_error_frame_rotations = pi_error
+        self._cell_beam_step_rotations = beam_step
+        self._cell_phase_loop_offsets = offsets
+        if n_cells > 0:
+            self._phi_rf_loop_seen = float(offsets[-1])
+
+    def _phase_loop_offsets_of_grid(
+        self, n_backfill_cells: int, n_forward_cells: int
+    ) -> NumpyArray:
+        """
+        The phase-loop offset of every cell of this passage's grid [rad].
+
+        With a clocked loop (:meth:`_clock_phase_loop`) every cell takes
+        the loop's output sample by sample. Without one the offset the previous
+        passage ended on holds over the backfill cells and the station's
+        current ``phi_rf_loop`` over the forward span: a written offset is
+        a step at the first forward cell, i.e. at this passage.
+
+        Parameters
+        ----------
+        n_backfill_cells
+            Backfill cells of the grid.
+        n_forward_cells
+            Forward cells of the grid.
+
+        Returns
+        -------
+        offsets
+            One offset per cell, backfill cells first.
+        """
+        offsets = np.empty(n_backfill_cells + n_forward_cells)
+        clocked = self._clocked_phase_loop_offsets
+        if clocked is not None and len(clocked) == len(offsets):
+            return clocked
+        offsets[:n_backfill_cells] = self._phi_rf_loop_seen
+        offsets[n_backfill_cells:] = self.phi_rf_loop
+        return offsets
+
+    def _clock_phase_loop(
+        self, beam: BeamBaseClass, span: PerTurnGridSpan
+    ) -> None:
+        """
+        Run the station's phase loop over this passage's backfill cells.
+
+        Nothing happens without a loop on the parent station. With one,
+        the passing bunch's centroid phase is recorded first, stamped with
+        the cell of its passage (the first forward cell), then the loop's
+        output is sampled on every controller sample of the whole grid
+        (:meth:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop.offsets_for_cells`),
+        backfill and forward span alike, and the offset in force at the
+        bunch's cell is written into the station's ``phi_rf_loop`` for this
+        passage's kick. A write can therefore land anywhere between
+        passages, also inside the empty tail of a profile window; the
+        readout and the demodulation of this passage's deposit run in the
+        frame of the bunch's own cell.
+
+        Parameters
+        ----------
+        beam
+            Beam passing this station now.
+        span
+            The span :meth:`_rebuild_per_turn_grid` returned.
+
+        Notes
+        -----
+        ORDERING: must precede :meth:`_update_frame_rotations`, which
+        reads the offsets, and follow the grid rebuild, whose cell counts
+        it needs. Recording the measurement first lets a zero-latency
+        write land on the very next sample; it cannot reach this passage's
+        kick either way, since the field has no time to move.
+        """
+        loop = getattr(self._parent_rf_station, "phase_loop", None)
+        if loop is None:
+            self._clocked_phase_loop_offsets = None
+            return
+        # The bunch's own cell of the forward span: the window it sits in
+        # starts at ``profile.hist_x[0]``, and a coarse cell is
+        # ``n_rf_periods_per_coarse_grid`` RF periods.
+        bunch_cell = span.n_backfill_centers
+        measured = beam.common_array_size > 0
+        if measured and span.n_forward_centers > 0:
+            coarse_step = (
+                self.n_rf_periods_per_coarse_grid
+                * 2.0
+                * np.pi
+                / float(self.omega_rf_design)
+            )
+            in_window = float(beam._dt.mean()) - float(self.profile.hist_x[0])
+            bunch_cell += int(
+                np.clip(
+                    in_window // coarse_step, 0, span.n_forward_centers - 1
+                )
+            )
+        passage_cell = self._cells_tracked + bunch_cell
+        if measured:
+            error = loop.measure(
+                float(self.omega_rf_design) * float(beam._dt.mean()),
+                time=float(beam.reference.time),
+                cell=passage_cell,
+                applied=0.0,
+            )
+        offsets = loop.offsets_for_cells(
+            self._cells_tracked,
+            span.n_backfill_centers + span.n_forward_centers,
+            controller_update_interval=self._controller_update_interval,
+            carried=self._phi_rf_loop_seen,
+        )
+        at_bunch = (
+            float(offsets[bunch_cell])
+            if span.n_forward_centers > 0
+            else (
+                float(offsets[-1]) if len(offsets) else self._phi_rf_loop_seen
+            )
+        )
+        self._clocked_phase_loop_offsets = offsets
+        self._parent_rf_station.phi_rf_loop = at_bunch
+        if measured:
+            loop.record.corrections[-1] = at_bunch
+            del error
 
     def _track_forward_span(
         self, beam: BeamBaseClass, span: PerTurnGridSpan
@@ -2975,7 +3194,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         The two source-split components are composed with the FORWARD
         passage's generator rotation -- the frame the fine grid, and the
         forward span it continues, run in -- rather than with the rotation
-        of the backfill cell the state is taken from.
+        of the backfill cell the state is taken from; the beam-sourced one
+        is first counter-rotated by the phase-loop step into the first
+        forward cell, as the forward recursion itself does.
 
         Parameters
         ----------
@@ -3004,6 +3225,9 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             voltage_beam = self._last_val_ant_voltage_beam
             voltage_gen = self._last_val_ant_voltage_gen
             held_generator_current = self._last_val_generator_current
+        beam_step_rotation = self._beam_step_rotation_of_cell(forward_start)
+        if beam_step_rotation != 1.0:
+            voltage_beam = voltage_beam * beam_step_rotation
         return (
             complex(
                 voltage_beam + voltage_gen * self._generator_frame_rotation

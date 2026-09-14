@@ -729,8 +729,8 @@ class TestReflectedPower(unittest.TestCase):
         cav = build_feedback()
         backfill_rotations = np.exp(-1j * np.array([0.3, 0.2]))
         passage_rotation = complex(np.exp(-0.1j))
-        cav._backfill_generator_frame_rotations = backfill_rotations
-        cav._backfill_kick_frame_rotations = np.conj(backfill_rotations)
+        cav._cell_generator_frame_rotations = backfill_rotations
+        cav._cell_kick_frame_rotations = np.conj(backfill_rotations)
         cav._generator_frame_rotation = passage_rotation
         cav.generator_current_coarse_grid = np.array(
             [0.01 + 0.0j, 0.02j, -0.03 + 0.0j]

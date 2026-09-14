@@ -33,7 +33,7 @@ Each cell also composes the demodulation-frame sum
 ``c`` takes the design-anchored component into the demodulation frame; see
 ``IQCavityFeedbackTimingClass._update_frame_rotations``), which is what the
 PI regulates -- in the *kick frame*,
-``error = (V_set - V * kick_frame_rotation[c]) * pi_error_frame_rotation``.
+``error = (V_set - V * kick_frame_rotation[c]) * pi_error_frame_rotation[c]``.
 Both rotations are per cell because a backfill span replays an interval
 over which the accumulated phase is still growing; over a forward span
 every entry holds the same per-passage value.
@@ -107,6 +107,7 @@ def envelope_pi_scan(
     generator_frame_rotation,
     kick_frame_rotation,
     pi_error_frame_rotation,
+    beam_step_rotation,
     controller_active,
     controller_update_interval,
     controller_update_phase,
@@ -189,10 +190,18 @@ def envelope_pi_scan(
         taking the demodulation-frame sum of that cell into the frame of
         the applied kick, in which the PI error is formed.
     pi_error_frame_rotation
-        Per-passage scalar ``exp(+i * delta_phi_rf)`` rotating the kick-frame
-        error into the actuator (design) frame the generator current acts in,
-        cancelling the ``exp(-i * delta_phi_rf)`` the composition applies to
-        the generator component (unity without an RF-frequency offset).
+        Per-cell rotation ``exp(+i * station clock)`` (complex128, length
+        ``N``) rotating the kick-frame error into the actuator (design)
+        frame the generator current acts in, cancelling the
+        ``exp(-i * station clock)`` the composition applies to the
+        generator component (unity without an RF-frequency offset and
+        without a phase-loop offset).
+    beam_step_rotation
+        Per-cell counter-rotation ``exp(-i * step)`` (complex128, length
+        ``N``) of the carried beam-sourced component into cell ``c`` when
+        the phase-loop offset stepped between ``c - 1`` and ``c``: the
+        field stays put in the cavity while the RF reference moves.
+        Exactly unity elsewhere, where it is skipped.
     controller_active
         Whether to run the PI controller; if False each cell's drive uses the
         pre-filled generator grid (cell 0 uses ``generator_current_init``) and
@@ -262,6 +271,8 @@ def envelope_pi_scan(
             * omega_times_dt[cell]
             * ((0.0 + 0.0j) - 0.5 * beam_current[cell])
         )
+        if beam_step_rotation[cell] != 1.0:
+            voltage_beam_prev = voltage_beam_prev * beam_step_rotation[cell]
         voltage_beam = voltage_beam_prev * voltage_multiplier[cell] + (
             drive_beam * drive_weight[cell]
         )
@@ -296,7 +307,7 @@ def envelope_pi_scan(
         else:
             error = (
                 pi_setpoint - voltage * kick_frame_rotation[cell]
-            ) * pi_error_frame_rotation
+            ) * pi_error_frame_rotation[cell]
             # The command is held for the whole update interval, so the
             # integrator credits it with that much time. Exact inside a
             # segment, where the coarse steps are uniform.
