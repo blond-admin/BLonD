@@ -37,6 +37,18 @@ repos:
       - id: ruff-check  # This runs `ruff check`
         args: ["--fix"] # otherwise not compatible with Ruff
 
+  # Formats the C/C++ and CUDA backends (style in .clang-format).
+  # clang-format comes from a pinned PyPI wheel inside pre-commit's own
+  # environment, so no system clang is needed and every OS gets the same
+  # version. The hook only runs when C/C++/CUDA files are staged.
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v23.1.1
+    hooks:
+      - id: clang-format
+        types_or: [c, c++, cuda]
+        # verbatim copy of an external project, keep it diffable upstream
+        exclude: ^blond/interfaces/rf_noise_cpp/varigen\.h$
+
   # Check that the copyright notice is there
   - repo: local
     hooks:
