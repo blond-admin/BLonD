@@ -300,11 +300,7 @@ class BeamBaseClass(Preparable, ABC):
             "schema_version": BEAM_SCHEMA_VERSION,
             "intensity": int(self.intensity),
             "is_counter_rotating": bool(self._is_counter_rotating),
-            "particle_type": {
-                "mass": float(self.particle_type.mass),
-                "charge": float(self.particle_type.charge),
-                "user_decay_rate": float(self.particle_type.user_decay_rate),
-            },
+            "particle_type": self.particle_type.to_dict(),
             "reference": {
                 "time": float(self.reference.time),
                 "total_energy": (
@@ -361,13 +357,7 @@ class BeamBaseClass(Preparable, ABC):
             )
         beam_class = beam_classes[class_name]
 
-        # The values are cast explicitly: a state read back from file holds
-        # NumPy scalars, which not every constructor accepts.
-        particle_type = ParticleType(
-            mass=float(state["particle_type"]["mass"]),
-            charge=float(state["particle_type"]["charge"]),
-            user_decay_rate=float(state["particle_type"]["user_decay_rate"]),
-        )
+        particle_type = ParticleType.from_dict(state["particle_type"])
 
         # The subclasses of `Beam` only differ in how their `__init__` builds
         # the particle coordinates; here those are given, so only the common

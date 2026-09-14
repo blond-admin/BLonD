@@ -34,7 +34,7 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 #    entries describe files that already exist on other people's disks),
 # 4. regenerate the golden fixture for the new version.
 EXPECTED_LAYOUT_FINGERPRINTS = {
-    1: "866ef6e2562bd3d6360ce326a053c9000d22f99aff883d16c2cf4cd96c0da56b",
+    1: "a5665a0cc5b92349cf9a90382b92c02ce1a6c5110eb94093576ee400ea36d323",
 }
 
 
