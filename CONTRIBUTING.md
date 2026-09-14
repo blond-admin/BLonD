@@ -267,6 +267,13 @@ To run hooks on **all files**:
 ```bash
 pre-commit run --all-files
 ```
+C/C++ and CUDA sources are formatted by `clang-format` (style in
+[`.clang-format`](.clang-format)). The hook installs a pinned `clang-format`
+wheel into pre-commit's own environment, so no system clang installation is
+needed, and the version is identical on Linux, macOS and Windows. When editing
+C++/CUDA in an IDE, point it at that same version (`pip install
+clang-format==<rev in .pre-commit-config.yaml>`) to avoid format ping-pong.
+
 An optional check of the code can be done using the command
 ```bash
 ruff check
