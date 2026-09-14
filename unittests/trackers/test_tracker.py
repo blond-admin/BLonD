@@ -30,6 +30,7 @@ from blond.beam.profile import (
     Profile,
     OtherSlicesOptions,
 )
+from blond.beam.sparse_profiles import SparseProfileBaseClass
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
@@ -550,6 +551,136 @@ class TestRingAndRFTracker(unittest.TestCase):
     def test_track(self):
         # TODO: implement test for `track`
         self.ring_and_rf_tracker.track()
+
+
+class TestSparseInterpolatedKick(unittest.TestCase):
+    """Interpolated kick with a sparse profile.
+
+    With a SparseProfileBaseClass profile, the tracker applies the
+    interpolated kick window by window, pairing each window with its
+    slice of the total voltage. The result must match the kick obtained
+    with a standard Profile of the same bin size covering all the
+    buckets, and stay within the interpolation error of the exact
+    (non-interpolated) kick.
+    """
+
+    # Machine and RF parameters
+    C = 26658.883  # Machine circumference [m]
+    p_s = 450e9  # Synchronous momentum [eV/c]
+    gamma_t = 55.759505  # Transition gamma
+    h = 35640  # Harmonic number
+    V = 6e6  # RF voltage [V]
+    # Beam and slicing
+    bucket_indices = (0, 20)  # Filled buckets, one bunch each
+    n_macroparticles_per_bunch = 5000
+    n_slices_per_bucket = 64
+
+    def setUp(self):
+        rng = np.random.default_rng(1)
+        _, rf_station = self._make_ring_and_rf()
+        self.t_rf = rf_station.t_rf[0, 0]
+        dt, dE = [], []
+        for bucket in self.bucket_indices:
+            # Gaussian bunch in the middle of the bucket, kept well inside it
+            dt.append(
+                bucket * self.t_rf
+                + np.clip(
+                    rng.normal(
+                        0.5 * self.t_rf,
+                        0.1 * self.t_rf,
+                        self.n_macroparticles_per_bunch,
+                    ),
+                    0.1 * self.t_rf,
+                    0.9 * self.t_rf,
+                )
+            )
+            dE.append(rng.normal(0.0, 1e7, self.n_macroparticles_per_bunch))
+        self.dt_init = np.concatenate(dt)
+        self.dE_init = np.concatenate(dE)
+
+    def _make_ring_and_rf(self):
+        ring = Ring(
+            self.C, 1.0 / self.gamma_t**2, self.p_s, Proton(), n_turns=2
+        )
+        # Second harmonic h + 1 so that the voltage is not periodic over one
+        # bucket: a wrong pairing of windows and voltage slices would then
+        # change the kick and be detected
+        rf_station = RFStation(
+            ring,
+            [self.h, self.h + 1],
+            [self.V, 0.5 * self.V],
+            [0.0, 0.0],
+            n_rf=2,
+        )
+        return ring, rf_station
+
+    def _track_one_turn(self, profile_kind, interpolation):
+        """Track a fresh copy of the beam for one turn, return its dE"""
+        ring, rf_station = self._make_ring_and_rf()
+        beam = Beam(ring, len(self.dt_init), 1e9)
+        beam.dt = self.dt_init.copy()
+        beam.dE = self.dE_init.copy()
+
+        if profile_kind == "sparse":
+            filling_pattern = np.zeros(self.h)
+            filling_pattern[list(self.bucket_indices)] = 1
+            profile = SparseProfileBaseClass(
+                rf_station=rf_station,
+                beam=beam,
+                number_of_slices_per_profile=self.n_slices_per_bucket,
+                _filling_pattern=filling_pattern,
+                _profile_length_in_buckets=1,
+                tracker_mode="onebyone",
+            )
+        elif profile_kind == "standard":
+            n_buckets = max(self.bucket_indices) + 1
+            profile = Profile(
+                beam,
+                CutOptions(
+                    cut_left=0.0,
+                    cut_right=n_buckets * self.t_rf,
+                    n_slices=n_buckets * self.n_slices_per_bucket,
+                ),
+            )
+        else:
+            profile = None
+        if profile is not None:
+            profile.track()
+
+        tracker = RingAndRFTracker(
+            rf_station, beam, profile=profile, interpolation=interpolation
+        )
+        tracker.track()
+        return beam.dE
+
+    def _bunch_slice(self, i):
+        n = self.n_macroparticles_per_bunch
+        return slice(i * n, (i + 1) * n)
+
+    def test_matches_standard_profile(self):
+        dE_sparse = self._track_one_turn("sparse", interpolation=True)
+        dE_standard = self._track_one_turn("standard", interpolation=True)
+        np.testing.assert_allclose(dE_sparse, dE_standard, rtol=0, atol=1e-3)
+
+    def test_every_window_is_kicked(self):
+        dE_sparse = self._track_one_turn("sparse", interpolation=True)
+        for i in range(len(self.bucket_indices)):
+            kick = (
+                dE_sparse[self._bunch_slice(i)]
+                - self.dE_init[self._bunch_slice(i)]
+            )
+            self.assertGreater(
+                np.max(np.abs(kick)), 0.1 * self.V, f"bunch {i} was not kicked"
+            )
+
+    def test_close_to_exact_kick(self):
+        dE_sparse = self._track_one_turn("sparse", interpolation=True)
+        dE_exact = self._track_one_turn(None, interpolation=False)
+        # Linear interpolation of a sine with 64 points per period is
+        # accurate to about (2 pi / 64)^2 / 8 of the amplitude
+        np.testing.assert_allclose(
+            dE_sparse, dE_exact, rtol=0, atol=5e-3 * self.V
+        )
 
 
 if __name__ == "__main__":
