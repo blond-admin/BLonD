@@ -123,7 +123,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    native_tuning: bool = True,
+    optimize_for_local_cpu: bool = True,
     libname: str | None = None,
     limit_cachesize: bool = False,
 ) -> None:
@@ -150,7 +150,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         Additional libraries required for compilation, provided as a space-separated string.
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
-    native_tuning : bool
+    optimize_for_local_cpu : bool
         If True (default), tune the binary to the build machine by adding
         `-march=native`, `-ffast-math` and CPU-specific vectorization flags
         (AVX/SSE/FMA). The resulting library may not run on other CPUs.
@@ -177,7 +177,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
     build_options = {
         "compiler": compiler,
-        "native_tuning": native_tuning,
+        "optimize_for_local_cpu": optimize_for_local_cpu,
         "flags": flags,
         "libs": libs,
         "with_fftw": with_fftw,
@@ -199,8 +199,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         "-funroll-loops",  # Aggressive loop unrolling
         "-ftree-vectorize",
     ]
-    if native_tuning:
-        # CPU-specific; --no-native-tuning keeps the binary portable
+    if optimize_for_local_cpu:
+        # CPU-specific; --no-optimize-for-local-cpu keeps the binary portable
         source_cflags += ["-march=native"]
     # Some additional warning reporting related flags
     source_cflags += [
@@ -258,7 +258,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             cflags=loop_flags[style],
             compiler=compiler,
             libname=libname,
-            native_tuning=native_tuning,
+            optimize_for_local_cpu=optimize_for_local_cpu,
             parallel=parallel,
         )
 
@@ -361,7 +361,7 @@ def _prepare_cflags(
     cflags: list[str],
     compiler: str,
     libname: str,
-    native_tuning: bool,
+    optimize_for_local_cpu: bool,
     parallel: bool,
 ) -> tuple[list[str], str]:
     """
@@ -375,7 +375,7 @@ def _prepare_cflags(
         The C++ compiler to use.
     libname
         Base name of the output library.
-    native_tuning
+    optimize_for_local_cpu
         If True, add `-ffast-math` and CPU-specific vectorization flags.
     parallel
         Whether or not to use parallel compiler.
@@ -390,7 +390,7 @@ def _prepare_cflags(
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
         cflags += ["-fPIC"]
-        if native_tuning:
+        if optimize_for_local_cpu:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
             cflags = _add_avx_flags(
@@ -406,8 +406,8 @@ def _prepare_cflags(
         )
 
     elif "win" in sys.platform:
-        # Add native-tuning flags for Windows (same as POSIX)
-        if native_tuning:
+        # Add optimize-for-local-cpu flags for Windows (same as POSIX)
+        if optimize_for_local_cpu:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
             cflags = _add_avx_flags(
@@ -619,13 +619,13 @@ def main_cli() -> None:
     )
 
     parser.add_argument(
-        "-native-tuning",
-        "--native-tuning",
+        "-optimize-for-local-cpu",
+        "--optimize-for-local-cpu",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Tune the compiled library to this machine's CPU"
         " (-march=native, -ffast-math, AVX/SSE/FMA flags; disable with"
-        " --no-native-tuning for a portable build).",
+        " --no-optimize-for-local-cpu for a portable build).",
     )
 
     parser.add_argument(
@@ -648,7 +648,7 @@ def main_cli() -> None:
         compiler=args["compiler"],
         libs=args["libs"],
         flags=args["flags"],
-        native_tuning=args["native_tuning"],
+        optimize_for_local_cpu=args["optimize_for_local_cpu"],
         libname=args["libname"],
         limit_cachesize=args["limit_cachesize"],
     )

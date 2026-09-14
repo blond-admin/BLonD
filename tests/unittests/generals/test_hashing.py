@@ -152,7 +152,7 @@ class TestCppCacheRendezvous:
         build_params = inspect.signature(compile_cpp_library).parameters
         shared = [
             "compiler",
-            "native_tuning",
+            "optimize_for_local_cpu",
             "flags",
             "libs",
             "with_fftw",
@@ -180,7 +180,10 @@ class TestCppCacheRendezvous:
         default = lc.cpp_compiled_dir(folder)
         assert lc.cpp_compiled_dir(folder, flags="-DFOO") != default
         assert lc.cpp_compiled_dir(folder, libs="-lm") != default
-        assert lc.cpp_compiled_dir(folder, native_tuning=False) != default
+        assert (
+            lc.cpp_compiled_dir(folder, optimize_for_local_cpu=False)
+            != default
+        )
         assert lc.cpp_compiled_dir(folder, with_fftw=True) != default
 
     def test_memoised(self):
