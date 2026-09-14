@@ -45,15 +45,17 @@ static inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
  * residues       : Complex residues, interleaved, length 2 * n_poles.
  * is_counterrotating_beam : If true, the current beam is counter-rotating.
  * counterrotating_pole_signs :  Array per pole, -1 if the sign of the
- *                               impedance is flipped for a counter-rotating
- * beam. states         : Complex state vector, interleaved, length 2 * (n_poles
- * + 1). Last complex element stores t_start (real part only). voltage        :
- * Output voltage [V], length n_bins. voltage_threaded : Per-thread voltage
- * buffer, length n_threads * n_bins. update_on_bin  : Bin indices triggering dt
- * update, length n_updates. factor         : Conversion factor (profile to
- * current per bin [A]). n_bins         : Number of bins in profile. n_poles :
- * Number of poles. n_threads      : Size of first dimension of voltage_threaded
- * (>= omp_get_max_threads()). n_updates      : Length of update_on_bin.
+ *                               impedance is flipped for a counter-rotating beam.
+ * states         : Complex state vector, interleaved, length 2 * (n_poles + 1).
+ *                  Last complex element stores t_start (real part only).
+ * voltage        : Output voltage [V], length n_bins.
+ * voltage_threaded : Per-thread voltage buffer, length n_threads * n_bins.
+ * update_on_bin  : Bin indices triggering dt update, length n_updates.
+ * factor         : Conversion factor (profile to current per bin [A]).
+ * n_bins         : Number of bins in profile.
+ * n_poles        : Number of poles.
+ * n_threads      : Size of first dimension of voltage_threaded (>= omp_get_max_threads()).
+ * n_updates      : Length of update_on_bin.
  * n_profile_dts  : Length of profile_dts.
  */
 extern "C" void wake_from_pole_residue(
@@ -67,9 +69,9 @@ extern "C" void wake_from_pole_residue(
     const int n_threads, const int n_updates, const int n_profile_dts) {
   const real_t two_factor = real_t(2) * factor;
 
-  // Only the first `n_used_threads` rows of `voltage_threaded` are ever
-  // written: the pole loop is parallelised over poles, so at most one row per
-  // pole (and never more than `n_threads`) is touched. Zeroing/reducing all
+  // Only the first `n_used_threads` rows of `voltage_threaded` are ever written:
+  // the pole loop is parallelised over poles, so at most one row per pole
+  // (and never more than `n_threads`) is touched. Zeroing/reducing all
   // `n_threads` rows when `n_poles` is small wastes O(n_threads * n_bins)
   // of memory bandwidth, which dominates the (cheap) recursion for a few
   // poles. Size the work to what is actually used.
@@ -85,10 +87,9 @@ extern "C" void wake_from_pole_residue(
   // Parallel over poles: each pole carries sequential state across bins,
   // but different poles are fully independent. With schedule(static) and
   // n_poles < n_threads, only threads [0, n_poles) receive iterations, so
-  // the rows written are exactly [0, n_used_threads) -- the rows we zero and
-  // reduce. (We deliberately do NOT use num_threads(n_used_threads): resizing
-  // the team each call thrashes OpenMP's thread pool and is far slower than the
-  // savings.)
+  // the rows written are exactly [0, n_used_threads) -- the rows we zero and reduce.
+  // (We deliberately do NOT use num_threads(n_used_threads): resizing the team each
+  // call thrashes OpenMP's thread pool and is far slower than the savings.)
 #pragma omp parallel for schedule(static)
   for (int pole_i = 0; pole_i < n_poles; pole_i++) {
     const int thread_i = omp_get_thread_num();

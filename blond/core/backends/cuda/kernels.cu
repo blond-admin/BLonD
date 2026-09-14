@@ -142,7 +142,7 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const unsigned int n_slices,
                  const unsigned int n_macroparticles, const int capacity) {
   extern __shared__ int block_hist[];
-  // reset shared memory
+  //reset shared memory
   for (int i = threadIdx.x; i < capacity; i += blockDim.x)
     block_hist[i] = 0;
   __syncthreads();

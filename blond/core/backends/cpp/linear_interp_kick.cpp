@@ -6,8 +6,7 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-// References: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo, K.
-// Iliakis
+// References: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo, K. Iliakis
 
 // Optimised C++ routine that calculates the kick of a voltage array on
 // particles
