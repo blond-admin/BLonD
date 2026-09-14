@@ -24,7 +24,7 @@ from blond import (
     StaticProfile,
     WakeField,
 )
-from blond.core.base import ScheduledBaseClass
+from blond.core.scheduling import ScheduledBaseClass
 from blond.cycles.magnetic_cycle import (
     MagneticCyclePerTurn,
 )
@@ -107,7 +107,7 @@ def single_section_simulation(  # noqa: PLR0912
     >>>
     >>> from blond import Resonators, TimeDomainFftSolver, proton
     >>> from blond.convenience.single_section_setup import single_section_simulation
-    >>> from blond.core.base import ScheduledArray
+    >>> from blond.core.scheduling import ScheduledArray
     >>>
     >>> simulation = single_section_simulation(
     ...     ring_circumference=26658.883,
