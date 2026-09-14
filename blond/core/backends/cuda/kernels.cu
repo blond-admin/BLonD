@@ -201,7 +201,7 @@ __global__ void hybrid_histogram(
         if (input[i] == cut_right){
             target_bin = n_slices - 1;
             if (target_bin >= low_tbin && target_bin < high_tbin)
-                atomicAdd(&(block_hist[target_bin - low_tbin]), (index_t)1);
+                atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
             else
                 atomicAdd(&(output[target_bin]), 1);
             continue;
@@ -210,7 +210,7 @@ __global__ void hybrid_histogram(
         if (target_bin < 0 || target_bin >= n_slices)
             continue;
         if (target_bin >= low_tbin && target_bin < high_tbin)
-            atomicAdd(&(block_hist[target_bin - low_tbin]), (index_t)1);
+            atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
         else
             atomicAdd(&(output[target_bin]), 1);
 
@@ -241,14 +241,14 @@ __global__ void sm_histogram(const real_t * __restrict__  input,
 
         if (input[i] == cut_right){
             target_bin = n_slices - 1;
-            atomicAdd(&(block_hist[target_bin]), (index_t)1);
+            atomicAdd(&(block_hist[target_bin]), 1);
             continue;
         }
 
         if (target_bin < 0 || target_bin >= n_slices)
             continue;
 
-        atomicAdd(&(block_hist[target_bin]), (index_t)1);
+        atomicAdd(&(block_hist[target_bin]), 1);
     }
     __syncthreads();
     for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
