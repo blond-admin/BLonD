@@ -26,46 +26,7 @@ music_track(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
             const real_t coeff1, const real_t coeff2, const real_t coeff3,
             const real_t coeff4, const real_t time_since_last_track,
             const bool multiturn) {
-  /*
-  This function calculates the induced voltage of one resonator and updates
-  the energies of the particles.
-
-  Parameters
-  ----------
-  beam_dt : float array
-      Longitudinal coordinates [s], sorted ascending.
-  beam_dE : float array
-      Initial energies [V], updated in place.
-  induced_voltage : float array
-      array used to store the output of the computation
-  parameter_array : float array
-      [input_first, input_second, last_dt]; the state carried across
-      turns, written back in place. See music_algorithm.py
-  n_macroparticles : int
-      number of macro-particles
-  alpha, omega_bar, cnst, coeff1, coeff2, coeff3, coeff4 : floats
-      See documentation in music_algorithm.py
-  time_since_last_track : float
-      Time elapsed [s] since the previous call, used to span the gap to
-      the previous turn. Ignored when multiturn is false.
-  multiturn : bool
-      false for the first turn (recurrence starts fresh), true to bridge
-      the wake from the previous turn across the revolution gap.
-
-  Returns
-  -------
-  induced_voltage : float array
-      Computed induced voltage.
-  beam_dE : float array
-      Array of energies updated.
-
-  Note
-  ----
-  The caller is responsible for sorting the macro-particles by ``beam_dt``
-  (ascending). Sorting is done in the BLonD3 element so that all per-particle
-  arrays (ids, flags, ...) stay consistent, hence it is not repeated here.
-  */
-
+  // Parameters: see Specials.music_track in backend.py.
   real_t product_first_component;
   real_t product_second_component;
   if (multiturn) {
