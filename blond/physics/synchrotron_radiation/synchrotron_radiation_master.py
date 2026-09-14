@@ -25,8 +25,9 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import Schedulable, ScheduledBaseClass
+from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
+from blond.core.scheduling import ScheduledBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )

@@ -4,7 +4,7 @@ import numpy as np
 
 from blond import Resonators, TimeDomainFftSolver, proton
 from blond.convenience.single_section_setup import single_section_simulation
-from blond.core.base import ScheduledArray
+from blond.core.scheduling import ScheduledArray
 
 
 class TestCallables(unittest.TestCase):
