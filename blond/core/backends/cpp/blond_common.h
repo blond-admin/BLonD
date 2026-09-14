@@ -17,6 +17,7 @@ BLonD common header file
 #include "exp.h"
 #include "sin.h"
 #include <complex>
+#include <cstdint>
 
 #ifdef USEFLOAT
 
@@ -35,3 +36,8 @@ typedef double real_t;
 #endif
 
 typedef std::complex<real_t> complex_t;
+
+// Integer type of macro-particle counts, particle loop counters and particle
+// ids, so a single process can hold more than 2^31 - 1 macro-particles.
+// Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
+typedef std::int64_t index_t;

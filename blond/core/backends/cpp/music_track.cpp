@@ -22,7 +22,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
                             real_t *__restrict__ beam_dE,
                             real_t *__restrict__ induced_voltage,
                             real_t *__restrict__ parameter_array,
-                            const int n_macroparticles, const real_t alpha,
+                            const index_t n_macroparticles, const real_t alpha,
                             const real_t omega_bar, const real_t cnst,
                             const real_t coeff1, const real_t coeff2,
                             const real_t coeff3, const real_t coeff4,
@@ -94,7 +94,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
   real_t input_first_component = product_first_component + 1;
   real_t input_second_component = product_second_component;
 
-  for (int i = 0; i < n_macroparticles - 1; i++) {
+  for (index_t i = 0; i < n_macroparticles - 1; i++) {
     const real_t time_difference = beam_dt[i + 1] - beam_dt[i];
     const real_t exp_term = FAST_EXP(-alpha * time_difference);
     const real_t cos_term = FAST_COS(omega_bar * time_difference);

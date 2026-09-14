@@ -83,6 +83,7 @@ cpp_files = [
     "synchrotron_radiation_and_quantum_excitation.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
+    "index_abi.cpp",  # reports the compiled index_t ABI back to Python
 ]
 cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 

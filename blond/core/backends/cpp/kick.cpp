@@ -15,12 +15,12 @@ extern "C" void kick_multi_harmonic(
     const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const int n_rf, const real_t charge, const real_t *__restrict__ voltage,
     const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
-    const int n_macroparticles, const real_t acc_kick) {
+    const index_t n_macroparticles, const real_t acc_kick) {
 
   // Unroll loop for up to 4 RF harmonics for speedup
   if (n_rf == 1) {
 #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       real_t dE_sum =
           voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]);
       beam_dE[i] += charge * dE_sum + acc_kick;
@@ -28,7 +28,7 @@ extern "C" void kick_multi_harmonic(
 
   } else if (n_rf == 2) {
 #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       real_t dE_sum =
           voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
           voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]);
@@ -36,7 +36,7 @@ extern "C" void kick_multi_harmonic(
     }
   } else if (n_rf == 3) {
 #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       real_t dE_sum =
           voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
           voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
@@ -45,7 +45,7 @@ extern "C" void kick_multi_harmonic(
     }
   } else if (n_rf == 4) {
 #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       real_t dE_sum =
           voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
           voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
@@ -56,7 +56,7 @@ extern "C" void kick_multi_harmonic(
 
   } else {
 #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       real_t dE_sum = 0.0;
       // fallback to loop for n_rf > 4
       for (int j = 0; j < n_rf; j++) {
@@ -71,12 +71,12 @@ extern "C" void kick_single_harmonic(const real_t *__restrict__ beam_dt,
                                      real_t *__restrict__ beam_dE,
                                      const real_t charge, const real_t voltage,
                                      const real_t omega_RF, const real_t phi_RF,
-                                     const int n_macroparticles,
+                                     const index_t n_macroparticles,
                                      const real_t acc_kick) {
 
 // KICK
 #pragma omp parallel for
-  for (int i = 0; i < n_macroparticles; i++) {
+  for (index_t i = 0; i < n_macroparticles; i++) {
     beam_dE[i] +=
         charge * voltage * FAST_SIN(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
   }

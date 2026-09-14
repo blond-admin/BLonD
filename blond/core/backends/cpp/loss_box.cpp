@@ -22,12 +22,12 @@ extern "C" void loss_box(
                      const real_t * dt,
                      const real_t * dE,
                      int * __restrict__ flags,
-                     const int n_macroparticles
+                     const index_t n_macroparticles
                      )
 {
 
     #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
         const bool outside = (dE[i] > e_max) || (dE[i] < e_min) || (dt[i] < t_min) || (dt[i] > t_max);
         if (outside){
             flags[i] =  -500; // assume (BeamFlags.LOST.value)

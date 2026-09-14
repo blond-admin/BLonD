@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import cupy as cp  # type: ignore
 import numpy as np
 
-from blond.core.backends.backend import Specials
+from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
 from blond.generals.compiled_cache import mark_used
 
@@ -94,6 +94,9 @@ blocks = int(os.environ.get("GPU_BLOCKS", default_blocks))
 threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
+# Bytes per bin of the shared-memory histogram counters (`block_hist` in
+# kernels.cu), which are `index_t` wide.
+_HIST_COUNT_ITEMSIZE = np.dtype(INDEX_DTYPE).itemsize
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 # Cache of uniformity verdicts for `bin_centers` arrays passed to the
@@ -179,7 +182,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 dt,
                 dE,
                 flags,
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -212,7 +215,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 FLOAT(voltage),  # voltage
                 FLOAT(omega_rf),  # omega_RF
                 FLOAT(phi_rf),  # phi_RF
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
                 FLOAT(acceleration_kick),  # acc_kick
             ),
             block=block_size,
@@ -263,7 +266,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 voltage,  # voltage
                 omega_rf,  # omega_RF
                 phi_rf,  # phi_RF
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
                 FLOAT(acceleration_kick),  # acc_kick
             ),
             block=block_size,
@@ -322,7 +325,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 eta_0,  # eta_zero
                 beta,  # beta
                 energy,  # energy
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -365,7 +368,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(higher_alpha)),  # n_alpha
                 beta,  # beta
                 energy,  # energy
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -436,7 +439,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                     bin_centers,
                     charge,
                     np.int32(bin_centers.size),
-                    np.int32(dt.size),
+                    INDEX_DTYPE(dt.size),
                     acceleration_kick,
                     glob_vkick_factor,
                 ),
@@ -452,7 +455,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                     bin_centers,
                     FLOAT(charge),
                     np.int32(bin_centers.size),
-                    np.int32(dt.size),
+                    INDEX_DTYPE(dt.size),
                     acceleration_kick,
                     glob_vkick_factor,
                 ),
@@ -493,7 +496,7 @@ class CudaSpecials(Specials):  # NOQA: D101
             args=(
                 dt,
                 dE,
-                np.int32(dt.size),
+                INDEX_DTYPE(dt.size),
                 FLOAT(first_left_cut),
                 FLOAT(left_cut_distance),
                 FLOAT(cut_width),
@@ -533,7 +536,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         n_slices = array_write.size
         array_write.fill(0)
 
-        if 4 * n_slices < max_shared_memory_per_block:
+        if _HIST_COUNT_ITEMSIZE * n_slices < max_shared_memory_per_block:
             _sm_histogram(
                 args=(
                     array_read,
@@ -541,11 +544,11 @@ class CudaSpecials(Specials):  # NOQA: D101
                     start,
                     stop,
                     np.uint32(n_slices),
-                    np.uint32(len(array_read)),
+                    INDEX_DTYPE(len(array_read)),
                 ),
                 grid=grid_size,
                 block=block_size,
-                shared_mem=4 * n_slices,
+                shared_mem=_HIST_COUNT_ITEMSIZE * n_slices,
             )
         else:
             _hybrid_histogram(
@@ -555,8 +558,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                     start,
                     stop,
                     np.uint32(n_slices),
-                    np.uint32(len(array_read)),
-                    np.int32(max_shared_memory_per_block / 4),
+                    INDEX_DTYPE(len(array_read)),
+                    np.int32(
+                        max_shared_memory_per_block // _HIST_COUNT_ITEMSIZE
+                    ),
                 ),
                 grid=grid_size,
                 block=block_size,
@@ -650,7 +655,7 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         damping_factor = FLOAT(1.0 - 2.0 / longitudinal_damping_time)
         energy_lost_typed = FLOAT(energy_lost)
-        n_macroparticles = np.int32(len(beam_dE))
+        n_macroparticles = INDEX_DTYPE(len(beam_dE))
         if disable_quantum_excitation:
             _apply_sr_without_quantum_excitation(
                 args=(
@@ -709,7 +714,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert flags.dtype == np.int32
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
-        assert ids.dtype == np.int32
+        assert ids.dtype == INDEX_DTYPE
 
         select = flags == flag
         order = cp.argsort(select)
@@ -765,7 +770,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 FLOAT(cut_width),  # cut_width
                 np.int32(bins_per_profile),  # bins_per_profile
                 np.int32(len(filling_pattern)),  # n_buckets
-                np.int32(len(x)),  # n_macroparticles
+                INDEX_DTYPE(len(x)),  # n_macroparticles
                 filling_pattern,  # input
                 bucket_index_to_memory_index,  # input
             ),
