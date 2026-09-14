@@ -810,7 +810,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             raise TypeError("32 bit backends have been removed.")
 
         np.testing.assert_allclose(  # changer/ test pinned to some value
-            copy_to_cpu(self.beam._dE.array_local),
+            copy_to_cpu(self.beam.dE.array_local),
             [
                 42002571186.29307,
                 41999067639.08523,

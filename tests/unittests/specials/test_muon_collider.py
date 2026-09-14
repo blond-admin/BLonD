@@ -65,21 +65,21 @@ class TestBeamPreparationMuCol(unittest.TestCase):
 
         copy_beam_data_from_other_beam(beam_CR, beam)
 
-        assert np.allclose(
-            copy_to_cpu(beam._dE.array_local),
-            copy_to_cpu(beam_CR._dE.array_local),
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.dE.array_local),
+            copy_to_cpu(beam_CR.dE.array_local),
         )
-        assert np.allclose(
-            copy_to_cpu(beam._flags.array_local),
-            copy_to_cpu(beam_CR._flags.array_local),
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.flags.array_local),
+            copy_to_cpu(beam_CR.flags.array_local),
         )
-        assert np.allclose(
-            copy_to_cpu(beam._ids.array_local),
-            copy_to_cpu(beam_CR._ids.array_local),
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.ids.array_local),
+            copy_to_cpu(beam_CR.ids.array_local),
         )
-        assert np.allclose(
-            copy_to_cpu(beam._dt.array_local),
-            copy_to_cpu(beam_CR._dt.array_local),
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.dt.array_local),
+            copy_to_cpu(beam_CR.dt.array_local),
         )
         assert beam.intensity == beam_CR.intensity
 
