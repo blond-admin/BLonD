@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random as rnd
 import scipy.signal
-from blond.beam.sparse_profiles import SparseBatch
+from blond.beam.sparse_profiles import SparseProfileBaseClass
 from scipy.interpolate import interp1d
 
 from ..utils import bmath as bm
@@ -84,7 +84,7 @@ class CavityFeedback:
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile | SparseBatch,
+        profile: Profile | SparseProfileBaseClass,
         n_cavities: int,
         n_s: int,
         n_h: int,
@@ -92,7 +92,7 @@ class CavityFeedback:
     ):
         # BLonD classes the feedback should get information from
         self.rf_station: RFStation = rf_station
-        self.profile: Profile | SparseBatch = profile
+        self.profile: Profile | SparseProfileBaseClass = profile
         self.counter = self.rf_station.counter[0]
 
         # Number of cavities the feedback is working on
@@ -195,7 +195,7 @@ class CavityFeedback:
 
     def track(self):
         r"""Tracking method of the cavity feedback"""
-        if isinstance(self.profile, SparseBatch):
+        if isinstance(self.profile, SparseProfileBaseClass):
             # lengthening necessary in case of multi-turn injection
             if len(self.I_BEAM_FINE) != self.profile.n_slices:
                 difference = self.profile.n_slices - len(self.I_BEAM_FINE)
@@ -519,7 +519,7 @@ class SPSOneTurnFeedback(CavityFeedback):
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile | SparseBatch,
+        profile: Profile | SparseProfileBaseClass,
         n_sections: int,
         n_cavities: int = 4,
         V_part: float = 4 / 9,
@@ -1177,7 +1177,7 @@ class SPSCavityFeedback:
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile | SparseBatch,
+        profile: Profile | SparseProfileBaseClass,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
         G_tx: list[float, list] = 0.5,
@@ -1481,7 +1481,7 @@ class LHCCavityLoop(CavityFeedback):
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile | SparseBatch,
+        profile: Profile | SparseProfileBaseClass,
         n_cavities: int = 8,
         f_c: float = 400.789e6,
         G_gen: float = 1,
@@ -1638,7 +1638,7 @@ class LHCCavityLoop(CavityFeedback):
 
         if not no_beam:
             # Resample generator current to the fine-grid
-            if isinstance(self.profile, SparseBatch):
+            if isinstance(self.profile, SparseProfileBaseClass):
                 # lengthening necessary in case of multi-turn injection
                 if len(self.I_GEN_FINE) != self.profile.n_slices + 1:
                     difference = (
@@ -1738,7 +1738,7 @@ class LHCCavityLoop(CavityFeedback):
         I_gen_init = I_gen_coarse_interp(t_at_init)
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.bin_size
-        if isinstance(self.profile, SparseBatch):
+        if isinstance(self.profile, SparseProfileBaseClass):
             # lengthening necessary in case of multi-turn injection
             if len(self.V_ANT_FINE) != self.profile.n_slices + 1:
                 difference = self.profile.n_slices + 1 - len(self.V_ANT_FINE)
@@ -2118,7 +2118,10 @@ class LHCCavityLoop(CavityFeedback):
                 1 - T_s / self.tau_a,
                 self.G_a,
                 1 - T_s / self.tau_d,
-                T_s / self.tau_d * self.G_a * self.G_d
+                T_s
+                / self.tau_d
+                * self.G_a
+                * self.G_d
                 * np.exp(1j * self.d_phi_ad),
                 float(self.open_rffb),
                 bool(self.clamping),
@@ -2504,7 +2507,7 @@ class FCCBoosterCavityLoop(LHCCavityLoop):
     def __init__(
         self,
         rf_station: RFStation,
-        profile: Profile | SparseBatch,
+        profile: Profile | SparseProfileBaseClass,
         n_cavities: int = 112,
         f_c: float = 801573985.3775489,
         G_gen: float = 1,
