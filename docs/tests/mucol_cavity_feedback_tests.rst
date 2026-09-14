@@ -3132,7 +3132,7 @@ tracked behaviour is in ``test_pi_feedback_full_tracking.py`` above.
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The loop's own arithmetic, without a feedback: passages are recorded
-through ``measure`` and the output sampled through ``offsets_for_cells``
+through ``measure`` and the output sampled through ``offsets_for_n_coarse_cells``
 at a controller update interval of four cells.
 
 ``test_attaches_to_its_station_once``

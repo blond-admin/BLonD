@@ -2988,7 +2988,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         the passing bunch's centroid phase is recorded first, stamped with
         the cell of its passage (the first forward cell), then the loop's
         output is sampled on every controller sample of the whole grid
-        (:meth:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop.offsets_for_cells`),
+        (:meth:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop.offsets_for_n_coarse_cells`),
         backfill and forward span alike, and the offset in force at the
         bunch's cell is written into the station's ``phi_rf_loop`` for this
         passage's kick. A write can therefore land anywhere between
