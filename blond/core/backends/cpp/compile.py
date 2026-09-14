@@ -123,7 +123,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    optimize: bool = True,
+    native_tuning: bool = True,
     libname: str | None = None,
     limit_cachesize: bool = False,
 ) -> None:
@@ -150,9 +150,12 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         Additional libraries required for compilation, provided as a space-separated string.
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
-    optimize : bool
-        If True (default), add `-march=native`, `-ffast-math` and
-        CPU-specific vectorization flags (AVX/SSE/FMA).
+    native_tuning : bool
+        If True (default), tune the binary to the build machine by adding
+        `-march=native`, `-ffast-math` and CPU-specific vectorization flags
+        (AVX/SSE/FMA). The resulting library may not run on other CPUs.
+        This is independent of the compiler optimization level (`-O3`),
+        which is always used.
     libname : str
         Path and name of the output library (without file extension).
     limit_cachesize : bool
@@ -174,7 +177,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
     build_options = {
         "compiler": compiler,
-        "optimize": optimize,
+        "native_tuning": native_tuning,
         "flags": flags,
         "libs": libs,
         "with_fftw": with_fftw,
@@ -196,8 +199,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         "-funroll-loops",  # Aggressive loop unrolling
         "-ftree-vectorize",
     ]
-    if optimize:
-        # CPU-specific; --no-optimize keeps the binary portable
+    if native_tuning:
+        # CPU-specific; --no-native-tuning keeps the binary portable
         source_cflags += ["-march=native"]
     # Some additional warning reporting related flags
     source_cflags += [
@@ -255,7 +258,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             cflags=loop_flags[style],
             compiler=compiler,
             libname=libname,
-            optimize=optimize,
+            native_tuning=native_tuning,
             parallel=parallel,
         )
 
@@ -358,7 +361,7 @@ def _prepare_cflags(
     cflags: list[str],
     compiler: str,
     libname: str,
-    optimize: bool,
+    native_tuning: bool,
     parallel: bool,
 ) -> tuple[list[str], str]:
     """
@@ -372,8 +375,8 @@ def _prepare_cflags(
         The C++ compiler to use.
     libname
         Base name of the output library.
-    optimize
-        If True, enable optimization flags.
+    native_tuning
+        If True, add `-ffast-math` and CPU-specific vectorization flags.
     parallel
         Whether or not to use parallel compiler.
 
@@ -387,7 +390,7 @@ def _prepare_cflags(
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
         cflags += ["-fPIC"]
-        if optimize:
+        if native_tuning:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
             cflags = _add_avx_flags(
@@ -403,8 +406,8 @@ def _prepare_cflags(
         )
 
     elif "win" in sys.platform:
-        # Add optimization flags for Windows (same as POSIX)
-        if optimize:
+        # Add native-tuning flags for Windows (same as POSIX)
+        if native_tuning:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
             cflags = _add_avx_flags(
@@ -616,12 +619,13 @@ def main_cli() -> None:
     )
 
     parser.add_argument(
-        "-optimize",
-        "--optimize",
+        "-native-tuning",
+        "--native-tuning",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Auto optimize the compiled library"
-        " (disable with --no-optimize).",
+        help="Tune the compiled library to this machine's CPU"
+        " (-march=native, -ffast-math, AVX/SSE/FMA flags; disable with"
+        " --no-native-tuning for a portable build).",
     )
 
     parser.add_argument(
@@ -644,7 +648,7 @@ def main_cli() -> None:
         compiler=args["compiler"],
         libs=args["libs"],
         flags=args["flags"],
-        optimize=args["optimize"],
+        native_tuning=args["native_tuning"],
         libname=args["libname"],
         limit_cachesize=args["limit_cachesize"],
     )
