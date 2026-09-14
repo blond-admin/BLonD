@@ -7,7 +7,7 @@ loop* produces the same physics on the GPU. This module closes that gap
 with the cheapest end-to-end fixture in the package: the one-section
 RCS1-like ring of
 :mod:`test_beam_loading_sign_vs_design_rf_phase` (h = 2590, one drift +
-one RF station carrying an :class:`IQCavityFeedbackTimingClass`), shrunk
+one RF station carrying an :class:`IQCavityFeedbackCoarseGrid`), shrunk
 to 2000 macroparticles and run for a handful of turns so the loop closes
 (profile -> beam current -> cavity -> kick -> profile) several times.
 
@@ -74,7 +74,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.testing.backend_testing import cupy_available
 
 from .support import rel_err
@@ -175,7 +175,7 @@ class TestCavityFeedbackNumbaVsCudaEquivalence(unittest.TestCase):
         )
         # Operating-point cavity: V_init = V_design held by the matched
         # generator current, as in the sibling beam-loading tests.
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,

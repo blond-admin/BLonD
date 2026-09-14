@@ -11,7 +11,7 @@ existing PI tests run, because the synchrotron period is tens of turns.
 
 This test closes the loop and tracks a real matched bunch, kicked into a
 coherent dipole, through the driven
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
 (with a
 :class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController`)
 plus strong beam loading, for ``300`` turns (~``30`` synchrotron periods at
@@ -106,7 +106,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
@@ -245,7 +245,7 @@ def _run_closed_loop(delta_omega: float) -> dict:
     Track a kicked matched bunch through the driven feedback and record it.
 
     Builds a single-station ring (half-drift / RF station with a PI-regulated
-    :class:`IQCavityFeedbackTimingClass` / half-drift) at constant ``E0``,
+    :class:`IQCavityFeedbackCoarseGrid` / half-drift) at constant ``E0``,
     prepares a matched ``BiGaussian`` bunch, displaces its centroid by
     ``DIPOLE_KICK_FRAC * t_rf`` to excite a coherent dipole, and tracks
     ``N_TURNS`` turns recording the centroid and diagnostics each turn.
@@ -276,7 +276,7 @@ def _run_closed_loop(delta_omega: float) -> dict:
         generator_current_bias=I_GEN_BIAS + 0.0j,
         n_delay=N_DELAY,
     )
-    feedback = IQCavityFeedbackTimingClass(
+    feedback = IQCavityFeedbackCoarseGrid(
         profile=profile,
         R_over_Q=R_OVER_Q,
         Q_L=Q_L,

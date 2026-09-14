@@ -11,7 +11,7 @@
 Coarse-grid (``rf_centers``) construction for the cavity-feedback timing class.
 
 :class:`RFCenterGridMixin` bundles the per-turn coarse-grid construction of
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`:
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`:
 the forward/backfill reference walks that decide which RF frequency each
 segment is generated at, the segment generation itself, and the derived flat
 ``rf_centers`` / ``rf_centers_lengths`` arrays the tracking loop indexes.
@@ -58,7 +58,7 @@ below -- initialises in ``__init__`` / ``on_run_simulation``.
   ``_n_rf_stations_in_ring``. The inspection-only grid snapshots
   (``current_slice_elements_forward``, ``reference_time_after_backfill``,
   ...) are not written here: the test variant
-  ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+  ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid``
   records them, through the no-op hook
   ``RFCenterGridMixin._record_forward_projection`` and an override of
   ``RFCenterGridMixin.get_time_omega_array_backfill``.
@@ -106,15 +106,28 @@ if TYPE_CHECKING:
 
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.feedbacks.cavity_feedback import (
-        IQCavityFeedbackTimingClass,
+        IQCavityFeedbackCoarseGrid,
     )
 
 
 class RFCenterGridMixin:
-    """Coarse-grid (``rf_centers``) construction mixin (see module docstring)."""
+    """
+    Coarse-grid (``rf_centers``) construction mixin (see module docstring).
+
+    Not a mixin in the reusable sense, despite the name. Every method
+    here annotates ``self`` as
+    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
+    and reaches into its state, so this class cannot be mixed into
+    anything else; it is a file-level PARTITION of that one class, kept
+    separate to hold a 3600-line module to a readable size. Read it as a
+    section of that class, not as an independent capability, and do not
+    take the name as licence to reuse it elsewhere. The self-annotation
+    is pinned by a test, so the coupling is deliberate and visible
+    rather than accidental.
+    """
 
     def _reference_list_for_direction(
-        self: IQCavityFeedbackTimingClass, is_counter_rotating: bool
+        self: IQCavityFeedbackCoarseGrid, is_counter_rotating: bool
     ) -> tuple[AltersReference, ...] | None:
         """
         Reference-altering element list for one beam direction.
@@ -145,7 +158,7 @@ class RFCenterGridMixin:
         )
 
     def _own_index_for_direction(
-        self: IQCavityFeedbackTimingClass, is_counter_rotating: bool
+        self: IQCavityFeedbackCoarseGrid, is_counter_rotating: bool
     ) -> int | None:
         """
         Return this feedback's index in the direction's reference list.
@@ -168,7 +181,7 @@ class RFCenterGridMixin:
         )
 
     def get_passed_time_forward_direction(  # noqa: PLR0912
-        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+        self: IQCavityFeedbackCoarseGrid, beam: BeamBaseClass
     ):
         """
         Determine the slice of elements, which should be tracked in the forward direction.
@@ -247,7 +260,7 @@ class RFCenterGridMixin:
         # accumulated kick-clock slip ``int delta_omega_rf dt`` (the parent
         # station's ``delta_phi_rf`` plus its live end-of-track tail),
         # applied as an explicit constant phase on the demodulation and
-        # readout sides (see IQCavityFeedbackTimingClass docstring). Feeding
+        # readout sides (see IQCavityFeedbackCoarseGrid docstring). Feeding
         # the offset into the grid times instead (detuned spacing or a
         # slipping seed) drags the whole envelope timeline against the
         # readout -- a frame drift no per-deposit bookkeeping can compensate
@@ -289,14 +302,14 @@ class RFCenterGridMixin:
         self._record_forward_projection(next_reference_altering_element_index)
 
     def _record_forward_projection(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         next_reference_altering_element_index: int,
     ) -> None:
         """
         Hook at the end of every forward projection; a no-op here.
 
         The test variant
-        ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+        ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid``
         records the walked element slice through it. The index it needs is
         local to :meth:`get_passed_time_forward_direction`, which is why this
         is a hook and not an override.
@@ -310,7 +323,7 @@ class RFCenterGridMixin:
         """
 
     def get_time_omega_array_backfill(  # noqa: PLR0912, PLR0915
-        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+        self: IQCavityFeedbackCoarseGrid, beam: BeamBaseClass
     ):
         """
         Determine the slice of elements to walk for the backfill.
@@ -478,7 +491,7 @@ class RFCenterGridMixin:
         self._unify_same_frequency_time_points_backfill()
 
     def _rebuild_grid_arrays(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ) -> None:
         """
         Rebuild the flat ``rf_centers`` / ``rf_centers_lengths`` from segments.
@@ -500,7 +513,7 @@ class RFCenterGridMixin:
             self._rf_centers_lengths = np.zeros(0, dtype=int)
 
     def _append_segment(
-        self: IQCavityFeedbackTimingClass, segment: RFCenterSegment
+        self: IQCavityFeedbackCoarseGrid, segment: RFCenterSegment
     ) -> None:
         """
         Append a coarse-grid segment and refresh the derived flat arrays.
@@ -513,13 +526,13 @@ class RFCenterGridMixin:
         self._segments.append(segment)
         self._rebuild_grid_arrays()
 
-    def _clear_segments(self: IQCavityFeedbackTimingClass) -> None:
+    def _clear_segments(self: IQCavityFeedbackCoarseGrid) -> None:
         """Drop all segments (start-of-turn) and clear the derived arrays."""
         self._segments = []
         self._rebuild_grid_arrays()
 
     def _close_previous_turn_grid(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ) -> None:
         """
         Carry the previous turn's tail over, then clear the segments.
@@ -548,7 +561,7 @@ class RFCenterGridMixin:
         ``n t_rf - t_rf / 2``, i.e. ``omega_c * tail = 2 pi n - pi``, which
         is ``pi`` (mod ``2 pi``) for integer ``n`` -- the frame every later
         passage is demodulated in (see
-        ``IQCavityFeedbackTimingClass._assert_demodulation_frame_aligned``).
+        ``IQCavityFeedbackCoarseGrid._assert_demodulation_frame_aligned``).
         Without it the first passage alone would be demodulated exactly
         ``pi`` out of phase, and that wrongly signed deposit decays only
         over ``2 Q_L / omega``. It is continued rather than guarded
@@ -598,7 +611,7 @@ class RFCenterGridMixin:
         self._clear_segments()
 
     def _generate_backfill_segments_if_due(
-        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+        self: IQCavityFeedbackCoarseGrid, beam: BeamBaseClass
     ) -> None:
         """
         Back-fill the segments elapsed since the last passage, if any.
@@ -625,7 +638,7 @@ class RFCenterGridMixin:
             # at first call, this always needs to be tracked, since the values from the start of the simulation until now are not retrieved yet.
             self.calculate_rf_centers_for_backfill(beam=beam)
 
-    def _validate_grid(self: IQCavityFeedbackTimingClass) -> None:
+    def _validate_grid(self: IQCavityFeedbackCoarseGrid) -> None:
         """
         Assert the derived flat arrays are consistent with the segment list.
 
@@ -645,7 +658,7 @@ class RFCenterGridMixin:
         )
 
     def _preceding_segment_residual(
-        self: IQCavityFeedbackTimingClass, start_index: int
+        self: IQCavityFeedbackCoarseGrid, start_index: int
     ) -> float:
         """
         Residual [s] of the segment preceding the one at ``start_index``.
@@ -704,7 +717,7 @@ class RFCenterGridMixin:
         return self._residual_time_last_rf_centers_calculation
 
     def _backfill_walk_reached_beam(
-        self: IQCavityFeedbackTimingClass, beam_reference_time: float
+        self: IQCavityFeedbackCoarseGrid, beam_reference_time: float
     ) -> bool:
         """
         Whether the backfill walk has reached the current beam's arrival.
@@ -765,7 +778,7 @@ class RFCenterGridMixin:
         return is_close or is_above
 
     def _generate_rf_centers(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         t_rf,
         omega_design,
         until_time: float,
@@ -893,7 +906,7 @@ class RFCenterGridMixin:
         return rf_centers
 
     def _carried_phase_reference(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ) -> tuple[float, float | None]:
         """
         Phase and carrier this passage's backfill continues from.
@@ -924,7 +937,7 @@ class RFCenterGridMixin:
         return carried_phase, carrier_omega
 
     def _backfill_accumulated_phases(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ) -> NumpyArray:
         """
         Accumulated phase of each backfill segment about to be generated.
@@ -966,7 +979,7 @@ class RFCenterGridMixin:
         )
 
     def _backfill_center_phases(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ) -> NumpyArray:
         """
         Accumulated phase at every backfill centre of the current grid.
@@ -1001,7 +1014,7 @@ class RFCenterGridMixin:
         )
 
     def _accumulated_phase_for_forward_segment(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ) -> float:
         """
         Accumulated phase the forward segment of this passage stores.
@@ -1023,7 +1036,7 @@ class RFCenterGridMixin:
         return 0.0 if carried is None else carried.accumulated_phase
 
     def calculate_rf_centers_for_forward_direction(
-        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+        self: IQCavityFeedbackCoarseGrid, beam: BeamBaseClass
     ) -> None:
         """
         Calculate the centers of the rf buckets in the current turn.
@@ -1061,7 +1074,7 @@ class RFCenterGridMixin:
         )
 
     def _unify_same_frequency_time_points_backfill(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
     ):
         if len(self._backfill_time_array) > 1:
             time_arr_to_use = np.copy(self._backfill_time_array)
@@ -1084,7 +1097,7 @@ class RFCenterGridMixin:
             self._backfill_segment_omega_design_list = omega_array_to_use[mask]
 
     def calculate_rf_centers_for_backfill(
-        self: IQCavityFeedbackTimingClass, beam: BeamBaseClass
+        self: IQCavityFeedbackCoarseGrid, beam: BeamBaseClass
     ) -> None:
         """
         Compute the coarse-grid rf_centers of the backfill span.

@@ -60,6 +60,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NumpyArray
 
     from blond.physics.cavities import RFStationBaseClass
+    from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackBase
 
 
 def wrap_phase(phase: float) -> float:
@@ -139,14 +140,17 @@ class StationPhaseLoopRecord:
 
 class StationPhaseLoop:
     """
-    A beam phase loop attached to one RF station, run by its cavity feedback.
+    A beam phase loop attached to one cavity feedback, which clocks it.
 
     Parameters
     ----------
-    station
-        The RF station; its ``phase_loop`` attribute is set to this loop
-        and its ``phi_rf_loop`` is written by the station's cavity
-        feedback from this loop's output. A station carries at most one.
+    feedback
+        The cavity feedback that clocks this loop; its ``phase_loop``
+        attribute is set to this loop, and it writes its parent station's
+        ``phi_rf_loop`` from this loop's output. A feedback carries at
+        most one. Attaching here rather than to the station is what makes
+        a loop nothing can run unrepresentable: the clock and the
+        actuator come from the same object.
     reference_phase
         Centroid RF phase the loop regulates to [rad], e.g. the launch
         phase of the matched bunch; may be set later through the attribute
@@ -160,22 +164,20 @@ class StationPhaseLoop:
         whichever bunch left it. ``0`` acts from the first sample at or
         after the passage's cell.
     record
-        Record to append to; the station's own, fresh, if ``None``.
+        Record to append to; a fresh one of its own if ``None``.
     name
         Loop name, for messages.
 
     Raises
     ------
     ValueError
-        If ``n_delay`` is negative, the station already carries a loop, or
-        the station has no cavity feedback -- nothing would clock the loop,
-        so it would silently never run.
+        If ``n_delay`` is negative or the feedback already carries a loop.
     """
 
     def __init__(
         self,
         *,
-        station: RFStationBaseClass,
+        feedback: IQCavityFeedbackBase,
         reference_phase: float,
         gain: float,
         n_delay: int = 1,
@@ -184,35 +186,43 @@ class StationPhaseLoop:
     ) -> None:
         if n_delay < 0:
             raise ValueError(f"n_delay={n_delay} must be >= 0")
-        if getattr(station, "phase_loop", None) is not None:
+        if getattr(feedback, "phase_loop", None) is not None:
             raise ValueError(
-                f"{station} already carries a phase loop; a station has one"
+                f"{feedback} already carries a phase loop; it clocks one"
             )
-        if not station.any_feedback_not_none:
-            raise ValueError(
-                "RF station has no feedback, per-station phase loop relies "
-                "on feedback stepping."
-            )
-        self._station = station
+        self._feedback = feedback
         #: Centroid RF phase the loop regulates to [rad].
         self.reference_phase = float(reference_phase)
         self._gain = float(gain)
         self._n_delay = int(n_delay)
         self._record = StationPhaseLoopRecord() if record is None else record
         self.name = name
-        station.phase_loop = self
+        feedback.phase_loop = self
+
+    @property
+    def feedback(self) -> IQCavityFeedbackBase:
+        """
+        The cavity feedback that clocks this loop.
+
+        Returns
+        -------
+        feedback
+            The feedback this loop is attached to.
+        """
+        return self._feedback
 
     @property
     def station(self) -> RFStationBaseClass:
         """
-        The RF station this loop is attached to.
+        The RF station this loop regulates.
 
         Returns
         -------
         station
-            Whose ``phi_rf_loop`` its cavity feedback writes.
+            Parent station of :attr:`feedback`, whose ``phi_rf_loop`` that
+            feedback writes from this loop's output.
         """
-        return self._station
+        return self._feedback.parent_rf_station
 
     @property
     def gain(self) -> float:

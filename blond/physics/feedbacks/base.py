@@ -99,6 +99,21 @@ class LocalFeedback(FeedbackBaseClass):
 
         self.profile = profile
 
+    @property
+    def parent_rf_station(
+        self,
+    ) -> MultiHarmonicRFStation | SingleHarmonicRFStation | None:
+        """
+        The RF station this feedback is installed on.
+
+        Returns
+        -------
+        parent_rf_station
+            The owning station, or ``None`` before
+            :meth:`set_parent_rf_station` has run.
+        """
+        return self._parent_rf_station
+
     def set_parent_rf_station(
         self, rf_station: MultiHarmonicRFStation | SingleHarmonicRFStation
     ) -> None:

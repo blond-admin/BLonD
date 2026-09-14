@@ -38,10 +38,17 @@ class TestPhiRfLoopEntersTheStationPhase(unittest.TestCase):
         """A station without a loop reads exactly design plus kick clock."""
         station = self._station()
         self.assertEqual(station.phi_rf_loop, 0.0)
-        self.assertIsNone(station.phase_loop)
         self.assertEqual(
             station.phi_rf, station.phi_rf_design + station.delta_phi_rf
         )
+
+    def test_the_station_does_not_carry_the_loop(self):
+        """The loop hangs off the cavity feedback that clocks it.
+
+        The station holds only the offset the feedback writes; nothing
+        reaches back from the station to the loop.
+        """
+        self.assertFalse(hasattr(self._station(), "phase_loop"))
 
     def test_offset_adds_to_the_actual_phase(self):
         """The loop's offset moves ``phi_rf``, not the design phase."""
@@ -57,30 +64,26 @@ class TestStationPhaseLoop(unittest.TestCase):
     REFERENCE = 0.5
     INTERVAL = 4
 
-    def _station_with_feedback(self):
-        """A station the loop will attach to: it needs a feedback.
+    def _feedback(self, station=None):
+        """A stand-in for the cavity feedback the loop attaches to.
 
-        The loop is clocked by the station's cavity feedback and refuses
-        to attach without one, because nothing would ever run it.  These
-        tests exercise the loop's own sample-and-hold arithmetic, which
-        does not touch the feedback, so a stand-in is enough.
+        The loop is attached to, and clocked by, one cavity feedback, and
+        never touches the feedback itself.  These tests exercise its own
+        sample-and-hold arithmetic, so a stand-in carrying a free
+        ``phase_loop`` slot and a parent station is enough.
         """
-        station = SingleHarmonicRFStation(
-            voltage=1.0e6, phi_rf=0.0, harmonic=100
-        )
-        station.cavity_feedback_list = [Mock()]
-        return station
+        return Mock(phase_loop=None, parent_rf_station=station)
 
     def _loop(self, gain=0.2, n_delay=1, record=None):
-        station = self._station_with_feedback()
+        feedback = self._feedback()
         loop = StationPhaseLoop(
-            station=station,
+            feedback=feedback,
             reference_phase=self.REFERENCE,
             gain=gain,
             n_delay=n_delay,
             record=record,
         )
-        return loop, station
+        return loop, feedback
 
     def _offsets(self, loop, first_cell, n_cells, carried=0.0):
         return loop.offsets_for_cells(
@@ -90,22 +93,28 @@ class TestStationPhaseLoop(unittest.TestCase):
             carried=carried,
         )
 
-    def test_attaches_to_its_station_once(self):
-        loop, station = self._loop()
-        self.assertIs(station.phase_loop, loop)
-        self.assertIs(loop.station, station)
+    def test_attaches_to_its_feedback_once(self):
+        loop, feedback = self._loop()
+        self.assertIs(feedback.phase_loop, loop)
+        self.assertIs(loop.feedback, feedback)
         with self.assertRaises(ValueError):
-            StationPhaseLoop(station=station, reference_phase=0.0, gain=0.1)
+            StationPhaseLoop(feedback=feedback, reference_phase=0.0, gain=0.1)
 
-    def test_a_station_without_a_feedback_is_refused(self):
-        """Nothing would clock the loop there, so attaching it is an error."""
-        bare = SingleHarmonicRFStation(voltage=1.0e6, phi_rf=0.0, harmonic=100)
-        self.assertFalse(bare.any_feedback_not_none)
-        with self.assertRaises(ValueError):
-            StationPhaseLoop(
-                station=bare, reference_phase=self.REFERENCE, gain=0.2
-            )
-        self.assertIsNone(bare.phase_loop)
+    def test_the_station_is_the_feedbacks_own(self):
+        """A loop regulates the station its own feedback drives.
+
+        Attaching to the feedback makes a loop on a station that has none
+        unrepresentable, rather than an error to raise: there is nothing
+        to attach it to.
+        """
+        station = SingleHarmonicRFStation(
+            voltage=1.0e6, phi_rf=0.0, harmonic=100
+        )
+        feedback = self._feedback(station=station)
+        loop = StationPhaseLoop(
+            feedback=feedback, reference_phase=self.REFERENCE, gain=0.2
+        )
+        self.assertIs(loop.station, station)
 
     def test_negative_latency_is_refused(self):
         with self.assertRaises(ValueError):

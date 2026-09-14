@@ -71,7 +71,7 @@ check).
   offsets (`delta_omega_rf`, `phi_rf_design`, the multi-section registration
   phase Ψ) enter **only** as demodulation/readout phases, never as grid
   geometry, and never as a rotation of the antenna-voltage state. Canonical
-  statement: the `IQCavityFeedbackTimingClass` class docstring (*RF-frequency
+  statement: the `IQCavityFeedbackCoarseGrid` class docstring (*RF-frequency
   offset* under Notes) and the design RST's *Interplay with the RF station*.
   Since the envelope split (§2.13) the propagated state is the two
   source-split components; the offsets reach the generator-sourced one only
@@ -81,7 +81,7 @@ check).
   flat `_rf_centers` / `_rf_centers_lengths` arrays are derived from it
   (`_rebuild_grid_arrays`) and can therefore not desync. The sanctioned READ
   surface is the three PUBLIC read-only properties on
-  `IQCavityFeedbackTimingClass` — `rf_centers`, `rf_centers_lengths` and
+  `IQCavityFeedbackCoarseGrid` — `rf_centers`, `rf_centers_lengths` and
   `forward_offset` (`cavity_feedback.py`, 1011/1042/1063 as of 2026-09-02,
   having been ~1006/1037/1058 the day before; grep the `def` lines, not the
   line numbers) — pinned by
@@ -368,7 +368,7 @@ decisions, root causes and rejected alternatives.
 ### 2.1 Review-driven cleanup & bug fixes (earliest pass)
 
 `PassiveCavity` deleted after porting its pre-fill capability into
-`IQCavityFeedbackTimingClass`; `"yorak"` placeholders removed; `±π/2`
+`IQCavityFeedbackCoarseGrid`; `"yorak"` placeholders removed; `±π/2`
 demodulation convention verified; base-class `np.floor→int` crash fixed;
 `voltage_setpoint` read-only-property bug fixed; multi-station
 `delta_omega_rf` guard added; `delta_omega_rf` phase-slip reworked to
@@ -697,7 +697,7 @@ Behaviour-preserving except where noted.
   `check_beam_kicks`) and the four thresholds (`max_step_angle`,
   `max_step_angle_hard`, `max_relative_kick`, `max_relative_kick_hard`). The
   feedback owns one instance (`self._euler_guard`); the `_check_*` methods on
-  `IQCavityFeedbackTimingClass` survive as thin delegating wrappers.
+  `IQCavityFeedbackCoarseGrid` survive as thin delegating wrappers.
 - **Controller separated from the feedback.** `generator_current_controller.py`
   gained the `GeneratorCurrentController` ABC above
   `GeneratorCurrentPIController`, so the feedback holds only an instance of
@@ -738,7 +738,7 @@ layers (prevention at attach, validation at run start):
   SET-from-slot: attaching now *overwrites* the feedback's
   `harmonic_index` with the slot, so a mismatch cannot arise through the
   attach at all;
-- at run start — `IQCavityFeedbackTimingClass._validate_multi_harmonic_slot`,
+- at run start — `IQCavityFeedbackCoarseGrid._validate_multi_harmonic_slot`,
   from `on_run_simulation` (the first hook that both knows the parent and
   still precedes every grid build). It also rejects a feedback that is
   *missing* from the list, and one occupying several slots. Reached only
@@ -795,7 +795,7 @@ silently disagree); `grid_only_no_correction` — **and nothing else** — stops
 the turn before any correction and writes the neutral readout. All three
 default `False`, which is bit-for-bit the old `debug=False` path.
 **MOVED 2026-09-11 (§2.21):** the three switches now exist only on the
-test variant `blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass`.
+test variant `blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid`.
 
 **(e) Coincident coarse point DUPLICATES the previous cell** (with a warning)
 instead of skipping it. A zero-length step carries zero elapsed time, so
@@ -1129,7 +1129,7 @@ historical — the copy is still the right contract.
 ### 2.18 Registration phase stored per segment (2026-09-11)
 
 **What.** The multi-section grid-vs-carrier phase is no longer bookkeeping
-on `IQCavityFeedbackTimingClass`. `RFCenterSegment` gained
+on `IQCavityFeedbackCoarseGrid`. `RFCenterSegment` gained
 `accumulated_phase` [rad], the running phase difference up to the end of
 that segment. `RFCenterGridMixin._close_previous_turn_grid` keeps the
 previous passage's forward segment (`_forward_segment_carried_into_turn`);
@@ -1204,7 +1204,7 @@ precomputed per cell.
 
 **The note** (envelope ODE, the exact step, Euler as its truncation, why
 Euler is only an approximation, size and cost) lives in the Notes of
-`IQCavityFeedbackTimingClass._advance_coarse_voltage`. The docstrings of
+`IQCavityFeedbackCoarseGrid._advance_coarse_voltage`. The docstrings of
 `exponential_voltage_multiplier`, `exponential_drive_weight`,
 `_kernel_step_multipliers` and the `envelope_kernel` module point to it.
 
@@ -1331,9 +1331,9 @@ class" -- audit item B13: `debug`, `validate_grid_each_turn` and
 tests.
 
 **What.** New `blond/testing/cavity_feedback.py` with
-`DiagnosticIQCavityFeedbackTimingClass(IQCavityFeedbackTimingClass)`, which
+`DiagnosticIQCavityFeedbackCoarseGrid(IQCavityFeedbackCoarseGrid)`, which
 takes the three switches as keyword-only arguments and forwards everything
-else. `IQCavityFeedbackTimingClass` lost the three constructor arguments
+else. `IQCavityFeedbackCoarseGrid` lost the three constructor arguments
 (passing one now raises `TypeError`), their attributes, the grid-only early
 return in `_track`, the validation block in `_rebuild_per_turn_grid` and
 `_write_no_correction_readout`; `RFCenterGridMixin` lost both `_debug`
@@ -1447,7 +1447,7 @@ asserted constant". The assert was KEPT deliberately; the two things around
 it are what changed.
 
 **What (A): the first passage's tail comes from the grid bookkeeping.**
-`IQCavityFeedbackTimingClass._seed_initial_demodulation_frame` (61 lines,
+`IQCavityFeedbackCoarseGrid._seed_initial_demodulation_frame` (61 lines,
 called from `on_run_simulation`) is gone. The rule it carried now lives in
 `RFCenterGridMixin._close_previous_turn_grid`, which produces every other
 segment tail: when no segment has ever been generated
@@ -1588,7 +1588,7 @@ subtests (612 / 8 / 323 before, +4 tests / +6 subtests). Full
 The coarse grid is the CAVITY MODEL's step. At the default
 `n_rf_periods_per_coarse_grid = 1` that is one RF period, so stepping the
 controller on every cell modelled an LLRF sampling at **1.3 GHz** — which
-no hardware does. `IQCavityFeedbackTimingClass` now takes
+no hardware does. `IQCavityFeedbackCoarseGrid` now takes
 `controller_update_interval` (default 1): the controller is evaluated every
 x-th coarse cell and its command is held, zero order, over the cells in
 between, while the cavity recursion keeps stepping every cell.
@@ -1946,6 +1946,61 @@ phase loop). Unreproduced so far; treat a single failure there as a flake
 until it repeats, and if it does, suspect order-dependent global state
 rather than the chain code.
 
+### 2.31 Loop attached to the feedback; Timing class renamed (2026-09-14)
+
+Maintainer request, after a design review of the phase-loop coupling.
+
+- **Attachment inverted.** `StationPhaseLoop(feedback=...)` replaces
+  `station=...`. The loop sets `feedback.phase_loop`, and
+  `RFStationBaseClass.phase_loop` **is gone** — nothing reaches back from a
+  station to a loop any more. `_clock_phase_loop` reads `self.phase_loop`
+  instead of `getattr(self._parent_rf_station, "phase_loop", None)`.
+  `loop.station` survives as a derived property (the feedback's parent) and
+  `loop.feedback` is new. `LocalFeedback` gained a public read-only
+  `parent_rf_station` property, which is what the derivation reads instead
+  of the private field.
+- **Why.** The feedback is both the loop's clock and its actuator, so the
+  dependency was loop -> station and feedback -> station -> loop for a
+  relationship that is really feedback -> loop. **The §2.30 guard is
+  therefore deleted**: a loop on a station without a feedback is now
+  unrepresentable rather than refused, because there is nothing to attach
+  it to. An error class was removed instead of being handled. The
+  "already carries a loop" guard stays, moved to the feedback.
+- **`IQCavityFeedbackTimingClass` -> `IQCavityFeedbackCoarseGrid`.**
+  "TimingClass" named nothing; what distinguishes it from
+  `IQCavityFeedbackBase` is that it integrates the envelope on the coarse
+  grid. 287 occurrences over 47 files, both repos and the docs, including
+  `DiagnosticIQCavityFeedbackTimingClass` in `blond/testing/` and two
+  tests that assert the mixin self-annotation **as a string** (they rename
+  with it). Not exported from any `__init__`, so no alias was needed on
+  this unmerged branch.
+- **The mixins are documented as what they are.** `RFCenterGridMixin` and
+  `GeneratorRegulationMixin` now say in their class docstrings that they
+  are NOT reusable mixins: every method annotates `self` as the concrete
+  class (21 and 7 methods respectively) and reaches into its state, so
+  they are file-level partitions of one 3600-line class, kept apart for
+  readability. The self-annotation is pinned by a test, so the coupling is
+  deliberate rather than accidental.
+- **Deliberately NOT done** (reviewed, rejected as churn for an
+  abstraction nobody asked for): splitting the class five ways into grid
+  geometry / station adapter / envelope solver / regulation / reference
+  modulation. The grid-geometry boundary is the only genuinely clean one;
+  the others are blurred by the accumulated-phase arrays that the solver
+  and the regulation both read. Left as a note here rather than a change.
+
+**Verification.** Full `tests/unittests`: **1834 passed / 89 skipped / 392
+subtests / 0 failed**. Feedbacks + cavities + simulation: 762 passed / 12
+skipped / 347 subtests (up 1 from §2.30: the guard test became
+`test_the_station_is_the_feedbacks_own`, and a second pins that the station
+no longer carries the attribute). Outer `cr_impedance_studies` (minus the
+convergence module): **150 passed**. Pre-commit clean on all 47 changed
+files except `check copyright` (bare-`python` 9009, §0); the venv check
+exits 0. TDD: the 11 arithmetic tests were moved to the new API first and
+observed RED (11 failed / 2 passed) before the implementation.
+
+**Note for whoever reads §2.30 next:** its guard no longer exists. The
+problem it solved is now structural.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam
@@ -2196,7 +2251,7 @@ rather than the chain code.
   this bullet, so nothing is lost if you do not have the file; see §6)
   was applied to `RFCenterGridMixin` (16 annotations) and never to
   `GeneratorRegulationMixin` (0), and nothing pinned it. Both mixins now
-  annotate every method's `self` as `IQCavityFeedbackTimingClass`, with the
+  annotate every method's `self` as `IQCavityFeedbackCoarseGrid`, with the
   host imported only under `TYPE_CHECKING` (the host inherits from the
   mixins, so a runtime import is a cycle), pinned by
   `TestMixinsDeclareTheirHost` in `test_cavity_feedback.py` — parametrised
@@ -2420,7 +2475,7 @@ sizes.
 
 | module | holds |
 |---|---|
-| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackTimingClass(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **ten** phase methods (§2.11, incl. `_clock_phase_loop` and `_update_frame_rotations`, which builds the four per-cell rotation arrays with the station clock `delta_phi_rf + phi_rf_loop` per cell and the beam step rotations, §2.26–2.28; `_absorb_phase_loop_step` came and went the same day), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_frame_rotations_of_cell{,s}` (§2.20), `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial` (states the demodulation frame as `demodulation_phase=np.pi` after `_assert_demodulation_frame_aligned` has checked the grid against it, §2.23), `reset_arrays` (incl. the gen-component seeding; its `_generator_active` refresh went 2026-09-12, §2.24), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_state_before_forward_span` and `_step_into_first_cell` (§2.22, which also deleted `_check_fine_grid_initial_condition_is_causal`), the pre-fill call. The `_check_step_sizes` / `_check_beam_kick_magnitude` / `_check_beam_kicks` wrappers and `self._euler_guard` were removed 2026-09-11 (§2.19); `_seed_initial_demodulation_frame` went 2026-09-12 (§2.23), its rule folded into `_close_previous_turn_grid` |
+| `cavity_feedback.py` | `IQCavityFeedbackBase` + `IQCavityFeedbackCoarseGrid(IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin)`. Per-turn orchestration: `_track` + its **ten** phase methods (§2.11, incl. `_clock_phase_loop` and `_update_frame_rotations`, which builds the four per-cell rotation arrays with the station clock `delta_phi_rf + phi_rf_loop` per cell and the beam step rotations, §2.26–2.28; `_absorb_phase_loop_step` came and went the same day), `circuit_track` → `_circuit_track_cells{,_python,_kernel}` + `_resolve_fine_grid_voltage`, the kernel glue (`_coarse_step_sizes`, `_kernel_step_multipliers`, `_kernel_beam_current`), `cavity_response` (advances the two source-split envelope components, §2.13), `_compose_coarse_sum`, `_frame_rotations_of_cell{,s}` (§2.20), `_advance_coarse_voltage`, `cavity_response_fine`, `calculate_rf_beam_current_partial` (states the demodulation frame as `demodulation_phase=np.pi` after `_assert_demodulation_frame_aligned` has checked the grid against it, §2.23), `reset_arrays` (incl. the gen-component seeding; its `_generator_active` refresh went 2026-09-12, §2.24), `on_run_simulation`, `_validate_multi_harmonic_slot`, `_state_before_forward_span` and `_step_into_first_cell` (§2.22, which also deleted `_check_fine_grid_initial_condition_is_causal`), the pre-fill call. The `_check_step_sizes` / `_check_beam_kick_magnitude` / `_check_beam_kicks` wrappers and `self._euler_guard` were removed 2026-09-11 (§2.19); `_seed_initial_demodulation_frame` went 2026-09-12 (§2.23), its rule folded into `_close_previous_turn_grid` |
 | `rf_center_grid.py` | `RFCenterGridMixin` — coarse `rf_centers` construction: the forward and **backfill** reference walks, `_generate_rf_centers`, segment generation (`_append_segment` / `_clear_segments` / `_rebuild_grid_arrays` / `_close_previous_turn_grid`, which since §2.23 also continues the tiling backwards to produce the FIRST passage's tail when the station opens the ring), `_preceding_segment_residual`, `_backfill_accumulated_phases` / `_backfill_center_phases` (§2.18, §2.20), `_validate_grid`, and the two direction selectors (`_reference_list_for_direction`, `_own_index_for_direction` — the *space*-sense reverse, §1.3). `_segments` is the single source of truth; the flat arrays are derived. Its module docstring is the canonical statement of the backfill-vs-reverse rule and of the design-clock-only geometry |
 | `rf_center_segment.py` | The two value classes and two pure helpers: `RFCenterSegment` (the four original fields load-bearing — see the correction in §2.11 — plus `accumulated_phase` since §2.18, with the ≥ 2-centres, `residual ∈ [0, duration]` and finite-phase validation), `PerTurnGridSpan` (`n_backfill_centers`, `n_forward_centers`, `residual_from_backfill_span`), `accumulated_phases` (§2.18) and `accumulated_phases_at_centers` (§2.20). Imported by `cavity_feedback.py` and `rf_center_grid.py` |
 | `cavity_solvers.py` | **mucol-only.** Fine-grid solvers `cavity_response_sparse_matrix` (forward-Euler) and `..._second_order` (Crank-Nicolson); the exact coarse-step arithmetic `coarse_step_exponent`, `exponential_voltage_multiplier`, `exponential_drive_weight` (spelled once for both the reference and the kernel path); `pretrack_fill_voltage`. (`euler_voltage_multiplier` and `ForwardEulerValidityGuard` were removed 2026-09-11, §2.19.) Its module docstring owns the `omega_times_dt` naming rule (§1.4) |

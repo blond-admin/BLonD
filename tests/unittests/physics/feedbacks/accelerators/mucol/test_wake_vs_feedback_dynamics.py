@@ -28,7 +28,7 @@ beam-induced voltage is produced:
   ``R_s = R_over_Q * Q_L``, ``f_r = 1 / t_rf``, ``Q = Q_L`` -- the retuning
   multi-pass resonator convolution, applied as a separate wake kick on top of
   the clean design voltage;
-* ring **B** (feedback): an ``IQCavityFeedbackTimingClass`` at its matched
+* ring **B** (feedback): an ``IQCavityFeedbackCoarseGrid`` at its matched
   operating point (``initial_voltage = V_DESIGN``,
   ``generator_current_bias = V_DESIGN / (2 R_over_Q Q_L)``, ``delta_omega = 0``)
   -- its gap voltage bundles the design reconstruction and the beam loading.
@@ -77,7 +77,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative import: the dirs above ``mucol`` have no __init__.py, so the
@@ -251,7 +251,7 @@ class TestWakeVsFeedbackDynamics(unittest.TestCase):
                 profile=profile,
             )
         elif mode == "feedback":
-            feedback = IQCavityFeedbackTimingClass(
+            feedback = IQCavityFeedbackCoarseGrid(
                 profile=profile,
                 R_over_Q=cls.R_OVER_Q,
                 Q_L=cls.Q_L,

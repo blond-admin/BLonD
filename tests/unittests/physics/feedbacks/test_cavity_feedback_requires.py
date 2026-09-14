@@ -9,13 +9,13 @@ base method would silently drop the init-ordering constraint.
 """
 
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 
 
 def test_timing_on_run_simulation_carries_own_requires() -> None:
     """The executed override itself declares its init-ordering deps."""
-    on_run_simulation = IQCavityFeedbackTimingClass.__dict__[
+    on_run_simulation = IQCavityFeedbackCoarseGrid.__dict__[
         "on_run_simulation"
     ]
     assert getattr(on_run_simulation, "requires", None) == [

@@ -12,11 +12,11 @@ and exercise the longitudinal-beam-loading models used for the muon-collider
 Rapid-Cycling Synchrotrons (RCS):
 
 * the I/Q cavity-feedback timing model
-  (``blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass``),
+  (``blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid``),
 * the standalone PI generator-current controller
   (``blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPIController``)
   and the feedback's controller-driven mode
-  (``IQCavityFeedbackTimingClass(controller=...)``),
+  (``IQCavityFeedbackCoarseGrid(controller=...)``),
 * the cavity-response solvers (``blond.physics.feedbacks.cavity_solvers``)
   and the beam-current demodulation
   (``blond.physics.feedbacks.beam_current``), and
@@ -125,7 +125,7 @@ Test modules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Unit tests for the I/Q cavity-feedback timing class
-(``IQCavityFeedbackTimingClass``): the coarse step on RCS1 parameters, a
+(``IQCavityFeedbackCoarseGrid``): the coarse step on RCS1 parameters, a
 single-turn benchmark of the beam-loading response, the cavity pre-fill /
 injection matching, the exact exponential coarse propagator, the shared
 coarse-step arithmetic behind both propagator paths, the constructor
@@ -168,7 +168,7 @@ The feedforward cavity pre-fill / injection matching. The no-beam,
 constant-current cavity fills from cold as ``V(t) = V_ss (1 - exp(lambda t))``;
 the helper ``blond.physics.feedbacks.cavity_solvers.pretrack_fill_voltage``
 returns the complex seed antenna voltage, and ``n_pretrack`` /
-``injection_voltage`` on ``IQCavityFeedbackTimingClass`` route it through
+``injection_voltage`` on ``IQCavityFeedbackCoarseGrid`` route it through
 ``on_run_simulation``. The PI controller (if any) does not act during the fill.
 
 ``test_steady_state_fill_on_resonance_matches_two_r_q_ql_ig``
@@ -215,7 +215,7 @@ per-cavity envelope obeys ``dV/dt = lambda V + s`` with the source ``s`` held
 constant, so ``V_{n+1} = e^L V_n + s dt (e^L - 1)/L`` with ``L = lambda dt``
 (the derivation, and why the retired forward-Euler step was only its
 first-order truncation, is in the Notes of
-``IQCavityFeedbackTimingClass._advance_coarse_voltage``). The expected values
+``IQCavityFeedbackCoarseGrid._advance_coarse_voltage``). The expected values
 are spelled out by hand with ``np.exp``, on steps large enough that a
 first-order truncation would be off by percent rather than by ULPs.
 
@@ -472,7 +472,7 @@ a recording stub controller -- rather than driving the controller alone.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Integration tests for the controller-driven cavity feedback: an
-``IQCavityFeedbackTimingClass`` with a ``GeneratorCurrentPIController`` attached
+``IQCavityFeedbackCoarseGrid`` with a ``GeneratorCurrentPIController`` attached
 (``controller=``). Module helpers ``build_controller``, ``build_feedback`` and
 ``run_coarse_transient`` construct an RCS1-like loop at its no-beam steady state
 and drive ``circuit_track`` on a hand-built constant-step grid with a beam
@@ -1096,7 +1096,7 @@ resonator convolution.
     The two solvers differ by the (first-order) Euler truncation error, which
     halves as the bin count doubles.
 ``test_second_order_flag_routes_through_the_class``
-    ``IQCavityFeedbackTimingClass(second_order_fine_grid_solver_enable=...)``
+    ``IQCavityFeedbackCoarseGrid(second_order_fine_grid_solver_enable=...)``
     reproduces the matching standalone solver bit-for-bit and lands far
     closer to the convolution.
 
@@ -1288,7 +1288,7 @@ handling) to the pre-merge behaviour.
 
 Compares the same single cavity modelled as a ``MultiPassResonatorSolver``
 (multi-turn resonator convolution) and as a non-driven
-``IQCavityFeedbackTimingClass`` whose antenna voltage, with the beam as the
+``IQCavityFeedbackCoarseGrid`` whose antenna voltage, with the beam as the
 only excitation, is the beam-induced voltage. ``make_noisy_profile`` builds the
 shared noisy-Gaussian static profile (edge bins zeroed).
 
@@ -1664,7 +1664,7 @@ comes first, tracked three turns with ``rf_beam_current`` wrapped in a mock.
     Every passage's ``omega_c * dT`` is within ``1e-6`` rad of ``pi``, and
     the first agrees with the second to ``1e-9``.
 ``test_the_feedback_has_no_run_start_seed_hook``
-    ``IQCavityFeedbackTimingClass._seed_initial_demodulation_frame`` must
+    ``IQCavityFeedbackCoarseGrid._seed_initial_demodulation_frame`` must
     stay absent -- the tail is produced by the grid, not by a run-start
     hook.
 
@@ -1736,7 +1736,7 @@ A self-consistent multi-turn *dynamics* twin: the same matched ``BiGaussian``
 ``mu_plus`` bunch is tracked through two full ``Simulation`` rings that differ
 **only** in the beam-induced-voltage model -- one uses the multi-pass resonator
 wake (``MultiPassResonatorSolver``, ``retune_to_rf=True``), the other a
-matched-bias non-driven ``IQCavityFeedbackTimingClass``
+matched-bias non-driven ``IQCavityFeedbackCoarseGrid``
 (``delta_omega = 0``). Where the neighbouring modules pin one slice of the
 equivalence (one turn of applied
 ``dE``; the induced voltage against an analytic reference), this closes the loop
@@ -2471,8 +2471,8 @@ collects nothing.
 after it.) The switches ``debug``, ``validate_grid_each_turn`` and
 ``grid_only_no_correction`` are consumed only by tests, so since 2026-09-11
 they live on the test variant
-``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
-and not on ``IQCavityFeedbackTimingClass``. The module's helper ``_track``
+``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid``
+and not on ``IQCavityFeedbackCoarseGrid``. The module's helper ``_track``
 tracks one or two turns of an undriven, beam-loading-free cavity
 (``R_over_Q = 0``, zero generator bias) on a single-station ring, harmonic
 5 and 5 m at 63 GeV/c. Its antenna voltage simply decays from
@@ -2720,10 +2720,10 @@ total whenever tests are added.
 
 ``test_rf_center_grid_mixin_self_is_typed_as_timing_class`` (module level)
     Every function in ``RFCenterGridMixin.__dict__`` must annotate ``self``
-    as ``"IQCavityFeedbackTimingClass"``, so the mixin keeps exposing its
+    as ``"IQCavityFeedbackCoarseGrid"``, so the mixin keeps exposing its
     concrete host type.
 
-``TestIQCavityFeedbackTimingClass``
+``TestIQCavityFeedbackCoarseGrid``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Grid geometry, end to end through a real ``Simulation``. Twelve methods
@@ -3226,14 +3226,14 @@ Mixin host contract
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 (``tests/unittests/physics/feedbacks/test_cavity_feedback.py``) Both
-feedback mixins are pure moves out of ``IQCavityFeedbackTimingClass``: their
+feedback mixins are pure moves out of ``IQCavityFeedbackCoarseGrid``: their
 methods run on a host instance and read host state they do not define. The
 dependency is real either way; these tests pin that it is *stated* rather than
 left for the reader to reconstruct from the attribute accesses.
 
 ``test_every_method_annotates_self_as_the_host``
     Every method of ``RFCenterGridMixin`` and ``GeneratorRegulationMixin``
-    annotates its ``self`` as ``IQCavityFeedbackTimingClass``. Parametrised
+    annotates its ``self`` as ``IQCavityFeedbackCoarseGrid``. Parametrised
     over both mixins, so neither can drift from the other -- which is exactly
     what had happened: the grid mixin carried the annotation and the
     regulation mixin did not.

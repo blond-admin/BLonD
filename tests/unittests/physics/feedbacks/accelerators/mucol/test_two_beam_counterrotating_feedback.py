@@ -54,7 +54,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Import the reference *module* (not the class) -- binding the TestCase class
@@ -205,7 +205,7 @@ def _build_two_beam_simulation(
             )
             collected.append(wakefield)
         else:
-            feedback = IQCavityFeedbackTimingClass(
+            feedback = IQCavityFeedbackCoarseGrid(
                 profile=profile,
                 R_over_Q=_base().MULTITURN_R_OVER_Q,
                 Q_L=_base().MULTITURN_Q_L,
@@ -1124,10 +1124,10 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
         walks: list[tuple[bool | None, bool]] = []
 
         original_call = (
-            IQCavityFeedbackTimingClass.calculate_rf_centers_for_backfill
+            IQCavityFeedbackCoarseGrid.calculate_rf_centers_for_backfill
         )
         original_walk = (
-            IQCavityFeedbackTimingClass.get_time_omega_array_backfill
+            IQCavityFeedbackCoarseGrid.get_time_omega_array_backfill
         )
 
         def recording_call(self, beam):
@@ -1151,12 +1151,12 @@ class TestBackfillWalkDirectionConsistency(unittest.TestCase):
 
         with (
             mock.patch.object(
-                IQCavityFeedbackTimingClass,
+                IQCavityFeedbackCoarseGrid,
                 "calculate_rf_centers_for_backfill",
                 recording_call,
             ),
             mock.patch.object(
-                IQCavityFeedbackTimingClass,
+                IQCavityFeedbackCoarseGrid,
                 "get_time_omega_array_backfill",
                 recording_walk,
             ),

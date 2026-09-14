@@ -64,6 +64,9 @@ if TYPE_CHECKING:
     from blond.physics.feedbacks.generator_current_controller import (
         GeneratorCurrentController,
     )
+    from blond.physics.feedbacks.station_phase_loop import (
+        StationPhaseLoop,
+    )
 
 
 class IQCavityFeedbackBase(LocalFeedback):
@@ -73,7 +76,7 @@ class IQCavityFeedbackBase(LocalFeedback):
     Abstract IQ-envelope cavity feedback: it owns the beam profile, the
     coarse/fine grid arrays and the RF-parameter accessors onto the
     parent RF station. The muon-collider
-    :class:`IQCavityFeedbackTimingClass` is its concrete subclass. The
+    :class:`IQCavityFeedbackCoarseGrid` is its concrete subclass. The
     vocabulary is defined in the "Concepts and notation" section of
     :ref:`mucol_cavity_feedback_overview`.
 
@@ -237,7 +240,7 @@ class IQCavityFeedbackBase(LocalFeedback):
         source-split components below,
         ``antenna_voltage_beam_coarse_grid +
         antenna_voltage_gen_coarse_grid * generator frame rotation``
-        (see ``IQCavityFeedbackTimingClass._update_frame_rotations``). The
+        (see ``IQCavityFeedbackCoarseGrid._update_frame_rotations``). The
         components are the propagated state; this sum is (re)composed from
         them cell by cell: with the CURRENT passage's rotation over the
         forward span, and over the backfill span with the rotation of the
@@ -604,7 +607,7 @@ class IQCavityFeedbackBase(LocalFeedback):
         )
 
 
-class IQCavityFeedbackTimingClass(
+class IQCavityFeedbackCoarseGrid(
     IQCavityFeedbackBase, RFCenterGridMixin, GeneratorRegulationMixin
 ):
     r"""
@@ -794,7 +797,7 @@ class IQCavityFeedbackTimingClass(
     (``validate_grid_each_turn``) or end the passage after the grid
     without a correction (``grid_only_no_correction``) are not part of
     this class. Only tests consume them, so they live on the test variant
-    ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``,
+    ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid``,
     which tracks bit-for-bit like this class with all three off.
 
     **Sub-stepping (** ``n_rf_periods_per_coarse_grid`` **< 1).** A
@@ -991,6 +994,13 @@ class IQCavityFeedbackTimingClass(
         # Per-cell phase-loop offsets a clocked loop produced for the
         # passage being tracked (backfill cells, then the forward offset);
         # ``None`` without a loop.
+        self.phase_loop: StationPhaseLoop | None = None
+        """The beam phase loop this feedback clocks, if any (set by
+        :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
+        on construction). It is run on this feedback's controller samples
+        and its output is carried into the parent station's
+        ``phi_rf_loop`` cell by cell; a feedback carries at most one."""
+
         self._clocked_phase_loop_offsets: NumpyArray | None = None
 
         # --- Optional feedforward cavity pre-fill / injection matching ---
@@ -3001,7 +3011,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         write land on the very next sample; it cannot reach this passage's
         kick either way, since the field has no time to move.
         """
-        loop = getattr(self._parent_rf_station, "phase_loop", None)
+        loop = self.phase_loop
         if loop is None:
             self._clocked_phase_loop_offsets = None
             return

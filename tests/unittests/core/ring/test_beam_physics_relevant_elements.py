@@ -21,7 +21,7 @@ from blond.core.ring.beam_physics_relevant_elements import (
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 
 
@@ -37,13 +37,13 @@ class TestFunctions(unittest.TestCase):
         self.assertIn("shape=(0,)", result)
 
     def test_print_one_turn_execution_order_with_untracked_feedback(self):
-        # Regression test: IQCavityFeedbackTimingClass holds empty
+        # Regression test: IQCavityFeedbackCoarseGrid holds empty
         # rf_centers arrays until the first tracked turn; printing the
         # execution order before tracking must not raise.
         harmonic = 35640
         t_rf = 26658.883 / 299792458.0 / harmonic
         profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 64, t_rf)
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=45.0,
             Q_L=2e4,

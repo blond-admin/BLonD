@@ -66,7 +66,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftSubstepped
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative import: the dirs above ``mucol`` have no __init__.py, so the
@@ -315,7 +315,7 @@ class TestFeedbackPhaseUnderAcceleration(unittest.TestCase):
         profile = StaticProfile.from_rad(
             cut_left_rad, cut_right_rad, cls.N_SLICES, t_rf
         )
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=cls.R_OVER_Q,
             Q_L=cls.Q_L,

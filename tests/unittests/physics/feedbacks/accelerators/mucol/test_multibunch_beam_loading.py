@@ -13,7 +13,7 @@ also three) Gaussian bunches at uneven spacings -- centres at 2 and 6 ``t_rf`` -
 so several coarse cells are populated with an empty gap between them. It then
 runs the same frozen-profile comparison as
 ``test_mtw_vs_nondriven_feedback.py`` (``profile.active = False``): the
-beam-induced voltage of the non-driven :class:`IQCavityFeedbackTimingClass` is
+beam-induced voltage of the non-driven :class:`IQCavityFeedbackCoarseGrid` is
 compared against the :class:`MultiPassResonatorSolver` convolution of the *same*
 cavity (``R_shunt = R_over_Q * Q_L``, ``f_res = 1 / t_rf``).
 
@@ -66,7 +66,7 @@ from blond import (
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Import the reference *module* (not the class). Binding
@@ -264,7 +264,7 @@ class TestSinglePassMultiBunch(unittest.TestCase):
         numpy.ndarray
             Lab-frame beam-induced voltage on the profile's fine grid.
         """
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -523,7 +523,7 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
             # Operating-point cavity (V_init = V_design), chosen when a cold
             # start still tripped the coarse-grid beam-kick check (removed
             # 2026-09-11); kept so the compared runs stay unchanged.
-            feedback = IQCavityFeedbackTimingClass(
+            feedback = IQCavityFeedbackCoarseGrid(
                 profile=profile,
                 R_over_Q=base.MULTITURN_R_OVER_Q,
                 Q_L=base.MULTITURN_Q_L,

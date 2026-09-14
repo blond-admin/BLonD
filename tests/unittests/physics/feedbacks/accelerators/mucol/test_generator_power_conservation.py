@@ -36,7 +36,7 @@ import numpy as np
 
 from blond import StaticProfile
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 from blond.physics.feedbacks.cavity_solvers import (
     cavity_response_sparse_matrix,
@@ -65,10 +65,10 @@ def build_feedback():
 
     Returns
     -------
-    IQCavityFeedbackTimingClass
+    IQCavityFeedbackCoarseGrid
         A feedback instance with the RCS1-like cavity parameters.
     """
-    return IQCavityFeedbackTimingClass(
+    return IQCavityFeedbackCoarseGrid(
         profile=StaticProfile.from_rad(1.5 * np.pi, 4.5 * np.pi, N_BINS, T_RF),
         R_over_Q=R_OVER_Q,
         Q_L=Q_L,

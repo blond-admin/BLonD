@@ -18,7 +18,7 @@ from blond import (
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 from blond.physics.feedbacks.cavity_solvers import (
     coarse_step_exponent,
@@ -38,7 +38,7 @@ DEBUG_PLOT = False
 
 
 class TestCavityFeedback(unittest.TestCase):
-    """The IQCavityFeedbackTimingClass coarse step on RCS1 parameters."""
+    """The IQCavityFeedbackCoarseGrid coarse step on RCS1 parameters."""
 
     def setUp(self):
         """Build a cavity feedback instance with RCS1 4-station parameters."""
@@ -58,7 +58,7 @@ class TestCavityFeedback(unittest.TestCase):
         self.n_rf_periods_per_coarse_grid = 1  # TODO: check for 2 and 0.5
         self.delta_omega = -6717.47508329349
 
-        self.cav_fdbk = IQCavityFeedbackTimingClass(
+        self.cav_fdbk = IQCavityFeedbackCoarseGrid(
             profile=self.prof,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -143,7 +143,7 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
     Benchmark FB against resonator induced voltage single turn.
 
     Benchmark the single-turn (fine-grid) cavity beam-loading response of
-    IQCavityFeedbackTimingClass against an independent resonator induced
+    IQCavityFeedbackCoarseGrid against an independent resonator induced
     voltage model, on a real Gaussian-plus-noise beam profile.
 
     The fine-grid antenna voltage (generator current zeroed) is the purely
@@ -197,7 +197,7 @@ class TestFineGridResonatorBenchmark(unittest.TestCase):
             omega_c=omega_rf,
             use_lowpass_filter=False,
         )
-        cav = IQCavityFeedbackTimingClass(
+        cav = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -495,7 +495,7 @@ class TestCavityPrefill(unittest.TestCase):
         t_rf
             RF period used to size the profile.
         **kwargs
-            Overrides forwarded to ``IQCavityFeedbackTimingClass``.
+            Overrides forwarded to ``IQCavityFeedbackCoarseGrid``.
 
         Returns
         -------
@@ -514,7 +514,7 @@ class TestCavityPrefill(unittest.TestCase):
             "delta_omega": 0.0,
         }
         params.update(kwargs)
-        feedback = IQCavityFeedbackTimingClass(**params)
+        feedback = IQCavityFeedbackCoarseGrid(**params)
         rf = SingleHarmonicRFStation(
             voltage=30e6,
             phi_rf=0.0,
@@ -551,7 +551,7 @@ class TestCavityPrefill(unittest.TestCase):
         """A no-beam cavity started at the fill seed does not drift."""
         n_steps = 30
         dt = 1.0 / self.f_rf
-        cav = IQCavityFeedbackTimingClass(
+        cav = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -611,7 +611,7 @@ class TestCavityPrefill(unittest.TestCase):
         # Half a bandwidth of detuning: enough to rotate the fixed point
         # well away from the real axis (arg = -26.6 deg here).
         delta_omega = 0.5 * self.omega_rf / (2.0 * self.Q_L)
-        cav = IQCavityFeedbackTimingClass(
+        cav = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -656,7 +656,7 @@ class TestCavityPrefill(unittest.TestCase):
         """Injection_voltage is meaningless without a pre-fill budget."""
         profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 1024, 1e-9)
         with self.assertRaises(ValueError) as cm:
-            IQCavityFeedbackTimingClass(
+            IQCavityFeedbackCoarseGrid(
                 profile=profile,
                 R_over_Q=self.R_over_Q,
                 Q_L=1.29e4,
@@ -760,7 +760,7 @@ class TestExactCoarsePropagator(unittest.TestCase):
         t_rf = 1.0 / 1.3e9
         omega = 2.0 * np.pi / t_rf
         delta_omega = 0.3 / t_rf
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             R_over_Q=self.R_over_Q,
             Q_L=Q_L,
@@ -834,7 +834,7 @@ class TestExactCoarsePropagator(unittest.TestCase):
 
         for use_kernel in (True, False):
             with self.subTest(use_numba_envelope_kernel=use_kernel):
-                feedback = IQCavityFeedbackTimingClass(
+                feedback = IQCavityFeedbackCoarseGrid(
                     profile=Mock(StaticProfile),
                     R_over_Q=self.R_over_Q,
                     Q_L=Q_L,
@@ -904,7 +904,7 @@ class TestExactCoarsePropagator(unittest.TestCase):
         ``delta_omega dt = 0.5``); the exact step only rotates.
         """
         # No decay (Q_L huge), no drive, a large per-step detuning rotation.
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             R_over_Q=self.R_over_Q,
             Q_L=1e18,
@@ -924,7 +924,7 @@ class TestExactCoarsePropagator(unittest.TestCase):
         """The retired coarse-solver switch is no longer accepted."""
         for value in (True, False):
             with self.subTest(value=value), self.assertRaises(TypeError):
-                IQCavityFeedbackTimingClass(
+                IQCavityFeedbackCoarseGrid(
                     profile=Mock(StaticProfile),
                     R_over_Q=self.R_over_Q,
                     Q_L=1.29e6,
@@ -950,16 +950,16 @@ class TestSharedCoarseStepArithmetic(unittest.TestCase):
     R_over_Q = 518.0
     Q_L = 1287601.7251526634
 
-    def _feedback(self) -> IQCavityFeedbackTimingClass:
+    def _feedback(self) -> IQCavityFeedbackCoarseGrid:
         """
         Build a minimal feedback exposing both coarse-step paths.
 
         Returns
         -------
-        IQCavityFeedbackTimingClass
+        IQCavityFeedbackCoarseGrid
             Default-constructed feedback instance.
         """
-        return IQCavityFeedbackTimingClass(
+        return IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -1061,10 +1061,10 @@ class TestVoltageSetpointValidation(unittest.TestCase):
 
         Returns
         -------
-        IQCavityFeedbackTimingClass
+        IQCavityFeedbackCoarseGrid
             The constructed feedback.
         """
-        return IQCavityFeedbackTimingClass(
+        return IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             R_over_Q=518.0,
             Q_L=1.29e6,
@@ -1145,7 +1145,7 @@ class TestFineGridSeedPrecedesTheWindow(unittest.TestCase):
         profile = StaticProfile.from_rad(
             cut_left_rad, cut_left_rad + 3.0 * np.pi, self.n_bins, self.t_rf
         )
-        cav = IQCavityFeedbackTimingClass(
+        cav = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,

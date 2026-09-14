@@ -38,7 +38,7 @@ from blond import (
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
     GeneratorCurrentPIController,
@@ -209,7 +209,7 @@ def _run_config(
             controller.update_generator_current = _counting_update
         if not use_controller:
             controller = None
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,
@@ -247,13 +247,13 @@ def _run_config(
                 station.delta_omega_rf = delta_omega_rf
         stations.append(station)
         feedbacks.append(feedback)
-        # The phase loop is attached to its station (run first in the
-        # station's track), regulating to a launch phase it is told once
+        # The phase loop is attached to the station's cavity feedback,
+        # which clocks it, regulating to a launch phase it is told once
         # the bunch exists.
         if phase_loop is not None:
             loop_elements.append(
                 StationPhaseLoop(
-                    station=station,
+                    feedback=feedback,
                     reference_phase=0.0,
                     gain=phase_loop["gain"],
                     n_delay=phase_loop["n_delay"],
@@ -1204,7 +1204,7 @@ class TestTrackReadsTheForwardSegmentPhase(unittest.TestCase):
             carrier_slip_gap)`` tuple per passage, in passage order.
         """
         passages: dict = {}
-        original_track = IQCavityFeedbackTimingClass._track
+        original_track = IQCavityFeedbackCoarseGrid._track
 
         def recording_track(feedback, beam):
             original_track(feedback, beam)
@@ -1217,7 +1217,7 @@ class TestTrackReadsTheForwardSegmentPhase(unittest.TestCase):
             )
 
         with mock.patch.object(
-            IQCavityFeedbackTimingClass, "_track", recording_track
+            IQCavityFeedbackCoarseGrid, "_track", recording_track
         ):
             _run_config(
                 n_sections,
@@ -2235,7 +2235,7 @@ class TestKernelMatchesReferenceEndToEnd(unittest.TestCase):
         match the reference (the isolated regression lives in
         test_envelope_kernel.py; this is the whole-simulation counterpart).
         """
-        cls = IQCavityFeedbackTimingClass
+        cls = IQCavityFeedbackCoarseGrid
         original = cls.use_numba_envelope_kernel
         try:
             cls.use_numba_envelope_kernel = True

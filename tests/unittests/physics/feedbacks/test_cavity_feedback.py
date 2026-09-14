@@ -5,7 +5,7 @@ tests moved to test_rf_center_grid.py and test_rf_center_segment.py when
 the grid builder and value class were split into their own modules. The
 diagnostic-switch tests moved to tests/unittests/testing/
 test_cavity_feedback.py with the switches, which now live on
-``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``.
+``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid``.
 """
 
 import importlib
@@ -31,7 +31,7 @@ from blond import (
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks import cavity_feedback as cavity_feedback_module
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
 )
@@ -52,7 +52,7 @@ class TestIQCavityFeedbackObservationClass(unittest.TestCase):
     pass
 
 
-def _is_neutral_readout(feedback: IQCavityFeedbackTimingClass) -> bool:
+def _is_neutral_readout(feedback: IQCavityFeedbackCoarseGrid) -> bool:
     """
     Whether the feedback wrote the no-correction readout.
 
@@ -73,14 +73,14 @@ def _is_neutral_readout(feedback: IQCavityFeedbackTimingClass) -> bool:
     )
 
 
-def _make_bare_feedback(**feedback_kwargs) -> IQCavityFeedbackTimingClass:
+def _make_bare_feedback(**feedback_kwargs) -> IQCavityFeedbackCoarseGrid:
     """
     Build a feedback without a simulation, on a mocked profile.
 
     Parameters
     ----------
     **feedback_kwargs
-        Overrides for the :class:`IQCavityFeedbackTimingClass`
+        Overrides for the :class:`IQCavityFeedbackCoarseGrid`
         constructor defaults.
 
     Returns
@@ -98,7 +98,7 @@ def _make_bare_feedback(**feedback_kwargs) -> IQCavityFeedbackTimingClass:
         "n_rf_periods_per_coarse_grid": 1,
     }
     params.update(feedback_kwargs)
-    return IQCavityFeedbackTimingClass(**params)
+    return IQCavityFeedbackCoarseGrid(**params)
 
 
 class _MultiHarmonicStationStub:
@@ -152,7 +152,7 @@ class TestConstructorHarmonicIndexValidation:
 class TestMultiHarmonicParentResolution:
     """RF-parameter accessors on a multi-harmonic parent station."""
 
-    def _feedback_with_stub_parent(self) -> IQCavityFeedbackTimingClass:
+    def _feedback_with_stub_parent(self) -> IQCavityFeedbackCoarseGrid:
         feedback = _make_bare_feedback()
         # Assigned directly: set_parent_rf_station() rejects anything but
         # the real station classes, and only the isinstance dispatch of
@@ -266,7 +266,7 @@ def _run_simulation_turns(rf_station, n_turns: int) -> Beam:
 
 def _make_full_run_feedback(
     profile: StaticProfile, **feedback_kwargs
-) -> IQCavityFeedbackTimingClass:
+) -> IQCavityFeedbackCoarseGrid:
     """
     Build a feedback for the full-simulation multi-harmonic tests.
 
@@ -292,7 +292,7 @@ def _make_full_run_feedback(
         "n_rf_periods_per_coarse_grid": 1,
     }
     params.update(feedback_kwargs)
-    return IQCavityFeedbackTimingClass(**params)
+    return IQCavityFeedbackCoarseGrid(**params)
 
 
 class TestDegenerateMultiHarmonicMatchesSingleHarmonic:
@@ -530,7 +530,7 @@ class TestHarmonicSlotAgreementIsEnforcedAtRunStart:
 
 
 def _prepare_hand_built_grid(
-    feedback: IQCavityFeedbackTimingClass, rf_centers
+    feedback: IQCavityFeedbackCoarseGrid, rf_centers
 ) -> None:
     """
     Install a hand-built coarse grid and size the IQ arrays for it.
@@ -743,7 +743,7 @@ class TestCoarseCellStepSizing:
         # A coincident (zero) step makes the vectorised sizing return
         # None, and the kernel path must then fall back to the reference
         # loop -- reproducing its warning and its result exactly.
-        def _degenerate_feedback() -> IQCavityFeedbackTimingClass:
+        def _degenerate_feedback() -> IQCavityFeedbackCoarseGrid:
             feedback = _make_bare_feedback(
                 R_over_Q=518.0, generator_current_bias=0.01
             )
@@ -797,7 +797,7 @@ class TestMixinsDeclareTheirHost:
     Both feedback mixins declare the host class they need, machine-checkably.
 
     ``RFCenterGridMixin`` and ``GeneratorRegulationMixin`` are pure moves out
-    of ``IQCavityFeedbackTimingClass``: their methods run on a host instance
+    of ``IQCavityFeedbackCoarseGrid``: their methods run on a host instance
     and read host state they do not define. That dependency is real either
     way -- the question is only whether it is *stated*. Annotating ``self``
     as the host type states it in the one place a reader and a type checker
@@ -812,7 +812,7 @@ class TestMixinsDeclareTheirHost:
     """
 
     #: The mixins under contract, and the host they run on.
-    HOST = "IQCavityFeedbackTimingClass"
+    HOST = "IQCavityFeedbackCoarseGrid"
 
     @staticmethod
     def _mixin_functions(mixin) -> dict:
@@ -893,7 +893,7 @@ class TestCoarseGridAccessorsAreStatedPublic(unittest.TestCase):
     """
 
     @staticmethod
-    def _feedback_with_backfill() -> IQCavityFeedbackTimingClass:
+    def _feedback_with_backfill() -> IQCavityFeedbackCoarseGrid:
         """
         A feedback holding a 12-cell grid split 8 backfill + 4 forward.
 

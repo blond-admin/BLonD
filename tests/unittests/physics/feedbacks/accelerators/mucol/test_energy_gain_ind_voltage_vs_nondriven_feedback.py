@@ -7,7 +7,7 @@ particles is the same whether it comes from
 
 * the multi-turn resonator solver (:class:`MultiPassResonatorSolver`,
   applied as a separate wake kick), or
-* an :class:`IQCavityFeedbackTimingClass` at its operating point
+* an :class:`IQCavityFeedbackCoarseGrid` at its operating point
   (``V_init = V_design`` held by the matched generator current
   ``I_g = V / (2 (R/Q) Q_L)``, ``n_cavities = 1``), whose gap voltage is the
   lab-frame antenna voltage; the beam-induced part is isolated by subtracting
@@ -58,7 +58,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative import: the dirs above ``mucol`` have no __init__.py, so
@@ -175,7 +175,7 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
             matched_generator_current = self.V_design / (
                 2.0 * self.R_over_Q * self.Q_L
             )
-            feedback = IQCavityFeedbackTimingClass(
+            feedback = IQCavityFeedbackCoarseGrid(
                 profile=profile,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,

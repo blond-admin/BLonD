@@ -50,7 +50,7 @@ from blond import (
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 
 #: RCS1-like cavity and ring parameters, shared with the sibling
 #: MTW-vs-feedback energy-gain test so both pin the same fixture.
@@ -135,7 +135,7 @@ class TestBeamLoadingSignVsDesignRfPhase(unittest.TestCase):
         # equation at zero detuning). A cold or undriven cavity used to
         # trip the coarse-grid beam-kick check (removed 2026-09-11); the
         # operating point is kept.
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,
@@ -662,7 +662,7 @@ class TestFirstPassageDemodulationFrame(unittest.TestCase):
         sibling = TestBeamLoadingSignVsDesignRfPhase
         profile = sibling._make_profile()
         ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,
@@ -726,7 +726,7 @@ class TestFirstPassageDemodulationFrame(unittest.TestCase):
         """The tail is produced by the grid, not by a run-start hook."""
         self.assertFalse(
             hasattr(
-                IQCavityFeedbackTimingClass,
+                IQCavityFeedbackCoarseGrid,
                 "_seed_initial_demodulation_frame",
             ),
             "the first passage's tail is seeded by a run-start hook; it "

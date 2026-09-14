@@ -207,7 +207,7 @@ monotonic and differencing across a segment boundary is meaningless), and
 its step is that segment's *design* RF period (so it is phase-consistent
 but *not* uniformly spaced in time). Both are documented once, in the
 "The coarse grid" part of the Notes of
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
 -- read that before indexing or differencing the array; this page does not
 repeat it.
 
@@ -338,7 +338,7 @@ Classes at a glance
     concrete subclass is the muon-collider timing class below, which owns
     the beam-current demodulation and all tracking.
 
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
     The muon-collider cavity model. Tracks the antenna voltage of one RF
     station's cavities on a coarse time grid whose geometry follows the
     *design* RF clock turn by turn (including acceleration and multiple
@@ -453,7 +453,8 @@ Classes at a glance
     Set the flag ``False`` on an instance to force the reference path.
 
 :mod:`blond.physics.feedbacks.station_phase_loop`
-    ``StationPhaseLoop``, a beam phase loop attached to one RF station
+    ``StationPhaseLoop``, a beam phase loop attached to one cavity
+    feedback, which clocks it and writes its parent RF station's phase
     (the station's ``phase_loop`` attribute) and run by that station's
     cavity feedback on the feedback's controller clock. It is
     beam-blind: at every passage of whichever bunch the feedback hands it
@@ -616,7 +617,7 @@ Each turn the timing class runs:
    per-cell backfill rotations of step 4.
 
 6. *Test variant only.* The production class goes straight on to step 7.
-   ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass``
+   ``blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid``
    adds three switches there that only tests consume. With
    ``grid_only_no_correction=True`` it ends the passage here: it skips
    the forward span and writes the neutral readout (unit relative
@@ -797,7 +798,7 @@ directly by ``TestUndrivenGeneratorComponentNeedsNoGate``.
 The derivation of this step -- and why the forward-Euler update
 ``V[n+1] = (1 + L) V[n] + s dt`` that BLonD 2's ``LHCCavityLoop`` used, and
 that this class inherited as its default, is only its first-order truncation
--- is in the Notes of ``IQCavityFeedbackTimingClass._advance_coarse_voltage``.
+-- is in the Notes of ``IQCavityFeedbackCoarseGrid._advance_coarse_voltage``.
 In short: the exponential step is exact for a piecewise-constant source at
 any step length, ``|e^L| <= 1`` for every step, and a pure detuning is a pure
 rotation. The Euler step has an ``O(L^2)`` local error, grows ``|V|`` by

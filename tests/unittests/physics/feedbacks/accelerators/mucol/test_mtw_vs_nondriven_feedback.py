@@ -19,7 +19,7 @@ Both compare the *same* single cavity
 
 * a :class:`MultiPassResonatorSolver` -- the multi-turn resonator convolution,
   and
-* an :class:`IQCavityFeedbackTimingClass` whose antenna voltage, with the beam
+* an :class:`IQCavityFeedbackCoarseGrid` whose antenna voltage, with the beam
   as the only excitation, is the beam-induced voltage.
 
 In the single-pass class both objects are driven directly on the static
@@ -70,7 +70,7 @@ from blond import (
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 
 # Package-relative imports: the dirs above ``mucol`` have no __init__.py, so
@@ -204,7 +204,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
         numpy.ndarray
             Lab-frame beam-induced voltage on the profile's fine grid.
         """
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=self.noisy_profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -315,7 +315,7 @@ class TestSinglePassInducedVoltage(unittest.TestCase):
 
     def test_feedback_without_beam_or_generator_is_silent(self):
         """A non-driven feedback with zero initial voltage induces nothing."""
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=self.noisy_profile,
             R_over_Q=self.R_over_Q,
             Q_L=self.Q_L,
@@ -700,7 +700,7 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                 # cold start (V_init = 0) still tripped the coarse-grid
                 # beam-kick check (removed 2026-09-11); kept so the compared
                 # runs stay unchanged.
-                feedback = IQCavityFeedbackTimingClass(
+                feedback = IQCavityFeedbackCoarseGrid(
                     profile=profile,
                     R_over_Q=cls.MULTITURN_R_OVER_Q,
                     Q_L=Q_L,

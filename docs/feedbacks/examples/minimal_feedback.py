@@ -10,7 +10,7 @@
 Minimal executable setup of the muon-collider cavity feedback.
 
 Tracks one turn on a constant-energy ring with two RF stations, each driven
-by an ``IQCavityFeedbackTimingClass`` and a PI generator-current controller,
+by an ``IQCavityFeedbackCoarseGrid`` and a PI generator-current controller,
 and returns every station's fine-grid antenna-voltage envelope. Nothing is
 written to disk. Run from the BLonD root::
 
@@ -32,7 +32,7 @@ from blond import (
     mu_minus,
     mu_plus,
 )
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
@@ -139,7 +139,7 @@ def run_example(
             generator_current_bias=GENERATOR_CURRENT + 0.0j,
             n_delay=N_DELAY,
         )
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=R_OVER_Q,
             Q_L=Q_L,

@@ -4,7 +4,7 @@ Edge cases of the feedback's station readout that had no coverage.
 Three behaviours were added or changed without a test pinning them:
 
 * the zero-parent-voltage guard in
-  :meth:`IQCavityFeedbackTimingClass._write_station_readout`, which stops a
+  :meth:`IQCavityFeedbackCoarseGrid._write_station_readout`, which stops a
   harmonic driven at ``V = 0`` from poisoning the summed gap voltage with
   ``NaN``;
 * the one-shot warning emitted when a station carries several cavity
@@ -34,7 +34,7 @@ from blond import (
     mu_plus,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 
 #: RCS1-like cavity and ring, shared with the sibling beam-loading tests.
 R_OVER_Q = 518.0
@@ -52,7 +52,7 @@ N_TURNS = 2
 
 def _feedback(profile):
     """Operating-point feedback on `profile`."""
-    return IQCavityFeedbackTimingClass(
+    return IQCavityFeedbackCoarseGrid(
         profile=profile,
         R_over_Q=R_OVER_Q,
         Q_L=Q_L,

@@ -9,8 +9,8 @@
 """
 Diagnostic variant of the IQ cavity feedback, for tests.
 
-:class:`DiagnosticIQCavityFeedbackTimingClass` is
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`DiagnosticIQCavityFeedbackCoarseGrid` is
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
 plus three switches that only tests consume, which is why the production
 class does not carry them:
 
@@ -35,14 +35,14 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.physics.feedbacks.rf_center_segment import PerTurnGridSpan
 
 
-class DiagnosticIQCavityFeedbackTimingClass(IQCavityFeedbackTimingClass):
+class DiagnosticIQCavityFeedbackCoarseGrid(IQCavityFeedbackCoarseGrid):
     """
     IQ cavity feedback with the test-only diagnostic switches.
 
@@ -50,7 +50,7 @@ class DiagnosticIQCavityFeedbackTimingClass(IQCavityFeedbackTimingClass):
     ----------
     *args
         Positional arguments of
-        :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`.
+        :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`.
     debug
         Record the inspection-only grid snapshots: after every forward
         projection the walked element slice
@@ -75,7 +75,7 @@ class DiagnosticIQCavityFeedbackTimingClass(IQCavityFeedbackTimingClass):
         geometry in isolation. Default is False.
     **kwargs
         Keyword arguments of
-        :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`.
+        :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`.
     """
 
     def __init__(

@@ -8,7 +8,7 @@ import numpy as np
 from blond import StaticProfile
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
@@ -79,7 +79,7 @@ _DEFAULT_CONTROLLER = object()
 
 def build_feedback(controller=_DEFAULT_CONTROLLER, **kwargs):
     """
-    Construct an IQCavityFeedbackTimingClass with RCS1-like defaults.
+    Construct an IQCavityFeedbackCoarseGrid with RCS1-like defaults.
 
     Parameters
     ----------
@@ -91,7 +91,7 @@ def build_feedback(controller=_DEFAULT_CONTROLLER, **kwargs):
 
     Returns
     -------
-    IQCavityFeedbackTimingClass
+    IQCavityFeedbackCoarseGrid
         Feedback instance initialised at the no-beam steady state.
     """
     if controller is _DEFAULT_CONTROLLER:
@@ -109,7 +109,7 @@ def build_feedback(controller=_DEFAULT_CONTROLLER, **kwargs):
         "initial_voltage": V0,
     }
     params.update(kwargs)
-    return IQCavityFeedbackTimingClass(**params)
+    return IQCavityFeedbackCoarseGrid(**params)
 
 
 def run_coarse_transient(

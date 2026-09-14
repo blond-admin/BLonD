@@ -366,11 +366,11 @@ class TestPIErrorFrame(unittest.TestCase):
         from unittest.mock import Mock, PropertyMock, patch
 
         from blond.physics.feedbacks.cavity_feedback import (
-            IQCavityFeedbackTimingClass,
+            IQCavityFeedbackCoarseGrid,
         )
         from blond.physics.profiles import StaticProfile
 
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=518.0,
@@ -381,7 +381,7 @@ class TestPIErrorFrame(unittest.TestCase):
         # delta_phi_rf is a read-only view of the parent station's kick
         # clock; patch it for the duration of the wiring.
         self._delta_phi_patch = patch.object(
-            IQCavityFeedbackTimingClass,
+            IQCavityFeedbackCoarseGrid,
             "delta_phi_rf",
             new_callable=PropertyMock,
             return_value=delta_phi_rf,
@@ -391,7 +391,7 @@ class TestPIErrorFrame(unittest.TestCase):
         # So is the per-station phase-loop offset, the other term of the
         # station clock; no such loop acts here.
         self._phi_rf_loop_patch = patch.object(
-            IQCavityFeedbackTimingClass,
+            IQCavityFeedbackCoarseGrid,
             "phi_rf_loop",
             new_callable=PropertyMock,
             return_value=0.0,

@@ -22,7 +22,7 @@ from blond import (
 )
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 
 HARMONIC = 5
@@ -87,9 +87,9 @@ def _make_cavity_feedback(harmonic_index: int = 0):
     Returns
     -------
     feedback
-        An `IQCavityFeedbackTimingClass`, not attached to any station.
+        An `IQCavityFeedbackCoarseGrid`, not attached to any station.
     """
-    return IQCavityFeedbackTimingClass(
+    return IQCavityFeedbackCoarseGrid(
         profile=_make_profile(),
         R_over_Q=0.0,
         Q_L=100.0,

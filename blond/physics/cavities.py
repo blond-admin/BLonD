@@ -57,9 +57,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.feedbacks.beam_feedback import (
         BeamFeedbackBase,
     )
-    from blond.physics.feedbacks.station_phase_loop import (
-        StationPhaseLoop,
-    )
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -392,14 +389,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         A phase STEP of the RF reference, unlike the frequency slip that
         ``delta_phi_rf`` accumulates: a cavity feedback on this station
         keeps the beam-induced field it carries in place when the offset
-        changes, and lets its generator field walk off by the change."""
-
-        self.phase_loop: StationPhaseLoop | None = None
-        """The beam phase loop attached to this station, if any (set by
-        :class:`~blond.physics.feedbacks.station_phase_loop.StationPhaseLoop`
-        on construction). It is run by this station's cavity feedback on
-        the feedback's controller clock, which writes ``phi_rf_loop``
-        from it; a station without a cavity feedback never runs it."""
+        changes, and lets its generator field walk off by the change.
+        Written by that feedback, which owns the loop and clocks it; the
+        station holds the offset and nothing more."""
 
         # `phase_correction_frequency_offset` is used to apply
         # the phase shift that was caused in

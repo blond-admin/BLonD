@@ -29,7 +29,7 @@ from blond import (
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 from blond.physics.feedbacks.rf_center_segment import (
     PerTurnGridSpan,
@@ -130,7 +130,7 @@ class TestRFCenterSegment:
     @staticmethod
     def _bare_feedback():
         profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
-        return IQCavityFeedbackTimingClass(
+        return IQCavityFeedbackCoarseGrid(
             profile=profile,
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=0,

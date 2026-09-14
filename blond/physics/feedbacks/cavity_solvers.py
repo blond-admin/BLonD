@@ -11,7 +11,7 @@
 Muon-collider cavity-response solvers.
 
 These are used only by the muon-collider timing-class feedback
-(:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`).
+(:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`).
 :func:`cavity_response_sparse_matrix` is the first-order (forward-Euler)
 fine-grid solver the timing class uses by default;
 :func:`cavity_response_sparse_matrix_second_order` is its second-order
@@ -26,7 +26,7 @@ They live here so that the per-cell (reference) and vectorised
 :mod:`~blond.physics.feedbacks.cavity_feedback` spell the step arithmetic
 once. The derivation of that step -- and why the forward-Euler coarse step it
 replaced (removed 2026-09-11) was only its first-order truncation -- is in
-the Notes of ``IQCavityFeedbackTimingClass._advance_coarse_voltage``.
+the Notes of ``IQCavityFeedbackCoarseGrid._advance_coarse_voltage``.
 :func:`propagate_beam_free_voltage` applies the same closed form to the
 beam-free seed propagation.
 
@@ -469,7 +469,7 @@ def exponential_voltage_multiplier(
     cavity decay and the detuning rotation exactly, so ``|B| <= 1`` for every
     step. Derivation, and how the retired forward-Euler factor ``1 + L``
     truncates it: Notes of
-    ``IQCavityFeedbackTimingClass._advance_coarse_voltage``.
+    ``IQCavityFeedbackCoarseGrid._advance_coarse_voltage``.
 
     Parameters
     ----------
@@ -493,7 +493,7 @@ def exponential_drive_weight(
 
     Weight of the piecewise-constant per-step drive in the exact propagator
     ``V_next = e^L V + src * W`` (derived in the Notes of
-    ``IQCavityFeedbackTimingClass._advance_coarse_voltage``; the retired
+    ``IQCavityFeedbackCoarseGrid._advance_coarse_voltage``; the retired
     forward-Euler step used ``W = 1``, its zeroth-order truncation).
     ``np.expm1`` keeps it accurate (``-> 1``) as ``L -> 0``.
 

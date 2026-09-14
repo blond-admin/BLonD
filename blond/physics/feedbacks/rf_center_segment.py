@@ -78,7 +78,7 @@ class RFCenterSegment:
     """The coarse-grid centre times [s] of this segment. Always holds at
     least two centres -- enforced in ``__post_init__``, and relied on by the
     coincidence-guard cell width of
-    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`."""
+    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`."""
     accumulated_phase: float = 0.0
     """Grid-vs-carrier phase [rad] accumulated up to the end of this segment.
 
@@ -164,7 +164,7 @@ class PerTurnGridSpan:
     The per-turn coarse-grid span produced by one grid rebuild.
 
     Carries the three values the later phases of
-    ``IQCavityFeedbackTimingClass._track`` need from the grid rebuild.
+    ``IQCavityFeedbackCoarseGrid._track`` need from the grid rebuild.
     They are *returned* rather than left on the feedback so that the
     ordering is enforced by the data flow: in particular
     ``residual_from_backfill_span`` can only be read from a span object, and
@@ -181,7 +181,7 @@ class PerTurnGridSpan:
     """``_residual_time_last_rf_centers_calculation`` [s] as it stood after the
     backfill segments and BEFORE the forward generation overwrote it. This is
     the demodulation frame
-    :meth:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass.calculate_rf_beam_current_partial`
+    :meth:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid.calculate_rf_beam_current_partial`
     needs; re-reading the host attribute later yields the forward value and
     silently shifts the frame."""
 

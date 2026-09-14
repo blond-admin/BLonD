@@ -32,7 +32,7 @@ from blond import (
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.cavities import RFStationBaseClass
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
     RFCenterSegment,
 )
 from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
@@ -40,7 +40,7 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.testing.cavity_feedback import (
-    DiagnosticIQCavityFeedbackTimingClass,
+    DiagnosticIQCavityFeedbackCoarseGrid,
 )
 
 DEBUG_PLOTTING = False
@@ -56,9 +56,9 @@ def test_rf_center_grid_mixin_self_is_typed_as_timing_class() -> None:
 
     for method in mixin_methods:
         self_parameter = inspect.signature(method).parameters["self"]
-        assert self_parameter.annotation == "IQCavityFeedbackTimingClass", (
+        assert self_parameter.annotation == "IQCavityFeedbackCoarseGrid", (
             f"{method.__name__}.self is not typed as "
-            "IQCavityFeedbackTimingClass"
+            "IQCavityFeedbackCoarseGrid"
         )
 
 
@@ -129,7 +129,7 @@ test_data_discontinuity = [
 ]
 
 
-class TestIQCavityFeedbackTimingClass:
+class TestIQCavityFeedbackCoarseGrid:
     def setup_simulation(self):
         # single section
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
@@ -150,7 +150,7 @@ class TestIQCavityFeedbackTimingClass:
 
     def _make_timing_feedback(self, n_rf_periods_per_coarse_grid, **kwargs):
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
-        return IQCavityFeedbackTimingClass(
+        return IQCavityFeedbackCoarseGrid(
             profile=self.profile,
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
             R_over_Q=0,
@@ -202,7 +202,7 @@ class TestIQCavityFeedbackTimingClass:
         # produced the now-rejected single-centre forward segments.
         self.harmonic = max(5, 2 * int(np.ceil(n_rf_points)))
         self.setup_simulation()
-        cav_fdbk_timing = IQCavityFeedbackTimingClass(
+        cav_fdbk_timing = IQCavityFeedbackCoarseGrid(
             profile=self.profile,
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=0,
@@ -361,7 +361,7 @@ class TestIQCavityFeedbackTimingClass:
         r_over_q = 518.0
         v_ss = 1.0e6
         i_gen = v_ss / (2.0 * r_over_q * Q_L)
-        cav_fdbk_timing = IQCavityFeedbackTimingClass(
+        cav_fdbk_timing = IQCavityFeedbackCoarseGrid(
             profile=self.profile,
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=r_over_q,
@@ -449,7 +449,7 @@ class TestIQCavityFeedbackTimingClass:
         # n = 3 / harmonic 5 geometry).
         self.harmonic = max(5, 2 * int(np.ceil(n_rf_points)))
         self.setup_simulation()
-        cav_fdbk_timing = IQCavityFeedbackTimingClass(
+        cav_fdbk_timing = IQCavityFeedbackCoarseGrid(
             profile=self.profile,
             n_rf_periods_per_coarse_grid=n_rf_points,
             R_over_Q=0,
@@ -614,7 +614,7 @@ class TestIQCavityFeedbackTimingClass:
                 # counter-rotating mainloop's placement check).
                 element_list.append(self.profile)
             timing_fdbk_list.append(
-                DiagnosticIQCavityFeedbackTimingClass(
+                DiagnosticIQCavityFeedbackCoarseGrid(
                     profile=self.profile,
                     n_rf_periods_per_coarse_grid=n_rf_points,
                     # ``debug`` records the inspection-only grid
@@ -742,7 +742,7 @@ class TestIQCavityFeedbackTimingClass:
             omega_list = []
             rf_centers_list = []
             for fdbk in timing_fdbk_list:
-                fdbk: IQCavityFeedbackTimingClass
+                fdbk: IQCavityFeedbackCoarseGrid
                 if (
                     fdbk._parent_rf_station
                     not in fdbk.current_slice_elements_forward
@@ -839,7 +839,7 @@ class TestIQCavityFeedbackTimingClass:
             omega_list = []
             rf_centers_list = []
             for idx, fdbk in enumerate(timing_fdbk_list):
-                fdbk: IQCavityFeedbackTimingClass
+                fdbk: IQCavityFeedbackCoarseGrid
                 # TODO: check rf centers --> add calculation of rf centers
                 if not n_sections == 1:  # checks only apply to multi-section
                     check_fail_printing(
@@ -951,7 +951,7 @@ class TestIQCavityFeedbackTimingClass:
             if simulation.turn_i.value == 0:  # TODO: and not CR
                 return
             for idx, fdbk in enumerate(timing_fdbk_list):
-                fdbk: IQCavityFeedbackTimingClass
+                fdbk: IQCavityFeedbackCoarseGrid
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
@@ -1149,7 +1149,7 @@ class TestIQCavityFeedbackTimingClass:
         def callback(simulation: Simulation, beam: Beam):
             if simulation.turn_counter.value == 0:  # TODO: and not CR
                 for idx, fdbk in enumerate(timing_fdbk_list):
-                    fdbk: IQCavityFeedbackTimingClass
+                    fdbk: IQCavityFeedbackCoarseGrid
                     expected = int(
                         np.floor(harm_per_half_drift)
                         + fdbk.section_index * harm_per_full_drift
@@ -1172,7 +1172,7 @@ class TestIQCavityFeedbackTimingClass:
 
                 return
             for idx, fdbk in enumerate(timing_fdbk_list):
-                fdbk: IQCavityFeedbackTimingClass
+                fdbk: IQCavityFeedbackCoarseGrid
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
@@ -1333,7 +1333,7 @@ class TestIQCavityFeedbackTimingClass:
             # invariant that used to be reconstructed here from
             # ``fdbk.rf_centers_lengths`` now lives with the value class: the
             # flat arrays are derived from ``fdbk._segments`` and checked by
-            # ``IQCavityFeedbackTimingClass._validate_grid`` every turn, and the
+            # ``IQCavityFeedbackCoarseGrid._validate_grid`` every turn, and the
             # invariant is unit-tested in ``TestRFCenterSegment`` below.
 
     @pytest.mark.parametrize("n_sections", [2, 4, 10])
@@ -1498,7 +1498,7 @@ class TestIQCavityFeedbackTimingClass:
 
             # save for further analysis
             for idx, fdbk in enumerate(timing_fdbk_list):
-                fdbk: IQCavityFeedbackTimingClass
+                fdbk: IQCavityFeedbackCoarseGrid
                 if (
                     n_sections != 1
                 ):  # only relevant/only gets set on multistation
@@ -1675,8 +1675,8 @@ class TestBackfillWalkGuards:
 
     omega_rf = 2 * np.pi * 1.3e9
 
-    def _bare_feedback(self, turn: int) -> IQCavityFeedbackTimingClass:
-        feedback = IQCavityFeedbackTimingClass(
+    def _bare_feedback(self, turn: int) -> IQCavityFeedbackCoarseGrid:
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=0,
@@ -1804,7 +1804,7 @@ class TestForwardWalkReverseIndexIsPrivate(unittest.TestCase):
 
     def _feedback_after_forward_walk(
         self,
-    ) -> tuple[IQCavityFeedbackTimingClass, Mock]:
+    ) -> tuple[IQCavityFeedbackCoarseGrid, Mock]:
         """
         Run one forward projection over a three-element ring.
 
@@ -1813,7 +1813,7 @@ class TestForwardWalkReverseIndexIsPrivate(unittest.TestCase):
         tuple
             The feedback after the walk and the station the walk stops at.
         """
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=0,
@@ -1915,7 +1915,7 @@ class TestBackfillWalkRestoresForeignTurnCounter:
         # that station -- and therefore every element of the ring tracked
         # after it -- on a corrupted turn counter, turning a clean error
         # into cascading mis-tracking.
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=0,
@@ -1960,8 +1960,8 @@ class TestPrecedingSegmentResidualFallback:
     """The live-scalar fall-through is only legal without segments."""
 
     @staticmethod
-    def _feedback() -> IQCavityFeedbackTimingClass:
-        return IQCavityFeedbackTimingClass(
+    def _feedback() -> IQCavityFeedbackCoarseGrid:
+        return IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=0,
@@ -2014,7 +2014,7 @@ class TestGenerateRfCentersDegenerateSegment:
         # warning supplies the turn/section context that the >=2-centres
         # ValueError of the RFCenterSegment built right after cannot
         # know.
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=Mock(StaticProfile),
             n_rf_periods_per_coarse_grid=1,
             R_over_Q=0,

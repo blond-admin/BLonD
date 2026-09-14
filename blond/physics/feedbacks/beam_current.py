@@ -227,7 +227,7 @@ def rf_beam_current(
         of a tail measured against one segment's carrier with the next
         segment's carrier only approximates it under a ramp, and the
         convention admits no tolerance (see
-        ``IQCavityFeedbackTimingClass._assert_demodulation_frame_aligned``,
+        ``IQCavityFeedbackCoarseGrid._assert_demodulation_frame_aligned``,
         which checks the grid against the stated frame). ``None`` (the
         default) derives the rotation from ``dT`` as before.
     carrier_phase_offset : float
@@ -246,7 +246,7 @@ def rf_beam_current(
         from the last centre of one passage to the first centre of the
         next has no cell -- and no charge -- of its own. Callers that
         chain passages on one grid (e.g.
-        ``IQCavityFeedbackTimingClass``) need that boundary charge-free.
+        ``IQCavityFeedbackCoarseGrid``) need that boundary charge-free.
         Relative threshold: far Gaussian tails are non-zero in float
         arithmetic (~1e-100) without being physically populated.
 

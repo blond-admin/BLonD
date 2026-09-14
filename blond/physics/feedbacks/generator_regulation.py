@@ -10,7 +10,7 @@
 Generator-current regulation for the cavity-feedback timing class.
 
 :class:`GeneratorRegulationMixin` holds the parts of
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
 that need nothing but the attached controller and the voltage setpoint:
 
 - the setpoint policy -- ``_validate_voltage_setpoint`` (the constructor's
@@ -36,7 +36,7 @@ It is a *mixin*: those methods read and write host state
 (``_controller``, ``_voltage_setpoint``, ``n_cavities``, ``R_over_Q``,
 ``Q_L``, ``generator_current_coarse_grid``, ``antenna_voltage_coarse_grid``,
 ``_omega_input_for_pi``, ...) that
-``IQCavityFeedbackTimingClass`` owns. Every method therefore annotates its
+``IQCavityFeedbackCoarseGrid`` owns. Every method therefore annotates its
 ``self`` as that host, exactly as ``rf_center_grid.py`` does: the dependency
 exists either way, and stating it in the signature is what lets a reader and
 a type checker resolve those attributes instead of reconstructing the
@@ -90,15 +90,28 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.physics.feedbacks.cavity_feedback import (
-        IQCavityFeedbackTimingClass,
+        IQCavityFeedbackCoarseGrid,
     )
 
 
 class GeneratorRegulationMixin:
-    """Generator-current regulation mixin (see module docstring)."""
+    """
+    Generator-current regulation mixin (see module docstring).
+
+    Not a mixin in the reusable sense, despite the name. Every method
+    here annotates ``self`` as
+    :class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
+    and reaches into its state, so this class cannot be mixed into
+    anything else; it is a file-level PARTITION of that one class, kept
+    separate to hold a 3600-line module to a readable size. Read it as a
+    section of that class, not as an independent capability, and do not
+    take the name as licence to reuse it elsewhere. The self-annotation
+    is pinned by a test, so the coupling is deliberate and visible
+    rather than accidental.
+    """
 
     @property
-    def _controller_active(self: IQCavityFeedbackTimingClass) -> bool:
+    def _controller_active(self: IQCavityFeedbackCoarseGrid) -> bool:
         """
         Whether a generator-current controller is attached.
 
@@ -112,7 +125,7 @@ class GeneratorRegulationMixin:
         return self._controller is not None
 
     @property
-    def pi_setpoint(self: IQCavityFeedbackTimingClass) -> complex:
+    def pi_setpoint(self: IQCavityFeedbackCoarseGrid) -> complex:
         """
         Per-cavity voltage setpoint of the PI controller in the IQ frame.
 
@@ -130,7 +143,7 @@ class GeneratorRegulationMixin:
         )
 
     def _validate_voltage_setpoint(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         voltage_setpoint: complex | None,
     ) -> None:
         """
@@ -171,7 +184,7 @@ class GeneratorRegulationMixin:
             )
 
     def generator_power(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         generator_current: complex | NumpyArray | None = None,
     ) -> float | NumpyArray:
         r"""
@@ -196,7 +209,7 @@ class GeneratorRegulationMixin:
         return 0.5 * self.R_over_Q * self.Q_L * np.abs(generator_current) ** 2
 
     def reflected_current(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         generator_current: complex | NumpyArray | None = None,
         antenna_voltage: complex | NumpyArray | None = None,
         generator_frame_rotation: complex | NumpyArray | None = None,
@@ -275,7 +288,7 @@ class GeneratorRegulationMixin:
 
         Both arguments are per cavity, matching
         :meth:`generator_power`; the coarse grid of
-        ``IQCavityFeedbackTimingClass`` is normalised per cavity while the
+        ``IQCavityFeedbackCoarseGrid`` is normalised per cavity while the
         fine grid carries the station total.
 
         **The two grids are not in the same frame.**  The composed
@@ -318,7 +331,7 @@ class GeneratorRegulationMixin:
         )
 
     def reflected_power(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         generator_current: complex | NumpyArray | None = None,
         antenna_voltage: complex | NumpyArray | None = None,
         generator_frame_rotation: complex | NumpyArray | None = None,
@@ -374,7 +387,7 @@ class GeneratorRegulationMixin:
         )
 
     def _update_generator_current(
-        self: IQCavityFeedbackTimingClass,
+        self: IQCavityFeedbackCoarseGrid,
         omega_times_dt: float,
         coarse_grid_index_to_update: int,
     ) -> None:

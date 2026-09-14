@@ -290,7 +290,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         It is currently not implemented: the original body was ported
         from the deleted blond2 coarse-array cavity-feedback API and was
-        never wired to the surviving ``IQCavityFeedbackTimingClass``.
+        never wired to the surviving ``IQCavityFeedbackCoarseGrid``.
         As long as no rf station on the main harmonic carries a cavity
         feedback on ANY of its harmonics, this method is a silent no-op
         -- that is a normal, supported configuration, and the beam
@@ -331,7 +331,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         not before.
         """
         # TODO: Couple the beam phase loop to the surviving cavity
-        #   feedback (``IQCavityFeedbackTimingClass``); see the
+        #   feedback (``IQCavityFeedbackCoarseGrid``); see the
         #   NotImplementedError message below for the two APIs involved.
         # TODO: Handling of simulations with some main rf stations
         #   without cavity FB and some with
@@ -356,7 +356,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
                 "deleted LHC/SPS coarse-array API (I_BEAM_COARSE, "
                 "V_ANT_COARSE, sliced to a fixed n_coarse per turn), "
                 "which exists nowhere in the live tree. The surviving "
-                "mucol feedback (IQCavityFeedbackTimingClass) instead "
+                "mucol feedback (IQCavityFeedbackCoarseGrid) instead "
                 "exposes per-turn, variable-length grids as "
                 "beam_current_forward_coarse_grid and "
                 "antenna_voltage_coarse_grid and has no n_coarse. "

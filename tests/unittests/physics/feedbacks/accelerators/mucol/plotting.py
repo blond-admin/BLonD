@@ -380,7 +380,7 @@ def plot_antenna_voltage(feedback, show: bool = True):
     Parameters
     ----------
     feedback
-        The IQCavityFeedbackTimingClass whose coarse-grid antenna voltage to
+        The IQCavityFeedbackCoarseGrid whose coarse-grid antenna voltage to
         plot.
     show
         If True, calls plt.show() at the end (blocking).
@@ -402,7 +402,7 @@ def plot_antenna_voltage(feedback, show: bool = True):
     v = feedback.antenna_voltage_coarse_grid[-n:]
 
     fig, (ax_re, ax_abs) = plt.subplots(2, 1, sharex=True)
-    fig.suptitle("IQCavityFeedbackTimingClass: antenna voltage (coarse grid)")
+    fig.suptitle("IQCavityFeedbackCoarseGrid: antenna voltage (coarse grid)")
 
     ax_re.plot(t, np.real(v), label="real")
     ax_re.plot(t, np.imag(v), label="imag")

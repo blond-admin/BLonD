@@ -2351,7 +2351,7 @@ class FullTurnCavityObservation(ObservablesOncePerTurnBase):
     Notes
     -----
     Coarse voltages are **per cavity** [V] and fine-grid voltages carry the
-    station total, following ``IQCavityFeedbackTimingClass``.
+    station total, following ``IQCavityFeedbackCoarseGrid``.
 
     Rows are NaN-padded to a fixed width, sized as in
     ``IQCavityFeedbackObservation``: one turn of coarse grid plus one
@@ -2771,7 +2771,7 @@ class CavityEnvelopeSummary(ObservablesOncePerTurnBase):
     Notes
     -----
     All voltages are **per cavity** [V]: the coarse grid of
-    ``IQCavityFeedbackTimingClass`` is normalised per cavity, while the fine
+    ``IQCavityFeedbackCoarseGrid`` is normalised per cavity, while the fine
     grid carries the station total.
     """
 

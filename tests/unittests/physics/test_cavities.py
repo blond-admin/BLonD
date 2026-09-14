@@ -49,7 +49,7 @@ from blond.physics.cavities import (
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing.backend_testing import multi_backend_testcase
@@ -2082,7 +2082,7 @@ class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
             bins_per_profile=2**8,
             offset=0,
         )
-        cavity_feedback = IQCavityFeedbackTimingClass(
+        cavity_feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             n_cavities=1,
             R_over_Q=1,
@@ -2478,7 +2478,7 @@ class TestProbeBeamRefusedByCavityFeedback(unittest.TestCase):
             / harmonic
         )
         profile = StaticProfile.from_rad(np.pi * 1.5, np.pi * 4.5, 256, t_rf)
-        feedback = IQCavityFeedbackTimingClass(
+        feedback = IQCavityFeedbackCoarseGrid(
             profile=profile,
             R_over_Q=r_over_q,
             Q_L=q_loaded,
@@ -2512,7 +2512,7 @@ class TestProbeBeamRefusedByCavityFeedback(unittest.TestCase):
 
         with (
             patch.object(
-                IQCavityFeedbackTimingClass, "_track", autospec=True
+                IQCavityFeedbackCoarseGrid, "_track", autospec=True
             ) as feedback_track,
             self.assertRaises(TypeError) as caught,
         ):

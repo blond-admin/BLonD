@@ -29,7 +29,7 @@ from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
     InducedVoltageObservationCR,
 )
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentPIController,
 )
@@ -128,7 +128,7 @@ def setup_and_run(  # noqa: PLR0915
         If True, run with an accelerating magnetic cycle.
     use_pi_feedback
         If True, drive the cavity with a PI-regulated generator current
-        (:class:`IQCavityFeedbackTimingClass` with non-zero PI gains, so the
+        (:class:`IQCavityFeedbackCoarseGrid` with non-zero PI gains, so the
         generator current reacts to the beam loading) instead of a constant
         generator current. Ignored when ``MTW`` is True.
 
@@ -348,7 +348,7 @@ def setup_and_run(  # noqa: PLR0915
                 generator_current_bias=I_g,  # TODO: this should be bias
                 n_delay=5,
             )
-            cav_fdbk = IQCavityFeedbackTimingClass(
+            cav_fdbk = IQCavityFeedbackCoarseGrid(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
                 Q_L=Q_L,
@@ -360,7 +360,7 @@ def setup_and_run(  # noqa: PLR0915
                 controller=controller,
             )
         else:
-            cav_fdbk = IQCavityFeedbackTimingClass(
+            cav_fdbk = IQCavityFeedbackCoarseGrid(
                 profile=profile_list[-1],
                 R_over_Q=R_over_Q,
                 Q_L=Q_L,

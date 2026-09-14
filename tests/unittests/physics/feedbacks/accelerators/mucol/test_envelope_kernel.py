@@ -2,7 +2,7 @@
 Bit-identity tests for the numba coarse-envelope kernel.
 
 The coarse-grid antenna-voltage recursion in
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
 is compiled to a numba host kernel
 (:func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`). The kernel
 must reproduce the pure-Python per-cell path **byte-for-byte** (complex128
@@ -23,7 +23,7 @@ import numpy as np
 
 from blond import StaticProfile
 from blond.physics.feedbacks.cavity_feedback import (
-    IQCavityFeedbackTimingClass,
+    IQCavityFeedbackCoarseGrid,
 )
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
@@ -70,7 +70,7 @@ def _make_feedback(
     feedback
         A freshly constructed feedback with ``use_numba_envelope_kernel`` set.
     """
-    feedback = IQCavityFeedbackTimingClass(
+    feedback = IQCavityFeedbackCoarseGrid(
         profile=Mock(StaticProfile),
         R_over_Q=R_OVER_Q,
         Q_L=Q_L,
@@ -447,20 +447,20 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             "n_delay": 1,
             "max_output": 0.05,
         }
-        original = IQCavityFeedbackTimingClass._circuit_track_cells_python
+        original = IQCavityFeedbackCoarseGrid._circuit_track_cells_python
         calls = []
 
         def _spy(self, *args, **kwargs):
             calls.append(1)
             return original(self, *args, **kwargs)
 
-        IQCavityFeedbackTimingClass._circuit_track_cells_python = _spy
+        IQCavityFeedbackCoarseGrid._circuit_track_cells_python = _spy
         try:
             kernel_snap = self._run_single_segment(
                 True, no_beam=False, controller_kw=controller_kw
             )
         finally:
-            IQCavityFeedbackTimingClass._circuit_track_cells_python = original
+            IQCavityFeedbackCoarseGrid._circuit_track_cells_python = original
 
         self.assertEqual(
             len(calls),

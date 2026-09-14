@@ -10,7 +10,7 @@
 Numba host kernel for the coarse-grid cavity-envelope recursion.
 
 The per-cell antenna-voltage recursion of
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`
 is inherently sequential (each cell reads the previous cell's voltage *and*
 generator current, and -- with an active PI controller -- the generator current
 of a cell depends on the voltage just computed for it). It therefore cannot be
@@ -31,7 +31,7 @@ Each cell also composes the demodulation-frame sum
 ``V = V_beam + V_gen * generator_frame_rotation[c]`` (the rotation
 ``exp(-i (delta_phi_rf + carrier slip gap + accumulated phase))`` of cell
 ``c`` takes the design-anchored component into the demodulation frame; see
-``IQCavityFeedbackTimingClass._update_frame_rotations``), which is what the
+``IQCavityFeedbackCoarseGrid._update_frame_rotations``), which is what the
 PI regulates -- in the *kick frame*,
 ``error = (V_set - V * kick_frame_rotation[c]) * pi_error_frame_rotation[c]``.
 Both rotations are per cell because a backfill span replays an interval
@@ -49,7 +49,7 @@ identical -- byte-for-byte on complex128 -- to the Python reference path
 without numba ever evaluating ``exp``/``expm1``. The derivation of ``B`` and
 ``W``, and why the retired forward-Euler ``B = 1 + L``, ``W = 1`` was only
 their first-order truncation, is in the Notes of
-``IQCavityFeedbackTimingClass._advance_coarse_voltage``.
+``IQCavityFeedbackCoarseGrid._advance_coarse_voltage``.
 
 The PI delay line is passed as a circular buffer (``delay_buffer`` + a head
 index) rather than a :class:`collections.deque`; ``_circuit_track_cells_kernel``

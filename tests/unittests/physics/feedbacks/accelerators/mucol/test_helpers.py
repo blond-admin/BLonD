@@ -27,7 +27,7 @@ import numpy as np
 from blond import Resonators, StaticProfile, WakeField, backend, mu_minus
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.cavity_solvers import (
     cavity_response_sparse_matrix,
     cavity_response_sparse_matrix_second_order,
@@ -355,7 +355,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         omega_times_dt = self.omega_rf * smooth_profile.hist_step
 
         def create_fdbk_class_and_calc_voltage(second_order):
-            feedback = IQCavityFeedbackTimingClass(
+            feedback = IQCavityFeedbackCoarseGrid(
                 profile=smooth_profile,
                 R_over_Q=self.R_over_Q,
                 Q_L=self.Q_L,
@@ -634,7 +634,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         """
         A bunch in the first coarse cell is downsampled like any other.
 
-        ``IQCavityFeedbackTimingClass`` seeds the fine solve from the
+        ``IQCavityFeedbackCoarseGrid`` seeds the fine solve from the
         coarse state BEFORE the first forward cell, so that cell's own
         deposit is not part of its seed and nothing double-counts it. The
         guard that used to reject charge here
@@ -696,7 +696,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         its own to drive it. The boundary between two passages must
         therefore stay charge-free, and no reasonable profile window
         reaches the end of the forward coarse segment;
-        ``IQCavityFeedbackTimingClass`` calls ``rf_beam_current`` with
+        ``IQCavityFeedbackCoarseGrid`` calls ``rf_beam_current`` with
         ``forbid_charge_in_last_coarse_cell=True``.
         """
         profile = self._profile_with_bunch_at(0.9)

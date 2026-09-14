@@ -11,9 +11,9 @@ Tests for the diagnostic IQ cavity feedback of :mod:`blond.testing`.
 
 The three diagnostic switches -- ``debug``, ``validate_grid_each_turn`` and
 ``grid_only_no_correction`` -- are consumed only by tests. They live on
-:class:`~blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackTimingClass`,
+:class:`~blond.testing.cavity_feedback.DiagnosticIQCavityFeedbackCoarseGrid`,
 not on the production
-:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackTimingClass`.
+:class:`~blond.physics.feedbacks.cavity_feedback.IQCavityFeedbackCoarseGrid`.
 """
 
 import unittest
@@ -34,9 +34,9 @@ from blond import (
     mu_plus,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
-from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackTimingClass
+from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.testing.cavity_feedback import (
-    DiagnosticIQCavityFeedbackTimingClass,
+    DiagnosticIQCavityFeedbackCoarseGrid,
 )
 
 HARMONIC = 5
@@ -59,10 +59,10 @@ GRID_SNAPSHOTS = (
 
 
 def _track(
-    feedback_class: type[IQCavityFeedbackTimingClass],
+    feedback_class: type[IQCavityFeedbackCoarseGrid],
     n_turns: int = 1,
     **feedback_kwargs,
-) -> IQCavityFeedbackTimingClass:
+) -> IQCavityFeedbackCoarseGrid:
     """
     Track a single-section ring with one cavity feedback.
 
@@ -128,7 +128,7 @@ def _track(
     return feedback
 
 
-def _is_neutral_readout(feedback: IQCavityFeedbackTimingClass) -> bool:
+def _is_neutral_readout(feedback: IQCavityFeedbackCoarseGrid) -> bool:
     """
     Whether the feedback wrote the no-correction readout.
 
@@ -156,7 +156,7 @@ class TestProductionFeedbackHasNoDiagnosticSwitches(unittest.TestCase):
         """Each switch is an unexpected keyword of the production class."""
         for switch in DIAGNOSTIC_SWITCHES:
             with self.subTest(switch=switch), self.assertRaises(TypeError):
-                IQCavityFeedbackTimingClass(
+                IQCavityFeedbackCoarseGrid(
                     profile=mock.Mock(StaticProfile),
                     R_over_Q=0.0,
                     Q_L=100.0,
@@ -168,14 +168,14 @@ class TestProductionFeedbackHasNoDiagnosticSwitches(unittest.TestCase):
     def test_tracking_never_validates_the_grid(self):
         """The per-turn grid check is not part of production tracking."""
         with mock.patch.object(
-            IQCavityFeedbackTimingClass, "_validate_grid"
+            IQCavityFeedbackCoarseGrid, "_validate_grid"
         ) as validate_grid:
-            _track(IQCavityFeedbackTimingClass, n_turns=2)
+            _track(IQCavityFeedbackCoarseGrid, n_turns=2)
         self.assertEqual(validate_grid.call_count, 0)
 
     def test_tracking_records_no_grid_snapshot(self):
         """None of the inspection-only snapshots appear on the instance."""
-        feedback = _track(IQCavityFeedbackTimingClass, n_turns=2)
+        feedback = _track(IQCavityFeedbackCoarseGrid, n_turns=2)
         for snapshot in GRID_SNAPSHOTS:
             with self.subTest(snapshot=snapshot):
                 self.assertFalse(hasattr(feedback, snapshot))
@@ -186,7 +186,7 @@ class TestDiagnosticsDoNotDisableTheFeedback(unittest.TestCase):
 
     def test_default_applies_a_real_correction(self):
         """With no switch set the readout is a real correction."""
-        feedback = _track(DiagnosticIQCavityFeedbackTimingClass)
+        feedback = _track(DiagnosticIQCavityFeedbackCoarseGrid)
         self.assertFalse(_is_neutral_readout(feedback))
 
     def test_snapshots_still_apply_a_real_correction(self):
@@ -194,13 +194,13 @@ class TestDiagnosticsDoNotDisableTheFeedback(unittest.TestCase):
         # A single ``debug`` flag used to short-circuit _track and write
         # the neutral readout, i.e. turning diagnostics on silently turned
         # the feedback off.
-        feedback = _track(DiagnosticIQCavityFeedbackTimingClass, debug=True)
+        feedback = _track(DiagnosticIQCavityFeedbackCoarseGrid, debug=True)
         self.assertFalse(_is_neutral_readout(feedback))
 
     def test_grid_validation_still_applies_a_real_correction(self):
         """``validate_grid_each_turn=True`` does not stop the correction."""
         feedback = _track(
-            DiagnosticIQCavityFeedbackTimingClass,
+            DiagnosticIQCavityFeedbackCoarseGrid,
             validate_grid_each_turn=True,
         )
         self.assertFalse(_is_neutral_readout(feedback))
@@ -209,9 +209,9 @@ class TestDiagnosticsDoNotDisableTheFeedback(unittest.TestCase):
         self,
     ):
         """Snapshots and validation reproduce production bit-for-bit."""
-        reference = _track(IQCavityFeedbackTimingClass, n_turns=2)
+        reference = _track(IQCavityFeedbackCoarseGrid, n_turns=2)
         diagnosed = _track(
-            DiagnosticIQCavityFeedbackTimingClass,
+            DiagnosticIQCavityFeedbackCoarseGrid,
             n_turns=2,
             debug=True,
             validate_grid_each_turn=True,
@@ -231,7 +231,7 @@ class TestDiagnosticsDoNotDisableTheFeedback(unittest.TestCase):
     def test_grid_only_mode_applies_no_correction(self):
         """The one switch that stops the physics still builds the grid."""
         feedback = _track(
-            DiagnosticIQCavityFeedbackTimingClass,
+            DiagnosticIQCavityFeedbackCoarseGrid,
             grid_only_no_correction=True,
         )
         self.assertTrue(_is_neutral_readout(feedback))
@@ -256,13 +256,13 @@ class TestGridValidationSwitch(unittest.TestCase):
             Number of ``_validate_grid`` calls during tracking.
         """
         with mock.patch.object(
-            DiagnosticIQCavityFeedbackTimingClass,
+            DiagnosticIQCavityFeedbackCoarseGrid,
             "_validate_grid",
             autospec=True,
-            side_effect=IQCavityFeedbackTimingClass._validate_grid,
+            side_effect=IQCavityFeedbackCoarseGrid._validate_grid,
         ) as validate_grid:
             _track(
-                DiagnosticIQCavityFeedbackTimingClass,
+                DiagnosticIQCavityFeedbackCoarseGrid,
                 n_turns=2,
                 **feedback_kwargs,
             )
@@ -284,7 +284,7 @@ class TestGridSnapshotSwitch(unittest.TestCase):
 
     def test_debug_records_the_forward_slice(self):
         """The walked element slice starts at this station."""
-        feedback = _track(DiagnosticIQCavityFeedbackTimingClass, debug=True)
+        feedback = _track(DiagnosticIQCavityFeedbackCoarseGrid, debug=True)
         self.assertIn(
             feedback._parent_rf_station,
             feedback.current_slice_elements_forward,
@@ -292,7 +292,7 @@ class TestGridSnapshotSwitch(unittest.TestCase):
 
     def test_off_by_default(self):
         """Without the switch no snapshot is recorded."""
-        feedback = _track(DiagnosticIQCavityFeedbackTimingClass, n_turns=2)
+        feedback = _track(DiagnosticIQCavityFeedbackCoarseGrid, n_turns=2)
         for snapshot in GRID_SNAPSHOTS:
             with self.subTest(snapshot=snapshot):
                 self.assertFalse(hasattr(feedback, snapshot))

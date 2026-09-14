@@ -1325,7 +1325,7 @@ class TestIQCavityFeedbackObservationTracked(unittest.TestCase):
             MagneticCyclePerTurnAllRFStations,
         )
         from blond.physics.feedbacks.cavity_feedback import (
-            IQCavityFeedbackTimingClass,
+            IQCavityFeedbackCoarseGrid,
         )
         from blond.physics.feedbacks.generator_current_controller import (
             GeneratorCurrentPIController,
@@ -1373,7 +1373,7 @@ class TestIQCavityFeedbackObservationTracked(unittest.TestCase):
                 generator_current_bias=i_gen_bias + 0.0j,
                 n_delay=2,
             )
-            feedback = IQCavityFeedbackTimingClass(
+            feedback = IQCavityFeedbackCoarseGrid(
                 profile=profile,
                 R_over_Q=r_over_q,
                 Q_L=q_l,
