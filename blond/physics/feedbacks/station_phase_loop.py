@@ -51,6 +51,7 @@ A station without a cavity feedback never clocks its loop.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -78,6 +79,125 @@ def wrap_phase(phase: float) -> float:
         The same angle in ``(-pi, pi]``.
     """
     return float((phase + np.pi) % (2.0 * np.pi) - np.pi)
+
+
+@dataclass(frozen=True)
+class GainSchedule:
+    """
+    A piecewise-constant loop gain, looked up on the feedback's cell clock.
+
+    The hardware equivalent of a function generator driving the loop's
+    gain register along the cycle: one entry per run of ``cells_per_entry``
+    coarse cells, read out on the cell clock rather than held for a whole
+    passage.  Reading it per cell is what keeps a passage's *backfill*
+    span honest -- those cells have already elapsed when the loop
+    reconstructs them, and each takes the entry that covered it rather
+    than whichever entry is current at the reconstruction.
+
+    On a ramping machine the natural entry is one RF section of one turn,
+    the step the energy programme itself is written on, so a whole ramp is
+    ``n_sections * n_turns`` entries.  A per-turn table is the same object
+    with ``cells_per_entry`` a turn's worth of cells.
+
+    Raises
+    ------
+    ValueError
+        If the table is empty or ``cells_per_entry`` is not positive.
+    """
+
+    gains: tuple[float, ...]
+    """The table [1], in cell order; one RF phase offset per radian of
+    measured error, as :attr:`StationPhaseLoop.gain`."""
+    cells_per_entry: int
+    """Cells each entry spans."""
+    first_cell: int = 0
+    """Cell clock the table starts at; earlier cells take the first entry."""
+
+    def __post_init__(self) -> None:
+        """Freeze the table into plain floats and validate its span."""
+        object.__setattr__(
+            self, "gains", tuple(float(gain) for gain in self.gains)
+        )
+        object.__setattr__(self, "cells_per_entry", int(self.cells_per_entry))
+        object.__setattr__(self, "first_cell", int(self.first_cell))
+        if not self.gains:
+            raise ValueError("a gain schedule needs at least one entry")
+        if self.cells_per_entry < 1:
+            raise ValueError(
+                f"cells_per_entry={self.cells_per_entry} must be >= 1"
+            )
+
+    @classmethod
+    def per_entry(
+        cls, gains: Sequence[float], *, cells_per_entry: int, **changes: int
+    ) -> GainSchedule:
+        """
+        The table with its entries spanning ``cells_per_entry`` cells each.
+
+        Parameters
+        ----------
+        gains
+            The table [1].
+        cells_per_entry
+            Cells each entry spans.
+        **changes
+            Further fields, e.g. ``first_cell``.
+
+        Returns
+        -------
+        schedule
+            The schedule.
+        """
+        return cls(
+            gains=tuple(gains), cells_per_entry=cells_per_entry, **changes
+        )
+
+    @property
+    def n_entries(self) -> int:
+        """
+        Count the entries of the table.
+
+        Returns
+        -------
+        n_entries
+            Length of :attr:`gains`.
+        """
+        return len(self.gains)
+
+    @property
+    def n_cells(self) -> int:
+        """
+        Count the cells spanned before the last entry starts to hold.
+
+        Returns
+        -------
+        n_cells
+            ``n_entries * cells_per_entry``.
+        """
+        return self.n_entries * self.cells_per_entry
+
+    def gain_at(self, cell: int) -> float:
+        """
+        The gain in force at a cell [1].
+
+        Parameters
+        ----------
+        cell
+            Cell clock value.
+
+        Returns
+        -------
+        gain
+            The entry covering ``cell``; the first one before the table
+            starts and the last one past its end, so a run longer than the
+            table coasts on its final value rather than dropping to zero.
+        """
+        index = (int(cell) - self.first_cell) // self.cells_per_entry
+        if index < 0:
+            index = 0
+        elif index >= self.n_entries:
+            index = self.n_entries - 1
+        return self.gains[index]
 
 
 @dataclass
@@ -157,7 +277,12 @@ class StationPhaseLoop:
         of the same name.
     gain
         RF phase offset per radian of measured error [1]; ``0`` records
-        without acting.
+        without acting.  Not what acts where ``gain_schedule`` is given.
+    gain_schedule
+        A :class:`GainSchedule` to read the gain off the cell clock
+        instead, for a machine whose optimum moves along the cycle -- on
+        a fast ramp the synchrotron tune does, and with it the gain that
+        damps.  ``None`` (the default) holds ``gain`` for the whole run.
     n_delay
         Latency in controller samples: on a sample the output is built
         from the newest measurement at least this many samples old,
@@ -180,6 +305,7 @@ class StationPhaseLoop:
         feedback: IQCavityFeedbackBase,
         reference_phase: float,
         gain: float,
+        gain_schedule: GainSchedule | None = None,
         n_delay: int = 1,
         record: StationPhaseLoopRecord | None = None,
         name: str | None = None,
@@ -194,6 +320,7 @@ class StationPhaseLoop:
         #: Centroid RF phase the loop regulates to [rad].
         self.reference_phase = float(reference_phase)
         self._gain = float(gain)
+        self._gain_schedule = gain_schedule
         self._n_delay = int(n_delay)
         self._record = StationPhaseLoopRecord() if record is None else record
         self.name = name
@@ -232,9 +359,41 @@ class StationPhaseLoop:
         Returns
         -------
         gain
-            The loop gain.
+            The constant loop gain.  With a :attr:`gain_schedule` this is
+            not what acts -- :meth:`gain_at` is.
         """
         return self._gain
+
+    @property
+    def gain_schedule(self) -> GainSchedule | None:
+        """
+        The gain table this loop reads, if it has one.
+
+        Returns
+        -------
+        schedule
+            The schedule, or ``None`` for a constant gain.
+        """
+        return self._gain_schedule
+
+    def gain_at(self, cell: int) -> float:
+        """
+        The gain in force at a cell [1].
+
+        Parameters
+        ----------
+        cell
+            Cell clock value of the feedback that clocks this loop.
+
+        Returns
+        -------
+        gain
+            The schedule's entry for that cell, or the constant
+            :attr:`gain` without a schedule.
+        """
+        if self._gain_schedule is None:
+            return self._gain
+        return self._gain_schedule.gain_at(cell)
 
     @property
     def n_delay(self) -> int:
@@ -293,7 +452,7 @@ class StationPhaseLoop:
         self._record.corrections.append(float(applied))
         return error
 
-    def offsets_for_cells(
+    def offsets_for_n_coarse_cells(
         self,
         first_cell: int,
         n_cells: int,
@@ -309,7 +468,7 @@ class StationPhaseLoop:
         first_cell
             Cell clock value of the first cell of the run.
         n_cells
-            Cells in the run.
+            Coarse grid cells in the run.
         controller_update_interval
             Cells per controller sample; a cell is a sample when its cell
             clock value is a multiple of it.
@@ -320,19 +479,27 @@ class StationPhaseLoop:
         Returns
         -------
         offsets
-            One offset per cell [rad]: on a sample cell ``-gain`` times the
-            error of the newest measurement at least ``n_delay`` samples
-            old (``0`` if there is none), otherwise the previous cell's.
+            One offset per cell [rad]: on a sample cell
+            ``-gain_at(cell)`` times the error of the newest measurement
+            at least ``n_delay`` samples old (``0`` if there is none),
+            otherwise the previous cell's.  The gain is read per sample
+            and not once per call, so a run spanning a step of the
+            schedule -- a backfill span reconstructed after the step fell
+            due included -- carries the entry each cell is covered by.
         """
         offsets = np.empty(n_cells)
         value = float(carried)
         record = self._record
+        schedule = self._gain_schedule
+        gain = self._gain
         delay_cells = self._n_delay * controller_update_interval
         for local in range(n_cells):
             cell = first_cell + local
             if cell % controller_update_interval == 0:
                 index = record.newest_at_or_before(cell - delay_cells)
                 used = record.errors[index] if index is not None else 0.0
-                value = -self._gain * used
+                if schedule is not None:
+                    gain = schedule.gain_at(cell)
+                value = -gain * used
             offsets[local] = value
         return offsets

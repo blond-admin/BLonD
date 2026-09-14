@@ -3041,7 +3041,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 cell=passage_cell,
                 applied=0.0,
             )
-        offsets = loop.offsets_for_cells(
+        offsets = loop.offsets_for_n_coarse_cells(
             self._cells_tracked,
             span.n_backfill_centers + span.n_forward_centers,
             controller_update_interval=self._controller_update_interval,

@@ -22,6 +22,7 @@ import numpy as np
 
 from blond import SingleHarmonicRFStation
 from blond.physics.feedbacks.station_phase_loop import (
+    GainSchedule,
     StationPhaseLoop,
     StationPhaseLoopRecord,
     wrap_phase,
@@ -86,7 +87,7 @@ class TestStationPhaseLoop(unittest.TestCase):
         return loop, feedback
 
     def _offsets(self, loop, first_cell, n_cells, carried=0.0):
-        return loop.offsets_for_cells(
+        return loop.offsets_for_n_coarse_cells(
             first_cell,
             n_cells,
             controller_update_interval=self.INTERVAL,
@@ -196,6 +197,117 @@ class TestStationPhaseLoop(unittest.TestCase):
         self.assertEqual(record.newest_at_or_before(5), 2)
         self.assertEqual(record.newest_at_or_before(8), 1)
         self.assertIsNone(record.newest_at_or_before(-1))
+
+
+class TestGainSchedule(unittest.TestCase):
+    """A piecewise-constant gain table read on the cell clock."""
+
+    def _schedule(self, **changes):
+        fields = dict(gains=(0.2, 0.5, 0.9), cells_per_entry=8)
+        fields.update(changes)
+        return GainSchedule(**fields)
+
+    def test_each_entry_spans_its_own_run_of_cells(self):
+        schedule = self._schedule()
+        self.assertEqual(schedule.gain_at(0), 0.2)
+        self.assertEqual(schedule.gain_at(7), 0.2)
+        self.assertEqual(schedule.gain_at(8), 0.5)
+        self.assertEqual(schedule.gain_at(15), 0.5)
+        self.assertEqual(schedule.gain_at(16), 0.9)
+
+    def test_it_holds_its_ends(self):
+        """Before the table the first entry, past it the last.
+
+        A hardware function generator stops advancing at the end of its
+        table rather than wrapping or dropping to zero.
+        """
+        schedule = self._schedule(first_cell=8)
+        self.assertEqual(schedule.gain_at(0), 0.2)
+        self.assertEqual(schedule.gain_at(8), 0.2)
+        self.assertEqual(schedule.gain_at(10_000), 0.9)
+
+    def test_it_starts_where_it_is_told(self):
+        schedule = self._schedule(first_cell=100)
+        self.assertEqual(schedule.gain_at(99), 0.2)
+        self.assertEqual(schedule.gain_at(108), 0.5)
+
+    def test_an_empty_or_unspanned_table_is_refused(self):
+        with self.assertRaises(ValueError):
+            self._schedule(gains=())
+        with self.assertRaises(ValueError):
+            self._schedule(cells_per_entry=0)
+
+    def test_it_is_built_from_a_sequence_of_any_kind(self):
+        schedule = GainSchedule(gains=np.array([0.1, 0.4]), cells_per_entry=2)
+        self.assertEqual(schedule.gains, (0.1, 0.4))
+        self.assertEqual(schedule.n_entries, 2)
+
+
+class TestScheduledGain(unittest.TestCase):
+    """With a schedule the loop's gain is read per cell, not per passage."""
+
+    REFERENCE = 0.5
+    INTERVAL = 4
+
+    def _loop(self, schedule, gain=0.2):
+        return StationPhaseLoop(
+            feedback=Mock(phase_loop=None, parent_rf_station=None),
+            reference_phase=self.REFERENCE,
+            gain=gain,
+            n_delay=0,
+            gain_schedule=schedule,
+        )
+
+    def _offsets(self, loop, first_cell, n_cells):
+        return loop.offsets_for_n_coarse_cells(
+            first_cell,
+            n_cells,
+            controller_update_interval=self.INTERVAL,
+            carried=0.0,
+        )
+
+    def test_the_schedule_overrides_the_constant_gain(self):
+        schedule = GainSchedule(gains=(0.5, 1.0), cells_per_entry=8)
+        loop = self._loop(schedule, gain=0.2)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=0, applied=0.0)
+        np.testing.assert_allclose(
+            self._offsets(loop, 0, 16), [-0.1] * 8 + [-0.2] * 8
+        )
+
+    def test_one_span_steps_the_gain_cell_by_cell(self):
+        """The whole grid is walked, so a backfill cell keeps its own gain.
+
+        A passage reconstructs the cells elapsed since the station's
+        previous one.  Reading the gain once per passage would apply the
+        newest table entry to all of them; reading it per cell gives each
+        the entry that genuinely covered it.
+        """
+        schedule = GainSchedule(gains=(0.0, 0.5, 1.0), cells_per_entry=4)
+        loop = self._loop(schedule)
+        loop.measure(self.REFERENCE + 0.4, time=0.0, cell=0, applied=0.0)
+        np.testing.assert_allclose(
+            self._offsets(loop, 0, 12), [0.0] * 4 + [-0.2] * 4 + [-0.4] * 4
+        )
+
+    def test_gain_at_reports_what_acts(self):
+        schedule = GainSchedule(gains=(0.3, 0.7), cells_per_entry=5)
+        loop = self._loop(schedule, gain=0.2)
+        self.assertEqual(loop.gain, 0.2)
+        self.assertEqual(loop.gain_at(0), 0.3)
+        self.assertEqual(loop.gain_at(5), 0.7)
+        self.assertIs(loop.gain_schedule, schedule)
+
+    def test_without_a_schedule_the_constant_gain_acts(self):
+        loop = StationPhaseLoop(
+            feedback=Mock(phase_loop=None, parent_rf_station=None),
+            reference_phase=self.REFERENCE,
+            gain=0.25,
+            n_delay=0,
+        )
+        self.assertIsNone(loop.gain_schedule)
+        self.assertEqual(loop.gain_at(1_000), 0.25)
+        loop.measure(self.REFERENCE + 0.4, time=0.0, cell=0, applied=0.0)
+        np.testing.assert_allclose(self._offsets(loop, 0, 8), [-0.1] * 8)
 
 
 if __name__ == "__main__":
