@@ -17,7 +17,7 @@ import scipy.constants as cont
 
 from blond.core.backends.backend import backend
 from blond.generals.exceptions_ import ArrayShapeError
-from blond.physics.cavities import RFManipulationBaseClass
+from blond.physics.rf_station import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
