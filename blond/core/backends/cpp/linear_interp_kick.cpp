@@ -6,7 +6,8 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-// References: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo, K. Iliakis
+// References: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo, K.
+// Iliakis
 
 // Optimised C++ routine that calculates the kick of a voltage array on
 // particles
@@ -55,15 +56,13 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
           n_macroparticles - i > STEP ? STEP : n_macroparticles - i;
 
       for (int j = 0; j < loop_count; j++) {
-        fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) *
-                             inv_bin_width);
+        fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
       }
 
       for (int j = 0; j < loop_count; j++) {
         if (fbin[j] >= 0.0 && fbin[j] < (double)(n_slices - 1)) {
           const int bin = (int)fbin[j];
-          beam_dE[i + j] +=
-              beam_dt[i + j] * voltageKick[bin] + factor[bin];
+          beam_dE[i + j] += beam_dt[i + j] * voltageKick[bin] + factor[bin];
         }
       }
     }
@@ -86,10 +85,9 @@ extern "C" void linear_interp_kick_sparse(
     real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const real_t *__restrict__ voltage_array,
     const real_t *__restrict__ bin_centers, const real_t charge,
-    const int n_slices_total, const int n_macroparticles,
-    const real_t acc_kick, const real_t first_left_cut,
-    const real_t left_cut_distance, const real_t cut_width,
-    const int bins_per_profile, const int n_buckets,
+    const int n_slices_total, const int n_macroparticles, const real_t acc_kick,
+    const real_t first_left_cut, const real_t left_cut_distance,
+    const real_t cut_width, const int bins_per_profile, const int n_buckets,
     const bool *__restrict__ filling_pattern,
     const int *__restrict__ bucket_index_to_memory_index) {
 
@@ -97,8 +95,7 @@ extern "C" void linear_interp_kick_sparse(
   const real_t bin_width = cut_width / real_t(bins_per_profile);
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
 
-  real_t *voltageKick =
-      (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
+  real_t *voltageKick = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
   real_t *factor = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
 
 #pragma omp parallel

@@ -6,7 +6,6 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-
 #include "openmp.h"
 
 #ifdef PARALLEL
