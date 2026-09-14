@@ -35,12 +35,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         RFStationBaseClass,
         SingleHarmonicRFStation,
     )
-    from blond.physics.profiles import ProfileBaseClass
 
 T = TypeVar("T")
 
@@ -110,7 +110,7 @@ class LocalFeedback(FeedbackBaseClass):
         rf_station
             Cavity to be the parent rf station.
         """
-        from blond.physics.cavities import (  # no cyclic import
+        from blond.physics.rf_station import (  # no cyclic import
             MultiHarmonicRFStation,
             SingleHarmonicRFStation,
         )
@@ -182,7 +182,7 @@ class GlobalFeedback(FeedbackBaseClass):
         **kwargs
             Configure parameters collected by the MRO chain.
         """
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         super().on_init_simulation(
             simulation,

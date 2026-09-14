@@ -21,8 +21,8 @@ from blond.generals.distributed.helpers import (
     mpi_aware_random_generator_cpu,
     mpi_local_size,
 )
-from blond.physics.cavities import SingleHarmonicRFStation
 from blond.physics.drifts import DriftSimple
+from blond.physics.rf_station import SingleHarmonicRFStation
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )

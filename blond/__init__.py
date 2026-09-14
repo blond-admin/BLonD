@@ -116,10 +116,6 @@ from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
 from blond.physics.barrier_bucket import BarrierRF
-from blond.physics.cavities import (
-    MultiHarmonicRFStation,
-    SingleHarmonicRFStation,
-)
 from blond.physics.drifts import DriftSimple
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
@@ -141,6 +137,10 @@ from blond.physics.profiles import (
     StaticProfile,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
 from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )
