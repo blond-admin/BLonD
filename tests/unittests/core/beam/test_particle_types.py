@@ -85,23 +85,3 @@ class TestParticleType(unittest.TestCase):
         self.assertFalse(self.particle_type.__eq__(proton))
         self.assertFalse(self.particle_type.__eq__(electron))
         self.assertTrue(self.particle_type.__eq__(self.particle_type))
-
-
-class TestParticleTypeDict(unittest.TestCase):
-    """``to_dict`` / ``from_dict``, used when a beam is saved."""
-
-    def test_roundtrip(self):
-        original = ParticleType(mass=1e9, charge=2.0, user_decay_rate=3.0)
-        restored = ParticleType.from_dict(original.to_dict())
-        self.assertEqual(original, restored)
-
-    def test_dict_names_the_class_and_holds_plain_floats(self):
-        dct = proton.to_dict()
-        self.assertEqual(dct["__class__"], "ParticleType")
-        for name in ("mass", "charge", "user_decay_rate"):
-            self.assertIsInstance(dct[name], float)
-
-    def test_from_dict_ignores_the_class_entry(self):
-        """``__class__`` identifies the class, it is not a constructor arg."""
-        restored = ParticleType.from_dict(proton.to_dict())
-        self.assertEqual(proton, restored)

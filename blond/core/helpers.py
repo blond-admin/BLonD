@@ -19,8 +19,6 @@ from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
-import numpy as np
-
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
@@ -30,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def int_from_float_with_warning(
-    value: float | int | np.integer | np.floating, warning_stacklevel: int
+    value: float | int, warning_stacklevel: int
 ) -> int:
     """
     Make int from float, warn if there are fractional digits.
@@ -38,8 +36,7 @@ def int_from_float_with_warning(
     Parameters
     ----------
     value
-        Some float value, potentially with fractional values. NumPy scalars
-        are accepted as well.
+        Some float value, potentially with fractional values.
     warning_stacklevel
         `warnings.warn` parameter.
 
@@ -48,12 +45,9 @@ def int_from_float_with_warning(
     int_value
         Integer value converted from input.
     """
-    # NumPy scalars are accepted alongside the built-in types: they arrive
-    # whenever a value comes from an array or a file. `np.bool_` is not
-    # `np.integer` and stays rejected.
-    if isinstance(value, (int, np.integer)):
-        return int(value)
-    elif isinstance(value, (float, np.floating)):
+    if isinstance(value, int):
+        return value
+    elif isinstance(value, float):
         return_value = int(value)
         if value != return_value:
             warnings.warn(

@@ -30,8 +30,6 @@ m_mu = physical_constants["muon mass"][0]
 
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from typing_extensions import Self
 
 
@@ -69,56 +67,6 @@ class ParticleType:
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
         self._quantum_radiation_constant = c_q
-
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Convert the particle type into a plain dictionary.
-
-        Returns
-        -------
-        state
-            The values that define the particle type, identifying the class
-            in ``__class__``. The derived constants are not stored; they are
-            recomputed by the constructor in `from_dict`.
-
-        See Also
-        --------
-        from_dict : Rebuild a particle type from such a dictionary.
-        """
-        return {
-            "__class__": type(self).__name__,
-            "mass": float(self._mass),
-            "charge": float(self._charge),
-            "user_decay_rate": float(self._user_decay_rate),
-        }
-
-    @classmethod
-    def from_dict(cls, state: dict[str, Any]) -> Self:
-        """
-        Rebuild a particle type from the dictionary of `to_dict`.
-
-        Parameters
-        ----------
-        state
-            Dictionary as returned by `to_dict`. The ``__class__`` entry
-            identifies the class and is not passed on to the constructor.
-
-        Returns
-        -------
-        particle_type
-            The restored particle type.
-
-        See Also
-        --------
-        to_dict : Convert a particle type into such a dictionary.
-        """
-        return cls(
-            **{
-                name: float(value)
-                for name, value in state.items()
-                if name != "__class__"
-            }
-        )
 
     def __repr__(self) -> str:
         """

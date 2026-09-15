@@ -103,7 +103,6 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
-        ids: NumpyArray | CupyArray | None = None,
         **kwargs,
     ) -> None:
         """
@@ -150,10 +149,7 @@ class Beam(BeamBaseClass):
               While this mode uses more memory, it can be simpler to implement in scenarios where
               each rank needs to work with its own independent data (e.g., generating separate
               random distributions with `np.random.randn()`).
-        ids
-            Identifier of each macro-particle. By default the particles are
-            numbered consecutively. Pass explicit ids to preserve the
-            identity of particles, e.g. when restoring a beam from a file.
+
         **kwargs
             Unused - Keyword arguments to make the non-abstract implementation
             extendable.
@@ -165,8 +161,7 @@ class Beam(BeamBaseClass):
                 n_macroparticles, dtype=np.int32
             )
         else:
-            # `max` has no identity on an empty beam, e.g. an `EmptyBeam`.
-            assert len(flags) == 0 or flags.max() <= BeamFlags.ACTIVE.value
+            assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
         self._dE: DistributedArray = DistributedArray(
@@ -186,30 +181,20 @@ class Beam(BeamBaseClass):
         if reference_total_energy:
             self.reference.total_energy = reference_total_energy
 
-        if ids is not None:
-            assert len(dt) == len(ids), f"{len(dt)} != {len(ids)}"
-
         if mpi_mode == "root-distributes":
             self._dE.mpi_scatter()
             self._dt.mpi_scatter()
             self._flags.mpi_scatter()
             # IDs need special treatment
-            if ids is None:
-                ids = backend.arange(len(dt), dtype=np.int32)
             self._ids: DistributedArray = DistributedArray(
-                backend.array(ids, dtype=np.int32)
+                backend.arange(len(dt), dtype=np.int32)
             )
             self._ids.mpi_scatter()
         elif mpi_mode == "all-ranks":
             # IDs need special treatment
-            if ids is None:
-                self._ids: DistributedArray = distributed_arange(
-                    len(dt), dtype=np.int32
-                )
-            else:
-                self._ids: DistributedArray = DistributedArray(
-                    backend.array(ids, dtype=np.int32)
-                )
+            self._ids: DistributedArray = distributed_arange(
+                len(dt), dtype=np.int32
+            )
         else:
             raise NameError(f"Unknown {mpi_mode=}")
 
