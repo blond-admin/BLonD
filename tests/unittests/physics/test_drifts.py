@@ -20,8 +20,8 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import (
     DriftBaseClass,
     DriftExact,
-    DriftLikeLineSegment,
     DriftSimple,
+    _DriftLikeLineSegment,
 )
 from blond.testing.backend_testing import multi_backend_testcase
 
@@ -527,8 +527,8 @@ class TestDriftExact(unittest.TestCase):
                     self.assertIn(f"alpha_{k}", free_names)
 
 
-class TestDriftLikeLineSegment(unittest.TestCase):
-    r"""``DriftLikeLineSegment``: linear slip factor + exact relativistic delta.
+class Test_DriftLikeLineSegment(unittest.TestCase):
+    r"""``_DriftLikeLineSegment``: linear slip factor + exact relativistic delta.
 
     This is the BLonD-native equivalent of the longitudinal drift of an
     xsuite ``LineSegmentMap`` with zeroth-order momentum compaction.
@@ -543,7 +543,7 @@ class TestDriftLikeLineSegment(unittest.TestCase):
         from blond.core.beam.particle_types import proton
 
         alpha_0 = momentum_compaction_factor(self.TRANSITION_GAMMA)
-        drift = DriftLikeLineSegment.headless(
+        drift = _DriftLikeLineSegment.headless(
             momentum_compaction_factor=alpha_0,
             orbit_length=self.CIRCUMFERENCE,
             section_index=0,
@@ -662,7 +662,7 @@ class TestDriftLikeLineSegment(unittest.TestCase):
 
         alphas = np.array([0.0241, 0.0242, 0.0243])
         turn_counter = DynamicParameter(0)
-        drift = DriftLikeLineSegment.headless(
+        drift = _DriftLikeLineSegment.headless(
             momentum_compaction_factor=alphas,
             orbit_length=self.CIRCUMFERENCE,
             section_index=0,
@@ -707,7 +707,7 @@ class TestDriftLikeLineSegment(unittest.TestCase):
             ]
         )
         turn_counter = DynamicParameter(0)
-        drift_seg = DriftLikeLineSegment.headless(
+        drift_seg = _DriftLikeLineSegment.headless(
             momentum_compaction_factor=alphas,
             orbit_length=self.CIRCUMFERENCE,
             section_index=0,
