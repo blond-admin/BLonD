@@ -57,7 +57,6 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     See Also
     --------
     DriftSimple : Linear slip, linearised delta (fastest).
-    _DriftLikeLineSegment : Linear slip, exact delta (xsuite-equivalent).
     DriftExact : Full slip, exact delta (most complete).
 
     Notes
@@ -80,7 +79,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
     * :class:`DriftSimple` -- linear slip, linearised :math:`\delta`. Fastest,
       and internally consistent (its tracker, Hamiltonian and separatrix are
       all linear); accurate for small amplitudes / ultra-relativistic beams.
-    * :class:`_DriftLikeLineSegment` -- linear slip, exact :math:`\delta`.
+    * ``_DriftLikeLineSegment`` -- linear slip, exact :math:`\delta`.
       Reproduces an xsuite ``LineSegmentMap``; use it for xsuite cross-checks
       and low-energy rings where the :math:`\delta` linearisation in
       :class:`DriftSimple` is no longer adequate.
@@ -153,7 +152,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     *linear* factor :math:`\eta_0`. This makes it the fastest solver and keeps
     its tracker, Hamiltonian and separatrix mutually consistent, at the cost of
     accuracy for large amplitudes or low energy. For the exact momentum
-    deviation use :class:`_DriftLikeLineSegment`; for the full slip (and
+    deviation use ``_DriftLikeLineSegment``; for the full slip (and
     higher-order momentum compaction) use :class:`DriftExact`. See
     :class:`DriftBaseClass` for the full comparison.
 
@@ -176,7 +175,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
     See Also
     --------
-    _DriftLikeLineSegment : Linear slip but the *exact* delta (xsuite-equivalent).
     DriftExact : Full slip and exact delta (most complete, slowest).
     DriftBaseClass : Overview of the three solvers and their accuracy choices.
     """
@@ -508,7 +506,6 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
     See Also
     --------
     DriftSimple : Linear slip and linearised delta (fastest, small-amplitude).
-    _DriftLikeLineSegment : Linear slip but exact delta (xsuite-equivalent).
     DriftBaseClass : Overview of the three solvers and their accuracy choices.
     """
 
