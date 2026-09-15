@@ -2288,6 +2288,42 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_beam_phase_many_bins(self) -> None:
+        """Every bin must contribute, also beyond a fixed GPU launch grid."""
+        dtype = np.float64
+        # More bins than a fixed launch grid of (2 * multiprocessors)
+        # blocks of 1024 threads covers on common GPUs, and not a power of
+        # two, so that the last block is only partially filled.
+        n_bins = 2**18 + 3
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2))
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            # Phases within (0.1, 0.9) rad keep both integrands positive,
+            # so the sums are free of cancellation.
+            result = backend.specials.beam_phase(
+                hist_x=backend.array(hist_x_host, dtype=backend.float),
+                hist_y=backend.array(hist_y_host, dtype=backend.float),
+                alpha=backend.float(0.5),
+                omega_rf=backend.float(0.8),
+                phi_rf=backend.float(0.1),
+                bin_size=backend.float(hist_x_host[1] - hist_x_host[0]),
+            )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=1e-10,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_histogram(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):

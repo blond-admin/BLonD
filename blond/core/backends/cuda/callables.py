@@ -630,6 +630,11 @@ class CudaSpecials(Specials):  # NOQA: D101
         bin_size = FLOAT(bin_size)
 
         result = cp.zeros(2, dtype=FLOAT)
+        # The kernel reduces each block in shared memory instead of
+        # striding over the array like the other kernels, so it needs one
+        # block per `threads` bins: the fixed `grid_size` would silently
+        # drop every bin beyond `blocks * threads`.
+        n_blocks = (len(hist_x) + threads - 1) // threads
         _beam_phase(
             args=(
                 hist_x,  # hist_x
@@ -642,7 +647,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(hist_x)),  # n_bins
             ),
             block=block_size,
-            grid=grid_size,
+            grid=(n_blocks, 1, 1),
             shared_mem=2 * block_size[0] * np.dtype(FLOAT).itemsize,
         )
         return FLOAT((result[0] / result[1]).get())
