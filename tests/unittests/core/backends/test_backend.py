@@ -2565,6 +2565,7 @@ class TestSpecials(unittest.TestCase):
         self,
         update_on_bin_np: np.ndarray,
         n_calls: int = 1,
+        n_poles: int = 2,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Run `wake_from_pole_residue` on the active backend.
 
@@ -2583,14 +2584,18 @@ class TestSpecials(unittest.TestCase):
             dtype=complex,
         )
         residues_np = np.array([1.0 + 0.5j, 0.7 - 0.2j], dtype=complex)
+        # Cycle through the two poles to reach `n_poles`
+        poles_np = np.resize(poles_np, n_poles)
+        residues_np = np.resize(residues_np, n_poles)
 
         profile = backend.array(profile_np, dtype=backend.float)
         centers = backend.array(centers_np, dtype=backend.float)
         poles = backend.array(poles_np, dtype=backend.complex)
         residues = backend.array(residues_np, dtype=backend.complex)
         states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
-        # non-zero state so decay handling is observable in the output
-        states[0] = 0.3 + 0.1j
+        # non-zero states so decay and time jumps are observable in the
+        # output of every pole
+        states[:-1] = 0.3 + 0.1j
         states[-1] = centers_np[0] - bin_dt
         voltage = backend.zeros(n, dtype=backend.float)
         for _ in range(n_calls):
@@ -2617,7 +2622,10 @@ class TestSpecials(unittest.TestCase):
         return np.asarray(voltage), np.asarray(states)
 
     def _assert_wake_matches_python(
-        self, update_on_bin_np: np.ndarray, n_calls: int = 1
+        self,
+        update_on_bin_np: np.ndarray,
+        n_calls: int = 1,
+        n_poles: int = 2,
     ) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
@@ -2629,6 +2637,7 @@ class TestSpecials(unittest.TestCase):
             voltage, states = self._run_wake_from_pole_residue(
                 update_on_bin_np=update_on_bin_np,
                 n_calls=n_calls,
+                n_poles=n_poles,
             )
             if i == 0:
                 voltage_python = voltage
@@ -2653,6 +2662,23 @@ class TestSpecials(unittest.TestCase):
         self._assert_wake_matches_python(
             update_on_bin_np=np.array([0], dtype=np.int32),
             n_calls=2,
+        )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_many_poles(self) -> None:
+        """Every pole must jump from the same `t_start`.
+
+        The CUDA kernel read `t_start` from `states` in each pole thread
+        while pole 0 overwrote it for the next call, so pole threads that
+        started after pole 0 had finished (e.g. in later blocks) used the
+        wrong time jump on bin 0.
+        """
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([0], dtype=np.int32),
+            n_calls=2,
+            # More poles than the device runs concurrently, so that pole
+            # threads start after pole 0 has finished.
+            n_poles=10000,
         )
 
     @pytest.mark.backend_mutation

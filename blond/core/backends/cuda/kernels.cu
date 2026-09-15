@@ -560,13 +560,9 @@ extern "C" __global__ void wake_from_pole_residue(
     state_re += half_step;
   }
 
-  // Persist state for the next call.
+  // Persist state for the next call. `t_start` for the next call is
+  // written by the caller after the launch: writing it here would race
+  // with pole threads that have not yet read it.
   states[pole_n] = state_re;
   states[pole_n + 1] = state_im;
-
-  // Only one thread writes t_start for the next call.
-  if (pole_i == 0) {
-    states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-    states[2 * n_poles + 1] = real_t(0);
-  }
 }
