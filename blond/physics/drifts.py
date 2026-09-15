@@ -702,7 +702,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
             )
 
 
-class DriftLikeLineSegment(DriftSimple):
+class _DriftLikeLineSegment(DriftSimple):
     r"""
     Drift matching an xsuite ``LineSegmentMap`` (linear slip, exact delta).
 
@@ -767,7 +767,7 @@ class DriftLikeLineSegment(DriftSimple):
         orbit_length: float,
         section_index: int = 0,
         turn_counter: DynamicParameter | None = None,
-    ) -> DriftLikeLineSegment:
+    ) -> _DriftLikeLineSegment:
         """
         Initialize object without simulation context.
 
@@ -788,7 +788,7 @@ class DriftLikeLineSegment(DriftSimple):
         drift_like_line_segment
             ``_DriftLikeLineSegment`` object without simulation context.
         """
-        d = DriftLikeLineSegment(
+        d = _DriftLikeLineSegment(
             orbit_length=orbit_length,
             section_index=section_index,
         )
