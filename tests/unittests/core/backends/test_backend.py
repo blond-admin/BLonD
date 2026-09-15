@@ -257,6 +257,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
         text=True,
         env=env,
         timeout=300,
+        check=False,
     )
 
 
@@ -1050,7 +1051,7 @@ class TestSpecials(unittest.TestCase):
             bin_centers = dt.copy()
             voltage = bin_centers**2
             charge = float(10)
-            acceleration_kick = float(0.5)
+            acceleration_kick = 0.5
             backend.specials.kick_interpolated(
                 dt=dt,
                 dE=dE,
@@ -1135,7 +1136,8 @@ class TestSpecials(unittest.TestCase):
     def test_kick_interpolated_rejects_non_uniform_bin_centers(self) -> None:
         """Non-uniform bin_centers (e.g. a sparse multi-island hist_x from
         EquidistantMultiProfile) must raise, not silently compute the wrong
-        physics by assuming a global uniform grid."""
+        physics by assuming a global uniform grid.
+        """
         dtype = np.float64
         for special in self.special_modes:
             try:
@@ -1173,7 +1175,8 @@ class TestSpecials(unittest.TestCase):
         """A single-bin `bin_centers` cannot expose non-uniform spacing
         (`np.diff` on it is empty), so the uniformity guard must not even
         attempt the check -- and must not kick any particle, since there is
-        no bin width to interpolate across."""
+        no bin width to interpolate across.
+        """
         dtype = np.float64
         for special in self.special_modes:
             try:
@@ -1210,7 +1213,8 @@ class TestSpecials(unittest.TestCase):
     def test_kick_interpolated_sparse(self) -> None:
         """A particle sitting exactly on the first bin of the *second*
         island must be kicked using that island's own voltage segment, not
-        misindexed into a neighboring island by a naive global floor()."""
+        misindexed into a neighboring island by a naive global floor().
+        """
         dtype = np.float64
         bins_per_profile = 4
         # bucket 0 and 3 filled, buckets 1 and 2 empty (a real gap)
@@ -1318,7 +1322,8 @@ class TestSpecials(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_kick_interpolated_sparse_skips_unfilled_bucket(self) -> None:
         """A particle whose dt falls into an unfilled bucket's time window
-        must receive no kick (mirrors histogram_sparse's `continue`)."""
+        must receive no kick (mirrors histogram_sparse's `continue`).
+        """
         dtype = np.float64
         bins_per_profile = 4
         filling_pattern_np = np.array([True, False, False, True])

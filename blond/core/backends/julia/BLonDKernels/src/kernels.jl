@@ -12,6 +12,10 @@
 #
 # Semantics mirror `blond/core/backends/python/callables.py` (readable
 # reference) and the loop form of `blond/core/backends/numba/callables.py`.
+#
+# The simplest per-particle loops additionally have a range function (see
+# "Chunked CPU particle loops" at the end of this file), which the CPU runs
+# instead of the per-particle kernel.
 
 @kernel function kick_single_harmonic_kernel!(
     dt, dE, voltage_kick, omega_rf, phi_rf, acceleration_kick
@@ -288,40 +292,108 @@ end
     end
 end
 
-@kernel function kick_interpolated_dense_kernel!(
-    dt, dE, voltage, bin_centers, n_slices, charge, acceleration_kick
-)
-    i = @index(Global, Linear)
-    @inbounds begin
-        inverse_bin_width =
-            (n_slices - 1) / (bin_centers[n_slices] - bin_centers[1])
-        dt_i = dt[i]
-        bin_float = floor((dt_i - bin_centers[1]) * inverse_bin_width)
-        if bin_float >= 0.0 && bin_float < n_slices - 1
-            bin_index = unsafe_trunc(Int, bin_float) + 1
-            helper1 =
-                charge * (voltage[bin_index + 1] - voltage[bin_index]) *
-                inverse_bin_width
-            helper2 =
-                (
-                    charge * voltage[bin_index] -
-                    bin_centers[bin_index] * helper1
-                ) + acceleration_kick
-            dE[i] += dt_i * helper1 + helper2
-        end
-    end
-end
+# Interpolated kicks in two phases.
+#
+# Within one bin the kick is linear in `dt`: dE += dt * slope + offset.
+# Phase 1 computes `slope` and `offset` once per bin, into
+# `factors = [slope_1, offset_1, slope_2, offset_2, ...]`; phase 2 only
+# locates each particle's bin and applies them. Recomputing the factors
+# for every particle (the previous kernels) costs four extra memory reads,
+# a division and several products per particle -- about 2x on a GPU. The
+# floating-point operations per particle are unchanged, so the result is
+# bit-identical.
+#
+# The range checks test the bin position `x` itself: `x >= 0 && x < n` is
+# exactly `floor(x) >= 0 && floor(x) < n` (NaN fails both), and truncation
+# equals `floor` for `x >= 0`, so no per-particle `floor` is needed.
 
-@kernel function kick_interpolated_sparse_kernel!(
-    dt,
-    dE,
+"""
+    store_interpolated_kick_factors!(factors, bin, voltage, bin_centers,
+                                     charge, acceleration_kick,
+                                     inverse_bin_width)
+
+Write the slope and offset of the linear kick within `bin` to `factors`.
+"""
+@inline function store_interpolated_kick_factors!(
+    factors,
+    bin,
     voltage,
     bin_centers,
     charge,
     acceleration_kick,
+    inverse_bin_width,
+)
+    @inbounds begin
+        slope =
+            charge * (voltage[bin + 1] - voltage[bin]) * inverse_bin_width
+        factors[2 * bin - 1] = slope
+        factors[2 * bin] =
+            (charge * voltage[bin] - bin_centers[bin] * slope) +
+            acceleration_kick
+    end
+    return nothing
+end
+
+@kernel function kick_interpolated_dense_factors_kernel!(
+    factors, grid, voltage, bin_centers, n_slices, charge, acceleration_kick
+)
+    bin = @index(Global, Linear)
+    @inbounds begin
+        inverse_bin_width =
+            (n_slices - 1) / (bin_centers[n_slices] - bin_centers[1])
+        store_interpolated_kick_factors!(
+            factors,
+            bin,
+            voltage,
+            bin_centers,
+            charge,
+            acceleration_kick,
+            inverse_bin_width,
+        )
+        # The particle phase reads the grid from the device, so that no
+        # scalar has to be copied to the host.
+        if bin == 1
+            grid[1] = bin_centers[1]
+            grid[2] = inverse_bin_width
+        end
+    end
+end
+
+@kernel function kick_interpolated_dense_particles_kernel!(
+    dt, dE, factors, grid, n_slices
+)
+    i = @index(Global, Linear)
+    @inbounds begin
+        dt_i = dt[i]
+        bin_position = (dt_i - grid[1]) * grid[2]
+        if bin_position >= 0.0 && bin_position < n_slices - 1
+            bin = unsafe_trunc(Int, bin_position) + 1
+            dE[i] += dt_i * factors[2 * bin - 1] + factors[2 * bin]
+        end
+    end
+end
+
+@kernel function kick_interpolated_sparse_factors_kernel!(
+    factors, voltage, bin_centers, charge, acceleration_kick, inverse_bin_width
+)
+    bin = @index(Global, Linear)
+    store_interpolated_kick_factors!(
+        factors,
+        bin,
+        voltage,
+        bin_centers,
+        charge,
+        acceleration_kick,
+        inverse_bin_width,
+    )
+end
+
+@kernel function kick_interpolated_sparse_particles_kernel!(
+    dt,
+    dE,
+    factors,
     first_left_cut,
     left_cut_distance,
-    cut_width,
     bins_per_profile,
     filling_pattern,
     n_buckets,
@@ -333,32 +405,22 @@ end
     i = @index(Global, Linear)
     @inbounds begin
         dt_i = dt[i]
-        bucket_float =
-            floor((dt_i - first_left_cut) * inverse_histogram_distance)
-        if bucket_float >= 0.0 && bucket_float < n_buckets
-            bucket_index = unsafe_trunc(Int, bucket_float)
+        bucket_position = (dt_i - first_left_cut) * inverse_histogram_distance
+        if bucket_position >= 0.0 && bucket_position < n_buckets
+            bucket_index = unsafe_trunc(Int, bucket_position)
             if filling_pattern[bucket_index + 1]
                 cut_left =
                     first_left_cut + bucket_index * left_cut_distance
                 bucket_bin_center0 = cut_left + bin_width / 2.0
-                local_bin_float =
-                    floor((dt_i - bucket_bin_center0) * inverse_bin_width)
-                if local_bin_float >= 0.0 &&
-                   local_bin_float < bins_per_profile - 1
-                    bin_index =
+                local_bin_position =
+                    (dt_i - bucket_bin_center0) * inverse_bin_width
+                if local_bin_position >= 0.0 &&
+                   local_bin_position < bins_per_profile - 1
+                    bin =
                         Int(
                             bucket_index_to_memory_index[bucket_index + 1]
-                        ) + unsafe_trunc(Int, local_bin_float) + 1
-                    helper1 =
-                        charge *
-                        (voltage[bin_index + 1] - voltage[bin_index]) *
-                        inverse_bin_width
-                    helper2 =
-                        (
-                            charge * voltage[bin_index] -
-                            bin_centers[bin_index] * helper1
-                        ) + acceleration_kick
-                    dE[i] += dt_i * helper1 + helper2
+                        ) + unsafe_trunc(Int, local_bin_position) + 1
+                    dE[i] += dt_i * factors[2 * bin - 1] + factors[2 * bin]
                 end
             end
         end
@@ -486,4 +548,135 @@ end
     i = @index(Global, Linear)
     @inbounds dE[i] =
         damping_factor * dE[i] + (noise[i] * noise_scale - energy_lost)
+end
+
+# Chunked CPU particle loops.
+#
+# The CPU backend of KernelAbstractions evaluates a kernel one work-item
+# at a time, which keeps the compiler from vectorising the per-particle
+# arithmetic. On the CPU the loops below therefore run over whole chunks
+# of particles instead: one work-item per chunk, each sweeping its chunk
+# in a plain `@simd` loop. Every range function takes the arguments of its
+# per-particle kernel (after the particle range) and performs exactly the
+# same floating-point operations in the same order, except that the kicks
+# use `fast_sin`, as the C++ backend does.
+
+"""
+    PARTICLES_PER_CHUNK
+
+Macro-particles one work-item of a chunked CPU particle loop sweeps. The
+`dt` and `dE` of a chunk (16 KiB) fit into the L1 cache; 1024 is the
+measured optimum for ``1e7`` particles on 12 threads (multi-harmonic kick
+10.1 ms, against 11.9 ms for 4096 and 20.6 ms for 65536 particles).
+"""
+const PARTICLES_PER_CHUNK = 1024
+
+@kernel function particle_chunks_kernel!(
+    range_function!, n_particles, arguments
+)
+    chunk = @index(Global, Linear)
+    first_particle = (chunk - 1) * PARTICLES_PER_CHUNK + 1
+    last_particle = min(chunk * PARTICLES_PER_CHUNK, n_particles)
+    range_function!(first_particle, last_particle, arguments...)
+end
+
+function kick_single_harmonic_range!(
+    first_particle, last_particle,
+    dt, dE, voltage_kick, omega_rf, phi_rf, acceleration_kick,
+)
+    @inbounds @simd for i in first_particle:last_particle
+        dE[i] +=
+            voltage_kick * fast_sin(omega_rf * dt[i] + phi_rf) +
+            acceleration_kick
+    end
+    return nothing
+end
+
+function kick_multi_harmonic_range!(
+    first_particle, last_particle,
+    dt, dE, voltage, omega_rf, phi_rf, n_rf, charge, acceleration_kick,
+)
+    # One sweep per harmonic keeps the per-particle summation order
+    # dE + kick_1 + ... + kick_n_rf + acceleration_kick.
+    @inbounds for j in 1:n_rf
+        amplitude = charge * voltage[j]
+        harmonic_omega_rf = omega_rf[j]
+        harmonic_phi_rf = phi_rf[j]
+        @simd for i in first_particle:last_particle
+            dE[i] +=
+                amplitude * fast_sin(harmonic_omega_rf * dt[i] + harmonic_phi_rf)
+        end
+    end
+    @inbounds @simd for i in first_particle:last_particle
+        dE[i] += acceleration_kick
+    end
+    return nothing
+end
+
+function drift_simple_range!(first_particle, last_particle, dt, dE, coefficient)
+    @inbounds @simd for i in first_particle:last_particle
+        dt[i] += coefficient * dE[i]
+    end
+    return nothing
+end
+
+function synchrotron_radiation_range!(
+    first_particle, last_particle, dE, damping_factor, energy_lost
+)
+    @inbounds @simd for i in first_particle:last_particle
+        dE[i] = damping_factor * dE[i] - energy_lost
+    end
+    return nothing
+end
+
+"""
+    beam_phase_integrand_sums(hist_x, hist_y, alpha, omega_rf, phi_rf,
+                              first_bin, last_bin) -> (sine_sum, cosine_sum)
+
+Sum the sine- and cosine-weighted beam-phase integrands over a bin range.
+"""
+@inline function beam_phase_integrand_sums(
+    hist_x, hist_y, alpha, omega_rf, phi_rf, first_bin, last_bin
+)
+    sine_sum = 0.0
+    cosine_sum = 0.0
+    @inbounds for i in first_bin:last_bin
+        weight = exp(alpha * hist_x[i]) * hist_y[i]
+        angle = omega_rf * hist_x[i] + phi_rf
+        sine_sum += weight * sin(angle)
+        cosine_sum += weight * cos(angle)
+    end
+    return sine_sum, cosine_sum
+end
+
+function beam_phase_sums_range!(
+    first_bin, last_bin, chunk_sums, hist_x, hist_y, alpha, omega_rf, phi_rf
+)
+    # Every chunk writes only its own two slots, so the chunks need no
+    # synchronisation. exp, sin and cos do not vectorise; the gain of the
+    # chunks is running them in parallel.
+    chunk = (first_bin - 1) ÷ PARTICLES_PER_CHUNK + 1
+    sine_sum, cosine_sum = beam_phase_integrand_sums(
+        hist_x, hist_y, alpha, omega_rf, phi_rf, first_bin, last_bin
+    )
+    @inbounds chunk_sums[2 * chunk - 1] = sine_sum
+    @inbounds chunk_sums[2 * chunk] = cosine_sum
+    return nothing
+end
+
+function synchrotron_radiation_quantum_excitation_range!(
+    first_particle, last_particle,
+    dE, damping_factor, noise_scale, energy_lost,
+)
+    # Each task draws from its own task-local generator, so the noise is
+    # generated in parallel and independently per chunk. Drawing it
+    # particle by particle saves allocating and filling a beam-sized noise
+    # array, which costs more than the draws themselves.
+    rng = default_rng()
+    @inbounds for i in first_particle:last_particle
+        dE[i] =
+            damping_factor * dE[i] +
+            (randn(rng) * noise_scale - energy_lost)
+    end
+    return nothing
 end

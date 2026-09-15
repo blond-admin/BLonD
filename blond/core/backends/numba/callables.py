@@ -532,7 +532,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
     @staticmethod
     @enforce_precision(FLOAT)
-    @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
+    @njit(sig_kick_multi_harmonic, parallel=True, fastmath=True)
     def kick_multi_harmonic(  # NOQA PLR0915 # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,

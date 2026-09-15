@@ -6,113 +6,77 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `kick_multi_harmonic`."""
+"""Testing the performance of `kick_multi_harmonic` and `kick_single_harmonic`."""
 
-import time
+import sys
+from pathlib import Path
 
-import cupy as cp
+import matplotlib.pyplot as plt
 
-from blond.core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import backend
+
+# `dev_tools` is deliberately not a package (it would be picked up by
+# setuptools' package discovery), so import the helpers by path.
+sys.path.insert(0, str(Path(__file__).parents[1] / "helpers"))
+from scan_performance import (  # noqa: E402
+    N_MACROPARTICLES_SCAN,
+    plot_performance,
+)
+
+N_MACROPARTICLES = N_MACROPARTICLES_SCAN
+N_RF = 2
 
 
-def main():  # pragma: no cover
-    """Testing the performance of `kick_multi_harmonic`."""
-    backend.change_backend(Numpy64Bit)
+def make_kwargs(n_macroparticles: int) -> dict:
+    """Build the `kick_multi_harmonic` arguments for `n_macroparticles`."""
+    dt = backend.linspace(-5, 5, n_macroparticles, dtype=backend.float)
+    return {
+        "dt": dt,
+        "dE": backend.zeros(n_macroparticles, dtype=backend.float),
+        "voltage": backend.linspace(1, 5, N_RF, dtype=backend.float),
+        "omega_rf": backend.linspace(1, 5, N_RF, dtype=backend.float),
+        "phi_rf": backend.linspace(1, 5, N_RF, dtype=backend.float),
+        "charge": 2.0,
+        "n_rf": N_RF,
+        "acceleration_kick": 0.0,
+    }
 
-    dt = backend.linspace(
-        -5,
-        5,
-        int(1e6),
-        dtype=backend.float,
+
+def make_kwargs_single_harmonic(n_macroparticles: int) -> dict:
+    """Build the `kick_single_harmonic` arguments for `n_macroparticles`."""
+    return {
+        "dt": backend.linspace(-5, 5, n_macroparticles, dtype=backend.float),
+        "dE": backend.zeros(n_macroparticles, dtype=backend.float),
+        "voltage": 3.0,
+        "omega_rf": 2.0,
+        "phi_rf": 0.5,
+        "charge": 1.0,
+        "acceleration_kick": 0.0,
+    }
+
+
+def main() -> None:  # pragma: no cover
+    """Testing the performance of the RF kicks."""
+    plot_performance(
+        kernel_name="kick_multi_harmonic",
+        make_kwargs=make_kwargs,
+        scan_values=N_MACROPARTICLES,
+        n_warmup=10,
+        n_runs=20,
+        xlabel="n_macroparticles",
+        title=f"kick_multi_harmonic, n_rf={N_RF}",
+        save_name="kick_multi_harmonic",
     )
-    dE = backend.zeros(
-        len(dt),
-        dtype=backend.float,
+    plot_performance(
+        kernel_name="kick_single_harmonic",
+        make_kwargs=make_kwargs_single_harmonic,
+        scan_values=N_MACROPARTICLES,
+        n_warmup=10,
+        n_runs=20,
+        xlabel="n_macroparticles",
+        save_name="kick_single_harmonic",
     )
-    n_rf = 2
-    voltage = backend.linspace(
-        1,
-        5,
-        n_rf,
-        dtype=backend.float,
-    )
-    omega_rf = backend.linspace(
-        1,
-        5,
-        n_rf,
-        dtype=backend.float,
-    )
-    phi_rf = backend.linspace(
-        1,
-        5,
-        n_rf,
-        dtype=backend.float,
-    )
-
-    dt_cp = cp.array(dt)
-    dE_cp = cp.array(dE)
-    voltage_cp = cp.array(voltage)
-    omega_rf_cp = cp.array(omega_rf)
-    phi_rf_cp = cp.array(phi_rf)
-
-    charge = backend.float(2.0)
-    acceleration_kick = backend.float(0.0)
-
-    from blond.core.backends.cpp.callables import CppSpecials
-    from blond.core.backends.cuda.callables import CudaSpecials
-    from blond.core.backends.numba.callables import NumbaSpecials
-
-    functions = (
-        NumbaSpecials().kick_multi_harmonic,
-        CppSpecials().kick_multi_harmonic,
-        CudaSpecials().kick_multi_harmonic,
-    )
-    runtimes = {}
-    for kick_multi_harmonic in functions:
-        runtimes[str(kick_multi_harmonic)] = 0.0
-    for _iter in range(1000):
-        for _i, kick_multi_harmonic in enumerate(functions):
-            CUDA = kick_multi_harmonic == CudaSpecials().kick_multi_harmonic
-            t0 = time.perf_counter()
-            kick_multi_harmonic(
-                dt=dt_cp if CUDA else dt,
-                dE=dE_cp if CUDA else dE,
-                voltage=voltage_cp if CUDA else voltage,
-                omega_rf=omega_rf_cp if CUDA else omega_rf,
-                phi_rf=phi_rf_cp if CUDA else phi_rf,
-                charge=charge,
-                n_rf=n_rf,
-                acceleration_kick=acceleration_kick,
-            )
-            if CUDA:
-                cp.cuda.runtime.deviceSynchronize()
-            t1 = time.perf_counter()
-            runtimes[str(kick_multi_harmonic)] += t1 - t0
-    for key in sorted(runtimes.keys()):
-        print(runtimes[key], key)
-
-    print()
-    for _i, kick_multi_harmonic in enumerate(functions):
-        runtimes[str(kick_multi_harmonic)] = 0.0
-        CUDA = kick_multi_harmonic == CudaSpecials().kick_multi_harmonic
-        t0 = time.perf_counter()
-        for _iter in range(1000):
-            kick_multi_harmonic(
-                dt=dt_cp if CUDA else dt,
-                dE=dE_cp if CUDA else dE,
-                voltage=voltage_cp if CUDA else voltage,
-                omega_rf=omega_rf_cp if CUDA else omega_rf,
-                phi_rf=phi_rf_cp if CUDA else phi_rf,
-                charge=charge,
-                n_rf=n_rf,
-                acceleration_kick=acceleration_kick,
-            )
-        if CUDA:
-            cp.cuda.runtime.deviceSynchronize()
-        t1 = time.perf_counter()
-        runtimes[str(kick_multi_harmonic)] += t1 - t0
-    for key in sorted(runtimes.keys()):
-        print(runtimes[key], key)
+    plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover

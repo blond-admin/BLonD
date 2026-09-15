@@ -155,6 +155,69 @@ end
     end
 end
 
+# The per-particle interpolated kick the two-phase kernels replaced (it
+# recomputes the bin factors for every particle); kept as the performance
+# baseline of the "kick_interpolated_dense! precomputed factors" testset.
+@kernel function per_particle_kick_interpolated_dense_kernel!(
+    dt, dE, voltage, bin_centers, n_slices, charge, acceleration_kick
+)
+    i = @index(Global, Linear)
+    @inbounds begin
+        inverse_bin_width =
+            (n_slices - 1) / (bin_centers[n_slices] - bin_centers[1])
+        dt_i = dt[i]
+        bin_float = floor((dt_i - bin_centers[1]) * inverse_bin_width)
+        if bin_float >= 0.0 && bin_float < n_slices - 1
+            bin_index = unsafe_trunc(Int, bin_float) + 1
+            helper1 =
+                charge * (voltage[bin_index + 1] - voltage[bin_index]) *
+                inverse_bin_width
+            helper2 =
+                (
+                    charge * voltage[bin_index] -
+                    bin_centers[bin_index] * helper1
+                ) + acceleration_kick
+            dE[i] += dt_i * helper1 + helper2
+        end
+    end
+end
+
+# The chunked quantum-excitation sweep that fills a preallocated noise
+# array (the previous CPU implementation); kept as the performance
+# baseline of the "quantum excitation without noise array" testset.
+function noise_array_quantum_excitation_range!(
+    first_particle,
+    last_particle,
+    dE,
+    noise,
+    damping_factor,
+    noise_scale,
+    energy_lost,
+)
+    randn!(view(noise, first_particle:last_particle))
+    @inbounds @simd for i in first_particle:last_particle
+        dE[i] =
+            damping_factor * dE[i] + (noise[i] * noise_scale - energy_lost)
+    end
+    return nothing
+end
+
+# The beam phase over a complex values array reduced three times (the
+# previous implementation, still used on GPUs); kept as the performance
+# baseline of the "beam_phase chunked sums" testset.
+function values_array_beam_phase(
+    device, hist_x, hist_y, alpha, omega_rf, phi_rf, bin_size
+)
+    n_bins = length(hist_x)
+    values = similar(hist_x, ComplexF64)
+    kernel! = BLonDKernels.beam_phase_values_kernel!(device)
+    kernel!(values, hist_x, hist_y, alpha, omega_rf, phi_rf; ndrange=n_bins)
+    KernelAbstractions.synchronize(device)
+    edge_values = sum(@view values[1:1]) + sum(@view values[n_bins:n_bins])
+    integral = (sum(values) - 0.5 * edge_values) * bin_size
+    return imag(integral) / real(integral)
+end
+
 function reference_histogram(array_read, n_bins, start, stop)
     result = zeros(Float64, n_bins)
     inverse_bin_width = n_bins / (stop - start)
@@ -970,6 +1033,45 @@ function run_device_tests(
             @test to_host(dE_sparse) == to_host(dE_dense)
         end
 
+        if !(device isa KernelAbstractions.CPU)
+            @testset "kick_interpolated_dense! precomputed factors" begin
+                # Computing the bin factors once per call instead of once
+                # per particle must clearly beat the per-particle kernel
+                # (the previous implementation) on a GPU.
+                n = 10^6
+                n_slices = 100
+                bin_centers_host = collect(range(-4.0, 4.0; length=n_slices))
+                dt = to_device(collect(range(-5.0, 5.0; length=n)))
+                dE = to_device(zeros(Float64, n))
+                voltage = to_device(bin_centers_host .^ 2)
+                bin_centers = to_device(bin_centers_host)
+                per_particle_kernel! =
+                    per_particle_kick_interpolated_dense_kernel!(device)
+                function run_per_particle()
+                    per_particle_kernel!(
+                        dt, dE, voltage, bin_centers, n_slices, 10.0, 0.5;
+                        ndrange=n,
+                    )
+                    KernelAbstractions.synchronize(device)
+                end
+                run_entry() = BLonDKernels.kick_interpolated_dense!(
+                    device, raw_pointer(dt), raw_pointer(dE), n,
+                    raw_pointer(voltage), raw_pointer(bin_centers), n_slices,
+                    10.0, 0.5,
+                )
+                # Sustained load first: an idle GPU runs in a low power
+                # state that would slow down whichever is timed first.
+                for _ in 1:200
+                    run_per_particle()
+                    run_entry()
+                end
+                elapsed_entry = minimum(@elapsed(run_entry()) for _ in 1:20)
+                elapsed_per_particle =
+                    minimum(@elapsed(run_per_particle()) for _ in 1:20)
+                @test elapsed_entry < 0.75 * elapsed_per_particle
+            end
+        end
+
         @testset "histogram_sparse!" begin
             bins_per_profile = 4
             first_left_cut = -12.0
@@ -1221,6 +1323,247 @@ function run_device_tests(
                 )
             end
         end
+
+        @testset "particle loops across chunk boundaries" begin
+            # Several full chunks plus a partial one, so that the first,
+            # the inner and the last chunk boundaries are all exercised.
+            chunk_length = BLonDKernels.PARTICLES_PER_CHUNK
+            n = 3 * chunk_length + 17
+            dt_host = collect(range(-5e-9, 5e-9; length=n))
+            dE_host = collect(range(1e9, 10e9; length=n))
+            charge = 1.0
+            acceleration_kick = -1.0
+
+            expected = reference_kick_single_harmonic(
+                dt_host, dE_host, 3e6, 2.5e9, 0.3, charge, acceleration_kick
+            )
+            dt = to_device(dt_host)
+            dE = to_device(dE_host)
+            BLonDKernels.kick_single_harmonic!(
+                device, raw_pointer(dt), raw_pointer(dE), n, 3e6, 2.5e9, 0.3,
+                charge, acceleration_kick,
+            )
+            @test to_host(dE) ≈ expected rtol = 1e-14
+
+            for n_rf in 1:5
+                voltage_host = [1e6 * j for j in 1:n_rf]
+                omega_host = [2.5e9 * j for j in 1:n_rf]
+                phi_host = [0.3 * j for j in 1:n_rf]
+                expected = reference_kick_multi_harmonic(
+                    dt_host, dE_host, voltage_host, omega_host, phi_host,
+                    charge, acceleration_kick,
+                )
+                dE = to_device(dE_host)
+                voltage = to_device(voltage_host)
+                omega_rf = to_device(omega_host)
+                phi_rf = to_device(phi_host)
+                BLonDKernels.kick_multi_harmonic!(
+                    device, raw_pointer(dt), raw_pointer(dE), n,
+                    raw_pointer(voltage), raw_pointer(omega_rf),
+                    raw_pointer(phi_rf), n_rf, charge, acceleration_kick,
+                )
+                @test to_host(dE) ≈ expected rtol = 1e-14
+            end
+
+            expected = reference_drift_simple(
+                dt_host, dE_host, 5.0, 0.3, 0.9, 10.0
+            )
+            dt = to_device(dt_host)
+            dE = to_device(dE_host)
+            BLonDKernels.drift_simple!(
+                device, raw_pointer(dt), raw_pointer(dE), n, 5.0, 0.3, 0.9,
+                10.0,
+            )
+            @test same(to_host(dt), expected)
+
+            longitudinal_damping_time = 14955.0
+            damping_factor = 1.0 - 2.0 / longitudinal_damping_time
+            dE = to_device(dE_host)
+            BLonDKernels.apply_synchrotron_radiation!(
+                device, raw_pointer(dE), n, 13e6, longitudinal_damping_time,
+                1e-3, 20e9, true,
+            )
+            @test same(to_host(dE), damping_factor .* dE_host .- 13e6)
+
+            # The beam phase sums its integrands chunk by chunk on the CPU.
+            hist_x_host = collect(range(0.0, 1.0; length=n))
+            hist_y_host = exp.(-((hist_x_host .- 0.5) ./ 0.2) .^ 2)
+            bin_size = hist_x_host[2] - hist_x_host[1]
+            expected_phase = reference_beam_phase(
+                hist_x_host, hist_y_host, 0.5, 0.8, 0.1, bin_size
+            )
+            hist_x = to_device(hist_x_host)
+            hist_y = to_device(hist_y_host)
+            @test BLonDKernels.beam_phase(
+                device, raw_pointer(hist_x), raw_pointer(hist_y), n, 0.5,
+                0.8, 0.1, bin_size,
+            ) ≈ expected_phase rtol = 1e-12
+
+            # Quantum excitation: starting from zero energy without loss,
+            # the result is the scaled noise itself. Every chunk must draw
+            # its own numbers -- identically seeded chunks would repeat
+            # the same noise and still pass the mean/std checks.
+            n_chunks = 8
+            noise_dE = to_device(zeros(Float64, n_chunks * chunk_length))
+            BLonDKernels.apply_synchrotron_radiation!(
+                device, raw_pointer(noise_dE), n_chunks * chunk_length, 0.0,
+                longitudinal_damping_time, 1e-3, 20e9, false,
+            )
+            noise = to_host(noise_dE)
+            chunks = [
+                noise[((chunk - 1) * chunk_length + 1):(chunk * chunk_length)]
+                for chunk in 1:n_chunks
+            ]
+            @test allunique(chunks)
+            @test all(allunique, chunks)
+            second_noise_dE = to_device(zeros(Float64, n_chunks * chunk_length))
+            BLonDKernels.apply_synchrotron_radiation!(
+                device, raw_pointer(second_noise_dE), n_chunks * chunk_length,
+                0.0, longitudinal_damping_time, 1e-3, 20e9, false,
+            )
+            @test to_host(second_noise_dE) != noise
+        end
+
+        if device isa KernelAbstractions.CPU
+            @testset "CPU particle loops beat per-particle kernels" begin
+                # The chunked, vectorisable CPU path must clearly beat
+                # launching the per-particle kernel (the previous CPU
+                # implementation, still used on GPUs), timed relative to
+                # each other on the same machine after compilation.
+                n = 2^20
+                dt = collect(range(-5.0, 5.0; length=n))
+                dE = zeros(Float64, n)
+                elapsed(run) = (run(); minimum(@elapsed(run()) for _ in 1:20))
+
+                # The kicks gain by vectorisation, which `@inbounds` makes
+                # possible. `Pkg.test` forces `--check-bounds=yes`, which
+                # ignores `@inbounds`, so the comparison only means
+                # something without it: run
+                # `Pkg.test(julia_args=`--check-bounds=auto`)`.
+                if Base.JLOptions().check_bounds == 1
+                    @test_skip "kick timings need --check-bounds=auto"
+                    @test_skip "kick timings need --check-bounds=auto"
+                else
+                    single_kernel! =
+                        BLonDKernels.kick_single_harmonic_kernel!(device)
+                    elapsed_single_entry = elapsed(
+                        () -> BLonDKernels.kick_single_harmonic!(
+                            device, raw_pointer(dt), raw_pointer(dE), n,
+                            3.0, 2.0, 0.5, 1.0, 0.0,
+                        ),
+                    )
+                    elapsed_single_kernel = elapsed(() -> begin
+                        single_kernel!(
+                            dt, dE, 3.0, 2.0, 0.5, 0.0; ndrange=n
+                        )
+                        KernelAbstractions.synchronize(device)
+                    end)
+                    @test elapsed_single_entry < 0.8 * elapsed_single_kernel
+
+                    voltage = [1e6, 5e6]
+                    omega_rf = [2.0, 4.0]
+                    phi_rf = [0.0, pi]
+                    multi_kernel! =
+                        BLonDKernels.kick_multi_harmonic_kernel!(device)
+                    elapsed_multi_entry = elapsed(
+                        () -> BLonDKernels.kick_multi_harmonic!(
+                            device, raw_pointer(dt), raw_pointer(dE), n,
+                            raw_pointer(voltage), raw_pointer(omega_rf),
+                            raw_pointer(phi_rf), 2, 1.0, 0.0,
+                        ),
+                    )
+                    elapsed_multi_kernel = elapsed(() -> begin
+                        multi_kernel!(
+                            dt, dE, voltage, omega_rf, phi_rf, 2, 1.0, 0.0;
+                            ndrange=n,
+                        )
+                        KernelAbstractions.synchronize(device)
+                    end)
+                    @test elapsed_multi_entry < 0.8 * elapsed_multi_kernel
+                end
+
+                # Generating the noise in parallel only pays off with
+                # more than one thread.
+                if Threads.nthreads() > 1
+                    noise = similar(dE)
+                    quantum_kernel! =
+                        BLonDKernels.synchrotron_radiation_quantum_excitation_kernel!(
+                            device
+                        )
+                    elapsed_quantum_entry = elapsed(
+                        () -> BLonDKernels.apply_synchrotron_radiation!(
+                            device, raw_pointer(dE), n, 0.0, 14955.0, 1e-3,
+                            20e9, false,
+                        ),
+                    )
+                    elapsed_quantum_kernel = elapsed(() -> begin
+                        randn!(noise)
+                        quantum_kernel!(
+                            dE, noise, 0.9998, 2e3, 0.0; ndrange=n
+                        )
+                        KernelAbstractions.synchronize(device)
+                    end)
+                    @test elapsed_quantum_entry < 0.8 * elapsed_quantum_kernel
+                end
+            end
+
+            @testset "quantum excitation without noise array" begin
+                # Drawing each particle's noise inside its chunk must beat
+                # allocating and filling a beam-sized noise array first
+                # (the previous CPU implementation). The gain is the saved
+                # allocation, not vectorisation, so it also holds under
+                # `--check-bounds=yes`.
+                n = 2^20
+                dE = zeros(Float64, n)
+                elapsed(run) = (run(); minimum(@elapsed(run()) for _ in 1:20))
+                elapsed_entry = elapsed(
+                    () -> BLonDKernels.apply_synchrotron_radiation!(
+                        device, raw_pointer(dE), n, 0.0, 14955.0, 1e-3,
+                        20e9, false,
+                    ),
+                )
+                elapsed_noise_array = elapsed(() -> begin
+                    noise = similar(dE)
+                    BLonDKernels.launch_particle_loop!(
+                        device,
+                        nothing,
+                        noise_array_quantum_excitation_range!,
+                        n,
+                        (dE, noise, 0.9998, 2e3, 0.0),
+                    )
+                end)
+                @test elapsed_entry < 0.75 * elapsed_noise_array
+            end
+
+            # Summing the integrands chunk by chunk in parallel pays off
+            # through the threads (exp, sin and cos do not vectorise), so
+            # it holds under `--check-bounds=yes` but needs threads.
+            if Threads.nthreads() > 1
+                @testset "beam_phase chunked sums" begin
+                    n_bins = 2^18
+                    hist_x = collect(range(0.0, 1.0; length=n_bins))
+                    hist_y = exp.(-((hist_x .- 0.5) ./ 0.2) .^ 2)
+                    bin_size = hist_x[2] - hist_x[1]
+                    expected = reference_beam_phase(
+                        hist_x, hist_y, 0.5, 0.8, 0.1, bin_size
+                    )
+                    run_entry() = BLonDKernels.beam_phase(
+                        device, raw_pointer(hist_x), raw_pointer(hist_y),
+                        n_bins, 0.5, 0.8, 0.1, bin_size,
+                    )
+                    @test run_entry() ≈ expected rtol = 1e-12
+                    elapsed(run) =
+                        (run(); minimum(@elapsed(run()) for _ in 1:20))
+                    elapsed_entry = elapsed(run_entry)
+                    elapsed_values_array = elapsed(
+                        () -> values_array_beam_phase(
+                            device, hist_x, hist_y, 0.5, 0.8, 0.1, bin_size
+                        ),
+                    )
+                    @test elapsed_entry < 0.75 * elapsed_values_array
+                end
+            end
+        end
     end
 end
 
@@ -1301,6 +1644,24 @@ end
         # arguments, undefined exports, stale/compat deps, type piracy)
         # are what guard the public surface.
         Aqua.test_all(BLonDKernels; persistent_tasks=false)
+    end
+    @testset "fast_sin" begin
+        # Wide sweep plus the quadrant boundaries, where the range
+        # reduction switches between the sine and cosine polynomial.
+        arguments = vcat(
+            collect(range(-1e4, 1e4; length=1_000_001)),
+            [k * pi / 4 for k in -16:16],
+            [0.0, -0.0, 1e-300, nextfloat(0.0), prevfloat(0.0)],
+        )
+        @test maximum(
+            abs(BLonDKernels.fast_sin(x) - sin(x)) for x in arguments
+        ) <= eps()
+        @test all(
+            BLonDKernels.fast_sin(-x) == -BLonDKernels.fast_sin(x)
+            for x in arguments
+        )
+        @test (@inferred BLonDKernels.fast_sin(0.5)) isa Float64
+        @test_opt target_modules = (BLonDKernels,) BLonDKernels.fast_sin(0.5)
     end
     host = @inferred BLonDKernels.host_device()
     @test host isa BLonDKernels.CPU

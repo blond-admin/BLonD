@@ -15,10 +15,107 @@
 # caller may touch the arrays again as soon as the call returns.
 
 """
+    launch_particle_loop!(device, per_particle_kernel, range_function!,
+                          n_particles, arguments)
+
+Run a loop over `n_particles` macro-particles on `device`.
+
+On the CPU the particles are swept in chunks of `PARTICLES_PER_CHUNK` by
+`range_function!`, one work-item per chunk, so that the compiler can
+vectorise each sweep. On every other device `per_particle_kernel` is
+launched with one work-item per particle, which is what a GPU parallelises
+best. Both receive the same `arguments`.
+"""
+function launch_particle_loop!(
+    device::CPU,
+    _,
+    range_function!,
+    n_particles::Int,
+    arguments::Tuple,
+)::Nothing
+    kernel! = particle_chunks_kernel!(device)
+    # A chunk is a full workload of its own: `workgroupsize=1` keeps the
+    # CPU backend from merging small ndranges into a single task.
+    kernel!(
+        range_function!,
+        n_particles,
+        arguments;
+        ndrange=cld(n_particles, PARTICLES_PER_CHUNK),
+        workgroupsize=1,
+    )
+    return nothing
+end
+
+function launch_particle_loop!(
+    device,
+    per_particle_kernel,
+    _,
+    n_particles::Int,
+    arguments::Tuple,
+)::Nothing
+    kernel! = per_particle_kernel(device)
+    kernel!(arguments...; ndrange=n_particles)
+    return nothing
+end
+
+"""
+    apply_quantum_excitation!(device, dE, n_macroparticles,
+                              damping_factor, noise_scale, energy_lost)
+
+Damp `dE` and add Gaussian quantum-excitation noise of `noise_scale`.
+
+On the CPU every chunk draws its particles' noise one by one from its
+task's generator, so no beam-sized noise array is allocated. Other devices
+fill such an array in a single call and apply it per particle.
+"""
+function apply_quantum_excitation!(
+    device::CPU,
+    dE,
+    n_macroparticles::Int,
+    damping_factor::Float64,
+    noise_scale::Float64,
+    energy_lost::Float64,
+)::Nothing
+    launch_particle_loop!(
+        device,
+        nothing,
+        synchrotron_radiation_quantum_excitation_range!,
+        n_macroparticles,
+        (dE, damping_factor, noise_scale, energy_lost),
+    )
+    return nothing
+end
+
+function apply_quantum_excitation!(
+    device,
+    dE,
+    n_macroparticles::Int,
+    damping_factor::Float64,
+    noise_scale::Float64,
+    energy_lost::Float64,
+)::Nothing
+    noise = similar(dE)
+    randn!(noise)
+    kernel! = synchrotron_radiation_quantum_excitation_kernel!(device)
+    kernel!(
+        dE,
+        noise,
+        damping_factor,
+        noise_scale,
+        energy_lost;
+        ndrange=n_macroparticles,
+    )
+    return nothing
+end
+
+"""
     kick_single_harmonic!(device, dt, dE, n_macroparticles, voltage,
                           omega_rf, phi_rf, charge, acceleration_kick)
 
 Apply ``dE += charge * voltage * sin(omega_rf * dt + phi_rf) + kick``.
+
+On the CPU the sine is evaluated with [`fast_sin`], as in the C++
+backend.
 """
 function kick_single_harmonic!(
     device,
@@ -34,15 +131,12 @@ function kick_single_harmonic!(
     n_macroparticles == 0 && return nothing
     dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
     dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
-    kernel! = kick_single_harmonic_kernel!(device)
-    kernel!(
-        dt,
-        dE,
-        charge * voltage,
-        omega_rf,
-        phi_rf,
-        acceleration_kick;
-        ndrange=n_macroparticles,
+    launch_particle_loop!(
+        device,
+        kick_single_harmonic_kernel!,
+        kick_single_harmonic_range!,
+        n_macroparticles,
+        (dt, dE, charge * voltage, omega_rf, phi_rf, acceleration_kick),
     )
     KernelAbstractions.synchronize(device)
     return nothing
@@ -53,6 +147,9 @@ end
                          omega_rf, phi_rf, n_rf, charge, acceleration_kick)
 
 Apply the RF kick of `n_rf` harmonics.
+
+On the CPU the sine is evaluated with [`fast_sin`], as in the C++
+backend.
 """
 function kick_multi_harmonic!(
     device,
@@ -74,17 +171,12 @@ function kick_multi_harmonic!(
         device, Float64, omega_rf_pointer, n_rf
     )
     phi_rf = wrap_array_or_empty(device, Float64, phi_rf_pointer, n_rf)
-    kernel! = kick_multi_harmonic_kernel!(device)
-    kernel!(
-        dt,
-        dE,
-        voltage,
-        omega_rf,
-        phi_rf,
-        n_rf,
-        charge,
-        acceleration_kick;
-        ndrange=n_macroparticles,
+    launch_particle_loop!(
+        device,
+        kick_multi_harmonic_kernel!,
+        kick_multi_harmonic_range!,
+        n_macroparticles,
+        (dt, dE, voltage, omega_rf, phi_rf, n_rf, charge, acceleration_kick),
     )
     KernelAbstractions.synchronize(device)
     return nothing
@@ -110,8 +202,13 @@ function drift_simple!(
     dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
     dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
     coefficient = drift_time * (eta_0 / (beta * beta * energy))
-    kernel! = drift_simple_kernel!(device)
-    kernel!(dt, dE, coefficient; ndrange=n_macroparticles)
+    launch_particle_loop!(
+        device,
+        drift_simple_kernel!,
+        drift_simple_range!,
+        n_macroparticles,
+        (dt, dE, coefficient),
+    )
     KernelAbstractions.synchronize(device)
     return nothing
 end
@@ -298,6 +395,68 @@ function beam_phase(
     n_bins == 0 && return 0.0 / 0.0
     hist_x = wrap_array(device, Float64, hist_x_pointer, n_bins)
     hist_y = wrap_array(device, Float64, hist_y_pointer, n_bins)
+    return trapezoidal_beam_phase(
+        device, hist_x, hist_y, n_bins, alpha, omega_rf, phi_rf, bin_size
+    )
+end
+
+"""
+    trapezoidal_beam_phase(device, hist_x, hist_y, n_bins, alpha, omega_rf,
+                           phi_rf, bin_size) -> Float64
+
+Ratio of the sine- and cosine-weighted trapezoidal integrals of a profile.
+
+On the CPU the integrands are summed chunk by chunk in parallel, without
+an intermediate array. Other devices store the integrands in a complex
+array and reduce it.
+"""
+function trapezoidal_beam_phase(
+    device::CPU,
+    hist_x,
+    hist_y,
+    n_bins::Int,
+    alpha::Float64,
+    omega_rf::Float64,
+    phi_rf::Float64,
+    bin_size::Float64,
+)::Float64
+    chunk_sums = zeros(Float64, 2 * cld(n_bins, PARTICLES_PER_CHUNK))
+    launch_particle_loop!(
+        device,
+        nothing,
+        beam_phase_sums_range!,
+        n_bins,
+        (chunk_sums, hist_x, hist_y, alpha, omega_rf, phi_rf),
+    )
+    sine_sum = 0.0
+    cosine_sum = 0.0
+    @inbounds for chunk in 1:(length(chunk_sums) ÷ 2)
+        sine_sum += chunk_sums[2 * chunk - 1]
+        cosine_sum += chunk_sums[2 * chunk]
+    end
+    # Trapezoidal rule: the two end points count half.
+    first_sine, first_cosine = beam_phase_integrand_sums(
+        hist_x, hist_y, alpha, omega_rf, phi_rf, 1, 1
+    )
+    last_sine, last_cosine = beam_phase_integrand_sums(
+        hist_x, hist_y, alpha, omega_rf, phi_rf, n_bins, n_bins
+    )
+    sine_integral = (sine_sum - 0.5 * (first_sine + last_sine)) * bin_size
+    cosine_integral =
+        (cosine_sum - 0.5 * (first_cosine + last_cosine)) * bin_size
+    return sine_integral / cosine_integral
+end
+
+function trapezoidal_beam_phase(
+    device,
+    hist_x,
+    hist_y,
+    n_bins::Int,
+    alpha::Float64,
+    omega_rf::Float64,
+    phi_rf::Float64,
+    bin_size::Float64,
+)::Float64
     values = similar(hist_x, ComplexF64)
     kernel! = beam_phase_values_kernel!(device)
     kernel!(
@@ -339,16 +498,23 @@ function kick_interpolated_dense!(
     bin_centers = wrap_array(
         device, Float64, bin_centers_pointer, n_slices
     )
-    kernel! = kick_interpolated_dense_kernel!(device)
-    kernel!(
-        dt,
-        dE,
+    factors = KernelAbstractions.allocate(device, Float64, 2 * (n_slices - 1))
+    grid = KernelAbstractions.allocate(device, Float64, 2)
+    factors_kernel! = kick_interpolated_dense_factors_kernel!(device)
+    factors_kernel!(
+        factors,
+        grid,
         voltage,
         bin_centers,
         n_slices,
         charge,
         acceleration_kick;
-        ndrange=n_macroparticles,
+        ndrange=n_slices - 1,
+    )
+    # Queued behind the factors kernel on the same device queue.
+    particles_kernel! = kick_interpolated_dense_particles_kernel!(device)
+    particles_kernel!(
+        dt, dE, factors, grid, n_slices; ndrange=n_macroparticles
     )
     KernelAbstractions.synchronize(device)
     return nothing
@@ -395,23 +561,34 @@ function kick_interpolated_sparse!(
     bucket_index_to_memory_index = wrap_array(
         device, Int32, bucket_index_to_memory_index_pointer, n_buckets
     )
-    kernel! = kick_interpolated_sparse_kernel!(device)
-    kernel!(
-        dt,
-        dE,
+    # Without two slices there is no bin to interpolate across.
+    n_slices < 2 && return nothing
+    inverse_bin_width = bins_per_profile / cut_width
+    factors = KernelAbstractions.allocate(device, Float64, 2 * (n_slices - 1))
+    factors_kernel! = kick_interpolated_sparse_factors_kernel!(device)
+    factors_kernel!(
+        factors,
         voltage,
         bin_centers,
         charge,
         acceleration_kick,
+        inverse_bin_width;
+        ndrange=n_slices - 1,
+    )
+    # Queued behind the factors kernel on the same device queue.
+    particles_kernel! = kick_interpolated_sparse_particles_kernel!(device)
+    particles_kernel!(
+        dt,
+        dE,
+        factors,
         first_left_cut,
         left_cut_distance,
-        cut_width,
         bins_per_profile,
         filling_pattern,
         n_buckets,
         bucket_index_to_memory_index,
         1.0 / left_cut_distance,
-        bins_per_profile / cut_width,
+        inverse_bin_width,
         cut_width / bins_per_profile;
         ndrange=n_macroparticles,
     )
@@ -624,24 +801,24 @@ function apply_synchrotron_radiation!(
     dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
     damping_factor = 1.0 - 2.0 / longitudinal_damping_time
     if disable_quantum_excitation
-        kernel! = synchrotron_radiation_kernel!(device)
-        kernel!(
-            dE, damping_factor, energy_lost; ndrange=n_macroparticles
+        launch_particle_loop!(
+            device,
+            synchrotron_radiation_kernel!,
+            synchrotron_radiation_range!,
+            n_macroparticles,
+            (dE, damping_factor, energy_lost),
         )
     else
         noise_scale =
             2.0 * natural_energy_spread /
             sqrt(longitudinal_damping_time) * total_energy
-        noise = similar(dE)
-        randn!(noise)
-        kernel! = synchrotron_radiation_quantum_excitation_kernel!(device)
-        kernel!(
+        apply_quantum_excitation!(
+            device,
             dE,
-            noise,
+            n_macroparticles,
             damping_factor,
             noise_scale,
-            energy_lost;
-            ndrange=n_macroparticles,
+            energy_lost,
         )
     end
     KernelAbstractions.synchronize(device)

@@ -8,65 +8,51 @@
 
 """Testing the performance of `kick_interpolated`."""
 
-import time
+import sys
+from pathlib import Path
 
-import numpy as np
+import matplotlib.pyplot as plt
+
+from blond.core.backends.backend import backend
+
+# `dev_tools` is deliberately not a package (it would be picked up by
+# setuptools' package discovery), so import the helpers by path.
+sys.path.insert(0, str(Path(__file__).parents[1] / "helpers"))
+from scan_performance import (  # noqa: E402
+    N_MACROPARTICLES_SCAN,
+    plot_performance,
+)
+
+N_MACROPARTICLES = N_MACROPARTICLES_SCAN
+N_BINS = 20
 
 
-def main():  # pragma: no cover
+def make_kwargs(n_macroparticles: int) -> dict:
+    """Build the `kick_interpolated` arguments for `n_macroparticles`."""
+    bin_centers = backend.linspace(-4, 4, N_BINS, dtype=backend.float)
+    return {
+        "dt": backend.linspace(-5, 5, n_macroparticles, dtype=backend.float),
+        "dE": backend.zeros(n_macroparticles, dtype=backend.float),
+        "voltage": bin_centers**2,
+        "bin_centers": bin_centers,
+        "charge": 10.0,
+        "acceleration_kick": 0.0,
+    }
+
+
+def main() -> None:  # pragma: no cover
     """Testing the performance of `kick_interpolated`."""
-    dt = np.linspace(-5, 5, int(1e6))
-    dE = np.zeros_like(dt)
-    bin_centers = np.linspace(-4, 4, 20)
-    voltage = bin_centers**2
-    charge = 10
-    acceleration_kick = 0
-    from blond.core.backends.backend import Numpy64Bit, backend
-
-    backend.change_backend(Numpy64Bit)
-    from blond.core.backends.cpp.callables import CppSpecials
-    from blond.core.backends.numba.callables import NumbaSpecials
-
-    functions = (
-        NumbaSpecials().kick_interpolated,
-        CppSpecials().kick_interpolated,
+    plot_performance(
+        kernel_name="kick_interpolated",
+        make_kwargs=make_kwargs,
+        scan_values=N_MACROPARTICLES,
+        n_warmup=3,
+        n_runs=10,
+        xlabel="n_macroparticles",
+        title=f"kick_interpolated, n_bins={N_BINS}",
+        save_name="kick_interpolated",
     )
-    runtimes = {}
-    for kick_interpolated in functions:
-        runtimes[str(kick_interpolated)] = 0.0
-    for _ in range(10000):
-        for kick_interpolated in functions:
-            t0 = time.perf_counter()
-            kick_interpolated(
-                dt=dt,
-                dE=dE,
-                voltage=voltage,
-                bin_centers=bin_centers,
-                charge=charge,
-                acceleration_kick=acceleration_kick,
-            )
-            t1 = time.perf_counter()
-            runtimes[str(kick_interpolated)] += t1 - t0
-    for key in sorted(runtimes.keys()):
-        print(runtimes[key], key)
-
-    for kick_interpolated in functions:
-        runtimes[str(kick_interpolated)] = 0.0
-    for kick_interpolated in functions:
-        for _ in range(10000):
-            t0 = time.perf_counter()
-            kick_interpolated(
-                dt=dt,
-                dE=dE,
-                voltage=voltage,
-                bin_centers=bin_centers,
-                charge=charge,
-                acceleration_kick=acceleration_kick,
-            )
-            t1 = time.perf_counter()
-            runtimes[str(kick_interpolated)] += t1 - t0
-    for key in sorted(runtimes.keys()):
-        print(runtimes[key], key)
+    plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover

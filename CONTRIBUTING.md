@@ -241,6 +241,10 @@ The Julia unit tests of the kernels themselves are run by Julia:
 julia --project=blond/core/backends/julia/BLonDKernels -e 'using Pkg; Pkg.test()'
 ```
 
+`Pkg.test` forces `--check-bounds=yes`, which disables the vectorisation of the
+chunked CPU particle loops, so their timing checks are skipped there. Run them
+with ``Pkg.test(julia_args=`--check-bounds=auto`)``.
+
 The same suite can be run through `juliacall` from the Python test suite, which
 is opt-in because `Pkg.test` instantiates its own environment:
 

@@ -29,7 +29,7 @@ using KernelAbstractions:
     @synchronize,
     @uniform
 using LinearAlgebra: dot
-using Random: randn!
+using Random: default_rng, randn, randn!
 
 export host_device,
     cuda_device,
@@ -112,6 +112,7 @@ function wrap_array_or_empty(
     return wrap_array(device, T, pointer_as_int, n_elements)
 end
 
+include("fastmath.jl")
 include("kernels.jl")
 include("entrypoints.jl")
 
