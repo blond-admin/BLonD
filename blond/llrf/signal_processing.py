@@ -293,7 +293,7 @@ def rf_beam_current(
             profile_bin_centers = profile.bin_centers[order]
             profile_n_macroparticles = profile.n_macroparticles[order]
             extra_bins = np.arange(
-                profile_bin_centers[-1],
+                profile_bin_centers[-1] + profile.bin_size,
                 profile_bin_centers[-1] + 2 * T_s + dT + np.pi / omega_c,
                 step=profile.bin_size,
             )
