@@ -319,40 +319,38 @@ class TestComparisonProfiles(unittest.TestCase):
 
     def _assert_histograms_match(self, profile_sparse, profile_std=None):
         """_histogram_c (bm.sparse_histogram, all the windows at once),
-        _histogram_one_by_one_to_be_fixed (Profile.track() window by window)
-        and _histogram_one_by_one (np.histogram window by window) must give
+        _histogram_one_by_one (Profile.track() window by window)
+        and _histogram_one_by_one_numpy (np.histogram window by window) must give
         the same histograms for the same beam and the same windows, and the
         same as the standard profile over the same bins."""
         if profile_std is None:
             profile_std = self.profile_std
         profile_sparse._histogram_c()
         n_macroparticles_c = np.copy(profile_sparse.n_macroparticles_array)
-        profile_sparse._histogram_one_by_one_to_be_fixed()
-        n_macroparticles_profile_track = np.copy(
-            profile_sparse.n_macroparticles_array
-        )
         profile_sparse._histogram_one_by_one()
         n_macroparticles_one_by_one = np.copy(
             profile_sparse.n_macroparticles_array
         )
+        profile_sparse._histogram_one_by_one_numpy()
+        n_macroparticles_numpy = np.copy(profile_sparse.n_macroparticles_array)
         for p, profile in enumerate(profile_sparse.profiles_list):
             np.testing.assert_allclose(
                 n_macroparticles_c[p],
-                n_macroparticles_one_by_one[p],
+                n_macroparticles_numpy[p],
                 rtol=self.rtol,
                 atol=self.atol,
                 err_msg="histograms differ between _histogram_c and "
-                "_histogram_one_by_one for the same beam, profile number "
+                "_histogram_one_by_one_numpy for the same beam, profile number "
                 f"{p}",
             )
             np.testing.assert_allclose(
-                n_macroparticles_profile_track[p],
                 n_macroparticles_one_by_one[p],
+                n_macroparticles_numpy[p],
                 rtol=self.rtol,
                 atol=self.atol,
                 err_msg="histograms differ between "
-                "_histogram_one_by_one_to_be_fixed and "
-                "_histogram_one_by_one for the same beam, profile number "
+                "_histogram_one_by_one and "
+                "_histogram_one_by_one_numpy for the same beam, profile number "
                 f"{p}",
             )
             index = np.argmin(
@@ -360,7 +358,7 @@ class TestComparisonProfiles(unittest.TestCase):
             )
             np.testing.assert_allclose(
                 profile_std.n_macroparticles[index : index + profile.n_slices],
-                n_macroparticles_one_by_one[p],
+                n_macroparticles_numpy[p],
                 rtol=self.rtol,
                 atol=self.atol,
                 err_msg="histograms differ between "
