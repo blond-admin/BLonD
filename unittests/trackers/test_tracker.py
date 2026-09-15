@@ -30,7 +30,11 @@ from blond.beam.profile import (
     Profile,
     OtherSlicesOptions,
 )
-from blond.beam.sparse_profiles import SparseProfileBaseClass
+from blond.beam.sparse_profiles import (
+    SparseBatch,
+    SparseBucket,
+    SparseProfileBaseClass,
+)
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
@@ -556,12 +560,14 @@ class TestRingAndRFTracker(unittest.TestCase):
 class TestSparseInterpolatedKick(unittest.TestCase):
     """Interpolated kick with a sparse profile.
 
-    With a SparseProfileBaseClass profile, the tracker applies the
-    interpolated kick window by window, pairing each window with its
-    slice of the total voltage. The result must match the kick obtained
-    with a standard Profile of the same bin size covering all the
-    buckets, and stay within the interpolation error of the exact
-    (non-interpolated) kick.
+    With a sparse profile, the tracker applies the interpolated kick
+    window by window, pairing each window with its slice of the total
+    voltage. The result must match the kick obtained with a standard
+    Profile of the same bin size covering all the buckets, and stay
+    within the interpolation error of the exact (non-interpolated) kick.
+    Every check runs on the SparseProfileBaseClass (one bucket per
+    window), on a SparseBucket (one bucket per window) and on a
+    SparseBatch (two buckets per window).
     """
 
     # Machine and RF parameters
@@ -574,6 +580,12 @@ class TestSparseInterpolatedKick(unittest.TestCase):
     bucket_indices = (0, 20)  # Filled buckets, one bunch each
     n_macroparticles_per_bunch = 5000
     n_slices_per_bucket = 64
+    batch_length = 2  # Buckets per SparseBatch window
+    sparse_profile_kinds = (
+        "SparseProfileBaseClass",
+        "SparseBucket",
+        "SparseBatch",
+    )
 
     def setUp(self):
         rng = np.random.default_rng(1)
@@ -621,19 +633,11 @@ class TestSparseInterpolatedKick(unittest.TestCase):
         beam.dt = self.dt_init.copy()
         beam.dE = self.dE_init.copy()
 
-        if profile_kind == "sparse":
-            filling_pattern = np.zeros(self.h)
-            filling_pattern[list(self.bucket_indices)] = 1
-            profile = SparseProfileBaseClass(
-                rf_station=rf_station,
-                beam=beam,
-                number_of_slices_per_profile=self.n_slices_per_bucket,
-                _filling_pattern=filling_pattern,
-                _profile_length_in_buckets=1,
-                tracker_mode="onebyone",
-            )
+        if profile_kind in self.sparse_profile_kinds:
+            profile = self._make_sparse_profile(profile_kind, rf_station, beam)
         elif profile_kind == "standard":
-            n_buckets = max(self.bucket_indices) + 1
+            # Covers the last SparseBatch window entirely
+            n_buckets = max(self.bucket_indices) + self.batch_length
             profile = Profile(
                 beam,
                 CutOptions(
@@ -653,34 +657,85 @@ class TestSparseInterpolatedKick(unittest.TestCase):
         tracker.track()
         return beam.dE
 
+    def _make_sparse_profile(self, profile_kind, rf_station, beam):
+        """A sparse profile of the given kind with one window per filled
+        bucket, all with the same bin size as the standard profile."""
+        filling_pattern = np.zeros(self.h)
+        filling_pattern[list(self.bucket_indices)] = 1
+        if profile_kind == "SparseProfileBaseClass":
+            return SparseProfileBaseClass(
+                rf_station=rf_station,
+                beam=beam,
+                number_of_slices_per_profile=self.n_slices_per_bucket,
+                _filling_pattern=filling_pattern,
+                _profile_length_in_buckets=1,
+                tracker_mode="onebyone",
+            )
+        if profile_kind == "SparseBucket":
+            return SparseBucket(
+                rf_station=rf_station,
+                beam=beam,
+                number_of_slices_per_profile=self.n_slices_per_bucket,
+                bunch_list=filling_pattern,
+                tracker_mode="onebyone",
+            )
+        return SparseBatch(
+            rf_station=rf_station,
+            beam=beam,
+            number_of_slices_per_profile=self.batch_length
+            * self.n_slices_per_bucket,
+            batch_list=filling_pattern,
+            batch_length=self.batch_length,
+            tracker_mode="onebyone",
+        )
+
     def _bunch_slice(self, i):
         n = self.n_macroparticles_per_bunch
         return slice(i * n, (i + 1) * n)
 
     def test_matches_standard_profile(self):
-        dE_sparse = self._track_one_turn("sparse", interpolation=True)
         dE_standard = self._track_one_turn("standard", interpolation=True)
-        np.testing.assert_allclose(dE_sparse, dE_standard, rtol=0, atol=1e-3)
+        for profile_kind in self.sparse_profile_kinds:
+            with self.subTest(profile=profile_kind):
+                dE_sparse = self._track_one_turn(
+                    profile_kind, interpolation=True
+                )
+                # The interpolation kernel cancels terms of order 1e10 eV
+                # down to the kick, so the two profiles agree to about
+                # 1e-6 eV; a real defect shows up at the eV level or above
+                np.testing.assert_allclose(
+                    dE_sparse, dE_standard, rtol=0, atol=1e-5
+                )
 
     def test_every_window_is_kicked(self):
-        dE_sparse = self._track_one_turn("sparse", interpolation=True)
-        for i in range(len(self.bucket_indices)):
-            kick = (
-                dE_sparse[self._bunch_slice(i)]
-                - self.dE_init[self._bunch_slice(i)]
-            )
-            self.assertGreater(
-                np.max(np.abs(kick)), 0.1 * self.V, f"bunch {i} was not kicked"
-            )
+        for profile_kind in self.sparse_profile_kinds:
+            with self.subTest(profile=profile_kind):
+                dE_sparse = self._track_one_turn(
+                    profile_kind, interpolation=True
+                )
+                for i in range(len(self.bucket_indices)):
+                    kick = (
+                        dE_sparse[self._bunch_slice(i)]
+                        - self.dE_init[self._bunch_slice(i)]
+                    )
+                    self.assertGreater(
+                        np.max(np.abs(kick)),
+                        0.1 * self.V,
+                        f"bunch {i} was not kicked",
+                    )
 
     def test_close_to_exact_kick(self):
-        dE_sparse = self._track_one_turn("sparse", interpolation=True)
         dE_exact = self._track_one_turn(None, interpolation=False)
-        # Linear interpolation of a sine with 64 points per period is
-        # accurate to about (2 pi / 64)^2 / 8 of the amplitude
-        np.testing.assert_allclose(
-            dE_sparse, dE_exact, rtol=0, atol=5e-3 * self.V
-        )
+        for profile_kind in self.sparse_profile_kinds:
+            with self.subTest(profile=profile_kind):
+                dE_sparse = self._track_one_turn(
+                    profile_kind, interpolation=True
+                )
+                # Linear interpolation of a sine with 64 points per period
+                # is accurate to about (2 pi / 64)^2 / 8 of the amplitude
+                np.testing.assert_allclose(
+                    dE_sparse, dE_exact, rtol=0, atol=5e-3 * self.V
+                )
 
 
 if __name__ == "__main__":
