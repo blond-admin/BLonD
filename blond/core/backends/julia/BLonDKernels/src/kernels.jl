@@ -543,11 +543,12 @@ end
 end
 
 @kernel function synchrotron_radiation_quantum_excitation_kernel!(
-    dE, noise, damping_factor, noise_scale, energy_lost
+    dE, damping_factor, noise_scale, energy_lost, key
 )
     i = @index(Global, Linear)
     @inbounds dE[i] =
-        damping_factor * dE[i] + (noise[i] * noise_scale - energy_lost)
+        damping_factor * dE[i] +
+        (philox_standard_normal(i, key) * noise_scale - energy_lost)
 end
 
 # Chunked CPU particle loops.

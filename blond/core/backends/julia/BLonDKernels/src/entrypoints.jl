@@ -11,8 +11,11 @@
 # (`Int`) whose length is given by the neighbouring count argument, and
 # every scalar as `Float64`, `Int`, `Int32` or `Bool`.
 #
-# Each entry ends with `KernelAbstractions.synchronize(device)` so that the
-# caller may touch the arrays again as soon as the call returns.
+# Entries return as soon as their kernels are queued. On the CPU they have
+# finished by then. On a GPU they run on the CUDA default stream, which CuPy
+# uses as well (see `use_cuda_default_stream!`), so that CuPy work queued
+# after the call sees their results without waiting; an entry returning a
+# scalar waits for it.
 
 """
     launch_particle_loop!(device, per_particle_kernel, range_function!,
@@ -65,8 +68,9 @@ end
 Damp `dE` and add Gaussian quantum-excitation noise of `noise_scale`.
 
 On the CPU every chunk draws its particles' noise one by one from its
-task's generator, so no beam-sized noise array is allocated. Other devices
-fill such an array in a single call and apply it per particle.
+task's generator. Other devices draw every particle's noise inside the
+kernel, from a Philox4x32-10 stream keyed per call by the task's generator.
+Neither allocates a beam-sized noise array.
 """
 function apply_quantum_excitation!(
     device::CPU,
@@ -94,15 +98,14 @@ function apply_quantum_excitation!(
     noise_scale::Float64,
     energy_lost::Float64,
 )::Nothing
-    noise = similar(dE)
-    randn!(noise)
+    key = (rand(UInt32), rand(UInt32))
     kernel! = synchrotron_radiation_quantum_excitation_kernel!(device)
     kernel!(
         dE,
-        noise,
         damping_factor,
         noise_scale,
-        energy_lost;
+        energy_lost,
+        key;
         ndrange=n_macroparticles,
     )
     return nothing
@@ -138,7 +141,6 @@ function kick_single_harmonic!(
         n_macroparticles,
         (dt, dE, charge * voltage, omega_rf, phi_rf, acceleration_kick),
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -178,7 +180,6 @@ function kick_multi_harmonic!(
         n_macroparticles,
         (dt, dE, voltage, omega_rf, phi_rf, n_rf, charge, acceleration_kick),
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -209,7 +210,6 @@ function drift_simple!(
         n_macroparticles,
         (dt, dE, coefficient),
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -250,7 +250,6 @@ function drift_exact!(
         1.0 / energy;
         ndrange=n_macroparticles,
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -288,7 +287,6 @@ function loss_box!(
         lost_flag;
         ndrange=n_macroparticles,
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -339,10 +337,7 @@ function histogram!(
     n_bins == 0 && return nothing
     array_write = wrap_array(device, Float64, array_write_pointer, n_bins)
     fill!(array_write, 0.0)
-    if n_read == 0
-        KernelAbstractions.synchronize(device)
-        return nothing
-    end
+    n_read == 0 && return nothing
     array_read = wrap_array(device, Float64, array_read_pointer, n_read)
     inverse_bin_width = n_bins / (stop - start)
     values_per_workgroup = histogram_values_per_workgroup()
@@ -371,7 +366,6 @@ function histogram!(
             workgroupsize=HISTOGRAM_WORKGROUP_SIZE,
         )
     end
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -462,7 +456,6 @@ function trapezoidal_beam_phase(
     kernel!(
         values, hist_x, hist_y, alpha, omega_rf, phi_rf; ndrange=n_bins
     )
-    KernelAbstractions.synchronize(device)
     # Trapezoidal rule without scalar indexing (which would stall a GPU):
     # the end points are halved through single-element reductions.
     edge_values =
@@ -516,7 +509,6 @@ function kick_interpolated_dense!(
     particles_kernel!(
         dt, dE, factors, grid, n_slices; ndrange=n_macroparticles
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -592,7 +584,6 @@ function kick_interpolated_sparse!(
         cut_width / bins_per_profile;
         ndrange=n_macroparticles,
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -621,10 +612,7 @@ function histogram_sparse!(
     n_out == 0 && return nothing
     out = wrap_array(device, Float64, out_pointer, n_out)
     fill!(out, 0.0)
-    if n_macroparticles == 0 || n_buckets == 0
-        KernelAbstractions.synchronize(device)
-        return nothing
-    end
+    (n_macroparticles == 0 || n_buckets == 0) && return nothing
     x = wrap_array(device, Float64, x_pointer, n_macroparticles)
     filling_pattern = wrap_array(
         device, Bool, filling_pattern_pointer, n_buckets
@@ -647,7 +635,6 @@ function histogram_sparse!(
         bins_per_profile / cut_width;
         ndrange=n_macroparticles,
     )
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -701,7 +688,6 @@ function move_flagged_elements_to_end!(
         n_kept;
         ndrange=n_macroparticles,
     )
-    KernelAbstractions.synchronize(device)
     return n_kept
 end
 
@@ -769,12 +755,10 @@ function wake_from_pole_residue!(
             2 * factor;
             ndrange=n_poles,
         )
-        KernelAbstractions.synchronize(device)
     end
     # `states[end]` carries the end time of this call for the next one.
     store_kernel! = wake_store_end_time_kernel!(device)
     store_kernel!(states, profile_dts, n_poles, n_profile_dts; ndrange=1)
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 
@@ -821,7 +805,6 @@ function apply_synchrotron_radiation!(
             energy_lost,
         )
     end
-    KernelAbstractions.synchronize(device)
     return nothing
 end
 

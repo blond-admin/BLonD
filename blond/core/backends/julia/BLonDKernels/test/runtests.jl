@@ -182,6 +182,16 @@ end
     end
 end
 
+# The per-particle kernel applying a preallocated noise array (the previous
+# GPU implementation); kept as the baseline of the parallel noise timing.
+@kernel function noise_array_quantum_excitation_kernel!(
+    dE, noise, damping_factor, noise_scale, energy_lost
+)
+    i = @index(Global, Linear)
+    @inbounds dE[i] =
+        damping_factor * dE[i] + (noise[i] * noise_scale - energy_lost)
+end
+
 # The chunked quantum-excitation sweep that fills a preallocated noise
 # array (the previous CPU implementation); kept as the performance
 # baseline of the "quantum excitation without noise array" testset.
@@ -500,7 +510,13 @@ end
 # ----------------------------------------------------------------------
 
 function run_device_tests(
-    label, device, to_device, to_host; run_jet::Bool, strict_float::Bool
+    label,
+    device,
+    to_device,
+    to_host;
+    run_jet::Bool,
+    strict_float::Bool,
+    gpu_allocated=nothing,
 )
     # A GPU is free to contract `a * b + c` into a fused multiply-add,
     # which differs from the CPU result by an ULP or two. Compare
@@ -805,10 +821,13 @@ function run_device_tests(
             # depend on the machine. Both are timed after compilation.
             n_bins = 1000
             out = to_device(zeros(Float64, n_bins))
-            run_privatised() = BLonDKernels.histogram!(
-                device, raw_pointer(values), n_values, raw_pointer(out),
-                n_bins, start, stop,
-            )
+            function run_privatised()
+                BLonDKernels.histogram!(
+                    device, raw_pointer(values), n_values, raw_pointer(out),
+                    n_bins, start, stop,
+                )
+                BLonDKernels.synchronize_device(device)
+            end
             naive_kernel! = naive_histogram_kernel!(device)
             function run_naive()
                 fill!(out, 0.0)
@@ -1054,11 +1073,14 @@ function run_device_tests(
                     )
                     KernelAbstractions.synchronize(device)
                 end
-                run_entry() = BLonDKernels.kick_interpolated_dense!(
-                    device, raw_pointer(dt), raw_pointer(dE), n,
-                    raw_pointer(voltage), raw_pointer(bin_centers), n_slices,
-                    10.0, 0.5,
-                )
+                function run_entry()
+                    BLonDKernels.kick_interpolated_dense!(
+                        device, raw_pointer(dt), raw_pointer(dE), n,
+                        raw_pointer(voltage), raw_pointer(bin_centers),
+                        n_slices, 10.0, 0.5,
+                    )
+                    BLonDKernels.synchronize_device(device)
+                end
                 # Sustained load first: an idle GPU runs in a low power
                 # state that would slow down whichever is timed first.
                 for _ in 1:200
@@ -1069,6 +1091,22 @@ function run_device_tests(
                 elapsed_per_particle =
                     minimum(@elapsed(run_per_particle()) for _ in 1:20)
                 @test elapsed_entry < 0.75 * elapsed_per_particle
+            end
+
+            @testset "quantum excitation allocates no noise array" begin
+                # The noise is drawn inside the kernel, so the entry must
+                # not allocate a beam-sized noise array (let alone cuRAND's
+                # power-of-two padded copy of it).
+                n = 2^20 + 3
+                dE = to_device(zeros(Float64, n))
+                run_entry() = BLonDKernels.apply_synchrotron_radiation!(
+                    device, raw_pointer(dE), n, 0.0, 14955.0, 1e-3, 20e9,
+                    false,
+                )
+                run_entry()
+                BLonDKernels.synchronize_device(device)
+                allocated = Base.invokelatest(gpu_allocated, run_entry)
+                @test allocated < sizeof(Float64) * n
             end
         end
 
@@ -1487,9 +1525,7 @@ function run_device_tests(
                 if Threads.nthreads() > 1
                     noise = similar(dE)
                     quantum_kernel! =
-                        BLonDKernels.synchrotron_radiation_quantum_excitation_kernel!(
-                            device
-                        )
+                        noise_array_quantum_excitation_kernel!(device)
                     elapsed_quantum_entry = elapsed(
                         () -> BLonDKernels.apply_synchrotron_radiation!(
                             device, raw_pointer(dE), n, 0.0, 14955.0, 1e-3,
@@ -1663,6 +1699,42 @@ end
         @test (@inferred BLonDKernels.fast_sin(0.5)) isa Float64
         @test_opt target_modules = (BLonDKernels,) BLonDKernels.fast_sin(0.5)
     end
+    @testset "philox4x32_10" begin
+        # Outputs of `curand_Philox4x32_10` from NVIDIA's
+        # `curand_philox4x32_x.h` (CUDA 12.9) built for the host; the first
+        # three are also Random123's known-answer vectors.
+        cases = [
+            (
+                (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+                (0x00000000, 0x00000000),
+                (0x6627e8d5, 0xe169c58d, 0xbc57ac4c, 0x9b00dbd8),
+            ),
+            (
+                (0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff),
+                (0xffffffff, 0xffffffff),
+                (0x408f276d, 0x41c83b0e, 0xa20bc7c6, 0x6d5451fd),
+            ),
+            (
+                (0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344),
+                (0xa4093822, 0x299f31d0),
+                (0xd16cfe09, 0x94fdcceb, 0x5001e420, 0x24126ea1),
+            ),
+            (
+                (0x00000001, 0x00000000, 0x00000000, 0x00000000),
+                (0x12345678, 0x9abcdef0),
+                (0xeb897a36, 0x4fcdf6b6, 0xfba23d8c, 0x6eed5b47),
+            ),
+        ]
+        for (counter, key, expected) in cases
+            @test BLonDKernels.philox4x32_10(counter, key) == expected
+        end
+        counter, key, _ = first(cases)
+        @test (@inferred BLonDKernels.philox4x32_10(counter, key)) isa
+              NTuple{4, UInt32}
+        @test_opt target_modules = (BLonDKernels,) BLonDKernels.philox4x32_10(
+            counter, key
+        )
+    end
     host = @inferred BLonDKernels.host_device()
     @test host isa BLonDKernels.CPU
     @test_opt target_modules = (BLonDKernels,) BLonDKernels.host_device()
@@ -1688,6 +1760,17 @@ end
     if cuda_available
         @info "CUDA test run" device = string(CUDA.device())
         cuda_backend = @inferred BLonDKernels.cuda_device()
+        @testset "CUDA default stream" begin
+            # `use_cuda_default_stream!` builds the stream object from its
+            # fields, so it depends on this layout of `CuStream`.
+            @test fieldnames(CUDA.CuStream) == (:handle, :valid, :ctx)
+            BLonDKernels.use_cuda_default_stream!(cuda_backend)
+            @test UInt(CUDA.stream().handle) == 0
+            @test CUDA.stream().ctx === CUDA.context()
+            @test BLonDKernels.synchronize_device(cuda_backend) === nothing
+        end
+        # Macros of CUDA.jl only exist once it is loaded at runtime.
+        gpu_allocated = @eval run -> CUDA.@allocated run()
         run_device_tests(
             "CUDA",
             cuda_backend,
@@ -1695,6 +1778,7 @@ end
             Array;
             run_jet=false,
             strict_float=false,
+            gpu_allocated,
         )
         @testset "music_track! is CPU only" begin
             @test_throws MethodError BLonDKernels.music_track!(

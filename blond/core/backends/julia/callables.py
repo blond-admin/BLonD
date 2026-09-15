@@ -104,7 +104,7 @@ class _JuliaSpecialsBase(Specials):
     """Shared wrappers around the `BLonDKernels` Julia entry points.
 
     Subclasses provide the three hooks `_kernels`, `_device` and `_ptr`
-    (plus, on the GPU, `_pre_call`), which is all that separates the
+    (plus, on the GPU, their own `_call`), which is all that separates the
     host from the device backend.
     """
 
@@ -150,10 +150,6 @@ class _JuliaSpecialsBase(Specials):
         raise NotImplementedError
 
     @classmethod
-    def _pre_call(cls) -> None:
-        """Synchronize the caller's stream before entering Julia."""
-
-    @classmethod
     def _call(cls, entry_name: str, *args: Any) -> Any:
         """
         Call one `BLonDKernels` entry point on this backend's device.
@@ -170,7 +166,6 @@ class _JuliaSpecialsBase(Specials):
         result
             Whatever the Julia entry point returns.
         """
-        cls._pre_call()
         return getattr(cls._kernels(), entry_name)(cls._device(), *args)
 
     @classmethod
@@ -789,11 +784,36 @@ class JuliaGpuSpecials(_JuliaSpecialsBase):
             )
 
     @classmethod
-    def _pre_call(cls) -> None:
-        """Flush CuPy's stream so Julia sees all pending writes."""
+    def _call(cls, entry_name: str, *args: Any) -> Any:
+        """
+        Call one `BLonDKernels` entry point in order with CuPy's work.
+
+        The Julia kernels are queued on the CUDA default stream, CuPy's
+        default as well, so on that stream the call neither flushes nor
+        waits. Work on any other CuPy stream is flushed before the call,
+        and the call waits for the Julia kernels.
+
+        Parameters
+        ----------
+        entry_name
+            Name of the Julia entry function, e.g. ``"drift_simple!"``.
+        *args
+            Arguments following the device, per the calling contract.
+
+        Returns
+        -------
+        result
+            Whatever the Julia entry point returns.
+        """
         import cupy as cp  # type: ignore
 
-        cp.cuda.get_current_stream().synchronize()
+        stream = cp.cuda.get_current_stream()
+        if stream.ptr == 0:
+            return super()._call(entry_name, *args)
+        stream.synchronize()
+        result = super()._call(entry_name, *args)
+        cls._kernels().synchronize_device(cls._device())
+        return result
 
     @classmethod
     def get_max_threads(cls) -> int:

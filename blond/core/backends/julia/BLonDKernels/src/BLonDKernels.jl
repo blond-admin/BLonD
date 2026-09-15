@@ -29,7 +29,7 @@ using KernelAbstractions:
     @synchronize,
     @uniform
 using LinearAlgebra: dot
-using Random: default_rng, randn, randn!
+using Random: default_rng, rand, randn
 
 export host_device,
     cuda_device,
@@ -60,6 +60,26 @@ function cuda_device(unsupported_arguments...)
         "BLonDKernels: the CUDA device is only available once CUDA.jl is " *
         "loaded. Run `using CUDA` (and make sure `CUDA.functional()` is " *
         "true) before calling `cuda_device()`.",
+    )
+end
+
+"""
+    use_cuda_default_stream!(device) -> Nothing
+
+Queue the kernels of the CUDA `device` on the CUDA default stream, the
+stream CuPy uses unless told otherwise, so that BLonD's CuPy operations and
+the Julia kernels share one queue and neither side has to wait for the
+other.
+
+This fallback only reports that the CUDA extension is not loaded; the real
+method is defined in `ext/BLonDKernelsCUDAExt.jl`. It is variadic for the
+same reason as [`cuda_device`].
+"""
+function use_cuda_default_stream!(unsupported_arguments...)
+    error(
+        "BLonDKernels: the CUDA default stream is only available once " *
+        "CUDA.jl is loaded. Run `using CUDA` before calling " *
+        "`use_cuda_default_stream!`.",
     )
 end
 
@@ -113,6 +133,7 @@ function wrap_array_or_empty(
 end
 
 include("fastmath.jl")
+include("random.jl")
 include("kernels.jl")
 include("entrypoints.jl")
 

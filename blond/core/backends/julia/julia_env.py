@@ -257,7 +257,8 @@ def julia_cuda_kernels() -> Any:
     Return the `BLonDKernels` handle with CUDA.jl loaded.
 
     Loading CUDA.jl activates the package extension that teaches
-    `BLonDKernels` how to wrap CuPy device pointers.
+    `BLonDKernels` how to wrap CuPy device pointers. The kernels are then
+    queued on the CUDA default stream, which CuPy uses by default too.
 
     Returns
     -------
@@ -280,5 +281,6 @@ def julia_cuda_kernels() -> Any:
                 "`julia_gpu` backend cannot be used. Check the CUDA "
                 "driver with `CUDA.versioninfo()` in Julia."
             )
+        getattr(kernels, "use_cuda_default_stream!")(kernels.cuda_device())
         _julia_state["cuda_is_loaded"] = True
     return kernels

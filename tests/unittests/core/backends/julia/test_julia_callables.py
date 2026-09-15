@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -516,6 +517,54 @@ class TestJuliaGpuSpecials(_JuliaKernelChecks, unittest.TestCase):
         self.specials = JuliaGpuSpecials()
         self.xp = cp
         _skip_if_julia_cannot_start(self)
+
+    def test_default_stream_call_does_not_synchronize(self) -> None:
+        """On CuPy's default stream Julia shares the queue: no flush."""
+        dt_np = np.linspace(1e-9, 10e-9, 32)
+        dE_np = np.linspace(1e9, 10e9, 32)
+        dt = self.array(dt_np)
+        args = (10.0, 0.3, 0.9, 10.0)
+        default_stream = mock.Mock(ptr=0)
+        with mock.patch(
+            "cupy.cuda.get_current_stream", return_value=default_stream
+        ):
+            self.specials.drift_simple(dt, self.array(dE_np), *args)
+        default_stream.synchronize.assert_not_called()
+        PythonSpecials.drift_simple(dt_np, dE_np, *args)
+        self.assert_close(dt, dt_np)
+
+    def test_julia_runs_on_cuda_default_stream(self) -> None:
+        """Julia queues its kernels on the stream CuPy uses by default."""
+        from juliacall import Main as jl  # type: ignore
+
+        self.specials.drift_simple(
+            self.array(np.zeros(4)),
+            self.array(np.zeros(4)),
+            10.0,
+            0.3,
+            0.9,
+            10.0,
+        )
+        self.assertEqual(int(jl.seval("UInt(CUDA.stream().handle)")), 0)
+
+    def test_custom_cupy_stream_keeps_results_ordered(self) -> None:
+        """Work queued on another CuPy stream is seen in the right order."""
+        import cupy as cp  # type: ignore
+
+        n_macroparticles = 1_000_000
+        dt_np = np.linspace(1e-9, 10e-9, n_macroparticles)
+        dE_np = np.linspace(1e9, 10e9, n_macroparticles)
+        args = (10.0, 0.3, 0.9, 10.0)
+        with cp.cuda.Stream():
+            # Both inputs come out of kernels queued on the custom stream,
+            # and the result is read back through it.
+            dt = cp.asarray(dt_np) * 1.0
+            dE = cp.asarray(dE_np) * 1.0
+            self.specials.drift_simple(dt, dE, *args)
+            dt *= 2.0
+            result = copy_to_cpu(dt)
+        PythonSpecials.drift_simple(dt_np, dE_np, *args)
+        np.testing.assert_allclose(result, 2.0 * dt_np, rtol=RTOL)
 
     def test_music_track_raises(self) -> None:
         """MuSiC is not implemented on the GPU."""
