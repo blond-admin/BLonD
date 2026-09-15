@@ -186,15 +186,20 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             macroparticlenumber=self.n_macroparticles
         )
 
+        beta = beam.reference.beta
         omega = rf_station.calc_omega_rf_design(
-            beam_beta=beam.reference.beta,
+            beam_beta=beta,
             ring_circumference=simulation.ring.circumference,
         )
-        # convert zeta to t coordinate
-        T = (2 * np.pi) / omega
-        dt = -1 * (zeta) / c + T / 2
-        # convert from delta to dE
-        dE = delta * beam.reference.total_energy
+        # Convert the bucket coordinates of XSuite to those of BLonD. Both
+        # relations involve the reference beta, which is only negligible for
+        # an ultrarelativistic beam:
+        # zeta = -beta * c * dt, so dt = -zeta / (beta * c), shifted by half
+        # an RF period because BLonD counts dt from the start of the bucket.
+        rf_period = (2 * np.pi) / omega
+        dt = -1 * zeta / (beta * c) + rf_period / 2
+        # dE = beta * c * dp = beta * p0c * delta = beta**2 * E0 * delta
+        dE = delta * beta**2 * beam.reference.total_energy
         beam.setup_beam(
             dt=dt,
             dE=dE,
