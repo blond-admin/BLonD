@@ -29,7 +29,7 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.core.base import ScheduledInterpolation
+from blond.core.scheduling import ScheduledInterpolation
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
