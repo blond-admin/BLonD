@@ -606,7 +606,7 @@ class CudaSpecials(Specials):  # NOQA: D101
             grid=grid_size,
             shared_mem=2 * block_size[0] * np.dtype(FLOAT).itemsize,
         )
-        return FLOAT(result[0].get() / result[1].get())
+        return FLOAT((result[0] / result[1]).get())
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
