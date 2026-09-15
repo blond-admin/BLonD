@@ -30,6 +30,25 @@ class TestFunctions(unittest.TestCase):
         with self.assertWarns(Warning):
             int_from_float_with_warning(1.2, 2)
 
+    def test_int_from_float_accepts_numpy_scalars(self):
+        """NumPy scalars are as good as the built-in types.
+
+        They arrive whenever a value is read back from an array or a file,
+        e.g. the intensity of a beam loaded from HDF5.
+        """
+        self.assertEqual(int_from_float_with_warning(np.int64(7), 2), 7)
+        self.assertEqual(int_from_float_with_warning(np.int32(7), 2), 7)
+        self.assertEqual(int_from_float_with_warning(np.float64(7.0), 2), 7)
+
+    def test_int_from_float_warns_for_numpy_floats_with_fraction(self):
+        with self.assertWarns(Warning):
+            int_from_float_with_warning(np.float64(1.2), 2)
+
+    def test_int_from_float_rejects_a_numpy_bool(self):
+        """A bool is not a count, even though Python says `bool` is an int."""
+        with self.assertRaises(TypeError):
+            int_from_float_with_warning(np.bool_(True), 2)
+
     def test_int_from_float_with_exception(self):
         with self.assertRaises(TypeError):
             int_from_float_with_warning(type(int_from_float_with_warning), 2)
