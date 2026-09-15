@@ -3,11 +3,14 @@
 Test functions of the LHC Cavity Loop.
 
 These tests ensure the LHC cavity loop provides the same results and outputs
-with a standard beam profile and a sparse profile.
+with a standard beam profile and a sparse profile (a SparseBatch and a
+SparseBucket built on the same beam), for three injection schemes: all the
+batches at once, one batch per turn in bucket order, and one batch per turn
+out of bucket order.
 
-To do so, the tests ensure the standard profile and the sparse profile have
+To do so, the tests ensure the standard profile and the sparse profiles have
 equivalent bin_centers and other parameters. Then, the COARSE grid and the
-FINE grid for both profiles are compared, for different functions, towards
+FINE grid for the profiles are compared, for different functions, towards
 the full .track() method.
 
 The current implementation of the Cavity Loops with sparse profile
@@ -21,6 +24,7 @@ Lina Valle
 """
 
 import unittest
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
@@ -39,7 +43,6 @@ from blond.llrf.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared machine parameters (LHC-like), reused by every test class below.
@@ -72,34 +75,36 @@ total_length_batch = (
 )
 assert total_length_batch <= batch_spacing
 
+# Bucket of the first bunch of each batch, in injection order: either in
+# bucket order, batch_spacing buckets apart, or out of bucket order, with
+# bucket 20 injected twice
+batch_buckets_sequential = [
+    k * batch_spacing for k in range(number_of_batches)
+]
+batch_buckets_shuffled = [0, 45, 20, 35, 10, 30, 20, 40, 5, 15]
 
-def batch_start(k):
-    """Bucket index of the first bunch of batch k: batches are injected in
-    bucket order, batch_spacing buckets apart."""
-    return k * batch_spacing
 
-
-def bunch_buckets(k):
+def bunch_buckets(batch_buckets, k):
     """Bucket indices of the bunches of batch k."""
     return [
-        batch_start(k) + i * bunch_spacing
+        batch_buckets[k] + i * bunch_spacing
         for i in range(number_of_bunches_per_batch)
     ]
 
 
-def batch_pattern(injected_batches):
+def batch_pattern(batch_buckets, injected_batches):
     """Filling pattern of the first bucket of each injected batch."""
     pattern = np.zeros(HARMONIC_NUMBER)
     for k in range(injected_batches):
-        pattern[batch_start(k)] = 1
+        pattern[batch_buckets[k]] = 1
     return pattern
 
 
-def bunch_pattern(injected_batches):
+def bunch_pattern(batch_buckets, injected_batches):
     """Filling pattern of every bunch of the injected batches."""
     pattern = np.zeros(HARMONIC_NUMBER)
     for k in range(injected_batches):
-        pattern[bunch_buckets(k)] = 1
+        pattern[bunch_buckets(batch_buckets, k)] = 1
     return pattern
 
 
@@ -142,7 +147,7 @@ def build_batch(ring, rf_station, seed=1234):
     return batch
 
 
-def build_beam(ring, rf_station, injected_batches, seed=1234):
+def build_beam(ring, rf_station, batch_buckets, injected_batches, seed=1234):
     """A beam holding the first injected_batches batches, each a copy of
     the same Gaussian batch placed at its batch bucket."""
     n_per_batch = number_of_bunches_per_batch * N_MACROPARTICLES
@@ -155,13 +160,50 @@ def build_beam(ring, rf_station, injected_batches, seed=1234):
     for k in range(injected_batches):
         block = slice(k * n_per_batch, (k + 1) * n_per_batch)
         beam.dE[block] = batch.dE
-        beam.dt[block] = batch.dt + batch_start(k) * rf_station.t_rf[0, 0]
+        beam.dt[block] = batch.dt + batch_buckets[k] * rf_station.t_rf[0, 0]
     return beam
 
 
-def build_standard_profile(beam, rf_station, n_slices):
-    """A standard Profile covering all the batches and some extra buckets."""
-    n_buckets = batch_spacing * number_of_batches + 10
+def inject_batch(
+    beam,
+    ring,
+    rf_station,
+    batch_buckets,
+    profiles_sparse,
+    injected_batches,
+    seed=1234,
+):
+    """Inject batch number injected_batches into the beam, register it in
+    every sparse profile and re-track them. Returns the updated number of
+    injected batches."""
+    k = injected_batches
+    batch = build_batch(ring, rf_station, seed)
+    beam.add_particles(
+        [batch.dt + batch_buckets[k] * rf_station.t_rf[0, 0], batch.dE]
+    )
+    for profile_sparse in profiles_sparse:
+        if isinstance(profile_sparse, SparseBatch):
+            profile_sparse.update_batch_list(
+                updated_batch_list=batch_pattern(batch_buckets, k + 1)
+            )
+        else:
+            # Several bunches are new at once: give them in injection order
+            previous = profile_sparse.bunch_list
+            new_bunches = [
+                b for b in bunch_buckets(batch_buckets, k) if previous[b] == 0
+            ]
+            profile_sparse.update_bunch_list(
+                updated_bunch_list=bunch_pattern(batch_buckets, k + 1),
+                new_bunch_indices=new_bunches or None,
+            )
+        profile_sparse.track()
+    return k + 1
+
+
+def build_standard_profile(beam, rf_station, n_slices, extra_buckets):
+    """A standard Profile covering all the batches and extra_buckets more,
+    so that its last coarse-grid sample is complete."""
+    n_buckets = batch_spacing * number_of_batches + extra_buckets
     profile = Profile(
         beam,
         CutOptions(
@@ -174,13 +216,15 @@ def build_standard_profile(beam, rf_station, n_slices):
     return profile
 
 
-def build_sparse_profile(beam, rf_station, n_slices, injected_batches):
+def build_sparse_profile(
+    beam, rf_station, n_slices, batch_buckets, injected_batches
+):
     """A SparseBatch profile with one profile per injected batch."""
     sparse_profile = SparseBatch(
         rf_station=rf_station,
         beam=beam,
         number_of_slices_per_profile=(int(batch_spacing / 2) + 1) * n_slices,
-        batch_list=batch_pattern(injected_batches),
+        batch_list=batch_pattern(batch_buckets, injected_batches),
         batch_length=int(batch_spacing / 2) + 1,
         tracker_mode="onebyone",
     )
@@ -188,14 +232,16 @@ def build_sparse_profile(beam, rf_station, n_slices, injected_batches):
     return sparse_profile
 
 
-def build_sparse_bucket_profile(beam, rf_station, n_slices, injected_batches):
+def build_sparse_bucket_profile(
+    beam, rf_station, n_slices, batch_buckets, injected_batches
+):
     """A SparseBucket profile with one profile (one RF bucket) per bunch of
     the injected batches."""
     sparse_profile = SparseBucket(
         rf_station=rf_station,
         beam=beam,
         number_of_slices_per_profile=n_slices,
-        bunch_list=bunch_pattern(injected_batches),
+        bunch_list=bunch_pattern(batch_buckets, injected_batches),
         tracker_mode="onebyone",
     )
     sparse_profile.track()
@@ -238,9 +284,11 @@ class TestLHCCavityLoopStandardProfile(unittest.TestCase):
 
     def setUp(self):
         self.ring, self.rf = build_ring_and_rf()
-        self.beam = build_beam(self.ring, self.rf, number_of_batches)
+        self.beam = build_beam(
+            self.ring, self.rf, batch_buckets_sequential, number_of_batches
+        )
         self.profile = build_standard_profile(
-            self.beam, self.rf, n_slices=1000
+            self.beam, self.rf, n_slices=1000, extra_buckets=10
         )
         self.RFFB = build_open_drive_commissioning()
 
@@ -300,12 +348,22 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
 
     def setUp(self):
         self.ring, self.rf = build_ring_and_rf()
-        self.beam = build_beam(self.ring, self.rf, number_of_batches)
+        self.beam = build_beam(
+            self.ring, self.rf, batch_buckets_sequential, number_of_batches
+        )
         self.profile_sparse = build_sparse_profile(
-            self.beam, self.rf, 1000, number_of_batches
+            self.beam,
+            self.rf,
+            1000,
+            batch_buckets_sequential,
+            number_of_batches,
         )
         self.profile_bucket = build_sparse_bucket_profile(
-            self.beam, self.rf, 1000, number_of_batches
+            self.beam,
+            self.rf,
+            1000,
+            batch_buckets_sequential,
+            number_of_batches,
         )
         self.profiles_sparse = {
             "SparseBatch": self.profile_sparse,
@@ -383,16 +441,26 @@ class TestProfileEquivalence(unittest.TestCase):
 
     def setUp(self):
         self.ring, self.rf = build_ring_and_rf()
-        self.beam = build_beam(self.ring, self.rf, number_of_batches)
+        self.beam = build_beam(
+            self.ring, self.rf, batch_buckets_sequential, number_of_batches
+        )
         self.n_slices = 2000
         self.standard = build_standard_profile(
-            self.beam, self.rf, self.n_slices
+            self.beam, self.rf, self.n_slices, extra_buckets=10
         )
         self.sparse = build_sparse_profile(
-            self.beam, self.rf, self.n_slices, number_of_batches
+            self.beam,
+            self.rf,
+            self.n_slices,
+            batch_buckets_sequential,
+            number_of_batches,
         )
         self.bucket = build_sparse_bucket_profile(
-            self.beam, self.rf, self.n_slices, number_of_batches
+            self.beam,
+            self.rf,
+            self.n_slices,
+            batch_buckets_sequential,
+            number_of_batches,
         )
         self.profiles_sparse = {
             "SparseBatch": self.sparse,
@@ -468,26 +536,39 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
     grid, LHCCavityLoop should produce the same coarse- and fine-grid
     signals whether it is fed a standard Profile or an equivalent sparse
     profile, a SparseBatch (one profile per batch) or a SparseBucket (one
-    profile per bunch).
+    profile per bunch). Here all the batches are injected at once, in
+    bucket order; the subclasses inject them one per turn.
     """
 
     N_SLICES = (
         4 * HARMONIC_NUMBER // 5
     )  # fine relative to the coarse (n_coarse) grid
+    batch_buckets = batch_buckets_sequential
+    injected_batches_at_setup = number_of_batches
 
     def setUp(self, show_plot: bool = False):
         self.ring, self.rf = build_ring_and_rf()
-        self.injected_batches = number_of_batches
-        self.beam = build_beam(self.ring, self.rf, self.injected_batches)
+        self.injected_batches = self.injected_batches_at_setup
+        self.beam = build_beam(
+            self.ring, self.rf, self.batch_buckets, self.injected_batches
+        )
 
         self.profile_std = build_standard_profile(
-            self.beam, self.rf, self.N_SLICES
+            self.beam, self.rf, self.N_SLICES, extra_buckets=10
         )
         self.profile_sparse = build_sparse_profile(
-            self.beam, self.rf, self.N_SLICES, self.injected_batches
+            self.beam,
+            self.rf,
+            self.N_SLICES,
+            self.batch_buckets,
+            self.injected_batches,
         )
         self.profile_bucket = build_sparse_bucket_profile(
-            self.beam, self.rf, self.N_SLICES, self.injected_batches
+            self.beam,
+            self.rf,
+            self.N_SLICES,
+            self.batch_buckets,
+            self.injected_batches,
         )
         self.profiles_sparse = {
             "SparseBatch": self.profile_sparse,
@@ -795,6 +876,74 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
 
     def test_generator_power_consistent(self):
         self._check_generator_power()
+
+
+class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
+    TestLHCCavityLoopConsistencyBetweenProfileTypes
+):
+    """Multi-turn injection: one batch at setUp, then the remaining batches
+    injected one by one in bucket order. The test_* methods of the parent
+    run on the single batch; the test_muliturn_* methods repeat the same
+    check after each injection, the cavity loops following their profiles.
+    """
+
+    injected_batches_at_setup = 1
+
+    def _inject_all(self, check):
+        """Inject the remaining batches one at a time; after each injection
+        re-track the standard profile and run check() on the cavity loops."""
+        while self.injected_batches < number_of_batches:
+            self.injected_batches = inject_batch(
+                self.beam,
+                self.ring,
+                self.rf,
+                self.batch_buckets,
+                self.profiles_sparse.values(),
+                self.injected_batches,
+            )
+            self.profile_std.track()
+            with self.subTest(injected_batches=self.injected_batches):
+                check()
+
+    def test_muliturn_injection_rf_beam_current(self):
+        self._track_loops()
+        self._inject_all(self._check_rf_beam_current)
+
+    def test_muliturn_injection_coarse_antenna_voltage_consistent_after_one_track(
+        self,
+    ):
+        self._track_loops()
+        self._inject_all(self._check_coarse_antenna_voltage_after_one_track)
+
+    def test_muliturn_injection_fine_grid_generator_current_consistent_fine_grid_disabled(
+        self,
+    ):
+        self._disable_fine_grid()
+        self._track_loops()
+        self._inject_all(
+            self._check_fine_grid_generator_current_fine_grid_disabled
+        )
+
+    def test_muliturn_fine_grid_cavity_response_inputs(self):
+        self._track_loops()
+        self._inject_all(self._check_fine_grid_cavity_response_inputs)
+
+    def test_muliturn_fine_grid_antenna_voltage_consistent(self):
+        self._track_loops()
+        self._inject_all(self._check_fine_grid_antenna_voltage)
+
+    def test_multiturn_injection_generator_power(self):
+        self._track_loops()
+        self._inject_all(self._check_generator_power)
+
+
+class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjectionBatchList(
+    TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection
+):
+    """Multi-turn injection out of bucket order, following
+    batch_buckets_shuffled, with bucket 20 injected twice."""
+
+    batch_buckets = batch_buckets_shuffled
 
 
 if __name__ == "__main__":
