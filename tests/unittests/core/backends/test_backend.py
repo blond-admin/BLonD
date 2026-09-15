@@ -2284,6 +2284,42 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"{special=} {dtype=}",
                 )
 
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_non_power_of_two_threads(self) -> None:
+        """`GPU_THREADS` need not be a power of two for `beam_phase`.
+
+        The in-block reduction halved `blockDim.x` and silently skipped
+        the odd leftover thread slots of a non-power-of-two block.
+        """
+        dtype = np.float64
+        n_bins = 5003
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2))
+        kwargs = dict(
+            alpha=0.5,
+            omega_rf=0.8,
+            phi_rf=0.1,
+            bin_size=hist_x_host[1] - hist_x_host[0],
+        )
+        import blond.core.backends.cuda.callables as cuda_callables
+
+        threads = 1000
+        results = {}
+        for special in ("python", "cuda"):
+            self._setUp(dtype=dtype, special_mode=special)
+            with mock.patch.multiple(
+                cuda_callables, threads=threads, block_size=(threads, 1, 1)
+            ):
+                results[special] = backend.specials.beam_phase(
+                    hist_x=backend.array(hist_x_host, dtype=backend.float),
+                    hist_y=backend.array(hist_y_host, dtype=backend.float),
+                    **kwargs,
+                )
+        np.testing.assert_allclose(
+            results["cuda"], results["python"], rtol=1e-10
+        )
+
     @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
         dtype = np.float64

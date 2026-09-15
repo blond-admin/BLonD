@@ -120,9 +120,14 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
 
   __syncthreads();
 
-  // Parallel reduction within block
-  for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-    if (threadIdx.x < s) {
+  // Parallel reduction within block. Halving from the next power of two
+  // (slots beyond `blockDim.x` count as zero) keeps every thread slot in
+  // the sum also when `GPU_THREADS` is not a power of two.
+  int reduction_width = 1;
+  while (reduction_width < blockDim.x)
+    reduction_width <<= 1;
+  for (int s = reduction_width / 2; s > 0; s >>= 1) {
+    if (threadIdx.x < s && threadIdx.x + s < blockDim.x) {
       sin_partial[threadIdx.x] += sin_partial[threadIdx.x + s];
       cos_partial[threadIdx.x] += cos_partial[threadIdx.x + s];
     }
