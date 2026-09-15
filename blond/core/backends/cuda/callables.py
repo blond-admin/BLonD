@@ -61,6 +61,7 @@ gpu_module = cp.RawModule(
 mark_used(_basepath)
 
 _drift_simple = gpu_module.get_function("drift_simple")
+_drift_like_line_segment = gpu_module.get_function("drift_like_line_segment")
 _drift_exact = gpu_module.get_function("drift_exact")
 _beam_phase = gpu_module.get_function("beam_phase")
 _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
@@ -315,6 +316,44 @@ class CudaSpecials(Specials):  # NOQA: D101
         energy = FLOAT(energy)
 
         _drift_simple(
+            args=(
+                dt,  # beam_dt
+                dE,  # beam_dE
+                T,  # T
+                eta_0,  # eta_zero
+                beta,  # beta
+                energy,  # energy
+                np.int32(len(dE)),  # n_macroparticles
+            ),
+            block=block_size,
+            grid=grid_size,
+        )
+
+    @staticmethod
+    def drift_like_line_segment(  # NOQA: D102
+        dt: CupyArray,
+        dE: CupyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
+        assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
+
+        assert dt.dtype == FLOAT
+        assert dE.dtype == FLOAT
+
+        assert dt.flags.c_contiguous
+        assert dE.flags.c_contiguous
+
+        # Cast Python floats to backend floattype
+        T = FLOAT(T)
+        eta_0 = FLOAT(eta_0)
+        beta = FLOAT(beta)
+        energy = FLOAT(energy)
+
+        _drift_like_line_segment(
             args=(
                 dt,  # beam_dt
                 dE,  # beam_dE
