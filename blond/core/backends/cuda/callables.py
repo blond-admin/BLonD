@@ -94,6 +94,18 @@ blocks = int(os.environ.get("GPU_BLOCKS", default_blocks))
 threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
+
+
+def _stride_fits_int32(n_elements: int) -> bool:
+    """Check that striding over `n_elements` cannot overflow a kernel.
+
+    Striding kernels loop ``for (int i = tid; i < n; i += stride)`` with
+    ``stride = blocks * threads``, so ``n - 1 + stride`` must not exceed
+    ``INT32_MAX``.
+    """
+    return n_elements <= 2**31 - blocks * threads
+
+
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 # Cache of uniformity verdicts for `bin_centers` arrays passed to the
@@ -169,6 +181,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert isinstance(e_min, FLOAT)
         assert isinstance(t_min, FLOAT)
         assert isinstance(t_max, FLOAT)
+        assert _stride_fits_int32(len(dE))
 
         _loss_box(
             args=(
@@ -203,6 +216,7 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         assert dt.flags.c_contiguous
         assert dE.flags.c_contiguous
+        assert _stride_fits_int32(len(dE))
 
         _kick_single_harmonic(
             args=(
@@ -253,6 +267,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert voltage.flags.c_contiguous
         assert omega_rf.flags.c_contiguous
         assert phi_rf.flags.c_contiguous
+        assert _stride_fits_int32(len(dE))
 
         _kick_multi_harmonic(
             args=(
@@ -313,6 +328,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         eta_0 = FLOAT(eta_0)
         beta = FLOAT(beta)
         energy = FLOAT(energy)
+        assert _stride_fits_int32(len(dE))
 
         _drift_simple(
             args=(
@@ -354,6 +370,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         alpha_0 = FLOAT(alpha_0)
         beta = FLOAT(beta)
         energy = FLOAT(energy)
+        assert _stride_fits_int32(len(dE))
 
         _drift_exact(
             args=(
@@ -409,6 +426,8 @@ class CudaSpecials(Specials):  # NOQA: D101
         # Cast Python floats to backend floattype
         charge = FLOAT(charge)
         acceleration_kick = FLOAT(acceleration_kick)
+        assert _stride_fits_int32(dt.size)
+        assert _stride_fits_int32(bin_centers.size)
 
         if first_left_cut is None:
             n_slices = bin_centers.size
@@ -531,6 +550,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         stop = FLOAT(stop)
 
         n_slices = array_write.size
+        assert _stride_fits_int32(len(array_read))
         array_write.fill(0)
 
         if 4 * n_slices < max_shared_memory_per_block:
@@ -583,6 +603,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert hist_y.dtype == FLOAT
         assert hist_x.flags.c_contiguous
         assert hist_y.flags.c_contiguous
+        assert len(hist_x) >= 2, "The trapezoidal rule needs two bins."  # NOQA PLR2004
 
         # Cast Python floats to backend floattype
         alpha = FLOAT(alpha)
@@ -650,6 +671,7 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         damping_factor = FLOAT(1.0 - 2.0 / longitudinal_damping_time)
         energy_lost_typed = FLOAT(energy_lost)
+        assert _stride_fits_int32(len(beam_dE))
         n_macroparticles = np.int32(len(beam_dE))
         if disable_quantum_excitation:
             _apply_sr_without_quantum_excitation(
@@ -755,6 +777,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert filling_pattern.flags.c_contiguous
         assert bucket_index_to_memory_index.flags.c_contiguous
 
+        assert _stride_fits_int32(len(x))
         out[:] = 0
         _histogram_sparse(
             args=(

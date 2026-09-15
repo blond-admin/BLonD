@@ -117,6 +117,7 @@ class PythonSpecials(Specials):
         beam_phase
             # TODO ported from blond2, was undocumented.
         """
+        assert len(hist_x) >= 2, "The trapezoidal rule needs two bins."  # NOQA PLR2004
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)

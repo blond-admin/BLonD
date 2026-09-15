@@ -411,6 +411,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bin_size: float,
         ) -> float:
             assert _is_valid((hist_x, floattype), (hist_y, floattype))
+            assert len(hist_x) >= 2, "The trapezoidal rule needs two bins."  # NOQA PLR2004
 
             # Cast Python floats to backend floattype
             alpha = floattype(alpha)
