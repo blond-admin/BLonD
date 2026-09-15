@@ -81,8 +81,8 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from blond.physics.cavities import RFStationBaseClass
         from blond.physics.drifts import DriftBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
@@ -440,12 +440,12 @@ class BeamPhysicsRelevantElements(Preparable):
             "forbidden!"
         )
         assert isinstance(section_index, int)
-        from blond.physics.cavities import RFStationBaseClass
         from blond.physics.drifts import DriftBaseClass
         from blond.physics.feedbacks.base import FeedbackBaseClass
         from blond.physics.impedances.base import ImpedanceBaseClass
         from blond.physics.losses import LossesBaseClass
         from blond.physics.profiles import ProfileBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         natural_order = (
             LossesBaseClass,

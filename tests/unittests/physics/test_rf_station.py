@@ -45,14 +45,14 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.cavities import (
-    MultiHarmonicRFStation,
-    SingleHarmonicRFStation,
-)
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
 from blond.testing.backend_testing import multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 
