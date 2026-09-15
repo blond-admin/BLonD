@@ -26,6 +26,15 @@ end
 
 BLonDKernels.max_threads(::CUDA.CUDABackend)::Int = 1
 
+function BLonDKernels.gpu_workgroups(::CUDA.CUDABackend)::Int
+    return Int(
+        CUDA.CUDACore.attribute(
+            CUDA.device(),
+            CUDA.CUDACore.DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
+        ),
+    )
+end
+
 function BLonDKernels.use_cuda_default_stream!(::CUDA.CUDABackend)::Nothing
     # `CUDA.default_stream()` carries no context, which the synchronization
     # of CUDA.jl needs, and `CuStream` has no public constructor for an

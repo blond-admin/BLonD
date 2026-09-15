@@ -17,19 +17,120 @@
 # "Chunked CPU particle loops" at the end of this file), which the CPU runs
 # instead of the per-particle kernel.
 
+# Particle layouts.
+#
+# Every per-particle kernel loops over the particles of its work-item, given
+# by a layout argument, so that one kernel serves every launch pattern: one
+# particle per work-item on the CPU, and on a GPU a fixed number of
+# work-items striding through the particles, as the cuda backend does.
+# Launching one GPU work-item per particle instead costs up to 2x
+# (kick_interpolated at 1e8 particles: 61 against 32 ms).
+
+"""
+    SingleParticleLayout()
+
+Layout with one particle per work-item: work-item `i` handles particle `i`.
+"""
+struct SingleParticleLayout end
+
+"""
+    StrideLayout(n_particles, stride)
+
+Layout of `stride` work-items sharing `n_particles` particles: work-item `i`
+handles particles ``i, i + stride, i + 2 stride, ...``. The integer type of
+both fields indexes the particles; a GPU steps through `Int32` faster than
+through `Int64`.
+"""
+struct StrideLayout{T <: Integer}
+    n_particles::T
+    stride::T
+end
+
+"""
+    particle_indices(layout, item) -> AbstractRange
+
+Particles handled by work-item `item` of `layout`.
+"""
+@inline particle_indices(::SingleParticleLayout, item::Int) = item:item
+
+@inline function particle_indices(layout::StrideLayout{T}, item::Int) where {T}
+    return T(item):layout.stride:layout.n_particles
+end
+
+"""
+    GPU_WORKGROUP_SIZE
+
+Work-items per workgroup of the strided GPU kernels: the largest workgroup
+every GPU generation supports.
+"""
+const GPU_WORKGROUP_SIZE = 1024
+
+"""
+    gpu_workgroups(device) -> Int
+
+Number of workgroups the strided kernels are launched with on `device`: one
+per streaming multiprocessor. Fewer leave multiprocessors idle, more only
+add workgroups to schedule. Defined by the device extensions.
+"""
+function gpu_workgroups end
+
+"""
+    bounded_floor_int32(x) -> Int32
+
+Return ``floor(x)`` as `Int32` wherever that conversion is exact, and -1
+elsewhere (magnitudes of at least ``2^31``, infinities and NaN).
+
+The decision is taken from the bits rather than by comparing floats, which
+a GPU evaluates ~1.5x faster: the biased exponent is below ``1023 + 31``
+exactly when the magnitude is below ``2^31``. The conversion of any other
+value is computed but never selected.
+"""
+@inline function bounded_floor_int32(x::Float64)::Int32
+    exponent = (reinterpret(UInt64, x) >> 52) & 0x00000000000007ff
+    return ifelse(
+        exponent < 0x000000000000041e, unsafe_trunc(Int32, floor(x)), Int32(-1)
+    )
+end
+
+"""
+    interpolation_interval(layout, position, n_intervals) -> Integer
+
+Zero-based interval of `position` in ``[0, n_intervals)``, or -1.
+
+Strided GPU kernels decide with [`bounded_floor_int32`] and integer
+comparisons, which a GPU evaluates faster; the CPU keeps the float
+comparisons, which it evaluates faster.
+"""
+@inline function interpolation_interval(
+    ::StrideLayout, position::Float64, n_intervals::Integer
+)::Int32
+    interval = bounded_floor_int32(position)
+    inside = (interval >= 0) & (interval < n_intervals)
+    return ifelse(inside, interval, Int32(-1))
+end
+
+@inline function interpolation_interval(
+    ::SingleParticleLayout, position::Float64, n_intervals::Integer
+)::Int
+    inside = (position >= 0.0) & (position < n_intervals)
+    return ifelse(inside, unsafe_trunc(Int, position), -1)
+end
+
 @kernel function kick_single_harmonic_kernel!(
-    dt, dE, voltage_kick, omega_rf, phi_rf, acceleration_kick
+    dt, dE, voltage_kick, omega_rf, phi_rf, acceleration_kick, layout
 )
-    i = @index(Global, Linear)
-    @inbounds dE[i] +=
-        voltage_kick * sin(omega_rf * dt[i] + phi_rf) + acceleration_kick
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
+        dE[i] +=
+            voltage_kick * sin(omega_rf * dt[i] + phi_rf) + acceleration_kick
+    end
 end
 
 @kernel function kick_multi_harmonic_kernel!(
-    dt, dE, voltage, omega_rf, phi_rf, n_rf, charge, acceleration_kick
+    dt, dE, voltage, omega_rf, phi_rf, n_rf, charge, acceleration_kick, layout
 )
-    i = @index(Global, Linear)
-    @inbounds begin
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
         dt_i = dt[i]
         accumulator = dE[i]
         for j in 1:n_rf
@@ -40,9 +141,11 @@ end
     end
 end
 
-@kernel function drift_simple_kernel!(dt, dE, coefficient)
-    i = @index(Global, Linear)
-    @inbounds dt[i] += coefficient * dE[i]
+@kernel function drift_simple_kernel!(dt, dE, coefficient, layout)
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
+        dt[i] += coefficient * dE[i]
+    end
 end
 
 @kernel function drift_exact_kernel!(
@@ -54,10 +157,11 @@ end
     n_alpha,
     inverse_beta_squared,
     inverse_energy,
+    layout,
 )
-    i = @index(Global, Linear)
-    @inbounds begin
-        inverse_energy_squared = inverse_energy * inverse_energy
+    item = @index(Global, Linear)
+    inverse_energy_squared = inverse_energy * inverse_energy
+    @inbounds for i in particle_indices(layout, item)
         energy_offset = dE[i]
         beam_delta =
             sqrt(
@@ -82,10 +186,10 @@ end
 end
 
 @kernel function loss_box_kernel!(
-    dt, dE, flags, e_max, e_min, t_min, t_max, lost_flag
+    dt, dE, flags, e_max, e_min, t_min, t_max, lost_flag, layout
 )
-    i = @index(Global, Linear)
-    @inbounds begin
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
         is_lost =
             (dE[i] > e_max) ||
             (dE[i] < e_min) ||
@@ -97,20 +201,24 @@ end
     end
 end
 
-# Histogram with workgroup-private bins.
+# Histogram on a GPU with workgroup-private bins.
 #
 # Every work-item throwing its value straight at the global histogram makes
 # all of them contend on the same few atomic locations (a 1000-bin
 # histogram of 1e6 particles is ~10x slower than the cpp/cuda kernels that
 # way). Instead each workgroup accumulates into a private copy of the
-# bins in workgroup-local memory (shared memory on GPUs, a stack array on
-# the CPU), and only the per-workgroup partial sums are added to the
-# global histogram. The global atomic traffic drops from one add per
-# particle to one add per (workgroup, non-empty bin).
+# bins in workgroup-local (shared) memory, and only the per-workgroup
+# partial sums are added to the global histogram.
+#
+# As in the other strided GPU kernels (see "Particle layouts"), one
+# workgroup runs per streaming multiprocessor and every work-item strides
+# through the input by the number of work-items.
 #
 # Local memory is a compile-time constant of the kernel, so histograms
 # with more bins than `HISTOGRAM_LOCAL_BINS` are built in several passes
 # over the input, each pass covering the next window of bins.
+#
+# The CPU counts per thread instead, see `histogram_slices_kernel!`.
 
 """
     HISTOGRAM_LOCAL_BINS
@@ -122,46 +230,29 @@ to spare for other kernels resident on the same multiprocessor.
 const HISTOGRAM_LOCAL_BINS = 4096
 
 """
-    HISTOGRAM_WORKGROUP_SIZE
+    histogram_bin(value, start, stop, inverse_bin_width, n_bins) -> Int32
 
-Work-items per workgroup for the histogram kernel: the largest workgroup
-every GPU generation supports, so that the private bins are shared by as
-many work-items as possible. On the CPU backend a workgroup is one task,
-so this is also the chunk one thread handles between two flushes.
+Return the zero-based bin of `value`, or -1 if it falls into no bin, with
+the bins of [`histogram_slot`]. The bin is found with
+[`bounded_floor_int32`] and integer comparisons, which a GPU evaluates
+faster than float comparisons.
 """
-const HISTOGRAM_WORKGROUP_SIZE = 1024
-
-"""
-    HISTOGRAM_VALUES_PER_WORK_ITEM
-
-Values each work-item feeds into the private bins before the workgroup
-flushes them. Larger values amortise the flush over more particles but
-leave fewer workgroups to spread over the device; 32 is the measured
-optimum for ``1e6`` particles on both CPU threads and CUDA. A workgroup
-never counts more than `typemax(Int32)` values into one private bin.
-"""
-const HISTOGRAM_VALUES_PER_WORK_ITEM = 32
-
-"""
-    histogram_values_per_workgroup() -> Int
-
-Number of input values one workgroup of the histogram kernel consumes.
-"""
-histogram_values_per_workgroup()::Int =
-    HISTOGRAM_WORKGROUP_SIZE * HISTOGRAM_VALUES_PER_WORK_ITEM
-
-"""
-    private_bins_need_atomics(device) -> Val
-
-Whether work-items of one workgroup may race on the private bins.
-
-The CPU backend executes the work-items of a workgroup one after the
-other on a single task, so plain increments are exact there and the
-locked read-modify-write of an atomic would only cost time. On every
-other device the work-items run concurrently and need the atomic.
-"""
-private_bins_need_atomics(::CPU) = Val(false)
-private_bins_need_atomics(::Any) = Val(true)
+@inline function histogram_bin(
+    value::Float64,
+    start::Float64,
+    stop::Float64,
+    inverse_bin_width::Float64,
+    n_bins::Int32,
+)::Int32
+    bin = bounded_floor_int32((value - start) * inverse_bin_width)
+    if value == stop
+        bin = n_bins - Int32(1)
+    end
+    if bin < Int32(0) || bin >= n_bins
+        bin = Int32(-1)
+    end
+    return bin
+end
 
 @kernel function histogram_kernel!(
     array_read,
@@ -173,9 +264,8 @@ private_bins_need_atomics(::Any) = Val(true)
     inverse_bin_width,
     bin_offset,
     n_local_bins,
-    values_per_workgroup,
-    ::Val{NEED_ATOMICS},
-) where {NEED_ATOMICS}
+    n_work_items,
+)
     workgroup_size = @uniform @groupsize()[1]
     local_counts = @localmem Int32 (HISTOGRAM_LOCAL_BINS,)
 
@@ -188,37 +278,20 @@ private_bins_need_atomics(::Any) = Val(true)
 
     @synchronize
 
-    # Phase 2: count this workgroup's slice of the input into the
-    # private bins. Only bins of the current pass window
-    # ``[bin_offset + 1, bin_offset + n_local_bins]`` are counted.
-    local_index = @index(Local, Linear)
-    group_index = @index(Group, Linear)
-    value_index = (group_index - 1) * values_per_workgroup + local_index
-    last_value_index = min(group_index * values_per_workgroup, n_read)
-    while value_index <= last_value_index
+    # Phase 2: stride through the input and count the values of the current
+    # pass window ``[bin_offset, bin_offset + n_local_bins)`` into the
+    # private bins. A value in no bin (-1) lands on a local bin below 1.
+    # The input is indexed with the type of `n_read`, `Int32` whenever it
+    # fits, which a GPU steps through faster than `Int64`.
+    value_index = oftype(n_read, @index(Global, Linear))
+    while value_index <= n_read
         @inbounds value = array_read[value_index]
-        # Out-of-range values map to bin 0, which no window contains.
-        bin_index = 0
-        if value == stop
-            # The right-most edge belongs to the last bin.
-            bin_index = n_bins
-        else
-            bin_float = floor((value - start) * inverse_bin_width)
-            # Range-check in floating point: converting an out-of-range
-            # `Float64` to `Int` is undefined behaviour.
-            if bin_float >= 0.0 && bin_float < n_bins
-                bin_index = unsafe_trunc(Int, bin_float) + 1
-            end
+        bin = histogram_bin(value, start, stop, inverse_bin_width, n_bins)
+        local_bin = bin - bin_offset + Int32(1)
+        if Int32(1) <= local_bin <= n_local_bins
+            @inbounds Atomix.@atomic local_counts[local_bin] += Int32(1)
         end
-        local_bin = bin_index - bin_offset
-        if 1 <= local_bin <= n_local_bins
-            if NEED_ATOMICS
-                @inbounds Atomix.@atomic local_counts[local_bin] += Int32(1)
-            else
-                @inbounds local_counts[local_bin] += Int32(1)
-            end
-        end
-        value_index += workgroup_size
+        value_index += n_work_items
     end
 
     @synchronize
@@ -360,15 +433,24 @@ end
 end
 
 @kernel function kick_interpolated_dense_particles_kernel!(
-    dt, dE, factors, grid, n_slices
+    dt, dE, factors, grid, n_slices, layout
 )
-    i = @index(Global, Linear)
+    item = @index(Global, Linear)
     @inbounds begin
-        dt_i = dt[i]
-        bin_position = (dt_i - grid[1]) * grid[2]
-        if bin_position >= 0.0 && bin_position < n_slices - 1
-            bin = unsafe_trunc(Int, bin_position) + 1
-            dE[i] += dt_i * factors[2 * bin - 1] + factors[2 * bin]
+        # The grid is read from the device once per work-item.
+        first_bin_center = grid[1]
+        inverse_bin_width = grid[2]
+        for i in particle_indices(layout, item)
+            dt_i = dt[i]
+            interval = interpolation_interval(
+                layout, (dt_i - first_bin_center) * inverse_bin_width,
+                n_slices - 1,
+            )
+            if interval >= 0
+                dE[i] +=
+                    dt_i * factors[2 * interval + 1] +
+                    factors[2 * interval + 2]
+            end
         end
     end
 end
@@ -401,9 +483,10 @@ end
     inverse_histogram_distance,
     inverse_bin_width,
     bin_width,
+    layout,
 )
-    i = @index(Global, Linear)
-    @inbounds begin
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
         dt_i = dt[i]
         bucket_position = (dt_i - first_left_cut) * inverse_histogram_distance
         if bucket_position >= 0.0 && bucket_position < n_buckets
@@ -536,19 +619,23 @@ end
 end
 
 @kernel function synchrotron_radiation_kernel!(
-    dE, damping_factor, energy_lost
+    dE, damping_factor, energy_lost, layout
 )
-    i = @index(Global, Linear)
-    @inbounds dE[i] = damping_factor * dE[i] - energy_lost
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
+        dE[i] = damping_factor * dE[i] - energy_lost
+    end
 end
 
 @kernel function synchrotron_radiation_quantum_excitation_kernel!(
-    dE, damping_factor, noise_scale, energy_lost, key
+    dE, damping_factor, noise_scale, energy_lost, key, layout
 )
-    i = @index(Global, Linear)
-    @inbounds dE[i] =
-        damping_factor * dE[i] +
-        (philox_standard_normal(i, key) * noise_scale - energy_lost)
+    item = @index(Global, Linear)
+    @inbounds for i in particle_indices(layout, item)
+        dE[i] =
+            damping_factor * dE[i] +
+            (philox_standard_normal(Int(i), key) * noise_scale - energy_lost)
+    end
 end
 
 # Chunked CPU particle loops.
@@ -663,6 +750,94 @@ function beam_phase_sums_range!(
     @inbounds chunk_sums[2 * chunk - 1] = sine_sum
     @inbounds chunk_sums[2 * chunk] = cosine_sum
     return nothing
+end
+
+"""
+    HISTOGRAM_VALUES_PER_THREAD
+
+Values that justify one more thread in the CPU histogram. Waking a
+sleeping Julia thread costs about as much as counting this many values on
+one: on 12 threads, histograms of ``3e3``/``1e4``/``3e4`` values took
+237/144/181 µs on all threads but 8.7/13/27 µs on one, breaking even at
+``1e5`` (72 µs either way) and paying off from ``3e5`` (151 against 199 µs).
+"""
+const HISTOGRAM_VALUES_PER_THREAD = 100_000
+
+"""
+    histogram_slice_count(device, n_read) -> Int
+
+Number of slices, each counted by one thread, the CPU histogram splits
+`n_read` values into: one per `HISTOGRAM_VALUES_PER_THREAD` values, at least
+one and at most one per thread.
+"""
+function histogram_slice_count(device::CPU, n_read::Int)::Int
+    return clamp(
+        cld(n_read, HISTOGRAM_VALUES_PER_THREAD), 1, max_threads(device)
+    )
+end
+
+"""
+    histogram_slot(value, start, stop, inverse_bin_width, n_bins) -> Int
+
+Return the slot `value` is counted in: bin `b` is slot `b + 1`, and slot 1
+collects every value that falls into no bin.
+
+Bins follow the other backends: ``floor((value - start) *
+inverse_bin_width)`` counts if it lies in ``[0, n_bins)``, and values equal
+to `stop` go to the last bin. For ``value >= start`` the scaled position is
+non-negative, so truncating it is the floor. The slot is chosen without a
+branch, so that a loop over the values vectorises; the conversion of an
+out-of-range position is computed but never selected.
+"""
+@inline function histogram_slot(
+    value::Float64,
+    start::Float64,
+    stop::Float64,
+    inverse_bin_width::Float64,
+    n_bins::Int,
+)::Int
+    scaled = (value - start) * inverse_bin_width
+    inside = (value >= start) & (scaled < n_bins)
+    slot = ifelse(inside, unsafe_trunc(Int, scaled) + 2, 1)
+    return ifelse(value == stop, n_bins + 1, slot)
+end
+
+@kernel function histogram_slices_kernel!(
+    slice_counts,
+    array_read,
+    n_read,
+    values_per_slice,
+    n_bins,
+    start,
+    stop,
+    inverse_bin_width,
+)
+    # One slice per thread, counted into its own bins, so the slices share
+    # no memory while they count. Within the slice the slots of a block are
+    # computed first, in a vectorised loop, and counted afterwards.
+    slice = @index(Global, Linear)
+    first_value = (slice - 1) * values_per_slice + 1
+    last_value = min(slice * values_per_slice, n_read)
+    counts = zeros(Int, n_bins + 1)
+    slots = Vector{Int}(undef, PARTICLES_PER_CHUNK)
+    block_start = first_value
+    @inbounds while block_start <= last_value
+        block_length = min(PARTICLES_PER_CHUNK, last_value - block_start + 1)
+        @simd for j in 1:block_length
+            slots[j] = histogram_slot(
+                array_read[block_start + j - 1],
+                start,
+                stop,
+                inverse_bin_width,
+                n_bins,
+            )
+        end
+        for j in 1:block_length
+            counts[slots[j]] += 1
+        end
+        block_start += block_length
+    end
+    slice_counts[slice] = counts
 end
 
 function synchrotron_radiation_quantum_excitation_range!(

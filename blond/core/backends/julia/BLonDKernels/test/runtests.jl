@@ -12,7 +12,14 @@ using JET
 using LinearAlgebra: dot
 using Random
 using Atomix: Atomix
-using KernelAbstractions: KernelAbstractions, @index, @kernel
+using KernelAbstractions:
+    KernelAbstractions,
+    @groupsize,
+    @index,
+    @kernel,
+    @localmem,
+    @synchronize,
+    @uniform
 
 using BLonDKernels
 
@@ -153,6 +160,89 @@ end
             end
         end
     end
+end
+
+# The workgroup-private histogram the per-thread slices (CPU) and the
+# strided launch (GPU) replaced; kept as the performance baseline of the
+# "histogram! beats the workgroup kernel" testset. Each workgroup counts
+# its share of the input into workgroup-local bins and flushes them.
+const WORKGROUP_HISTOGRAM_SIZE = 1024
+const WORKGROUP_HISTOGRAM_VALUES_PER_ITEM = 32
+
+@kernel function workgroup_histogram_kernel!(
+    array_read,
+    array_write,
+    n_read,
+    n_bins,
+    start,
+    stop,
+    inverse_bin_width,
+    values_per_workgroup,
+    ::Val{NEED_ATOMICS},
+) where {NEED_ATOMICS}
+    workgroup_size = @uniform @groupsize()[1]
+    local_counts = @localmem Int32 (4096,)
+    zero_index = @index(Local, Linear)
+    while zero_index <= n_bins
+        @inbounds local_counts[zero_index] = Int32(0)
+        zero_index += workgroup_size
+    end
+    @synchronize
+    local_index = @index(Local, Linear)
+    group_index = @index(Group, Linear)
+    value_index = (group_index - 1) * values_per_workgroup + local_index
+    last_value_index = min(group_index * values_per_workgroup, n_read)
+    while value_index <= last_value_index
+        @inbounds value = array_read[value_index]
+        bin_index = 0
+        if value == stop
+            bin_index = n_bins
+        else
+            bin_float = floor((value - start) * inverse_bin_width)
+            if bin_float >= 0.0 && bin_float < n_bins
+                bin_index = unsafe_trunc(Int, bin_float) + 1
+            end
+        end
+        if bin_index != 0
+            if NEED_ATOMICS
+                @inbounds Atomix.@atomic local_counts[bin_index] += Int32(1)
+            else
+                @inbounds local_counts[bin_index] += Int32(1)
+            end
+        end
+        value_index += workgroup_size
+    end
+    @synchronize
+    flush_index = @index(Local, Linear)
+    while flush_index <= n_bins
+        @inbounds count = local_counts[flush_index]
+        if count != Int32(0)
+            @inbounds Atomix.@atomic array_write[flush_index] += Float64(count)
+        end
+        flush_index += workgroup_size
+    end
+end
+
+"""Run `workgroup_histogram_kernel!` over at most 4096 bins."""
+function workgroup_histogram!(device, values, n_values, out, n_bins, start, stop)
+    fill!(out, 0.0)
+    values_per_workgroup =
+        WORKGROUP_HISTOGRAM_SIZE * WORKGROUP_HISTOGRAM_VALUES_PER_ITEM
+    kernel! = workgroup_histogram_kernel!(device)
+    kernel!(
+        values,
+        out,
+        n_values,
+        n_bins,
+        start,
+        stop,
+        n_bins / (stop - start),
+        values_per_workgroup,
+        Val(!(device isa KernelAbstractions.CPU));
+        ndrange=cld(n_values, values_per_workgroup) * WORKGROUP_HISTOGRAM_SIZE,
+        workgroupsize=WORKGROUP_HISTOGRAM_SIZE,
+    )
+    return nothing
 end
 
 # The per-particle interpolated kick the two-phase kernels replaced (it
@@ -845,6 +935,71 @@ function run_device_tests(
             @test elapsed_privatised < elapsed_naive
         end
 
+        if device isa KernelAbstractions.CPU
+            @testset "histogram_slice_count" begin
+                # Waking a thread costs about as much as counting
+                # `HISTOGRAM_VALUES_PER_THREAD` values on one, so smaller
+                # inputs stay on a single task and larger ones get one
+                # slice per that many values, up to one per thread.
+                per_thread = BLonDKernels.HISTOGRAM_VALUES_PER_THREAD
+                n_threads = BLonDKernels.max_threads(device)
+                slice_count(n) = @inferred BLonDKernels.histogram_slice_count(
+                    device, n
+                )
+                @test slice_count(1) == 1
+                @test slice_count(per_thread) == 1
+                @test slice_count(per_thread + 1) == min(n_threads, 2)
+                @test slice_count(3 * per_thread) == min(n_threads, 3)
+                @test slice_count(1000 * per_thread) == n_threads
+            end
+        end
+
+        @testset "histogram! beats the workgroup kernel" begin
+            # The per-thread slices on the CPU and the strided launch on a
+            # GPU must clearly beat the workgroup kernel (the previous
+            # implementation) on the same device, timed relative to each
+            # other after compilation. The gain comes from vectorising the
+            # bin computation on the CPU and from its integer-only range
+            # decision on a GPU; `--check-bounds=yes` (forced by `Pkg.test`)
+            # prevents the former and adds a bounds check to every access
+            # in both GPU kernels, which hides the latter. Run
+            # `Pkg.test(julia_args=`--check-bounds=auto`)`.
+            if Base.JLOptions().check_bounds == 1
+                @test_skip "histogram timing needs --check-bounds=auto"
+            else
+                rng = MersenneTwister(4321)
+                n_values = 1_000_000
+                n_bins = 21
+                start = -12.0
+                stop = 8.0
+                values = to_device(20.0 .* rand(rng, n_values) .- 10.0)
+                out = to_device(zeros(Float64, n_bins))
+                function run_entry()
+                    BLonDKernels.histogram!(
+                        device, raw_pointer(values), n_values,
+                        raw_pointer(out), n_bins, start, stop,
+                    )
+                    BLonDKernels.synchronize_device(device)
+                end
+                function run_workgroup()
+                    workgroup_histogram!(
+                        device, values, n_values, out, n_bins, start, stop
+                    )
+                    BLonDKernels.synchronize_device(device)
+                end
+                # Sustained load first: an idle GPU runs in a low power
+                # state that would slow down whichever is timed first.
+                for _ in 1:50
+                    run_entry()
+                    run_workgroup()
+                end
+                elapsed_entry = minimum(@elapsed(run_entry()) for _ in 1:20)
+                elapsed_workgroup =
+                    minimum(@elapsed(run_workgroup()) for _ in 1:20)
+                @test elapsed_entry < 0.75 * elapsed_workgroup
+            end
+        end
+
         @testset "beam_phase" begin
             hist_x_host = collect(range(-10, 10; length=21))
             hist_y_host = 10.0^2 .- hist_x_host .^ 2
@@ -1107,6 +1262,163 @@ function run_device_tests(
                 BLonDKernels.synchronize_device(device)
                 allocated = Base.invokelatest(gpu_allocated, run_entry)
                 @test allocated < sizeof(Float64) * n
+            end
+        end
+
+        if !(device isa KernelAbstractions.CPU)
+            @testset "strided particle kernels visit every particle" begin
+                # More particles than work-items, so that every work-item
+                # strides several times and the last strides are partial.
+                n_work_items =
+                    BLonDKernels.gpu_workgroups(device) *
+                    BLonDKernels.GPU_WORKGROUP_SIZE
+                n = 3 * n_work_items + 5
+                dt_host = collect(range(-5.0, 5.0; length=n))
+                dE_host = collect(range(-2.0, 2.0; length=n))
+                close(actual, expected) =
+                    isapprox(actual, expected; rtol=1e-12, atol=0.0)
+
+                dE = to_device(copy(dE_host))
+                BLonDKernels.kick_single_harmonic!(
+                    device, raw_pointer(to_device(dt_host)), raw_pointer(dE),
+                    n, 3.0, 2.0, 0.5, 1.5, 0.25,
+                )
+                @test close(
+                    to_host(dE),
+                    reference_kick_single_harmonic(
+                        dt_host, dE_host, 3.0, 2.0, 0.5, 1.5, 0.25
+                    ),
+                )
+
+                voltage_host = [1e3, 5e2]
+                omega_rf_host = [2.0, 4.0]
+                phi_rf_host = [0.1, pi]
+                dE = to_device(copy(dE_host))
+                BLonDKernels.kick_multi_harmonic!(
+                    device, raw_pointer(to_device(dt_host)), raw_pointer(dE),
+                    n, raw_pointer(to_device(voltage_host)),
+                    raw_pointer(to_device(omega_rf_host)),
+                    raw_pointer(to_device(phi_rf_host)), 2, 1.5, 0.25,
+                )
+                @test close(
+                    to_host(dE),
+                    reference_kick_multi_harmonic(
+                        dt_host, dE_host, voltage_host, omega_rf_host,
+                        phi_rf_host, 1.5, 0.25,
+                    ),
+                )
+
+                drift_dE_host = collect(range(-1e8, 1e8; length=n))
+                drift_dt_host = collect(range(-1e-9, 1e-9; length=n))
+                dt = to_device(copy(drift_dt_host))
+                BLonDKernels.drift_simple!(
+                    device, raw_pointer(dt),
+                    raw_pointer(to_device(drift_dE_host)), n, 8.89e-5,
+                    3.18e-4, 0.99999786, 450e9,
+                )
+                @test close(
+                    to_host(dt),
+                    reference_drift_simple(
+                        drift_dt_host, drift_dE_host, 8.89e-5, 3.18e-4,
+                        0.99999786, 450e9,
+                    ),
+                )
+
+                higher_alpha_host = [1e-6, 2e-8]
+                dt = to_device(copy(drift_dt_host))
+                BLonDKernels.drift_exact!(
+                    device, raw_pointer(dt),
+                    raw_pointer(to_device(drift_dE_host)), n, 8.89e-5,
+                    3.19e-4, raw_pointer(to_device(higher_alpha_host)), 2,
+                    0.99999786, 450e9,
+                )
+                @test close(
+                    to_host(dt),
+                    reference_drift_exact(
+                        drift_dt_host, drift_dE_host, 8.89e-5, 3.19e-4,
+                        higher_alpha_host, 0.99999786, 450e9,
+                    ),
+                )
+
+                flags = to_device(zeros(Int32, n))
+                BLonDKernels.loss_box!(
+                    device, 1.0, -1.0, -2.5, 2.5,
+                    raw_pointer(to_device(dt_host)),
+                    raw_pointer(to_device(dE_host)), raw_pointer(flags), n,
+                    Int32(-5),
+                )
+                @test to_host(flags) == reference_loss_box(
+                    1.0, -1.0, -2.5, 2.5, dt_host, dE_host, zeros(Int32, n),
+                    Int32(-5),
+                )
+
+                bin_centers_host = collect(range(-4.0, 4.0; length=20))
+                dense_voltage_host = bin_centers_host .^ 2
+                dE = to_device(zeros(Float64, n))
+                BLonDKernels.kick_interpolated_dense!(
+                    device, raw_pointer(to_device(dt_host)), raw_pointer(dE),
+                    n, raw_pointer(to_device(dense_voltage_host)),
+                    raw_pointer(to_device(bin_centers_host)), 20, 10.0, 0.5,
+                )
+                @test close(
+                    to_host(dE),
+                    reference_kick_interpolated_dense(
+                        dt_host, zeros(Float64, n), dense_voltage_host,
+                        bin_centers_host, 10.0, 0.5,
+                    ),
+                )
+
+                bins_per_profile = 4
+                filling_pattern_host = [true, false, false, true]
+                bucket_index_to_memory_index_host =
+                    Int32[0, 0, 0, bins_per_profile]
+                bin_width = 1.0 / bins_per_profile
+                sparse_bin_centers_host = vcat(
+                    [
+                        bucket + bin_width * (index + 0.5)
+                        for bucket in (0, 3)
+                        for index in 0:(bins_per_profile - 1)
+                    ]...,
+                )
+                sparse_voltage_host =
+                    [1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]
+                sparse_dt_host = collect(range(-0.5, 4.5; length=n))
+                dE = to_device(zeros(Float64, n))
+                BLonDKernels.kick_interpolated_sparse!(
+                    device, raw_pointer(to_device(sparse_dt_host)),
+                    raw_pointer(dE), n,
+                    raw_pointer(to_device(sparse_voltage_host)),
+                    raw_pointer(to_device(sparse_bin_centers_host)),
+                    length(sparse_bin_centers_host), 1.0, 0.0, 0.0, 1.0, 1.0,
+                    bins_per_profile,
+                    raw_pointer(to_device(filling_pattern_host)),
+                    length(filling_pattern_host),
+                    raw_pointer(to_device(bucket_index_to_memory_index_host)),
+                )
+                @test close(
+                    to_host(dE),
+                    reference_kick_interpolated_sparse(
+                        sparse_dt_host, zeros(Float64, n),
+                        sparse_voltage_host, sparse_bin_centers_host, 1.0,
+                        0.0, 0.0, 1.0, 1.0, bins_per_profile,
+                        filling_pattern_host,
+                        bucket_index_to_memory_index_host,
+                    ),
+                )
+
+                dE = to_device(copy(dE_host))
+                BLonDKernels.apply_synchrotron_radiation!(
+                    device, raw_pointer(dE), n, 1.5, 100.0, 1e-3, 1e9, true
+                )
+                @test close(to_host(dE), (1.0 - 2.0 / 100.0) .* dE_host .- 1.5)
+
+                # Quantum excitation from zero energy without loss is the
+                # scaled noise itself: every particle must receive some.
+                dE = to_device(zeros(Float64, n))
+                BLonDKernels.apply_synchrotron_radiation!(
+                    device, raw_pointer(dE), n, 0.0, 100.0, 1e-3, 1e9, false
+                )
+                @test count(iszero, to_host(dE)) == 0
             end
         end
 
@@ -1492,7 +1804,9 @@ function run_device_tests(
                     )
                     elapsed_single_kernel = elapsed(() -> begin
                         single_kernel!(
-                            dt, dE, 3.0, 2.0, 0.5, 0.0; ndrange=n
+                            dt, dE, 3.0, 2.0, 0.5, 0.0,
+                            BLonDKernels.SingleParticleLayout();
+                            ndrange=n,
                         )
                         KernelAbstractions.synchronize(device)
                     end)
@@ -1512,7 +1826,8 @@ function run_device_tests(
                     )
                     elapsed_multi_kernel = elapsed(() -> begin
                         multi_kernel!(
-                            dt, dE, voltage, omega_rf, phi_rf, 2, 1.0, 0.0;
+                            dt, dE, voltage, omega_rf, phi_rf, 2, 1.0, 0.0,
+                            BLonDKernels.SingleParticleLayout();
                             ndrange=n,
                         )
                         KernelAbstractions.synchronize(device)
@@ -1734,6 +2049,34 @@ end
         @test_opt target_modules = (BLonDKernels,) BLonDKernels.philox4x32_10(
             counter, key
         )
+    end
+    @testset "particle layouts" begin
+        # One particle per work-item (CPU kernels without a range function).
+        single = BLonDKernels.SingleParticleLayout()
+        @test collect(BLonDKernels.particle_indices(single, 7)) == [7]
+        # Striding: 4 work-items share 10 particles, each item every 4th.
+        stride = BLonDKernels.StrideLayout(Int32(10), Int32(4))
+        @test collect(BLonDKernels.particle_indices(stride, 3)) == Int32[3, 7]
+        @test collect(BLonDKernels.particle_indices(stride, 4)) == Int32[4, 8]
+        visited = vcat(
+            [collect(BLonDKernels.particle_indices(stride, item)) for item in 1:4]...,
+        )
+        @test sort(visited) == 1:10
+        @test (@inferred BLonDKernels.particle_indices(stride, 2)) isa
+              AbstractRange{Int32}
+        # An item beyond the particles visits none (fewer particles than
+        # work-items).
+        @test isempty(BLonDKernels.particle_indices(stride, 11))
+        # Floor as `Int32`, or -1 wherever the conversion is not exact.
+        floor32 = BLonDKernels.bounded_floor_int32
+        @test floor32(2.5) === Int32(2)
+        @test floor32(-0.5) === Int32(-1)
+        @test floor32(2147483647.5) === typemax(Int32)
+        @test floor32(-2147483647.5) === typemin(Int32)
+        @test floor32(2147483648.0) === Int32(-1)
+        @test floor32(1e30) === Int32(-1)
+        @test floor32(Inf) === Int32(-1)
+        @test floor32(NaN) === Int32(-1)
     end
     host = @inferred BLonDKernels.host_device()
     @test host isa BLonDKernels.CPU

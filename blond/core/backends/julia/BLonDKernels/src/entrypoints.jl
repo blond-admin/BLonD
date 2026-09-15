@@ -26,8 +26,7 @@ Run a loop over `n_particles` macro-particles on `device`.
 On the CPU the particles are swept in chunks of `PARTICLES_PER_CHUNK` by
 `range_function!`, one work-item per chunk, so that the compiler can
 vectorise each sweep. On every other device `per_particle_kernel` is
-launched with one work-item per particle, which is what a GPU parallelises
-best. Both receive the same `arguments`.
+launched by [`launch_particles!`]. Both receive the same `arguments`.
 """
 function launch_particle_loop!(
     device::CPU,
@@ -56,8 +55,50 @@ function launch_particle_loop!(
     n_particles::Int,
     arguments::Tuple,
 )::Nothing
-    kernel! = per_particle_kernel(device)
-    kernel!(arguments...; ndrange=n_particles)
+    launch_particles!(device, per_particle_kernel, n_particles, arguments)
+    return nothing
+end
+
+"""
+    launch_particles!(device, particle_kernel, n_particles, arguments)
+
+Launch `particle_kernel` over `n_particles` macro-particles, passing
+`arguments` and then the particle layout.
+
+On the CPU every particle is one work-item ([`SingleParticleLayout`]). On
+every other device `gpu_workgroups(device) * GPU_WORKGROUP_SIZE` work-items
+stride through the particles ([`StrideLayout`]), indexed with `Int32`
+whenever the last stride fits.
+"""
+function launch_particles!(
+    device::CPU, particle_kernel, n_particles::Int, arguments::Tuple
+)::Nothing
+    kernel! = particle_kernel(device)
+    kernel!(arguments..., SingleParticleLayout(); ndrange=n_particles)
+    return nothing
+end
+
+function launch_particles!(
+    device, particle_kernel, n_particles::Int, arguments::Tuple
+)::Nothing
+    n_work_items = gpu_workgroups(device) * GPU_WORKGROUP_SIZE
+    kernel! = particle_kernel(device)
+    # The last stride ends below `n_particles + n_work_items`.
+    if n_particles + n_work_items <= typemax(Int32)
+        kernel!(
+            arguments...,
+            StrideLayout(Int32(n_particles), Int32(n_work_items));
+            ndrange=n_work_items,
+            workgroupsize=GPU_WORKGROUP_SIZE,
+        )
+    else
+        kernel!(
+            arguments...,
+            StrideLayout(n_particles, n_work_items);
+            ndrange=n_work_items,
+            workgroupsize=GPU_WORKGROUP_SIZE,
+        )
+    end
     return nothing
 end
 
@@ -99,14 +140,11 @@ function apply_quantum_excitation!(
     energy_lost::Float64,
 )::Nothing
     key = (rand(UInt32), rand(UInt32))
-    kernel! = synchrotron_radiation_quantum_excitation_kernel!(device)
-    kernel!(
-        dE,
-        damping_factor,
-        noise_scale,
-        energy_lost,
-        key;
-        ndrange=n_macroparticles,
+    launch_particles!(
+        device,
+        synchrotron_radiation_quantum_excitation_kernel!,
+        n_macroparticles,
+        (dE, damping_factor, noise_scale, energy_lost, key),
     )
     return nothing
 end
@@ -238,17 +276,20 @@ function drift_exact!(
     higher_alpha = wrap_array_or_empty(
         device, Float64, higher_alpha_pointer, n_alpha
     )
-    kernel! = drift_exact_kernel!(device)
-    kernel!(
-        dt,
-        dE,
-        drift_time,
-        alpha_0,
-        higher_alpha,
-        n_alpha,
-        1.0 / (beta * beta),
-        1.0 / energy;
-        ndrange=n_macroparticles,
+    launch_particles!(
+        device,
+        drift_exact_kernel!,
+        n_macroparticles,
+        (
+            dt,
+            dE,
+            drift_time,
+            alpha_0,
+            higher_alpha,
+            n_alpha,
+            1.0 / (beta * beta),
+            1.0 / energy,
+        ),
     )
     return nothing
 end
@@ -275,17 +316,11 @@ function loss_box!(
     dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
     dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
     flags = wrap_array(device, Int32, flags_pointer, n_macroparticles)
-    kernel! = loss_box_kernel!(device)
-    kernel!(
-        dt,
-        dE,
-        flags,
-        e_max,
-        e_min,
-        t_min,
-        t_max,
-        lost_flag;
-        ndrange=n_macroparticles,
+    launch_particles!(
+        device,
+        loss_box_kernel!,
+        n_macroparticles,
+        (dt, dE, flags, e_max, e_min, t_min, t_max, lost_flag),
     )
     return nothing
 end
@@ -339,31 +374,115 @@ function histogram!(
     fill!(array_write, 0.0)
     n_read == 0 && return nothing
     array_read = wrap_array(device, Float64, array_read_pointer, n_read)
-    inverse_bin_width = n_bins / (stop - start)
-    values_per_workgroup = histogram_values_per_workgroup()
-    n_workgroups = cld(n_read, values_per_workgroup)
-    # The workgroup size is passed at launch: building a statically
-    # sized kernel from an `Int` is a runtime dispatch.
+    count_histogram!(
+        device, array_read, n_read, array_write, n_bins, start, stop
+    )
+    return nothing
+end
+
+"""
+    count_histogram!(device, array_read, n_read, array_write, n_bins, start,
+                     stop)
+
+Add the histogram of `array_read` to the zeroed `array_write`.
+
+On the CPU every thread counts one slice of the input into its own bins,
+which are summed at the end; small inputs stay on a single task, see
+[`histogram_slice_count`]. Other devices count into workgroup-local bins,
+one workgroup per streaming multiprocessor.
+"""
+function count_histogram!(
+    device::CPU,
+    array_read,
+    n_read::Int,
+    array_write,
+    n_bins::Int,
+    start::Float64,
+    stop::Float64,
+)::Nothing
+    n_slices = histogram_slice_count(device, n_read)
+    values_per_slice = cld(n_read, n_slices)
+    slice_counts = Vector{Vector{Int}}(undef, n_slices)
+    kernel! = histogram_slices_kernel!(device)
+    kernel!(
+        slice_counts,
+        array_read,
+        n_read,
+        values_per_slice,
+        n_bins,
+        start,
+        stop,
+        n_bins / (stop - start);
+        ndrange=n_slices,
+        workgroupsize=1,
+    )
+    @inbounds for counts in slice_counts, bin in 1:n_bins
+        array_write[bin] += counts[bin + 1]
+    end
+    return nothing
+end
+
+function count_histogram!(
+    device,
+    array_read,
+    n_read::Int,
+    array_write,
+    n_bins::Int,
+    start::Float64,
+    stop::Float64,
+)::Nothing
+    n_work_items = gpu_workgroups(device) * GPU_WORKGROUP_SIZE
+    # The last stride ends below `n_read + n_work_items`; index in `Int32`
+    # whenever that fits.
+    if n_read + n_work_items <= typemax(Int32)
+        launch_histogram_passes!(
+            device, array_read, Int32(n_read), array_write, n_bins, start,
+            stop, Int32(n_work_items),
+        )
+    else
+        launch_histogram_passes!(
+            device, array_read, n_read, array_write, n_bins, start, stop,
+            n_work_items,
+        )
+    end
+    return nothing
+end
+
+"""
+    launch_histogram_passes!(device, array_read, n_read, array_write, n_bins,
+                             start, stop, n_work_items)
+
+Launch the GPU histogram kernel once per window of `HISTOGRAM_LOCAL_BINS`
+bins, indexing the input with the integer type of `n_read`.
+"""
+function launch_histogram_passes!(
+    device,
+    array_read,
+    n_read::T,
+    array_write,
+    n_bins::Int,
+    start::Float64,
+    stop::Float64,
+    n_work_items::T,
+)::Nothing where {T <: Union{Int32, Int}}
     kernel! = histogram_kernel!(device)
-    need_atomics = private_bins_need_atomics(device)
-    # One pass per window of `HISTOGRAM_LOCAL_BINS` bins; a single pass
-    # for every histogram that fits into workgroup-local memory.
+    # A single pass for every histogram that fits into workgroup-local
+    # memory.
     for bin_offset in 0:HISTOGRAM_LOCAL_BINS:(n_bins - 1)
         n_local_bins = min(HISTOGRAM_LOCAL_BINS, n_bins - bin_offset)
         kernel!(
             array_read,
             array_write,
             n_read,
-            n_bins,
+            Int32(n_bins),
             start,
             stop,
-            inverse_bin_width,
-            bin_offset,
-            n_local_bins,
-            values_per_workgroup,
-            need_atomics;
-            ndrange=n_workgroups * HISTOGRAM_WORKGROUP_SIZE,
-            workgroupsize=HISTOGRAM_WORKGROUP_SIZE,
+            n_bins / (stop - start),
+            Int32(bin_offset),
+            Int32(n_local_bins),
+            n_work_items;
+            ndrange=Int(n_work_items),
+            workgroupsize=GPU_WORKGROUP_SIZE,
         )
     end
     return nothing
@@ -505,9 +624,11 @@ function kick_interpolated_dense!(
         ndrange=n_slices - 1,
     )
     # Queued behind the factors kernel on the same device queue.
-    particles_kernel! = kick_interpolated_dense_particles_kernel!(device)
-    particles_kernel!(
-        dt, dE, factors, grid, n_slices; ndrange=n_macroparticles
+    launch_particles!(
+        device,
+        kick_interpolated_dense_particles_kernel!,
+        n_macroparticles,
+        (dt, dE, factors, grid, n_slices),
     )
     return nothing
 end
@@ -568,21 +689,24 @@ function kick_interpolated_sparse!(
         ndrange=n_slices - 1,
     )
     # Queued behind the factors kernel on the same device queue.
-    particles_kernel! = kick_interpolated_sparse_particles_kernel!(device)
-    particles_kernel!(
-        dt,
-        dE,
-        factors,
-        first_left_cut,
-        left_cut_distance,
-        bins_per_profile,
-        filling_pattern,
-        n_buckets,
-        bucket_index_to_memory_index,
-        1.0 / left_cut_distance,
-        inverse_bin_width,
-        cut_width / bins_per_profile;
-        ndrange=n_macroparticles,
+    launch_particles!(
+        device,
+        kick_interpolated_sparse_particles_kernel!,
+        n_macroparticles,
+        (
+            dt,
+            dE,
+            factors,
+            first_left_cut,
+            left_cut_distance,
+            bins_per_profile,
+            filling_pattern,
+            n_buckets,
+            bucket_index_to_memory_index,
+            1.0 / left_cut_distance,
+            inverse_bin_width,
+            cut_width / bins_per_profile,
+        ),
     )
     return nothing
 end
