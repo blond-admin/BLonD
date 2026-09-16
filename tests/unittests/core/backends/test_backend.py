@@ -2356,6 +2356,234 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"{special=} {dtype=}",
                 )
 
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_non_power_of_two_threads(self) -> None:
+        """`GPU_THREADS` need not be a power of two for `beam_phase`.
+
+        The in-block reduction halved `blockDim.x` and silently skipped
+        the odd leftover thread slots of a non-power-of-two block.
+        """
+        dtype = np.float64
+        n_bins = 5003
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2))
+        kwargs = dict(
+            alpha=0.5,
+            omega_rf=0.8,
+            phi_rf=0.1,
+            bin_size=hist_x_host[1] - hist_x_host[0],
+        )
+        import blond.core.backends.cuda.callables as cuda_callables
+
+        threads = 1000
+        results = {}
+        for special in ("python", "cuda"):
+            self._setUp(dtype=dtype, special_mode=special)
+            with mock.patch.multiple(
+                cuda_callables, threads=threads, block_size=(threads, 1, 1)
+            ):
+                results[special] = backend.specials.beam_phase(
+                    hist_x=backend.array(hist_x_host, dtype=backend.float),
+                    hist_y=backend.array(hist_y_host, dtype=backend.float),
+                    **kwargs,
+                )
+        np.testing.assert_allclose(
+            results["cuda"], results["python"], rtol=1e-10
+        )
+
+    def _beam_phase_cuda_with_threads(
+        self, hist_x_host, hist_y_host, threads, **kwargs
+    ):
+        """Run `beam_phase` on the CUDA backend with a forced block size.
+
+        The block size is normally taken from `GPU_THREADS` (defaulting
+        to the device maximum), so patching the module globals is the
+        only way to exercise the in-block reduction at a chosen width.
+        """
+        import blond.core.backends.cuda.callables as cuda_callables
+
+        self._setUp(dtype=np.float64, special_mode="cuda")
+        with mock.patch.multiple(
+            cuda_callables, threads=threads, block_size=(threads, 1, 1)
+        ):
+            return backend.specials.beam_phase(
+                hist_x=backend.array(hist_x_host, dtype=backend.float),
+                hist_y=backend.array(hist_y_host, dtype=backend.float),
+                **kwargs,
+            )
+
+    @staticmethod
+    def _beam_phase_reference(
+        hist_x_host, hist_y_host, alpha, omega_rf, phi_rf, bin_size
+    ):
+        """Host-side trapezoidal reference, independent of any backend."""
+        weight = np.exp(alpha * hist_x_host) * hist_y_host
+        phase = omega_rf * hist_x_host + phi_rf
+        sin_integral = np.trapezoid(weight * np.sin(phase), dx=bin_size)
+        cos_integral = np.trapezoid(weight * np.cos(phase), dx=bin_size)
+        return sin_integral / cos_integral
+
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_block_reduction_thread_counts(self) -> None:
+        """The in-block reduction must sum every slot, at any width.
+
+        The reduction halves from the next power of two above
+        `blockDim.x`, so it has to stay exact for block sizes that are
+        powers of two, odd, prime, one, and the device maximum alike.
+        """
+        n_bins = 2051
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2)) + 0.1
+        kwargs = dict(
+            # Phases stay within (0.1, 0.9) rad, so both integrands are
+            # positive and the sums are free of cancellation: a dropped
+            # bin can only show up as a wrong result, never cancel out.
+            alpha=0.5,
+            omega_rf=0.8,
+            phi_rf=0.1,
+            bin_size=hist_x_host[1] - hist_x_host[0],
+        )
+        expected = self._beam_phase_reference(
+            hist_x_host, hist_y_host, **kwargs
+        )
+        for threads in (1, 2, 3, 7, 33, 64, 96, 100, 333, 512, 1000, 1024):
+            result = self._beam_phase_cuda_with_threads(
+                hist_x_host, hist_y_host, threads, **kwargs
+            )
+            np.testing.assert_allclose(
+                result,
+                expected,
+                rtol=1e-12,
+                err_msg=f"Failed for blockDim.x={threads}",
+            )
+
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_block_reduction_every_slot_contributes(
+        self,
+    ) -> None:
+        """Each individual thread slot must reach the block result.
+
+        With exactly one non-zero histogram bin, the beam phase reduces
+        to `tan(omega_rf * x + phi_rf)` at that bin. If the reduction
+        drops the slot holding it, both partial sums stay zero and the
+        result becomes `nan` -- so sweeping the non-zero bin over a
+        whole block probes the reduction slot by slot rather than only
+        in aggregate.
+        """
+        # An odd, non-power-of-two block size fully occupied by one
+        # block: the leftover slots above the largest contained power of
+        # two are exactly the ones a naive halving reduction skips.
+        threads = 97
+        n_bins = threads
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        omega_rf, phi_rf = 0.8, 0.1
+        for hot_bin in range(n_bins):
+            hist_y_host = np.zeros(n_bins)
+            hist_y_host[hot_bin] = 1.0
+            result = self._beam_phase_cuda_with_threads(
+                hist_x_host,
+                hist_y_host,
+                threads,
+                alpha=0.0,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+                bin_size=hist_x_host[1] - hist_x_host[0],
+            )
+            self.assertFalse(
+                np.isnan(result),
+                msg=f"Slot {hot_bin} of {threads} was dropped",
+            )
+            np.testing.assert_allclose(
+                np.tan(omega_rf * hist_x_host[hot_bin] + phi_rf),
+                result,
+                rtol=1e-12,
+                err_msg=f"Wrong contribution of slot {hot_bin}",
+            )
+
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_block_reduction_partial_last_block(self) -> None:
+        """A partially filled last block must not corrupt the sum.
+
+        Threads above `n_bins` write zeros into shared memory, and the
+        number of bins relative to the block size decides how many such
+        slots the last block carries. All of them are swept here.
+        """
+        threads = 33
+        kwargs = dict(
+            alpha=0.5,
+            omega_rf=0.8,
+            phi_rf=0.1,
+        )
+        for n_bins in (
+            2,  # fewer bins than threads
+            threads - 1,
+            threads,  # exactly one full block
+            threads + 1,  # one full block plus a single-bin block
+            2 * threads,
+            2 * threads + 17,  # half-filled last block
+        ):
+            hist_x_host = np.linspace(0.0, 1.0, n_bins)
+            hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2)) + 0.1
+            bin_size = hist_x_host[1] - hist_x_host[0]
+            expected = self._beam_phase_reference(
+                hist_x_host, hist_y_host, bin_size=bin_size, **kwargs
+            )
+            result = self._beam_phase_cuda_with_threads(
+                hist_x_host,
+                hist_y_host,
+                threads,
+                bin_size=bin_size,
+                **kwargs,
+            )
+            np.testing.assert_allclose(
+                result,
+                expected,
+                rtol=1e-12,
+                err_msg=f"Failed for {n_bins=} with blockDim.x={threads}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_beam_phase_small_bin_counts_all_backends(self) -> None:
+        """All backends agree on the trapezoidal rule for few bins.
+
+        The CUDA kernel applies the trapezoidal end-point weights
+        (1, 2, ..., 2, 1) itself instead of calling `np.trapezoid`, so
+        the smallest bin counts -- where those weights dominate -- must
+        still match the Python reference.
+        """
+        dtype = np.float64
+        for n_bins in (2, 3, 4, 5, 17):
+            hist_x_host = np.linspace(0.0, 1.0, n_bins)
+            hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2)) + 0.1
+            result_python = None
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                result = backend.specials.beam_phase(
+                    hist_x=backend.array(hist_x_host, dtype=backend.float),
+                    hist_y=backend.array(hist_y_host, dtype=backend.float),
+                    alpha=backend.float(0.5),
+                    omega_rf=backend.float(0.8),
+                    phi_rf=backend.float(0.1),
+                    bin_size=backend.float(hist_x_host[1] - hist_x_host[0]),
+                )
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=1e-12,
+                        err_msg=f"Failed `{special}` with {n_bins=}",
+                    )
+
     @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
         dtype = np.float64
