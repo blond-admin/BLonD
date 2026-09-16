@@ -26,7 +26,7 @@ from ..utils import bmath as bm
 from ..utils.butils_wrap_python import sparse_histogram
 
 if TYPE_CHECKING:
-    from typing import Literal, Optional
+    from typing import Literal
     from numpy.typing import NDArray as NumpyArray
 
     from .beam import Beam
@@ -364,7 +364,7 @@ class SparseProfileBaseClass:
     def _set_additional_cuts(
         self,
         _updated_filling_pattern: NumpyArray,
-        injection_ordered_indices: Optional[NumpyArray] = None,
+        injection_ordered_indices: NumpyArray | None = None,
     ):
         """
         Internal method to update the cut array properties of the Sparse
@@ -602,7 +602,7 @@ class SparseBucket(SparseProfileBaseClass):
     def update_bunch_list(
         self,
         updated_bunch_list: list[int],
-        new_bunch_indices: Optional[list[int]] = None,
+        new_bunch_indices: list[int] | None = None,
     ):
         """
         Function to update the SparseBucket object to match the new bunch
@@ -730,7 +730,7 @@ class SparseBatch(SparseProfileBaseClass):
     def update_batch_list(
         self,
         updated_batch_list: list[int],
-        new_batch_indices: Optional[list[int]] = None,
+        new_batch_indices: list[int] | None = None,
     ):
         """
         Function to update the SparseBatch object to match the new batch
