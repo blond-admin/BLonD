@@ -134,7 +134,9 @@ end
 
 include("fastmath.jl")
 include("random.jl")
+include("thread_pool.jl")
 include("kernels.jl")
+include("hooks.jl")
 include("entrypoints.jl")
 
 end # module BLonDKernels

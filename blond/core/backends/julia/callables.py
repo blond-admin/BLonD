@@ -16,6 +16,7 @@ raw ``(pointer, length)`` pairs. Julia never owns the memory.
 
 from __future__ import annotations
 
+import ctypes
 import weakref
 from typing import TYPE_CHECKING
 
@@ -41,6 +42,14 @@ COMPLEX = np.complex128
 # Julia session, which must not be started at import time. A dict is used
 # so the lazy initialisation needs no `global` statement.
 _device_cache: dict[str, Any] = {}
+
+# CuPy functions used in the GPU call path, imported on first use so that
+# this module loads without CuPy.
+_cupy_cache: dict[str, Any] = {}
+
+# Julia entry point handle and device per (Specials class, entry name), see
+# `_JuliaSpecialsBase._entry`.
+_entry_cache: dict[tuple[type, str], tuple[Any, Any]] = {}
 
 # Cache of uniformity verdicts for the `bin_centers` arrays passed to the
 # dense path of `kick_interpolated`, copied from the CUDA backend:
@@ -150,6 +159,33 @@ class _JuliaSpecialsBase(Specials):
         raise NotImplementedError
 
     @classmethod
+    def _entry(cls, entry_name: str) -> tuple[Any, Any]:
+        """
+        Return a `BLonDKernels` entry point and the device it runs on.
+
+        Both are looked up once per backend and entry point: resolving
+        them on every call costs more than a small kernel itself.
+
+        Parameters
+        ----------
+        entry_name
+            Name of the Julia entry function, e.g. ``"drift_simple!"``.
+
+        Returns
+        -------
+        entry
+            Handle of the Julia entry function.
+        device
+            The Julia device object passed as its first argument.
+        """
+        key = (cls, entry_name)
+        cached = _entry_cache.get(key)
+        if cached is None:
+            cached = (getattr(cls._kernels(), entry_name), cls._device())
+            _entry_cache[key] = cached
+        return cached
+
+    @classmethod
     def _call(cls, entry_name: str, *args: Any) -> Any:
         """
         Call one `BLonDKernels` entry point on this backend's device.
@@ -166,7 +202,8 @@ class _JuliaSpecialsBase(Specials):
         result
             Whatever the Julia entry point returns.
         """
-        return getattr(cls._kernels(), entry_name)(cls._device(), *args)
+        entry, device = cls._entry(entry_name)
+        return entry(device, *args)
 
     @classmethod
     def loss_box(  # NOQA: D102
@@ -197,9 +234,10 @@ class _JuliaSpecialsBase(Specials):
             cls._ptr(dE),
             cls._ptr(flags),
             int(len(dE)),
-            # The Julia entry declares the flag as `Int32`; a plain
-            # Python `int` would arrive as `Int64` and miss the method.
-            np.int32(BeamFlags.LOST.value),
+            # The Julia entry takes the flag as an `Int` and narrows it
+            # itself: converting a NumPy scalar costs ~0.4 µs per call,
+            # a noticeable part of a call on a small beam.
+            int(BeamFlags.LOST.value),
         )
 
     @classmethod
@@ -558,7 +596,7 @@ class _JuliaSpecialsBase(Specials):
         return int(
             cls._call(
                 "move_flagged_elements_to_end!",
-                np.int32(flag),
+                int(flag),
                 cls._ptr(flags),
                 cls._ptr(dt),
                 cls._ptr(dE),
@@ -692,7 +730,14 @@ class JuliaCpuSpecials(_JuliaSpecialsBase):
 
     @classmethod
     def _ptr(cls, array: AnyArray) -> int:  # NOQA: D102
-        return int(array.ctypes.data)
+        # Reading the address through the buffer protocol costs 0.25 µs,
+        # `array.ctypes.data` 0.67 µs -- a noticeable part of a call on a
+        # small beam. The buffer protocol refuses read-only and empty
+        # arrays, which fall back to `ctypes`.
+        try:
+            return ctypes.addressof(ctypes.c_char.from_buffer(array))
+        except (TypeError, ValueError):
+            return int(array.ctypes.data)
 
     @classmethod
     def _assert_device(cls, *arrays: AnyArray) -> None:  # NOQA: D102
@@ -805,14 +850,20 @@ class JuliaGpuSpecials(_JuliaSpecialsBase):
         result
             Whatever the Julia entry point returns.
         """
-        import cupy as cp  # type: ignore
+        entry, device = cls._entry(entry_name)
+        # Imported once: an import statement in this hot path costs more
+        # than a small kernel launch.
+        get_current_stream = _cupy_cache.get("get_current_stream")
+        if get_current_stream is None:
+            from cupy.cuda import get_current_stream  # type: ignore
 
-        stream = cp.cuda.get_current_stream()
+            _cupy_cache["get_current_stream"] = get_current_stream
+        stream = get_current_stream()
         if stream.ptr == 0:
-            return super()._call(entry_name, *args)
+            return entry(device, *args)
         stream.synchronize()
-        result = super()._call(entry_name, *args)
-        cls._kernels().synchronize_device(cls._device())
+        result = entry(device, *args)
+        cls._kernels().synchronize_device(device)
         return result
 
     @classmethod

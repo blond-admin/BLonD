@@ -70,3 +70,29 @@ Box-Muller transform of the Philox4x32-10 block of counter `index`.
     uniform = (((UInt64(bits[3]) << 32) | bits[4]) >> 11) * 0x1p-53
     return sqrt(-2.0 * log(uniform_open)) * cos(2.0 * pi * uniform)
 end
+
+"""
+    philox_standard_normal_pair(index, key) -> (Float64, Float64)
+
+Return the two independent standard normal deviates of the Box-Muller
+transform of the Philox4x32-10 block of counter `index` under `key`.
+
+The sine and cosine of the Box-Muller angle come from one branch-free range
+reduction ([`fast_sin_cos_nonnegative`]), within one ulp of `sin`/`cos`.
+"""
+@inline function philox_standard_normal_pair(
+    index::Int, key::NTuple{2, UInt32}
+)::NTuple{2, Float64}
+    bits = philox4x32_10(
+        (index % UInt32, (index >> 32) % UInt32, 0x00000000, 0x00000000),
+        key,
+    )
+    # Two 53-bit uniforms; the first in (0, 1] so that its logarithm is
+    # finite.
+    uniform_open =
+        ((((UInt64(bits[1]) << 32) | bits[2]) >> 11) + 1) * 0x1p-53
+    uniform = (((UInt64(bits[3]) << 32) | bits[4]) >> 11) * 0x1p-53
+    radius = sqrt(-2.0 * log(uniform_open))
+    sine, cosine = fast_sin_cos_nonnegative(2.0 * pi * uniform)
+    return radius * cosine, radius * sine
+end

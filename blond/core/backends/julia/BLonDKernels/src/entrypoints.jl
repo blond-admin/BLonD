@@ -24,27 +24,18 @@
 Run a loop over `n_particles` macro-particles on `device`.
 
 On the CPU the particles are swept in chunks of `PARTICLES_PER_CHUNK` by
-`range_function!`, one work-item per chunk, so that the compiler can
+`range_function!` (see [`sweep_chunks!`]), so that the compiler can
 vectorise each sweep. On every other device `per_particle_kernel` is
 launched by [`launch_particles!`]. Both receive the same `arguments`.
 """
 function launch_particle_loop!(
-    device::CPU,
+    ::CPU,
     _,
     range_function!,
     n_particles::Int,
     arguments::Tuple,
 )::Nothing
-    kernel! = particle_chunks_kernel!(device)
-    # A chunk is a full workload of its own: `workgroupsize=1` keeps the
-    # CPU backend from merging small ndranges into a single task.
-    kernel!(
-        range_function!,
-        n_particles,
-        arguments;
-        ndrange=cld(n_particles, PARTICLES_PER_CHUNK),
-        workgroupsize=1,
-    )
+    sweep_chunks!(range_function!, n_particles, arguments)
     return nothing
 end
 
@@ -82,21 +73,16 @@ function launch_particles!(
     device, particle_kernel, n_particles::Int, arguments::Tuple
 )::Nothing
     n_work_items = gpu_workgroups(device) * GPU_WORKGROUP_SIZE
-    kernel! = particle_kernel(device)
     # The last stride ends below `n_particles + n_work_items`.
     if n_particles + n_work_items <= typemax(Int32)
-        kernel!(
-            arguments...,
-            StrideLayout(Int32(n_particles), Int32(n_work_items));
-            ndrange=n_work_items,
-            workgroupsize=GPU_WORKGROUP_SIZE,
+        launch_kernel!(
+            device, particle_kernel, n_work_items, GPU_WORKGROUP_SIZE,
+            (arguments..., StrideLayout(Int32(n_particles), Int32(n_work_items))),
         )
     else
-        kernel!(
-            arguments...,
-            StrideLayout(n_particles, n_work_items);
-            ndrange=n_work_items,
-            workgroupsize=GPU_WORKGROUP_SIZE,
+        launch_kernel!(
+            device, particle_kernel, n_work_items, GPU_WORKGROUP_SIZE,
+            (arguments..., StrideLayout(n_particles, n_work_items)),
         )
     end
     return nothing
@@ -170,8 +156,8 @@ function kick_single_harmonic!(
     acceleration_kick::Float64,
 )::Nothing
     n_macroparticles == 0 && return nothing
-    dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
-    dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
+    dt = wrap_kernel_array(device, Float64, dt_pointer, n_macroparticles)
+    dE = wrap_kernel_array(device, Float64, dE_pointer, n_macroparticles)
     launch_particle_loop!(
         device,
         kick_single_harmonic_kernel!,
@@ -211,13 +197,93 @@ function kick_multi_harmonic!(
         device, Float64, omega_rf_pointer, n_rf
     )
     phi_rf = wrap_array_or_empty(device, Float64, phi_rf_pointer, n_rf)
-    launch_particle_loop!(
-        device,
-        kick_multi_harmonic_kernel!,
-        kick_multi_harmonic_range!,
-        n_macroparticles,
-        (dt, dE, voltage, omega_rf, phi_rf, n_rf, charge, acceleration_kick),
+    apply_kick_multi_harmonic!(
+        device, dt, dE, n_macroparticles, voltage, omega_rf, phi_rf, n_rf,
+        charge, acceleration_kick,
     )
+    return nothing
+end
+
+"""
+    apply_kick_multi_harmonic!(device, dt, dE, n_macroparticles, voltage,
+                               omega_rf, phi_rf, n_rf, charge,
+                               acceleration_kick)
+
+Apply the RF kick of `n_rf` harmonics.
+
+On the CPU up to `MAX_UNROLLED_LENGTH` harmonics are passed as tuples (see
+[`with_unrolled`]), so that the particle loop is compiled for their number
+and sweeps the particles once; more harmonics are swept one at a time.
+Other devices launch the per-particle kernel.
+"""
+function apply_kick_multi_harmonic!(
+    ::CPU,
+    dt,
+    dE,
+    n_macroparticles::Int,
+    voltage,
+    omega_rf,
+    phi_rf,
+    n_rf::Int,
+    charge::Float64,
+    acceleration_kick::Float64,
+)::Nothing
+    if n_rf > MAX_UNROLLED_LENGTH
+        sweep_chunks!(
+            kick_multi_harmonic_range!,
+            n_macroparticles,
+            (
+                dt, dE, voltage, omega_rf, phi_rf, n_rf, charge,
+                acceleration_kick,
+            ),
+        )
+        return nothing
+    end
+    with_unrolled(n_rf, voltage, omega_rf, phi_rf) do voltages, omegas, phases
+        amplitudes = map(harmonic_voltage -> charge * harmonic_voltage, voltages)
+        sweep_chunks!(
+            kick_multi_harmonic_unrolled_range!,
+            n_macroparticles,
+            (dt, dE, amplitudes, omegas, phases, acceleration_kick),
+        )
+    end
+    return nothing
+end
+
+function apply_kick_multi_harmonic!(
+    device,
+    dt,
+    dE,
+    n_macroparticles::Int,
+    voltage,
+    omega_rf,
+    phi_rf,
+    n_rf::Int,
+    charge::Float64,
+    acceleration_kick::Float64,
+)::Nothing
+    if 1 <= n_rf <= MAX_SPECIALISED_HARMONICS
+        # Dispatches once per kick to the kernel compiled for `n_rf`.
+        launch_particles!(
+            device,
+            kick_specialised_harmonics_kernel!,
+            n_macroparticles,
+            (
+                dt, dE, voltage, omega_rf, phi_rf, Val(n_rf), charge,
+                acceleration_kick,
+            ),
+        )
+    else
+        launch_particles!(
+            device,
+            kick_multi_harmonic_kernel!,
+            n_macroparticles,
+            (
+                dt, dE, voltage, omega_rf, phi_rf, n_rf, charge,
+                acceleration_kick,
+            ),
+        )
+    end
     return nothing
 end
 
@@ -238,8 +304,8 @@ function drift_simple!(
     energy::Float64,
 )::Nothing
     n_macroparticles == 0 && return nothing
-    dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
-    dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
+    dt = wrap_kernel_array(device, Float64, dt_pointer, n_macroparticles)
+    dE = wrap_kernel_array(device, Float64, dE_pointer, n_macroparticles)
     coefficient = drift_time * (eta_0 / (beta * beta * energy))
     launch_particle_loop!(
         device,
@@ -276,19 +342,71 @@ function drift_exact!(
     higher_alpha = wrap_array_or_empty(
         device, Float64, higher_alpha_pointer, n_alpha
     )
+    apply_drift_exact!(
+        device, dt, dE, n_macroparticles, drift_time, alpha_0, higher_alpha,
+        n_alpha, 1.0 / (beta * beta), 1.0 / energy,
+    )
+    return nothing
+end
+
+"""
+    apply_drift_exact!(device, dt, dE, n_macroparticles, drift_time,
+                       alpha_0, higher_alpha, n_alpha, inverse_beta_squared,
+                       inverse_energy)
+
+Apply the exact drift. On the CPU up to `MAX_UNROLLED_LENGTH` higher-order
+factors are passed as a tuple (see [`with_unrolled`]), so that the particle
+loop is compiled for their number and vectorises: with the number known
+only at run time, the loop over the factors keeps the particle loop scalar
+(1e5 particles, two factors, one thread: 3.9 against 1.1 ns per particle).
+Other devices launch the per-particle kernel.
+"""
+function apply_drift_exact!(
+    device::CPU,
+    dt,
+    dE,
+    n_macroparticles::Int,
+    drift_time::Float64,
+    alpha_0::Float64,
+    higher_alpha,
+    n_alpha::Int,
+    inverse_beta_squared::Float64,
+    inverse_energy::Float64,
+)::Nothing
+    with_unrolled(n_alpha, higher_alpha) do alphas
+        launch_particle_loop!(
+            device,
+            nothing,
+            drift_exact_range!,
+            n_macroparticles,
+            (
+                dt, dE, drift_time, alpha_0, alphas, n_alpha,
+                inverse_beta_squared, inverse_energy,
+            ),
+        )
+    end
+    return nothing
+end
+
+function apply_drift_exact!(
+    device,
+    dt,
+    dE,
+    n_macroparticles::Int,
+    drift_time::Float64,
+    alpha_0::Float64,
+    higher_alpha,
+    n_alpha::Int,
+    inverse_beta_squared::Float64,
+    inverse_energy::Float64,
+)::Nothing
     launch_particles!(
         device,
         drift_exact_kernel!,
         n_macroparticles,
         (
-            dt,
-            dE,
-            drift_time,
-            alpha_0,
-            higher_alpha,
-            n_alpha,
-            1.0 / (beta * beta),
-            1.0 / energy,
+            dt, dE, drift_time, alpha_0, higher_alpha, n_alpha,
+            inverse_beta_squared, inverse_energy,
         ),
     )
     return nothing
@@ -310,20 +428,39 @@ function loss_box!(
     dE_pointer::Int,
     flags_pointer::Int,
     n_macroparticles::Int,
-    lost_flag::Int32,
+    lost_flag::Int,
 )::Nothing
     n_macroparticles == 0 && return nothing
-    dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
-    dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
-    flags = wrap_array(device, Int32, flags_pointer, n_macroparticles)
-    launch_particles!(
+    dt = wrap_kernel_array(device, Float64, dt_pointer, n_macroparticles)
+    dE = wrap_kernel_array(device, Float64, dE_pointer, n_macroparticles)
+    flags = wrap_kernel_array(device, Int32, flags_pointer, n_macroparticles)
+    range_function! = if n_macroparticles <= LOSS_BOX_SELECT_MAX_PARTICLES
+        loss_box_select_range!
+    else
+        loss_box_range!
+    end
+    launch_particle_loop!(
         device,
         loss_box_kernel!,
+        range_function!,
         n_macroparticles,
-        (dt, dE, flags, e_max, e_min, t_min, t_max, lost_flag),
+        (dt, dE, flags, e_max, e_min, t_min, t_max, Int32(lost_flag)),
     )
     return nothing
 end
+
+"""
+    LOSS_BOX_SELECT_MAX_PARTICLES
+
+Beams of up to this many macro-particles are checked for losses with the
+vectorised `loss_box_select_range!` on the CPU, larger ones with the scalar
+`loss_box_range!`. Writing back every flag is cheap while the arrays stay
+in the caches, and the vectorised select wins (1e5 particles on six
+threads: 4.5–8.2 against 19 µs); beyond them the loop is bound by memory
+traffic, and storing only the lost flags wins (1e6 particles: 243–299
+against 481–503 µs).
+"""
+const LOSS_BOX_SELECT_MAX_PARTICLES = 316_228
 
 """
     sum_1d_array(device, array, n_elements) -> Float64
@@ -371,12 +508,70 @@ function histogram!(
 )::Nothing
     n_bins == 0 && return nothing
     array_write = wrap_array(device, Float64, array_write_pointer, n_bins)
+    if n_read > 0 && uses_single_workgroup_histogram(device, n_read)
+        array_read = wrap_array(device, Float64, array_read_pointer, n_read)
+        assign_histogram!(
+            device, array_read, n_read, array_write, n_bins, start, stop
+        )
+        return nothing
+    end
     fill!(array_write, 0.0)
     n_read == 0 && return nothing
     array_read = wrap_array(device, Float64, array_read_pointer, n_read)
     count_histogram!(
         device, array_read, n_read, array_write, n_bins, start, stop
     )
+    return nothing
+end
+
+"""
+    HISTOGRAM_SINGLE_WORKGROUP_MAX_VALUES
+
+GPU histograms of up to this many values are counted on one workgroup
+without a zeroing pass, see `histogram_assign_kernel!`. T400, 21 bins:
+3.0/5.6 µs against 6.4/6.4 µs at 1e3/3e3 values, but 13.8 against 6.5 µs
+at 1e4.
+"""
+const HISTOGRAM_SINGLE_WORKGROUP_MAX_VALUES = 4096
+
+"""
+    uses_single_workgroup_histogram(device, n_read) -> Bool
+
+Whether a histogram of `n_read` values runs on `histogram_assign_kernel!`:
+on a GPU for up to `HISTOGRAM_SINGLE_WORKGROUP_MAX_VALUES` values, never on
+the CPU.
+"""
+uses_single_workgroup_histogram(::CPU, ::Int)::Bool = false
+function uses_single_workgroup_histogram(_, n_read::Int)::Bool
+    return n_read <= HISTOGRAM_SINGLE_WORKGROUP_MAX_VALUES
+end
+
+"""
+    assign_histogram!(device, array_read, n_read, array_write, n_bins,
+                      start, stop)
+
+Overwrite `array_write` with the histogram of the few `array_read` values,
+on a single workgroup, one pass per window of `HISTOGRAM_LOCAL_BINS` bins.
+"""
+function assign_histogram!(
+    device,
+    array_read,
+    n_read::Int,
+    array_write,
+    n_bins::Int,
+    start::Float64,
+    stop::Float64,
+)::Nothing
+    kernel! = histogram_assign_kernel!(device)
+    for bin_offset in 0:HISTOGRAM_LOCAL_BINS:(n_bins - 1)
+        n_local_bins = min(HISTOGRAM_LOCAL_BINS, n_bins - bin_offset)
+        kernel!(
+            array_read, array_write, Int32(n_read), Int32(n_bins), start,
+            stop, n_bins / (stop - start), Int32(bin_offset),
+            Int32(n_local_bins), Int32(GPU_WORKGROUP_SIZE);
+            ndrange=GPU_WORKGROUP_SIZE, workgroupsize=GPU_WORKGROUP_SIZE,
+        )
+    end
     return nothing
 end
 
@@ -403,19 +598,32 @@ function count_histogram!(
     n_slices = histogram_slice_count(device, n_read)
     values_per_slice = cld(n_read, n_slices)
     slice_counts = Vector{Vector{Int}}(undef, n_slices)
-    kernel! = histogram_slices_kernel!(device)
-    kernel!(
-        slice_counts,
-        array_read,
-        n_read,
-        values_per_slice,
-        n_bins,
-        start,
-        stop,
-        n_bins / (stop - start);
-        ndrange=n_slices,
-        workgroupsize=1,
-    )
+    inverse_bin_width = n_bins / (stop - start)
+    if n_slices == 1
+        count_histogram_slice!(
+            slice_counts, 1, array_read, n_read, values_per_slice, n_bins,
+            start, stop, inverse_bin_width,
+        )
+    else
+        # Every slice holds at least `HISTOGRAM_VALUES_PER_THREAD` values,
+        # so waking a sleeping task thread is cheap next to counting it,
+        # and the slices may use every hardware thread rather than one per
+        # core as `sweep_chunks!` does: 1e6 values took 643 µs on six
+        # Polyester threads, 530 µs on twelve task threads.
+        kernel! = histogram_slices_kernel!(device)
+        kernel!(
+            slice_counts,
+            array_read,
+            n_read,
+            values_per_slice,
+            n_bins,
+            start,
+            stop,
+            inverse_bin_width;
+            ndrange=n_slices,
+            workgroupsize=1,
+        )
+    end
     @inbounds for counts in slice_counts, bin in 1:n_bins
         array_write[bin] += counts[bin + 1]
     end
@@ -570,18 +778,58 @@ function trapezoidal_beam_phase(
     phi_rf::Float64,
     bin_size::Float64,
 )::Float64
-    values = similar(hist_x, ComplexF64)
-    kernel! = beam_phase_values_kernel!(device)
-    kernel!(
-        values, hist_x, hist_y, alpha, omega_rf, phi_rf; ndrange=n_bins
+    if n_bins < BEAM_PHASE_WORKGROUP_SUMS_MIN_BINS
+        values = similar(hist_x, ComplexF64)
+        kernel! = beam_phase_values_kernel!(device)
+        kernel!(
+            values, hist_x, hist_y, n_bins, alpha, omega_rf, phi_rf;
+            ndrange=n_bins,
+        )
+        integral = sum(values) * bin_size
+        return imag(integral) / real(integral)
+    end
+    n_workgroups = min(
+        gpu_workgroups(device), cld(n_bins, GPU_WORKGROUP_SIZE)
     )
-    # Trapezoidal rule without scalar indexing (which would stall a GPU):
-    # the end points are halved through single-element reductions.
-    edge_values =
-        sum(@view values[1:1]) + sum(@view values[n_bins:n_bins])
-    integral = (sum(values) - 0.5 * edge_values) * bin_size
-    return imag(integral) / real(integral)
+    n_work_items = n_workgroups * GPU_WORKGROUP_SIZE
+    workgroup_sums = KernelAbstractions.allocate(
+        device, Float64, 2 * n_workgroups
+    )
+    kernel! = beam_phase_workgroup_sums_kernel!(device)
+    # The last stride ends below `n_bins + n_work_items`.
+    if n_bins + n_work_items <= typemax(Int32)
+        kernel!(
+            workgroup_sums, hist_x, hist_y, Int32(n_bins),
+            Int32(n_work_items), alpha, omega_rf, phi_rf;
+            ndrange=n_work_items, workgroupsize=GPU_WORKGROUP_SIZE,
+        )
+    else
+        kernel!(
+            workgroup_sums, hist_x, hist_y, n_bins, n_work_items, alpha,
+            omega_rf, phi_rf;
+            ndrange=n_work_items, workgroupsize=GPU_WORKGROUP_SIZE,
+        )
+    end
+    # The only synchronisation: two numbers per workgroup to the host.
+    host_sums = Array(workgroup_sums)
+    sine_sum = 0.0
+    cosine_sum = 0.0
+    @inbounds for workgroup in 1:n_workgroups
+        sine_sum += host_sums[2 * workgroup - 1]
+        cosine_sum += host_sums[2 * workgroup]
+    end
+    return (sine_sum * bin_size) / (cosine_sum * bin_size)
 end
+
+"""
+    BEAM_PHASE_WORKGROUP_SUMS_MIN_BINS
+
+GPU profiles with at least this many bins are reduced in workgroup-local
+memory, smaller ones through one complex array and one `sum`. On a T400
+the two break even between 32768 (131 against 138 µs) and 65536 bins
+(227 against 214 µs).
+"""
+const BEAM_PHASE_WORKGROUP_SUMS_MIN_BINS = 65536
 
 """
     kick_interpolated_dense!(device, dt, dE, n_macroparticles, voltage,
@@ -604,24 +852,88 @@ function kick_interpolated_dense!(
     # A single-bin (or empty) profile has no width to interpolate across,
     # so no particle can be kicked.
     (n_macroparticles == 0 || n_slices < 2) && return nothing
-    dt = wrap_array(device, Float64, dt_pointer, n_macroparticles)
-    dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
-    voltage = wrap_array(device, Float64, voltage_pointer, n_slices)
-    bin_centers = wrap_array(
+    dt = wrap_kernel_array(device, Float64, dt_pointer, n_macroparticles)
+    dE = wrap_kernel_array(device, Float64, dE_pointer, n_macroparticles)
+    voltage = wrap_kernel_array(device, Float64, voltage_pointer, n_slices)
+    bin_centers = wrap_kernel_array(
         device, Float64, bin_centers_pointer, n_slices
     )
-    factors = KernelAbstractions.allocate(device, Float64, 2 * (n_slices - 1))
-    grid = KernelAbstractions.allocate(device, Float64, 2)
-    factors_kernel! = kick_interpolated_dense_factors_kernel!(device)
-    factors_kernel!(
-        factors,
-        grid,
-        voltage,
-        bin_centers,
-        n_slices,
-        charge,
-        acceleration_kick;
-        ndrange=n_slices - 1,
+    apply_interpolated_kick_dense!(
+        device, dt, dE, n_macroparticles, voltage, bin_centers, n_slices,
+        charge, acceleration_kick,
+    )
+    return nothing
+end
+
+"""
+    apply_interpolated_kick_dense!(device, dt, dE, n_macroparticles,
+                                   voltage, bin_centers, n_slices, charge,
+                                   acceleration_kick)
+
+Apply the dense interpolated kick in two phases, see "Interpolated kicks
+in two phases". The CPU computes the factors on the calling thread and
+sweeps the particles in vectorised chunks; other devices run both phases
+as kernels, without reading any scalar back to the host.
+"""
+function apply_interpolated_kick_dense!(
+    ::CPU,
+    dt,
+    dE,
+    n_macroparticles::Int,
+    voltage,
+    bin_centers,
+    n_slices::Int,
+    charge::Float64,
+    acceleration_kick::Float64,
+)::Nothing
+    n_intervals = n_slices - 1
+    inverse_bin_width =
+        n_intervals / (@inbounds bin_centers[n_slices] - bin_centers[1])
+    factors = Vector{Float64}(undef, 2 * n_intervals)
+    for bin in 1:n_intervals
+        store_interpolated_kick_factors!(
+            factors, bin, voltage, bin_centers, charge, acceleration_kick,
+            inverse_bin_width,
+        )
+    end
+    sweep_chunks!(
+        kick_interpolated_dense_range!,
+        n_macroparticles,
+        (dt, dE, factors, bin_centers[1], inverse_bin_width, n_intervals),
+    )
+    return nothing
+end
+
+function apply_interpolated_kick_dense!(
+    device,
+    dt,
+    dE,
+    n_macroparticles::Int,
+    voltage,
+    bin_centers,
+    n_slices::Int,
+    charge::Float64,
+    acceleration_kick::Float64,
+)::Nothing
+    # The factors and the grid share one device buffer, which is kept
+    # between calls (see `scratch_vector`): allocating them per call cost
+    # about as much as the two kernels together. The buffer is reused by
+    # every call, so a device may run only one interpolated kick at a time
+    # -- as BLonD does, one tracking loop per device.
+    n_factors = 2 * (n_slices - 1)
+    scratch = scratch_vector(device, Float64, n_factors + 2, :interpolated_kick)
+    scratch_pointer = Int(UInt(pointer(scratch)))
+    factors = wrap_kernel_array(device, Float64, scratch_pointer, n_factors)
+    grid = wrap_kernel_array(
+        device, Float64, scratch_pointer + n_factors * sizeof(Float64), 2
+    )
+    launch_kernel!(
+        device,
+        kick_interpolated_dense_factors_kernel!,
+        n_slices - 1,
+        min(n_slices - 1, GPU_WORKGROUP_SIZE),
+        (factors, grid, voltage, bin_centers, n_slices, charge,
+         acceleration_kick),
     )
     # Queued behind the factors kernel on the same device queue.
     launch_particles!(
@@ -677,21 +989,15 @@ function kick_interpolated_sparse!(
     # Without two slices there is no bin to interpolate across.
     n_slices < 2 && return nothing
     inverse_bin_width = bins_per_profile / cut_width
-    factors = KernelAbstractions.allocate(device, Float64, 2 * (n_slices - 1))
-    factors_kernel! = kick_interpolated_sparse_factors_kernel!(device)
-    factors_kernel!(
-        factors,
-        voltage,
-        bin_centers,
-        charge,
-        acceleration_kick,
-        inverse_bin_width;
-        ndrange=n_slices - 1,
+    factors = interpolated_kick_sparse_factors(
+        device, voltage, bin_centers, n_slices, charge, acceleration_kick,
+        inverse_bin_width,
     )
-    # Queued behind the factors kernel on the same device queue.
-    launch_particles!(
+    # On a GPU queued behind the factors kernel on the same device queue.
+    launch_particle_loop!(
         device,
         kick_interpolated_sparse_particles_kernel!,
+        kick_interpolated_sparse_range!,
         n_macroparticles,
         (
             dt,
@@ -709,6 +1015,57 @@ function kick_interpolated_sparse!(
         ),
     )
     return nothing
+end
+
+"""
+    interpolated_kick_sparse_factors(device, voltage, bin_centers, n_slices,
+                                     charge, acceleration_kick,
+                                     inverse_bin_width)
+
+Return the slopes and offsets of the sparse interpolated kick, see
+"Interpolated kicks in two phases". The CPU computes them on the calling
+thread, other devices in a kernel.
+"""
+function interpolated_kick_sparse_factors(
+    ::CPU,
+    voltage,
+    bin_centers,
+    n_slices::Int,
+    charge::Float64,
+    acceleration_kick::Float64,
+    inverse_bin_width::Float64,
+)
+    factors = Vector{Float64}(undef, 2 * (n_slices - 1))
+    for bin in 1:(n_slices - 1)
+        store_interpolated_kick_factors!(
+            factors, bin, voltage, bin_centers, charge, acceleration_kick,
+            inverse_bin_width,
+        )
+    end
+    return factors
+end
+
+function interpolated_kick_sparse_factors(
+    device,
+    voltage,
+    bin_centers,
+    n_slices::Int,
+    charge::Float64,
+    acceleration_kick::Float64,
+    inverse_bin_width::Float64,
+)
+    factors = KernelAbstractions.allocate(device, Float64, 2 * (n_slices - 1))
+    factors_kernel! = kick_interpolated_sparse_factors_kernel!(device)
+    factors_kernel!(
+        factors,
+        voltage,
+        bin_centers,
+        charge,
+        acceleration_kick,
+        inverse_bin_width;
+        ndrange=n_slices - 1,
+    )
+    return factors
 end
 
 """
@@ -775,7 +1132,7 @@ scatter, so that it is race-free on every device. `dt`, `dE`, `ids` and
 """
 function move_flagged_elements_to_end!(
     device,
-    flag::Int32,
+    flag::Int,
     flags_pointer::Int,
     dt_pointer::Int,
     dE_pointer::Int,
@@ -788,7 +1145,8 @@ function move_flagged_elements_to_end!(
     dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
     ids = wrap_array(device, Int32, ids_pointer, n_macroparticles)
 
-    keep_mask = map(flag_value -> ifelse(flag_value != flag, 1, 0), flags)
+    lost_flag = Int32(flag)
+    keep_mask = map(flag_value -> ifelse(flag_value != lost_flag, 1, 0), flags)
     kept_positions = cumsum(keep_mask)
     n_kept = Int(sum(keep_mask))
 
@@ -906,7 +1264,7 @@ function apply_synchrotron_radiation!(
     disable_quantum_excitation::Bool,
 )::Nothing
     n_macroparticles == 0 && return nothing
-    dE = wrap_array(device, Float64, dE_pointer, n_macroparticles)
+    dE = wrap_kernel_array(device, Float64, dE_pointer, n_macroparticles)
     damping_factor = 1.0 - 2.0 / longitudinal_damping_time
     if disable_quantum_excitation
         launch_particle_loop!(

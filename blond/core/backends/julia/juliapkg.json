@@ -11,7 +11,7 @@
         },
         "CUDA": {
             "uuid": "052768ef-5323-5732-b1bb-66c8b64840ba",
-            "version": "6"
+            "version": "~6.3"
         },
         "BLonDKernels": {
             "uuid": "a3de7e09-0857-480d-8a28-c9ddd5b12cf7",

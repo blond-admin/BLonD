@@ -141,6 +141,42 @@ end
     end
 end
 
+"""
+    MAX_SPECIALISED_HARMONICS
+
+Most RF harmonics for which the GPU multi-harmonic kick has a kernel
+specialised on their number, see [`kick_specialised_harmonics_kernel!`].
+"""
+const MAX_SPECIALISED_HARMONICS = 4
+
+# Multi-harmonic kick with the harmonics read once per work-item instead of
+# once per particle and harmonic, and the loop over them unrolled: 1.03x
+# as fast as the cuda backend for two harmonics (1e6-1e8 particles, T400),
+# against 0.92x for `kick_multi_harmonic_kernel!`. Same sine and summation
+# order, so the result is bitwise identical. `fast_sin` is no help on a
+# GPU: it is ~1.4x slower there than the libdevice sine.
+@kernel function kick_specialised_harmonics_kernel!(
+    dt, dE, voltage, omega_rf, phi_rf, ::Val{N}, charge, acceleration_kick,
+    layout,
+) where {N}
+    item = @index(Global, Linear)
+    @inbounds begin
+        amplitudes = ntuple(j -> charge * voltage[j], Val(N))
+        harmonic_omegas = ntuple(j -> omega_rf[j], Val(N))
+        harmonic_phases = ntuple(j -> phi_rf[j], Val(N))
+        for i in particle_indices(layout, item)
+            dt_i = dt[i]
+            accumulator = dE[i]
+            for j in 1:N
+                accumulator +=
+                    amplitudes[j] *
+                    sin(harmonic_omegas[j] * dt_i + harmonic_phases[j])
+            end
+            dE[i] = accumulator + acceleration_kick
+        end
+    end
+end
+
 @kernel function drift_simple_kernel!(dt, dE, coefficient, layout)
     item = @index(Global, Linear)
     @inbounds for i in particle_indices(layout, item)
@@ -218,7 +254,7 @@ end
 # with more bins than `HISTOGRAM_LOCAL_BINS` are built in several passes
 # over the input, each pass covering the next window of bins.
 #
-# The CPU counts per thread instead, see `histogram_slices_kernel!`.
+# The CPU counts per thread instead, see `count_histogram_slice!`.
 
 """
     HISTOGRAM_LOCAL_BINS
@@ -352,16 +388,109 @@ end
     end
 end
 
+# Beam phase on a GPU. The trapezoid weights are applied inside the
+# kernels, so the host needs one reduction and one synchronisation instead
+# of three, and the sine and cosine share one range reduction
+# (`fast_sin_cos`). Against the cuda backend (T400): 256 bins 23 against
+# 42 µs, 1048576 bins 2.68 against 3.47 ms.
+
 @kernel function beam_phase_values_kernel!(
-    values, hist_x, hist_y, alpha, omega_rf, phi_rf
+    values, hist_x, hist_y, n_bins, alpha, omega_rf, phi_rf
 )
     i = @index(Global, Linear)
     @inbounds begin
-        weight = exp(alpha * hist_x[i]) * hist_y[i]
-        angle = omega_rf * hist_x[i] + phi_rf
+        x = hist_x[i]
+        is_end_point = (i == 1) | (i == n_bins)
+        weight =
+            ifelse(is_end_point, 0.5, 1.0) * (exp(alpha * x) * hist_y[i])
+        sine, cosine = fast_sin_cos(omega_rf * x + phi_rf)
         # Real part carries the cosine, imaginary part the sine integrand,
         # so that a single reduction yields both trapezoid coefficients.
-        values[i] = complex(weight * cos(angle), weight * sin(angle))
+        values[i] = complex(weight * cosine, weight * sine)
+    end
+end
+
+# Large profiles: every work-item strides through the bins, summing its
+# integrands privately; the first work-item of each workgroup then adds its
+# workgroup's partial sums from workgroup-local memory. The host reads two
+# numbers per workgroup with one copy; no atomics, no profile-sized array.
+@kernel function beam_phase_workgroup_sums_kernel!(
+    workgroup_sums, hist_x, hist_y, n_bins, n_work_items, alpha, omega_rf,
+    phi_rf,
+)
+    workgroup_size = @uniform @groupsize()[1]
+    local_sums = @localmem Float64 (2 * GPU_WORKGROUP_SIZE,)
+
+    local_item = @index(Local, Linear)
+    sine_sum = 0.0
+    cosine_sum = 0.0
+    bin = oftype(n_bins, @index(Global, Linear))
+    @inbounds while bin <= n_bins
+        x = hist_x[bin]
+        is_end_point = (bin == 1) | (bin == n_bins)
+        weight =
+            ifelse(is_end_point, 0.5, 1.0) * (exp(alpha * x) * hist_y[bin])
+        sine, cosine = fast_sin_cos(omega_rf * x + phi_rf)
+        sine_sum += weight * sine
+        cosine_sum += weight * cosine
+        bin += n_work_items
+    end
+    @inbounds local_sums[2 * local_item - 1] = sine_sum
+    @inbounds local_sums[2 * local_item] = cosine_sum
+
+    @synchronize
+
+    if @index(Local, Linear) == 1
+        workgroup = @index(Group, Linear)
+        workgroup_sine = 0.0
+        workgroup_cosine = 0.0
+        @inbounds for slot in 1:workgroup_size
+            workgroup_sine += local_sums[2 * slot - 1]
+            workgroup_cosine += local_sums[2 * slot]
+        end
+        @inbounds workgroup_sums[2 * workgroup - 1] = workgroup_sine
+        @inbounds workgroup_sums[2 * workgroup] = workgroup_cosine
+    end
+end
+
+# Small GPU histograms on one workgroup. Its work-items own the private bins
+# exclusively, so the flush *assigns* every bin of the pass window: no
+# zeroing pass (`fill!`) and no atomic writes to the output. With only
+# `GPU_WORKGROUP_SIZE` strides the counting contends more, so this pays
+# only for small inputs, see `HISTOGRAM_SINGLE_WORKGROUP_MAX_VALUES`.
+@kernel function histogram_assign_kernel!(
+    array_read, array_write, n_read, n_bins, start, stop, inverse_bin_width,
+    bin_offset, n_local_bins, n_work_items,
+)
+    workgroup_size = @uniform @groupsize()[1]
+    local_counts = @localmem Int32 (HISTOGRAM_LOCAL_BINS,)
+
+    zero_index = @index(Local, Linear)
+    while zero_index <= n_local_bins
+        @inbounds local_counts[zero_index] = Int32(0)
+        zero_index += workgroup_size
+    end
+
+    @synchronize
+
+    value_index = oftype(n_read, @index(Global, Linear))
+    while value_index <= n_read
+        @inbounds value = array_read[value_index]
+        bin = histogram_bin(value, start, stop, inverse_bin_width, n_bins)
+        local_bin = bin - bin_offset + Int32(1)
+        if Int32(1) <= local_bin <= n_local_bins
+            @inbounds Atomix.@atomic local_counts[local_bin] += Int32(1)
+        end
+        value_index += n_work_items
+    end
+
+    @synchronize
+
+    flush_index = @index(Local, Linear)
+    while flush_index <= n_local_bins
+        @inbounds array_write[bin_offset + flush_index] =
+            Float64(local_counts[flush_index])
+        flush_index += workgroup_size
     end
 end
 
@@ -627,14 +756,41 @@ end
     end
 end
 
+# Quantum excitation on a GPU uses both normals of one Philox block:
+# work-item `item` handles the particles item, item + stride, item +
+# 2 stride, ... of its layout, and pairs them up as (item, item + stride),
+# (item + 2 stride, item + 3 stride), ... . A pair draws the block whose
+# counter is its first particle, so every counter is used by exactly one
+# pair and no two particles share a deviate. A lone last particle takes the
+# first normal of its own block. Drawing one block per particle instead,
+# as before, made the kernel 0.58x as fast as the cuda backend; paired,
+# it is 1.02x (1e5-1e8 particles, T400). The loop bound
+# `i <= n - stride` cannot overflow, since the launcher guarantees
+# `n + stride <= typemax`.
+#
+# Only the strided GPU layout is supported: the CPU draws its noise with
+# `synchrotron_radiation_quantum_excitation_range!`.
 @kernel function synchrotron_radiation_quantum_excitation_kernel!(
-    dE, damping_factor, noise_scale, energy_lost, key, layout
+    dE, damping_factor, noise_scale, energy_lost, key, layout::StrideLayout
 )
     item = @index(Global, Linear)
-    @inbounds for i in particle_indices(layout, item)
+    n_particles = layout.n_particles
+    stride = layout.stride
+    i = oftype(n_particles, item)
+    @inbounds while i <= n_particles - stride
+        normal_1, normal_2 = philox_standard_normal_pair(Int(i), key)
+        partner = i + stride
         dE[i] =
-            damping_factor * dE[i] +
-            (philox_standard_normal(Int(i), key) * noise_scale - energy_lost)
+            damping_factor * dE[i] + (normal_1 * noise_scale - energy_lost)
+        dE[partner] =
+            damping_factor * dE[partner] +
+            (normal_2 * noise_scale - energy_lost)
+        i = partner + stride
+    end
+    @inbounds if i <= n_particles
+        normal_1, _ = philox_standard_normal_pair(Int(i), key)
+        dE[i] =
+            damping_factor * dE[i] + (normal_1 * noise_scale - energy_lost)
     end
 end
 
@@ -643,11 +799,14 @@ end
 # The CPU backend of KernelAbstractions evaluates a kernel one work-item
 # at a time, which keeps the compiler from vectorising the per-particle
 # arithmetic. On the CPU the loops below therefore run over whole chunks
-# of particles instead: one work-item per chunk, each sweeping its chunk
-# in a plain `@simd` loop. Every range function takes the arguments of its
-# per-particle kernel (after the particle range) and performs exactly the
-# same floating-point operations in the same order, except that the kicks
-# use `fast_sin`, as the C++ backend does.
+# of particles instead, each chunk swept in a plain `@simd` loop. Every
+# range function takes the arguments of its per-particle kernel (after the
+# particle range) and performs exactly the same floating-point operations
+# in the same order, except that the kicks use `fast_sin`, as the C++
+# backend does.
+#
+# The chunks are distributed with Polyester's `@batch` rather than with
+# KernelAbstractions (see [`sweep_chunks!`]).
 
 """
     PARTICLES_PER_CHUNK
@@ -659,13 +818,21 @@ measured optimum for ``1e7`` particles on 12 threads (multi-harmonic kick
 """
 const PARTICLES_PER_CHUNK = 1024
 
-@kernel function particle_chunks_kernel!(
-    range_function!, n_particles, arguments
-)
-    chunk = @index(Global, Linear)
-    first_particle = (chunk - 1) * PARTICLES_PER_CHUNK + 1
-    last_particle = min(chunk * PARTICLES_PER_CHUNK, n_particles)
-    range_function!(first_particle, last_particle, arguments...)
+"""
+    sweep_chunks!(range_function!, n_elements, arguments)
+
+Call ``range_function!(first, last, arguments...)`` for every chunk of
+`PARTICLES_PER_CHUNK` of `n_elements` elements, the chunks in parallel.
+
+The chunks run on the thread pool of `thread_pool.jl`, which keeps one
+worker per hardware thread: its workers claim chunks one at a time, spin
+briefly after a loop and then sleep, so that back-to-back calls start
+without waking anyone and a busy machine cannot stall a call. A single
+chunk runs on the calling thread.
+"""
+function sweep_chunks!(range_function!, n_elements::Int, arguments::Tuple)
+    run_chunks!(range_function!, n_elements, PARTICLES_PER_CHUNK, arguments)
+    return nothing
 end
 
 function kick_single_harmonic_range!(
@@ -701,9 +868,203 @@ function kick_multi_harmonic_range!(
     return nothing
 end
 
+"""
+    MAX_UNROLLED_LENGTH
+
+Longest array [`with_unrolled`] turns into a tuple.
+"""
+const MAX_UNROLLED_LENGTH = 4
+
+"""
+    with_unrolled(f, n_values, arrays...)
+
+Call `f` with the first `n_values` elements of each of `arrays` as a
+tuple, whose length is then known at compile time, so that a loop over it
+is unrolled; with more than `MAX_UNROLLED_LENGTH` elements call
+`f(arrays...)` instead.
+
+Every length has its own branch, so the call is type-stable: no runtime
+dispatch on the length, and one compiled `f` per length.
+"""
+@inline function with_unrolled(
+    f::F, n_values::Int, arrays::Vararg{Any, N}
+) where {F, N}
+    n_values == 0 && return f(ntuple(_ -> (), Val(N))...)
+    n_values == 1 && return f(unrolled_prefixes(arrays, Val(1))...)
+    n_values == 2 && return f(unrolled_prefixes(arrays, Val(2))...)
+    n_values == 3 && return f(unrolled_prefixes(arrays, Val(3))...)
+    n_values == 4 && return f(unrolled_prefixes(arrays, Val(4))...)
+    return f(arrays...)
+end
+
+"""
+    unrolled_prefixes(arrays, Val(length)) -> Tuple
+
+The first `length` elements of each of `arrays`, each as a tuple.
+"""
+@inline function unrolled_prefixes(arrays::Tuple, ::Val{L}) where {L}
+    return map(array -> ntuple(j -> @inbounds(array[j]), Val(L)), arrays)
+end
+
+function kick_multi_harmonic_unrolled_range!(
+    first_particle, last_particle,
+    dt, dE, amplitudes::NTuple{N, Float64}, omega_rf::NTuple{N, Float64},
+    phi_rf::NTuple{N, Float64}, acceleration_kick,
+) where {N}
+    # The harmonics are a tuple, so the inner loop is unrolled and the
+    # particles are swept once, keeping the summation order
+    # dE + kick_1 + ... + kick_N + acceleration_kick. Two harmonics, 1e5
+    # particles on one thread: 2.9 against 3.1 ns per particle for one
+    # sweep per harmonic.
+    @inbounds @simd for i in first_particle:last_particle
+        dt_i = dt[i]
+        accumulator = dE[i]
+        for j in 1:N
+            accumulator += amplitudes[j] * fast_sin(omega_rf[j] * dt_i + phi_rf[j])
+        end
+        dE[i] = accumulator + acceleration_kick
+    end
+    return nothing
+end
+
 function drift_simple_range!(first_particle, last_particle, dt, dE, coefficient)
     @inbounds @simd for i in first_particle:last_particle
         dt[i] += coefficient * dE[i]
+    end
+    return nothing
+end
+
+function drift_exact_range!(
+    first_particle, last_particle,
+    dt, dE, drift_time, alpha_0, higher_alpha, n_alpha,
+    inverse_beta_squared, inverse_energy,
+)
+    inverse_energy_squared = inverse_energy * inverse_energy
+    @inbounds @simd for i in first_particle:last_particle
+        energy_offset = dE[i]
+        # `Base.sqrt` throws for a negative argument, and that check keeps
+        # the loop from vectorising (1e5 particles on one thread: 3.9
+        # against 1.1 ns per particle). Unchecked, a negative argument
+        # yields NaN, as in NumPy.
+        beam_delta =
+            @fastmath(sqrt)(
+                1.0 +
+                inverse_beta_squared * (
+                    energy_offset * energy_offset * inverse_energy_squared +
+                    2.0 * energy_offset * inverse_energy
+                ),
+            ) - 1.0
+        polynomial = 1.0 + alpha_0 * beam_delta
+        delta_power = beam_delta * beam_delta
+        # `higher_alpha` holds exactly `n_alpha` factors. For a tuple (see
+        # `apply_drift_exact!`) its length is a compile-time constant, so
+        # this loop is unrolled.
+        for k in 1:length(higher_alpha)
+            polynomial += higher_alpha[k] * delta_power
+            delta_power *= beam_delta
+        end
+        dt[i] +=
+            drift_time * (
+                polynomial * (1.0 + energy_offset * inverse_energy) /
+                (1.0 + beam_delta) - 1.0
+            )
+    end
+    return nothing
+end
+
+"""
+    @novectorize for ... end
+
+Keep LLVM from vectorising the annotated loop.
+"""
+macro novectorize(loop)
+    push!(
+        loop.args[2].args,
+        Expr(:loopinfo, (Symbol("llvm.loop.vectorize.enable"), false)),
+    )
+    return esc(loop)
+end
+
+# Loss box on the CPU, in two forms, see `LOSS_BOX_SELECT_MAX_PARTICLES`.
+
+function loss_box_select_range!(
+    first_particle, last_particle,
+    dt, dE, flags, e_max, e_min, t_min, t_max, lost_flag,
+)
+    # Non-short-circuiting comparisons and a select that writes back every
+    # flag, so that the loop vectorises without masked stores.
+    @inbounds @simd for i in first_particle:last_particle
+        is_lost =
+            (dE[i] > e_max) | (dE[i] < e_min) | (dt[i] < t_min) |
+            (dt[i] > t_max)
+        flags[i] = ifelse(is_lost, lost_flag, flags[i])
+    end
+    return nothing
+end
+
+function loss_box_range!(
+    first_particle, last_particle,
+    dt, dE, flags, e_max, e_min, t_min, t_max, lost_flag,
+)
+    # A scalar branch that stores only the flags of lost particles, as the
+    # C++ backend does. Left to LLVM, this loop becomes a vectorised
+    # masked store, which is twice as slow on flags that NumPy allocated
+    # with `np.zeros`: 1e6 particles on six threads took 591 µs vectorised
+    # and 243 µs scalar.
+    @inbounds @novectorize for i in first_particle:last_particle
+        if (dE[i] > e_max) || (dE[i] < e_min) || (dt[i] < t_min) ||
+           (dt[i] > t_max)
+            flags[i] = lost_flag
+        end
+    end
+    return nothing
+end
+
+function kick_interpolated_dense_range!(
+    first_particle, last_particle,
+    dt, dE, factors, first_bin_center, inverse_bin_width, n_intervals,
+)
+    # A plain branch: the gathers of the factors keep a branch-free loop
+    # from vectorising, and as a scalar loop the select is slower (1e5
+    # particles on one thread: 0.81 ns per particle with the branch, 1.61
+    # with the select).
+    @inbounds for i in first_particle:last_particle
+        dt_i = dt[i]
+        position = (dt_i - first_bin_center) * inverse_bin_width
+        if position >= 0.0 && position < n_intervals
+            interval = unsafe_trunc(Int, position)
+            dE[i] +=
+                dt_i * factors[2 * interval + 1] + factors[2 * interval + 2]
+        end
+    end
+    return nothing
+end
+
+function kick_interpolated_sparse_range!(
+    first_particle, last_particle,
+    dt, dE, factors, first_left_cut, left_cut_distance, bins_per_profile,
+    filling_pattern, n_buckets, bucket_index_to_memory_index,
+    inverse_histogram_distance, inverse_bin_width, bin_width,
+)
+    @inbounds for i in first_particle:last_particle
+        dt_i = dt[i]
+        bucket_position = (dt_i - first_left_cut) * inverse_histogram_distance
+        if bucket_position >= 0.0 && bucket_position < n_buckets
+            bucket_index = unsafe_trunc(Int, bucket_position)
+            if filling_pattern[bucket_index + 1]
+                cut_left = first_left_cut + bucket_index * left_cut_distance
+                bucket_bin_center0 = cut_left + bin_width / 2.0
+                local_bin_position =
+                    (dt_i - bucket_bin_center0) * inverse_bin_width
+                if local_bin_position >= 0.0 &&
+                   local_bin_position < bins_per_profile - 1
+                    bin =
+                        Int(bucket_index_to_memory_index[bucket_index + 1]) +
+                        unsafe_trunc(Int, local_bin_position) + 1
+                    dE[i] += dt_i * factors[2 * bin - 1] + factors[2 * bin]
+                end
+            end
+        end
     end
     return nothing
 end
@@ -726,13 +1087,18 @@ Sum the sine- and cosine-weighted beam-phase integrands over a bin range.
 @inline function beam_phase_integrand_sums(
     hist_x, hist_y, alpha, omega_rf, phi_rf, first_bin, last_bin
 )
+    # `fast_exp` and `fast_sin_cos` instead of the library functions, so
+    # that the loop vectorises: 65536 bins on one thread take 196 instead
+    # of 826 µs. The sums may be reassociated, which moves them by ~1e-14
+    # relative for profiles whose integrands cancel.
     sine_sum = 0.0
     cosine_sum = 0.0
-    @inbounds for i in first_bin:last_bin
-        weight = exp(alpha * hist_x[i]) * hist_y[i]
-        angle = omega_rf * hist_x[i] + phi_rf
-        sine_sum += weight * sin(angle)
-        cosine_sum += weight * cos(angle)
+    @inbounds @simd for i in first_bin:last_bin
+        x = hist_x[i]
+        weight = fast_exp(alpha * x) * hist_y[i]
+        sine, cosine = fast_sin_cos(omega_rf * x + phi_rf)
+        sine_sum += weight * sine
+        cosine_sum += weight * cosine
     end
     return sine_sum, cosine_sum
 end
@@ -802,8 +1168,19 @@ out-of-range position is computed but never selected.
     return ifelse(value == stop, n_bins + 1, slot)
 end
 
-@kernel function histogram_slices_kernel!(
+"""
+    count_histogram_slice!(slice_counts, slice, array_read, n_read,
+                           values_per_slice, n_bins, start, stop,
+                           inverse_bin_width)
+
+Count slice `slice` of `array_read` into its own bins, stored as
+`slice_counts[slice]`, so that the slices share no memory while they count.
+Within the slice the slots of a block are computed first, in a vectorised
+loop, and counted afterwards.
+"""
+function count_histogram_slice!(
     slice_counts,
+    slice,
     array_read,
     n_read,
     values_per_slice,
@@ -812,10 +1189,6 @@ end
     stop,
     inverse_bin_width,
 )
-    # One slice per thread, counted into its own bins, so the slices share
-    # no memory while they count. Within the slice the slots of a block are
-    # computed first, in a vectorised loop, and counted afterwards.
-    slice = @index(Global, Linear)
     first_value = (slice - 1) * values_per_slice + 1
     last_value = min(slice * values_per_slice, n_read)
     counts = zeros(Int, n_bins + 1)
@@ -838,6 +1211,32 @@ end
         block_start += block_length
     end
     slice_counts[slice] = counts
+    return nothing
+end
+
+@kernel function histogram_slices_kernel!(
+    slice_counts,
+    array_read,
+    n_read,
+    values_per_slice,
+    n_bins,
+    start,
+    stop,
+    inverse_bin_width,
+)
+    # One task per slice, see `count_histogram!`.
+    slice = @index(Global, Linear)
+    count_histogram_slice!(
+        slice_counts,
+        slice,
+        array_read,
+        n_read,
+        values_per_slice,
+        n_bins,
+        start,
+        stop,
+        inverse_bin_width,
+    )
 end
 
 function synchrotron_radiation_quantum_excitation_range!(
