@@ -306,6 +306,50 @@ class IQCavityFeedbackBase(LocalFeedback):
         UNITS: volts, complex IQ envelope (same frame as the coarse
         antenna voltage).
         """
+        self.beam_loading_feedforward: bool = False
+        """Whether to learn and feed forward the beam loading, opt-in.
+
+        ``False`` (the default) leaves
+        :attr:`setpoint_feedforward_coarse_grid` untouched, so a feedback
+        that does not ask for this is bit-identical to one built before
+        the term existed. Set it ``True`` to have each passage record the
+        ripple its own beam left in the cavity and the next passage of
+        the *same* beam regulate to it. Or leave it ``False`` and write
+        :attr:`setpoint_feedforward_coarse_grid` yourself, if the
+        prediction should come from somewhere else.
+        """
+        self._beam_loading_history: dict[int, NumpyArray] = {}
+        """Last recorded loading ripple per beam, keyed by ``id(beam)``."""
+        self.setpoint_feedforward_coarse_grid: NumpyArray | None = None
+        """Beam-loading feedforward on the coarse grid, in [V].
+
+        GRID: coarse, indexed like the other whole-turn coarse grids.
+        ``None`` (the default) is no feedforward at all, and is an exact
+        no-op rather than a zero array so that a feedback that never uses
+        it stays bit-identical to one built before the term existed.
+
+        The generator PI regulates the antenna voltage to a single scalar
+        setpoint. Where the beam takes a large bite out of the cavity
+        once per passage, that reference is a target the loop cannot
+        hold: it saturates on the ripple, and the anti-windup then
+        freezes the integral for as long as it is clamped, so the loop
+        cannot accumulate the steady term either. Writing the ripple the
+        beam is about to impose into this table makes the reference the
+        voltage the loop *can* hold, ``pi_setpoint + table[cell]``, so
+        its authority is spent on what is left.
+
+        On a periodic beam the ripple is known a turn ahead, which is
+        what makes the prediction possible; the caller owns the
+        prediction and this class only applies it. UNITS: volts, in the
+        same IQ frame as :attr:`pi_setpoint`.
+
+        This does NOT flatten the ripple the beam sees, and cannot: on
+        the muon-collider RCS1 the RF beam current peaks near 1100 A
+        against 5 mA of generator headroom, so no feedforward the
+        klystron can produce would cancel it at the source. What it
+        recovers is the loop's authority, for whatever else needs it --
+        a beam phase loop writing ``phi_rf_loop``, above all.
+        """
         self.generator_current_coarse_grid: NumpyArray | None = None
         """Generator current on the coarse grid, in [A].
 
@@ -740,6 +784,14 @@ class IQCavityFeedbackCoarseGrid(
         only has harmonic 0. Must be integral -- ``int``, ``np.integer``
         or integral ``float``; a fractional value is rejected. Default
         is 0.
+    beam_loading_feedforward
+        Learn the beam-loading ripple of each passage and hand it to the
+        generator loop as part of its reference on the next passage of
+        the same beam, instead of letting the loop discover it as an
+        error. Default ``False``, which leaves
+        :attr:`setpoint_feedforward_coarse_grid` untouched and is
+        bit-neutral. See that attribute for what this does and does not
+        buy.
 
     Notes
     -----
@@ -865,6 +917,7 @@ class IQCavityFeedbackCoarseGrid(
         n_pretrack: int | None = None,
         injection_voltage: float | None = None,
         harmonic_index: int = 0,
+        beam_loading_feedforward: bool = False,
     ):
         super().__init__(
             profile=profile,
@@ -873,6 +926,7 @@ class IQCavityFeedbackCoarseGrid(
             n_rf_periods_per_coarse_grid=n_rf_periods_per_coarse_grid,
         )
 
+        self.beam_loading_feedforward = bool(beam_loading_feedforward)
         self.R_over_Q = R_over_Q
         self.Q_L = Q_L
 
@@ -1720,6 +1774,7 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             self._controller_update_interval,
             self._controller_update_phase,
             voltage_setpoint,
+            self._kernel_setpoint_feedforward(start_index, end_index),
             float(omega_input),
             *controller_state,
         )
@@ -2099,6 +2154,107 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         if coarse_grid_index < len(self._cell_pi_error_frame_rotations):
             return self._cell_pi_error_frame_rotations[coarse_grid_index]
         return self._pi_error_frame_rotation
+
+    def _install_beam_loading_feedforward(self, beam: BeamBaseClass) -> None:
+        """
+        Put the last turn's loading of THIS beam into the reference.
+
+        Called after the grid is rebuilt and before the span is scanned,
+        so the loop regulates to the voltage the beam is about to leave
+        it with. Keyed on the passing beam: at a station of a
+        counter-rotating pair the other beam's passage falls at different
+        cells, so its loading is not this beam's prediction.
+
+        Parameters
+        ----------
+        beam
+            Beam passing this station now.
+        """
+        if not self.beam_loading_feedforward:
+            return
+        learned = self._beam_loading_history.get(id(beam))
+        if learned is None:
+            self.setpoint_feedforward_coarse_grid = None
+            return
+        n_cells = len(self._rf_centers)
+        table = np.zeros(n_cells, dtype=np.complex128)
+        usable = min(n_cells, len(learned))
+        table[:usable] = learned[:usable]
+        self.setpoint_feedforward_coarse_grid = table
+
+    def _learn_beam_loading_feedforward(self, beam: BeamBaseClass) -> None:
+        """
+        Record what this passage's beam did to the cavity, for the next.
+
+        Only the deviation from this passage's mean is kept. The steady
+        part of the loading is the generator bias's job -- a bias matched
+        to the loaded operating point already replaces it -- so feeding
+        it forward as well would count it twice and let the cavity sag by
+        the whole beam loading instead of only ceasing to fight its
+        ripple.
+
+        Parameters
+        ----------
+        beam
+            Beam that has just passed this station.
+        """
+        if not self.beam_loading_feedforward:
+            return
+        loading = self.antenna_voltage_beam_coarse_grid
+        if loading is None or len(loading) == 0:
+            return
+        ripple = np.asarray(loading, dtype=np.complex128)
+        self._beam_loading_history[id(beam)] = ripple - ripple.mean()
+
+    def _kernel_setpoint_feedforward(
+        self, start_index: int, end_index: int
+    ) -> NumpyArray:
+        """
+        The span's slice of the feedforward table, for the kernel.
+
+        Parameters
+        ----------
+        start_index, end_index
+            Half-open whole-turn coarse-grid range of the span.
+
+        Returns
+        -------
+        feedforward
+            One complex value per cell [V]. A fresh zero array where no
+            feedforward is in force, which the kernel adds as an exact
+            zero.
+        """
+        n_cells = end_index - start_index
+        table = self.setpoint_feedforward_coarse_grid
+        if table is None:
+            return np.zeros(n_cells, dtype=np.complex128)
+        span = np.zeros(n_cells, dtype=np.complex128)
+        stop = min(end_index, len(table))
+        if stop > start_index:
+            span[: stop - start_index] = table[start_index:stop]
+        return span
+
+    def _setpoint_feedforward_of_cell(self, coarse_grid_index: int) -> complex:
+        """
+        Beam-loading feedforward added to the setpoint at this cell.
+
+        Parameters
+        ----------
+        coarse_grid_index
+            Whole-turn coarse-grid index of the cell.
+
+        Returns
+        -------
+        feedforward
+            The cell's entry of
+            :attr:`setpoint_feedforward_coarse_grid` [V], or an exact
+            ``0`` where no feedforward is in force -- which is what keeps
+            an unfed loop bit-identical to one that never had the term.
+        """
+        table = self.setpoint_feedforward_coarse_grid
+        if table is None or coarse_grid_index >= len(table):
+            return 0.0 + 0.0j
+        return complex(table[coarse_grid_index])
 
     def _beam_step_rotation_of_cell(self, coarse_grid_index: int) -> complex:
         """
@@ -2488,10 +2644,12 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         )
         self._clock_phase_loop(beam=beam, span=span)
         self._update_frame_rotations()
+        self._install_beam_loading_feedforward(beam=beam)
 
         self._replay_backfill_span(n_backfill_centers=span.n_backfill_centers)
 
         self._track_forward_span(beam=beam, span=span)
+        self._learn_beam_loading_feedforward(beam=beam)
         self._write_station_readout(carrier_slip_gap=self._carrier_slip_gap)
 
     def _guard_simultaneous_passage(self, beam: BeamBaseClass) -> None:

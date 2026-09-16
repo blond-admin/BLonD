@@ -432,6 +432,7 @@ class GeneratorRegulationMixin:
         _, kick_frame_rotation = self._frame_rotations_of_cell(idx)
         error = (
             self.pi_setpoint
+            + self._setpoint_feedforward_of_cell(idx)
             - (self.antenna_voltage_coarse_grid[idx] * kick_frame_rotation)
         ) * self._pi_error_frame_rotation_of_cell(idx)
         # The command is held until the next controller sample, so the

@@ -112,6 +112,7 @@ def envelope_pi_scan(
     controller_update_interval,
     controller_update_phase,
     pi_setpoint,
+    setpoint_feedforward,
     omega_input,
     gain_proportional,
     gain_integral,
@@ -219,6 +220,15 @@ def envelope_pi_scan(
         re-phasing at every segment boundary.
     pi_setpoint
         PI voltage setpoint in the IQ frame.
+    setpoint_feedforward
+        Per-cell addition to that setpoint [V], in the same frame: the
+        reference the loop regulates to is ``pi_setpoint +
+        setpoint_feedforward[cell]``. All-zero (the default the feedback
+        supplies) is an exact no-op. Its use is a beam-loading
+        feedforward -- handing the loop the ripple the beam is about to
+        impose, which on a periodic beam is known a turn ahead, so that
+        the loop spends its authority on what is left instead of
+        saturating on a target it cannot hold.
     omega_input
         Segment angular frequency, used to recover ``dt = omega*dt / omega``.
     gain_proportional
@@ -306,7 +316,9 @@ def envelope_pi_scan(
             generator_current_out[cell] = generator_current_drive
         else:
             error = (
-                pi_setpoint - voltage * kick_frame_rotation[cell]
+                pi_setpoint
+                + setpoint_feedforward[cell]
+                - voltage * kick_frame_rotation[cell]
             ) * pi_error_frame_rotation[cell]
             # The command is held for the whole update interval, so the
             # integrator credits it with that much time. Exact inside a
