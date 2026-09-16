@@ -22,7 +22,7 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
                                    const real_t *__restrict__ voltage_array,
                                    const real_t *__restrict__ bin_centers,
                                    const real_t charge, const int n_slices,
-                                   const int n_macroparticles,
+                                   const index_t n_macroparticles,
                                    const real_t acc_kick) {
 
   const int STEP = 64;
@@ -49,16 +49,16 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
     }
 
 #pragma omp for
-    for (int i = 0; i < n_macroparticles; i += STEP) {
+    for (index_t i = 0; i < n_macroparticles; i += STEP) {
 
-      const int loop_count =
-          n_macroparticles - i > STEP ? STEP : n_macroparticles - i;
+      const index_t loop_count =
+          n_macroparticles - i > STEP ? STEP : (index_t)(n_macroparticles - i);
 
-      for (int j = 0; j < loop_count; j++) {
+      for (index_t j = 0; j < loop_count; j++) {
         fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
       }
 
-      for (int j = 0; j < loop_count; j++) {
+      for (index_t j = 0; j < loop_count; j++) {
         if (fbin[j] >= 0.0 && fbin[j] < (double)(n_slices - 1)) {
           const int bin = (int)fbin[j];
           beam_dE[i + j] += beam_dt[i + j] * voltageKick[bin] + factor[bin];
@@ -84,9 +84,10 @@ extern "C" void linear_interp_kick_sparse(
     real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const real_t *__restrict__ voltage_array,
     const real_t *__restrict__ bin_centers, const real_t charge,
-    const int n_slices_total, const int n_macroparticles, const real_t acc_kick,
-    const real_t first_left_cut, const real_t left_cut_distance,
-    const real_t cut_width, const int bins_per_profile, const int n_buckets,
+    const int n_slices_total, const index_t n_macroparticles,
+    const real_t acc_kick, const real_t first_left_cut,
+    const real_t left_cut_distance, const real_t cut_width,
+    const int bins_per_profile, const int n_buckets,
     const bool *__restrict__ filling_pattern,
     const int *__restrict__ bucket_index_to_memory_index) {
 
@@ -109,7 +110,7 @@ extern "C" void linear_interp_kick_sparse(
     }
 
 #pragma omp for
-    for (int i = 0; i < n_macroparticles; i++) {
+    for (index_t i = 0; i < n_macroparticles; i++) {
       const real_t dt = beam_dt[i];
       // Range-check in floating point *before* the conversion:
       // converting an out-of-range value to `int` is undefined
