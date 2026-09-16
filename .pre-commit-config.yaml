@@ -57,6 +57,21 @@ repos:
         entry: python dev_tools/precommit_check_copyright.py
         language: system
 
+  # ruff's missing-docstring rules (D1xx) skip everything inside a
+  # `_private` folder or file. This reruns them as if the path had no
+  # underscores, so making a folder private does not lose the check.
+  # Same file scope as ruff's `lint.exclude`; keep the ruff pin in sync.
+  - repo: local
+    hooks:
+      - id: check-docstrings-in-private-paths
+        name: check docstrings in private folders and files
+        entry: python dev_tools/precommit_check_docstrings.py
+        language: python
+        additional_dependencies: ["ruff==0.15.15"]
+        types: [python]
+        files: ^blond/
+        exclude: ^blond/(experimental|examples)/
+
   # Every class exported at BLonD toplevel needs a documentation category
   - repo: local
     hooks:
