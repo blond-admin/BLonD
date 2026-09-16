@@ -967,6 +967,9 @@ class CudaSpecials(Specials):  # NOQA: D101
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),
         )
+        # `t_start` of the next call, set only after every pole thread has
+        # read the current one. Queued on the device, no host sync.
+        states[-1] = profile_dts[-1]
 
         @staticmethod
         def music_track(  # NOQA: D102 inherited from `Specials.music_track`
