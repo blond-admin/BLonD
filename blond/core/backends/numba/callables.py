@@ -262,6 +262,11 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
         # raise `ZeroDivisionError` (unlike the float division the
         # python/cpp backends perform, which quietly yields `nan` and
         # skips every particle via the range check).
+        # `acceleration_kick` is not an interpolated quantity -- it carries
+        # the reference energy change and applies to the whole beam, so it
+        # is still delivered to every particle here.
+        for i in prange(len(dE)):
+            dE[i] += acceleration_kick
         return
     dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
     inv_dx = 1 / dx
@@ -271,6 +276,9 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
         x = dt[i]
 
         if x < x_min or x >= x_max:
+            # Only the interpolated voltage is undefined out of range;
+            # the reference energy change still applies.
+            dE[i] += acceleration_kick
             continue
         else:
             idx = int((x - x_min) * inv_dx)
@@ -309,14 +317,20 @@ def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     for i in prange(len(dE)):
         x = dt[i]
         bucket_i = int(np.floor((x - first_left_cut) * inv_hist_dist))
+        # A particle with no interpolated voltage still receives
+        # `acceleration_kick` -- in particular one in an *unfilled* bucket,
+        # which is fully inside the turn.
         if bucket_i < 0 or bucket_i >= n_buckets:
+            dE[i] += acceleration_kick
             continue
         if not filling_pattern[bucket_i]:
+            dE[i] += acceleration_kick
             continue
         cut_left = first_left_cut + bucket_i * left_cut_distance
         bucket_bin_center0 = cut_left + bin_width / 2.0
         local_bin = int(np.floor((x - bucket_bin_center0) * inv_bin_width))
         if local_bin < 0 or local_bin >= bins_per_profile - 1:
+            dE[i] += acceleration_kick
             continue
         idx = bucket_index_to_memory_index[bucket_i] + local_bin
         v = voltage[idx] + (

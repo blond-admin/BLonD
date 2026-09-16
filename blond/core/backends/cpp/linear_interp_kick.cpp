@@ -62,6 +62,11 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
         if (fbin[j] >= 0.0 && fbin[j] < (double)(n_slices - 1)) {
           const int bin = (int)fbin[j];
           beam_dE[i + j] += beam_dt[i + j] * voltageKick[bin] + factor[bin];
+        } else {
+          // Out of range only the interpolated voltage is undefined.
+          // acc_kick carries the reference energy change, which applies
+          // to the whole beam (factor[] already folds it in above).
+          beam_dE[i + j] += acc_kick;
         }
       }
     }
@@ -114,17 +119,26 @@ extern "C" void linear_interp_kick_sparse(
       const real_t dt = beam_dt[i];
       const int bucket_i =
           (int)std::floor((dt - first_left_cut) * inv_hist_dist);
-      if (bucket_i < 0 || bucket_i >= n_buckets)
+      // A particle that gets no interpolated voltage still receives
+      // acc_kick -- notably one in an *unfilled* bucket, which is fully
+      // inside the turn.
+      if (bucket_i < 0 || bucket_i >= n_buckets) {
+        beam_dE[i] += acc_kick;
         continue;
-      if (!filling_pattern[bucket_i])
+      }
+      if (!filling_pattern[bucket_i]) {
+        beam_dE[i] += acc_kick;
         continue;
+      }
 
       const real_t cut_left = first_left_cut + bucket_i * left_cut_distance;
       const real_t bucket_bin_center0 = cut_left + bin_width / real_t(2);
       const int local_bin =
           (int)std::floor((dt - bucket_bin_center0) * inv_bin_width);
-      if (local_bin < 0 || local_bin >= bins_per_profile - 1)
+      if (local_bin < 0 || local_bin >= bins_per_profile - 1) {
+        beam_dE[i] += acc_kick;
         continue;
+      }
 
       const int bin = bucket_index_to_memory_index[bucket_i] + local_bin;
       beam_dE[i] += dt * voltageKick[bin] + factor[bin];

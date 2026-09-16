@@ -511,6 +511,13 @@ class PythonSpecials(Specials):
             for i in range(len(dt)):
                 if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
                     dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+                else:
+                    # Only the interpolated voltage is undefined outside
+                    # the window. `acceleration_kick` carries the
+                    # reference energy change, which applies to the whole
+                    # beam, so it must still be applied here (`helper2`
+                    # already folds it in for in-window particles).
+                    dE[i] += acceleration_kick
             return
 
         n_buckets = len(filling_pattern)
@@ -518,9 +525,15 @@ class PythonSpecials(Specials):
         bin_width = cut_width / bins_per_profile
         for i in range(len(dt)):
             bucket_i = int(np.floor((dt[i] - first_left_cut) * inv_hist_dist))
+            # A particle with no interpolated voltage still receives
+            # `acceleration_kick` (the reference energy change applies to
+            # the whole beam) -- in particular one sitting in an *unfilled*
+            # bucket, which is fully inside the turn.
             if bucket_i < 0 or bucket_i >= n_buckets:
+                dE[i] += acceleration_kick
                 continue
             if not filling_pattern[bucket_i]:
+                dE[i] += acceleration_kick
                 continue
             cut_left = first_left_cut + bucket_i * left_cut_distance
             bucket_bin_center0 = cut_left + bin_width / 2.0
@@ -528,6 +541,7 @@ class PythonSpecials(Specials):
                 np.floor((dt[i] - bucket_bin_center0) * inv_bin_width)
             )
             if local_bin < 0 or local_bin >= bins_per_profile - 1:
+                dE[i] += acceleration_kick
                 continue
             fbin = bucket_index_to_memory_index[bucket_i] + local_bin
             dE[i] += dt[i] * helper1[fbin] + helper2[fbin]

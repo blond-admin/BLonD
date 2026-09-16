@@ -271,6 +271,11 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     if ((fbin < n_slices - 1) && (fbin >= 0))
       beam_dE[i] += beam_dt[i] * glob_vkick_factor[2 * fbin] +
                     glob_vkick_factor[2 * fbin + 1];
+    else
+      // Out of range only the interpolated voltage is undefined; acc_kick
+      // carries the reference energy change and applies to the whole beam
+      // (glob_vkick_factor already folds it in for in-range particles).
+      beam_dE[i] += acc_kick;
   }
 }
 
@@ -306,6 +311,7 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                    const int bins_per_profile, const int n_buckets,
                    const bool *__restrict__ filling_pattern,
                    const int *__restrict__ bucket_index_to_memory_index,
+                   const real_t acc_kick,
                    real_t *__restrict__ glob_vkick_factor) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
@@ -315,16 +321,25 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = beam_dt[i];
     const int bucket_i = (int)floor((dt - first_left_cut) * inv_hist_dist);
-    if (bucket_i < 0 || bucket_i >= n_buckets)
+    // A particle that gets no interpolated voltage still receives
+    // acc_kick -- notably one in an *unfilled* bucket, which is fully
+    // inside the turn.
+    if (bucket_i < 0 || bucket_i >= n_buckets) {
+      beam_dE[i] += acc_kick;
       continue;
-    if (!filling_pattern[bucket_i])
+    }
+    if (!filling_pattern[bucket_i]) {
+      beam_dE[i] += acc_kick;
       continue;
+    }
 
     const real_t cut_left = first_left_cut + bucket_i * left_cut_distance;
     const real_t bucket_bin_center0 = cut_left + bin_width / real_t(2);
     const int local_bin = (int)floor((dt - bucket_bin_center0) * inv_bin_width);
-    if (local_bin < 0 || local_bin >= bins_per_profile - 1)
+    if (local_bin < 0 || local_bin >= bins_per_profile - 1) {
+      beam_dE[i] += acc_kick;
       continue;
+    }
 
     const int fbin = bucket_index_to_memory_index[bucket_i] + local_bin;
     beam_dE[i] +=
