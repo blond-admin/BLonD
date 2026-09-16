@@ -1069,7 +1069,13 @@ class TestSpecials(unittest.TestCase):
         ``unsigned``, which is undefined behaviour for negative values: on
         x86 it happens to produce a huge value that is skipped, but e.g. on
         ARM the conversion saturates to 0 and such particles would wrongly
-        receive the kick of bin 0.
+        receive the kick of bin 0. The range check must therefore happen
+        in floating point, before the conversion to an integer bin index.
+
+        ``dt`` is assumed finite -- the kernels are compiled with
+        ``-ffast-math``/``fastmath=True``, which lets the compiler assume
+        no operand is NaN or infinite -- so only finite outliers are
+        covered here.
 
         ``acceleration_kick`` is excluded from that reasoning: it carries
         the reference energy change and applies to the whole beam, so it is
@@ -1078,7 +1084,16 @@ class TestSpecials(unittest.TestCase):
         """
         dtype = np.float64
         dt_np = np.array(
-            [-1e30, -1e12, -4.5, 0.0, 4.5, 1e12, 1e30], dtype=dtype
+            [
+                -1e30,
+                -1e12,
+                -4.5,
+                0.0,
+                4.5,
+                1e12,
+                1e30,
+            ],
+            dtype=dtype,
         )
         in_range = np.zeros_like(dt_np, dtype=bool)
         in_range[3] = True  # only dt = 0.0 is inside bin_centers [-4, 4]
@@ -1510,6 +1525,62 @@ class TestSpecials(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse_extreme_outliers(self) -> None:
+        """Extreme ``dt`` must receive no sparse kick.
+
+        Their bucket/bin indices are not representable as an ``int``, so
+        the range check must happen in floating point before the
+        conversion; otherwise the undefined conversion result decides
+        whether the particle is kicked.
+        """
+        dtype = np.float64
+        bins_per_profile = 4
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        dt_np = np.array([1e30, -1e30], dtype=dtype)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(dt_np, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            voltage = backend.array(
+                np.array([1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+                dtype=backend.float,
+            )
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            bin_centers = backend.array(
+                np.arange(8) * 0.25, dtype=backend.float
+            )
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(1.0),
+                acceleration_kick=backend.float(0.0),
+                first_left_cut=0.0,
+                left_cut_distance=1.0,
+                cut_width=1.0,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result = copy_to_cpu(dE)
+            np.testing.assert_array_equal(
+                result,
+                np.zeros_like(dt_np),
+                err_msg=f"Failed `{special}` {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_sparse_single_bucket_bit_exact(self) -> None:
         """With exactly one filled bucket, the sparse path's per-particle
         bucket resolution must degenerate to *bit-exact* the same
@@ -1652,18 +1723,35 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_extreme_outliers(self) -> None:
-        """Histogram must ignore values of extreme magnitude.
+        """Histogram must ignore extreme values.
 
         Bin indices of such values overflow ``int``; the conversion is
-        undefined behaviour in C++ and must not be relied on. Also pins
-        the edge semantics: ``== start`` is counted in the first bin,
-        ``== stop`` in the last bin.
+        undefined behaviour in C/C++ and must not be relied on, so the
+        range check has to happen in floating point *before* the
+        conversion. Also pins the edge semantics: ``== start`` is
+        counted in the first bin, ``== stop`` in the last bin.
+
+        ``n_bins = 21`` exercises the CUDA shared-memory histogram; the
+        large ``n_bins`` exceeds the shared-memory budget and exercises
+        the hybrid kernel instead.
         """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_ignores_extreme_outliers(n_bins)
+
+    def _assert_histogram_ignores_extreme_outliers(self, n_bins: int) -> None:
         dtype = np.float64
         values_np = np.array(
-            [-1e30, -1e12, -12.0, 0.0, 8.0, 1e12, 1e30], dtype=dtype
+            [
+                -1e30,
+                -1e12,
+                -12.0,
+                0.0,
+                8.0,
+                1e12,
+                1e30,
+            ],
+            dtype=dtype,
         )
-        n_bins = 21
         expected = np.zeros(n_bins, dtype=dtype)
         expected[0] += 1  # -12.0 == start
         expected[int((0.0 - -12.0) / 20.0 * n_bins)] += 1  # 0.0
@@ -2843,7 +2931,9 @@ class TestSpecials(unittest.TestCase):
         Regression test: the numba backend truncated negative float bin
         indices toward zero (``int(-0.5) == 0``), so a particle up to one
         bin width left of ``first_left_cut`` was counted into bin 0 of the
-        first profile.
+        first profile. Extreme values are covered too: their bucket
+        index is not representable as an ``int``, so the range check must
+        happen in floating point before the conversion.
         """
         dtype = np.float64
         bins_per_profile = 4  # bin width = cut_width / 4 = 1
@@ -2863,6 +2953,8 @@ class TestSpecials(unittest.TestCase):
                 -20.5,  # more than one bucket distance left of first cut
                 8.5,  # just right of window [4,8], in a gap
                 24.5,  # just right of last window [20,24]
+                1e30,  # bucket index overflows int
+                -1e30,
                 # inside windows, must be counted
                 -11.5,  # profile 0, bin 0
                 5.5,  # profile 1, bin 1
