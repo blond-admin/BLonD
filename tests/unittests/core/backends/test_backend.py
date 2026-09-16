@@ -11,12 +11,14 @@ from scipy.constants import elementary_charge
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
+    INDEX_DTYPE,
     Cupy64Bit,
     CupyBackend,
     Numpy64Bit,
     NumpyBackend,
     backend,
 )
+from blond.core.backends.cpp.callables import check_index_abi
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -2015,7 +2017,7 @@ class TestSpecials(unittest.TestCase):
             flags[[0, 1, -1]] = 0
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2094,7 +2096,7 @@ class TestSpecials(unittest.TestCase):
             dE = backend.array(
                 backend.linspace(0, 10, len(flags)), backend.float
             )
-            ids = backend.array(backend.arange(0, len(flags)), np.int32)
+            ids = backend.array(backend.arange(0, len(flags)), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2140,7 +2142,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2170,7 +2172,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2199,7 +2201,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -3463,7 +3465,7 @@ class TestSpecials(unittest.TestCase):
                 dE = backend.array(
                     backend.linspace(0, 1, n), dtype=backend.float
                 )
-                ids = backend.arange(0, n, dtype=np.int32)
+                ids = backend.arange(0, n, dtype=INDEX_DTYPE)
                 n_new = int(
                     backend.specials.move_flagged_elements_to_end(
                         flag=0,
@@ -3521,7 +3523,7 @@ class TestSpecials(unittest.TestCase):
             flags = backend.zeros(0, dtype=np.int32)
             dt = backend.zeros(0, dtype=backend.float)
             dE = backend.zeros(0, dtype=backend.float)
-            ids = backend.zeros(0, dtype=np.int32)
+            ids = backend.zeros(0, dtype=INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=0,
                 flags=flags,
@@ -4039,6 +4041,84 @@ class TestSpecials(unittest.TestCase):
 
     def test_import(self):
         pass
+
+
+class _StubLibrary:
+    """Minimal stand-in for ``libblond``'s two ABI-reporting exports."""
+
+    def __init__(self, size: int, is_signed: int) -> None:
+        self._size = size
+        self._is_signed = is_signed
+
+    def blond_index_t_size(self) -> int:
+        """Report the stubbed ``sizeof(index_t)``."""
+        return self._size
+
+    def blond_index_t_is_signed(self) -> int:
+        """Report the stubbed signedness of ``index_t``."""
+        return self._is_signed
+
+
+class TestCppIndexAbi(unittest.TestCase):
+    """The compiled ``index_t`` must agree with ``INDEX_DTYPE``.
+
+    ctypes validates nothing about the integer widths it passes, so a
+    disagreement between ``blond_common.h`` and ``INDEX_DTYPE`` corrupts
+    memory inside the particle loops instead of raising. These tests pin
+    the guard that turns it into a load-time failure.
+    """
+
+    def setUp(self) -> None:
+        self.original_backend = type(backend)
+        self.original_backend_specials_mode = backend.specials_mode
+        self.dtype = np.dtype(INDEX_DTYPE)
+
+    def tearDown(self) -> None:
+        backend.change_backend(self.original_backend)
+        backend.set_specials(self.original_backend_specials_mode)
+
+    @pytest.mark.backend_mutation
+    def test_real_cpp_backend_loads_and_is_checked(self) -> None:
+        """Selecting the cpp backend runs the guard and must not raise.
+
+        The cpp specials only exist on a NumPy backend, so the backend
+        class is switched first -- on a CuPy backend (``BLOND_BACKEND_MODE
+        =cuda``) ``set_specials("cpp")`` raises ``UnknownBackendMode``.
+        """
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
+        self.assertEqual(backend.specials_mode, "cpp")
+
+    def test_check_passes_when_the_library_agrees(self) -> None:
+        """A library matching ``INDEX_DTYPE`` is accepted silently."""
+        library = _StubLibrary(
+            self.dtype.itemsize, int(self.dtype.kind == "i")
+        )
+        check_index_abi(library)
+
+    def test_check_detects_a_width_mismatch(self) -> None:
+        """A library compiled with a narrower ``index_t`` is rejected."""
+        library = _StubLibrary(
+            self.dtype.itemsize // 2, int(self.dtype.kind == "i")
+        )
+        with self.assertRaises(AssertionError) as caught:
+            check_index_abi(library)
+        self.assertIn("index_t ABI mismatch", str(caught.exception))
+
+    def test_check_detects_a_signedness_mismatch(self) -> None:
+        """Matching width but the wrong signedness is still rejected."""
+        library = _StubLibrary(
+            self.dtype.itemsize, int(self.dtype.kind != "i")
+        )
+        with self.assertRaises(AssertionError) as caught:
+            check_index_abi(library)
+        self.assertIn("signedness", str(caught.exception))
+
+    def test_check_rejects_a_library_without_the_exports(self) -> None:
+        """A library predating the exports cannot be verified, so it fails."""
+        with self.assertRaises(RuntimeError) as caught:
+            check_index_abi(object())
+        self.assertIn("blond-compile-cpp", str(caught.exception))
 
 
 if __name__ == "__main__":

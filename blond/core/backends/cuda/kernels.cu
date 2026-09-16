@@ -12,14 +12,18 @@ typedef float real_t;
 typedef double real_t;
 #endif
 
+// Integer type of macro-particle counts and particle loop counters.
+// Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
+typedef long long index_t;
+
 extern "C" __global__ void drift_simple(real_t *__restrict__ beam_dt,
                                         real_t *__restrict__ beam_dE,
                                         const real_t T, const real_t eta_zero,
                                         const real_t beta, const real_t energy,
-                                        const int n_macroparticles) {
+                                        const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   real_t coeff = T * eta_zero / (beta * beta * energy);
-  for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x)
+  for (index_t i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x)
     beam_dt[i] += coeff * beam_dE[i];
 }
 
@@ -59,19 +63,19 @@ extern "C" __global__ void kick_multi_harmonic(
     real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE, const int n_rf,
     const real_t charge, const real_t *__restrict__ voltage,
     const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
-    const int n_macroparticles, const real_t acc_kick) {
+    const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   real_t my_beam_dt;
   real_t my_beam_dE;
 
   if (n_rf == 1) {
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x)
+    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x)
       beam_dE[i] +=
           charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
           acc_kick;
 
   } else if (n_rf == 2) {
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
       const real_t dE_sum =
           (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
            charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]));
@@ -79,7 +83,7 @@ extern "C" __global__ void kick_multi_harmonic(
     }
 
   } else if (n_rf == 3) {
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
       const real_t dE_sum =
           (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
            charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
@@ -87,7 +91,7 @@ extern "C" __global__ void kick_multi_harmonic(
       beam_dE[i] += dE_sum + acc_kick;
     }
   } else if (n_rf == 4) {
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
       const real_t dE_sum =
           (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
            charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
@@ -96,7 +100,7 @@ extern "C" __global__ void kick_multi_harmonic(
       beam_dE[i] += dE_sum + acc_kick;
     }
   } else {
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
       my_beam_dt = beam_dt[i];
       my_beam_dE = beam_dE[i];
       for (int j = 0; j < n_rf; j++) {
@@ -164,8 +168,8 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
 extern "C" __global__ void
 hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t cut_left, const real_t cut_right,
-                 const unsigned int n_slices,
-                 const unsigned int n_macroparticles, const int capacity) {
+                 const unsigned int n_slices, const index_t n_macroparticles,
+                 const int capacity) {
   extern __shared__ int block_hist[];
   //reset shared memory
   for (int i = threadIdx.x; i < capacity; i += blockDim.x)
@@ -178,7 +182,7 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   const int low_tbin = (n_slices / 2) - (capacity / 2);
   const int high_tbin = low_tbin + capacity;
 
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     if (input[i] == cut_right) {
       target_bin = n_slices - 1;
       if (target_bin >= low_tbin && target_bin < high_tbin)
@@ -203,7 +207,7 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
 extern "C" __global__ void
 sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
              const real_t cut_left, const real_t cut_right,
-             const unsigned int n_slices, const unsigned int n_macroparticles) {
+             const unsigned int n_slices, const index_t n_macroparticles) {
   extern __shared__ int block_hist[];
   for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
     block_hist[i] = 0;
@@ -211,7 +215,7 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   int const tid = threadIdx.x + blockDim.x * blockIdx.x;
   int target_bin;
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     target_bin = floor((input[i] - cut_left) * inv_bin_width);
 
     if (input[i] == cut_right) {
@@ -234,7 +238,7 @@ extern "C" __global__ void
 lik_only_gm_copy(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                  const real_t *__restrict__ voltage_array,
                  const real_t *__restrict__ bin_centers, const real_t charge,
-                 const int n_slices, const int n_macroparticles,
+                 const int n_slices, const index_t n_macroparticles,
                  const real_t acc_kick,
                  real_t *__restrict__ glob_vkick_factor) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -254,7 +258,7 @@ extern "C" __global__ void
 lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                  const real_t *__restrict__ voltage_array,
                  const real_t *__restrict__ bin_centers, const real_t charge,
-                 const int n_slices, const int n_macroparticles,
+                 const int n_slices, const index_t n_macroparticles,
                  const real_t acc_kick,
                  real_t *__restrict__ glob_vkick_factor) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -262,7 +266,7 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
   int fbin;
   const real_t bin0 = bin_centers[0];
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     fbin = floor((beam_dt[i] - bin0) * inv_bin_width);
     if ((fbin < n_slices - 1) && (fbin >= 0))
       beam_dE[i] += beam_dt[i] * glob_vkick_factor[2 * fbin] +
@@ -297,7 +301,7 @@ lik_sparse_gm_copy(const real_t *__restrict__ voltage_array,
 
 extern "C" __global__ void
 lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
-                   const int n_macroparticles, const real_t first_left_cut,
+                   const index_t n_macroparticles, const real_t first_left_cut,
                    const real_t left_cut_distance, const real_t cut_width,
                    const int bins_per_profile, const int n_buckets,
                    const bool *__restrict__ filling_pattern,
@@ -308,7 +312,7 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
   const real_t bin_width = cut_width / real_t(bins_per_profile);
 
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = beam_dt[i];
     const int bucket_i = (int)floor((dt - first_left_cut) * inv_hist_dist);
     if (bucket_i < 0 || bucket_i >= n_buckets)
@@ -332,9 +336,9 @@ extern "C" __global__ void loss_box(const real_t e_max, const real_t e_min,
                                     const real_t t_min, const real_t t_max,
                                     const real_t *dt, const real_t *dE,
                                     int *__restrict__ flags,
-                                    const int n_macroparticles) {
+                                    const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
     const bool outside = (dE[i] > e_max) || (dE[i] < e_min) ||
                          (dt[i] < t_min) || (dt[i] > t_max);
     if (outside) {
@@ -371,10 +375,10 @@ curand_standard_normal(curandStatePhilox4_32_10_t *state) {
 
 extern "C" __global__ void apply_sr_without_quantum_excitation(
     real_t *__restrict__ beam_dE, const real_t damping_factor,
-    const real_t energy_lost, const int n_macroparticles) {
+    const real_t energy_lost, const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   int stride = blockDim.x * gridDim.x;
-  for (int i = tid; i < n_macroparticles; i += stride) {
+  for (index_t i = tid; i < n_macroparticles; i += stride) {
     beam_dE[i] = damping_factor * beam_dE[i] - energy_lost;
   }
 }
@@ -382,7 +386,7 @@ extern "C" __global__ void apply_sr_without_quantum_excitation(
 extern "C" __global__ void apply_sr_with_quantum_excitation(
     real_t *__restrict__ beam_dE, const real_t damping_factor,
     const real_t energy_lost, const real_t noise_scale,
-    const unsigned long long base_seed, const int n_macroparticles) {
+    const unsigned long long base_seed, const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   int stride = blockDim.x * gridDim.x;
 
@@ -392,7 +396,7 @@ extern "C" __global__ void apply_sr_with_quantum_excitation(
   curandStatePhilox4_32_10_t state;
   curand_init(base_seed, tid, 0, &state);
 
-  for (int i = tid; i < n_macroparticles; i += stride) {
+  for (index_t i = tid; i < n_macroparticles; i += stride) {
     beam_dE[i] = damping_factor * beam_dE[i] - energy_lost +
                  noise_scale * curand_standard_normal(&state);
   }
@@ -404,13 +408,13 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
                                        const real_t *__restrict__ higher_alpha,
                                        const int n_alpha, const real_t beta,
                                        const real_t energy,
-                                       const int n_macroparticles) {
+                                       const index_t n_macroparticles) {
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
   const real_t inv_energy_sq = inv_energy * inv_energy;
 
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
 
     const real_t dE = beam_dE[i];
 
@@ -437,7 +441,7 @@ extern "C" __global__ void
 histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t first_left_cut, const real_t left_cut_distance,
                  const real_t cut_width, const int bins_per_profile,
-                 const int n_buckets, const int n_macroparticles,
+                 const int n_buckets, const index_t n_macroparticles,
                  const bool *__restrict__ filling_pattern,
                  const int *__restrict__ bucket_index_to_memory_index) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -447,7 +451,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
 
   // Loop through input particles and update histograms in shared memory
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = input[i];
 
     const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
