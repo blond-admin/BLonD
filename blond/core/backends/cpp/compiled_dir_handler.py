@@ -259,14 +259,7 @@ def build_options_valid(options: dict, expected_keys: Sequence[str]) -> bool:
 
     dry_run_flags = []
     if options.get("optimize_for_local_cpu", True):
-        # `-fno-finite-math-only` mirrors `_prepare_cflags`: it undoes
-        # the `-ffinite-math-only` that `-ffast-math` implies, so the
-        # binning kernels' NaN/Inf range checks survive optimisation.
-        dry_run_flags += [
-            "-march=native",
-            "-ffast-math",
-            "-fno-finite-math-only",
-        ]
+        dry_run_flags += ["-march=native", "-ffast-math"]
     dry_run_flags += (options.get("flags") or "").split()
 
     return (

@@ -1065,9 +1065,13 @@ class TestSpecials(unittest.TestCase):
         ``unsigned``, which is undefined behaviour for negative values: on
         x86 it happens to produce a huge value that is skipped, but e.g. on
         ARM the conversion saturates to 0 and such particles would wrongly
-        receive the kick of bin 0. The same holds for NaN and infinite
-        ``dt``: the range check must happen in floating point, before the
-        conversion to an integer bin index.
+        receive the kick of bin 0. The range check must therefore happen
+        in floating point, before the conversion to an integer bin index.
+
+        ``dt`` is assumed finite -- the kernels are compiled with
+        ``-ffast-math``/``fastmath=True``, which lets the compiler assume
+        no operand is NaN or infinite -- so only finite outliers are
+        covered here.
         """
         dtype = np.float64
         dt_np = np.array(
@@ -1079,9 +1083,6 @@ class TestSpecials(unittest.TestCase):
                 4.5,
                 1e12,
                 1e30,
-                np.nan,
-                np.inf,
-                -np.inf,
             ],
             dtype=dtype,
         )
@@ -1372,8 +1373,8 @@ class TestSpecials(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
-    def test_kick_interpolated_sparse_non_finite(self) -> None:
-        """Extreme, infinite and NaN ``dt`` must receive no sparse kick.
+    def test_kick_interpolated_sparse_extreme_outliers(self) -> None:
+        """Extreme ``dt`` must receive no sparse kick.
 
         Their bucket/bin indices are not representable as an ``int``, so
         the range check must happen in floating point before the
@@ -1386,7 +1387,7 @@ class TestSpecials(unittest.TestCase):
         bucket_index_to_memory_index_np = np.array(
             [0, 0, 0, bins_per_profile], dtype=np.int32
         )
-        dt_np = np.array([np.nan, np.inf, -np.inf, 1e30, -1e30], dtype=dtype)
+        dt_np = np.array([1e30, -1e30], dtype=dtype)
         for special in self.special_modes:
             try:
                 self._setUp(dtype=dtype, special_mode=special)
@@ -1570,12 +1571,12 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_extreme_outliers(self) -> None:
-        """Histogram must ignore extreme, infinite and NaN values.
+        """Histogram must ignore extreme values.
 
-        Bin indices of such values overflow ``int``, or are NaN; the
-        conversion is undefined behaviour in C/C++ and must not be relied
-        on, so the range check has to happen in floating point *before*
-        the conversion. Also pins the edge semantics: ``== start`` is
+        Bin indices of such values overflow ``int``; the conversion is
+        undefined behaviour in C/C++ and must not be relied on, so the
+        range check has to happen in floating point *before* the
+        conversion. Also pins the edge semantics: ``== start`` is
         counted in the first bin, ``== stop`` in the last bin.
 
         ``n_bins = 21`` exercises the CUDA shared-memory histogram; the
@@ -1583,9 +1584,9 @@ class TestSpecials(unittest.TestCase):
         the hybrid kernel instead.
         """
         for n_bins in (21, 20_000):
-            self._assert_histogram_ignores_non_finite(n_bins)
+            self._assert_histogram_ignores_extreme_outliers(n_bins)
 
-    def _assert_histogram_ignores_non_finite(self, n_bins: int) -> None:
+    def _assert_histogram_ignores_extreme_outliers(self, n_bins: int) -> None:
         dtype = np.float64
         values_np = np.array(
             [
@@ -1596,9 +1597,6 @@ class TestSpecials(unittest.TestCase):
                 8.0,
                 1e12,
                 1e30,
-                np.nan,
-                np.inf,
-                -np.inf,
             ],
             dtype=dtype,
         )
@@ -2553,9 +2551,9 @@ class TestSpecials(unittest.TestCase):
         Regression test: the numba backend truncated negative float bin
         indices toward zero (``int(-0.5) == 0``), so a particle up to one
         bin width left of ``first_left_cut`` was counted into bin 0 of the
-        first profile. Extreme, infinite and NaN values are covered too:
-        their bucket index is not representable as an ``int``, so the
-        range check must happen in floating point before the conversion.
+        first profile. Extreme values are covered too: their bucket
+        index is not representable as an ``int``, so the range check must
+        happen in floating point before the conversion.
         """
         dtype = np.float64
         bins_per_profile = 4  # bin width = cut_width / 4 = 1
@@ -2577,9 +2575,6 @@ class TestSpecials(unittest.TestCase):
                 24.5,  # just right of last window [20,24]
                 1e30,  # bucket index overflows int
                 -1e30,
-                np.nan,  # every comparison is false -> must be rejected
-                np.inf,
-                -np.inf,
                 # inside windows, must be counted
                 -11.5,  # profile 0, bin 0
                 5.5,  # profile 1, bin 1

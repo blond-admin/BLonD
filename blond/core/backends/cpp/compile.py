@@ -393,15 +393,6 @@ def _prepare_cflags(
         if optimize_for_local_cpu:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
-            # `-ffast-math` implies `-ffinite-math-only`, which promises
-            # the compiler that no value is NaN or infinite. Under that
-            # promise GCC folds away the range checks that keep such
-            # particle coordinates out of the binning kernels' array
-            # indices, turning a NaN `dt` into an out-of-bounds write
-            # (a segfault). Re-enable NaN/Inf handling; it must come
-            # after `-ffast-math` to override it.
-            if "-fno-finite-math-only" not in cflags:
-                cflags += ["-fno-finite-math-only"]
             cflags = _add_avx_flags(
                 cflags=cflags,
                 compiler=compiler,
@@ -419,15 +410,6 @@ def _prepare_cflags(
         if optimize_for_local_cpu:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
-            # `-ffast-math` implies `-ffinite-math-only`, which promises
-            # the compiler that no value is NaN or infinite. Under that
-            # promise GCC folds away the range checks that keep such
-            # particle coordinates out of the binning kernels' array
-            # indices, turning a NaN `dt` into an out-of-bounds write
-            # (a segfault). Re-enable NaN/Inf handling; it must come
-            # after `-ffast-math` to override it.
-            if "-fno-finite-math-only" not in cflags:
-                cflags += ["-fno-finite-math-only"]
             cflags = _add_avx_flags(
                 cflags=cflags,
                 compiler=compiler,

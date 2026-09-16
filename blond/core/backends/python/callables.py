@@ -506,10 +506,8 @@ class PythonSpecials(Specials):
 
         if not sparse:
             # Range-check in floating point *before* casting to an
-            # integer index: casting an out-of-range, infinite or NaN
-            # value is undefined (and warns). The check is in positive
-            # form so NaN -- for which every comparison is false -- is
-            # rejected too.
+            # integer index: a far-out particle scales past the integer
+            # range, where the cast is undefined (and warns).
             fbin = np.floor((dt - bin_centers[0]) * inv_bin_width)
             in_range = (fbin >= 0) & (fbin < n_slices - 1)
             for i in np.nonzero(in_range)[0]:
@@ -521,8 +519,8 @@ class PythonSpecials(Specials):
         inv_hist_dist = 1.0 / left_cut_distance
         bin_width = cut_width / bins_per_profile
         for i in range(len(dt)):
-            # Range-check before the conversion, in positive form -- see
-            # the dense branch above.
+            # Range-check before the conversion -- see the dense
+            # branch above.
             bucket_real = np.floor((dt[i] - first_left_cut) * inv_hist_dist)
             if not (0 <= bucket_real < n_buckets):
                 continue

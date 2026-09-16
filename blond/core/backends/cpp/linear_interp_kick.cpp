@@ -112,13 +112,11 @@ extern "C" void linear_interp_kick_sparse(
     for (int i = 0; i < n_macroparticles; i++) {
       const real_t dt = beam_dt[i];
       // Range-check in floating point *before* the conversion:
-      // converting an out-of-range, infinite or NaN value to `int` is
-      // undefined behaviour. Positive form, so NaN -- for which every
-      // comparison is false -- is rejected too. The dense loop above
-      // already does this.
+      // converting an out-of-range value to `int` is undefined
+      // behaviour. The dense loop above already does this.
       const real_t bucket_real =
           std::floor((dt - first_left_cut) * inv_hist_dist);
-      if (!(bucket_real >= real_t(0) && bucket_real < real_t(n_buckets)))
+      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
         continue;
       const int bucket_i = (int)bucket_real;
       if (!filling_pattern[bucket_i])
@@ -128,8 +126,8 @@ extern "C" void linear_interp_kick_sparse(
       const real_t bucket_bin_center0 = cut_left + bin_width / real_t(2);
       const real_t local_bin_real =
           std::floor((dt - bucket_bin_center0) * inv_bin_width);
-      if (!(local_bin_real >= real_t(0) &&
-            local_bin_real < real_t(bins_per_profile - 1)))
+      if (local_bin_real < real_t(0) ||
+          local_bin_real >= real_t(bins_per_profile - 1))
         continue;
       const int local_bin = (int)local_bin_real;
 

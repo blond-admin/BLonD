@@ -37,8 +37,8 @@ extern "C" void histogram(const real_t *__restrict__ input,
     memset(histo[id], 0, n_slices * sizeof(int));
     // Keep the bin index in double until it is range-checked: a float
     // cannot represent indices above 2^24 exactly, and converting an
-    // out-of-range, infinite or NaN double to int is undefined
-    // behaviour (on x86 it yields INT_MIN, i.e. a wild write).
+    // out-of-range double to int is undefined behaviour (on x86 it
+    // yields INT_MIN, i.e. a wild write).
     double fbin[STEP] = {-1};
 #pragma omp for
     for (int i = 0; i < n_macroparticles; i += STEP) {
@@ -57,9 +57,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
       }
       // Then update the corresponding bins
       for (int j = 0; j < loop_count; j++) {
-        // Positive form, so that NaN -- for which every comparison is
-        // false -- is rejected too.
-        if (!(fbin[j] >= 0.0 && fbin[j] < (double)n_slices))
+        if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices)
           continue;
         histo[id][(int)fbin[j]] += 1;
       }

@@ -182,12 +182,11 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
         atomicAdd(&(output[target_bin]), 1);
       continue;
     }
-    // Range-check in floating point *before* the conversion: converting
-    // an out-of-range, infinite or NaN value to `int` is undefined
-    // behaviour. The check is written in positive form so that NaN --
-    // for which every comparison is false -- is rejected too.
+    // Range-check in floating point *before* the conversion:
+    // converting an out-of-range value to `int` is undefined
+    // behaviour.
     real_t const target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
-    if (!(target_bin_real >= real_t(0) && target_bin_real < real_t(n_slices)))
+    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
       continue;
     target_bin = (int)target_bin_real;
     if (target_bin >= low_tbin && target_bin < high_tbin)
@@ -220,7 +219,7 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
 
     // See `hybrid_histogram`: range-check before converting to `int`.
     real_t const target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
-    if (!(target_bin_real >= real_t(0) && target_bin_real < real_t(n_slices)))
+    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
       continue;
     target_bin = (int)target_bin_real;
 
@@ -315,7 +314,7 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const real_t dt = beam_dt[i];
     // Range-check before the conversion to `int` (see `hybrid_histogram`).
     const real_t bucket_real = floor((dt - first_left_cut) * inv_hist_dist);
-    if (!(bucket_real >= real_t(0) && bucket_real < real_t(n_buckets)))
+    if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
       continue;
     const int bucket_i = (int)bucket_real;
     if (!filling_pattern[bucket_i])
@@ -325,8 +324,8 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const real_t bucket_bin_center0 = cut_left + bin_width / real_t(2);
     const real_t local_bin_real =
         floor((dt - bucket_bin_center0) * inv_bin_width);
-    if (!(local_bin_real >= real_t(0) &&
-          local_bin_real < real_t(bins_per_profile - 1)))
+    if (local_bin_real < real_t(0) ||
+        local_bin_real >= real_t(bins_per_profile - 1))
       continue;
     const int local_bin = (int)local_bin_real;
 
@@ -460,7 +459,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
 
     // Range-check before the conversion to `int` (see `hybrid_histogram`).
     const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
-    if (!(bucket_real >= real_t(0) && bucket_real < real_t(n_buckets)))
+    if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
       continue;
     const int bucket_i = (int)bucket_real;
     if (!filling_pattern[bucket_i]) {
@@ -476,7 +475,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
                 1);
       continue;
     }
-    if (!(dt >= cut_left && dt < cut_right))
+    if (dt < cut_left || dt >= cut_right)
       continue;
 
     // Calculate the bin index
