@@ -746,6 +746,258 @@ class TestRFBeamCurrent(unittest.TestCase):
         self.assertAlmostEqual(peak_rf_current, 2.9284593979, 7)
 
     @pytest.mark.backend_mutation
+    def test_downsample_gapped_profile(self):
+        """Charge from a gapped fine grid must reach the right coarse bucket.
+
+        `IQCavityFeedback.update_rf_variables` lays out the coarse grid as
+        ``rf_centers[k] = (k + 0.5 / n_periods_coarse) * T_s + dT`` with
+        ``omega_carrier == omega_rf``, so ``0.5 / n_p * T_s == pi / omega_c``
+        and the grid is ``k * T_s + pi / omega_c + dT``.  Inverting it for the
+        fine->coarse map therefore requires ``- dT``.
+
+        Every existing downsampling test slices its beam with a single
+        contiguous `StaticProfile`, so ``ind_fine`` steps by exactly 0 or 1
+        and the gap handling is never exercised.  This builds a fine grid
+        with real gaps -- islands sitting in coarse buckets 2, 3 and 7 --
+        which is what a non-contiguous filling pattern produces, and pins
+        which bucket each island's charge ends up in.
+
+        The three defects are separable here: an inverted ``dT`` shifts every
+        index by ``round(2 * dT / T_s)``, detecting coarse-index jumps with
+        ``== 1`` drops every group after the first gap, and deriving the
+        destination as ``i + ind_fine[0]`` assumes the occupied buckets are
+        contiguous.
+        """
+        n_periods_coarse = 1
+        omega_c = self.omega_rf
+        T_s = n_periods_coarse * 2 * np.pi / self.omega_rf
+        # 2 * dT / T_s = 0.6 rounds to a full bucket, so an inverted sign
+        # shows up as an off-by-one rather than cancelling in the rounding.
+        dT = 0.3 * T_s
+        n_points = 12
+
+        occupied = (2, 3, 7)
+        # The last group is only written out once a later transition closes
+        # it, so park an empty island behind the occupied ones.
+        closing_island = 9
+
+        bins_per_island = 5
+        fine_step = 0.02 * T_s
+        offsets = (np.arange(bins_per_island) - 2) * fine_step
+
+        hist_x = []
+        hist_y = []
+        for k in (*occupied, closing_island):
+            center = (k + 0.5 / n_periods_coarse) * T_s + dT
+            hist_x.append(center + offsets)
+            density = np.ones(bins_per_island)
+            # Groups are summed half-open, so each island's closing bin is
+            # attributed to the next group. Leave it empty: this test pins
+            # bucket assignment, not that pre-existing off-by-one.
+            density[-1] = 0.0
+            if k == closing_island:
+                density[:] = 0.0
+            hist_y.append(density)
+
+        self.profile._hist_x = np.concatenate(hist_x)
+        self.profile._hist_y = np.concatenate(hist_y)
+
+        _, charges_coarse = rf_beam_current(
+            self.beam,
+            self.profile,
+            omega_c,
+            use_lowpass_filter=False,
+            downsample={"Ts": T_s, "points": n_points},
+            dT=dT,
+        )
+
+        self.assertEqual(len(charges_coarse), n_points)
+        np.testing.assert_array_equal(
+            np.nonzero(np.abs(charges_coarse) > 0.0)[0],
+            np.array(occupied),
+            err_msg=(
+                "charge from a gapped fine grid landed in the wrong coarse "
+                "buckets"
+            ),
+        )
+
+    def _contiguous_fine_grid(self, first_bucket, n_buckets, bins_per_bucket):
+        """Build a fine grid covering whole coarse buckets, back to back.
+
+        Bin centres sit strictly inside their bucket, so no bin lands on a
+        rounding boundary and the expected coarse index of every bin is
+        unambiguous.
+        """
+        T_s = 2 * np.pi / self.omega_rf
+        frac = (np.arange(bins_per_bucket) + 0.5) / bins_per_bucket
+        hist_x = np.concatenate(
+            [
+                (k + frac) * T_s
+                for k in range(first_bucket, first_bucket + n_buckets)
+            ]
+        )
+        return T_s, hist_x
+
+    @staticmethod
+    def _expected_coarse(
+        charges_fine, first_bucket, bins_per_bucket, n_points
+    ):
+        """Independent oracle for `charges_coarse`.
+
+        On a contiguous grid built by `_contiguous_fine_grid`, fine bin `j`
+        lies in coarse bucket ``first_bucket + j // bins_per_bucket`` by
+        construction. Summing the fine charges under that membership uses
+        none of the index arithmetic under test.
+        """
+        expected = np.zeros(n_points, dtype=complex)
+        for j, charge in enumerate(charges_fine):
+            expected[first_bucket + j // bins_per_bucket] += charge
+        return expected
+
+    @pytest.mark.backend_mutation
+    def test_downsample_trailing_group_is_not_dropped(self):
+        """The final coarse group must be emitted, not silently discarded.
+
+        Groups are only written out once a *later* coarse-index transition
+        closes them, so charge sitting in the last group of the profile
+        never reached `charges_coarse` at all.
+
+        The charge occupies a single bin. One coarse bucket spans a full
+        RF period of the carrier, so charge spread evenly over a bucket
+        sums the demodulated phasor towards zero and the total-charge
+        comparison would lose most of its sensitivity.
+        """
+        bins_per_bucket = 4
+        n_points = 12
+        T_s, hist_x = self._contiguous_fine_grid(2, 2, bins_per_bucket)
+        hist_y = np.zeros(2 * bins_per_bucket)
+        hist_y[bins_per_bucket] = 1.0  # first bin of the final bucket
+
+        self.profile._hist_x = hist_x
+        self.profile._hist_y = hist_y
+
+        charges_fine, charges_coarse = rf_beam_current(
+            self.beam,
+            self.profile,
+            self.omega_rf,
+            use_lowpass_filter=False,
+            downsample={"Ts": T_s, "points": n_points},
+            dT=0.0,
+        )
+
+        self.assertNotEqual(
+            abs(charges_coarse[3]),
+            0.0,
+            msg="charge in the last coarse group was dropped",
+        )
+        np.testing.assert_allclose(
+            np.sum(charges_coarse),
+            np.sum(charges_fine),
+            rtol=1e-12,
+            err_msg="downsampling must not destroy charge",
+        )
+
+    @pytest.mark.backend_mutation
+    def test_downsample_boundary_bin_stays_in_its_bucket(self):
+        """A bin at the end of a bucket belongs to that bucket.
+
+        Groups were summed half-open, so each group took the *previous*
+        group's closing bin and lost its own: charge in the last bin of a
+        bucket was attributed to the neighbour, or dropped entirely.
+        """
+        bins_per_bucket = 4
+        n_points = 12
+        T_s, hist_x = self._contiguous_fine_grid(2, 2, bins_per_bucket)
+        hist_y = np.zeros(2 * bins_per_bucket)
+        hist_y[bins_per_bucket - 1] = 1.0  # closing bin of the first bucket
+
+        self.profile._hist_x = hist_x
+        self.profile._hist_y = hist_y
+
+        charges_fine, charges_coarse = rf_beam_current(
+            self.beam,
+            self.profile,
+            self.omega_rf,
+            use_lowpass_filter=False,
+            downsample={"Ts": T_s, "points": n_points},
+            dT=0.0,
+        )
+
+        self.assertNotEqual(
+            abs(charges_coarse[2]),
+            0.0,
+            msg="closing bin of a bucket was not counted in that bucket",
+        )
+        self.assertEqual(
+            abs(charges_coarse[3]),
+            0.0,
+            msg="closing bin of a bucket leaked into the next bucket",
+        )
+        np.testing.assert_allclose(
+            np.sum(charges_coarse),
+            np.sum(charges_fine),
+            rtol=1e-12,
+            err_msg="downsampling must not destroy charge",
+        )
+
+    @pytest.mark.backend_mutation
+    def test_downsample_matches_per_bucket_reference(self):
+        """Every fine bin's charge lands in the bucket it belongs to.
+
+        Stronger than a total-charge check: this pins each bucket
+        individually, so charge moved between neighbouring buckets is
+        caught even though it leaves the total untouched.
+        """
+        bins_per_bucket = 8
+        n_buckets = 5
+        first_bucket = 2
+        n_points = 12
+        T_s, hist_x = self._contiguous_fine_grid(
+            first_bucket, n_buckets, bins_per_bucket
+        )
+        # Fill two bins per bucket rather than the whole bucket: one coarse
+        # bucket spans a full RF period of the carrier, so an evenly filled
+        # bucket sums the demodulated phasor towards zero and both sides of
+        # the comparison would shrink against the per-bin charge scale.
+        rng = np.random.default_rng(1234)
+        hist_y = np.zeros(n_buckets * bins_per_bucket)
+        for bucket in range(n_buckets):
+            base = bucket * bins_per_bucket
+            hist_y[base + 1] = rng.uniform(0.5, 1.5)
+            hist_y[base + 3] = rng.uniform(0.5, 1.5)
+
+        self.profile._hist_x = hist_x
+        self.profile._hist_y = hist_y
+
+        charges_fine, charges_coarse = rf_beam_current(
+            self.beam,
+            self.profile,
+            self.omega_rf,
+            use_lowpass_filter=False,
+            downsample={"Ts": T_s, "points": n_points},
+            dT=0.0,
+        )
+
+        expected = self._expected_coarse(
+            charges_fine, first_bucket, bins_per_bucket, n_points
+        )
+        scale = float(np.max(np.abs(charges_fine)))
+        # Guard against this test silently going vacuous if the fill
+        # pattern is ever changed back to something that cancels.
+        self.assertGreater(
+            float(np.max(np.abs(expected))),
+            0.1 * scale,
+            msg="per-bucket reference cancelled; the test would be vacuous",
+        )
+        np.testing.assert_allclose(
+            charges_coarse,
+            expected,
+            rtol=1e-12,
+            atol=1e-12 * scale,
+            err_msg="coarse buckets do not match the per-bin reference",
+        )
+
+    @pytest.mark.backend_mutation
     def test_5(self):
         self.simulation.prepare_beam(
             beam=self.beam,

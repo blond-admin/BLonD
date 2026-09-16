@@ -443,15 +443,18 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.assertEqual(cavity_feedback.OTFB_1.open_ff, 0)
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 0)
 
+        # Re-pinned after the fine->coarse downsampling fix in
+        # `rf_beam_current`: bins closing a bucket, and the final group of
+        # the profile, are now filed in the bucket they belong to.
         target_mean_voltage_3sec = [
-            669693.8922412858,
-            719594.6231249172,
-            700716.0597870443,
+            669693.8922486353,
+            719594.8070593697,
+            700716.0194288772,
         ]
         target_mean_voltage_4sec = [
-            887723.7656973798,
-            991858.371108505,
-            957526.8680339582,
+            887723.7657190479,
+            991858.761124686,
+            957526.7869463584,
         ]
         np.testing.assert_allclose(
             output[0],
@@ -463,14 +466,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_voltage_3sec = [
-            669693.8922502627,
-            1353966.801056147,
-            1134006.369873736,
+            669693.8922576123,
+            1353965.4500615168,
+            1134003.6168921897,
         ]
         target_max_voltage_4sec = [
-            887723.7657088347,
-            2288145.950835744,
-            1885204.821227101,
+            887723.7657305031,
+            2288144.866450206,
+            1885200.63145257,
         ]
         np.testing.assert_allclose(
             output[2],
@@ -482,14 +485,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_mean_power_3sec = [
-            118552.70780873713,
-            118634.04286945327,
-            118835.5114545722,
+            118552.70779736809,
+            118634.04565331941,
+            118835.51496230552,
         ]
         target_mean_power_4sec = [
-            123909.11559327216,
-            124112.44113981347,
-            123737.62042847557,
+            123909.11556856189,
+            124112.44509720715,
+            123737.6231089213,
         ]
         np.testing.assert_allclose(
             output[4],
@@ -501,14 +504,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_power_3sec = [
-            118552.70791481061,
-            125515.57560204196,
-            156460.55283835143,
+            118552.70790173253,
+            125515.71298085267,
+            156460.77600711654,
         ]
         target_max_power_4sec = [
-            123909.11569149903,
-            135697.80857785046,
-            184763.7947763473,
+            123909.11566520514,
+            135697.93629812615,
+            184764.06356410417,
         ]
         np.testing.assert_allclose(
             output[6],
@@ -539,15 +542,18 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.assertEqual(cavity_feedback.OTFB_1.open_ff, 1)
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
 
+        # Re-pinned after the fine->coarse downsampling fix in
+        # `rf_beam_current`: bins closing a bucket, and the final group of
+        # the profile, are now filed in the bucket they belong to.
         target_mean_voltage_3sec = [
-            669693.8922412858,
-            719750.2763709549,
-            670134.4944808393,
+            669693.8922486353,
+            719750.4605183444,
+            670134.5059569699,
         ]
         target_mean_voltage_4sec = [
-            887723.7656973798,
-            992215.3445669926,
-            883823.0669048417,
+            887723.7657190479,
+            992215.7356887776,
+            883823.0956479887,
         ]
         np.testing.assert_allclose(
             output[0],
@@ -559,14 +565,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_voltage_3sec = [
-            669693.8922502627,
-            1353966.801056147,
-            744371.5534235353,
+            669693.8922576123,
+            1353965.4500615168,
+            744367.7850386172,
         ]
         target_max_voltage_4sec = [
-            887723.7657088347,
-            2288145.950835744,
-            1049911.8808480394,
+            887723.7657305031,
+            2288144.8664502054,
+            1049912.6832278883,
         ]
         np.testing.assert_allclose(
             output[2],
@@ -578,14 +584,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_mean_power_3sec = [
-            118552.70780873713,
-            119333.04968393837,
-            147777.61765445358,
+            118552.70779736809,
+            119333.04138898956,
+            147777.62667985447,
         ]
         target_mean_power_4sec = [
-            123909.11559327216,
-            125489.86623813033,
-            173491.12236045886,
+            123909.11556856189,
+            125489.89722797871,
+            173491.23294108812,
         ]
         np.testing.assert_allclose(
             output[4],
@@ -597,14 +603,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_power_3sec = [
-            118552.70791481061,
-            263030.6139606892,
-            756477.2050868174,
+            118552.70790173253,
+            263011.92048266775,
+            756495.2833374165,
         ]
         target_max_power_4sec = [
-            123909.11569149903,
-            347876.7127743392,
-            1181683.3857683493,
+            123909.11566520514,
+            347903.4186808292,
+            1181677.546313279,
         ]
         np.testing.assert_allclose(
             output[6],
@@ -634,15 +640,18 @@ class TestSPSCavityFeedback(unittest.TestCase):
             cavity_feedback, beam
         )
 
+        # Re-pinned after the fine->coarse downsampling fix in
+        # `rf_beam_current`: bins closing a bucket, and the final group of
+        # the profile, are now filed in the bucket they belong to.
         target_mean_voltage_4sec = [
-            986359.7396637555,
-            1087845.4111294912,
-            1054147.9821517656,
+            986359.7396878309,
+            1087845.7897898012,
+            1054147.9025203013,
         ]
         target_mean_voltage_5sec = [
-            1237766.6594053463,
-            1401106.087261154,
-            1345022.3575921939,
+            1237766.6594332857,
+            1401106.703039008,
+            1345022.2279759687,
         ]
         np.testing.assert_allclose(
             output[0],
@@ -654,14 +663,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_voltage_4sec = [
-            986359.7396764832,
-            2352372.3501146217,
-            1952416.74259459,
+            986359.7397005585,
+            2352369.7694568345,
+            1952412.6834651532,
         ]
         target_max_voltage_5sec = [
-            1237766.6594214134,
-            3456614.0311293746,
-            2806388.1290586162,
+            1237766.6594493522,
+            3456612.859736826,
+            2806382.6833722107,
         ]
         np.testing.assert_allclose(
             output[2],
@@ -673,14 +682,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_mean_power_4sec = [
-            152974.21678181743,
-            153184.438964153,
-            152422.63681253025,
+            152974.216751311,
+            153184.44292131442,
+            152422.63849829594,
         ]
         target_mean_power_5sec = [
-            146456.5969673544,
-            146818.49131173396,
-            148077.8242585613,
+            146456.59693920732,
+            146818.49816136423,
+            148077.83473305064,
         ]
         np.testing.assert_allclose(
             output[4],
@@ -692,14 +701,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_power_4sec = [
-            152974.21690113,
-            165080.96144978618,
-            211365.16790033312,
+            152974.21687062364,
+            165081.115900684,
+            211365.42587664814,
         ]
         target_max_power_5sec = [
-            146456.59708978832,
-            168548.10856555318,
-            256557.62510228768,
+            146456.59706164146,
+            168548.3343987422,
+            256557.97408495605,
         ]
         np.testing.assert_allclose(
             output[6],
@@ -735,15 +744,18 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.assertEqual(cavity_feedback.OTFB_1.open_ff, 0)
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
 
+        # Re-pinned after the fine->coarse downsampling fix in
+        # `rf_beam_current`: bins closing a bucket, and the final group of
+        # the profile, are now filed in the bucket they belong to.
         target_mean_voltage_3sec = [
-            669693.8922412858,
-            719594.6231249172,
-            700716.0597870443,
+            669693.8922486353,
+            719594.8070593697,
+            700716.0194288772,
         ]
         target_mean_voltage_4sec = [
-            887723.7656973798,
-            992215.3445669926,
-            883823.0669048417,
+            887723.7657190479,
+            992215.7356887776,
+            883823.0956479887,
         ]
         np.testing.assert_allclose(
             output[0],
@@ -755,14 +767,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_voltage_3sec = [
-            669693.8922502627,
-            1353966.801056147,
-            1134006.369873736,
+            669693.8922576123,
+            1353965.4500615168,
+            1134003.6168921897,
         ]
         target_max_voltage_4sec = [
-            887723.7657088347,
-            2288145.950835744,
-            1049911.8808480394,
+            887723.7657305031,
+            2288144.8664502054,
+            1049912.6832278883,
         ]
         np.testing.assert_allclose(
             output[2],
@@ -774,14 +786,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_mean_power_3sec = [
-            118552.70780873713,
-            118634.04286945327,
-            118835.5114545722,
+            118552.70779736809,
+            118634.04565331941,
+            118835.51496230552,
         ]
         target_mean_power_4sec = [
-            123909.11559327216,
-            125489.86623813033,
-            173491.12236045886,
+            123909.11556856189,
+            125489.89722797871,
+            173491.23294108812,
         ]
         np.testing.assert_allclose(
             output[4],
@@ -793,14 +805,14 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         target_max_power_3sec = [
-            118552.70791481061,
-            125515.57560204196,
-            156460.55283835143,
+            118552.70790173253,
+            125515.71298085267,
+            156460.77600711654,
         ]
         target_max_power_4sec = [
-            123909.11569149903,
-            347876.7127743392,
-            1181683.3857683493,
+            123909.11566520514,
+            347903.4186808292,
+            1181677.546313279,
         ]
         np.testing.assert_allclose(
             output[6],

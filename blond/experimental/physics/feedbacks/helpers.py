@@ -175,20 +175,27 @@ def rf_beam_current(
                 "Downsampling input erroneous in rf_beam_current"
             )
 
-        # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((profile.hist_x + dT - np.pi / omega_c) / T_s)
+        # Find which index in fine grid matches index in coarse grid.
+        # The coarse grid is `k * T_s + pi / omega_c + dT`, so inverting it
+        # for the fine->coarse map subtracts `dT`; adding it misplaced the
+        # beam-loading current by `round(2 * dT / T_s)` buckets.
+        ind_fine = np.round((profile.hist_x - dT - np.pi / omega_c) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
-        # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(
-            charges_fine[np.arange(indices[0])]
+        # Accumulate every fine bin into the bucket it belongs to. Walking
+        # contiguous runs instead dropped every group after a gap (their
+        # index jumps by more than one, and transitions were matched with
+        # `== 1`), summed each run over a half-open window so it took the
+        # previous run's closing bin and lost its own, and never emitted the
+        # final run at all. The modulo keeps charge straddling the end of
+        # the turn inside the array; `np.bincount` takes no complex weights,
+        # so real and imaginary parts are accumulated separately.
+        bucket = ind_fine % n_points
+        charges_coarse = np.bincount(
+            bucket, weights=charges_fine.real, minlength=n_points
+        ) + 1j * np.bincount(
+            bucket, weights=charges_fine.imag, minlength=n_points
         )
-        for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(
-                charges_fine[np.arange(indices[i - 1], indices[i])]
-            )
 
         return charges_fine, charges_coarse
 

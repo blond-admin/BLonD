@@ -214,20 +214,35 @@ def rf_beam_current(
         T_s = float(downsample["Ts"])
         n_points = int(downsample["points"])
 
-        # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((prof_time + dT - np.pi / omega_c) / T_s)
+        # Find which index in fine grid matches index in coarse grid.
+        # `IQCavityFeedback.update_rf_variables` lays the coarse grid out as
+        # `rf_centers[k] = (k + 0.5 / n_periods_coarse) * T_s + dT`, and it
+        # sets `omega_carrier == omega_rf`, so `0.5 / n_periods_coarse * T_s`
+        # is exactly `pi / omega_c` and the grid is
+        # `k * T_s + pi / omega_c + dT`. Inverting that for the
+        # fine->coarse map therefore *subtracts* `dT`; adding it misplaced
+        # the beam-loading current by `round(2 * dT / T_s)` buckets.
+        ind_fine = np.round((prof_time - dT - np.pi / omega_c) / T_s)
         ind_fine = ind_fine.astype(int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
-        # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(
-            charges_fine[np.arange(indices[0])]
+        # Accumulate every fine bin into the bucket it belongs to. Walking
+        # contiguous runs instead needed bookkeeping that went wrong three
+        # ways: transitions were detected with `== 1`, so a gap in the
+        # filling pattern (which jumps the index by more than one) went
+        # unrecorded and every later group was dropped; each run was summed
+        # over a half-open window, so it took the previous run's closing bin
+        # and lost its own; and the final run was never emitted, because a
+        # run was only written out once a later transition closed it.
+        # Scattering per bin has none of those failure modes and needs no
+        # run bookkeeping at all. The modulo keeps charge that straddles the
+        # end of the turn inside the array; `np.bincount` takes no complex
+        # weights, so real and imaginary parts are accumulated separately.
+        bucket = ind_fine % n_points
+        charges_coarse = np.bincount(
+            bucket, weights=charges_fine.real, minlength=n_points
+        ) + 1j * np.bincount(
+            bucket, weights=charges_fine.imag, minlength=n_points
         )
-        for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(
-                charges_fine[np.arange(indices[i - 1], indices[i])]
-            )
 
         return charges_fine, charges_coarse
 
