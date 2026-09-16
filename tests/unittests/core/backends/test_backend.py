@@ -3849,8 +3849,15 @@ class TestCppIndexAbi(unittest.TestCase):
         backend.change_backend(self.original_backend)
         backend.set_specials(self.original_backend_specials_mode)
 
+    @pytest.mark.backend_mutation
     def test_real_cpp_backend_loads_and_is_checked(self) -> None:
-        """Selecting the cpp backend runs the guard and must not raise."""
+        """Selecting the cpp backend runs the guard and must not raise.
+
+        The cpp specials only exist on a NumPy backend, so the backend
+        class is switched first -- on a CuPy backend (``BLOND_BACKEND_MODE
+        =cuda``) ``set_specials("cpp")`` raises ``UnknownBackendMode``.
+        """
+        backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
         self.assertEqual(backend.specials_mode, "cpp")
 
