@@ -381,7 +381,8 @@ workflow:
 
 precommit-check:
 
-  image: python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  # Harbor proxy cache: anonymous Docker Hub pulls get 429-throttled.
+  image: registry.cern.ch/docker.io/library/python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
   extends:
