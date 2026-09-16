@@ -140,17 +140,29 @@ def _find(
 
         # Check if object has the desired method
         if is_wanted(obj):
-            logger.info(f"Found {obj} at {where}")
+            # Lazy %-args, not an f-string: the message is only rendered
+            # if INFO is actually enabled, and ``obj`` here can be a
+            # whole beam or profile.
+            logger.info("Found %s at %s", obj, where)
             found.add(obj)
 
-        # Recurse into object attributes or container elements
+        # Recurse into object attributes or container elements.
+        #
+        # The breadcrumb is built from NAMES -- keys, indices, attribute
+        # names -- and never from the values being walked.  Interpolating
+        # the value instead made every numpy array in the tree render
+        # itself to text on every visit, to build a string for a log line
+        # that is almost never emitted: ~0.9 s of a 5-turn two-beam RCS
+        # run, a third of it inside ``numpy.arrayprint``.  Names are also
+        # the more useful path ("root.profile.hist_y" over a wall of
+        # digits).
         if isinstance(obj, dict):
             for key, value in obj.items():
-                _walk(key, skip_list, where + str(key))
-                _walk(value, skip_list, where + str(value))
+                _walk(key, skip_list, f"{where}[key]")
+                _walk(value, skip_list, f"{where}[{key!s:.40}]")
         elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
-            for item in obj:
-                _walk(item, skip_list, where + str(item))
+            for index, item in enumerate(obj):
+                _walk(item, skip_list, f"{where}[{index}]")
         elif hasattr(obj, "__dict__"):
             # checks if is python class
             for attr_name in obj.__dict__ if skip_properties else dir(obj):
@@ -166,7 +178,7 @@ def _find(
                     attr = getattr(obj, attr_name)
                 except Exception:
                     continue  # Skip attributes that raise errors on access
-                _walk(attr, skip_list, where + str(attr))
+                _walk(attr, skip_list, f"{where}.{attr_name}")
 
     _walk(
         root,

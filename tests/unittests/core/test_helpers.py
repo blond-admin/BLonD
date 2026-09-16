@@ -245,5 +245,76 @@ class TestNestedMocksHashingBug(unittest.TestCase):
         sim = Simulation(ring, cnst_cycle)  # NOQA
 
 
+class TestSearchDoesNotStringifyWhatItWalks(unittest.TestCase):
+    """The search must not render the objects it passes on the way.
+
+    ``find_instances_with_method`` keeps a breadcrumb of where it found
+    something.  Building that breadcrumb out of the *values* it walks
+    makes every numpy array in a simulation tree render itself to text on
+    every visit, for a log line that is almost never emitted -- on a
+    5-turn two-beam RCS run that was ~0.9 s of a 2.9 s run, a third of
+    it inside ``numpy.arrayprint``.  The breadcrumb is built from
+    attribute names, keys and indices instead, which costs nothing and
+    reads better.
+    """
+
+    class Loud:
+        """Stands in for a large array: expensive and loud to render."""
+
+        def __init__(self):
+            self.renders = 0
+
+        def __str__(self):
+            self.renders += 1
+            raise AssertionError("the search rendered a value it walked")
+
+        __repr__ = __str__
+
+    def test_values_on_the_path_are_never_rendered(self):
+        class Target:
+            def to_be_found(self):
+                pass
+
+        class Root:
+            pass
+
+        root = Root()
+        root.target = Target()
+        root.payload = self.Loud()
+        root.inside_a_list = [self.Loud(), Target()]
+        root.inside_a_dict = {"key": self.Loud()}
+
+        found = find_instances_with_method(
+            root=root, method_name="to_be_found"
+        )
+
+        self.assertEqual(len(found), 2)
+        self.assertEqual(root.payload.renders, 0)
+        self.assertEqual(root.inside_a_list[0].renders, 0)
+        self.assertEqual(root.inside_a_dict["key"].renders, 0)
+
+    def test_a_big_array_is_not_rendered_either(self):
+        """The real case: arrays are what a simulation tree is full of."""
+
+        class Target:
+            def to_be_found(self):
+                pass
+
+        class Root:
+            pass
+
+        root = Root()
+        root.target = Target()
+        root.big = np.arange(200_000, dtype=float)
+
+        with unittest.mock.patch(
+            "numpy.array2string", side_effect=AssertionError("rendered")
+        ):
+            found = find_instances_with_method(
+                root=root, method_name="to_be_found"
+            )
+        self.assertEqual(len(found), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
