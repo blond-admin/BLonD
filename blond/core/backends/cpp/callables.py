@@ -412,14 +412,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
         ) -> float:
             assert _is_valid((hist_x, floattype), (hist_y, floattype))
 
-            # Cast Python floats to backend floattype
-            alpha = floattype(alpha)
-            omega_rf = floattype(omega_rf)
-            phi_rf = floattype(phi_rf)
-            bin_size = floattype(bin_size)
-
-            # requires setting of _LIBBLOND.beam_phase.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.beam_phase.restype` set above; without it
+            # the C double is read as an int. The cast only matches the
+            # `floattype` scalar the other backends return.
             return floattype(
                 _LIBBLOND.beam_phase(
                     hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
@@ -627,8 +622,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
             assert _is_valid((array, floattype))
-            # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.sum_1d_array.restype` set above.
             return floattype(
                 _LIBBLOND.sum_1d_array(_get_pointer(array), _get_len(array))
             )
@@ -641,8 +635,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert _is_valid((array_1, floattype), (array_2, floattype))
             assert len(array_1) == len(array_2)
 
-            # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.dot_product_1d_array.restype` set above.
             return floattype(
                 _LIBBLOND.dot_product_1d_array(
                     _get_pointer(array_1),
@@ -669,6 +662,37 @@ def reload_cpp_backend(  # NOQA: PLR0915
             energy = floattype(energy)
 
             _LIBBLOND.drift_simple(
+                _get_pointer(dt),
+                _get_pointer(dE),
+                c_real(T, floattype),
+                c_real(eta_0, floattype),
+                c_real(beta, floattype),
+                c_real(energy, floattype),
+                _get_len(dt),
+            )
+
+        @staticmethod
+        def drift_like_line_segment(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
+        ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
+            _LIBBLOND.drift_like_line_segment(
                 _get_pointer(dt),
                 _get_pointer(dE),
                 c_real(T, floattype),
