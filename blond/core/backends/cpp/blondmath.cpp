@@ -86,11 +86,11 @@ void where_more_less_than(const real_t *__restrict__ data, const int n,
   }
 }
 
-int where(const real_t *__restrict__ dt, const int n_macroparticles,
+int where(const real_t *__restrict__ dt, const index_t n_macroparticles,
           const real_t constant1, const real_t constant2) {
   int s = 0;
 #pragma omp parallel for reduction(+ : s)
-  for (int i = 0; i < n_macroparticles; i++) {
+  for (index_t i = 0; i < n_macroparticles; i++) {
     s += (dt[i] < constant2 && dt[i] > constant1) ? 1 : 0;
   }
   return s;

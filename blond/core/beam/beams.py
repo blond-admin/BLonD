@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import INDEX_DTYPE, backend
 from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
@@ -187,13 +187,13 @@ class Beam(BeamBaseClass):
             self._flags.mpi_scatter()
             # IDs need special treatment
             self._ids: DistributedArray = DistributedArray(
-                backend.arange(len(dt), dtype=np.int32)
+                backend.arange(len(dt), dtype=INDEX_DTYPE)
             )
             self._ids.mpi_scatter()
         elif mpi_mode == "all-ranks":
             # IDs need special treatment
             self._ids: DistributedArray = distributed_arange(
-                len(dt), dtype=np.int32
+                len(dt), dtype=INDEX_DTYPE
             )
         else:
             raise NameError(f"Unknown {mpi_mode=}")
