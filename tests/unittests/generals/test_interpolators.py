@@ -4,6 +4,7 @@ import numpy as np
 from scipy.integrate import cumulative_trapezoid
 
 from blond import DerivativeInterpolator
+from blond.testing.backend_testing import BLonDTestCase
 
 
 def _knot_aligned_grid(time, n_sub=51):
@@ -39,7 +40,7 @@ def _reference_on_grid(time, values):
     return grid, integral + drift * (grid - time[0]) / duration
 
 
-class TestDerivativeInterpolator(unittest.TestCase):
+class TestDerivativeInterpolator(BLonDTestCase):
     def setUp(self):
         self.time = np.linspace(0.0, 1.2, 61)
         # smooth, monotonic acceleration ramp 1 GeV/c -> 25 GeV/c
@@ -242,7 +243,7 @@ class TestDerivativeInterpolator(unittest.TestCase):
             )
 
 
-class TestDerivativeInterpolatorInMagneticCycle(unittest.TestCase):
+class TestDerivativeInterpolatorInMagneticCycle(BLonDTestCase):
     def test_drives_a_magnetic_cycle_by_time(self):
         from blond import MagneticCycleByTime, proton
 
@@ -272,7 +273,7 @@ class TestDerivativeInterpolatorInMagneticCycle(unittest.TestCase):
         )
 
 
-class TestAgreementWithBlond2(unittest.TestCase):
+class TestAgreementWithBlond2(BLonDTestCase):
     def test_reproduces_the_blond2_derivative_preprocessing(self):
         from blond import proton
         from blond.legacy.blond2.input_parameters.ring_options import (

@@ -7,9 +7,10 @@ import numpy as np
 from blond import backend
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestPotentialWellHelper(unittest.TestCase):
+class TestPotentialWellHelper(BLonDTestCase):
     def test_single_not_bucket(self):
         DEV_PLOT = False
         xs = np.linspace(-0, 1, 1000)

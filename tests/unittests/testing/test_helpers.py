@@ -4,14 +4,15 @@ import unittest
 from unittest import mock
 
 from blond.testing import pytest_active
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_pytest_active(self):
         self.assertTrue(pytest_active())
 
 
-class TestPytestActiveTracksTheSession(unittest.TestCase):
+class TestPytestActiveTracksTheSession(BLonDTestCase):
     """`pytest_active` must track the pytest *session*, nothing else.
 
     Reporting ``False`` during collection lets module level code guarded

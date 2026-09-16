@@ -19,6 +19,7 @@ from blond.core.backends.backend import (
 )
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
+    BLonDTestCase,
     multi_backend_testcase,
     skip_if_no_cupy,
 )
@@ -46,7 +47,7 @@ backend_org = backend.__class__
 backend_specials_mode_org = backend.specials_mode
 
 
-class TestBackendBaseClass(unittest.TestCase):
+class TestBackendBaseClass(BLonDTestCase):
     @classmethod
     def tearDownClass(cls):
         backend.change_backend(backend_org)
@@ -255,7 +256,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     )
 
 
-class TestImportSideEffects(unittest.TestCase):
+class TestImportSideEffects(BLonDTestCase):
     """Importing the backend must not print, probe, or compile anything."""
 
     def test_import_has_no_stdout_side_effects(self):
@@ -295,7 +296,7 @@ class TestImportSideEffects(unittest.TestCase):
         )
 
 
-class TestCupy64Bit(unittest.TestCase):
+class TestCupy64Bit(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
@@ -303,7 +304,7 @@ class TestCupy64Bit(unittest.TestCase):
         self.cupy64_bit = Cupy64Bit()
 
 
-class TestCupyBackend(unittest.TestCase):
+class TestCupyBackend(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
@@ -332,7 +333,7 @@ class TestCupyBackend(unittest.TestCase):
             self.cupy_backend.set_specials("doesnt exist")
 
 
-class TestNumpy64Bit(unittest.TestCase):
+class TestNumpy64Bit(BLonDTestCase):
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
@@ -341,7 +342,7 @@ class TestNumpy64Bit(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
 
-class TestNumpyBackend(unittest.TestCase):
+class TestNumpyBackend(BLonDTestCase):
     def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
             float_=np.float64,
@@ -380,7 +381,7 @@ class TestNumpyBackend(unittest.TestCase):
             self.numpy_backend.set_specials("doesnt exist")
 
 
-class TestSpecials(unittest.TestCase):
+class TestSpecials(BLonDTestCase):
     def setUp(self) -> None:
         self.n_voltages = 3
         self.special_modes = [

@@ -7,9 +7,10 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
 from blond.experimental import PooledInterpolationKick
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestPooledInterpolationKick(unittest.TestCase):
+class TestPooledInterpolationKick(BLonDTestCase):
     def setUp(self):
         self.pooled_kick = PooledInterpolationKick(maxsize=3)
 

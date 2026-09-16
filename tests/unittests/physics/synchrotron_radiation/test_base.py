@@ -27,6 +27,7 @@ from blond.physics.synchrotron_radiation.base import (
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -134,7 +135,7 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
 
-class TestSynchrotronRadiationBaseClass(unittest.TestCase):
+class TestSynchrotronRadiationBaseClass(BLonDTestCase):
     def setUp(self) -> None:
         self.radiation_integrals = np.array(
             [
@@ -352,7 +353,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
 
 class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
-    unittest.TestCase
+    BLonDTestCase
 ):
     def setUp(self) -> None:
         self.number_of_turns = 100

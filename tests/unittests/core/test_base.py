@@ -18,6 +18,7 @@ from blond.core.base import (
 from blond.core.beam.base import BeamBaseClass
 from blond.core.scheduling import ScheduledArray, ScheduledInterpolation
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
@@ -38,7 +39,7 @@ class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
         pass
 
 
-class TestBeamPhysicsRelevant(unittest.TestCase):
+class TestBeamPhysicsRelevant(BLonDTestCase):
     def setUp(self):
         self.beam_physics_relevant = BeamPhysicsRelevantTester(
             section_index=10, name="Simon"
@@ -74,7 +75,7 @@ class BeamObservationElementTester(BeamObservationElement):
         pass
 
 
-class TestBeamPhysicsRelevantTrack(unittest.TestCase):
+class TestBeamPhysicsRelevantTrack(BLonDTestCase):
     def test_track_inactive_skips_physics(self):
         call_log = []
 
@@ -88,7 +89,7 @@ class TestBeamPhysicsRelevantTrack(unittest.TestCase):
         self.assertEqual(call_log, [])
 
 
-class TestBeamObservationElement(unittest.TestCase):
+class TestBeamObservationElement(BLonDTestCase):
     def setUp(self):
         self.beam_observation_element = BeamObservationElementTester(
             section_index=10, name="Elle"
@@ -106,7 +107,7 @@ class TestBeamObservationElement(unittest.TestCase):
         pass
 
 
-class TestDynamicParameter(unittest.TestCase):
+class TestDynamicParameter(BLonDTestCase):
     def setUp(self):
         self.dynamic_parameter = DynamicParameter(value_init=5)
 
@@ -136,7 +137,7 @@ class HasPropertyCacheHelper(HasPropertyCache):
         self._invalidate_cache(("bar",))
 
 
-class TestHasPropertyCache(unittest.TestCase):
+class TestHasPropertyCache(BLonDTestCase):
     def setUp(self):
         self.has_property_cache = HasPropertyCacheHelper()
 
@@ -164,7 +165,7 @@ class MainLoopRelevantHelper(MainLoopRelevant):
         pass
 
 
-class TestMainLoopRelevant(unittest.TestCase):
+class TestMainLoopRelevant(BLonDTestCase):
     def setUp(self):
         self.main_loop_relevant = MainLoopRelevantHelper()
         self.main_loop_relevant.each_turn_i = 10
@@ -191,7 +192,7 @@ class PreparableHelper(Preparable):
         pass
 
 
-class TestPreparable(unittest.TestCase):
+class TestPreparable(BLonDTestCase):
     def setUp(self):
         self.preparable = PreparableHelper()
 
@@ -271,7 +272,7 @@ class TestSchedulable(unittest.TestCase):
         schedulable.schedule("voltage", np.ones(10))
 
 
-class TestUnsafeUserElement(unittest.TestCase):
+class TestUnsafeUserElement(BLonDTestCase):
     def test_init(self):
         class InvalidElement:
             def not_track(self): ...

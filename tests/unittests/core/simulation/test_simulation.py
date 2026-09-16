@@ -42,13 +42,14 @@ from blond.handle_results.observables import (
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import beam_mock
 
 if TYPE_CHECKING:  # pragma: no cover
     pass  # type: ignore
 
 
-class TestSimulation(unittest.TestCase):
+class TestSimulation(BLonDTestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 

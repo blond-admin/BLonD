@@ -7,10 +7,11 @@ from blond.beam_preparation.bigaussian import (
     _get_dE_from_dt,
     _get_dE_from_dt_core,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import ExampleSimulation01
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test__get_dE_from_dt_core(self):
         dE_amplitude = _get_dE_from_dt_core(
             beta=0.99,
@@ -37,7 +38,7 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(dE_amplitude, 0)
 
 
-class TestBiGaussian(unittest.TestCase):
+class TestBiGaussian(BLonDTestCase):
     def test___init__(self):
         bi_gaussian = BiGaussian(
             n_macroparticles=10,

@@ -14,6 +14,7 @@ from blond import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class LocFdbkHelper(LocalFeedback):
@@ -33,7 +34,7 @@ class LocFdbkHelper(LocalFeedback):
         pass
 
 
-class TestLocalFeedbackBase(unittest.TestCase):
+class TestLocalFeedbackBase(BLonDTestCase):
     def test_error_throwing_on_non_conformant_parent_cavity(self):
         prof = Mock(StaticProfile)
         fdbk = LocFdbkHelper(profile=prof)
@@ -49,7 +50,7 @@ class TestLocalFeedbackBase(unittest.TestCase):
         assert fdbk._parent_rf_station.section_index == 0
 
 
-class TestGlobalFeedbackBase(unittest.TestCase):
+class TestGlobalFeedbackBase(BLonDTestCase):
     def test_cavities_in_list(self):
         class GlobalFdbkHelper(GlobalFeedback):
             def _track(self, beam: BeamBaseClass) -> None:

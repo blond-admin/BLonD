@@ -7,6 +7,7 @@ import pytest
 
 import blond.testing.backend_testing as bend_test
 from blond.core.backends import backend
+from blond.testing.backend_testing import BLonDTestCase
 
 try:
     import cupy
@@ -24,7 +25,7 @@ class InvalidBackend(backend.Numpy64Bit):
         raise InvalidBackendTestError
 
 
-class TestBackendTesting(unittest.TestCase):
+class TestBackendTesting(BLonDTestCase):
     @classmethod
     def setUpClass(cls):
         cls.flag_init = bend_test.FORCE_ALL_BACKENDS
@@ -243,7 +244,7 @@ class TestBackendTesting(unittest.TestCase):
                     self.assertIsInstance(cast, cupy.ndarray)
 
 
-class TestPinFastTestBackends(unittest.TestCase):
+class TestPinFastTestBackends(BLonDTestCase):
     """Tests for the autouse-fixture helper that pins fast test backends."""
 
     def setUp(self):
@@ -294,7 +295,7 @@ class LeakedBackend(backend.Numpy64Bit):
     """Stand-in for an array backend left active by an earlier test."""
 
 
-class TestPinFastTestBackends(unittest.TestCase):
+class TestPinFastTestBackends(BLonDTestCase):
     """`pin_fast_test_backends` must reset the *array* backend too.
 
     A test (or a module imported during collection) that switches the
@@ -357,7 +358,7 @@ class DummyBackendAwareCase(bend_test.BLonDTestCase):
         self.assertTrue(False)
 
 
-class TestBackendAwareTestCase(unittest.TestCase):
+class TestBackendAwareTestCase(BLonDTestCase):
     """Tests for `BackendAwareTestCase`."""
 
     def setUp(self):
