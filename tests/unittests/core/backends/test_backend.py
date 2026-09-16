@@ -11,12 +11,14 @@ from scipy.constants import elementary_charge
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
+    INDEX_DTYPE,
     Cupy64Bit,
     CupyBackend,
     Numpy64Bit,
     NumpyBackend,
     backend,
 )
+from blond.core.backends.cpp.callables import check_index_abi
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     multi_backend_testcase,
@@ -613,6 +615,39 @@ class TestSpecials(unittest.TestCase):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
             backend.specials.drift_simple(
+                dt=self.dt,
+                dE=self.dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            result = self.dt
+            if special == "cuda":
+                result = result.get()
+            if i == 0:
+                result_python = result
+            else:
+                if backend.float == np.float32:
+                    raise TypeError("32 bit backends have been removed.")
+
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=1e-12,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_drift_like_line_segment(self) -> None:
+        dtype = np.float64
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            backend.specials.drift_like_line_segment(
                 dt=self.dt,
                 dE=self.dE,
                 T=self.t_rev * self.length_ratio,
@@ -1982,7 +2017,7 @@ class TestSpecials(unittest.TestCase):
             flags[[0, 1, -1]] = 0
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2061,7 +2096,7 @@ class TestSpecials(unittest.TestCase):
             dE = backend.array(
                 backend.linspace(0, 10, len(flags)), backend.float
             )
-            ids = backend.array(backend.arange(0, len(flags)), np.int32)
+            ids = backend.array(backend.arange(0, len(flags)), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2107,7 +2142,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2137,7 +2172,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2166,7 +2201,7 @@ class TestSpecials(unittest.TestCase):
 
             dt = backend.array(backend.linspace(0, 10, 10), backend.float)
             dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-            ids = backend.array(backend.arange(0, 10), np.int32)
+            ids = backend.array(backend.arange(0, 10), INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=flag,
                 flags=flags,
@@ -2239,6 +2274,9 @@ class TestSpecials(unittest.TestCase):
                 phi_rf=backend.float(3.5),
                 bin_size=backend.float(1.0),
             )
+            self.assertIsInstance(
+                result, backend.float, msg=f"{special=} {type(result)=}"
+            )
             if i == 0:
                 result_python = result
             else:
@@ -2248,6 +2286,42 @@ class TestSpecials(unittest.TestCase):
                     result,
                     result_python,
                     rtol=self.rtol,
+                    err_msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_beam_phase_many_bins(self) -> None:
+        """Every bin must contribute, also beyond a fixed GPU launch grid."""
+        dtype = np.float64
+        # More bins than a fixed launch grid of (2 * multiprocessors)
+        # blocks of 1024 threads covers on common GPUs, and not a power of
+        # two, so that the last block is only partially filled.
+        n_bins = 2**18 + 3
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2))
+        for i, special in enumerate(self.special_modes):
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            # Phases within (0.1, 0.9) rad keep both integrands positive,
+            # so the sums are free of cancellation.
+            result = backend.specials.beam_phase(
+                hist_x=backend.array(hist_x_host, dtype=backend.float),
+                hist_y=backend.array(hist_y_host, dtype=backend.float),
+                alpha=backend.float(0.5),
+                omega_rf=backend.float(0.8),
+                phi_rf=backend.float(0.1),
+                bin_size=backend.float(hist_x_host[1] - hist_x_host[0]),
+            )
+            if i == 0:
+                result_python = result
+            else:
+                np.testing.assert_allclose(
+                    result,
+                    result_python,
+                    rtol=1e-10,
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
@@ -2319,6 +2393,198 @@ class TestSpecials(unittest.TestCase):
         np.testing.assert_allclose(
             results["cuda"], results["python"], rtol=1e-10
         )
+
+    def _beam_phase_cuda_with_threads(
+        self, hist_x_host, hist_y_host, threads, **kwargs
+    ):
+        """Run `beam_phase` on the CUDA backend with a forced block size.
+
+        The block size is normally taken from `GPU_THREADS` (defaulting
+        to the device maximum), so patching the module globals is the
+        only way to exercise the in-block reduction at a chosen width.
+        """
+        import blond.core.backends.cuda.callables as cuda_callables
+
+        self._setUp(dtype=np.float64, special_mode="cuda")
+        with mock.patch.multiple(
+            cuda_callables, threads=threads, block_size=(threads, 1, 1)
+        ):
+            return backend.specials.beam_phase(
+                hist_x=backend.array(hist_x_host, dtype=backend.float),
+                hist_y=backend.array(hist_y_host, dtype=backend.float),
+                **kwargs,
+            )
+
+    @staticmethod
+    def _beam_phase_reference(
+        hist_x_host, hist_y_host, alpha, omega_rf, phi_rf, bin_size
+    ):
+        """Host-side trapezoidal reference, independent of any backend."""
+        weight = np.exp(alpha * hist_x_host) * hist_y_host
+        phase = omega_rf * hist_x_host + phi_rf
+        sin_integral = np.trapezoid(weight * np.sin(phase), dx=bin_size)
+        cos_integral = np.trapezoid(weight * np.cos(phase), dx=bin_size)
+        return sin_integral / cos_integral
+
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_block_reduction_thread_counts(self) -> None:
+        """The in-block reduction must sum every slot, at any width.
+
+        The reduction halves from the next power of two above
+        `blockDim.x`, so it has to stay exact for block sizes that are
+        powers of two, odd, prime, one, and the device maximum alike.
+        """
+        n_bins = 2051
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2)) + 0.1
+        kwargs = dict(
+            # Phases stay within (0.1, 0.9) rad, so both integrands are
+            # positive and the sums are free of cancellation: a dropped
+            # bin can only show up as a wrong result, never cancel out.
+            alpha=0.5,
+            omega_rf=0.8,
+            phi_rf=0.1,
+            bin_size=hist_x_host[1] - hist_x_host[0],
+        )
+        expected = self._beam_phase_reference(
+            hist_x_host, hist_y_host, **kwargs
+        )
+        for threads in (1, 2, 3, 7, 33, 64, 96, 100, 333, 512, 1000, 1024):
+            result = self._beam_phase_cuda_with_threads(
+                hist_x_host, hist_y_host, threads, **kwargs
+            )
+            np.testing.assert_allclose(
+                result,
+                expected,
+                rtol=1e-12,
+                err_msg=f"Failed for blockDim.x={threads}",
+            )
+
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_block_reduction_every_slot_contributes(
+        self,
+    ) -> None:
+        """Each individual thread slot must reach the block result.
+
+        With exactly one non-zero histogram bin, the beam phase reduces
+        to `tan(omega_rf * x + phi_rf)` at that bin. If the reduction
+        drops the slot holding it, both partial sums stay zero and the
+        result becomes `nan` -- so sweeping the non-zero bin over a
+        whole block probes the reduction slot by slot rather than only
+        in aggregate.
+        """
+        # An odd, non-power-of-two block size fully occupied by one
+        # block: the leftover slots above the largest contained power of
+        # two are exactly the ones a naive halving reduction skips.
+        threads = 97
+        n_bins = threads
+        hist_x_host = np.linspace(0.0, 1.0, n_bins)
+        omega_rf, phi_rf = 0.8, 0.1
+        for hot_bin in range(n_bins):
+            hist_y_host = np.zeros(n_bins)
+            hist_y_host[hot_bin] = 1.0
+            result = self._beam_phase_cuda_with_threads(
+                hist_x_host,
+                hist_y_host,
+                threads,
+                alpha=0.0,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+                bin_size=hist_x_host[1] - hist_x_host[0],
+            )
+            self.assertFalse(
+                np.isnan(result),
+                msg=f"Slot {hot_bin} of {threads} was dropped",
+            )
+            np.testing.assert_allclose(
+                np.tan(omega_rf * hist_x_host[hot_bin] + phi_rf),
+                result,
+                rtol=1e-12,
+                err_msg=f"Wrong contribution of slot {hot_bin}",
+            )
+
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_beam_phase_cuda_block_reduction_partial_last_block(self) -> None:
+        """A partially filled last block must not corrupt the sum.
+
+        Threads above `n_bins` write zeros into shared memory, and the
+        number of bins relative to the block size decides how many such
+        slots the last block carries. All of them are swept here.
+        """
+        threads = 33
+        kwargs = dict(
+            alpha=0.5,
+            omega_rf=0.8,
+            phi_rf=0.1,
+        )
+        for n_bins in (
+            2,  # fewer bins than threads
+            threads - 1,
+            threads,  # exactly one full block
+            threads + 1,  # one full block plus a single-bin block
+            2 * threads,
+            2 * threads + 17,  # half-filled last block
+        ):
+            hist_x_host = np.linspace(0.0, 1.0, n_bins)
+            hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2)) + 0.1
+            bin_size = hist_x_host[1] - hist_x_host[0]
+            expected = self._beam_phase_reference(
+                hist_x_host, hist_y_host, bin_size=bin_size, **kwargs
+            )
+            result = self._beam_phase_cuda_with_threads(
+                hist_x_host,
+                hist_y_host,
+                threads,
+                bin_size=bin_size,
+                **kwargs,
+            )
+            np.testing.assert_allclose(
+                result,
+                expected,
+                rtol=1e-12,
+                err_msg=f"Failed for {n_bins=} with blockDim.x={threads}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_beam_phase_small_bin_counts_all_backends(self) -> None:
+        """All backends agree on the trapezoidal rule for few bins.
+
+        The CUDA kernel applies the trapezoidal end-point weights
+        (1, 2, ..., 2, 1) itself instead of calling `np.trapezoid`, so
+        the smallest bin counts -- where those weights dominate -- must
+        still match the Python reference.
+        """
+        dtype = np.float64
+        for n_bins in (2, 3, 4, 5, 17):
+            hist_x_host = np.linspace(0.0, 1.0, n_bins)
+            hist_y_host = np.exp(-(((hist_x_host - 0.5) / 0.2) ** 2)) + 0.1
+            result_python = None
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                result = backend.specials.beam_phase(
+                    hist_x=backend.array(hist_x_host, dtype=backend.float),
+                    hist_y=backend.array(hist_y_host, dtype=backend.float),
+                    alpha=backend.float(0.5),
+                    omega_rf=backend.float(0.8),
+                    phi_rf=backend.float(0.1),
+                    bin_size=backend.float(hist_x_host[1] - hist_x_host[0]),
+                )
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=1e-12,
+                        err_msg=f"Failed `{special}` with {n_bins=}",
+                    )
 
     @pytest.mark.backend_mutation
     def test_beam_phase_needs_two_bins(self) -> None:
@@ -3007,6 +3273,33 @@ class TestSpecials(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_drift_like_line_segment_zero_macroparticles(self) -> None:
+        """`drift_like_line_segment` must be a no-op on empty dt/dE arrays."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.zeros(0, dtype=backend.float)
+            dE = backend.zeros(0, dtype=backend.float)
+            backend.specials.drift_like_line_segment(
+                dt=dt,
+                dE=dE,
+                T=self.t_rev * self.length_ratio,
+                eta_0=self.eta_0,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            self.assertEqual(
+                dt.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+            self.assertEqual(
+                dE.shape, (0,), msg=f"Failed `{special}` with {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_single_harmonic_zero_macroparticles(self) -> None:
         """`kick_single_harmonic` must be a no-op on empty dt/dE arrays."""
         dtype = np.float64
@@ -3215,7 +3508,7 @@ class TestSpecials(unittest.TestCase):
                 dE = backend.array(
                     backend.linspace(0, 1, n), dtype=backend.float
                 )
-                ids = backend.arange(0, n, dtype=np.int32)
+                ids = backend.arange(0, n, dtype=INDEX_DTYPE)
                 n_new = int(
                     backend.specials.move_flagged_elements_to_end(
                         flag=0,
@@ -3273,7 +3566,7 @@ class TestSpecials(unittest.TestCase):
             flags = backend.zeros(0, dtype=np.int32)
             dt = backend.zeros(0, dtype=backend.float)
             dE = backend.zeros(0, dtype=backend.float)
-            ids = backend.zeros(0, dtype=np.int32)
+            ids = backend.zeros(0, dtype=INDEX_DTYPE)
             n_new = backend.specials.move_flagged_elements_to_end(
                 flag=0,
                 flags=flags,
@@ -3791,6 +4084,84 @@ class TestSpecials(unittest.TestCase):
 
     def test_import(self):
         pass
+
+
+class _StubLibrary:
+    """Minimal stand-in for ``libblond``'s two ABI-reporting exports."""
+
+    def __init__(self, size: int, is_signed: int) -> None:
+        self._size = size
+        self._is_signed = is_signed
+
+    def blond_index_t_size(self) -> int:
+        """Report the stubbed ``sizeof(index_t)``."""
+        return self._size
+
+    def blond_index_t_is_signed(self) -> int:
+        """Report the stubbed signedness of ``index_t``."""
+        return self._is_signed
+
+
+class TestCppIndexAbi(unittest.TestCase):
+    """The compiled ``index_t`` must agree with ``INDEX_DTYPE``.
+
+    ctypes validates nothing about the integer widths it passes, so a
+    disagreement between ``blond_common.h`` and ``INDEX_DTYPE`` corrupts
+    memory inside the particle loops instead of raising. These tests pin
+    the guard that turns it into a load-time failure.
+    """
+
+    def setUp(self) -> None:
+        self.original_backend = type(backend)
+        self.original_backend_specials_mode = backend.specials_mode
+        self.dtype = np.dtype(INDEX_DTYPE)
+
+    def tearDown(self) -> None:
+        backend.change_backend(self.original_backend)
+        backend.set_specials(self.original_backend_specials_mode)
+
+    @pytest.mark.backend_mutation
+    def test_real_cpp_backend_loads_and_is_checked(self) -> None:
+        """Selecting the cpp backend runs the guard and must not raise.
+
+        The cpp specials only exist on a NumPy backend, so the backend
+        class is switched first -- on a CuPy backend (``BLOND_BACKEND_MODE
+        =cuda``) ``set_specials("cpp")`` raises ``UnknownBackendMode``.
+        """
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp")
+        self.assertEqual(backend.specials_mode, "cpp")
+
+    def test_check_passes_when_the_library_agrees(self) -> None:
+        """A library matching ``INDEX_DTYPE`` is accepted silently."""
+        library = _StubLibrary(
+            self.dtype.itemsize, int(self.dtype.kind == "i")
+        )
+        check_index_abi(library)
+
+    def test_check_detects_a_width_mismatch(self) -> None:
+        """A library compiled with a narrower ``index_t`` is rejected."""
+        library = _StubLibrary(
+            self.dtype.itemsize // 2, int(self.dtype.kind == "i")
+        )
+        with self.assertRaises(AssertionError) as caught:
+            check_index_abi(library)
+        self.assertIn("index_t ABI mismatch", str(caught.exception))
+
+    def test_check_detects_a_signedness_mismatch(self) -> None:
+        """Matching width but the wrong signedness is still rejected."""
+        library = _StubLibrary(
+            self.dtype.itemsize, int(self.dtype.kind != "i")
+        )
+        with self.assertRaises(AssertionError) as caught:
+            check_index_abi(library)
+        self.assertIn("signedness", str(caught.exception))
+
+    def test_check_rejects_a_library_without_the_exports(self) -> None:
+        """A library predating the exports cannot be verified, so it fails."""
+        with self.assertRaises(RuntimeError) as caught:
+            check_index_abi(object())
+        self.assertIn("blond-compile-cpp", str(caught.exception))
 
 
 if __name__ == "__main__":

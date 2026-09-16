@@ -19,7 +19,7 @@ import numba  # type: ignore
 import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
-from blond.core.backends.backend import Specials
+from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
@@ -210,8 +210,9 @@ sig_beam_phase = nb_f(
 
 sig_flag = numba.int32
 sig_flags = numba.int32[:]
-sig_ids = nb_i[:]
-sig_move_flagged_elements_to_end = nb_i(
+nb_index = numba.from_dtype(np.dtype(INDEX_DTYPE))
+sig_ids = nb_index[:]
+sig_move_flagged_elements_to_end = nb_index(
     sig_flag,
     sig_flags,
     sig_dt,
@@ -530,6 +531,40 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         coeff = T * eta_0 / (beta * beta * energy)
         for i in prange(len(dt)):
             dt[i] += coeff * dE[i]
+
+    @staticmethod
+    @enforce_precision(FLOAT)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def drift_like_line_segment(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        """Drift with linear slip factor and exact relativistic delta."""
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        for i in prange(len(dt)):
+            dEi = dE[i]
+            delta = (
+                np.sqrt(
+                    1.0
+                    + inv_beta_sq
+                    * (
+                        dEi * dEi * inv_energy * inv_energy
+                        + 2.0 * dEi * inv_energy
+                    )
+                )
+                - 1.0
+            )
+            dt[i] += T * eta_0 * delta
 
     @staticmethod
     @enforce_precision(FLOAT)
