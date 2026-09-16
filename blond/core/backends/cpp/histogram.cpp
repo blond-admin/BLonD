@@ -40,7 +40,8 @@ extern "C" void histogram(const real_t *__restrict__ input,
     memset(histo[id], 0, n_slices * sizeof(index_t));
     // Keep the bin index in double until it is range-checked: a float
     // cannot represent indices above 2^24 exactly, and converting an
-    // out-of-range double to int is undefined behaviour.
+    // out-of-range double to int is undefined behaviour (on x86 it
+    // yields INT_MIN, i.e. a wild write).
     double fbin[STEP] = {-1};
 #pragma omp for
     for (index_t i = 0; i < n_macroparticles; i += STEP) {
