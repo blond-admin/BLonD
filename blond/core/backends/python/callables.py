@@ -320,6 +320,52 @@ class PythonSpecials(Specials):
         dt += T * coeff * dE
 
     @staticmethod
+    def drift_like_line_segment(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        r"""
+        Drift with the linear slip factor and the exact relativistic delta.
+
+        Reproduces the longitudinal drift of an xsuite ``LineSegmentMap``:
+        the first-order slip factor :math:`\eta_0` combined with the exact
+        relativistic momentum deviation :math:`\delta(dE)`, in contrast to
+        :meth:`drift_simple`, which linearises :math:`\delta`.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s].
+        dE
+            Macro-particle energy coordinates, in [eV].
+        T
+            Time spend in the drift region, in [s].
+            :math:`T = L / (\beta c_0)`.
+        eta_0
+            First-order slippage factor :math:`\eta_0` [unitless].
+        beta
+            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+        energy
+            Total beam energy [eV].
+        """
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+
+        beam_delta = (
+            np.sqrt(
+                1.0
+                + inv_beta_sq
+                * (dE * dE * inv_energy * inv_energy + 2.0 * dE * inv_energy)
+            )
+            - 1.0
+        )
+        dt += T * eta_0 * beam_delta
+
+    @staticmethod
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,

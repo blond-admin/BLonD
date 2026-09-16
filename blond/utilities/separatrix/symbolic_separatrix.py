@@ -70,8 +70,8 @@ class SymbolicSeparatrixHelper:
 
     See Also
     --------
-    blond.physics.cavities.SingleHarmonicRFStation.get_hamilton_symbolic : Partial Hamiltonian definition for RFStation.
-    blond.physics.cavities.MultiHarmonicRFStation.get_hamilton_symbolic : Partial Hamiltonian definition for RFStation.
+    blond.physics.rf_station.SingleHarmonicRFStation.get_hamilton_symbolic : Partial Hamiltonian definition for RFStation.
+    blond.physics.rf_station.MultiHarmonicRFStation.get_hamilton_symbolic : Partial Hamiltonian definition for RFStation.
     blond.physics.drifts.DriftSimple.get_hamilton_symbolic : Partial Hamiltonian definition for Drift.
     blond.physics.drifts.DriftExact.get_hamilton_symbolic : Partial Hamiltonian definition for Drift.
     """

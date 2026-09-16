@@ -13,7 +13,7 @@ import subprocess
 targets = """
 unittests.test_acc_math.test_analytic.test_hamilton
 unittests.physics.test_drifts
-unittests.physics.test_cavities
+unittests.physics.test_rf_station
 unittests.physics.impedances.test_sovlers
 unittests.physics.impedances.test_sources
 unittests.physics.impedances.comparisons.test_resonator
@@ -65,7 +65,7 @@ blond.physics.feedbacks.accelerators.sps.beam_feedback
 blond.physics.feedbacks.accelerators.lhc.helpers
 blond.physics.feedbacks.accelerators.lhc.cavity_feedback
 blond.physics.drifts
-blond.physics.cavities
+blond.physics.rf_station
 blond.legacy.blond2.utils.legacy_support
 blond.legacy.blond2.utils.butils_wrap_numba
 blond.legacy.blond2.utils.butils_wrap_cpp

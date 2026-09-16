@@ -61,6 +61,7 @@ gpu_module = cp.RawModule(
 mark_used(_basepath)
 
 _drift_simple = gpu_module.get_function("drift_simple")
+_drift_like_line_segment = gpu_module.get_function("drift_like_line_segment")
 _drift_exact = gpu_module.get_function("drift_exact")
 _beam_phase = gpu_module.get_function("beam_phase")
 _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
@@ -334,6 +335,44 @@ class CudaSpecials(Specials):  # NOQA: D101
         )
 
     @staticmethod
+    def drift_like_line_segment(  # NOQA: D102
+        dt: CupyArray,
+        dE: CupyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
+        assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
+
+        assert dt.dtype == FLOAT
+        assert dE.dtype == FLOAT
+
+        assert dt.flags.c_contiguous
+        assert dE.flags.c_contiguous
+
+        # Cast Python floats to backend floattype
+        T = FLOAT(T)
+        eta_0 = FLOAT(eta_0)
+        beta = FLOAT(beta)
+        energy = FLOAT(energy)
+
+        _drift_like_line_segment(
+            args=(
+                dt,  # beam_dt
+                dE,  # beam_dE
+                T,  # T
+                eta_0,  # eta_zero
+                beta,  # beta
+                energy,  # energy
+                np.int32(len(dE)),  # n_macroparticles
+            ),
+            block=block_size,
+            grid=grid_size,
+        )
+
+    @staticmethod
     def drift_exact(  # NOQA: D102
         dt: CupyArray,
         dE: CupyArray,
@@ -598,6 +637,11 @@ class CudaSpecials(Specials):  # NOQA: D101
         bin_size = FLOAT(bin_size)
 
         result = cp.zeros(2, dtype=FLOAT)
+        # The kernel reduces each block in shared memory instead of
+        # striding over the array like the other kernels, so it needs one
+        # block per `threads` bins: the fixed `grid_size` would silently
+        # drop every bin beyond `blocks * threads`.
+        n_blocks = (len(hist_x) + threads - 1) // threads
         _beam_phase(
             args=(
                 hist_x,  # hist_x
@@ -610,10 +654,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(hist_x)),  # n_bins
             ),
             block=block_size,
-            grid=grid_size,
+            grid=(n_blocks, 1, 1),
             shared_mem=2 * block_size[0] * np.dtype(FLOAT).itemsize,
         )
-        return FLOAT(result[0].get() / result[1].get())
+        return FLOAT((result[0] / result[1]).get())
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(

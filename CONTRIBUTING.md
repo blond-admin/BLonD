@@ -116,6 +116,12 @@ Ensure the following tools are installed:
   * Linux: `libopenmpi-dev` / `openmpi` (or your distribution's equivalent)
   * macOS: `brew install open-mpi`
   * Windows: [Microsoft MPI](https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
+* **Documentation build** (not installable via pip, must be on `PATH`):
+
+  * [Pandoc](https://pandoc.org/installing.html) — used by `nbsphinx` for the example notebooks
+    (Linux: `apt install pandoc`, macOS: `brew install pandoc`, Windows: `winget install JohnMacFarlane.Pandoc`)
+  * [Graphviz](https://graphviz.org/download/) (`dot`) — used for the inheritance diagrams
+    (Linux: `apt install graphviz`, macOS: `brew install graphviz`, Windows: `winget install Graphviz.Graphviz`)
 
 ---
 
@@ -298,7 +304,8 @@ python3 dev_tools/copy_copyright_to_all_files.py
 ## Documentation
 > Automatically done in GitLab CI Pipeline
 
-To build the documentation locally:
+To build the documentation locally (requires [Pandoc and Graphviz](#dependencies)
+on `PATH`; `docs/conf.py` aborts with install hints if either is missing):
 
 ```bash
 python -m pip install .[doc]

@@ -27,7 +27,7 @@ _HAS_GPP = shutil.which("g++") is not None
 def _default_options(**overrides):
     options = {
         "compiler": "g++",
-        "optimize": True,
+        "optimize_for_local_cpu": True,
         "flags": "",
         "libs": "",
         "with_fftw": False,

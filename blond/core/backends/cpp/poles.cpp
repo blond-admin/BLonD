@@ -33,30 +33,16 @@ static inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
 
 /**
  * Apply poles based on the profile to generate voltage.
+ * Parameters: see Specials.wake_from_pole_residue in backend.py.
  *
- * Complex arrays (poles, residues, states) are interleaved:
- *   [re0, im0, re1, im1, ...]
- *
- * Parameters
- * ----------
- * profile        : Beam profile histogram, length n_bins.
- * profile_dts    : Time step base, length n_profile_dts (>= n_bins + 1).
- * poles          : Complex poles, interleaved, length 2 * n_poles.
- * residues       : Complex residues, interleaved, length 2 * n_poles.
- * is_counterrotating_beam : If true, the current beam is counter-rotating.
- * counterrotating_pole_signs :  Array per pole, -1 if the sign of the
- *                               impedance is flipped for a counter-rotating beam.
- * states         : Complex state vector, interleaved, length 2 * (n_poles + 1).
- *                  Last complex element stores t_start (real part only).
- * voltage        : Output voltage [V], length n_bins.
- * voltage_threaded : Per-thread voltage buffer, length n_threads * n_bins.
- * update_on_bin  : Bin indices triggering dt update, length n_updates.
- * factor         : Conversion factor (profile to current per bin [A]).
- * n_bins         : Number of bins in profile.
- * n_poles        : Number of poles.
- * n_threads      : Size of first dimension of voltage_threaded (>= omp_get_max_threads()).
- * n_updates      : Length of update_on_bin.
- * n_profile_dts  : Length of profile_dts.
+ * C-side memory layout:
+ * - Complex arrays (poles, residues, states) are interleaved
+ *   [re0, im0, re1, im1, ...].
+ * - states has n_poles + 1 complex elements; the real part of the last
+ *   one stores t_start.
+ * - voltage_threaded is n_threads * n_bins, n_threads >=
+ *   omp_get_max_threads().
+ * - profile_dts has n_profile_dts >= n_bins + 1 entries.
  */
 extern "C" void wake_from_pole_residue(
     const real_t *__restrict__ profile, const real_t *__restrict__ profile_dts,

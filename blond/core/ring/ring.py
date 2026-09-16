@@ -314,7 +314,7 @@ class Ring(Preparable):
         n_rf_stations
             The count of all RF station elements currently in the ring.
         """
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         return self.elements.count(RFStationBaseClass)
 
