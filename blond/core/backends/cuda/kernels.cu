@@ -182,9 +182,14 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
         atomicAdd(&(output[target_bin]), 1);
       continue;
     }
-    target_bin = floor((input[i] - cut_left) * inv_bin_width);
-    if (target_bin < 0 || target_bin >= n_slices)
+    // Range-check in floating point *before* the conversion: converting
+    // an out-of-range, infinite or NaN value to `int` is undefined
+    // behaviour. The check is written in positive form so that NaN --
+    // for which every comparison is false -- is rejected too.
+    real_t const target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    if (!(target_bin_real >= real_t(0) && target_bin_real < real_t(n_slices)))
       continue;
+    target_bin = (int)target_bin_real;
     if (target_bin >= low_tbin && target_bin < high_tbin)
       atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
     else
@@ -207,16 +212,17 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   int target_bin;
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
   for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    target_bin = floor((input[i] - cut_left) * inv_bin_width);
-
     if (input[i] == cut_right) {
       target_bin = n_slices - 1;
       atomicAdd(&(block_hist[target_bin]), 1);
       continue;
     }
 
-    if (target_bin < 0 || target_bin >= n_slices)
+    // See `hybrid_histogram`: range-check before converting to `int`.
+    real_t const target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    if (!(target_bin_real >= real_t(0) && target_bin_real < real_t(n_slices)))
       continue;
+    target_bin = (int)target_bin_real;
 
     atomicAdd(&(block_hist[target_bin]), 1);
   }
@@ -255,13 +261,15 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   real_t const inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
-  int fbin;
   const real_t bin0 = bin_centers[0];
   for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    fbin = floor((beam_dt[i] - bin0) * inv_bin_width);
-    if ((fbin < n_slices - 1) && (fbin >= 0))
+    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    const real_t fbin_real = floor((beam_dt[i] - bin0) * inv_bin_width);
+    if (fbin_real >= real_t(0) && fbin_real < real_t(n_slices - 1)) {
+      const int fbin = (int)fbin_real;
       beam_dE[i] += beam_dt[i] * glob_vkick_factor[2 * fbin] +
                     glob_vkick_factor[2 * fbin + 1];
+    }
   }
 }
 
@@ -305,17 +313,22 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
 
   for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = beam_dt[i];
-    const int bucket_i = (int)floor((dt - first_left_cut) * inv_hist_dist);
-    if (bucket_i < 0 || bucket_i >= n_buckets)
+    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    const real_t bucket_real = floor((dt - first_left_cut) * inv_hist_dist);
+    if (!(bucket_real >= real_t(0) && bucket_real < real_t(n_buckets)))
       continue;
+    const int bucket_i = (int)bucket_real;
     if (!filling_pattern[bucket_i])
       continue;
 
     const real_t cut_left = first_left_cut + bucket_i * left_cut_distance;
     const real_t bucket_bin_center0 = cut_left + bin_width / real_t(2);
-    const int local_bin = (int)floor((dt - bucket_bin_center0) * inv_bin_width);
-    if (local_bin < 0 || local_bin >= bins_per_profile - 1)
+    const real_t local_bin_real =
+        floor((dt - bucket_bin_center0) * inv_bin_width);
+    if (!(local_bin_real >= real_t(0) &&
+          local_bin_real < real_t(bins_per_profile - 1)))
       continue;
+    const int local_bin = (int)local_bin_real;
 
     const int fbin = bucket_index_to_memory_index[bucket_i] + local_bin;
     beam_dE[i] +=
@@ -445,9 +458,11 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = input[i];
 
-    const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
-    if (bucket_i >= n_buckets || bucket_i < 0)
+    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
+    if (!(bucket_real >= real_t(0) && bucket_real < real_t(n_buckets)))
       continue;
+    const int bucket_i = (int)bucket_real;
     if (!filling_pattern[bucket_i]) {
       continue;
     }
@@ -461,7 +476,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
                 1);
       continue;
     }
-    if (dt < cut_left || dt >= cut_right)
+    if (!(dt >= cut_left && dt < cut_right))
       continue;
 
     // Calculate the bin index

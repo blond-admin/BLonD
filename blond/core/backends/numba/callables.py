@@ -239,11 +239,20 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
 )
 _lost = BeamFlags.LOST.value
 
+# `fastmath=True` implies LLVM's `nnan`/`ninf` flags, which promise the
+# compiler that no operand is NaN or infinite. Under that promise it is
+# free to fold away the very range checks that reject such particles, and
+# a NaN bin index would then be converted with `int()` -- undefined, and
+# an out-of-bounds write in an unchecked njit kernel. Kernels that turn a
+# coordinate into an array index therefore keep every other fastmath
+# relaxation but drop those two.
+FASTMATH_NON_FINITE_SAFE = {"nsz", "arcp", "contract", "afn", "reassoc"}
+
 
 @njit(
     sig_kick_interpolated,
     parallel=True,
-    fastmath=True,
+    fastmath=FASTMATH_NON_FINITE_SAFE,
     cache=True,
 )
 def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
@@ -269,7 +278,10 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
     for i in prange(len(dE)):
         x = dt[i]
 
-        if x < x_min or x >= x_max:
+        # Positive form, so that NaN -- for which every comparison is
+        # false -- is rejected too; `int()` of a NaN or out-of-range
+        # value is undefined and would index out of bounds below.
+        if not (x >= x_min and x < x_max):
             continue
         else:
             idx = int((x - x_min) * inv_dx)
@@ -284,7 +296,7 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
 @njit(
     sig_kick_interpolated_sparse,
     parallel=True,
-    fastmath=True,
+    fastmath=FASTMATH_NON_FINITE_SAFE,
     cache=True,
 )
 def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
@@ -307,16 +319,22 @@ def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     bin_width = cut_width / bins_per_profile
     for i in prange(len(dE)):
         x = dt[i]
-        bucket_i = int(np.floor((x - first_left_cut) * inv_hist_dist))
-        if bucket_i < 0 or bucket_i >= n_buckets:
+        # Range-check in floating point *before* the conversion -- see
+        # `_kick_interpolated_dense_nb`.
+        bucket_real = np.floor((x - first_left_cut) * inv_hist_dist)
+        if not (bucket_real >= 0.0 and bucket_real < n_buckets):
             continue
+        bucket_i = int(bucket_real)
         if not filling_pattern[bucket_i]:
             continue
         cut_left = first_left_cut + bucket_i * left_cut_distance
         bucket_bin_center0 = cut_left + bin_width / 2.0
-        local_bin = int(np.floor((x - bucket_bin_center0) * inv_bin_width))
-        if local_bin < 0 or local_bin >= bins_per_profile - 1:
+        local_bin_real = np.floor((x - bucket_bin_center0) * inv_bin_width)
+        if not (
+            local_bin_real >= 0.0 and local_bin_real < bins_per_profile - 1
+        ):
             continue
+        local_bin = int(local_bin_real)
         idx = bucket_index_to_memory_index[bucket_i] + local_bin
         v = voltage[idx] + (
             voltage[idx + 1] - voltage[idx]
@@ -428,7 +446,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     @njit(
         sig_histogram,
         parallel=True,
-        fastmath=True,
+        fastmath=FASTMATH_NON_FINITE_SAFE,
         cache=False,
     )
     def histogram(  # NOQA PLR0915 # NOQA: D102
@@ -450,7 +468,10 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 array_tmp[curr_thread, -1] += 1
                 continue
             idx = (array_read[i] - start) * inv_bin_step
-            if idx < 0 or idx >= n_bins:
+            # Positive form, so that NaN -- for which every comparison is
+            # false -- is rejected too; `int()` of a NaN or out-of-range
+            # value is undefined and would index out of bounds.
+            if not (idx >= 0.0 and idx < n_bins):
                 continue
             else:
                 array_tmp[curr_thread, int(idx)] += 1
@@ -732,7 +753,7 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     @njit(
         sig_histogram_sparse,
         parallel=True,
-        fastmath=True,
+        fastmath=FASTMATH_NON_FINITE_SAFE,
         cache=False,
     )
     def histogram_sparse(
@@ -787,10 +808,12 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
             xi = x[i]
 
-            bucket_i = int((xi - first_left_cut) * ive_profile_dist)
-
-            if bucket_i < 0 or bucket_i >= n_buckets:
+            # Range-check in floating point *before* the conversion --
+            # see `histogram`.
+            bucket_real = (xi - first_left_cut) * ive_profile_dist
+            if not (bucket_real >= 0.0 and bucket_real < n_buckets):
                 continue
+            bucket_i = int(bucket_real)
             if not filling_pattern[bucket_i]:
                 continue
 
@@ -809,13 +832,14 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             # `int()` truncates towards zero, so without this guard
             # particles up to one bin left of `start_loc` would end up
             # in bin 0 (idx = int(-0.5) = 0).
-            if xi < start_loc or xi >= stop_loc:
+            if not (xi >= start_loc and xi < stop_loc):
                 continue
 
-            idx = int((xi - start_loc) * inv_bin_step)
-            if idx < 0 or idx >= bins_per_profile:
+            idx_real = (xi - start_loc) * inv_bin_step
+            if not (idx_real >= 0.0 and idx_real < bins_per_profile):
                 continue
             else:
+                idx = int(idx_real)
                 write_idx = int(bucket_index_to_memory_index[bucket_i] + idx)
                 array_tmp[thread_i, write_idx] += 1
 
