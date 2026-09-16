@@ -95,8 +95,10 @@ threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
 # Bytes per bin of the shared-memory histogram counters (`block_hist` in
-# kernels.cu), which are `index_t` wide.
-_HIST_COUNT_ITEMSIZE = np.dtype(INDEX_DTYPE).itemsize
+# kernels.cu), which are `int` wide -- deliberately *not* `index_t`: a
+# 64-bit counter would halve the number of bins that fit in shared memory
+# for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
+_HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 # Cache of uniformity verdicts for `bin_centers` arrays passed to the

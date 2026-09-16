@@ -12,8 +12,7 @@ typedef float real_t;
 typedef double real_t;
 #endif
 
-// Integer type of macro-particle counts, particle loop counters and the
-// shared-memory histogram counters.
+// Integer type of macro-particle counts and particle loop counters.
 // Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
 typedef long long index_t;
 
@@ -146,7 +145,7 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t cut_left, const real_t cut_right,
                  const unsigned int n_slices, const index_t n_macroparticles,
                  const int capacity) {
-  extern __shared__ index_t block_hist[];
+  extern __shared__ int block_hist[];
   //reset shared memory
   for (int i = threadIdx.x; i < capacity; i += blockDim.x)
     block_hist[i] = 0;
@@ -184,7 +183,7 @@ extern "C" __global__ void
 sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
              const real_t cut_left, const real_t cut_right,
              const unsigned int n_slices, const index_t n_macroparticles) {
-  extern __shared__ index_t block_hist[];
+  extern __shared__ int block_hist[];
   for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
     block_hist[i] = 0;
   __syncthreads();
