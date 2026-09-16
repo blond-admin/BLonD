@@ -1647,34 +1647,22 @@ class LHCCavityLoop(CavityFeedback):
                     self.I_GEN_FINE = np.concatenate(
                         (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
                     )
+                self.I_GEN_FINE[0] = np.interp(
+                    np.array(
+                        [self.profile.bin_centers[0] - self.profile.bin_size]
+                    ),
+                    self.rf_centers,
+                    self.I_GEN_COARSE[-self.n_coarse :],
+                )
                 for p, profile in enumerate(self.profile.profiles_list):
-                    if p == 0:
-                        self.I_GEN_FINE[0 : profile.n_slices + 1] = np.interp(
-                            np.concatenate(
-                                (
-                                    np.array(
-                                        [
-                                            profile.bin_centers[0]
-                                            - profile.bin_size
-                                        ]
-                                    ),
-                                    profile.bin_centers,
-                                )
-                            ),
-                            self.rf_centers,
-                            self.I_GEN_COARSE[-self.n_coarse :],
-                        )
-                    else:
-                        self.I_GEN_FINE[
-                            p * profile.n_slices + 1 : (p + 1)
-                            * profile.n_slices
-                            + 1
-                        ] = np.interp(
-                            profile.bin_centers,
-                            self.rf_centers,
-                            self.I_GEN_COARSE[-self.n_coarse :],
-                        )
-
+                    self.I_GEN_FINE[
+                        p * profile.n_slices + 1 : (p + 1) * profile.n_slices
+                        + 1
+                    ] = np.interp(
+                        profile.bin_centers,
+                        self.rf_centers,
+                        self.I_GEN_COARSE[-self.n_coarse :],
+                    )
             else:
                 self.I_GEN_FINE = np.interp(
                     np.concatenate(
