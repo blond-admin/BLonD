@@ -18,16 +18,14 @@
 // (so that all per-particle arrays stay consistent), hence these kernels
 // assume the incoming beam_dt/beam_dE are already sorted ascending by dt.
 
-extern "C" void music_track(real_t *__restrict__ beam_dt,
-                            real_t *__restrict__ beam_dE,
-                            real_t *__restrict__ induced_voltage,
-                            real_t *__restrict__ parameter_array,
-                            const index_t n_macroparticles, const real_t alpha,
-                            const real_t omega_bar, const real_t cnst,
-                            const real_t coeff1, const real_t coeff2,
-                            const real_t coeff3, const real_t coeff4,
-                            const real_t time_since_last_track,
-                            const bool multiturn) {
+extern "C" void
+music_track(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
+            real_t *__restrict__ induced_voltage,
+            real_t *__restrict__ parameter_array,
+            const index_t n_macroparticles, const real_t alpha,
+            const real_t omega_bar, const real_t cnst, const real_t coeff1,
+            const real_t coeff2, const real_t coeff3, const real_t coeff4,
+            const real_t time_since_last_track, const bool multiturn) {
   /*
   This function calculates the induced voltage of one resonator and updates
   the energies of the particles.

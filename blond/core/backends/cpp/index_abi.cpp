@@ -35,8 +35,7 @@ static_assert(std::is_signed<index_t>::value,
 // typedef in blond_common.h). Narrowing it is a deliberate decision that has
 // to be taken here as well as at the typedef, not something that should be
 // possible by editing one line.
-static_assert(sizeof(index_t) >= 8,
-              "index_t must be at least 64-bit wide");
+static_assert(sizeof(index_t) >= 8, "index_t must be at least 64-bit wide");
 
 /// Size of `index_t` in bytes, as compiled into this library.
 extern "C" int blond_index_t_size() { return (int)sizeof(index_t); }
@@ -44,5 +43,5 @@ extern "C" int blond_index_t_size() { return (int)sizeof(index_t); }
 /// 1 if `index_t` is a signed type, 0 otherwise, as compiled into this
 /// library.
 extern "C" int blond_index_t_is_signed() {
-    return std::is_signed<index_t>::value ? 1 : 0;
+  return std::is_signed<index_t>::value ? 1 : 0;
 }

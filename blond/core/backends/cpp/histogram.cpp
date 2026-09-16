@@ -28,8 +28,8 @@ extern "C" void histogram(const real_t *__restrict__ input,
   // single bin can collect more than 2^31 - 1 particles
   index_t **histo =
       (index_t **)malloc(omp_get_max_threads() * sizeof(index_t *));
-  histo[0] = (index_t *)malloc(omp_get_max_threads() * n_slices *
-                               sizeof(index_t));
+  histo[0] =
+      (index_t *)malloc(omp_get_max_threads() * n_slices * sizeof(index_t));
   for (int i = 0; i < omp_get_max_threads(); i++)
     histo[i] = (*histo + n_slices * i);
 

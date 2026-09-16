@@ -55,15 +55,13 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
           n_macroparticles - i > STEP ? STEP : (index_t)(n_macroparticles - i);
 
       for (index_t j = 0; j < loop_count; j++) {
-        fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) *
-                             inv_bin_width);
+        fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
       }
 
       for (index_t j = 0; j < loop_count; j++) {
         if (fbin[j] >= 0.0 && fbin[j] < (double)(n_slices - 1)) {
           const int bin = (int)fbin[j];
-          beam_dE[i + j] +=
-              beam_dt[i + j] * voltageKick[bin] + factor[bin];
+          beam_dE[i + j] += beam_dt[i + j] * voltageKick[bin] + factor[bin];
         }
       }
     }
@@ -97,8 +95,7 @@ extern "C" void linear_interp_kick_sparse(
   const real_t bin_width = cut_width / real_t(bins_per_profile);
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
 
-  real_t *voltageKick =
-      (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
+  real_t *voltageKick = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
   real_t *factor = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
 
 #pragma omp parallel
