@@ -50,8 +50,10 @@ extern "C" void histogram(const real_t *__restrict__ input,
       for (int j = 0; j < loop_count; j++) {
         fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
 
-        // Clamp to the last bin if val == cut_right
-        if (input[i + j] == cut_right) {
+        // Scaling is not exact: a value at or just below cut_right can
+        // land on n_slices. Fold it back into the last bin, as
+        // np.histogram does, instead of dropping the particle.
+        if (fbin[j] >= (double)n_slices && input[i + j] <= cut_right) {
           fbin[j] = n_slices - 1;
         }
       }

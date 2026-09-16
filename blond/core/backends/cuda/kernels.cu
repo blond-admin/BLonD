@@ -174,18 +174,15 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   const int high_tbin = low_tbin + capacity;
 
   for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    if (input[i] == cut_right) {
-      target_bin = n_slices - 1;
-      if (target_bin >= low_tbin && target_bin < high_tbin)
-        atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
-      else
-        atomicAdd(&(output[target_bin]), 1);
-      continue;
-    }
     // Range-check in floating point *before* the conversion:
     // converting an out-of-range value to `int` is undefined
     // behaviour.
-    real_t const target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    // Scaling is not exact: a value at or just below cut_right can land
+    // on n_slices. Fold it back into the last bin, as np.histogram
+    // does, instead of dropping the particle.
+    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right)
+      target_bin_real = real_t(n_slices - 1);
     if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
       continue;
     target_bin = (int)target_bin_real;
@@ -211,14 +208,12 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   int target_bin;
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
   for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    if (input[i] == cut_right) {
-      target_bin = n_slices - 1;
-      atomicAdd(&(block_hist[target_bin]), 1);
-      continue;
-    }
-
-    // See `hybrid_histogram`: range-check before converting to `int`.
-    real_t const target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    // See `hybrid_histogram`: range-check before converting to `int`,
+    // and fold a value that scales onto n_slices back into the last
+    // bin instead of dropping it.
+    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right)
+      target_bin_real = real_t(n_slices - 1);
     if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
       continue;
     target_bin = (int)target_bin_real;
