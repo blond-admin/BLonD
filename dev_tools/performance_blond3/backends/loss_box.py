@@ -6,9 +6,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `kick_interpolated`."""
+"""Testing the performance of `loss_box`."""
 
 import matplotlib.pyplot as plt
+import numpy as np
 from scan_performance import (
     N_MACROPARTICLES_SCAN,
     plot_performance,
@@ -17,32 +18,32 @@ from scan_performance import (
 from blond.core.backends.backend import backend
 
 N_MACROPARTICLES = N_MACROPARTICLES_SCAN
-N_BINS = 128
 
 
 def make_kwargs(n_macroparticles: int) -> dict:
-    """Build the `kick_interpolated` arguments for `n_macroparticles`."""
-    bin_centers = backend.linspace(-4, 4, N_BINS, dtype=backend.float)
+    """Build the `loss_box` arguments for `n_macroparticles`."""
+    # The box keeps the inner 80 % of the particles in both planes. The
+    # limits are backend floats: the cuda wrapper asserts that type.
     return {
-        "dt": backend.linspace(-5, 5, n_macroparticles, dtype=backend.float),
-        "dE": backend.zeros(n_macroparticles, dtype=backend.float),
-        "voltage": bin_centers**2,
-        "bin_centers": bin_centers,
-        "charge": 10.0,
-        "acceleration_kick": 0.0,
+        "e_max": backend.float(0.8),
+        "e_min": backend.float(-0.8),
+        "t_min": backend.float(-0.8),
+        "t_max": backend.float(0.8),
+        "dt": backend.linspace(-1, 1, n_macroparticles, dtype=backend.float),
+        "dE": backend.linspace(1, -1, n_macroparticles, dtype=backend.float),
+        "flags": backend.zeros(n_macroparticles, dtype=np.int32),
     }
 
 
 def main() -> None:  # pragma: no cover
-    """Testing the performance of `kick_interpolated`."""
+    """Testing the performance of `loss_box`."""
     plot_performance(
-        kernel_name="kick_interpolated",
+        kernel_name="loss_box",
         make_kwargs=make_kwargs,
         scan_values=N_MACROPARTICLES,
         n_warmup=3,
         xlabel="n_macroparticles",
-        title=f"kick_interpolated, n_bins={N_BINS}",
-        save_name="kick_interpolated",
+        save_name="loss_box",
     )
     plt.show()
 
