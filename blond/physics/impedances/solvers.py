@@ -43,13 +43,13 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
+from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -1260,29 +1260,53 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         return induced_voltage
 
 
+# Slack on the call-gap check below, as a fraction of a bin: a profile that
+# spans the whole revolution period meets the check with equality, and its
+# two sides are computed along different routes.
+_CALL_GAP_TOLERANCE = 1e-6
+
+
 class MultiPoleSparseSolve(WakeFieldSolver):
-    """
+    r"""
     Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
+
+    The bin-averaged wake of a pole :math:`p` with residue :math:`\rho` is a
+    pure exponential from a lag of :math:`\tfrac32 \Delta t` on, so it
+    splits into a **far field** -- one complex state per pole, summed by
+    `Specials.wake_from_pole_residue` with the residue scaled to
+    :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3\, e^{p\Delta t / 2}`
+    and read two bins behind the bin -- and a **near field**, the three
+    taps at lags of minus one, zero and one bin, evaluated in closed form by
+    :func:`~blond.physics.impedances.bin_average.triple_box_average_poles`.
+    The split is an identity, not an approximation; recipe 3 of
+    ``explain_nearfield_farfield_model_rechenbuch.ipynb``.
+
+    Between calls the kernel hands its state over one bin before the last
+    bin, and the last bin's charge is carried separately: it enters the
+    state after the next call's first read-out, and its whole contribution
+    to that first bin is added here in closed form at the true lag.
 
     See Also
     --------
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
     """
 
-    def __init__(
-        self,
-    ) -> None:
+    def __init__(self) -> None:
+        self._parent_wakefield: WakeField | None = None
+        # The model, concatenated over the sources at the first call.
         self._poles: NumpyArray | CupyArray | None = None
         self._residues: NumpyArray | CupyArray | None = None
-        self._profile: EquidistantMultiProfile | None = None
-        self._parent_wakefield: WakeField | None = None
-        self._voltage: NumpyArray | CupyArray | None = None
-        self.last_reference_time: float | None = None
-
-        self._charge_per_macroparticle: float | None = None  # in Coulomb
-
-        # counter rotation feature for muon collider
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+        # Read once at the first call, so no device transfer per turn.
+        self._bin_dt: float | None = None
+        self._span_dt: float | None = None  # first to last bin centre
+        # The far-field state per pole, and the kernel's per-thread scratch.
+        self._states: NumpyArray | CupyArray | None = None
+        self._voltage_threaded: NumpyArray | CupyArray | None = None
+        # The previous call's last bin, its rotation, and when it was.
+        self._carried_charge: NumpyArray | CupyArray | None = None
+        self._carried_is_counter_rotating: bool = False
+        self.last_reference_time: float | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1299,57 +1323,68 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         """
         self._parent_wakefield = parent_wakefield
 
-        self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
-
-    def _finalize_solver(self, beam):
-        poles = []
-        residues = []
-        counter_rotation_pole_flip = []
-        assert self._parent_wakefield is not None
+    def _initialise(self) -> None:
+        """Collect the model and allocate the state, once."""
+        poles, residues, signs = [], [], []
         for source in self._parent_wakefield.sources:
-            vector_source: SupportsVectorFittedModel = source
-
-            poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
-
+            source: SupportsVectorFittedModel
+            poles_, residues_, signs_ = source.get_vectorfit()
             poles.extend(poles_)
             residues.extend(residues_)
-            counter_rotation_pole_flip.extend(cr_signs_)
-
-        self._poles = backend.array(poles, dtype=complex)
-        self._residues = backend.array(residues, dtype=complex)
+            signs.extend(signs_)
+        self._poles = backend.array(poles, dtype=backend.complex)
+        self._residues = backend.array(residues, dtype=backend.complex)
         self._counterrotating_pole_signs = backend.array(
-            counter_rotation_pole_flip, dtype=backend.float
+            signs, dtype=backend.float
         )
-        assert len(self._counterrotating_pole_signs) == len(self._poles)
-        assert len(self._residues) == len(self._poles)
-
-        profile_hist_x = (
-            self._parent_wakefield.profile._continuous_memory_hist_x
-            if type(self._parent_wakefield.profile) is EquidistantMultiProfile
-            else self._parent_wakefield.profile.hist_x
-            # todo unify profile
-            #  and sparse profile once the `assert_linspace`
-            #  is added
-        )
-        self._voltage = backend.zeros(
-            len(profile_hist_x),
+        hist_x = self._parent_wakefield.profile.hist_x
+        self._bin_dt = float(hist_x[1] - hist_x[0])
+        self._span_dt = float(hist_x[-1] - hist_x[0])
+        self._states = backend.zeros(len(poles), dtype=backend.complex)
+        self._voltage_threaded = backend.zeros(
+            (backend.specials.get_max_threads(), len(hist_x)),
             dtype=backend.float,
         )
-        self._states = backend.zeros(len(self._poles) + 1, complex)
-        bin_dt = float(profile_hist_x[1] - profile_hist_x[0])
-        # Initialise to the LEFT EDGE of the first bin so that t_jump = 0
-        # on the first call (C++ now uses edge-based rather than centre-based
-        # state semantics; see poles.cpp for details).
-        self._states[-1] = profile_hist_x[0] - bin_dt / 2.0
+        self._carried_charge = backend.zeros(1, dtype=backend.float)
 
-        self._voltage_threaded = backend.zeros(
-            (backend.specials.get_max_threads(), len(self._voltage))
-        )
-        self._update_on_bin = backend.unique(
-            self._profile._bucket_index_to_memory_index
-            if type(self._profile) is EquidistantMultiProfile
-            else backend.array([0], dtype=np.int32)
-        )
+    def _gap_since_previous_call(self, beam: BeamBaseClass) -> float:
+        """
+        Time from the previous call's last bin to this call's first, in [s].
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam, for the reference time.
+
+        Returns
+        -------
+        gap_dt
+            At least one bin width. On the first call nothing is carried and
+            the state is zero, so any valid gap gives the same result; two
+            bin widths are reported.
+        """
+        bin_dt = self._bin_dt
+        if self.last_reference_time is None:
+            return 2.0 * bin_dt
+        passed_dt = float(beam.reference.time - self.last_reference_time)
+        gap_dt = passed_dt - self._span_dt
+        # A profile spanning the whole revolution period meets this with
+        # equality; a longer one would let the bins of consecutive turns
+        # overlap and count the same charge twice. A gate on user-supplied
+        # geometry, so it raises rather than asserting.
+        if gap_dt < (1.0 - _CALL_GAP_TOLERANCE) * bin_dt:
+            raise ValueError(
+                "MultiPoleSparseSolve: the profile must not be longer than "
+                "the time between two calls of the solver. The profile "
+                f"spans {self._span_dt / bin_dt + 1:g} bins of {bin_dt} s, "
+                f"but only {passed_dt} s passed since the previous call, "
+                f"leaving {gap_dt / bin_dt} bin widths between the last bin "
+                "of that call and the first bin of this one (at least 1 "
+                "needed)."
+            )
+        # Exactly one bin can land a few ulp short; never hand the kernel a
+        # negative lag.
+        return max(gap_dt, bin_dt)
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -1367,51 +1402,71 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
-        profile_hist_y = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
-            self._profile._continuous_memory_hist_y
-            if type(self._profile) is EquidistantMultiProfile
-            else self._profile.hist_y
-        )
-        profile_dts = (
-            self._profile._continuous_memory_hist_x
-            if type(self._profile) is EquidistantMultiProfile
-            else self._profile.hist_x
-        )
-
         if self._poles is None:
-            self._finalize_solver(beam=beam)
-            assert self._update_on_bin[0] == 0, "First bin must always update."
-            assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
-                "The last bin must not update, the kernels read "
-                "`profile_dts[update_bin + 1]`."
-            )
-        else:
-            # The last entry of `_states` is not a pole state but the running
-            # reference time of the convolution (real part only). Each turn it
-            # is shifted back by the time elapsed since the previous call, so
-            # the pole decays are computed relative to the current profile.
-            passed_time = beam.reference.time - self.last_reference_time
-            self._states[-1] -= complex(passed_time)
-            assert self._states[-1].real <= profile_dts[0]
+            self._initialise()
+        profile = self._parent_wakefield.profile
+        hist_x, hist_y = profile.hist_x, profile.hist_y
+        bin_dt = self._bin_dt
+        factor = self._hist_y_to_intensity_factor(beam=beam, profile=profile)
+        gap_dt = self._gap_since_previous_call(beam)
 
-        self._charge_per_macroparticle = (
-            -(1 * beam.particle_type.charge * e)
-            * beam.intensity
-            * self._parent_wakefield.profile.hist_y_to_density_factor
+        # Far field: the recursion, with the residues scaled to the
+        # bin-averaged wake past its onset.
+        pole_dt = self._poles * bin_dt
+        far_field_residues = (
+            self._residues
+            * (backend.expm1(pole_dt) / pole_dt) ** 3
+            * backend.exp(pole_dt / 2.0)
         )
-
+        voltage = backend.zeros(len(hist_y), dtype=backend.float)
         backend.specials.wake_from_pole_residue(
-            profile=profile_hist_y,
-            profile_dts=profile_dts,
+            profile_time=hist_x,
+            profile=hist_y,
+            carried_charge=self._carried_charge,
+            carried_is_counterrotating=self._carried_is_counter_rotating,
+            state_lag_dt=gap_dt - bin_dt,
+            carried_lag_dt=gap_dt,
             poles=self._poles,
-            residues=self._residues,
+            residues=far_field_residues,
             is_counterrotating_beam=beam.is_counter_rotating,
             counterrotating_pole_signs=self._counterrotating_pole_signs,
+            factor=factor,
+            bin_dt=bin_dt,
             states=self._states,
-            voltage=self._voltage,
+            voltage=voltage,
             voltage_threaded=self._voltage_threaded,
-            update_on_bin=self._update_on_bin,
-            factor=self._charge_per_macroparticle,
         )
+
+        # Near field: the previous bin, the bin itself and the next bin --
+        # when adjacent; a neighbour across a gap is the recursion's.
+        taps = triple_box_average_poles(
+            backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float),
+            self._poles,
+            self._residues,
+            bin_dt,
+        )
+        adjacent = (hist_x[1:] - hist_x[:-1]) < 1.5 * bin_dt
+        voltage += (factor * taps[1]) * hist_y
+        voltage[1:] += factor * taps[0] * adjacent * hist_y[:-1]
+        voltage[:-1] += factor * taps[2] * adjacent * hist_y[1:]
+
+        # The carried charge's whole contribution to the first bin, at the
+        # true lag: a near tap for a short gap, the far-field exponential
+        # for a long one. A pole's sign enters once if the two calls rotate
+        # opposite ways.
+        sign = (
+            self._counterrotating_pole_signs
+            if beam.is_counter_rotating != self._carried_is_counter_rotating
+            else 1.0
+        )
+        voltage[:1] += self._carried_charge * triple_box_average_poles(
+            backend.array([gap_dt], dtype=backend.float),
+            self._poles,
+            self._residues * sign,
+            bin_dt,
+        )
+
+        self._carried_charge[:] = factor * hist_y[-1:]
+        self._carried_is_counter_rotating = beam.is_counter_rotating
         self.last_reference_time = copy(beam.reference.time)
-        return self._voltage
+        return voltage
