@@ -11,12 +11,24 @@ BLonD common header file
 @Author: Konstantinos Iliakis
 @Date: 12.12.2023
 */
+
+// Precondition for every kernel including this header: coordinates are
+// finite. The beam coordinates (dt, dE) and the profile coordinates
+// (bin_centers, cut edges) must contain neither NaN nor +/-Inf. Nothing
+// checks for it -- the check would not be free in a per-particle loop.
+// Note that the guards protecting the conversion of a bin index to
+// `int` are written as `index < lo || index >= hi`: a NaN index
+// compares false against both bounds, passes the guard and reaches the
+// conversion, which is undefined behaviour. The caller must not produce
+// non-finite coordinates. See `Specials` in blond/core/backends/backend.py.
+
 #pragma once
 
 #include "cos.h"
 #include "exp.h"
 #include "sin.h"
 #include <complex>
+#include <cstdint>
 
 #ifdef USEFLOAT
 
@@ -35,3 +47,8 @@ typedef double real_t;
 #endif
 
 typedef std::complex<real_t> complex_t;
+
+// Integer type of macro-particle counts, particle loop counters and particle
+// ids, so a single process can hold more than 2^31 - 1 macro-particles.
+// Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
+typedef std::int64_t index_t;

@@ -41,8 +41,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import RFStationBaseClass
 
 
 class BeamFeedbackBase(GlobalFeedback, Schedulable):

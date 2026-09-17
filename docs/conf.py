@@ -19,12 +19,59 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import datetime
 import os
+import shutil
 import sys
 from importlib.metadata import version as get_version
 
 from intersphinx_registry import get_intersphinx_mapping
 
 print(">>> Sphinx loaded THIS conf.py:", __file__)
+
+
+def check_system_dependencies():
+    """
+    Fail fast if non-pip system tools needed by the build are missing.
+
+    ``nbsphinx`` needs pandoc to render the example notebooks and
+    ``sphinx.ext.inheritance_diagram`` needs Graphviz ``dot``. Neither can
+    be installed via ``pip install .[doc]``, and without them the build
+    otherwise dies late with an obscure traceback (or a ``-W`` warning).
+
+    Raises
+    ------
+    RuntimeError
+        If pandoc or Graphviz ``dot`` is not available.
+    """
+    missing = []
+    try:
+        from nbconvert.utils.pandoc import PandocMissing, get_pandoc_version
+
+        get_pandoc_version()
+    except PandocMissing:
+        missing.append(
+            "pandoc (required by nbsphinx for the example notebooks)\n"
+            "    Linux: apt install pandoc | macOS: brew install pandoc |"
+            " Windows: winget install JohnMacFarlane.Pandoc\n"
+            "    See https://pandoc.org/installing.html"
+        )
+    if shutil.which("dot") is None:
+        missing.append(
+            "Graphviz 'dot' (required by sphinx.ext.inheritance_diagram)\n"
+            "    Linux: apt install graphviz | macOS: brew install graphviz |"
+            " Windows: winget install Graphviz.Graphviz\n"
+            "    See https://graphviz.org/download/"
+        )
+    if missing:
+        details = "\n  - ".join(missing)
+        raise RuntimeError(
+            "Cannot build the BLonD docs, missing system dependencies "
+            f"(not installable via pip):\n  - {details}\n"
+            "Install them, make sure they are on PATH, and restart the "
+            "shell before re-running create_docs.sh."
+        )
+
+
+check_system_dependencies()
 
 sys.path.insert(0, os.path.abspath(".."))
 

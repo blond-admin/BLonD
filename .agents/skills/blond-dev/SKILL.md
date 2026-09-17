@@ -56,7 +56,7 @@ Extras are defined in `pyproject.toml` `[project.optional-dependencies]`:
 | Everything | `".[all_no_cuda]"` / `".[all_cuda12]"` / `".[all_cuda13]"` |
 
 `gpu_cuda12` vs `gpu_cuda13` must match the installed CUDA toolkit. After install,
-`pre-commit install`. Native backends are optional: `blond-compile-cpp --parallel`,
+`pre-commit install`. Native backends are optional: `blond-compile-cpp`,
 `blond-compile-cuda` (CI does this before tests).
 
 ## Test
@@ -68,9 +68,12 @@ python -m pytest -v tests/unittests/
 Backend-relevant env vars and markers:
 - `BLOND_BACKEND_MODE` (`numba`/`cpp`/`cuda`/`python`); `BLOND_BACKEND_BITS` (the env var
   currently validates to `64` only — see precision note below).
-- `BLOND_FORCE_TEST_ALL_BACKENDS=True` — fan a backend-aware test out over **every**
-  available backend instead of just the selected one. **Set this whenever you touch
-  backend code.**
+- `BLOND_FORCE_TEST_ALL_BACKENDS=True` — fan a backend-aware test out over **every
+  registered** backend instead of just the available ones. **Set this whenever you
+  touch backend code.** Registered backends that cannot be initialised *fail* rather
+  than skip, so without CuPy/a GPU every `Cupy64Bit` run errors with
+  `ModuleNotFoundError: No module named 'cupy'` — expected, not a bug. CI only forces
+  it on GPU runners; on a CPU-only machine read those CUDA failures as noise.
 - Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`, `julia`.
   Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`.
 - `pytest-randomly` randomizes order; reproduce a failure with `--randomly-seed=<N>`.

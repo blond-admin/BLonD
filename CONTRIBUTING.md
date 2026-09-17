@@ -116,6 +116,12 @@ Ensure the following tools are installed:
   * Linux: `libopenmpi-dev` / `openmpi` (or your distribution's equivalent)
   * macOS: `brew install open-mpi`
   * Windows: [Microsoft MPI](https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
+* **Documentation build** (not installable via pip, must be on `PATH`):
+
+  * [Pandoc](https://pandoc.org/installing.html) — used by `nbsphinx` for the example notebooks
+    (Linux: `apt install pandoc`, macOS: `brew install pandoc`, Windows: `winget install JohnMacFarlane.Pandoc`)
+  * [Graphviz](https://graphviz.org/download/) (`dot`) — used for the inheritance diagrams
+    (Linux: `apt install graphviz`, macOS: `brew install graphviz`, Windows: `winget install Graphviz.Graphviz`)
 
 ---
 
@@ -344,6 +350,13 @@ To run hooks on **all files**:
 ```bash
 pre-commit run --all-files
 ```
+C/C++ and CUDA sources are formatted by `clang-format` (style in
+[`.clang-format`](.clang-format)). The hook installs a pinned `clang-format`
+wheel into pre-commit's own environment, so no system clang installation is
+needed, and the version is identical on Linux, macOS and Windows. When editing
+C++/CUDA in an IDE, point it at that same version (`pip install
+clang-format==<rev in .pre-commit-config.yaml>`) to avoid format ping-pong.
+
 An optional check of the code can be done using the command
 ```bash
 ruff check
@@ -368,7 +381,8 @@ python3 dev_tools/copy_copyright_to_all_files.py
 ## Documentation
 > Automatically done in GitLab CI Pipeline
 
-To build the documentation locally:
+To build the documentation locally (requires [Pandoc and Graphviz](#dependencies)
+on `PATH`; `docs/conf.py` aborts with install hints if either is missing):
 
 ```bash
 python -m pip install .[doc]

@@ -37,6 +37,18 @@ repos:
       - id: ruff-check  # This runs `ruff check`
         args: ["--fix"] # otherwise not compatible with Ruff
 
+  # Formats the C/C++ and CUDA backends (style in .clang-format).
+  # clang-format comes from a pinned PyPI wheel inside pre-commit's own
+  # environment, so no system clang is needed and every OS gets the same
+  # version. The hook only runs when C/C++/CUDA files are staged.
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v23.1.1
+    hooks:
+      - id: clang-format
+        types_or: [c, c++, cuda]
+        # verbatim copy of an external project, keep it diffable upstream
+        exclude: ^blond/interfaces/rf_noise_cpp/varigen\.h$
+
   # Check that the copyright notice is there
   - repo: local
     hooks:
@@ -44,6 +56,33 @@ repos:
         name: check copyright
         entry: python dev_tools/precommit_check_copyright.py
         language: system
+
+  # ruff's missing-docstring rules (D1xx) skip everything inside a
+  # `_private` folder or file. This reruns them as if the path had no
+  # underscores, so making a folder private does not lose the check.
+  # Same file scope as ruff's `lint.exclude`; keep the ruff pin in sync.
+  - repo: local
+    hooks:
+      - id: check-docstrings-in-private-paths
+        name: check docstrings in private folders and files
+        entry: python dev_tools/precommit_check_docstrings.py
+        language: python
+        additional_dependencies: ["ruff==0.15.15"]
+        types: [python]
+        files: ^blond/
+        exclude: ^blond/(experimental|examples)/
+
+  # Every class exported at BLonD toplevel needs a documentation category
+  - repo: local
+    hooks:
+      - id: check-toplevel-categories
+        name: check toplevel classes are categorized for the docs
+        entry: python dev_tools/precommit_check_toplevel_categories.py
+        language: system
+        # Only the toplevel exports and the category mapping itself can
+        # break this; the doc build would otherwise be the first to notice.
+        files: ^(blond/__init__\.py|docs/create_doc_blond_main_objects\.py)$
+        pass_filenames: false
 
   # Mirror .agents/skills into root CLAUDE.md / AGENTS.md and .claude/skills
   - repo: local

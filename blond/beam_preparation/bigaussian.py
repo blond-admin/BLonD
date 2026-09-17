@@ -163,7 +163,7 @@ def get_main_harmonic_attributes(
     """
     # TODO move this into ring.
     from blond import MultiHarmonicRFStation
-    from blond.physics.cavities import SingleHarmonicRFStation
+    from blond.physics.rf_station import SingleHarmonicRFStation
 
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation, recursive=False

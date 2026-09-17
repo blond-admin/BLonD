@@ -29,7 +29,7 @@ _HAS_GPP = shutil.which("g++") is not None
 def _default_options(**overrides):
     options = {
         "compiler": "g++",
-        "optimize": True,
+        "optimize_for_local_cpu": True,
         "flags": "",
         "libs": "",
         "with_fftw": False,
@@ -185,10 +185,10 @@ class TestBuildOptionsValid(unittest.TestCase):
         options = _default_options(flags="-this-is-not-a-real-flag")
         self.assertFalse(lc.build_options_valid(options, EXPECTED_KEYS))
 
-    def test_optimize_false(self):
+    def test_optimize_for_local_cpu_false(self):
         if not _HAS_GPP:
             self.skipTest("needs g++")
-        options = _default_options(optimize=False)
+        options = _default_options(optimize_for_local_cpu=False)
         self.assertTrue(lc.build_options_valid(options, EXPECTED_KEYS))
 
     def test_dry_run_flags(self):
@@ -197,22 +197,26 @@ class TestBuildOptionsValid(unittest.TestCase):
             lc, "_check_dry_run_compile", return_value=True
         ) as mocked_dry_run:
             lc.build_options_valid(
-                _default_options(optimize=True, flags="-Wall"),
+                _default_options(optimize_for_local_cpu=True, flags="-Wall"),
                 EXPECTED_KEYS,
             )
-            flags_with_optimize = mocked_dry_run.call_args.args[1]
+            flags_with_optimize_for_local_cpu = mocked_dry_run.call_args.args[
+                1
+            ]
 
             lc.build_options_valid(
-                _default_options(optimize=False, flags="-Wall"),
+                _default_options(optimize_for_local_cpu=False, flags="-Wall"),
                 EXPECTED_KEYS,
             )
-            flags_without_optimize = mocked_dry_run.call_args.args[1]
+            flags_without_optimize_for_local_cpu = (
+                mocked_dry_run.call_args.args[1]
+            )
 
-        self.assertIn("-march=native", flags_with_optimize)
-        self.assertIn("-ffast-math", flags_with_optimize)
-        self.assertNotIn("-march=native", flags_without_optimize)
-        self.assertNotIn("-ffast-math", flags_without_optimize)
-        self.assertEqual(flags_without_optimize, ["-Wall"])
+        self.assertIn("-march=native", flags_with_optimize_for_local_cpu)
+        self.assertIn("-ffast-math", flags_with_optimize_for_local_cpu)
+        self.assertNotIn("-march=native", flags_without_optimize_for_local_cpu)
+        self.assertNotIn("-ffast-math", flags_without_optimize_for_local_cpu)
+        self.assertEqual(flags_without_optimize_for_local_cpu, ["-Wall"])
 
 
 if __name__ == "__main__":

@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
+#: Integer dtype of macroparticle counts, particle loop counters and particle
+#: ids, so a single process can hold more than 2**31 - 1 macroparticles.
+#: Must match `index_t` in `cpp/blond_common.h` and `cuda/kernels.cu`.
+INDEX_DTYPE = np.int64
+
 ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
 # `AVAILABLE_BACKENDS` is provided lazily via the module-level
 # `__getattr__` below; see `_probe_available_backends`.
@@ -72,7 +77,24 @@ def backend_class_for_mode(
 
 
 class Specials(ABC):
-    """Abstract listing of functions that need implementation for a new backend."""
+    """
+    Abstract listing of functions to implement for a new backend.
+
+    Notes
+    -----
+    All kernels assume **finite** coordinates: the beam coordinates ``dt``
+    and ``dE``, and the profile coordinates (bin centres, cut edges), must
+    contain neither ``NaN`` nor ``+/-Inf``. No kernel checks for it, and
+    the check would not be free in a per-particle loop.
+
+    This is a real precondition, not just a convention. The range guards
+    that protect the conversion of a bin index to an integer are written
+    as ``index < lo or index >= hi``; a ``NaN`` index compares ``False``
+    against both bounds, so it passes the guard and reaches the
+    conversion, where an out-of-range or non-finite value is undefined
+    (in C/CUDA literally undefined behaviour). Callers are responsible
+    for not producing non-finite coordinates in the first place.
+    """
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -196,6 +218,20 @@ class Specials(ABC):
     ) -> None:
         raise NotImplementedError(
             "Abstract method `drift_simple` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def drift_like_line_segment(  # NOQA: D102
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        raise NotImplementedError(
+            "Abstract method `drift_like_line_segment` is not implemented."
         )
 
     @staticmethod
