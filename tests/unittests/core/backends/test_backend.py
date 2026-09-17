@@ -15,6 +15,7 @@ from scipy.constants import elementary_charge
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
     INDEX_DTYPE,
+    BackendBaseClass,
     Cupy64Bit,
     CupyBackend,
     Numpy64Bit,
@@ -3786,6 +3787,11 @@ class TestSpecials(BLonDTestCase):
             np.testing.assert_array_equal(exp, got)
             self.assertIsNot(source_array, out_array)
             self.assertIsInstance(out_array, target_type)
+
+    def test_as_backend_array_unknown_backend(self):
+
+        with self.assertRaises(RuntimeError):
+            BackendBaseClass.as_backend_array(object(), [1, 2, 3])
 
     @skip_if_no_cupy
     @multi_backend_testcase
