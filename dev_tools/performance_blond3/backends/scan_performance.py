@@ -627,7 +627,11 @@ def plot_performance(
     )
     figure.suptitle(title)
     axis_per_call.set_ylabel("runtime per call [s]")
+    axis_per_call.set_ylim((1e-9, 1))  # absolute scala to make plots easily
+    # comparable
     axis_per_element.set_ylabel(f"runtime per call / {xlabel} [s]")
+    axis_per_element.set_ylim((1e-10, 1e-6))  # absolute scala to make plots
+    # easily comparable
     for axis in (axis_per_call, axis_per_element):
         axis.set_xscale("log")
         axis.set_yscale("log")
@@ -639,8 +643,19 @@ def plot_performance(
     failures: dict[str, str] = {}
     started = datetime.datetime.now().isoformat(timespec="seconds")
     for mode in modes:
-        (line_per_call,) = axis_per_call.plot([], [], "o-", label=mode)
-        (line_per_element,) = axis_per_element.plot([], [], "o-", label=mode)
+        (line_per_call,) = axis_per_call.plot(
+            [],
+            [],
+            "o-",
+            label=mode,
+        )
+        (line_per_element,) = axis_per_element.plot(
+            [],
+            [],
+            "o-",
+            label=mode,
+            color=line_per_call.get_color(),
+        )
         # Hollow, oversized markers on top of the line, so that an
         # unstable point stays recognizable in the saved PNG
         (marker_unstable,) = axis_per_call.plot(
