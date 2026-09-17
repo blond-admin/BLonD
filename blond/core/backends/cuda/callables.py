@@ -545,6 +545,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(filling_pattern)),
                 filling_pattern,
                 bucket_index_to_memory_index,
+                acceleration_kick,
                 glob_vkick_factor,
             ),
             grid=grid_size,
