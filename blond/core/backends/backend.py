@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, overload
 import numpy as np
 from numpy.exceptions import ComplexWarning
 
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 from blond.generals.exceptions_ import ArrayCastingError, UnknownBackendMode
 from blond.generals.warnings_ import PrecisionWarning
 
@@ -79,6 +80,39 @@ def backend_class_for_mode(
         :class:`Cupy64Bit` for the 'cuda' mode, else :class:`Numpy64Bit`.
     """
     return Cupy64Bit if mode.lower() == "cuda" else Numpy64Bit
+
+
+def _array_like_to_numpy(array: AnyArray) -> NumpyArray:
+    """
+    Recursively convert an array-like to a numpy array.
+
+    Handles plain numpy/cupy arrays as well as (nested) containers of
+    them, e.g. a list of cupy arrays.
+
+    Parameters
+    ----------
+    array
+        The array-like object to convert. May be a numpy array, a
+        cupy array, or a (nested) container of either.
+
+    Returns
+    -------
+    NumpyArray
+        The input, converted to a numpy array.
+    """
+    if is_cupy_array(array):
+        out_array = array.get()
+    else:
+        try:
+            out_array = np.array(array)
+        except TypeError:
+            # If the input is e.g. a list of cupy array, the input is
+            # not a cupy array, but the call to `np.array(array)` will
+            # fail.  In that case, iterate recursively over the
+            # elements to extract them individually.
+            out_array = np.array([_array_like_to_numpy(a) for a in array])
+
+    return out_array
 
 
 class Specials(ABC):
@@ -1046,6 +1080,83 @@ class BackendBaseClass(ABC):
             The modified (if needed) array.
         """
         return self._cast_arr_and_dtype(arr, self.complex)
+
+    def as_numpy_array(self, arr: AnyArray) -> NumpyArray:
+        """
+        Convert input to a numpy array, regardless of the active backend.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as a numpy array.
+
+        Returns
+        -------
+        NumpyArray
+            The input, converted to a numpy array.
+        """
+        return _array_like_to_numpy(arr)
+
+    def as_cupy_array(self, arr: AnyArray) -> CupyArray:
+        """
+        Convert input to a cupy array, regardless of the active backend.
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as a cupy array.
+
+        Returns
+        -------
+        CupyArray
+            The input, converted to a cupy array.
+
+        Raises
+        ------
+        RuntimeError
+            If CuPy is not installed on this system.
+        """
+        try:
+            # import only if needed, which is not always the case
+            import cupy as cp  # type: ignore
+        except ImportError as e:
+            raise RuntimeError(
+                "Attempted conversion to CuPy array, but CuPy is not "
+                "available on this system."
+            ) from e
+        else:
+            return cp.array(arr)
+
+    def as_backend_array(self, arr: AnyArray) -> NumpyArray | CupyArray:
+        """
+        Convert input to an array matching this backend (numpy or cupy).
+
+        Parameters
+        ----------
+        arr
+            The object that should be returned as a backend array.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            The input, converted to a numpy or cupy array, matching
+            whichever this backend uses.
+
+        Raises
+        ------
+        RuntimeError
+            If this backend is neither a `NumpyBackend` nor a
+            `CupyBackend`.
+        """
+        if isinstance(self, NumpyBackend):
+            return self.as_numpy_array(arr)
+        elif isinstance(self, CupyBackend):
+            return self.as_cupy_array(arr)
+        else:
+            raise RuntimeError(
+                "as_backend_array requires either a CupyBackend or a "
+                "NumpyBackend."
+            )
 
 
 class NumpyBackend(BackendBaseClass):

@@ -18,7 +18,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeGuard
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -49,7 +48,7 @@ def is_cupy_array(
         return False
 
 
-def copy_to_cpu(array: ArrayLike) -> NumpyArray:
+def copy_to_cpu(array: NumpyArray | CupyArray) -> NumpyArray:
     """
     Copy array from GPU/CPU to CPU.
 
@@ -68,19 +67,7 @@ def copy_to_cpu(array: ArrayLike) -> NumpyArray:
     Changes to the returned array will not
     be reflected on the original memory.
     """
-    if is_cupy_array(array):
-        out_array = array.get()
-    else:
-        try:
-            out_array = np.array(array)
-        except TypeError:
-            # If the input is e.g. a list of cupy array, the input is
-            # not a cupy array, but the call to `np.array(array)` will
-            # fail.  In that case, iterate recursively over the
-            # elements to extract them individually.
-            out_array = np.array([copy_to_cpu(a) for a in array])
-
-    return out_array
+    return array.get() if is_cupy_array(array) else array.copy()
 
 
 class _AsarrayOverrideManager:

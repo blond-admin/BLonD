@@ -41,7 +41,6 @@ from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
 )
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -295,10 +294,8 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
     ):
         super().__init__(section_index=section_index, name=name, **kwargs)
 
-        self.time: NumpyArray | CupyArray = backend.array(copy_to_cpu(time))
-        self.waveform: NumpyArray | CupyArray = backend.array(
-            copy_to_cpu(waveform)
-        )
+        self.time = backend.as_backend_array(time)
+        self.waveform = backend.as_backend_array(waveform)
 
         self.waveform_gain: float = waveform_gain
         self._register_schedulable_variables("waveform_gain")
