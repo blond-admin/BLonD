@@ -364,7 +364,7 @@ def charges_from_fine_to_coarse(
         charges_coarse[ind_fine[indices[i]] % n_points] = (
             np.sum(
             charges_fine[np.arange(indices[i - 1], indices[i])]
-        )  # TODO: modulo might not be physical
+        ))
     return charges_coarse
 
 
