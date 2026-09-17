@@ -123,7 +123,7 @@ class ObservablesBaseClass(MainLoopRelevant):
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"
-        logger.info(f"Will save {self} to {self.common_filepath}_,,,")
+        logger.info("Will save %s to %s_,,,", self, self.common_filepath)
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         """
@@ -170,21 +170,21 @@ class ObservablesBaseClass(MainLoopRelevant):
             )
         self.common_filepath = new_common_filepath
         logger.info(
-            f"Changed save target of {self} to {self.common_filepath}."
+            "Changed save target of %s to %s.", self, self.common_filepath
         )
 
     def to_disk(self) -> None:
         """Save data to disk."""
         for _attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Saved {array_recorder.filepath_array}")
+            logger.info("Saved %s", array_recorder.filepath_array)
             array_recorder.to_disk()
 
     def from_disk(self) -> None:
         """Load data from disk."""
         for attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Loaded {array_recorder.filepath_array}")
+            logger.info("Loaded %s", array_recorder.filepath_array)
 
             self.__setattr__(
                 attribute_name,
