@@ -655,22 +655,22 @@ class Simulation(Preparable):
         **kwargs
             Extra keyword arguments.
         """
-        logger.debug(f"Calling all {method}({kwargs}) in {self}")
+        logger.debug("Calling all %s(%s) in %s", method, kwargs, self)
         instances = find_instances_with_method(self, f"{method}")
-        logger.debug(f"Found {instances} to be initialized")
+        logger.debug("Found %s to be initialized", instances)
         ordered_classes = get_required_order(instances, f"{method}.requires")
 
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
 
-        logger.info(f"Execution order for `{method}` is {ordered_classes}")
+        logger.info("Execution order for `%s` is %s", method, ordered_classes)
 
         for cls in ordered_classes:
             for element in instances:
                 if type(element).__name__ != cls:
                     continue
-                logger.info(f"Running `{method}` of {element}")
+                logger.info("Running `%s` of %s", method, element)
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self) -> None:
@@ -813,9 +813,9 @@ class Simulation(Preparable):
             SRM[0].prepare_ring_for_synchrotron_radiation_tracking(
                 ring=ring,
             )
-        logger.debug(f"{ring=}")
-        logger.debug(f"{beams=}")
-        logger.debug(f"{elements=}")
+        logger.debug("ring=%s", ring)
+        logger.debug("beams=%s", beams)
+        logger.debug("elements=%s", elements)
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         order_info = sim.ring.elements.get_order_info()
@@ -1231,7 +1231,7 @@ class Simulation(Preparable):
         if callbacks is not None:
             callbacks = _as_tuple(callbacks)
 
-        logger.info(f"Running `run_simulation` with {locals()}")
+        logger.info("Running `run_simulation` with %s", locals())
         n_turns = (
             int_from_float_with_warning(n_turns, warning_stacklevel=2)
             if n_turns is not None

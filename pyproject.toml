@@ -133,6 +133,7 @@ select = [
   "SIM", # flake8-simplify
   "NPY", # numpy-specific rules
   "PL",  # pylint rules
+  "G",   # flake8-logging-format (no eager f-string log messages)
 ]
 
 ignore = [

@@ -360,7 +360,7 @@ class Schedulable:
                 attribute,
                 value,
             )
-            logger.debug(f"Wrote {self}.{attribute} = {value}")
+            logger.debug("Wrote %s.%s = %s", self, attribute, value)
 
 
 class SimulationElementBase(MainLoopRelevant, ABC):
