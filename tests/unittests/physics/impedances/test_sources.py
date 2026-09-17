@@ -477,6 +477,75 @@ class TestResonators(unittest.TestCase):
                 quality_factors=0.49,
             )
 
+    def test___init___quality_factor_exactly_one_half_raises(self):
+        """Q = 0.5 is critically damped: omega_bar = 0 and the closed-form
+        bin average divides by it, so the input is rejected up front."""
+        with self.assertRaisesRegex(RuntimeError, "greater than 0.5"):
+            Resonators(
+                shunt_impedances=1e6,
+                center_frequencies=1e9,
+                quality_factors=0.5,
+            )
+
+    def test___init___quality_factor_just_above_one_half_is_accepted(self):
+        """The bound is strict, so anything above 0.5 still constructs."""
+        resonators = Resonators(
+            shunt_impedances=1e6,
+            center_frequencies=1e9,
+            quality_factors=0.5000001,
+        )
+        self.assertEqual(len(resonators._quality_factors), 1)
+        self.assertGreater(float(resonators._omega_bar[0]), 0.0)
+
+    def test_get_wake_per_bin_counter_rotation_matches_negated(self):
+        """A negated counter-rotating shunt gives the negated bin average."""
+        res = Resonators(
+            np.array([1.0]),
+            np.array([1e9]),
+            np.array([5.0]),
+            shunt_impedances_counter_rotating=np.array([-1.0]),
+        )
+        time = backend.array(np.arange(64) * 0.05e-9)
+        co = copy_to_cpu(res.get_wake_per_bin(time))
+        cr = copy_to_cpu(res.get_wake_per_bin_counter_rotation(time))
+        np.testing.assert_allclose(co, -cr, atol=1e-12 * np.max(np.abs(co)))
+
+    def test_get_wake_per_bin_is_exact_bin_average(self):
+        """The closed form equals a fine numerical B-spline average.
+
+        The wake is heavily undersampled here (f_res * dt = 0.18), so the
+        bin average genuinely differs from point-sampling the wake.
+        """
+        local_res = Resonators(
+            shunt_impedances=np.array([100.0]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([1.0]),
+        )
+        dt = 0.18e-9
+        time = backend.array(np.arange(256) * dt)
+
+        # Quadratic B-spline over (-1.5 dt, 1.5 dt), fine midpoint rule.
+        n_sub = 6000
+        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 3.0 - 1.5) * dt
+        scaled = np.abs(shifts) / dt
+        weights = np.where(
+            scaled <= 0.5, 0.75 - scaled**2, 0.5 * (1.5 - scaled) ** 2
+        )
+        wake_avg = backend.zeros(len(time), dtype=backend.float)
+        for shift, weight in zip(shifts, weights, strict=True):
+            wake_avg = wake_avg + weight * local_res.get_wake(time + shift)
+        wake_avg = copy_to_cpu(wake_avg / np.sum(weights))
+
+        binned = copy_to_cpu(local_res.get_wake_per_bin(time))
+        peak = np.max(np.abs(wake_avg))
+        np.testing.assert_allclose(
+            binned, wake_avg, rtol=2e-3, atol=2e-3 * peak
+        )
+        self.assertGreater(
+            np.max(np.abs(binned - copy_to_cpu(local_res.get_wake(time)))),
+            0.1 * peak,
+        )
+
     def test_init_mixed_input(self):
         r_shunt = [1]
         f = 400e6

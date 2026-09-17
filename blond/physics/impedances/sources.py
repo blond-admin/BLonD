@@ -42,6 +42,7 @@ from blond.physics.impedances.base import (
     TimeDomainCounterRotation,
     WakeFieldSource,
 )
+from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -384,9 +385,11 @@ class Resonators(
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
-        if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
+        # At Q = 0.5 the resonator is critically damped, omega_bar = 0, and
+        # the closed-form bin average divides by it.
+        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
-                "All quality factors Q must be greater or equal 0.5"
+                "All quality factors Q must be greater than 0.5"
             )
         if backend.sum(self._center_frequencies < 0) > 0:
             raise RuntimeError(
@@ -553,6 +556,86 @@ class Resonators(
                 )
             )
         return wake
+
+    def get_wake_per_bin(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Exact bin average of the resonator wake, in [V].
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced) at which the wake is
+            evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        return self._wake_per_bin(time, self._shunt_impedances)
+
+    def get_wake_per_bin_counter_rotation(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Exact bin average of the counter-rotating resonator wake, in [V].
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced) at which the wake is
+            evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        if self._shunt_impedances_counter_rotating is None:
+            raise RuntimeError(
+                "_shunt_impedances_counter_rotating needs to be set before"
+                " calling this function."
+            )
+        return self._wake_per_bin(
+            time, self._shunt_impedances_counter_rotating
+        )
+
+    def _wake_per_bin(
+        self,
+        time: NumpyArray | CupyArray,
+        shunt_impedances: NumpyArray | CupyArray,
+    ) -> NumpyArray | CupyArray:
+        r"""
+        Bin-averaged wake of the resonators as a sum of poles.
+
+        Each resonator is one pole :math:`p = -\alpha + i \bar\omega` with
+        residue :math:`\rho = R \alpha (1 + i \alpha / \bar\omega)`, so that
+        its wake is :math:`2\,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`
+        (recipe 1 of ``explain_nearfield_farfield_model_rechenbuch.ipynb``).
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced), in [s].
+        shunt_impedances
+            Shunt impedances to use, in [:math:`\Omega`].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        poles = -self._alpha + 1j * self._omega_bar
+        residues = (
+            shunt_impedances
+            * self._alpha
+            * (1.0 + 1j * self._alpha / self._omega_bar)
+        )
+        return triple_box_average_poles(
+            time, poles, residues, time[1] - time[0]
+        )
 
     def heaviside_eps_at_0(self, time: NumpyArray, eps: float = 0.01):
         """
