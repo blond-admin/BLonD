@@ -94,6 +94,22 @@ def _compile_probe_to_asm(macro, extra_flags=()):
             return file.read()
 
 
+def _host_default_is_256_bit():
+    """Whether plain ``-march=native`` keeps this host's loops at 256 bits.
+
+    GCC only tunes ``prefer-vector-width=256`` for some AVX-512 CPUs; on
+    others (and on CPUs newer than the compiler) it already emits ``zmm``
+    without the macro. Where that is the case the macro is a no-op, and
+    the two tests below have nothing left to observe.
+    """
+    if not (_HAS_GPP and _HAS_AVX512):
+        return False
+    return "%zmm" not in _compile_probe_to_asm("")
+
+
+_HOST_DEFAULT_IS_256 = _host_default_is_256_bit()
+
+
 @unittest.skipUnless(_HAS_GPP, "Requires g++ to inspect generated code")
 class TestPreferVectorWidthMacro(BLonDTestCase):
     """The macro must widen vectorization, and must do so only where used."""
@@ -109,23 +125,31 @@ class TestPreferVectorWidthMacro(BLonDTestCase):
         asm = _compile_probe_to_asm("BLOND_PREFER_VECTOR_WIDTH_512")
         self.assertIn("%zmm", asm)
 
-    @unittest.skipUnless(_HAS_AVX512, "Host CPU has no AVX-512")
+    @unittest.skipUnless(
+        _HOST_DEFAULT_IS_256, "Host GCC already defaults to 512-bit vectors"
+    )
     def test_without_macro_stays_256_bit(self):
         """Without the macro, GCC's default keeps the loop at 256 bits.
 
         This is the control: without it, a test asserting ``%zmm`` would
-        still pass if every kernel were widened globally.
+        still pass if every kernel were widened globally. It only says
+        anything on a host whose GCC default is 256 bits -- elsewhere the
+        macro cannot widen what is already wide.
         """
         asm = _compile_probe_to_asm("")
         self.assertNotIn("%zmm", asm)
 
-    @unittest.skipUnless(_HAS_AVX512, "Host CPU has no AVX-512")
+    @unittest.skipUnless(
+        _HOST_DEFAULT_IS_256, "Host GCC already defaults to 512-bit vectors"
+    )
     def test_macro_can_be_disabled_from_the_command_line(self):
         """Defining the macro empty switches the whole feature off.
 
         This is the escape hatch for a CPU where AVX-512 downclocking makes
         wider vectors a loss, and the screening script depends on it to
-        compile an already-widened kernel at 256 bits.
+        compile an already-widened kernel at 256 bits. Like the control
+        above, it can only be observed where GCC's own default is 256
+        bits.
         """
         asm = _compile_probe_to_asm(
             "BLOND_PREFER_VECTOR_WIDTH_512",
