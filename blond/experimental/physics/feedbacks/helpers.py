@@ -179,8 +179,7 @@ def rf_beam_current(
         # The coarse grid is `k * T_s + pi / omega_c + dT`, so inverting it
         # for the fine->coarse map subtracts `dT`; adding it misplaced the
         # beam-loading current by `round(2 * dT / T_s)` buckets.
-        ind_fine = np.round((profile.hist_x - dT - np.pi / omega_c) / T_s)
-        ind_fine = np.array(ind_fine, dtype=int)
+        ind_fine = np.round((profile.hist_x - dT - np.pi / omega_c) / T_s).astype(int)
 
         # Accumulate every fine bin into the bucket it belongs to. Walking
         # contiguous runs instead dropped every group after a gap (their

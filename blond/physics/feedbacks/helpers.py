@@ -222,8 +222,7 @@ def rf_beam_current(
         # `k * T_s + pi / omega_c + dT`. Inverting that for the
         # fine->coarse map therefore *subtracts* `dT`; adding it misplaced
         # the beam-loading current by `round(2 * dT / T_s)` buckets.
-        ind_fine = np.round((prof_time - dT - np.pi / omega_c) / T_s)
-        ind_fine = ind_fine.astype(int)
+        ind_fine = np.round((prof_time - dT - np.pi / omega_c) / T_s).astype(int)
 
         # Accumulate every fine bin into the bucket it belongs to. Walking
         # contiguous runs instead needed bookkeeping that went wrong three
