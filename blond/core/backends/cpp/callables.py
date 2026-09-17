@@ -27,6 +27,7 @@ from blond.core.backends.cpp.compiled_dir_handler import (
     cpp_compiled_dir,
     load_build_options,
 )
+from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -639,6 +640,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(dt),
                 _get_pointer(dE),
                 _get_pointer(flags),
+                ct.c_int(BeamFlags.LOST.value),
                 _get_beam_len(dt),
             )
 
