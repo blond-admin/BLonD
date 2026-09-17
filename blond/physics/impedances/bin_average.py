@@ -138,7 +138,7 @@ def triple_box_average_pole(
 
     The third difference of :func:`causal_third_antiderivative_factor` is
     used where the B-spline straddles the onset, and the exponential closed
-    form (:func:`_smoothed_pole`) past it, where differencing would cancel
+    form (``_smoothed_pole``) past it, where differencing would cancel
     digits. A complex pole stands in for its unstored conjugate partner and
     is doubled; a real pole (``pole.imag == 0``) is not.
 
