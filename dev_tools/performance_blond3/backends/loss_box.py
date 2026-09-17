@@ -6,14 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Measure the performance of the histogram function.
-
-Notes
------
-Authors:
-Leonard Thiele
-"""
+"""Testing the performance of `loss_box`."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,32 +18,32 @@ from scan_performance import (
 from blond.core.backends.backend import backend
 
 N_MACROPARTICLES = N_MACROPARTICLES_SCAN
-N_BINS = 64
 
 
 def make_kwargs(n_macroparticles: int) -> dict:
-    """Build the `histogram` arguments for `n_macroparticles`."""
-    rng = np.random.default_rng(42)
-    input_array = (rng.random(n_macroparticles) - 0.5) * 20
+    """Build the `loss_box` arguments for `n_macroparticles`."""
+    # The box keeps the inner 80 % of the particles in both planes. The
+    # limits are backend floats: the cuda wrapper asserts that type.
     return {
-        # casting to correct data type, outside the timed window
-        "array_read": backend.array(input_array, dtype=backend.float),
-        "array_write": backend.zeros(N_BINS, dtype=backend.float),
-        "start": -12.0,
-        "stop": 8.0,
+        "e_max": backend.float(0.8),
+        "e_min": backend.float(-0.8),
+        "t_min": backend.float(-0.8),
+        "t_max": backend.float(0.8),
+        "dt": backend.linspace(-1, 1, n_macroparticles, dtype=backend.float),
+        "dE": backend.linspace(1, -1, n_macroparticles, dtype=backend.float),
+        "flags": backend.zeros(n_macroparticles, dtype=np.int32),
     }
 
 
 def main() -> None:  # pragma: no cover
-    """Measure the performance of the histogram function."""
+    """Testing the performance of `loss_box`."""
     plot_performance(
-        kernel_name="histogram",
+        kernel_name="loss_box",
         make_kwargs=make_kwargs,
         scan_values=N_MACROPARTICLES,
-        n_warmup=1,
+        n_warmup=3,
         xlabel="n_macroparticles",
-        title=f"histogram, n_bins={N_BINS}",
-        save_name="histogram",
+        save_name="loss_box",
     )
     plt.show()
 
