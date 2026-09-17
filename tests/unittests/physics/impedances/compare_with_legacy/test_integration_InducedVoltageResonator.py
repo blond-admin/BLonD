@@ -21,6 +21,7 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 from .test_integration_InducedVoltageFreq import (
     Q_factor,
@@ -173,7 +174,7 @@ class Blond3:
         self.induced_voltage = induced_voltage
 
 
-class TestBothBlonds(unittest.TestCase):
+class TestBothBlonds(BLonDTestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()

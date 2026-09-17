@@ -1,9 +1,10 @@
 import unittest
 
 from blond.cycles.noise_generators.base import NoiseGenerator
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestNoiseGenerator(unittest.TestCase):
+class TestNoiseGenerator(BLonDTestCase):
     @unittest.skip("Abstract class")
     def setUp(self):
         # TODO: implement test for `__init__`

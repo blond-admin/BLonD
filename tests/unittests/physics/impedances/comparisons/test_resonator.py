@@ -21,11 +21,12 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 DEV_PLOT = False
 
 
-class TestResonatorImpedances(unittest.TestCase):
+class TestResonatorImpedances(BLonDTestCase):
     def setUp(self):
         from blond.core.backends.backend import Numpy64Bit, backend
 

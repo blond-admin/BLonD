@@ -26,14 +26,14 @@ from blond import (
 )
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.drifts import DriftExact
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )
 
 
-class TestSymbolicSeparatrixHelper(unittest.TestCase):
+class TestSymbolicSeparatrixHelper(BLonDTestCase):
     @multi_backend_testcase("Cupy64Bit", "Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_integration(self):
@@ -148,7 +148,7 @@ class TestSymbolicSeparatrixHelper(unittest.TestCase):
         )
 
 
-class TestSymbolicSeparatrixInternals(unittest.TestCase):
+class TestSymbolicSeparatrixInternals(BLonDTestCase):
     """Cover edge-case branches of the private helpers."""
 
     OMEGA_MIN = 2.0 * np.pi  # canonical period of 1 s
@@ -242,7 +242,7 @@ class TestSymbolicSeparatrixInternals(unittest.TestCase):
         np.testing.assert_allclose(H_sep, np.maximum(left, right))
 
 
-class TestSubstituteSymbols(unittest.TestCase):
+class TestSubstituteSymbols(BLonDTestCase):
     """Cover `SymbolicSeparatrixHelper._substitute_symbols`."""
 
     def _beam(self) -> Mock:
@@ -310,7 +310,7 @@ class TestSubstituteSymbols(unittest.TestCase):
         self.assertEqual(kinetic_coeffs, (0.0,))
 
 
-class TestDESepBranches(unittest.TestCase):
+class TestDESepBranches(BLonDTestCase):
     """
     Cover `SymbolicSeparatrixHelper._dE_sep_branches`.
 
@@ -458,7 +458,7 @@ class TestDESepBranches(unittest.TestCase):
         self.assertTrue(np.all(np.isnan(lower)))
 
 
-class TestGetSeparatrixAsymmetricDriftExact(unittest.TestCase):
+class TestGetSeparatrixAsymmetricDriftExact(BLonDTestCase):
     """
     End-to-end check that ``DriftExact`` with ``alpha_0 = 0`` and
     non-trivial ``higher_order_alpha`` produces an asymmetric
@@ -553,7 +553,7 @@ class TestGetSeparatrixAsymmetricDriftExact(unittest.TestCase):
         )
 
 
-class TestGetSeparatrixDegenerateWindow(unittest.TestCase):
+class TestGetSeparatrixDegenerateWindow(BLonDTestCase):
     """
     Cover ``get_separatrix`` for degenerate inputs at the public-API
     level: a vanishing RF potential (``voltage=0``) and a ``dt`` window
@@ -663,7 +663,7 @@ class TestGetSeparatrixDegenerateWindow(unittest.TestCase):
         np.testing.assert_allclose(narrow_sep[1], lower_ref, rtol=1e-3)
 
 
-class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
+class TestSymbolicSeparatrixHelperFromSimulation(BLonDTestCase):
     """Cover `SymbolicSeparatrixHelper.from_simulation`."""
 
     def test_raises_when_no_symbolic_hamiltonian_elements(self):
@@ -677,7 +677,7 @@ class TestSymbolicSeparatrixHelperFromSimulation(unittest.TestCase):
             SymbolicSeparatrixHelper.from_simulation(simulation=simulation)
 
 
-class TestPlotSeparatrix(unittest.TestCase):
+class TestPlotSeparatrix(BLonDTestCase):
     """Cover `SymbolicSeparatrixHelper.plot_separatrix`."""
 
     def _beam(self) -> Mock:

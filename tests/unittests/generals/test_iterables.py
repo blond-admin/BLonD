@@ -1,9 +1,10 @@
 import unittest
 
 from blond.generals.iterables_ import all_equal
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_all_equal_tuple(self):
         for iterable_type in (tuple, list, set):
             for comparison_type in (int, float, str):

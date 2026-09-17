@@ -23,7 +23,7 @@ from blond.physics.drifts import (
     DriftSimple,
     _DriftLikeLineSegment,
 )
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 
 
 class DriftBaseClassHelper(DriftBaseClass):
@@ -37,7 +37,7 @@ class DriftBaseClassHelper(DriftBaseClass):
         pass
 
 
-class TestDriftBaseClass(unittest.TestCase):
+class TestDriftBaseClass(BLonDTestCase):
     def setUp(self):
         self.drift_base_class = DriftBaseClassHelper(
             orbit_length=123, section_index=0
@@ -85,7 +85,7 @@ class TestDriftBaseClass(unittest.TestCase):
         )
 
 
-class TestDriftSimple(unittest.TestCase):
+class TestDriftSimple(BLonDTestCase):
     def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
@@ -296,7 +296,7 @@ class TestDriftSimple(unittest.TestCase):
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
-class TestDriftExact(unittest.TestCase):
+class TestDriftExact(BLonDTestCase):
     def setUp(self):
         self.gamma = 2.5
         # params from
@@ -527,7 +527,7 @@ class TestDriftExact(unittest.TestCase):
                     self.assertIn(f"alpha_{k}", free_names)
 
 
-class Test_DriftLikeLineSegment(unittest.TestCase):
+class Test_DriftLikeLineSegment(BLonDTestCase):
     r"""``_DriftLikeLineSegment``: linear slip factor + exact relativistic delta.
 
     This is the BLonD-native equivalent of the longitudinal drift of an

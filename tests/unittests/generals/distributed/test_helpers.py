@@ -12,10 +12,11 @@ from blond.generals.distributed.helpers import (
     mpi_is_distributed,
     mpi_is_root,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
 @pytest.mark.mpi
-class TestCallablesWithMPI(unittest.TestCase):
+class TestCallablesWithMPI(BLonDTestCase):
     def setUp(self):
         is_distributed = mpi_is_distributed()
         if not is_distributed:
@@ -96,7 +97,7 @@ class TestCallablesWithMPI(unittest.TestCase):
             np.testing.assert_equal(array_expected[6:12], array_local)
 
 
-class TestCallablesNoMPI(unittest.TestCase):
+class TestCallablesNoMPI(BLonDTestCase):
     def setUp(self):
         if mpi_is_distributed():
             self.skipTest("Only without MPI")

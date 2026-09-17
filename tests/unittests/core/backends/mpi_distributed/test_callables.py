@@ -9,12 +9,13 @@ from blond.core.backends.mpi_distributed.callables import (
 )
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import mpi_is_distributed
+from blond.testing.backend_testing import BLonDTestCase
 
 is_distributed = mpi_is_distributed()
 not_distributed = not is_distributed
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     @unittest.skipIf(is_distributed, "Runs only without `mpirun`")
     def test_rms_wo_mpi(self):
         dt = DistributedArray(

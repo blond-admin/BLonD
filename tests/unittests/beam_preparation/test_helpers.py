@@ -3,9 +3,10 @@ import unittest
 import numpy as np
 
 from blond import Beam, make_multibunch_beam, uranium_29
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_make_multibunch_beam_fails(self):
         beam = Beam(
             intensity=1, particle_type=uranium_29, is_counter_rotating=False
