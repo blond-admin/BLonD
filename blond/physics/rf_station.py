@@ -295,19 +295,7 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
         super().__init__(section_index=section_index, name=name, **kwargs)
 
         self.time = backend.as_backend_array(time)
-        time_delta = self.time[1:] - self.time[:-1]
-
-        if np.max(time_delta) / np.min(time_delta) - 1 > 1e-10:  # noqa: PLR2004
-            raise ValueError(
-                "Continuous time is required, but the bin spacing varies too "
-                f"much.  Maximum delta {np.max(time_delta)}, minimum delta "
-                f"{np.min(time_delta)}."
-            )
-
         self.waveform = backend.as_backend_array(waveform)
-
-        self.waveform_gain: float = waveform_gain
-        self._register_schedulable_variables("waveform_gain")
 
         if len(self.time.shape) != 1 or len(self.waveform.shape) != 1:
             raise ValueError(
@@ -321,6 +309,21 @@ class ArbitraryRFWaveform(RFManipulationBaseClass):
                 f"but they are {len(self.time)} and "
                 f"{len(self.waveform)} respectively."
             )
+
+        time_delta = self.time[1:] - self.time[:-1]
+
+        if np.any(time_delta < 0):
+            raise ValueError("Time array must be strictly ascending.")
+
+        if np.max(time_delta) / np.min(time_delta) - 1 > 1e-10:  # noqa: PLR2004
+            raise ValueError(
+                "Continuous time is required, but the bin spacing varies too "
+                f"much.  Maximum delta {np.max(time_delta)}, minimum delta "
+                f"{np.min(time_delta)}."
+            )
+
+        self.waveform_gain: float = waveform_gain
+        self._register_schedulable_variables("waveform_gain")
 
         # TODO:  Add delayed kick infrastructure
         self._delayed_kick = None

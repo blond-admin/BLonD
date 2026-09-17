@@ -1787,14 +1787,29 @@ class TestArbitraryRFWaveform(BLonDTestCase):
         )
         self.assertEqual(gain, arbitrary_waveform.waveform_gain)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as exc:
             ArbitraryRFWaveform([time], waveform)
+        self.assertIn(
+            "Both time and waveform must be 1 dimensional, but got "
+            f"self.time.shape=(1, 1024) and self.waveform.shape=(1024,).",
+            str(exc.exception),
+        )
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as exc:
             ArbitraryRFWaveform(time, [waveform])
+        self.assertIn(
+            "Both time and waveform must be 1 dimensional, but got "
+            f"self.time.shape=(1024,) and self.waveform.shape=(1, 1024).",
+            str(exc.exception),
+        )
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as exc:
             ArbitraryRFWaveform(time[1:], waveform)
+        self.assertIn(
+            "time and waveform array lengths must match, but they are 1023 and"
+            " 1024 respectively.",
+            str(exc.exception),
+        )
 
     @multi_backend_testcase
     def test_track(self):
@@ -1820,7 +1835,7 @@ class TestArbitraryRFWaveform(BLonDTestCase):
             copy_to_cpu(beam.dE.array_local), copy_to_cpu(expected)
         )
 
-    def test_discontinuous_time(self):
+    def test_discontinuous_and_descending_time(self):
 
         time = backend.as_backend_array(
             np.linspace(0, 1e-6, 1024).tolist()
@@ -1830,8 +1845,18 @@ class TestArbitraryRFWaveform(BLonDTestCase):
             backend.linspace(-5e3, 5e3, 1024).tolist() * 2
         )
         gain = 0.5
-        with self.assertRaises(ValueError):
-            _ = ArbitraryRFWaveform(time, waveform, gain)
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform(time, waveform, gain)
+        self.assertIn(
+            "Continuous time is required, but the bin spacing varies",
+            str(exc.exception),
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform(time[::-1], waveform, gain)
+        self.assertIn(
+            "Time array must be strictly ascending.", str(exc.exception)
+        )
 
 
 if __name__ == "__main__":
