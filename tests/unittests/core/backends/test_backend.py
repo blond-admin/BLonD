@@ -499,6 +499,47 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_drift_exact_alpha_orders(self) -> None:
+        """All backends agree for every length of `higher_alpha`.
+
+        The C++ kernel dispatches on the number of higher-order momentum
+        compaction factors to a compile-time-unrolled instantiation, and
+        falls back to a generic loop beyond the longest one. The lengths
+        below cover every instantiation and the fallback, so a dispatch
+        arm that computes the wrong power of delta cannot pass unnoticed.
+        """
+        dtype = np.float64
+        for n_alpha in range(6):
+            higher_alpha = [1.0 + 0.5 * k for k in range(n_alpha)]
+            result_python = None
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                with self.subTest(n_alpha=n_alpha, special=special):
+                    backend.specials.drift_exact(
+                        dt=self.dt,
+                        dE=self.dE,
+                        T=self.t_rev * self.length_ratio,
+                        alpha_0=self.alpha_0,
+                        higher_alpha=backend.array(higher_alpha, dtype=dtype),
+                        beta=self.beta,
+                        energy=self.energy,
+                    )
+                    result = copy_to_cpu(self.dt)
+                    if i == 0:
+                        result_python = result
+                    else:
+                        np.testing.assert_allclose(
+                            result,
+                            result_python,
+                            rtol=self.rtol,
+                            err_msg=f"Failed `{special}`, {n_alpha=}",
+                        )
+
+    @pytest.mark.backend_mutation
     def test_music_track(self) -> None:
         """python/cpp backends agree; numba/cuda raise NotImplementedError."""
         dtype = np.float64

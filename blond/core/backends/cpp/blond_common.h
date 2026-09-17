@@ -56,8 +56,12 @@ typedef double real_t;
 //
 // Measured on an i5-11500 (single core, min ns/particle, 1e5 / 1e6
 // particles): kick_single_harmonic and kick_multi_harmonic ~1.44-1.49x,
-// beam_phase ~1.46x. drift_exact, histogram and loss_box are not
-// vectorized to 512 bits by GCC at all, so they cannot benefit.
+// beam_phase ~1.46x. histogram and loss_box are not vectorized to 512
+// bits by GCC at all, so they cannot benefit. drift_exact is vectorized
+// (since its alpha loop was given a compile-time trip count), but gains
+// nothing from the wider registers: measured 0.98-1.02x, and llvm-mca
+// puts 512-bit slightly behind 256-bit at 5.14 vs 5.03 cycles per
+// particle. It therefore stays at 256 bits on purpose.
 //
 // Placement matters: the attribute must follow `extern "C"`, not precede
 // it. In front of `extern "C"` GCC rejects it with a mere warning and
