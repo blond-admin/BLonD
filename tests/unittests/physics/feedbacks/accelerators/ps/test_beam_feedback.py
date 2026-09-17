@@ -17,6 +17,7 @@ from blond.core.backends.backend import Numpy64Bit
 from blond.physics.feedbacks.accelerators.ps import (
     PSBeamControl,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 circumference = 2 * np.pi * 100.0  # [m]
 intensity = 1.6e11
@@ -37,7 +38,7 @@ PL_gain = 0.01924
 RL_gain = 155.05
 
 
-class TestPSBeamFeedback(unittest.TestCase):
+class TestPSBeamFeedback(BLonDTestCase):
     def create_scenario(
         self,
         pl_gain,

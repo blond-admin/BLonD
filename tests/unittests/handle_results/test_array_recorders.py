@@ -7,9 +7,10 @@ from blond.handle_results.array_recorders import (
     DenseArrayRecorder,
 )
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestDenseArrayRecorder(unittest.TestCase):
+class TestDenseArrayRecorder(BLonDTestCase):
     def setUp(self):
         self.dense_array_recorder = DenseArrayRecorder(
             filepath=callers_relative_path("deleteme", 1),

@@ -23,9 +23,10 @@ from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_int_from_float_with_warning(self):
         with self.assertWarns(Warning):
             int_from_float_with_warning(1.2, 2)
@@ -200,7 +201,7 @@ class TestFunctions(unittest.TestCase):
         walk(obj=None)
 
 
-class TestNestedMocksHashingBug(unittest.TestCase):
+class TestNestedMocksHashingBug(BLonDTestCase):
     def test_hashing_bug(self):
         profile = Mock(StaticProfile)
         profile.active = True
