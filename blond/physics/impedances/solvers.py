@@ -701,7 +701,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             ] = 0.0
         self._wake_function_vals = backend.zeros_like(self._wake_function_time)
         for source in self._parent_wakefield.sources:
-            self._wake_function_vals += source.get_wake(
+            self._wake_function_vals += source.get_wake_per_bin(
                 self._wake_function_time
             )
 
@@ -976,14 +976,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
                 self._wake_function_vals[prof_ind] += (
-                    source.get_wake_counter_rotation(
+                    source.get_wake_per_bin_counter_rotation(
                         self._wake_function_time[prof_ind]
                     )
                     if (
                         self._past_profiles_counter_rotation_flag[prof_ind]
                         ^ self._past_profiles_counter_rotation_flag[0]
                     )
-                    else source.get_wake(self._wake_function_time[prof_ind])
+                    else source.get_wake_per_bin(
+                        self._wake_function_time[prof_ind]
+                    )
                 )
                 # exclusive OR, only if directionality of current profile and past profile differ,
                 # its actually counter-rotating
@@ -1115,12 +1117,13 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ``get_wake``."""
+        """Check that the sources implement ``get_wake_per_bin``."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
-            if not hasattr(source, "get_wake"):
+            if not hasattr(source, "get_wake_per_bin"):
                 raise AttributeError(
-                    f"The {source=} should implement `TimeDomain.get_wake`."
+                    f"The {source=} should implement "
+                    "`TimeDomain.get_wake_per_bin`."
                 )
 
     def on_wakefield_init_simulation(
@@ -1160,12 +1163,16 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         total_bins = (
             self._n_wakes_full_turn * self._parent_wakefield.profile.n_bins
         )
-        time_axis = backend.linspace(0, t_max, total_bins + 1)
+        # The bin-averaged wake reaches one bin before the charge, so the
+        # kernel starts at lag -1 bin; `calc_induced_voltage` shifts its
+        # slices by one bin to match.
+        hist_step = self._parent_wakefield.profile.hist_step
+        time_axis = backend.linspace(0, t_max, total_bins + 1) - hist_step
 
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what the we expect
-            wake_kernel_tmp = source.get_wake(time_axis)
+            wake_kernel_tmp = source.get_wake_per_bin(time_axis)
 
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
@@ -1237,9 +1244,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         bins_per_profile = self._parent_wakefield.profile.n_bins
 
         def sel_current_profile(i: int) -> slice:
+            # +1 because the kernel starts at lag -1 bin (see
+            # `_update_wake_kernel`), so convolution index n holds bin n - 1.
             return slice(
-                i * bins_per_profile,  # start
-                (i + 1) * bins_per_profile,  # stop
+                i * bins_per_profile + 1,  # start
+                (i + 1) * bins_per_profile + 1,  # stop
             )
 
         i = 0

@@ -787,10 +787,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")
+        # The two paths agree analytically but not bit-for-bit: the FFT
+        # solver rotates its spectrum by one sample to pick up the kernel's
+        # non-causal tap, the direct convolution gets it from its own
+        # symmetric time axis.
         np.testing.assert_allclose(
             copy_to_cpu(initial_voltage) + offset,
             copy_to_cpu(td_solver[0 : len(initial_voltage)]) + offset,
-            rtol=1e-12,
+            rtol=1e-10,
         )
 
     def test_warns_on_edge_bins(self):
@@ -3370,8 +3374,10 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
 
-        class FaultyResonators:
-            def get_wake(self):  # emulate wroing implementation
+        from blond.physics.impedances.base import TimeDomain
+
+        class FaultyResonators(TimeDomain):
+            def get_wake(self):  # emulate wrong signature
                 return
 
         wf_mutli = WakeField.headless(
@@ -3388,7 +3394,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake`"
+            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),

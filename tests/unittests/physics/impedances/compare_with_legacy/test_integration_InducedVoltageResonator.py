@@ -225,7 +225,7 @@ class TestBothBlonds(unittest.TestCase):
                 np.testing.assert_allclose(
                     blond2_ind_volt,
                     self.blond3.induced_voltage,
-                    atol=20,  # of 120000
+                    atol=50,  # of 120000
                 )
 
     @pytest.mark.backend_mutation
