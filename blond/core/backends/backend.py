@@ -423,49 +423,84 @@ class Specials(ABC):
     @abstractmethod  # pragma: no cover
     def wake_from_pole_residue(
         # read
+        profile_time: NumpyArray | CupyArray,
         profile: NumpyArray | CupyArray,
-        profile_dts: NumpyArray | CupyArray,
+        carried_charge: NumpyArray | CupyArray,
+        carried_is_counterrotating: bool,
+        state_lag_dt: float,
+        carried_lag_dt: float,
         poles: NumpyArray | CupyArray,
         residues: NumpyArray | CupyArray,
         is_counterrotating_beam: bool,
         counterrotating_pole_signs: NumpyArray | CupyArray,
-        update_on_bin: NumpyArray | CupyArray,
         factor: float,
+        bin_dt: float,
         # write
         states: NumpyArray | CupyArray,
         voltage: NumpyArray | CupyArray,
         voltage_threaded: NumpyArray | CupyArray,
     ) -> None:
-        """
-        Apply poles based on the `profile` to generate `voltage`.
+        r"""
+        Far field of a pole-residue wake: one complex state per pole.
+
+        For every pole the state is the phasor sum of all charges emitted
+        so far, :math:`S(T) = \sum_{t_j \le T} q_j e^{p (T - t_j)}`, and a
+        bin's far field is :math:`\mathrm{Re}[\rho S(T_i)]` read at the
+        clock :math:`T_i = t_i - 2 \Delta t`, two bins behind the bin
+        itself, where the bin-averaged wake is a pure exponential (recipe 3
+        of ``explain_nearfield_farfield_model_rechenbuch.ipynb``). The three
+        nearer lags are the caller's, in closed form. The kernel steps the
+        state from clock to clock along ``profile_time`` itself, so gaps in
+        a sparse profile need no bookkeeping; every exponent is negative or
+        zero, so nothing can overflow.
+
+        Hand-over between calls: the state comes in referenced
+        ``state_lag_dt`` before the first read-out clock and leaves
+        referenced one bin before the last bin, holding every bin but the
+        last. That last bin is handed to the next call as `carried_charge`,
+        which enters the state right after the first read-out (its
+        contribution to the first bin is added by the caller at the true
+        lag) and keeps the counter-rotation flip of the call it came from.
 
         Parameters
         ----------
+        profile_time
+            Bin centres, in [s], increasing; gaps of any size allowed.
         profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
+            Beam profile histogram, length ``n_bins``.
+        carried_charge
+            Length 1: charge of the previous call's last bin, already
+            converted with that call's ``factor``.
+        carried_is_counterrotating
+            Whether the call that produced the carried charge was
+            counter-rotating.
+        state_lag_dt
+            How far before the first read-out clock ``t_0 - 2 bin_dt`` the
+            incoming `states` are referenced, in [s]; never negative.
+        carried_lag_dt
+            How long before ``t_0`` the carried charge was emitted, in [s];
+            at least ``bin_dt``.
         poles
-            Complex poles of an equivalent circuit model.
+            Complex poles of an equivalent circuit model, in [rad/s].
         residues
-            Complex residues of an equivalent circuit model.
+            Complex residues, already scaled to the bin-averaged far field.
         is_counterrotating_beam
             If true, the current beam is counter-rotating.
         counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
-            one needs `update_on_bin = [0,3,7]`.
+            Per pole, -1 if the sign of the impedance is flipped for a
+            counter-rotating beam.
         factor
-            To convert `profile` to current per bin [A].
+            To convert `profile` to charge per bin.
+        bin_dt
+            Profile bin width, in [s].
         states
-            Complex state vector, initially ``(0 + 0j)``.
+            Complex state per pole, initially ``0 + 0j``; read at entry
+            and overwritten with the state one bin before the last bin.
         voltage
-            Output voltage, in [V].
+            Output voltage, in [V], length ``n_bins``. Overwritten.
         voltage_threaded
-            Cached `voltage` array per thread. For speedup.
+            Per-thread scratch for the reduction over poles, at least
+            ``get_max_threads()`` rows of ``n_bins``.
         """
         raise NotImplementedError(
             "The backend for `wake_from_pole_residue` is missing."

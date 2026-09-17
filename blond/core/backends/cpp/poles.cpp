@@ -6,8 +6,11 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-// C++ implementation of induced voltage calculation using pole-residue
-// (vector fitting) models, parallelized with OpenMP over poles.
+// C++ implementation of the far field of a pole-residue (vector fitting)
+// wake, parallelized with OpenMP over poles. Mirrors
+// `PythonSpecials.wake_from_pole_residue`; see
+// `Specials.wake_from_pole_residue` in blond/core/backends/backend.py for
+// the contract.
 
 #include <math.h>
 #include <stdlib.h>
@@ -31,143 +34,138 @@ static inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
   out_im = a_re * b_im + a_im * b_re;
 }
 
+// Decay a pole's state from `clock` to `to_time`, never backwards. A step of
+// exactly one bin uses the precomputed `decay_*`.
+static inline void advance_state(real_t &state_re, real_t &state_im,
+                                 real_t &clock, const real_t to_time,
+                                 const real_t pole_re, const real_t pole_im,
+                                 const real_t bin_dt, const real_t decay_re,
+                                 const real_t decay_im,
+                                 const real_t tolerance) {
+  const real_t step = to_time - clock;
+  if (step <= tolerance) {
+    return;
+  }
+  real_t e_re, e_im;
+  if (fabs(step - bin_dt) <= tolerance) {
+    e_re = decay_re;
+    e_im = decay_im;
+  } else {
+    fast_cexp(pole_re * step, pole_im * step, e_re, e_im);
+  }
+  real_t new_re, new_im;
+  cmul(state_re, state_im, e_re, e_im, new_re, new_im);
+  state_re = new_re;
+  state_im = new_im;
+  clock = to_time;
+}
+
 /**
- * Apply poles based on the profile to generate voltage.
+ * Far field of a pole-residue wake, one complex state per pole.
+ *
  * Parameters: see Specials.wake_from_pole_residue in backend.py.
  *
  * C-side memory layout:
  * - Complex arrays (poles, residues, states) are interleaved
- *   [re0, im0, re1, im1, ...].
- * - states has n_poles + 1 complex elements; the real part of the last
- *   one stores t_start.
+ *   [re0, im0, re1, im1, ...]; states has n_poles elements.
  * - voltage_threaded is n_threads * n_bins, n_threads >=
  *   omp_get_max_threads().
- * - profile_dts has n_profile_dts >= n_bins + 1 entries.
  */
 extern "C" void wake_from_pole_residue(
-    const real_t *__restrict__ profile, const real_t *__restrict__ profile_dts,
-    const real_t *__restrict__ poles, const real_t *__restrict__ residues,
-    const bool is_counterrotating_beam,
-    const real_t *__restrict__ counterrotating_pole_signs,
-    const int *__restrict__ update_on_bin, const real_t factor,
-    real_t *__restrict__ states, real_t *__restrict__ voltage,
-    real_t *__restrict__ voltage_threaded, const int n_bins, const int n_poles,
-    const int n_threads, const int n_updates, const int n_profile_dts) {
-  const real_t two_factor = real_t(2) * factor;
-
-  // Only the first `n_used_threads` rows of `voltage_threaded` are ever written:
-  // the pole loop is parallelised over poles, so at most one row per pole
-  // (and never more than `n_threads`) is touched. Zeroing/reducing all
-  // `n_threads` rows when `n_poles` is small wastes O(n_threads * n_bins)
-  // of memory bandwidth, which dominates the (cheap) recursion for a few
-  // poles. Size the work to what is actually used.
+    const real_t *__restrict__ profile_time, const real_t *__restrict__ profile,
+    const real_t *__restrict__ carried_charge,
+    const bool carried_is_counterrotating, const real_t state_lag_dt,
+    const real_t carried_lag_dt, const real_t *__restrict__ poles,
+    const real_t *__restrict__ residues, const bool is_counterrotating_beam,
+    const real_t *__restrict__ counterrotating_pole_signs, const real_t factor,
+    const real_t bin_dt, real_t *__restrict__ states,
+    real_t *__restrict__ voltage, real_t *__restrict__ voltage_threaded,
+    const int n_bins, const int n_poles, const int n_threads) {
+  // Only the first `n_used_threads` rows are ever written (one row per
+  // pole at most); zeroing and reducing more wastes bandwidth.
   const int n_used_threads = (n_poles < n_threads) ? n_poles : n_threads;
-
-  // Zero voltage and the used rows of voltage_threaded from previous call
   memset(voltage, 0, n_bins * sizeof(real_t));
   memset(voltage_threaded, 0, (size_t)n_used_threads * n_bins * sizeof(real_t));
 
-  // t_start from states[-1] (real part of last complex element)
-  const real_t t_start = states[2 * n_poles];
+  // Times relative to the first bin. A bin is read out two bins behind
+  // its own time; the carried charge was emitted before t_0.
+  const real_t t_0 = profile_time[0];
+  const real_t read_lag = real_t(2) * bin_dt;
+  const real_t tolerance = real_t(1e-6) * bin_dt;
+  const real_t t_carried = -carried_lag_dt;
+  const real_t t_handover = (profile_time[n_bins - 1] - t_0) - bin_dt;
 
-  // Parallel over poles: each pole carries sequential state across bins,
-  // but different poles are fully independent. With schedule(static) and
-  // n_poles < n_threads, only threads [0, n_poles) receive iterations, so
-  // the rows written are exactly [0, n_used_threads) -- the rows we zero and reduce.
-  // (We deliberately do NOT use num_threads(n_used_threads): resizing the team each
-  // call thrashes OpenMP's thread pool and is far slower than the savings.)
 #pragma omp parallel for schedule(static)
   for (int pole_i = 0; pole_i < n_poles; pole_i++) {
     const int thread_i = omp_get_thread_num();
-
-    // `cr_pole_flip` is intentionally applied to BOTH the state injection
-    // and the output amplitude: for the counter-rotating beam's own wake
-    // the two factors cancel (flip * flip == 1); only contributions of
-    // the other beam, accumulated in the shared `states`, see a net
-    // sign flip.
-    real_t cr_pole_flip = 1;
-    if (is_counterrotating_beam) {
-      if (counterrotating_pole_signs[pole_i] == -1) {
-        cr_pole_flip = -1;
-      }
-    }
     const int pole_n = 2 * pole_i;
     const real_t pole_re = poles[pole_n];
     const real_t pole_im = poles[pole_n + 1];
     const real_t res_re = residues[pole_n];
     const real_t res_im = residues[pole_n + 1];
 
+    // The flip is applied to both the injection and the read-out, so a
+    // beam's own wake never flips; a charge carried from the other beam
+    // keeps that beam's flip.
+    const bool flipped = counterrotating_pole_signs[pole_i] == real_t(-1);
+    const real_t flip = (is_counterrotating_beam && flipped) ? -1 : 1;
+    const real_t carried_flip =
+        (carried_is_counterrotating && flipped) ? -1 : 1;
+    // A complex pole stands in for its unstored conjugate partner.
+    const real_t pair = (pole_im == real_t(0)) ? real_t(1) : real_t(2);
+    real_t decay_re, decay_im;
+    fast_cexp(pole_re * bin_dt, pole_im * bin_dt, decay_re, decay_im);
+
     real_t state_re = states[pole_n];
     real_t state_im = states[pole_n + 1];
-
-    // A real pole has no implicit complex conjugate (vector-fitting
-    // convention): only a pole with pole_im != 0 stands in for an
-    // unstored conjugate partner and needs the doubled injection.
-    const real_t injection_factor =
-        (pole_im == real_t(0)) ? factor : two_factor;
-
-    int i_update = 0;
-    int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
-
-    real_t decay_re = 0, decay_im = 0;
+    real_t clock = -read_lag - state_lag_dt;
+    int next_bin = 0;
     real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
     for (int bin_i = 0; bin_i < n_bins; bin_i++) {
-
-      if (bin_i == update_on_bin_i) {
-        // Compute t_jump (real scalar)
-        real_t t_jump;
-        if (bin_i == 0) {
-          t_jump = profile_dts[0] - t_start;
-        } else {
-          t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1];
-        }
-
-        // state *= exp(pole * t_jump)
-        real_t e_re, e_im;
-        fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
-
-        real_t new_re, new_im;
-        cmul(state_re, state_im, e_re, e_im, new_re, new_im);
-        state_re = new_re;
-        state_im = new_im;
-
-        // decay = exp(pole * dt)
-        const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
-        fast_cexp(pole_re * dt, pole_im * dt, decay_re, decay_im);
-
-        i_update++;
-        if (i_update < n_updates) {
-          update_on_bin_i = update_on_bin[i_update];
-        }
-      } else {
-        // state *= decay
-        real_t new_re, new_im;
-        cmul(state_re, state_im, decay_re, decay_im, new_re, new_im);
-        state_re = new_re;
-        state_im = new_im;
+      const real_t read_time = (profile_time[bin_i] - t_0) - read_lag;
+      // every bin but the last enters the state when it is due
+      while (next_bin < n_bins - 1 &&
+             (profile_time[next_bin] - t_0) <= read_time + tolerance) {
+        advance_state(state_re, state_im, clock, profile_time[next_bin] - t_0,
+                      pole_re, pole_im, bin_dt, decay_re, decay_im, tolerance);
+        state_re += flip * pair * factor * profile[next_bin];
+        next_bin++;
       }
-
-      const real_t profile_i_half =
-          cr_pole_flip * real_t(0.5) * profile[bin_i] * injection_factor;
-
-      // real part only, imag part is zero
-      state_re += profile_i_half;
-
-      // amp = Re(residue * state)
-      const real_t amp = res_re * state_re - res_im * state_im;
-      vt[bin_i] += cr_pole_flip * amp;
-
-      // second half of trapezoidal rule
-      state_re += profile_i_half;
+      advance_state(state_re, state_im, clock, read_time, pole_re, pole_im,
+                    bin_dt, decay_re, decay_im, tolerance);
+      vt[bin_i] += flip * (res_re * state_re - res_im * state_im);
+      if (bin_i == 0) {
+        // The carried charge enters after the first read-out; older than
+        // the clock it is decayed to it, newer it moves the clock.
+        if (t_carried <= clock) {
+          real_t e_re, e_im;
+          fast_cexp(pole_re * (clock - t_carried),
+                    pole_im * (clock - t_carried), e_re, e_im);
+          const real_t charge = carried_flip * pair * carried_charge[0];
+          state_re += charge * e_re;
+          state_im += charge * e_im;
+        } else {
+          advance_state(state_re, state_im, clock, t_carried, pole_re, pole_im,
+                        bin_dt, decay_re, decay_im, tolerance);
+          state_re += carried_flip * pair * carried_charge[0];
+        }
+      }
     }
+    // Hand over one bin before the last bin, every other bin in.
+    while (next_bin < n_bins - 1) {
+      advance_state(state_re, state_im, clock, profile_time[next_bin] - t_0,
+                    pole_re, pole_im, bin_dt, decay_re, decay_im, tolerance);
+      state_re += flip * pair * factor * profile[next_bin];
+      next_bin++;
+    }
+    advance_state(state_re, state_im, clock, t_handover, pole_re, pole_im,
+                  bin_dt, decay_re, decay_im, tolerance);
 
-    // Store state back
-    states[2 * pole_i] = state_re;
-    states[2 * pole_i + 1] = state_im;
+    states[pole_n] = state_re;
+    states[pole_n + 1] = state_im;
   }
 
-  // Reduce the used rows of voltage_threaded into voltage (parallel over bins)
 #pragma omp parallel for schedule(static)
   for (int bin_i = 0; bin_i < n_bins; bin_i++) {
     real_t sum = 0;
@@ -176,8 +174,4 @@ extern "C" void wake_from_pole_residue(
     }
     voltage[bin_i] = sum;
   }
-
-  // Store last profile_dts value into states[-1] for next call
-  states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-  states[2 * n_poles + 1] = 0;
 }

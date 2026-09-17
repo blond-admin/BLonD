@@ -958,82 +958,64 @@ def reload_cpp_backend(  # NOQA: PLR0915
         @staticmethod
         def wake_from_pole_residue(
             # read
+            profile_time: NumpyArray,
             profile: NumpyArray,
-            profile_dts: NumpyArray,
+            carried_charge: NumpyArray,
+            carried_is_counterrotating: bool,
+            state_lag_dt: float,
+            carried_lag_dt: float,
             poles: NumpyArray,
             residues: NumpyArray,
             is_counterrotating_beam: bool,
             counterrotating_pole_signs: NumpyArray,
-            update_on_bin: NumpyArray,
             factor: float,
+            bin_dt: float,
             # write
             states: NumpyArray,
             voltage: NumpyArray,
             voltage_threaded: NumpyArray,
         ) -> None:
             """
-            Apply poles based on the `profile` to generate `voltage`.
+            Far field of a pole-residue wake, one complex state per pole.
 
-            Parameters
-            ----------
-            profile
-                Beam profile histogram.
-            profile_dts
-                Base for time step, connected to `update_on_bin`.
-            poles
-                Complex poles of an equivalent circuit model.
-            residues
-                Complex residues of an equivalent circuit model.
-            is_counterrotating_beam
-                If true, the current beam is counter-rotating.
-            counterrotating_pole_signs
-                Array per pole, -1 if the sign of the impedance is flipped
-                for a counter-rotating beam.
-            update_on_bin
-                Index when to trigger an update of dt. For speedup.
-                E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
-                one needs `update_on_bin = [0,3,7]`.
-            factor
-                To convert `profile` to current per bin [A].
-            states
-                Complex state vector, initially ``(0 + 0j)``.
-            voltage
-                Output voltage, in [V].
-            voltage_threaded
-                Cached `voltage` array per thread. For speedup.
+            See `Specials.wake_from_pole_residue` for the contract and every
+            parameter.
             """
+            assert len(states) == len(poles)
+            assert len(profile_time) == len(profile)
+            assert len(carried_charge) == 1
+            # Rows are indexed by omp_get_thread_num(), the actual team size.
+            assert voltage_threaded.shape[0] >= CppSpecials.get_max_threads()
             assert _is_valid(
+                (profile_time, floattype),
                 (profile, floattype),
-                (profile_dts, floattype),
+                (carried_charge, floattype),
                 (poles, complextype),
                 (residues, complextype),
                 (counterrotating_pole_signs, floattype),
                 (states, complextype),
                 (voltage, floattype),
                 (voltage_threaded, floattype),
-                (update_on_bin, np.int32),
             )
-
-            # Array pointers come from the shared (cached) `_get_pointer`; the
-            # changing scalars and the cheap sizes are passed as fresh typed
-            # ctypes objects (same convention as every other callable here).
             _LIBBLOND.wake_from_pole_residue(
+                _get_pointer(profile_time),
                 _get_pointer(profile),
-                _get_pointer(profile_dts),
+                _get_pointer(carried_charge),
+                ct.c_bool(carried_is_counterrotating),
+                c_real(state_lag_dt, floattype),
+                c_real(carried_lag_dt, floattype),
                 _get_pointer(poles),
                 _get_pointer(residues),
                 ct.c_bool(is_counterrotating_beam),
                 _get_pointer(counterrotating_pole_signs),
-                _get_pointer(update_on_bin),
                 c_real(factor, floattype),
+                c_real(bin_dt, floattype),
                 _get_pointer(states),
                 _get_pointer(voltage),
                 _get_pointer(voltage_threaded),
                 _get_len(profile),  # n_bins
                 _get_len(poles),  # n_poles
                 ct.c_int(voltage_threaded.shape[0]),  # n_threads
-                _get_len(update_on_bin),  # n_updates
-                _get_len(profile_dts),  # n_profile_dts
             )
 
         @staticmethod

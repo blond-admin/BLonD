@@ -82,6 +82,50 @@ def _move_flagged_elements_to_end_py(
     return j + 1
 
 
+def _advance_pole_state(
+    state: complex,
+    clock: float,
+    to_time: float,
+    pole: complex,
+    bin_dt: float,
+    decay_one_bin: complex,
+    tolerance: float,
+) -> tuple[complex, float]:
+    """
+    Decay a pole's state from `clock` to `to_time`, never backwards.
+
+    Parameters
+    ----------
+    state
+        Complex state of the pole at `clock`.
+    clock
+        Time the state is referenced at, in [s].
+    to_time
+        Time to advance to, in [s].
+    pole
+        Complex pole, in [rad/s].
+    bin_dt
+        Profile bin width, in [s].
+    decay_one_bin
+        ``exp(pole * bin_dt)``, precomputed for the common step.
+    tolerance
+        Time within which two instants count as equal, in [s].
+
+    Returns
+    -------
+    state
+        The state at ``max(clock, to_time)``.
+    clock
+        ``max(clock, to_time)``.
+    """
+    step = to_time - clock
+    if step <= tolerance:
+        return state, clock
+    if abs(step - bin_dt) <= tolerance:
+        return state * decay_one_bin, to_time
+    return state * np.exp(pole * step), to_time
+
+
 class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
 
@@ -724,116 +768,175 @@ class PythonSpecials(Specials):
     @staticmethod
     def wake_from_pole_residue(
         # read
+        profile_time: NumpyArray,
         profile: NumpyArray,
-        profile_dts: NumpyArray,
+        carried_charge: NumpyArray,
+        carried_is_counterrotating: bool,
+        state_lag_dt: float,
+        carried_lag_dt: float,
         poles: NumpyArray,
         residues: NumpyArray,
         is_counterrotating_beam: bool,
         counterrotating_pole_signs: NumpyArray,
-        update_on_bin: NumpyArray,
         factor: float,
+        bin_dt: float,
         # write
         states: NumpyArray,
         voltage: NumpyArray,
         voltage_threaded: NumpyArray,
     ) -> None:
         """
-        Apply poles based on the `profile` to generate `voltage`.
+        Far field of a pole-residue wake, one complex state per pole.
+
+        The readable reference implementation; see
+        `Specials.wake_from_pole_residue` for the contract.
 
         Parameters
         ----------
+        profile_time
+            Bin centres, in [s], increasing; gaps of any size allowed.
         profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
+            Beam profile histogram, length ``n_bins``.
+        carried_charge
+            Length 1: charge of the previous call's last bin, already
+            converted with that call's ``factor``.
+        carried_is_counterrotating
+            Whether the call that produced the carried charge was
+            counter-rotating.
+        state_lag_dt
+            How far before the first read-out clock ``t_0 - 2 bin_dt`` the
+            incoming `states` are referenced, in [s]; never negative.
+        carried_lag_dt
+            How long before ``t_0`` the carried charge was emitted, in [s];
+            at least ``bin_dt``.
         poles
-            Complex poles of an equivalent circuit model.
+            Complex poles of an equivalent circuit model, in [rad/s].
         residues
-            Complex residues of an equivalent circuit model.
+            Complex residues, already scaled to the bin-averaged far field.
         is_counterrotating_beam
             If true, the current beam is counter-rotating.
         counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
-            one needs `update_on_bin = [0,3,7]`.
+            Per pole, -1 if the sign of the impedance is flipped for a
+            counter-rotating beam.
         factor
-            To convert `profile` to current per bin [A].
+            To convert `profile` to charge per bin.
+        bin_dt
+            Profile bin width, in [s].
         states
-            Complex state vector, initially ``(0 + 0j)``.
+            Complex state per pole, initially ``0 + 0j``; read at entry
+            and overwritten with the state one bin before the last bin.
         voltage
-            Output voltage, in [V].
+            Output voltage, in [V], length ``n_bins``. Overwritten.
         voltage_threaded
-            Cached `voltage` array per thread. For speedup.
+            Per-thread scratch for the reduction over poles, at least
+            ``get_max_threads()`` rows of ``n_bins``.
         """
-        n_poles = len(poles)
-        two_factor = 2 * factor
         n_bins = len(profile)
+        assert len(states) == len(poles)
 
         voltage[:] = 0
         voltage_threaded[:, :] = 0
 
-        t_start = states[-1]
+        # Times relative to the first bin. A bin is read out two bins
+        # behind its own time; the carried charge was emitted before t_0.
+        t_0 = profile_time[0]
+        read_lag = 2.0 * bin_dt
+        tolerance = 1e-6 * bin_dt
+        t_carried = -carried_lag_dt
+        t_handover = (profile_time[-1] - t_0) - bin_dt
 
-        for pole_i in range(n_poles):
-            # `cr_pole_flip` is intentionally applied to BOTH the state
-            # injection and the output amplitude: for the counter-rotating
-            # beam's own wake the two factors cancel (flip**2 == 1); only
-            # contributions of the other beam, accumulated in the shared
-            # `states`, see a net sign flip.
-            cr_pole_flip = 1.0
-            if (
-                is_counterrotating_beam
-                and counterrotating_pole_signs[pole_i] == -1
-            ):
-                cr_pole_flip = -1.0
-
-            i_update = 0
-            # empty `update_on_bin` means "never update"; `decay` stays 0
-            update_on_bin_i = (
-                update_on_bin[0] if len(update_on_bin) > 0 else -1
-            )
-
+        for pole_i in range(len(poles)):
             pole = complex(poles[pole_i])
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
 
-            # A real pole has no implicit complex conjugate (vector-fitting
-            # convention): only a pole with imag != 0 stands in for an
-            # unstored conjugate partner and needs the doubled injection.
-            injection_factor = factor if pole.imag == 0 else two_factor
+            # The flip is applied to both the injection and the read-out,
+            # so a beam's own wake never flips; a charge carried from the
+            # other beam keeps that beam's flip.
+            flipped = counterrotating_pole_signs[pole_i] == -1
+            flip = -1.0 if (is_counterrotating_beam and flipped) else 1.0
+            carried_flip = (
+                -1.0 if (carried_is_counterrotating and flipped) else 1.0
+            )
+            # A complex pole stands in for its unstored conjugate partner.
+            pair = 1.0 if pole.imag == 0 else 2.0
+            decay_one_bin = np.exp(pole * bin_dt)
 
-            decay = 0.0 + 0j
+            clock = -read_lag - state_lag_dt
+            next_bin = 0
             for bin_i in range(n_bins):
-                profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
+                read_time = (profile_time[bin_i] - t_0) - read_lag
+                # every bin but the last enters the state when it is due
+                while (
+                    next_bin < n_bins - 1
+                    and (profile_time[next_bin] - t_0) <= read_time + tolerance
+                ):
+                    state, clock = _advance_pole_state(
+                        state,
+                        clock,
+                        profile_time[next_bin] - t_0,
+                        pole,
+                        bin_dt,
+                        decay_one_bin,
+                        tolerance,
+                    )
+                    state += flip * pair * factor * profile[next_bin]
+                    next_bin += 1
+                state, clock = _advance_pole_state(
+                    state,
+                    clock,
+                    read_time,
+                    pole,
+                    bin_dt,
+                    decay_one_bin,
+                    tolerance,
                 )
-
-                if bin_i == update_on_bin_i:
-                    if bin_i == 0:
-                        t_jump = profile_dts[0] - t_start + 0j
-                    else:
-                        t_jump = (
-                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
+                voltage[bin_i] += flip * float(np.real(residue * state))
+                if bin_i == 0:
+                    # The carried charge enters after the first read-out;
+                    # older than the clock it is decayed to it, newer it
+                    # moves the clock.
+                    if t_carried <= clock:
+                        state += (
+                            carried_flip
+                            * pair
+                            * carried_charge[0]
+                            * np.exp(pole * (clock - t_carried))
                         )
-                    state *= np.exp(pole * t_jump)
-                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
-                    decay = np.exp(pole * dt)
-
-                    i_update += 1
-                    if i_update < len(update_on_bin):
-                        update_on_bin_i = update_on_bin[i_update]
-                else:
-                    state *= decay
-                state += profile_i_half
-                amp = float(np.real(residue * state))
-                voltage[bin_i] += cr_pole_flip * amp
-                state += profile_i_half
+                    else:
+                        state, clock = _advance_pole_state(
+                            state,
+                            clock,
+                            t_carried,
+                            pole,
+                            bin_dt,
+                            decay_one_bin,
+                            tolerance,
+                        )
+                        state += carried_flip * pair * carried_charge[0]
+            # Hand over one bin before the last bin, every other bin in.
+            while next_bin < n_bins - 1:
+                state, clock = _advance_pole_state(
+                    state,
+                    clock,
+                    profile_time[next_bin] - t_0,
+                    pole,
+                    bin_dt,
+                    decay_one_bin,
+                    tolerance,
+                )
+                state += flip * pair * factor * profile[next_bin]
+                next_bin += 1
+            state, clock = _advance_pole_state(
+                state,
+                clock,
+                t_handover,
+                pole,
+                bin_dt,
+                decay_one_bin,
+                tolerance,
+            )
             states[pole_i] = state
-
-        states[-1] = profile_dts[-1]
 
     @staticmethod
     def music_track(  # NOQA: D102 inherited from `Specials.music_track`

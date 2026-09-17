@@ -828,112 +828,65 @@ class CudaSpecials(Specials):  # NOQA: D101
     @staticmethod
     def wake_from_pole_residue(
         # read
+        profile_time: CupyArray,
         profile: CupyArray,
-        profile_dts: CupyArray,
+        carried_charge: CupyArray,
+        carried_is_counterrotating: bool,
+        state_lag_dt: float,
+        carried_lag_dt: float,
         poles: CupyArray,
         residues: CupyArray,
         is_counterrotating_beam: bool,
         counterrotating_pole_signs: CupyArray,
-        update_on_bin: CupyArray,
         factor: float,
+        bin_dt: float,
         # write
         states: CupyArray,
         voltage: CupyArray,
         voltage_threaded: CupyArray,
     ) -> None:
         """
-        Apply poles based on the `profile` to generate `voltage`.
+        Far field of a pole-residue wake, one complex state per pole.
+
+        See `Specials.wake_from_pole_residue` for the contract and every
+        parameter.
 
         Parameters
         ----------
-        profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
-        poles
-            Complex poles of an equivalent circuit model.
-        residues
-            Complex residues of an equivalent circuit model.
-        is_counterrotating_beam
-            If true, the current beam is counter-rotating.
-        counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: ``0,0,0,1,1,1,1,2,2,2``
-            one needs ``update_on_bin = [0,3,7]``.
-        factor
-            To convert `profile` to current per bin [A].
-        states
-            Complex state vector, length ``n_poles + 1``.
-            The last element stores ``t_start`` in its real part.
-        voltage
-            Output voltage, in [V].
         voltage_threaded
             Unused on the CUDA backend (kept for API parity with CPU
             backends); pole contributions are reduced into `voltage`
             directly via atomic adds.
         """
-        assert profile.device != "cpu", (
-            f"Requires Cupy array, but got {type(profile)}."
-        )
-        assert profile_dts.device != "cpu", (
-            f"Requires Cupy array, but got {type(profile_dts)}."
-        )
-        assert poles.device != "cpu", (
-            f"Requires Cupy array, but got {type(poles)}."
-        )
-        assert residues.device != "cpu", (
-            f"Requires Cupy array, but got {type(residues)}."
-        )
-        assert counterrotating_pole_signs.device != "cpu", (
-            f"Requires Cupy array, but got {type(counterrotating_pole_signs)}."
-        )
-        assert states.device != "cpu", (
-            f"Requires Cupy array, but got {type(states)}."
-        )
-        assert voltage.device != "cpu", (
-            f"Requires Cupy array, but got {type(voltage)}."
-        )
-        assert update_on_bin.device != "cpu", (
-            f"Requires Cupy array, but got {type(update_on_bin)}."
-        )
-
         complex_dtype = np.complex64 if np.float32 == FLOAT else np.complex128
-        assert profile.dtype == FLOAT
-        assert profile_dts.dtype == FLOAT
-        assert voltage.dtype == FLOAT
-        assert counterrotating_pole_signs.dtype == FLOAT
-        assert poles.dtype == complex_dtype
-        assert residues.dtype == complex_dtype
-        assert states.dtype == complex_dtype
-        assert update_on_bin.dtype == np.int32
-
-        assert profile.flags.c_contiguous
-        assert profile_dts.flags.c_contiguous
-        assert poles.flags.c_contiguous
-        assert residues.flags.c_contiguous
-        assert counterrotating_pole_signs.flags.c_contiguous
-        assert states.flags.c_contiguous
-        assert voltage.flags.c_contiguous
-        assert update_on_bin.flags.c_contiguous
+        for array, dtype in (
+            (profile_time, FLOAT),
+            (profile, FLOAT),
+            (carried_charge, FLOAT),
+            (poles, complex_dtype),
+            (residues, complex_dtype),
+            (counterrotating_pole_signs, FLOAT),
+            (states, complex_dtype),
+            (voltage, FLOAT),
+        ):
+            assert array.device != "cpu", (
+                f"Requires Cupy array, but got {type(array)}."
+            )
+            assert array.dtype == dtype
+            assert array.flags.c_contiguous
 
         n_bins = int(profile.shape[0])
         n_poles = int(poles.shape[0])
-        n_updates = int(update_on_bin.shape[0])
-        n_profile_dts = int(profile_dts.shape[0])
-
-        # states has length n_poles + 1; last entry stores t_start.
-        assert states.shape[0] == n_poles + 1
+        assert profile_time.shape[0] == n_bins
+        assert carried_charge.shape[0] == 1
+        assert states.shape[0] == n_poles
         assert residues.shape[0] == n_poles
         assert counterrotating_pole_signs.shape[0] == n_poles
         assert voltage.shape[0] == n_bins
 
         # Output is reduced across poles via atomicAdd; must start at zero.
         voltage.fill(0)
-
-        if n_poles == 0 or n_bins == 0:
+        if n_poles == 0:
             return
 
         # View complex arrays as interleaved real/imag float arrays without
@@ -950,43 +903,42 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         _wake_from_pole_residue(
             args=(
+                profile_time,
                 profile,
-                profile_dts,
+                carried_charge,
+                np.bool_(carried_is_counterrotating),
+                FLOAT(state_lag_dt),
+                FLOAT(carried_lag_dt),
                 poles_r,
                 residues_r,
                 np.bool_(is_counterrotating_beam),
                 counterrotating_pole_signs,
-                update_on_bin,
                 FLOAT(factor),
+                FLOAT(bin_dt),
                 states_r,
                 voltage,
                 np.int32(n_bins),
                 np.int32(n_poles),
-                np.int32(n_updates),
-                np.int32(n_profile_dts),
             ),
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),
         )
-        # `t_start` of the next call, set only after every pole thread has
-        # read the current one. Queued on the device, no host sync.
-        states[-1] = profile_dts[-1]
 
-        @staticmethod
-        def music_track(  # NOQA: D102 inherited from `Specials.music_track`
-            beam_dt: CupyArray,
-            beam_dE: CupyArray,
-            induced_voltage: CupyArray,
-            parameter_array: CupyArray,
-            alpha: float,
-            omega_bar: float,
-            const: float,
-            coeff1: float,
-            coeff2: float,
-            coeff3: float,
-            coeff4: float,
-            time_since_last_track: float,
-            multiturn: bool,
-        ) -> None:
-            # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
-            raise NotImplementedError
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: CupyArray,
+        beam_dE: CupyArray,
+        induced_voltage: CupyArray,
+        parameter_array: CupyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+        raise NotImplementedError

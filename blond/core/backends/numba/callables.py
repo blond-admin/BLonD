@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 
 import numba  # type: ignore
 import numpy as np
-from numba import boolean, complex128, int32, njit, prange, void
+from numba import boolean, complex128, njit, prange, void
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.python.callables import (
@@ -400,6 +400,45 @@ def _apply_sr_with_quantum_excitation(  # pragma: no cover
             - energy_lost
             + noise_scale * np.random.standard_normal()  # NOQA: NPY002
         )
+
+
+@njit(fastmath=True, cache=False)
+def _advance_pole_state(
+    state, clock, to_time, pole, bin_dt, decay_one_bin, tolerance
+):
+    """
+    Decay a pole's state from `clock` to `to_time`, never backwards.
+
+    Parameters
+    ----------
+    state
+        Complex state of the pole at `clock`.
+    clock
+        Time the state is referenced at, in [s].
+    to_time
+        Time to advance to, in [s].
+    pole
+        Complex pole, in [rad/s].
+    bin_dt
+        Profile bin width, in [s].
+    decay_one_bin
+        ``exp(pole * bin_dt)``, precomputed.
+    tolerance
+        Time within which two instants count as equal, in [s].
+
+    Returns
+    -------
+    state
+        The state at ``max(clock, to_time)``.
+    clock
+        ``max(clock, to_time)``.
+    """
+    step = to_time - clock
+    if step <= tolerance:
+        return state, clock
+    if abs(step - bin_dt) <= tolerance:
+        return state * decay_one_bin, to_time
+    return state * np.exp(pole * step), to_time
 
 
 class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
@@ -865,16 +904,19 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         out[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
-    @enforce_precision(FLOAT)
     @njit(
         void(
             nb_f[:],
             nb_f[:],
+            nb_f[:],
+            boolean,
+            nb_f,
+            nb_f,
             complex128[:],
             complex128[:],
             boolean,
             nb_f[:],
-            int32[:],
+            nb_f,
             nb_f,
             complex128[:],
             nb_f[:],
@@ -886,126 +928,128 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     )
     def wake_from_pole_residue(
         # read
-        profile: NumpyArray,
-        profile_dts: NumpyArray,
-        poles: NumpyArray,
-        residues: NumpyArray,
-        is_counterrotating_beam: bool,
-        counterrotating_pole_signs: NumpyArray,
-        update_on_bin: NumpyArray,
-        factor: float,
+        profile_time,
+        profile,
+        carried_charge,
+        carried_is_counterrotating,
+        state_lag_dt,
+        carried_lag_dt,
+        poles,
+        residues,
+        is_counterrotating_beam,
+        counterrotating_pole_signs,
+        factor,
+        bin_dt,
         # write
-        states: NumpyArray,
-        voltage: NumpyArray,
-        voltage_threaded: NumpyArray,
+        states,
+        voltage,
+        voltage_threaded,
     ) -> None:
-        """
-        Apply poles based on the `profile` to generate `voltage`.
-
-        Parameters
-        ----------
-        profile
-            Beam profile histogram.
-        profile_dts
-            Base for time step, connected to `update_on_bin`.
-        poles
-            Complex poles of an equivalent circuit model.
-        residues
-            Complex residues of an equivalent circuit model.
-        is_counterrotating_beam
-            If true, the current beam is counter-rotating.
-        counterrotating_pole_signs
-            Array per pole, -1 if the sign of the impedance is flipped
-            for a counter-rotating beam.
-        update_on_bin
-            Index when to trigger an update of dt. For speedup.
-            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
-            one needs `update_on_bin = [0,3,7]`.
-        factor
-            To convert `profile` to current per bin [A].
-        states
-            Complex state vector, initially ``(0 + 0j)``.
-        voltage
-            Output voltage, in [V].
-        voltage_threaded
-            Cached `voltage` array per thread. For speedup.
-        """
-        n_poles = len(poles)
-        two_factor = 2 * factor
+        """See `Specials.wake_from_pole_residue`. Numba-jitted mirror of `PythonSpecials.wake_from_pole_residue`."""
         n_bins = len(profile)
+        assert len(states) == len(poles)
 
-        voltage[:] = 0  # reset to zero from previous call
-        voltage_threaded[:, :] = 0  # reset to zero from previous call
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
         if not (voltage_threaded.shape[0] == numba.get_num_threads()):
             raise RuntimeError(
                 "Number of threads does not match voltage threaded shape."
             )
-        for pole_i in prange(n_poles):
+
+        t_0 = profile_time[0]
+        read_lag = 2.0 * bin_dt
+        tolerance = 1e-6 * bin_dt
+        t_carried = -carried_lag_dt
+        t_handover = (profile_time[-1] - t_0) - bin_dt
+
+        for pole_i in prange(len(poles)):
             thread_i = numba.get_thread_id()
-
-            # `cr_pole_flip` is intentionally applied to BOTH the state
-            # injection and the output amplitude: for the counter-rotating
-            # beam's own wake the two factors cancel (flip**2 == 1); only
-            # contributions of the other beam, accumulated in the shared
-            # `states`, see a net sign flip.
-            cr_pole_flip = 1.0
-            if (
-                is_counterrotating_beam
-                and counterrotating_pole_signs[pole_i] == -1
-            ):
-                cr_pole_flip = -1.0
-
-            # y[n] = profile[n] + exp(p * dt) * y[n-1]
-            # V[n] = 2 * Re(r * y[n]) for a complex pole (stands in for its
-            # unstored conjugate); V[n] = Re(r * y[n]) for a real pole.
-            # state = 0.0 + 0.0j
-            i_update = 0
-            # empty `update_on_bin` means "never update"; `decay` stays 0
-            update_on_bin_i = (
-                update_on_bin[0] if len(update_on_bin) > 0 else -1
-            )
-
             pole = complex(poles[pole_i])
             residue = complex(residues[pole_i])
             state = complex(states[pole_i])
-            decay = 0.0 + 0.0j
 
-            # A real pole has no implicit complex conjugate (vector-fitting
-            # convention): only a pole with imag != 0 stands in for an
-            # unstored conjugate partner and needs the doubled injection.
-            injection_factor = factor if pole.imag == 0 else two_factor
+            flipped = counterrotating_pole_signs[pole_i] == -1
+            flip = -1.0 if (is_counterrotating_beam and flipped) else 1.0
+            carried_flip = (
+                -1.0 if (carried_is_counterrotating and flipped) else 1.0
+            )
+            pair = 1.0 if pole.imag == 0 else 2.0
+            decay_one_bin = np.exp(pole * bin_dt)
 
-            t_start = states[-1]
-
+            clock = -read_lag - state_lag_dt
+            next_bin = 0
             for bin_i in range(n_bins):
-                profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
+                read_time = (profile_time[bin_i] - t_0) - read_lag
+                while (
+                    next_bin < n_bins - 1
+                    and (profile_time[next_bin] - t_0) <= read_time + tolerance
+                ):
+                    state, clock = _advance_pole_state(
+                        state,
+                        clock,
+                        profile_time[next_bin] - t_0,
+                        pole,
+                        bin_dt,
+                        decay_one_bin,
+                        tolerance,
+                    )
+                    state += flip * pair * factor * profile[next_bin]
+                    next_bin += 1
+                state, clock = _advance_pole_state(
+                    state,
+                    clock,
+                    read_time,
+                    pole,
+                    bin_dt,
+                    decay_one_bin,
+                    tolerance,
                 )
-
-                if bin_i == update_on_bin_i:
-                    if bin_i == 0:
-                        t_jump = profile_dts[0] - t_start + 0j
-                    else:
-                        t_jump = (
-                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
+                voltage_threaded[thread_i, bin_i] += (
+                    flip * (residue * state).real
+                )
+                if bin_i == 0:
+                    if t_carried <= clock:
+                        state += (
+                            carried_flip
+                            * pair
+                            * carried_charge[0]
+                            * np.exp(pole * (clock - t_carried))
                         )
-                    state *= np.exp(pole * t_jump)
-                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
-                    decay = np.exp(pole * dt)
-
-                    i_update += 1
-                    if i_update < len(update_on_bin):
-                        update_on_bin_i = update_on_bin[i_update]
-                else:
-                    state *= decay
-                state += profile_i_half
-                amp = float(np.real(residue * state))
-                voltage_threaded[thread_i, bin_i] += cr_pole_flip * amp
-                state += profile_i_half
+                    else:
+                        state, clock = _advance_pole_state(
+                            state,
+                            clock,
+                            t_carried,
+                            pole,
+                            bin_dt,
+                            decay_one_bin,
+                            tolerance,
+                        )
+                        state += carried_flip * pair * carried_charge[0]
+            while next_bin < n_bins - 1:
+                state, clock = _advance_pole_state(
+                    state,
+                    clock,
+                    profile_time[next_bin] - t_0,
+                    pole,
+                    bin_dt,
+                    decay_one_bin,
+                    tolerance,
+                )
+                state += flip * pair * factor * profile[next_bin]
+                next_bin += 1
+            state, clock = _advance_pole_state(
+                state,
+                clock,
+                t_handover,
+                pole,
+                bin_dt,
+                decay_one_bin,
+                tolerance,
+            )
             states[pole_i] = state
 
         voltage[:] = np.sum(voltage_threaded, axis=0)
-        states[-1] = profile_dts[-1]
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(  # NOQA: D102

@@ -3152,149 +3152,544 @@ class TestSpecials(unittest.TestCase):
                     err_msg=f"{special=} {dtype=}",
                 )
 
-    def _run_wake_from_pole_residue(
-        self,
-        update_on_bin_np: np.ndarray,
-        n_calls: int = 1,
-        n_poles: int = 2,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Run `wake_from_pole_residue` on the active backend.
+    @staticmethod
+    def _unrolled_pole_voltage(
+        profile_time,
+        profile,
+        carried_charge,
+        carried_is_counterrotating,
+        state_lag_dt,
+        carried_lag_dt,
+        poles,
+        residues,
+        is_counterrotating_beam,
+        signs,
+        factor,
+        bin_dt,
+        states_in,
+    ):
+        """The kernel's contract written out as a double sum, on the host.
 
-        Returns
-        -------
-        voltage, states
-            Output voltage and pole states as numpy arrays.
+        Bin ``i`` reads the state at ``T_i = t_i - 2 bin_dt``. The state
+        holds the incoming state (referenced ``state_lag_dt`` before
+        ``T_0``), every profile bin but the last whose time is at or before
+        ``T_i``, and -- for every bin but the first -- the carried charge,
+        emitted ``carried_lag_dt`` before ``t_0``. The returned state is
+        referenced one bin before the last bin and holds all of these.
         """
-        n = 16
-        rng = np.random.default_rng(42)
-        profile_np = rng.standard_normal(n)
-        centers_np = np.linspace(0.0, 1e-9, n)
-        bin_dt = centers_np[1] - centers_np[0]
-        poles_np = np.array(
-            [-1e8 + 2 * np.pi * 1e9j, -2e8 + 2 * np.pi * 1.5e9j],
-            dtype=complex,
-        )
-        residues_np = np.array([1.0 + 0.5j, 0.7 - 0.2j], dtype=complex)
-        # Cycle through the two poles to reach `n_poles`
-        poles_np = np.resize(poles_np, n_poles)
-        residues_np = np.resize(residues_np, n_poles)
-
-        profile = backend.array(profile_np, dtype=backend.float)
-        centers = backend.array(centers_np, dtype=backend.float)
-        poles = backend.array(poles_np, dtype=backend.complex)
-        residues = backend.array(residues_np, dtype=backend.complex)
-        states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
-        # non-zero states so decay and time jumps are observable in the
-        # output of every pole
-        states[:-1] = 0.3 + 0.1j
-        states[-1] = centers_np[0] - bin_dt
-        voltage = backend.zeros(n, dtype=backend.float)
-        for _ in range(n_calls):
-            backend.specials.wake_from_pole_residue(
-                profile=profile,
-                profile_dts=centers,
-                poles=poles,
-                residues=residues,
-                is_counterrotating_beam=False,
-                counterrotating_pole_signs=backend.ones_like(
-                    poles, dtype=backend.float
-                ),
-                update_on_bin=backend.array(update_on_bin_np, dtype=np.int32),
-                factor=1.0,
-                states=states,
-                voltage=voltage,
-                voltage_threaded=backend.zeros(
-                    (backend.specials.get_max_threads(), n),
-                    dtype=backend.float,
-                ),
+        n_bins = len(profile)
+        t_0 = profile_time[0]
+        read_times = profile_time - t_0 - 2.0 * bin_dt
+        bin_times = profile_time - t_0
+        t_carried = -carried_lag_dt
+        tolerance = 1e-6 * bin_dt
+        voltage = np.zeros(n_bins)
+        states_out = np.zeros(len(poles), dtype=np.complex128)
+        for pole_i, (pole, residue) in enumerate(zip(poles, residues)):
+            pair = 1.0 if pole.imag == 0 else 2.0
+            flip = (
+                -1.0
+                if (is_counterrotating_beam and signs[pole_i] == -1)
+                else 1.0
             )
-        if backend.is_gpu:
-            return voltage.get(), states.get()
-        return np.asarray(voltage), np.asarray(states)
+            carried_flip = (
+                -1.0
+                if (carried_is_counterrotating and signs[pole_i] == -1)
+                else 1.0
+            )
 
-    def _assert_wake_matches_python(
+            def state_at(
+                clock,
+                with_carried,
+                pole=pole,
+                flip=flip,
+                pair=pair,
+                carried_flip=carried_flip,
+                pole_i=pole_i,
+            ):
+                state = states_in[pole_i] * np.exp(
+                    pole * (clock + 2.0 * bin_dt + state_lag_dt)
+                )
+                for j in range(n_bins - 1):
+                    if bin_times[j] <= clock + tolerance:
+                        state += (
+                            flip
+                            * pair
+                            * factor
+                            * profile[j]
+                            * np.exp(pole * (clock - bin_times[j]))
+                        )
+                if with_carried:
+                    state += (
+                        carried_flip
+                        * pair
+                        * carried_charge
+                        * np.exp(pole * (clock - t_carried))
+                    )
+                return state
+
+            for i in range(n_bins):
+                state = state_at(read_times[i], with_carried=i > 0)
+                voltage[i] += flip * float(np.real(residue * state))
+            states_out[pole_i] = state_at(
+                bin_times[-1] - bin_dt, with_carried=True
+            )
+        return voltage, states_out
+
+    def _run_pole_kernel(
         self,
-        update_on_bin_np: np.ndarray,
-        n_calls: int = 1,
-        n_poles: int = 2,
-    ) -> None:
+        profile_time,
+        profile,
+        carried_charge,
+        carried_is_counterrotating,
+        state_lag_dt,
+        carried_lag_dt,
+        poles,
+        residues,
+        is_counterrotating_beam,
+        signs,
+        factor,
+        bin_dt,
+        states,
+    ):
+        """Run the active backend's kernel; `states` is a backend array, updated."""
+        n_bins = len(profile)
+        voltage = backend.zeros(n_bins, dtype=backend.float)
+        voltage_threaded = backend.zeros(
+            (backend.specials.get_max_threads(), n_bins), dtype=backend.float
+        )
+        backend.specials.wake_from_pole_residue(
+            profile_time=backend.array(profile_time, dtype=backend.float),
+            profile=backend.array(profile, dtype=backend.float),
+            carried_charge=backend.array(
+                [carried_charge], dtype=backend.float
+            ),
+            carried_is_counterrotating=carried_is_counterrotating,
+            state_lag_dt=state_lag_dt,
+            carried_lag_dt=carried_lag_dt,
+            poles=backend.array(poles, dtype=backend.complex),
+            residues=backend.array(residues, dtype=backend.complex),
+            is_counterrotating_beam=is_counterrotating_beam,
+            counterrotating_pole_signs=backend.array(
+                signs, dtype=backend.float
+            ),
+            factor=factor,
+            bin_dt=bin_dt,
+            states=states,
+            voltage=voltage,
+            voltage_threaded=voltage_threaded,
+        )
+        return copy_to_cpu(voltage)
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_matches_unrolled_sum(self) -> None:
+        """The recursion equals the unrolled double sum, on every backend.
+
+        A profile with a hole in its axis, a non-zero incoming state, and a
+        carried charge that is due before the first read-out (lag of two
+        bins and more) or between the first two (lag below two bins).
+        """
+        bin_dt = 1e-9
+        t_0 = 3.0e-4  # the axis does not start at zero
+        profile_time = t_0 + bin_dt * np.array([0, 1, 2, 3, 8, 9, 10, 11.0])
+        profile = np.array([0.5, 3.0, 1.5, 0.0, 2.0, 0.5, 1.0, 0.7])
+        poles_np = np.array(
+            [-1e8 + 2e9j, -3e8 + 0.0j, -2e8 + 5e8j], dtype=np.complex128
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 2.0 + 0.0j, 0.3 - 0.7j], dtype=np.complex128
+        )
+        states_in = np.array([0.2 - 0.1j, 0.4 + 0.0j, -0.3 + 0.2j])
+        signs = np.ones(len(poles_np))
+        factor = 1.7
+        carried_charge = 2.3
+
         dtype = np.float64
-        for i, special in enumerate(self.special_modes):
+        for special in self.special_modes:
             try:
                 self._setUp(dtype=dtype, special_mode=special)
             except (FileNotFoundError, OSError):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
-            voltage, states = self._run_wake_from_pole_residue(
-                update_on_bin_np=update_on_bin_np,
-                n_calls=n_calls,
-                n_poles=n_poles,
-            )
-            if i == 0:
-                voltage_python = voltage
-                states_python = states
-            else:
+            for carried_lag_bins in (1.0, 1.3, 2.0, 2.5, 4.0):
+                state_lag_dt = (carried_lag_bins - 1.0) * bin_dt
+                carried_lag_dt = carried_lag_bins * bin_dt
+                expected_voltage, expected_states = (
+                    self._unrolled_pole_voltage(
+                        profile_time,
+                        profile,
+                        carried_charge,
+                        False,
+                        state_lag_dt,
+                        carried_lag_dt,
+                        poles_np,
+                        residues_np,
+                        False,
+                        signs,
+                        factor,
+                        bin_dt,
+                        states_in,
+                    )
+                )
+                states = backend.array(states_in, dtype=backend.complex)
+                voltage = self._run_pole_kernel(
+                    profile_time,
+                    profile,
+                    carried_charge,
+                    False,
+                    state_lag_dt,
+                    carried_lag_dt,
+                    poles_np,
+                    residues_np,
+                    False,
+                    signs,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+                # The axis sits at 3e-4 s, where float64 resolves a bin of
+                # 1e-9 s to ~5e-11 only; the kernel steps by exact bins,
+                # the reference by the rounded times.
+                scale = float(np.max(np.abs(expected_voltage)))
                 np.testing.assert_allclose(
                     voltage,
-                    voltage_python,
-                    rtol=1e-10,
-                    err_msg=f"{special=} {dtype=}",
+                    expected_voltage,
+                    rtol=1e-9,
+                    atol=1e-9 * scale,
+                    err_msg=f"{special=} {carried_lag_bins=}",
                 )
                 np.testing.assert_allclose(
-                    states,
-                    states_python,
-                    rtol=1e-10,
-                    err_msg=f"{special=} {dtype=}",
+                    copy_to_cpu(states),
+                    expected_states,
+                    rtol=1e-9,
+                    atol=1e-9 * float(np.max(np.abs(expected_states))),
+                    err_msg=f"states {special=} {carried_lag_bins=}",
                 )
 
     @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue(self) -> None:
-        """All backends must match python, incl. states over two calls."""
-        self._assert_wake_matches_python(
-            update_on_bin_np=np.array([0], dtype=np.int32),
-            n_calls=2,
-        )
+    def test_wake_from_pole_residue_persists_state_across_calls(self) -> None:
+        """Splitting a profile over two calls equals one long call.
+
+        The second call receives the state one bin before the first call's
+        last bin, that bin's charge as the carried charge, and the gap
+        between the two calls as the lags -- the hand-over the solver does.
+        """
+        bin_dt = 1e-9
+        profile = np.array([0.0, 0.0, 3.0, 1.5, 0.0, 2.0, 0.5, 1.0])
+        poles_np = np.array([-1e8 + 2e9j, -3e8 + 0.0j], dtype=np.complex128)
+        residues_np = np.array([1.0 + 0.5j, 2.0 + 0.0j], dtype=np.complex128)
+        signs = np.ones(2)
+        factor = 1.7
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            # dense axis, and an axis with a hole exactly at the split
+            for gap_bins in (1, 4):
+                profile_time = bin_dt * np.concatenate(
+                    (np.arange(4), np.arange(4) + 3 + gap_bins)
+                )
+                states = backend.zeros(2, dtype=backend.complex)
+                voltage_single = self._run_pole_kernel(
+                    profile_time,
+                    profile,
+                    0.0,
+                    False,
+                    0.0,
+                    2 * bin_dt,
+                    poles_np,
+                    residues_np,
+                    False,
+                    signs,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+                states = backend.zeros(2, dtype=backend.complex)
+                voltage_a = self._run_pole_kernel(
+                    profile_time[:4],
+                    profile[:4],
+                    0.0,
+                    False,
+                    0.0,
+                    2 * bin_dt,
+                    poles_np,
+                    residues_np,
+                    False,
+                    signs,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+                gap_dt = gap_bins * bin_dt
+                voltage_b = self._run_pole_kernel(
+                    profile_time[4:],
+                    profile[4:],
+                    factor * profile[3],
+                    False,
+                    gap_dt - bin_dt,
+                    gap_dt,
+                    poles_np,
+                    residues_np,
+                    False,
+                    signs,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+                # The kernel never puts the carried charge into the first
+                # bin's far field -- the caller adds it in closed form. For
+                # a gap of two bins or more that closed form is the same
+                # exponential the single call used, so add it here.
+                if gap_bins >= 2:
+                    for pole, residue in zip(poles_np, residues_np):
+                        pair = 1.0 if pole.imag == 0 else 2.0
+                        voltage_b[0] += float(
+                            np.real(
+                                residue
+                                * pair
+                                * factor
+                                * profile[3]
+                                * np.exp(pole * (gap_dt - 2 * bin_dt))
+                            )
+                        )
+                scale = float(np.max(np.abs(voltage_single)))
+                np.testing.assert_allclose(
+                    voltage_a,
+                    voltage_single[:4],
+                    rtol=1e-12,
+                    atol=1e-12 * scale,
+                    err_msg=f"head {special=} {gap_bins=}",
+                )
+                np.testing.assert_allclose(
+                    voltage_b,
+                    voltage_single[4:],
+                    rtol=1e-12,
+                    atol=1e-12 * scale,
+                    err_msg=f"tail {special=} {gap_bins=}",
+                )
 
     @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_many_poles(self) -> None:
-        """Every pole must jump from the same `t_start`.
-
-        The CUDA kernel read `t_start` from `states` in each pole thread
-        while pole 0 overwrote it for the next call, so pole threads that
-        started after pole 0 had finished (e.g. in later blocks) used the
-        wrong time jump on bin 0.
-        """
-        self._assert_wake_matches_python(
-            update_on_bin_np=np.array([0], dtype=np.int32),
-            n_calls=2,
-            # More poles than the device runs concurrently, so that pole
-            # threads start after pole 0 has finished.
-            n_poles=10000,
-        )
+    def test_wake_from_pole_residue_zero_poles(self) -> None:
+        """A model without poles gives zero voltage and does not crash."""
+        n_bins = 16
+        bin_dt = 1e-9
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            states = backend.zeros(0, dtype=backend.complex)
+            voltage = self._run_pole_kernel(
+                np.arange(n_bins) * bin_dt,
+                np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2,
+                0.0,
+                False,
+                0.0,
+                2 * bin_dt,
+                np.zeros(0, dtype=np.complex128),
+                np.zeros(0, dtype=np.complex128),
+                False,
+                np.zeros(0),
+                1.0,
+                bin_dt,
+                states,
+            )
+            np.testing.assert_array_equal(
+                voltage,
+                np.zeros(n_bins),
+                err_msg=f"`{special}` gave a voltage without poles",
+            )
 
     @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_update_not_on_first_bin(self) -> None:
-        """`update_on_bin[0] != 0` must behave like python (`decay = 0`).
+    def test_wake_from_pole_residue_extreme_magnitudes(self) -> None:
+        """Finite and accurate for the magnitudes a vector fit produces.
 
-        Before the first update bin, ``state *= decay`` with ``decay = 0``
-        zeroes the state. The numba kernel did not initialise ``decay`` and
-        relied on implicit zero-initialisation of maybe-undefined variables.
+        Twenty fast-decaying poles with |Re p| up to 1.4e7 and residues up
+        to 1e13 (a real fit of a physical impedance), plus one real pole,
+        against the unrolled sum.
         """
-        self._assert_wake_matches_python(
-            update_on_bin_np=np.array([2], dtype=np.int32),
+        poles_np = np.array(
+            [
+                -2623831.59946355 + 1.39099415e09j,
+                -3324980.21266537 + 1.37641478e09j,
+                -2627142.66632887 + 1.12342679e09j,
+                -4057802.76251799 + 1.36173266e09j,
+                -3332053.6956318 + 1.13800877e09j,
+                -4859598.51825629 + 1.34699927e09j,
+                -4069084.51675692 + 1.15269216e09j,
+                -5769309.76869008 + 1.33225090e09j,
+                -4876008.93418745 + 1.16742610e09j,
+                -5792260.22147667 + 1.18217408e09j,
+                -6839639.82479881 + 1.31752969e09j,
+                -6871261.85241204 + 1.19689324e09j,
+                -8150077.00435694 + 1.30291029e09j,
+                -8193661.34867393 + 1.21150693e09j,
+                -9814345.82669513 + 1.28856816e09j,
+                -9873890.22060673 + 1.22583392e09j,
+                -11873023.777707 + 1.27495791e09j,
+                -11943110.44842772 + 1.23940612e09j,
+                -13657970.95550037 + 1.26278082e09j,
+                -13693795.03125995 + 1.25153131e09j,
+                -1.4e7 + 0.0j,
+            ],
+            dtype=np.complex128,
         )
+        rng = np.random.default_rng(7)
+        residues_np = (
+            1e13
+            * (rng.random(len(poles_np)) - 0.5)
+            * (1.0 + 1j * (rng.random(len(poles_np)) - 0.5))
+        )
+        residues_np[-1] = 1e13 + 0.0j
+        bin_dt = 1e-10
+        profile_time = bin_dt * np.concatenate(
+            (np.arange(12), np.arange(12) + 20)
+        )
+        profile = rng.random(len(profile_time))
+        signs = np.ones(len(poles_np))
+        factor = 1.6e-19 * 1e11
+        states_in = np.zeros(len(poles_np), dtype=np.complex128)
+
+        expected_voltage, _ = self._unrolled_pole_voltage(
+            profile_time,
+            profile,
+            0.4,
+            False,
+            0.5 * bin_dt,
+            1.5 * bin_dt,
+            poles_np,
+            residues_np,
+            False,
+            signs,
+            factor,
+            bin_dt,
+            states_in,
+        )
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            states = backend.array(states_in, dtype=backend.complex)
+            voltage = self._run_pole_kernel(
+                profile_time,
+                profile,
+                0.4,
+                False,
+                0.5 * bin_dt,
+                1.5 * bin_dt,
+                poles_np,
+                residues_np,
+                False,
+                signs,
+                factor,
+                bin_dt,
+                states,
+            )
+            self.assertTrue(np.all(np.isfinite(voltage)), special)
+            np.testing.assert_allclose(
+                voltage,
+                expected_voltage,
+                rtol=1e-10,
+                atol=1e-10 * float(np.max(np.abs(expected_voltage))),
+                err_msg=f"{special=}",
+            )
 
     @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_empty_update_on_bin(self) -> None:
-        """Empty `update_on_bin` must not read out of bounds.
+    def test_wake_from_pole_residue_counter_rotation_flips(self) -> None:
+        """A beam's own wake is unchanged by counter-rotation; another's flips.
 
-        The C++ and CUDA kernels treat an empty array as "never update"
-        (``decay`` stays 0). The python reference raised ``IndexError`` and
-        the numba kernel read ``update_on_bin[0]`` out of bounds.
+        The flip is applied to both the injected charge and the amplitude
+        read back, so a counter-rotating beam alone sees the co-rotating
+        voltage. A charge carried from a call of the *other* beam keeps that
+        beam's flip, and a bin observing it sees the product of both.
         """
-        self._assert_wake_matches_python(
-            update_on_bin_np=np.array([], dtype=np.int32),
+        bin_dt = 1e-9
+        profile_time = bin_dt * np.arange(6)
+        profile = np.array([0.0, 3.0, 1.5, 0.0, 2.0, 0.5])
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j], dtype=np.complex128
         )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j], dtype=np.complex128
+        )
+        signs = np.array([1.0, -1.0, 1.0])
+        factor = 1.7
+        carried_charge = 1.1
+        state_lag_dt, carried_lag_dt = 0.5 * bin_dt, 1.5 * bin_dt
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            def run(is_cr, carried_is_cr, signs_=signs):
+                states = backend.zeros(len(poles_np), dtype=backend.complex)
+                return self._run_pole_kernel(
+                    profile_time,
+                    profile,
+                    carried_charge,
+                    carried_is_cr,
+                    state_lag_dt,
+                    carried_lag_dt,
+                    poles_np,
+                    residues_np,
+                    is_cr,
+                    signs_,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+
+            baseline = run(False, False)
+            # the same beam, counter-rotating, in both calls: invariant
+            np.testing.assert_allclose(
+                run(True, True),
+                baseline,
+                rtol=1e-12,
+                err_msg=f"own wake must not flip ({special=})",
+            )
+            # the carried charge came from the other beam: its pole with a
+            # sign of -1 contributes with the opposite sign
+            expected, _ = self._unrolled_pole_voltage(
+                profile_time,
+                profile,
+                carried_charge,
+                True,
+                state_lag_dt,
+                carried_lag_dt,
+                poles_np,
+                residues_np,
+                False,
+                signs,
+                factor,
+                bin_dt,
+                np.zeros(len(poles_np), dtype=np.complex128),
+            )
+            crossed = run(False, True)
+            np.testing.assert_allclose(
+                crossed,
+                expected,
+                rtol=1e-12,
+                atol=1e-12 * float(np.max(np.abs(expected))),
+                err_msg=f"carried flip ({special=})",
+            )
+            self.assertFalse(
+                np.allclose(crossed, baseline, rtol=1e-6),
+                f"a flipped pole must change the carried contribution ({special=})",
+            )
 
     @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
@@ -3897,450 +4292,6 @@ class TestSpecials(unittest.TestCase):
                 atol=0.0,
                 err_msg=f"Failed test `{special}` with {dtype}",
             )
-
-    @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue(self) -> None:
-        """Cross-backend parity for `wake_from_pole_residue` voltage output.
-
-        Scoped to float64: numba's kernel signature is hard-coded to
-        ``complex128``, and the real caller in ``solvers.py`` always
-        allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
-        ``float64`` the only precision all backends consistently accept.
-        """
-        n_bins = 64
-        n_poles = 3
-        dt_val = 1e-9
-
-        # Reference inputs; each backend builds its own arrays from these.
-        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
-        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
-        # Stable poles (Re < 0); decay magnitude per bin exp(Re*dt) in (0, 1).
-        poles_np = np.array(
-            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
-            dtype=np.complex128,
-        )
-        residues_np = np.array(
-            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
-            dtype=np.complex128,
-        )
-        update_on_bin_np = np.array([0], dtype=np.int32)
-
-        dtype = np.float64
-        for i, special in enumerate(self.special_modes):
-            try:
-                self._setUp(dtype=dtype, special_mode=special)
-            except (FileNotFoundError, OSError):
-                print(f"Could not perform `{special}` test for {dtype}")
-                continue
-
-            profile = backend.array(profile_np, dtype=backend.float)
-            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
-            poles = backend.array(poles_np, dtype=np.complex128)
-            residues = backend.array(residues_np, dtype=np.complex128)
-            cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
-            voltage = backend.zeros(n_bins, dtype=backend.float)
-            voltage_threaded = backend.zeros(
-                (backend.specials.get_max_threads(), n_bins),
-                dtype=backend.float,
-            )
-            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
-
-            backend.specials.wake_from_pole_residue(
-                profile=profile,
-                profile_dts=profile_dts,
-                poles=poles,
-                residues=residues,
-                is_counterrotating_beam=False,
-                counterrotating_pole_signs=cr_flags,
-                states=states,
-                voltage=voltage,
-                voltage_threaded=voltage_threaded,
-                update_on_bin=update_on_bin,
-                factor=backend.float(1.0),
-            )
-
-            result = np.asarray(copy_to_cpu(voltage))
-
-            if i == 0:
-                result_reference = result
-            else:
-                np.testing.assert_allclose(
-                    result,
-                    result_reference,
-                    rtol=1e-10,
-                    err_msg=f"Failed test `{special}` with {dtype}",
-                )
-
-            result2 = np.asarray(copy_to_cpu(states))
-
-            if i == 0:
-                result2_reference = result2
-            else:
-                np.testing.assert_allclose(
-                    result2,
-                    result2_reference,
-                    rtol=1e-10,
-                    err_msg=f"Failed test `{special}` with {dtype}",
-                )
-
-    @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_charge_counterrotation(self) -> None:
-        """Cross-backend parity for `wake_from_pole_residue` voltage output.
-
-        Scoped to float64: numba's kernel signature is hard-coded to
-        ``complex128``, and the real caller in ``solvers.py`` always
-        allocates ``np.zeros(.., complex)`` — i.e. complex128 — which makes
-        ``float64`` the only precision all backends consistently accept.
-        """
-        for charge in (-1, 1):
-            for is_counterrotating_beam in (False, True):
-                for cr_flags_sign in (-1, 1):
-                    n_bins = 64
-                    n_poles = 3
-                    dt_val = 1e-9
-
-                    # Reference inputs; each backend builds its own arrays from these.
-                    profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
-                    profile_dts_np = np.linspace(
-                        0, n_bins * dt_val, n_bins + 1
-                    )
-                    # Stable poles (Re < 0); decay magnitude per bin exp(Re*dt) in (0, 1).
-                    poles_np = np.array(
-                        [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
-                        dtype=np.complex128,
-                    )
-                    residues_np = np.array(
-                        [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
-                        dtype=np.complex128,
-                    )
-                    update_on_bin_np = np.array([0], dtype=np.int32)
-
-                    dtype = np.float64
-                    for i, special in enumerate(self.special_modes):
-                        try:
-                            self._setUp(dtype=dtype, special_mode=special)
-                        except (FileNotFoundError, OSError):
-                            print(
-                                f"Could not perform `{special}` test for {dtype}"
-                            )
-                            continue
-
-                        profile = backend.array(
-                            profile_np, dtype=backend.float
-                        )
-                        profile_dts = backend.array(
-                            profile_dts_np, dtype=backend.float
-                        )
-                        poles = backend.array(poles_np, dtype=np.complex128)
-                        residues = backend.array(
-                            residues_np, dtype=np.complex128
-                        )
-                        cr_flags = backend.ones(n_poles, dtype=backend.float)
-                        cr_flags[-1] *= cr_flags_sign
-                        states = backend.zeros(
-                            n_poles + 1, dtype=np.complex128
-                        )
-                        voltage = backend.zeros(n_bins, dtype=backend.float)
-                        voltage_threaded = backend.zeros(
-                            (backend.specials.get_max_threads(), n_bins),
-                            dtype=backend.float,
-                        )
-                        update_on_bin = backend.array(
-                            update_on_bin_np, dtype=np.int32
-                        )
-
-                        backend.specials.wake_from_pole_residue(
-                            profile=profile,
-                            profile_dts=profile_dts,
-                            poles=poles,
-                            residues=residues,
-                            is_counterrotating_beam=is_counterrotating_beam,
-                            counterrotating_pole_signs=cr_flags,
-                            states=states,
-                            voltage=voltage,
-                            voltage_threaded=voltage_threaded,
-                            update_on_bin=update_on_bin,
-                            factor=backend.float(charge * 1.0),
-                        )
-
-                        result = np.asarray(copy_to_cpu(voltage))
-
-                        if i == 0:
-                            result_reference = result
-                        else:
-                            np.testing.assert_allclose(
-                                result,
-                                result_reference,
-                                rtol=1e-10,
-                                err_msg=f"Failed test `{special}` with {dtype}",
-                            )
-                        result2 = np.asarray(copy_to_cpu(states))
-
-                        if i == 0:
-                            result2_reference = result2
-                        else:
-                            np.testing.assert_allclose(
-                                result2,
-                                result2_reference,
-                                rtol=1e-10,
-                                err_msg=f"Failed test `{special}` with {dtype}",
-                            )
-
-    @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_real_pole_cross_backend(self) -> None:
-        """Cross-backend parity when some poles are real.
-
-        A real pole (``imag == 0``) has no implicit complex conjugate in
-        the vector-fitting convention, so it must not receive the same
-        ``2 *`` injection factor as a genuine complex-conjugate-pair pole.
-        All backends must agree with each other on this.
-        """
-        n_bins = 64
-        n_poles = 3
-        dt_val = 1e-9
-
-        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
-        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
-        # Pole 0 and 2 are real (no implicit conjugate); pole 1 is complex.
-        poles_np = np.array(
-            [-1e8 + 0j, -2e8 + 5e8j, -3e8 + 0j],
-            dtype=np.complex128,
-        )
-        residues_np = np.array(
-            [1.5 + 0j, 0.5 - 1.0j, 0.3 + 0j],
-            dtype=np.complex128,
-        )
-        update_on_bin_np = np.array([0], dtype=np.int32)
-
-        dtype = np.float64
-        for i, special in enumerate(self.special_modes):
-            try:
-                self._setUp(dtype=dtype, special_mode=special)
-            except (FileNotFoundError, OSError):
-                print(f"Could not perform `{special}` test for {dtype}")
-                continue
-
-            profile = backend.array(profile_np, dtype=backend.float)
-            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
-            poles = backend.array(poles_np, dtype=np.complex128)
-            residues = backend.array(residues_np, dtype=np.complex128)
-            cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
-            voltage = backend.zeros(n_bins, dtype=backend.float)
-            voltage_threaded = backend.zeros(
-                (backend.specials.get_max_threads(), n_bins),
-                dtype=backend.float,
-            )
-            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
-
-            backend.specials.wake_from_pole_residue(
-                profile=profile,
-                profile_dts=profile_dts,
-                poles=poles,
-                residues=residues,
-                is_counterrotating_beam=False,
-                counterrotating_pole_signs=cr_flags,
-                states=states,
-                voltage=voltage,
-                voltage_threaded=voltage_threaded,
-                update_on_bin=update_on_bin,
-                factor=backend.float(1.0),
-            )
-
-            result = copy_to_cpu(voltage)
-
-            if i == 0:
-                result_reference = result
-            else:
-                np.testing.assert_allclose(
-                    result,
-                    result_reference,
-                    rtol=1e-10,
-                    err_msg=f"Failed test `{special}` with {dtype}",
-                )
-
-            result2 = copy_to_cpu(states)
-
-            if i == 0:
-                result2_reference = result2
-            else:
-                np.testing.assert_allclose(
-                    result2,
-                    result2_reference,
-                    rtol=1e-10,
-                    err_msg=f"Failed test `{special}` with {dtype}",
-                )
-
-    @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_cr_flip_invariance(self) -> None:
-        """Voltage is invariant under ``cr_pole_flip`` sign flips.
-
-        For a flipped pole the internal state picks up an overall ``-1``
-        by induction, but the output voltage multiplies the state by that
-        same ``cr_flip`` — the two sign flips cancel in ``Re(res * state)``.
-        Starting from zero state, the per-backend voltage must therefore
-        be identical with and without flipped poles.
-        """
-        n_bins = 64
-        n_poles = 3
-        dt_val = 1e-9
-
-        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
-        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
-        poles_np = np.array(
-            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
-            dtype=np.complex128,
-        )
-        residues_np = np.array(
-            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
-            dtype=np.complex128,
-        )
-        update_on_bin_np = np.array([0], dtype=np.int32)
-        flipped_signs_np = np.array([1.0, -1.0, 1.0])
-
-        def _run(flag: bool, flags_np: np.ndarray) -> np.ndarray:
-            profile = backend.array(profile_np, dtype=backend.float)
-            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
-            poles = backend.array(poles_np, dtype=np.complex128)
-            residues = backend.array(residues_np, dtype=np.complex128)
-            cr_flags = backend.array(flags_np, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
-            voltage = backend.zeros(n_bins, dtype=backend.float)
-            voltage_threaded = backend.zeros(
-                (backend.specials.get_max_threads(), n_bins),
-                dtype=backend.float,
-            )
-            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
-
-            # Positional args: see note in `test_wake_from_pole_residue`.
-            backend.specials.wake_from_pole_residue(
-                profile,
-                profile_dts,
-                poles,
-                residues,
-                flag,
-                cr_flags,
-                update_on_bin,
-                backend.float(1.0),
-                states,
-                voltage,
-                voltage_threaded,
-            )
-            return np.asarray(copy_to_cpu(voltage)).copy()
-
-        dtype = np.float64
-        for special in self.special_modes:
-            try:
-                self._setUp(dtype=dtype, special_mode=special)
-            except (FileNotFoundError, OSError):
-                print(f"Could not perform `{special}` test for {dtype}")
-                continue
-
-            voltage_baseline = _run(flag=False, flags_np=np.ones(n_poles))
-            voltage_flipped = _run(flag=True, flags_np=flipped_signs_np)
-
-            np.testing.assert_allclose(
-                voltage_flipped,
-                voltage_baseline,
-                rtol=1e-10,
-                err_msg=(
-                    "cr_pole_flip must leave voltage invariant "
-                    f"(`{special}` with {dtype})"
-                ),
-            )
-
-    @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue_multiple_dt_updates(self) -> None:
-        """Cross-backend parity with several ``update_on_bin`` entries.
-
-        Exercises the dt-update branches that a single-bucket profile
-        (``update_on_bin = [0]``) never reaches: the dt jump at a non-zero
-        bin, and advancing ``i_update`` onto a further update bin. The
-        profile is two concatenated sub-profiles with a time gap between
-        them, so the jump at the boundary is physically meaningful. Scoped
-        to float64 for the same reason as `test_wake_from_pole_residue`.
-        """
-        n_bins = 64
-        n_poles = 3
-        dt_val = 1e-9
-        boundary = n_bins // 2
-
-        profile_np = np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2
-        # Second sub-profile (bins >= `boundary`) is shifted later in time,
-        # creating a discontinuity that the ``bin_i != 0`` dt-jump branch
-        # must absorb.
-        profile_dts_np = np.linspace(0, n_bins * dt_val, n_bins + 1)
-        profile_dts_np[boundary:] += 10 * dt_val
-        poles_np = np.array(
-            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j],
-            dtype=np.complex128,
-        )
-        residues_np = np.array(
-            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j],
-            dtype=np.complex128,
-        )
-        # `[0, boundary]`: the update at bin 0 advances ``i_update`` to the
-        # second entry (covers ``i_update < len(update_on_bin)``); the
-        # update at `boundary` then takes the ``bin_i != 0`` jump branch.
-        update_on_bin_np = np.array([0, boundary], dtype=np.int32)
-
-        result_reference = None
-        states_reference = None
-        dtype = np.float64
-        for special in self.special_modes:
-            try:
-                self._setUp(dtype=dtype, special_mode=special)
-            except (FileNotFoundError, OSError):
-                print(f"Could not perform `{special}` test for {dtype}")
-                continue
-
-            profile = backend.array(profile_np, dtype=backend.float)
-            profile_dts = backend.array(profile_dts_np, dtype=backend.float)
-            poles = backend.array(poles_np, dtype=np.complex128)
-            residues = backend.array(residues_np, dtype=np.complex128)
-            cr_flags = backend.ones(n_poles, dtype=backend.float)
-            states = backend.zeros(n_poles + 1, dtype=np.complex128)
-            voltage = backend.zeros(n_bins, dtype=backend.float)
-            voltage_threaded = backend.zeros(
-                (backend.specials.get_max_threads(), n_bins),
-                dtype=backend.float,
-            )
-            update_on_bin = backend.array(update_on_bin_np, dtype=np.int32)
-
-            backend.specials.wake_from_pole_residue(
-                profile=profile,
-                profile_dts=profile_dts,
-                poles=poles,
-                residues=residues,
-                is_counterrotating_beam=False,
-                counterrotating_pole_signs=cr_flags,
-                update_on_bin=update_on_bin,
-                factor=backend.float(1.0),
-                states=states,
-                voltage=voltage,
-                voltage_threaded=voltage_threaded,
-            )
-
-            result = np.asarray(copy_to_cpu(voltage))
-            states_result = np.asarray(copy_to_cpu(states))
-
-            if result_reference is None:
-                result_reference = result
-                states_reference = states_result
-            else:
-                np.testing.assert_allclose(
-                    result,
-                    result_reference,
-                    rtol=1e-10,
-                    err_msg=f"Failed test `{special}` with {dtype}",
-                )
-                np.testing.assert_allclose(
-                    states_result,
-                    states_reference,
-                    rtol=1e-10,
-                    err_msg=f"Failed test `{special}` with {dtype}",
-                )
 
     @multi_backend_testcase
     @pytest.mark.backend_mutation

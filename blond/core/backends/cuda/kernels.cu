@@ -516,39 +516,58 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   __syncthreads();
 }
 
-// Apply pole-residue (vector fitting) model to a beam profile to generate
-// induced voltage. Mirrors the CPU/OpenMP implementation in cpp/poles.cpp but
-// is parallelized one thread per pole. The per-pole state evolution is
-// sequential across bins; different poles are fully independent and contend
-// only on the output `voltage` buffer via atomicAdd.
-//
-// Complex arrays (poles, residues, states) are stored as interleaved real/imag:
-//   [re0, im0, re1, im1, ...]
-// The last complex element of `states` stores t_start in its real part.
+// Far field of a pole-residue (vector fitting) wake, one thread per pole.
+// Mirrors cpp/poles.cpp; see `Specials.wake_from_pole_residue` in
+// blond/core/backends/backend.py for the contract. Pole contributions are
+// reduced into `voltage` via atomicAdd. Complex arrays (poles, residues,
+// states) are stored as interleaved real/imag: [re0, im0, re1, im1, ...].
+
+// Decay a pole's state from `clock` to `to_time`, never backwards. A step of
+// exactly one bin uses the precomputed `decay_*`.
+__device__ static inline void advance_pole_state(
+    real_t &state_re, real_t &state_im, real_t &clock, const real_t to_time,
+    const real_t pole_re, const real_t pole_im, const real_t bin_dt,
+    const real_t decay_re, const real_t decay_im, const real_t tolerance) {
+  const real_t step = to_time - clock;
+  if (step <= tolerance) {
+    return;
+  }
+  real_t e_re, e_im;
+  if (fabs(step - bin_dt) <= tolerance) {
+    e_re = decay_re;
+    e_im = decay_im;
+  } else {
+    const real_t e_abs = exp(pole_re * step);
+    e_re = e_abs * cos(pole_im * step);
+    e_im = e_abs * sin(pole_im * step);
+  }
+  const real_t new_re = state_re * e_re - state_im * e_im;
+  const real_t new_im = state_re * e_im + state_im * e_re;
+  state_re = new_re;
+  state_im = new_im;
+  clock = to_time;
+}
+
 extern "C" __global__ void wake_from_pole_residue(
-    const real_t *__restrict__ profile, const real_t *__restrict__ profile_dts,
-    const real_t *__restrict__ poles, const real_t *__restrict__ residues,
-    const bool is_counterrotating_beam,
-    const real_t *__restrict__ cr_pole_signs,
-    const int *__restrict__ update_on_bin, const real_t factor,
-    real_t *__restrict__ states, real_t *__restrict__ voltage, const int n_bins,
-    const int n_poles, const int n_updates, const int n_profile_dts) {
+    const real_t *__restrict__ profile_time, const real_t *__restrict__ profile,
+    const real_t *__restrict__ carried_charge,
+    const bool carried_is_counterrotating, const real_t state_lag_dt,
+    const real_t carried_lag_dt, const real_t *__restrict__ poles,
+    const real_t *__restrict__ residues, const bool is_counterrotating_beam,
+    const real_t *__restrict__ counterrotating_pole_signs, const real_t factor,
+    const real_t bin_dt, real_t *__restrict__ states,
+    real_t *__restrict__ voltage, const int n_bins, const int n_poles) {
   const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
   if (pole_i >= n_poles)
     return;
 
-  const real_t two_factor = real_t(2) * factor;
-  const real_t t_start = states[2 * n_poles];
-
-  // `cr_pole_flip` is intentionally applied to BOTH the state injection
-  // and the output amplitude: for the counter-rotating beam's own wake
-  // the two factors cancel (flip * flip == 1); only contributions of
-  // the other beam, accumulated in the shared `states`, see a net
-  // sign flip.
-  real_t cr_pole_flip = real_t(1);
-  if (is_counterrotating_beam && cr_pole_signs[pole_i] == real_t(-1)) {
-    cr_pole_flip = real_t(-1);
-  }
+  // Times relative to the first bin. A bin is read out two bins behind
+  // its own time; the carried charge was emitted before t_0.
+  const real_t t_0 = profile_time[0];
+  const real_t read_lag = real_t(2) * bin_dt;
+  const real_t tolerance = real_t(1e-6) * bin_dt;
+  const real_t t_carried = -carried_lag_dt;
+  const real_t t_handover = (profile_time[n_bins - 1] - t_0) - bin_dt;
 
   const int pole_n = 2 * pole_i;
   const real_t pole_re = poles[pole_n];
@@ -556,76 +575,62 @@ extern "C" __global__ void wake_from_pole_residue(
   const real_t res_re = residues[pole_n];
   const real_t res_im = residues[pole_n + 1];
 
+  // The flip is applied to both the injection and the read-out, so a
+  // beam's own wake never flips; a charge carried from the other beam
+  // keeps that beam's flip.
+  const bool flipped = counterrotating_pole_signs[pole_i] == real_t(-1);
+  const real_t flip = (is_counterrotating_beam && flipped) ? -1 : 1;
+  const real_t carried_flip = (carried_is_counterrotating && flipped) ? -1 : 1;
+  // A complex pole stands in for its unstored conjugate partner.
+  const real_t pair = (pole_im == real_t(0)) ? real_t(1) : real_t(2);
+  const real_t decay_abs = exp(pole_re * bin_dt);
+  const real_t decay_re = decay_abs * cos(pole_im * bin_dt);
+  const real_t decay_im = decay_abs * sin(pole_im * bin_dt);
+
   real_t state_re = states[pole_n];
   real_t state_im = states[pole_n + 1];
-
-  // A real pole has no implicit complex conjugate (vector-fitting
-  // convention): only a pole with pole_im != 0 stands in for an
-  // unstored conjugate partner and needs the doubled injection.
-  const real_t injection_factor = (pole_im == real_t(0)) ? factor : two_factor;
-
-  int i_update = 0;
-  int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
-
-  real_t decay_re = real_t(0);
-  real_t decay_im = real_t(0);
+  real_t clock = -read_lag - state_lag_dt;
+  int next_bin = 0;
 
   for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
-    if (bin_i == update_on_bin_i) {
-      const real_t t_jump = (bin_i == 0)
-                                ? (profile_dts[0] - t_start)
-                                : (profile_dts[bin_i] - profile_dts[bin_i - 1]);
-
-      // state *= exp(pole * t_jump)
-      {
-        const real_t jump_abs = exp(pole_re * t_jump);
-        const real_t jump_re = jump_abs * cos(pole_im * t_jump);
-        const real_t jump_im = jump_abs * sin(pole_im * t_jump);
-        const real_t new_state_re = state_re * jump_re - state_im * jump_im;
-        const real_t new_state_imag = state_re * jump_im + state_im * jump_re;
-        state_re = new_state_re;
-        state_im = new_state_imag;
-      }
-
-      // decay = exp(pole * dt)
-      const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
-      {
-        const real_t decay_abs = exp(pole_re * dt);
-        const real_t cos_tmp = cos(pole_im * dt);
-        const real_t sin_tmp = sin(pole_im * dt);
-        decay_re = decay_abs * cos_tmp;
-        decay_im = decay_abs * sin_tmp;
-      }
-
-      ++i_update;
-      if (i_update < n_updates) {
-        update_on_bin_i = update_on_bin[i_update];
-      }
-    } else {
-      // state *= decay
-      const real_t new_state_re = state_re * decay_re - state_im * decay_im;
-      const real_t new_state_imag = state_re * decay_im + state_im * decay_re;
-      state_re = new_state_re;
-      state_im = new_state_imag;
+    const real_t read_time = (profile_time[bin_i] - t_0) - read_lag;
+    // every bin but the last enters the state when it is due
+    while (next_bin < n_bins - 1 &&
+           (profile_time[next_bin] - t_0) <= read_time + tolerance) {
+      advance_pole_state(state_re, state_im, clock,
+                         profile_time[next_bin] - t_0, pole_re, pole_im, bin_dt,
+                         decay_re, decay_im, tolerance);
+      state_re += flip * pair * factor * profile[next_bin];
+      ++next_bin;
     }
-
-    const real_t half_step =
-        cr_pole_flip * (real_t(0.5) * profile[bin_i]) * injection_factor;
-
-    // First half of the trapezoidal rule.
-    state_re += half_step;
-
-    // amp = Re(residue * state)
-    const real_t amp = res_re * state_re - res_im * state_im;
-    atomicAdd(&voltage[bin_i], cr_pole_flip * amp);
-
-    // Second half of the trapezoidal rule.
-    state_re += half_step;
+    advance_pole_state(state_re, state_im, clock, read_time, pole_re, pole_im,
+                       bin_dt, decay_re, decay_im, tolerance);
+    atomicAdd(&voltage[bin_i], flip * (res_re * state_re - res_im * state_im));
+    if (bin_i == 0) {
+      // The carried charge enters after the first read-out; older than
+      // the clock it is decayed to it, newer it moves the clock.
+      if (t_carried <= clock) {
+        const real_t e_abs = exp(pole_re * (clock - t_carried));
+        const real_t charge = carried_flip * pair * carried_charge[0];
+        state_re += charge * e_abs * cos(pole_im * (clock - t_carried));
+        state_im += charge * e_abs * sin(pole_im * (clock - t_carried));
+      } else {
+        advance_pole_state(state_re, state_im, clock, t_carried, pole_re,
+                           pole_im, bin_dt, decay_re, decay_im, tolerance);
+        state_re += carried_flip * pair * carried_charge[0];
+      }
+    }
   }
+  // Hand over one bin before the last bin, every other bin in.
+  while (next_bin < n_bins - 1) {
+    advance_pole_state(state_re, state_im, clock, profile_time[next_bin] - t_0,
+                       pole_re, pole_im, bin_dt, decay_re, decay_im, tolerance);
+    state_re += flip * pair * factor * profile[next_bin];
+    ++next_bin;
+  }
+  advance_pole_state(state_re, state_im, clock, t_handover, pole_re, pole_im,
+                     bin_dt, decay_re, decay_im, tolerance);
 
-  // Persist state for the next call. `t_start` for the next call is
-  // written by the caller after the launch: writing it here would race
-  // with pole threads that have not yet read it.
   states[pole_n] = state_re;
   states[pole_n + 1] = state_im;
 }
