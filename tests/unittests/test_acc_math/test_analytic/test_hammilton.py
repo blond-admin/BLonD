@@ -10,9 +10,10 @@ from blond.acc_math.analytic.hamilton import (
     phase_modulo_below_transition,
     single_rf_sin_hamiltonian,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestPhiS(unittest.TestCase):
+class TestPhiS(BLonDTestCase):
     def test_phi_s_1(self):
         xs = np.linspace(-1, 1, 200)
         voltage = 1.5
@@ -40,7 +41,7 @@ class TestPhiS(unittest.TestCase):
                 )
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_phase_modulo_above_transition(self):
         upper_limit = 2 * np.pi
         lower_limit = 0
@@ -86,7 +87,7 @@ class TestFunctions(unittest.TestCase):
         )
 
 
-class TestSingleRFSinHamiltonian(unittest.TestCase):
+class TestSingleRFSinHamiltonian(BLonDTestCase):
     def setUp(self):
         self.charge = 1.0  # elementary charge units
         self.harmonic = 10
@@ -144,7 +145,7 @@ class TestSingleRFSinHamiltonian(unittest.TestCase):
         )
 
 
-class TestIsInSeparatrix(unittest.TestCase):
+class TestIsInSeparatrix(BLonDTestCase):
     @unittest.skip("TODO")  # TODO
     def test1(self):
         is_in_separatrix

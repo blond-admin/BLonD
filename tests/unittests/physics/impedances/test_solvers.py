@@ -45,11 +45,11 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 from blond.testing.helpers import enforce_64_bit_backend
 
 
-class TestTimeDomainFftSolver(unittest.TestCase):
+class TestTimeDomainFftSolver(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -271,7 +271,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             plt.show()
 
 
-class TestInductiveImpedanceSolver(unittest.TestCase):
+class TestInductiveImpedanceSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
         beam = Mock(BeamBaseClass)
@@ -373,7 +373,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         )
 
 
-class TestPeriodicFreqSolver(unittest.TestCase):
+class TestPeriodicFreqSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
             Z_over_n=34.6669349520904 / 10e9 * 11e3
@@ -662,7 +662,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             plt.show()
 
 
-class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
+class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -1158,7 +1158,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
 
 @pytest.mark.backend_mutation
-class TestMultiPassResonatorSolver(unittest.TestCase):
+class TestMultiPassResonatorSolver(BLonDTestCase):
     def setUp(self):
         enforce_64_bit_backend()
         # the histogram step is to tiny and would result in hist_step = 0
@@ -3279,7 +3279,7 @@ beam_profile = np.array(
 )
 
 
-class TestHeadlessSolvers(unittest.TestCase):
+class TestHeadlessSolvers(BLonDTestCase):
     def test_comp(self):
         t_rf = 7.706144104735e-10
         prof_ = StaticProfile.from_rad(
@@ -3356,7 +3356,7 @@ class TestHeadlessSolvers(unittest.TestCase):
         )
 
 
-class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
+class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
     def test_update_wake_kernel_fails(self):
         from blond.testing.mocks import beam_mock
 
@@ -3616,7 +3616,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         )
 
 
-class TestPeriodicFreqSolverBranches(unittest.TestCase):
+class TestPeriodicFreqSolverBranches(BLonDTestCase):
     def test_on_wakefield_init_simulation_no_warn_expect_already_true(self):
         solver = PeriodicFreqSolver(t_periodicity=1e-6)
         solver.expect_profile_change = True

@@ -9,9 +9,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_06_Acceleration_match_density(unittest.TestCase):
+class TestEX_06_Acceleration_match_density(BLonDTestCase):
     def _execute(self):
         from blond.examples.scripts import (
             EX_06_Acceleration_match_density,  # NOQA

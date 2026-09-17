@@ -26,9 +26,10 @@ from blond.physics.profiles import (
     ProfileBaseClass,
     StaticProfile,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestProfileBaseClass(unittest.TestCase):
+class TestProfileBaseClass(BLonDTestCase):
     def setUp(self):
         self.profile_base_class = ProfileBaseClass()
         self.profile_base_class._hist_x = backend.linspace(-5, 5, 11)
@@ -218,7 +219,7 @@ class TestProfileBaseClass(unittest.TestCase):
         np.testing.assert_allclose(result[0, :], expected[0, :])
 
 
-class TestStaticProfile(unittest.TestCase):
+class TestStaticProfile(BLonDTestCase):
     def setUp(self):
         self.static_profile = StaticProfile(
             cut_left=-5.5,
@@ -252,7 +253,7 @@ class TestStaticProfile(unittest.TestCase):
         )
 
 
-class TestDynamicProfileConstCutoff(unittest.TestCase):
+class TestDynamicProfileConstCutoff(BLonDTestCase):
     def setUp(self):
         self.dynamic_profile_const_cutoff = DynamicProfileConstCutoff(
             timestep=0.1e-9,
@@ -286,7 +287,7 @@ class TestDynamicProfileConstCutoff(unittest.TestCase):
         )
 
 
-class TestDynamicProfileConstNBins(unittest.TestCase):
+class TestDynamicProfileConstNBins(BLonDTestCase):
     def setUp(self):
         self.dynamic_profile_const_cutoff = DynamicProfileConstNBins(
             n_bins=10,

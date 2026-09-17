@@ -9,6 +9,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.losses import LossesBaseClass
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import beam_mock, simulation_mock
 
 
@@ -26,7 +27,7 @@ class LossesBaseClassHelper(LossesBaseClass):
         pass
 
 
-class TestLossesBaseClass(unittest.TestCase):
+class TestLossesBaseClass(BLonDTestCase):
     def test_init(self):
         LossesBaseClassHelper(purge_flagged_macroparticles=True)
 
@@ -46,7 +47,7 @@ class TestLossesBaseClass(unittest.TestCase):
         np.testing.assert_equal(beam.intensity, 0.5)
 
 
-class TestLossesBaseClassPurge(unittest.TestCase):
+class TestLossesBaseClassPurge(BLonDTestCase):
     def test_purge_particles_not_called_when_inactive(self):
         helper = LossesBaseClassHelper(purge_flagged_macroparticles=False)
         beam = Mock()
@@ -54,7 +55,7 @@ class TestLossesBaseClassPurge(unittest.TestCase):
         beam.purge_flagged_entries.assert_not_called()
 
 
-class TestBoxLosses(unittest.TestCase):
+class TestBoxLosses(BLonDTestCase):
     def setUp(self):
         self.box_losses = BoxLosses(
             purge_flagged_macroparticles=True,
