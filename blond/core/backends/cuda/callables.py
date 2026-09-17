@@ -21,6 +21,7 @@ import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
+from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -171,20 +172,16 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert dE.dtype == FLOAT
         assert flags.dtype == np.int32
 
-        assert isinstance(e_max, FLOAT)
-        assert isinstance(e_min, FLOAT)
-        assert isinstance(t_min, FLOAT)
-        assert isinstance(t_max, FLOAT)
-
         _loss_box(
             args=(
-                e_max,
-                e_min,
-                t_min,
-                t_max,
+                FLOAT(e_max),
+                FLOAT(e_min),
+                FLOAT(t_min),
+                FLOAT(t_max),
                 dt,
                 dE,
                 flags,
+                np.int32(BeamFlags.LOST.value),  # flag_lost
                 INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,

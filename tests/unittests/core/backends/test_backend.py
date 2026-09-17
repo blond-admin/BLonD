@@ -19,6 +19,7 @@ from blond.core.backends.backend import (
     backend,
 )
 from blond.core.backends.cpp.callables import check_index_abi
+from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
     BLonDTestCase,
@@ -2541,6 +2542,91 @@ class TestSpecials(BLonDTestCase):
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
+
+    @pytest.mark.backend_mutation
+    def test_loss_box_flags_lost_particles_with_beam_flags_lost(self) -> None:
+        """Every backend must write exactly `BeamFlags.LOST` on a loss.
+
+        The compiled backends cannot import the enum, so the value has to
+        reach them from Python; this guards that what they write still is
+        `BeamFlags.LOST` and not some other hardcoded constant.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            # Two particles inside the box, two outside (one in dE, one
+            # in dt), so both the untouched and the flagged path are seen.
+            dt = backend.array([0.0, 1.0, 0.0, 20.0], dtype=backend.float)
+            dE = backend.array([0.0, 0.0, 5.0, 0.0], dtype=backend.float)
+            flags = backend.array(4 * [BeamFlags.ACTIVE.value], dtype=np.int32)
+
+            backend.specials.loss_box(
+                e_max=backend.float(1),
+                e_min=backend.float(-1),
+                t_min=backend.float(-10),
+                t_max=backend.float(10),
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+
+            np.testing.assert_array_equal(
+                copy_to_cpu(flags),
+                np.array(
+                    [
+                        BeamFlags.ACTIVE.value,
+                        BeamFlags.ACTIVE.value,
+                        BeamFlags.LOST.value,
+                        BeamFlags.LOST.value,
+                    ],
+                    dtype=np.int32,
+                ),
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_loss_box_accepts_python_float_scalars(self) -> None:
+        """`loss_box` must accept plain Python floats on every backend.
+
+        The box limits come from user input and may well be Python
+        floats; every backend has to coerce them to its own precision
+        rather than reject them.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            dt = backend.array([0.0, 20.0], dtype=backend.float)
+            dE = backend.array([0.0, 0.0], dtype=backend.float)
+            flags = backend.array(2 * [BeamFlags.ACTIVE.value], dtype=np.int32)
+
+            backend.specials.loss_box(
+                e_max=1.0,
+                e_min=-1.0,
+                t_min=-10.0,
+                t_max=10.0,
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+
+            np.testing.assert_array_equal(
+                copy_to_cpu(flags),
+                np.array(
+                    [BeamFlags.ACTIVE.value, BeamFlags.LOST.value],
+                    dtype=np.int32,
+                ),
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
 
     @pytest.mark.backend_mutation
     def test_beam_phase(self) -> None:
