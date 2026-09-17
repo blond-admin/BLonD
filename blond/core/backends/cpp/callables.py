@@ -506,8 +506,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             # `floattype` scalar the other backends return.
             return floattype(
                 _LIBBLOND.beam_phase(
-                    hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
-                    hist_y.ctypes.data_as(ct.c_void_p),  # profile
+                    _get_pointer(hist_x),  # bin_centers
+                    _get_pointer(hist_y),  # profile
                     c_real(alpha, floattype),  # alpha
                     c_real(omega_rf, floattype),  # omega_rf
                     c_real(phi_rf, floattype),  # phi_rf
@@ -530,8 +530,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             stop = floattype(stop)
 
             _LIBBLOND.histogram(
-                array_read.ctypes.data_as(ct.c_void_p),
-                array_write.ctypes.data_as(ct.c_void_p),
+                _get_pointer(array_read),
+                _get_pointer(array_write),
                 c_real(start, floattype),
                 c_real(stop, floattype),
                 ct.c_int(len(array_write)),
@@ -582,10 +582,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
                             "for a single bucket."
                         )
                 _LIBBLOND.linear_interp_kick(
-                    dt.ctypes.data_as(ct.c_void_p),
-                    dE.ctypes.data_as(ct.c_void_p),
-                    voltage.ctypes.data_as(ct.c_void_p),
-                    bin_centers.ctypes.data_as(ct.c_void_p),
+                    _get_pointer(dt),
+                    _get_pointer(dE),
+                    _get_pointer(voltage),
+                    _get_pointer(bin_centers),
                     c_real(charge, floattype),
                     ct.c_int(len(bin_centers)),
                     _get_beam_len(dt),
@@ -599,10 +599,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert bucket_index_to_memory_index.flags.c_contiguous
 
             _LIBBLOND.linear_interp_kick_sparse(
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
-                voltage.ctypes.data_as(ct.c_void_p),
-                bin_centers.ctypes.data_as(ct.c_void_p),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(voltage),
+                _get_pointer(bin_centers),
                 c_real(charge, floattype),
                 ct.c_int(len(bin_centers)),
                 _get_beam_len(dt),
@@ -612,8 +612,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(floattype(cut_width), floattype),
                 ct.c_int(bins_per_profile),
                 ct.c_int(len(filling_pattern)),
-                filling_pattern.ctypes.data_as(ct.c_void_p),
-                bucket_index_to_memory_index.ctypes.data_as(ct.c_void_p),
+                _get_pointer(filling_pattern),
+                _get_pointer(bucket_index_to_memory_index),
             )
 
         @staticmethod
@@ -664,8 +664,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick = floattype(acceleration_kick)
 
             _LIBBLOND.kick_single_harmonic(
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 c_real(charge, floattype),
                 c_real(voltage, floattype),
                 c_real(omega_rf, floattype),
@@ -884,10 +884,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
                 ct.c_int32(np.int32(flag)),
-                flags.ctypes.data_as(ct.c_void_p),
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
-                ids.ctypes.data_as(ct.c_void_p),
+                _get_pointer(flags),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(ids),
                 _get_beam_len(dt),  # n_macroparticles
             )
             n_new = int(n_new)
