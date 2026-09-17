@@ -15,10 +15,12 @@ Authors:
 Simon Lauber
 """
 
+import traceback
 import unittest
 
 import mpmath as mp
 import numpy as np
+import pytest
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
@@ -26,6 +28,7 @@ from blond.physics.impedances.bin_average import (
     triple_box_average_pole,
     triple_box_average_poles,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 # Quadrature points used by the reference convolution, per sub-interval
 # between two breakpoints of the integrand.
@@ -352,6 +355,86 @@ class TestTripleBoxAverageLossFactor(unittest.TestCase):
             msg=(
                 "the closed form past the onset loses digits the "
                 "loss factor cannot afford"
+            ),
+        )
+
+
+class TestTripleBoxAverageStaysOnTheDevice(BLonDTestCase):
+    """`triple_box_average_poles` must not copy back to the host.
+
+    `MultiPoleSparseSolve` reaches it from the per-turn tracking loop, so
+    a single device-to-host transfer per call costs a PCIe round trip
+    every turn of every simulation. Two things would force one: gathering
+    with a boolean mask (CuPy has to count the selected elements on the
+    host) and walking the poles with ``complex()``. The cost is invisible
+    on a CPU backend, so without this test the regression would come back
+    unnoticed and only show up as a slow GPU run.
+    """
+
+    @pytest.mark.cupy
+    def test_no_host_transfer_per_call(self) -> None:
+        cupy = pytest.importorskip("cupy")
+        if backend.specials_mode != "cuda":
+            self.skipTest("only meaningful on the cuda backend")
+
+        transfers = []
+        watched = [
+            name
+            for name in (
+                "get",
+                "item",
+                "tolist",
+                "__float__",
+                "__int__",
+                "__complex__",
+                "__array__",
+                "__bool__",
+            )
+            if hasattr(cupy.ndarray, name)
+        ]
+        originals = {n: getattr(cupy.ndarray, n) for n in watched}
+
+        def _watch(name, original):
+            def wrapper(self_, *args, **kwargs):
+                stack = "".join(traceback.format_stack())
+                if "bin_average.py" in stack:
+                    transfers.append(name)
+                return original(self_, *args, **kwargs)
+
+            return wrapper
+
+        for name, original in originals.items():
+            setattr(cupy.ndarray, name, _watch(name, original))
+        try:
+            times = backend.array(
+                np.linspace(-2.0, 10.0, 512), dtype=backend.float
+            )
+            # A real pole and complex ones together: the real one takes
+            # the pair-factor branch that must not need a host-side `if`.
+            poles = backend.array(
+                np.array([-0.4 + 0.0j, -0.3 + 2.0j, -0.1 + 5.0j]),
+                dtype=backend.complex,
+            )
+            residues = backend.array(
+                np.array([2.5 + 0.0j, 1.0 + 0.5j, -3.2 + 7.1j]),
+                dtype=backend.complex,
+            )
+            for _ in range(5):
+                triple_box_average_poles(times, poles, residues, 1.0)
+        finally:
+            for name, original in originals.items():
+                setattr(cupy.ndarray, name, original)
+
+        self.assertEqual(
+            transfers,
+            [],
+            msg=(
+                "`triple_box_average_poles` copied back to the host "
+                f"{len(transfers)} time(s) via {sorted(set(transfers))}. "
+                "It runs inside the per-turn tracking loop, so every one "
+                "of those is a PCIe round trip per turn. Prefer "
+                "`backend.where` over boolean-mask indexing, and index "
+                "poles as length-1 slices rather than calling `complex()`."
             ),
         )
 

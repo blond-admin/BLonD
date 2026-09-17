@@ -3778,6 +3778,116 @@ class TestSpecials(BLonDTestCase):
                 f"a flipped pole must change the carried contribution ({special=})",
             )
 
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_flip_invariance_across_calls(
+        self,
+    ) -> None:
+        """The counter-rotation flip cancels only for the beam that injected it.
+
+        For a pole with a sign of -1 the state a counter-rotating beam
+        injects picks up an overall -1, and the same beam's read-out
+        multiplies by that -1 again, so the two cancel within one call
+        (`test_wake_from_pole_residue_counter_rotation_flips`). Across
+        the call boundary the flip is already baked into the persisted
+        state and the carried charge: a beam that is counter-rotating in
+        both calls must still see the co-rotating voltage, while a flip
+        applied in the injecting call only leaves a trace in the
+        persisted state that the later, unflipped call cannot undo.
+        """
+        bin_dt = 1e-9
+        profile = np.array([0.0, 0.0, 3.0, 1.5, 0.0, 2.0, 0.5, 1.0])
+        poles_np = np.array(
+            [-1e8 + 1e9j, -2e8 + 5e8j, -3e8 + 2e9j], dtype=np.complex128
+        )
+        residues_np = np.array(
+            [1.0 + 0.5j, 0.5 - 1.0j, 0.3 + 0.7j], dtype=np.complex128
+        )
+        signs = np.array([1.0, -1.0, 1.0])
+        factor = 1.7
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            # dense axis, and an axis with a hole exactly at the split
+            for gap_bins in (1, 4):
+                profile_time = bin_dt * np.concatenate(
+                    (np.arange(4), np.arange(4) + 3 + gap_bins)
+                )
+                gap_dt = gap_bins * bin_dt
+
+                def run_two_calls(
+                    first_is_cr,
+                    second_is_cr,
+                    profile_time=profile_time,
+                    gap_dt=gap_dt,
+                ):
+                    # the hand-over the solver does: the second call
+                    # receives the state one bin before the first call's
+                    # last bin, that bin's charge as the carried charge
+                    # with the first call's rotation, and the gap between
+                    # the two calls as the lags
+                    states = backend.zeros(
+                        len(poles_np), dtype=backend.complex
+                    )
+                    voltage_a = self._run_pole_kernel(
+                        profile_time[:4],
+                        profile[:4],
+                        0.0,
+                        False,
+                        0.0,
+                        2 * bin_dt,
+                        poles_np,
+                        residues_np,
+                        first_is_cr,
+                        signs,
+                        factor,
+                        bin_dt,
+                        states,
+                    )
+                    voltage_b = self._run_pole_kernel(
+                        profile_time[4:],
+                        profile[4:],
+                        factor * profile[3],
+                        first_is_cr,
+                        gap_dt - bin_dt,
+                        gap_dt,
+                        poles_np,
+                        residues_np,
+                        second_is_cr,
+                        signs,
+                        factor,
+                        bin_dt,
+                        states,
+                    )
+                    return np.concatenate((voltage_a, voltage_b))
+
+                baseline = run_two_calls(False, False)
+                scale = float(np.max(np.abs(baseline)))
+                np.testing.assert_allclose(
+                    run_two_calls(True, True),
+                    baseline,
+                    rtol=1e-12,
+                    atol=1e-12 * scale,
+                    err_msg=(
+                        "own wake must not flip across calls "
+                        f"({special=} {gap_bins=})"
+                    ),
+                )
+                self.assertFalse(
+                    np.allclose(
+                        run_two_calls(True, False),
+                        baseline,
+                        rtol=1e-6,
+                        atol=1e-6 * scale,
+                    ),
+                    "a flip in the injecting call only must leave a trace "
+                    f"in the persisted state ({special=} {gap_bins=})",
+                )
+
     @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):

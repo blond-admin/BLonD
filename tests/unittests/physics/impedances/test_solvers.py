@@ -208,7 +208,7 @@ class TestTimeDomainFftSolver(BLonDTestCase):
         cavity.harmonic = 1
         cavity.voltage = 0
         cavity.phi_rf_design = 0
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(42)
         dt = backend.array(rng.standard_normal(1000), dtype=backend.float)
 
         # truncate and shift center to 1
@@ -612,7 +612,7 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         cavity.voltage = 0
         cavity.phi_rf_design = 0
 
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(42)
         dt = rng.standard_normal(1000)
 
         # truncate and shift center to 1
@@ -3402,6 +3402,25 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 profile=prof,
                 beam=beam_mock,
             )
+
+    def test_check_source_ducktypes_accepts_bin_only_source(self):
+        """A source overriding only `get_wake_per_bin` must be accepted.
+
+        The solver builds its kernel from ``get_wake_per_bin`` (see
+        ``_update_wake_kernel``), so a source that provides the
+        bin-averaged wake directly -- without a point-charge ``get_wake``
+        -- is valid and must not be rejected as missing a wake.
+        """
+        from blond.physics.impedances.base import TimeDomain
+
+        class BinOnlyResonators(TimeDomain):
+            def get_wake_per_bin(self, time):
+                return backend.zeros_like(time)
+
+        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
+        solver._parent_wakefield = Mock(WakeField)
+        solver._parent_wakefield.sources = (BinOnlyResonators(),)
+        solver._check_source_ducktypes()  # must not raise
 
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10

@@ -250,6 +250,96 @@ class TestImpedanceTableTime(BLonDTestCase):
             [w for w in caught if "outside boundaries" in str(w.message)], []
         )
 
+    def test_get_wake_per_bin_is_causal_below_table_start(self):
+        """A tabulated causal wake must bin-average to zero before it starts.
+
+        ``TimeDomain.get_impedance_from_wake`` samples the bin-averaged wake
+        from ``time - dt`` to pick up the kernel's one non-causal tap. For a
+        table that starts at ``t = 0`` -- the normal case for a causal wake
+        -- the interpolation must return zero below the table, not the
+        clamped boundary value ``wake_y[0]``: clamping fabricates a spurious
+        term of order ``W(0)`` in *every* bin. Tabulating an analytic
+        resonator wake and comparing against ``Resonators.get_wake_per_bin``
+        on the same grid pins that down.
+
+        The tolerances only pin down causality and are deliberately loose:
+        the generic stencil integrates the piecewise-linear interpolant
+        through the query samples, which models the causal onset as a
+        one-bin ramp instead of a step. The two samples straddling the
+        onset are therefore off by about ``(76 / 384) * W(0)`` -- some 8 %
+        of the peak -- and that residual does not shrink when the table is
+        refined. They are excluded from the tight check below.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        time = backend.array(np.arange(400) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=time, wake_y=resonator.get_wake(time)
+        )
+
+        # sampled from `time - bin_step`, the way `get_impedance_from_wake`
+        # does: index 0 is lag -dt (before the table starts), index 1 is
+        # lag 0
+        shifted_time = time - bin_step
+        tabulated = copy_to_cpu(table.get_wake_per_bin(shifted_time))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(shifted_time))
+        peak = np.max(np.abs(analytic))
+
+        # lag -dt: only the tail of the stencil reaches over the onset
+        self.assertLess(abs(tabulated[0] - analytic[0]), 0.2 * peak)
+        # lag 0
+        self.assertLess(abs(tabulated[1] - analytic[1]), 0.02 * peak)
+        # away from the onset the piecewise-linear table is faithful
+        np.testing.assert_allclose(
+            tabulated[4:], analytic[4:], atol=1e-2 * peak
+        )
+
+    def test_get_wake_per_bin_away_from_the_onset_is_untouched(self):
+        """A table whose onset is out of reach tracks the closed form.
+
+        The stencil has the kernel's support, so a query axis that starts
+        well above the table's first time never sees the onset -- the
+        result must track the analytic closed form to the accuracy of the
+        piecewise-linear representation alone.
+
+        The first and last query bins are excluded: ``_bspline_stencil``
+        repeats the boundary sample there instead of sampling the table
+        beyond the query axis, which is off by ~2e-3 of the peak at the
+        first bin here (the table does continue below the axis). For the
+        causal tables ``get_impedance_from_wake`` feeds it -- axis starting
+        one bin before the wake -- the repeated sample is the zero below
+        the table and the rule is exact.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        table_time = backend.array(np.arange(300, 1000) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=table_time, wake_y=resonator.get_wake(table_time)
+        )
+        query = backend.array(np.arange(320, 900) * bin_step)
+        tabulated = copy_to_cpu(table.get_wake_per_bin(query))
+        analytic = copy_to_cpu(resonator.get_wake_per_bin(query))
+        peak = np.max(
+            np.abs(
+                copy_to_cpu(
+                    resonator.get_wake_per_bin(
+                        backend.array(np.arange(1000) * bin_step)
+                    )
+                )
+            )
+        )
+        np.testing.assert_allclose(
+            tabulated[1:-1], analytic[1:-1], atol=1e-3 * peak
+        )
+
 
 class TestInductiveImpedance(BLonDTestCase):
     def setUp(self):
