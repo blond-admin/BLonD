@@ -1779,6 +1779,53 @@ class TestSpecials(unittest.TestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_histogram_value_rounding_to_stop_edge(self) -> None:
+        """Values just below ``stop`` belong in the last bin.
+
+        The bin index ``(value - start) * n_bins / (stop - start)`` can
+        round up to exactly ``n_bins`` for a value that is strictly
+        smaller than ``stop``. Dropping it as out-of-range silently
+        loses edge particles and disagrees with ``np.histogram``, which
+        counts them in the last bin.
+        """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_counts_values_below_stop(n_bins)
+
+    def _assert_histogram_counts_values_below_stop(self, n_bins: int) -> None:
+        dtype = np.float64
+        start, stop = -12.0, 8.0
+        values_np = np.array(
+            [np.nextafter(stop, start), 7.999999999999999],
+            dtype=dtype,
+        )
+        # Guard the premise: these values really do scale to `n_bins`.
+        scaled = (values_np - start) * (n_bins / (stop - start))
+        self.assertTrue(
+            np.all(np.floor(scaled) >= n_bins),
+            msg=f"{n_bins=} does not trigger the rounding edge case",
+        )
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[-1] = len(values_np)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(start),
+                stop=backend.float(stop),
+            )
+            np.testing.assert_array_equal(
+                copy_to_cpu(array_write),
+                expected,
+                err_msg=f"{special=} {dtype=} {n_bins=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_bug(self) -> None:
         kwargs = {
             "dt": [

@@ -468,10 +468,12 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         array_write[:] = 0
         for i in prange(len(array_read)):
             curr_thread = numba.get_thread_id()
-            if array_read[i] == stop:
-                array_tmp[curr_thread, -1] += 1
-                continue
             idx = (array_read[i] - start) * inv_bin_step
+            # Scaling is not exact: a value at or just below `stop` can
+            # land on `n_bins`. Fold it back into the last bin, as
+            # `np.histogram` does, instead of dropping the particle.
+            if idx >= n_bins and array_read[i] <= stop:
+                idx = n_bins - 1
             # Range-check before `int()` turns the index into an
             # integer: a far-out particle scales past the integer range,
             # where the conversion is undefined.
