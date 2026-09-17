@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from scipy.constants import elementary_charge as e
@@ -21,6 +22,7 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.hashing_ import hash_linspace
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -148,6 +150,57 @@ def _bspline_stencil(
     ) / 384.0
 
 
+def _impedance_from_wake_per_bin(
+    source: TimeDomain | TimeDomainCounterRotation,
+    wake_per_bin: Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray],
+    time: NumpyArray | CupyArray,
+    n_fft: int | None,
+    cache_name: str,
+) -> NumpyArray | CupyArray:
+    """
+    FFT of a bin-averaged wake, with the non-causal tap included.
+
+    The bin-averaged wake reaches one bin before the charge, so it is
+    sampled from ``time - dt`` and the spectrum is advanced by that one
+    sample again to put lag zero where the caller expects it. The result is
+    cached on ``source`` under ``cache_name`` (and ``cache_name + "_hash"``)
+    until ``time`` changes.
+
+    Parameters
+    ----------
+    source
+        The wake source the cache lives on.
+    wake_per_bin
+        Function returning the bin-averaged wake at given times, in [V].
+    time
+        Time array to get the wake for, in [s].
+    n_fft
+        Number of points of the FFT; ``None`` transforms the wake as is.
+    cache_name
+        Attribute name of the cached impedance on ``source``.
+
+    Returns
+    -------
+    impedance_from_wake
+        Impedance array.
+    """
+    hash_ = hash_linspace(time)
+    if hash_ == getattr(source, cache_name + "_hash", None):
+        return getattr(source, cache_name)
+    wake = wake_per_bin(time - (time[1] - time[0]))
+    n_transform = len(wake) if n_fft is None else n_fft
+    advance = backend.exp(
+        1j
+        * backend.twopi
+        * backend.arange(n_transform // 2 + 1, dtype=backend.float)
+        / n_transform
+    )
+    impedance_from_wake = backend.fft.rfft(wake, n=n_fft) * advance
+    setattr(source, cache_name + "_hash", hash_)
+    setattr(source, cache_name, impedance_from_wake)
+    return impedance_from_wake
+
+
 class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
 
@@ -197,16 +250,15 @@ class TimeDomain(ABC):
         """
         return _bspline_stencil(self.get_wake(time))
 
-    @abstractmethod  # pragma: no cover
     def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-        n_fft: int,
+        n_fft: int | None,
     ) -> NumpyArray | CupyArray:
         """
-        Get impedance equivalent to the partial wake in time domain.
+        Impedance equivalent to the bin-averaged wake, ``rfft(get_wake_per_bin)``.
 
         Parameters
         ----------
@@ -224,7 +276,13 @@ class TimeDomain(ABC):
         impedance_from_wake
             Impedance array.
         """
-        pass
+        return _impedance_from_wake_per_bin(
+            self,
+            self.get_wake_per_bin,
+            time,
+            n_fft,
+            "_cache_impedance_from_wake",
+        )
 
 
 class TimeDomainCounterRotation(ABC):
@@ -286,16 +344,15 @@ class TimeDomainCounterRotation(ABC):
         """
         pass
 
-    @abstractmethod  # pragma: no cover
     def get_impedance_from_wake_counter_rotation(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-        n_fft: int,
+        n_fft: int | None,
     ) -> NumpyArray | CupyArray:
         """
-        Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
+        Impedance equivalent to the counter-rotating bin-averaged wake.
 
         Parameters
         ----------
@@ -313,7 +370,13 @@ class TimeDomainCounterRotation(ABC):
         impedance_from_wake
             Impedance array.
         """
-        pass
+        return _impedance_from_wake_per_bin(
+            self,
+            self.get_wake_per_bin_counter_rotation,
+            time,
+            n_fft,
+            "_cache_impedance_from_wake_counter_rotation",
+        )
 
 
 class FreqDomain(ABC):

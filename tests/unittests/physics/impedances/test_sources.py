@@ -224,6 +224,31 @@ class TestImpedanceTableTime(unittest.TestCase):
             np.allclose(binned, copy_to_cpu(table.get_wake(time)))
         )
 
+    def test_no_boundary_warning_for_the_non_causal_tap(self):
+        """A table exactly spanning the requested axis must not warn.
+
+        ``get_impedance_from_wake`` samples one bin below the axis it is
+        given, to pick up the bin-average kernel's non-causal tap; below the
+        table the wake is zero by definition, not out of bounds.
+        """
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        time = backend.array(np.arange(64) * 1e-11)
+        table = ImpedanceTableTime(
+            wake_x=time,
+            wake_y=backend.array(
+                np.sin(2 * np.pi * 3e9 * np.arange(64) * 1e-11)
+            ),
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            table.get_impedance_from_wake(
+                time=time, simulation=simulation, beam=beam, n_fft=128
+            )
+        self.assertEqual(
+            [w for w in caught if "outside boundaries" in str(w.message)], []
+        )
+
 
 class TestInductiveImpedance(unittest.TestCase):
     def setUp(self):
@@ -544,6 +569,50 @@ class TestResonators(unittest.TestCase):
         self.assertGreater(
             np.max(np.abs(binned - copy_to_cpu(local_res.get_wake(time)))),
             0.1 * peak,
+        )
+
+    def test_get_impedance_from_wake_is_exact_bin_average(self):
+        """The impedance from the wake is the FFT of the bin-averaged wake.
+
+        The kernel has one non-causal tap, so the wake is sampled from one
+        bin before the axis and the spectrum advanced by one sample again.
+        """
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        local_res = Resonators(
+            shunt_impedances=np.array([100.0]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([1.0]),
+        )
+        dt = 0.18e-9  # f_res * dt = 0.18 -> heavily undersampled wake
+        time = backend.array(np.arange(256) * dt)
+        n_fft = 512
+
+        shifted_time = time - dt
+        n_sub = 6000
+        shifts = ((np.arange(n_sub) + 0.5) / n_sub * 3.0 - 1.5) * dt
+        scaled = np.abs(shifts) / dt
+        weights = np.where(
+            scaled <= 0.5, 0.75 - scaled**2, 0.5 * (1.5 - scaled) ** 2
+        )
+        wake_avg = backend.zeros(len(time), dtype=backend.float)
+        for shift, weight in zip(shifts, weights, strict=True):
+            wake_avg = wake_avg + weight * local_res.get_wake(
+                shifted_time + shift
+            )
+        wake_avg = wake_avg / np.sum(weights)
+        expected = copy_to_cpu(backend.fft.rfft(wake_avg, n=n_fft)) * np.exp(
+            2j * np.pi * np.arange(n_fft // 2 + 1) / n_fft
+        )
+
+        actual = copy_to_cpu(
+            local_res.get_impedance_from_wake(
+                time=time, simulation=simulation, beam=beam, n_fft=n_fft
+            )
+        )
+        peak = np.max(np.abs(expected))
+        np.testing.assert_allclose(
+            actual, expected, rtol=2e-3, atol=2e-3 * peak
         )
 
     def test_init_mixed_input(self):
@@ -1081,8 +1150,14 @@ class TestResonators(unittest.TestCase):
             res.get_impedance_from_wake_freq(time=time, n_fft=n_fft)
         )
         self.assertEqual(len(freq), len(imp_from_wake))
-        imp_analytic = copy_to_cpu(
-            res.get_impedance(backend.array(freq), simulation, beam)
+        # The wake is bin-averaged with three boxes of width dt, whose exact
+        # frequency response is sinc(f dt)**3; fold the analytic impedance
+        # with it so both describe the same thing.
+        imp_analytic = (
+            copy_to_cpu(
+                res.get_impedance(backend.array(freq), simulation, beam)
+            )
+            * np.sinc(freq * dt) ** 3
         )
 
         # Compare in a band around the resonance where |Z| is significant.
@@ -1090,7 +1165,7 @@ class TestResonators(unittest.TestCase):
         max_rel_err = np.max(
             np.abs(imp_from_wake[band] - imp_analytic[band])
         ) / np.max(np.abs(imp_analytic[band]))
-        self.assertLess(max_rel_err, 5e-3)
+        self.assertLess(max_rel_err, 1e-3)
 
     def test_get_impedance_from_wake_freq_matches_impedance_array(self):
         """

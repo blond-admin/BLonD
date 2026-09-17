@@ -409,97 +409,6 @@ class Resonators(
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
 
-    def get_impedance_from_wake(
-        self,
-        time: NumpyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
-        """
-        Get the wake function, but converted to frequency domain.
-
-        Get impedance  computed via ``fft(...)`` from time domain
-        analytical formula equivalent to the partial single-particle-wake.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of fft bins to use.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain.
-
-        See Also
-        --------
-        get_impedance_from_wake_freq : Function used to calculate the corresponding frequency.
-        """
-        # Recalculate only if `time` has changed
-        hash_ = hash_linspace(time)
-        if hash_ == self._cache_impedance_from_wake_hash:
-            return self._cache_impedance_from_wake
-
-        wake = self.get_wake(time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
-
-        self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = impedance_from_wake
-        return impedance_from_wake
-
-    def get_impedance_from_wake_counter_rotation(
-        self,
-        time: NumpyArray | CupyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
-        """
-        Get the wake function, but converted to frequency domain.
-
-        Get impedance  computed via ``fft(...)`` from time domain
-        analytical formula equivalent to the partial single-particle-wake.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of fft bins to use.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain for counter-rotating mode.
-        """
-        # Recalculate only if `time` has changed
-        hash_ = hash_linspace(time, salt=1)  # to distinguish between
-        # counterrotation
-        if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
-            return self._cache_impedance_from_wake_counter_rotation
-
-        wake_counter_rotation = self.get_wake_counter_rotation(time)
-        impedance_from_wake_counter_rotation = backend.fft.rfft(
-            wake_counter_rotation, n=n_fft
-        )
-
-        self._cache_impedance_from_wake_counter_rotation_hash = hash_
-        self._cache_impedance_from_wake_counter_rotation = (
-            impedance_from_wake_counter_rotation
-        )
-        return impedance_from_wake_counter_rotation
-
     def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
         Get frequency array corresponding to time used in :func:`get_impedance_from_wake`.
@@ -1067,41 +976,6 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
             )
         return backend.interp(time, self._wake_x, self._wake_y, left=0.0)
 
-    def get_impedance_from_wake(
-        self,
-        time: NumpyArray | CupyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray:
-        """
-        Get impedance equivalent to the partial single-particle-wake in time domain.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of FFT points.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain.
-        """
-        hash_ = hash_linspace(time)
-        if hash_ == self._cache_impedance_from_wake_hash:
-            return self._cache_impedance_from_wake
-        wake = self.get_wake(time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
-        self._cache_impedance_from_wake_hash = hash_
-        self._cache_impedance_from_wake = impedance_from_wake
-        return impedance_from_wake
-
 
 # TODO rework docstring
 class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
@@ -1233,36 +1107,6 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             Wake, in [V].
         """
         return self.wake_calc(time=time)
-
-    def get_impedance_from_wake(
-        self,
-        time: NumpyArray,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_fft: int,
-    ) -> NumpyArray:
-        """
-        Get impedance equivalent to the partial single-particle-wake in time domain.
-
-        Parameters
-        ----------
-        time
-            Time array to get wake, in [s].
-        simulation
-            Simulation object containing turn index and RF info.
-        beam
-            Simulation `Beam` object.
-        n_fft
-            Number of FFT points.
-
-        Returns
-        -------
-        impedance_from_wake
-            Wake impedance in frequency domain.
-        """
-        wake = self.wake_calc(time=time)
-        impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
-        return impedance_from_wake
 
     def get_impedance(
         self,
