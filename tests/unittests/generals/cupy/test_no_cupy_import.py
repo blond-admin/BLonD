@@ -6,8 +6,12 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 
-from blond.generals.cupy_.no_cupy_import import AllowPlotting, is_cupy_array
-from blond.testing.backend_testing import BLonDTestCase
+from blond.generals.cupy_.no_cupy_import import (
+    AllowPlotting,
+    copy_to_cpu,
+    is_cupy_array,
+)
+from blond.testing.backend_testing import BLonDTestCase, ArrayLikeScan
 
 
 class _FakeCupyArray:
@@ -173,3 +177,11 @@ class TestFunctions(BLonDTestCase):
         self.assertEqual(is_cupy_array([1, 2, 3]), False)
         self.assertEqual(is_cupy_array("Not an array"), False)
         self.assertEqual(is_cupy_array(cuda), False)
+
+    def test_copy_to_cpu(self):
+
+        source_array = np.array([1, 2, 3, 4, 5])
+        for inp_cast in ArrayLikeScan():
+            out_array = copy_to_cpu(inp_cast(source_array))
+            np.testing.assert_array_equal(source_array, out_array)
+            self.assertIsNot(source_array, out_array)
