@@ -11,7 +11,7 @@
 
 #include "blond_common.h"
 
-extern "C" void kick_multi_harmonic(
+extern "C" BLOND_PREFER_VECTOR_WIDTH_512 void kick_multi_harmonic(
     const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const int n_rf, const real_t charge, const real_t *__restrict__ voltage,
     const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
@@ -67,12 +67,12 @@ extern "C" void kick_multi_harmonic(
   }
 }
 
-extern "C" void kick_single_harmonic(const real_t *__restrict__ beam_dt,
-                                     real_t *__restrict__ beam_dE,
-                                     const real_t charge, const real_t voltage,
-                                     const real_t omega_RF, const real_t phi_RF,
-                                     const index_t n_macroparticles,
-                                     const real_t acc_kick) {
+extern "C" BLOND_PREFER_VECTOR_WIDTH_512 void
+kick_single_harmonic(const real_t *__restrict__ beam_dt,
+                     real_t *__restrict__ beam_dE, const real_t charge,
+                     const real_t voltage, const real_t omega_RF,
+                     const real_t phi_RF, const index_t n_macroparticles,
+                     const real_t acc_kick) {
 
 // KICK
 #pragma omp parallel for
