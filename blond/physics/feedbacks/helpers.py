@@ -214,28 +214,18 @@ def rf_beam_current(
         T_s = float(downsample["Ts"])
         n_points = int(downsample["points"])
 
-        # Find which index in fine grid matches index in coarse grid.
-        # `IQCavityFeedback.update_rf_variables` lays the coarse grid out as
-        # `rf_centers[k] = (k + 0.5 / n_periods_coarse) * T_s + dT`, and it
-        # sets `omega_carrier == omega_rf`, so `0.5 / n_periods_coarse * T_s`
-        # is exactly `pi / omega_c` and the grid is
-        # `k * T_s + pi / omega_c + dT`. Inverting that for the
-        # fine->coarse map therefore *subtracts* `dT`; adding it misplaced
-        # the beam-loading current by `round(2 * dT / T_s)` buckets.
-        ind_fine = np.round((prof_time - dT - np.pi / omega_c) / T_s).astype(int)
+        # Map each fine bin onto its coarse bucket. The coarse grid is
+        # `k * T_s + pi / omega_c + dT` (see
+        # `IQCavityFeedback.update_rf_variables`), so inverting it
+        # *subtracts* `dT`; adding it shifted the beam-loading current by
+        # `round(2 * dT / T_s)` buckets.
+        ind_fine = (prof_time - dT - np.pi / omega_c) / T_s
+        ind_fine = np.round(ind_fine).astype(int)
 
-        # Accumulate every fine bin into the bucket it belongs to. Walking
-        # contiguous runs instead needed bookkeeping that went wrong three
-        # ways: transitions were detected with `== 1`, so a gap in the
-        # filling pattern (which jumps the index by more than one) went
-        # unrecorded and every later group was dropped; each run was summed
-        # over a half-open window, so it took the previous run's closing bin
-        # and lost its own; and the final run was never emitted, because a
-        # run was only written out once a later transition closed it.
-        # Scattering per bin has none of those failure modes and needs no
-        # run bookkeeping at all. The modulo keeps charge that straddles the
-        # end of the turn inside the array; `np.bincount` takes no complex
-        # weights, so real and imaginary parts are accumulated separately.
+        # Scatter-add per bin, instead of walking contiguous runs: runs
+        # broke on gapped filling patterns, were summed over an off-by-one
+        # window, and dropped the last run. Modulo wraps charge straddling
+        # the end of the turn; `np.bincount` has no complex weights.
         bucket = ind_fine % n_points
         charges_coarse = np.bincount(
             bucket, weights=charges_fine.real, minlength=n_points

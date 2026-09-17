@@ -444,8 +444,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 0)
 
         # Re-pinned after the fine->coarse downsampling fix in
-        # `rf_beam_current`: bins closing a bucket, and the final group of
-        # the profile, are now filed in the bucket they belong to.
+        # `rf_beam_current`.
         target_mean_voltage_3sec = [
             669693.8922486353,
             719594.8070593697,
@@ -543,8 +542,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
 
         # Re-pinned after the fine->coarse downsampling fix in
-        # `rf_beam_current`: bins closing a bucket, and the final group of
-        # the profile, are now filed in the bucket they belong to.
+        # `rf_beam_current`.
         target_mean_voltage_3sec = [
             669693.8922486353,
             719750.4605183444,
@@ -641,8 +639,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         # Re-pinned after the fine->coarse downsampling fix in
-        # `rf_beam_current`: bins closing a bucket, and the final group of
-        # the profile, are now filed in the bucket they belong to.
+        # `rf_beam_current`.
         target_mean_voltage_4sec = [
             986359.7396878309,
             1087845.7897898012,
@@ -745,8 +742,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.assertEqual(cavity_feedback.OTFB_2.open_ff, 1)
 
         # Re-pinned after the fine->coarse downsampling fix in
-        # `rf_beam_current`: bins closing a bucket, and the final group of
-        # the profile, are now filed in the bucket they belong to.
+        # `rf_beam_current`.
         target_mean_voltage_3sec = [
             669693.8922486353,
             719594.8070593697,

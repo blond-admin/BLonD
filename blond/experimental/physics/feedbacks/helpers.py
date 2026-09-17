@@ -175,20 +175,17 @@ def rf_beam_current(
                 "Downsampling input erroneous in rf_beam_current"
             )
 
-        # Find which index in fine grid matches index in coarse grid.
-        # The coarse grid is `k * T_s + pi / omega_c + dT`, so inverting it
-        # for the fine->coarse map subtracts `dT`; adding it misplaced the
-        # beam-loading current by `round(2 * dT / T_s)` buckets.
-        ind_fine = np.round((profile.hist_x - dT - np.pi / omega_c) / T_s).astype(int)
+        # Map each fine bin onto its coarse bucket. The coarse grid is
+        # `k * T_s + pi / omega_c + dT`, so inverting it *subtracts* `dT`;
+        # adding it shifted the beam-loading current by
+        # `round(2 * dT / T_s)` buckets.
+        ind_fine = (profile.hist_x - dT - np.pi / omega_c) / T_s
+        ind_fine = np.round(ind_fine).astype(int)
 
-        # Accumulate every fine bin into the bucket it belongs to. Walking
-        # contiguous runs instead dropped every group after a gap (their
-        # index jumps by more than one, and transitions were matched with
-        # `== 1`), summed each run over a half-open window so it took the
-        # previous run's closing bin and lost its own, and never emitted the
-        # final run at all. The modulo keeps charge straddling the end of
-        # the turn inside the array; `np.bincount` takes no complex weights,
-        # so real and imaginary parts are accumulated separately.
+        # Scatter-add per bin, instead of walking contiguous runs: runs
+        # broke on gapped filling patterns, were summed over an off-by-one
+        # window, and dropped the last run. Modulo wraps charge straddling
+        # the end of the turn; `np.bincount` has no complex weights.
         bucket = ind_fine % n_points
         charges_coarse = np.bincount(
             bucket, weights=charges_fine.real, minlength=n_points
