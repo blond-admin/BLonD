@@ -6,6 +6,16 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
+// Precondition for every kernel in this file: coordinates are finite.
+// The beam coordinates (beam_dt, beam_dE) and the profile coordinates
+// (bin_centers, cut edges) must contain neither NaN nor +/-Inf. Nothing
+// here checks for it -- the check would not be free in a per-particle
+// loop. Note that the guards protecting the conversion of a bin index
+// to `int` are written as `index < lo || index >= hi`: a NaN index
+// compares false against both bounds, passes the guard and reaches the
+// conversion, which is undefined behaviour. The caller must not produce
+// non-finite coordinates. See `Specials` in blond/core/backends/backend.py.
+
 #ifdef USEFLOAT
 typedef float real_t;
 #else

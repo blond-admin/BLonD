@@ -6,7 +6,19 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `PythonSpecials` and helper functions."""
+"""
+Holds `PythonSpecials` and helper functions.
+
+Precondition for every kernel in this module: coordinates are finite.
+The beam coordinates (`dt`, `dE`) and the profile coordinates
+(`bin_centers`, cut edges) must contain neither NaN nor +/-Inf. Nothing
+here checks for it. This backend is the readable reference
+implementation, so it holds the same contract as the compiled backends
+even where NumPy would merely give a silently wrong answer rather than
+the undefined behaviour of a C/CUDA index conversion. The caller must
+not produce non-finite coordinates. See `Specials` in
+`blond/core/backends/backend.py`.
+"""
 
 from __future__ import annotations
 

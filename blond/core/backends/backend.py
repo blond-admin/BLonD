@@ -75,7 +75,24 @@ def backend_class_for_mode(
 
 
 class Specials(ABC):
-    """Abstract listing of functions that need implementation for a new backend."""
+    """
+    Abstract listing of functions to implement for a new backend.
+
+    Notes
+    -----
+    All kernels assume **finite** coordinates: the beam coordinates ``dt``
+    and ``dE``, and the profile coordinates (bin centres, cut edges), must
+    contain neither ``NaN`` nor ``+/-Inf``. No kernel checks for it, and
+    the check would not be free in a per-particle loop.
+
+    This is a real precondition, not just a convention. The range guards
+    that protect the conversion of a bin index to an integer are written
+    as ``index < lo or index >= hi``; a ``NaN`` index compares ``False``
+    against both bounds, so it passes the guard and reaches the
+    conversion, where an out-of-range or non-finite value is undefined
+    (in C/CUDA literally undefined behaviour). Callers are responsible
+    for not producing non-finite coordinates in the first place.
+    """
 
     @staticmethod
     @abstractmethod  # pragma: no cover
