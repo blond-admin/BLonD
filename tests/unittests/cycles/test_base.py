@@ -2,6 +2,7 @@ import unittest
 
 from blond import Simulation
 from blond.cycles.base import ProgrammedCycle
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class ProgrammedCycleHelper(ProgrammedCycle):
@@ -16,7 +17,7 @@ class ProgrammedCycleHelper(ProgrammedCycle):
         pass
 
 
-class TestProgrammedCycle(unittest.TestCase):
+class TestProgrammedCycle(BLonDTestCase):
     def setUp(self):
         self.programmed_cycle = ProgrammedCycleHelper()
 

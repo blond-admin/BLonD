@@ -7,9 +7,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_20_Acceleration_sparse_profiles(unittest.TestCase):
+class TestEX_20_Acceleration_sparse_profiles(BLonDTestCase):
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
     def test_executable_numba64(self):

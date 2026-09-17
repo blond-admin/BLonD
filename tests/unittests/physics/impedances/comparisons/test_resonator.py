@@ -24,6 +24,7 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 DEV_PLOT = False
 
@@ -253,7 +254,7 @@ def _low_q_max_rel_dev(
     return np.max(np.abs(v_time - v_freq)) / np.max(np.abs(v_freq))
 
 
-class TestResonatorImpedances(unittest.TestCase):
+class TestResonatorImpedances(BLonDTestCase):
     def setUp(self):
         from blond.core.backends.backend import Numpy64Bit, backend
 

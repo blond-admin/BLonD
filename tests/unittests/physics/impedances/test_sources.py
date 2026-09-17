@@ -30,16 +30,17 @@ from blond.physics.impedances.sources import (
     TravelingWaveCavity,
     fit_poles,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestImpedanceTable(unittest.TestCase):
+class TestImpedanceTable(BLonDTestCase):
     @unittest.skip
     def test_from_file(self):
         # TODO: implement test for `from_file`
         self.impedance_table.from_file(filepath=None, reader=None)
 
 
-class TestImpedanceTableFreq(unittest.TestCase):
+class TestImpedanceTableFreq(BLonDTestCase):
     def setUp(self):
         pass
         # # TODO: implement test for `__init__`
@@ -95,7 +96,7 @@ class TestImpedanceTableFreq(unittest.TestCase):
         assert hash_before == freq_table_short._cache_impedance_hash
 
 
-class TestImpedanceTableTime(unittest.TestCase):
+class TestImpedanceTableTime(BLonDTestCase):
     def test_from_file(self):
         impedance_table = ImpedanceTableTime.from_file(
             filepath=callers_relative_path(
@@ -250,7 +251,7 @@ class TestImpedanceTableTime(unittest.TestCase):
         )
 
 
-class TestInductiveImpedance(unittest.TestCase):
+class TestInductiveImpedance(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
             Z_over_n=34.6669349520904 / 10e9 * 11e3
@@ -444,7 +445,7 @@ class TestInductiveImpedance(unittest.TestCase):
         assert not np.allclose(freq_y_1, freq_y_2)
 
 
-class TestResonators(unittest.TestCase):
+class TestResonators(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -1196,7 +1197,7 @@ class TestResonators(unittest.TestCase):
         np.testing.assert_allclose(copy_to_cpu(freq), expected_freq)
 
 
-class TestFitPoles(unittest.TestCase):
+class TestFitPoles(BLonDTestCase):
     def test_recovers_resonator_impedance(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e6]),
@@ -1288,7 +1289,7 @@ class TestFitPoles(unittest.TestCase):
         _ = fit_poles(freqs=freq, Z=Z, n_pole=1)
 
 
-class TestTravelingWaveCavity(unittest.TestCase):
+class TestTravelingWaveCavity(BLonDTestCase):
     def setUp(self):
         R_S = [1, 2, 3]
         frequency_R = [1, 2, 3]

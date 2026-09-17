@@ -13,10 +13,11 @@ import numpy as np
 from blond.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import ExampleSimulation01
 
 
-class TestFilamentationMatcher(unittest.TestCase):
+class TestFilamentationMatcher(BLonDTestCase):
     def setUp(self):
         self.simulation_ = ExampleSimulation01()
         self.sim = self.simulation_.simulation

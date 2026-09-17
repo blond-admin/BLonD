@@ -17,13 +17,14 @@ from blond.core.backends.backend import (
     backend,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import BLonDTestCase
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(__file__).parent / "resources"
 
 
 @pytest.mark.integration
-class TestKickDrift(unittest.TestCase):
+class TestKickDrift(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_kickdrift_numba64(self):
         backend.change_backend(Numpy64Bit)

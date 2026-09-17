@@ -19,9 +19,10 @@ from blond.experimental.beam_preparation.synchrotron_radiation_matcher import (
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_sawtooth_factor(self):
         # n_sections = 1, sr+drift
         self.assertEqual(sawtooth_factor(1, "sr+drift"), 0.0)
@@ -34,7 +35,7 @@ class TestFunctions(unittest.TestCase):
             sawtooth_factor(1, "invalid")
 
 
-class TestSynchrotronRadiationMatcher(unittest.TestCase):
+class TestSynchrotronRadiationMatcher(BLonDTestCase):
     def setUp(self):
         self.radiation_integrals = np.array(
             [

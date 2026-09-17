@@ -10,6 +10,7 @@ from blond.core.backends.backend import (
     backend,
 )
 from blond.examples import notebooks
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.notebooks import ipynb_to_py
 
 NOTEBOOK_DIR = os.path.dirname(notebooks.__file__)
@@ -18,7 +19,7 @@ import matplotlib
 matplotlib.use("agg")
 
 
-class TestSingleBunchAcceleration(unittest.TestCase):
+class TestSingleBunchAcceleration(BLonDTestCase):
     @classmethod
     def setUpClass(cls):
         # the notebook is converted to a python file
