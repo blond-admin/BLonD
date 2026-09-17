@@ -963,6 +963,27 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 
+    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+        """
+        Tabulated wake interpolated at ``time``; zero before the table starts.
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Wake, in [V].
+        """
+        if time.max() > self._wake_x.max():
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
+        return backend.interp(time, self._wake_x, self._wake_y, left=0.0)
+
     def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
@@ -992,17 +1013,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
-        if time.min() < self._wake_x.min():
-            warnings.warn(
-                "Interpolation of wake outside boundaries",
-                stacklevel=1,
-            )
-        if time.max() > self._wake_x.max():
-            warnings.warn(
-                "Interpolation of wake outside boundaries",
-                stacklevel=1,
-            )
-        wake = backend.interp(time, self._wake_x, self._wake_y)
+        wake = self.get_wake(time)
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         self._cache_impedance_from_wake_hash = hash_
         self._cache_impedance_from_wake = impedance_from_wake
@@ -1123,6 +1134,22 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
                 * backend.cos(2 * np.pi * self.frequency_R[i] * time[indexes])
             )
         return wake
+
+    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+        """
+        Point-charge wake at ``time``, see :meth:`wake_calc`.
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Wake, in [V].
+        """
+        return self.wake_calc(time=time)
 
     def get_impedance_from_wake(
         self,

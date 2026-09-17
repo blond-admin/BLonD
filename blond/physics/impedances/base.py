@@ -119,8 +119,83 @@ class WakeFieldSource(ABC):
         self.is_dynamic = is_dynamic
 
 
+def _bspline_stencil(
+    wake: NumpyArray | CupyArray,
+) -> NumpyArray | CupyArray:
+    """
+    Average a piecewise-linear wake with the quadratic B-spline of one bin.
+
+    On a uniform grid that is the stencil
+    ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384``; the
+    edges repeat the boundary sample.
+
+    Parameters
+    ----------
+    wake
+        Wake sampled on a uniform grid, in [V].
+
+    Returns
+    -------
+    wake_per_bin
+        Bin-averaged wake, in [V].
+    """
+    previous_1 = backend.concatenate((wake[:1], wake[:-1]))
+    previous_2 = backend.concatenate((wake[:1], wake[:1], wake[:-2]))
+    next_1 = backend.concatenate((wake[1:], wake[-1:]))
+    next_2 = backend.concatenate((wake[2:], wake[-1:], wake[-1:]))
+    return (
+        previous_2 + 76.0 * previous_1 + 230.0 * wake + 76.0 * next_1 + next_2
+    ) / 384.0
+
+
 class TimeDomain(ABC):
     """Indication of a source is defined in time domain."""
+
+    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+        """
+        Point-charge wake sampled at ``time``, in [V].
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Point-charge wake, in [V].
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide a point-charge wake."
+        )
+
+    def get_wake_per_bin(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Wake averaged with the quadratic B-spline of one bin width, in [V].
+
+        Time-domain solvers apply this instead of :meth:`get_wake`: the
+        induced voltage of a histogram is the wake integrated over the bin,
+        and averaging with ``box * box * box`` keeps a resonance above the
+        profile's Nyquist frequency from aliasing onto the bunch spectrum
+        (see :mod:`blond.physics.impedances.bin_average`). The kernel is
+        non-zero from ``-1.5 * dt``, so callers sample from one bin before
+        the profile. The default treats :meth:`get_wake` as piecewise
+        linear between its samples; sources with a closed form override it.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced) at which the wake is
+            evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        return _bspline_stencil(self.get_wake(time))
 
     @abstractmethod  # pragma: no cover
     def get_impedance_from_wake(
@@ -154,6 +229,27 @@ class TimeDomain(ABC):
 
 class TimeDomainCounterRotation(ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
+
+    def get_wake_per_bin_counter_rotation(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Bin-averaged wake for the counter-rotating case, in [V].
+
+        See :meth:`TimeDomain.get_wake_per_bin`.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced) at which the wake is
+            evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        return _bspline_stencil(self.get_wake_counter_rotation(time))
 
     @abstractmethod  # pragma: no cover
     def get_wake(

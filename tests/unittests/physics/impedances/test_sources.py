@@ -179,6 +179,51 @@ class TestImpedanceTableTime(unittest.TestCase):
         )
         assert hash_before == impedance_table._cache_impedance_from_wake_hash
 
+    def test_get_wake_is_zero_below_the_table(self):
+        """A causal table must not fabricate a wake before it starts.
+
+        Bin-averaged wakes are sampled from one bin before the profile
+        (the kernel has a non-causal tap), so the interpolation must return
+        zero below the table, not the clamped first sample.
+        """
+        table = ImpedanceTableTime(
+            wake_x=backend.array([1.0, 2.0, 3.0]),
+            wake_y=backend.array([10.0, 20.0, 30.0]),
+        )
+        wake = copy_to_cpu(table.get_wake(backend.array([0.0, 0.5, 1.0])))
+        np.testing.assert_allclose(wake, [0.0, 0.0, 10.0])
+
+    def test_get_wake_per_bin_default_is_bspline_bin_average(self):
+        """The generic `TimeDomain.get_wake_per_bin` bin-averages.
+
+        A table wake is piecewise linear, so weighting it with the
+        quadratic B-spline ``box * box * box`` is exactly the stencil
+        (w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384 on the
+        interior samples.
+        """
+        dt = 1e-11
+        t = np.arange(64) * dt
+        w = np.sin(2 * np.pi * 3e9 * t)
+        table = ImpedanceTableTime(
+            wake_x=backend.array(t), wake_y=backend.array(w)
+        )
+        time = backend.array(t)
+
+        binned = copy_to_cpu(table.get_wake_per_bin(time))
+        expected = (
+            np.roll(w, 2)
+            + 76 * np.roll(w, 1)
+            + 230 * w
+            + 76 * np.roll(w, -1)
+            + np.roll(w, -2)
+        ) / 384
+
+        np.testing.assert_allclose(binned[2:-2], expected[2:-2], rtol=1e-12)
+        # and it genuinely differs from point-sampling get_wake
+        self.assertFalse(
+            np.allclose(binned, copy_to_cpu(table.get_wake(time)))
+        )
+
 
 class TestInductiveImpedance(unittest.TestCase):
     def setUp(self):
@@ -1109,6 +1154,13 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_get_wake_matches_wake_calc(self):
+        time = backend.linspace(-1e-9, 1e-9, 16)
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.twc.get_wake(time)),
+            copy_to_cpu(self.twc.wake_calc(time)),
+        )
 
     @pytest.mark.backend_mutation
     def test_get_impedance_from_wake(self):
