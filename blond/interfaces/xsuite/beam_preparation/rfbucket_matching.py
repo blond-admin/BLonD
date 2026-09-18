@@ -21,10 +21,10 @@ from scipy.constants import c, e
 if not hasattr(scipy.integrate, "cumtrapz"):
     scipy.integrate.cumtrapz = scipy.integrate.cumulative_trapezoid
 
-from blond import SingleHarmonicRFStation
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.physics.drifts import DriftSimple
+from blond.physics.rf_station import SingleHarmonicRFStation
 
 if TYPE_CHECKING:  # pragma: no cover
     from xpart.longitudinal.rfbucket_matching import (

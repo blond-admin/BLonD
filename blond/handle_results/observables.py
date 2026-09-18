@@ -24,7 +24,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.image import AxesImage
 from numpy.typing import NDArray as NumpyArray
 
-from blond import backend
+from blond.core.backends.backend import backend
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
@@ -34,10 +34,10 @@ from blond.physics.drifts import DriftSimple
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.generals.typing_ import AnyArray
+    from blond.physics.impedances.base import WakeField
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
     from blond.physics.rf_station import (
         SingleHarmonicRFStation,

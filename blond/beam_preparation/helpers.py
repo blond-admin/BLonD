@@ -14,7 +14,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import Beam
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.helpers import (
     mpi_aware_random_generator_cpu,
@@ -24,8 +26,6 @@ from blond.generals.distributed.helpers import (
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy._typing import NDArray as NumpyArray
-
-    from blond import Beam
 
 
 def make_multibunch_beam(
@@ -65,8 +65,6 @@ def make_multibunch_beam(
     ...     common_offset=111,
     ... )
     """
-    from blond import Beam, backend  # prevent cyclic import
-
     assert beam.is_set_up(), (
         "Please set up beam correctly, e.g. using ``beam.setup_beam(...)``."
     )
@@ -124,8 +122,6 @@ def generate_particle_coordinates(
     dE_local
         Particle coordinates (on the local MPI node, if MPI is active).
     """
-    from blond import backend  # prevent cyclic import
-
     # Initialise the random number generator
     # DEV NOTE (2025) It might be checked at a later time,
     # if cupy and numpy provide for the exact same random generators.
