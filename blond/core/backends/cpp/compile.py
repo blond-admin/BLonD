@@ -483,6 +483,27 @@ def _prepare_fftw(
     return fftw_cflags, fftw_libs
 
 
+#: CPU architectures reported by `platform.machine` that understand the
+#: ``-msse*`` / ``-mavx*`` / ``-mfma`` flag family. Everything else (arm64,
+#: aarch64, ppc64le, riscv64, ...) rejects them outright, so the flags are
+#: only ever added for a machine on this list.
+_X86_MACHINES = frozenset(
+    {"x86_64", "x86-64", "amd64", "x86", "i386", "i486", "i586", "i686"}
+)
+
+
+def _is_x86() -> bool:
+    """
+    Whether the current CPU is an x86/x86-64 one.
+
+    Returns
+    -------
+    bool
+        `True` if `platform.machine` reports an x86 architecture.
+    """
+    return platform.machine().lower() in _X86_MACHINES
+
+
 def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     """
     Add AVX/SSE flags to compiler flags.
@@ -522,7 +543,7 @@ def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
             proc.stdout,
         )
     # Following options exist only on x86 processors
-    elif "arm" not in platform.machine():
+    elif _is_x86():
         # Add the appropriate vectorization flag (not use avx512)
         if "AVX2" in proc.stdout:
             cflags += ["-mavx2"]

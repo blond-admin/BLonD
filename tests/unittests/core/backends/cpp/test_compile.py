@@ -63,3 +63,56 @@ class TestDllDirectoryIsAddedOnce(BLonDTestCase):
             return
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp")
+
+
+class TestAvxFlagsAreX86Only(BLonDTestCase):
+    """
+    The SSE/AVX/FMA flags must only be added on x86 CPUs.
+
+    The guard used to exclude ``arm`` by substring, which does not match
+    ``aarch64`` -- so on a 64-bit ARM machine the x86 branch ran, found no
+    ``AVX``/``SSE`` macro and fell through to ``-msse``, and matched
+    ``__ARM_FEATURE_FMA`` for ``-mfma``. ``g++`` then rejects both flags
+    ("unrecognized command-line option") and the whole build fails.
+    """
+
+    @staticmethod
+    def _fake_preprocessor_output(macros: str) -> MagicMock:
+        completed = MagicMock()
+        completed.returncode = 0
+        completed.stdout = macros
+        return completed
+
+    def test_no_x86_flags_on_aarch64(self):
+        """An aarch64 machine gets no SSE/AVX/FMA flag."""
+        aarch64_macros = "#define __aarch64__ 1\n#define __ARM_FEATURE_FMA 1\n"
+        with (
+            patch.object(
+                cpp_compile.platform, "machine", return_value="aarch64"
+            ),
+            patch.object(
+                cpp_compile.subprocess,
+                "run",
+                return_value=self._fake_preprocessor_output(aarch64_macros),
+            ),
+        ):
+            cflags = cpp_compile._add_avx_flags([], "g++")
+
+        self.assertEqual(cflags, [])
+
+    def test_x86_still_gets_its_flags(self):
+        """An x86_64 machine keeps the vectorization flags."""
+        x86_macros = "#define __AVX2__ 1\n#define __FMA__ 1\n"
+        with (
+            patch.object(
+                cpp_compile.platform, "machine", return_value="x86_64"
+            ),
+            patch.object(
+                cpp_compile.subprocess,
+                "run",
+                return_value=self._fake_preprocessor_output(x86_macros),
+            ),
+        ):
+            cflags = cpp_compile._add_avx_flags([], "g++")
+
+        self.assertEqual(cflags, ["-mavx2", "-mfma"])
