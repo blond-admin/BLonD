@@ -75,15 +75,27 @@ def make_multibunch_beam(
         particle_type=beam.particle_type,
         is_counter_rotating=beam.is_counter_rotating,
     )
-    # np.repeat([1,2], 2)
-    # array([1, 1, 2, 2])
-    full_dE = backend.repeat(beam._dE.array_local, n_times)
-
-    full_dt = backend.repeat(beam._dt.array_local, n_times)
+    dt_local = beam._dt.array_local
+    dE_local = beam._dE.array_local
+    n_macroparticles_local = dt_local.size
+    # The copies are stored bunch by bunch (and NOT interleaved), so that
+    # neighbouring particles in memory also lie close together in ``dt``.
+    # Interleaving would make consecutive particles belong to different
+    # bunches, spreading every access over the whole bunch train and
+    # thrashing the cache during e.g. the profile (histogram) calculation.
+    full_dt = backend.empty(
+        n_macroparticles_local * n_times, dtype=dt_local.dtype
+    )
+    full_dE = backend.empty(
+        n_macroparticles_local * n_times, dtype=dE_local.dtype
+    )
     for i in range(n_times):
         t_offset = t_distance * i + common_offset
-        sel = slice(i, None, n_times)
-        full_dt[sel] += t_offset
+        sel = slice(
+            i * n_macroparticles_local, (i + 1) * n_macroparticles_local
+        )
+        full_dt[sel] = dt_local + t_offset
+        full_dE[sel] = dE_local
 
     full_beam.setup_beam(
         dt=full_dt,
