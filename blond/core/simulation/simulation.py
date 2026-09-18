@@ -60,8 +60,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
+    from blond.beam_preparation.bigaussian import BiGaussian
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
     from blond.core.ring.ring import Ring

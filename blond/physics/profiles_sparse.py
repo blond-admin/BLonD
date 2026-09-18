@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import backend
+from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
 from blond.physics.profiles import StaticProfile

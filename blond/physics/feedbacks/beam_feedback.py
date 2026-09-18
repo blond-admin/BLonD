@@ -27,12 +27,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import Simulation, backend
+from blond.core.backends.backend import backend
 from blond.core.base import (
     DynamicParameter,
     Schedulable,
 )
 from blond.core.ring.helpers import requires
+from blond.core.simulation.simulation import Simulation
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
