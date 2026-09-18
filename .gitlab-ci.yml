@@ -458,7 +458,8 @@ test_py_313_arm64:
     - uv venv ./.venv
     - source ./.venv/bin/activate
     # No `xsuite` and no GPU extra; the tests needing either skip
-    # themselves when it is absent.
+    # themselves when it is absent. The rf-noise-cpp tests cannot skip
+    # themselves in CI by design, so they are deselected below.
     - uv pip install -e ${project_root}[dev]
     - cd ${project_root}
     # The point of the job: does the C++ backend compile on aarch64?
@@ -469,9 +470,13 @@ test_py_313_arm64:
     - uv pip list
     - cd ${project_root}
     # Full unittest suite. MPI is covered on x86 (see the header comment).
+    # `not rf_noise`: the external rf-noise-cpp checkout lives next to the
+    # build directory in the BLonD images only, so it is absent here (it is
+    # not public, hence no clone step). The library is plain C++ with no
+    # architecture-specific code, so x86 covers it.
     - python3 -m pytest
       -v
-      -m "not mpi"
+      -m "not mpi and not rf_noise"
       --randomly-seed=$CI_PIPELINE_ID
 
 test_py_314_no_cupy:

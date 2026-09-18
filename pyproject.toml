@@ -153,13 +153,14 @@ ignore = [
 convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib --strict-markers"
 testpaths = ["tests/unittests", "tests/integration"]
 markers = [
   "mpi: Tests that require MPI.",
   "backend_mutation: Tests that alter the backend as a side effect.",
   "cupy: Test that require CuPy.",
   "integration: Full end-to-end simulation tests.",
+  "rf_noise: Tests that require the external rf-noise-cpp library.",
 ]
 
 [tool.numpydoc_validation]

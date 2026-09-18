@@ -15,10 +15,13 @@ from blond.testing.backend_testing import BLonDTestCase
 
 # In CI the rf-noise-cpp library is provided, so this test must run (and fail
 # loudly if the library is missing) rather than silently skip. Locally, skip
-# gracefully when the library is unavailable. GitLab sets ``CI=true``.
+# gracefully when the library is unavailable. GitLab sets ``CI=true``. A CI job
+# that cannot provide the checkout (e.g. the aarch64 job, which runs on the
+# stock python image) deselects them with `-m "not rf_noise"`.
 _RUN_RF_NOISE = os.environ.get("CI") == "true" or rf_noise_library_available()
 
 
+@pytest.mark.rf_noise
 @unittest.skipUnless(
     _RUN_RF_NOISE,
     "rf-noise-cpp library not available",
