@@ -15,7 +15,7 @@ dynamic = ["version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Helga Timko", email = "helga.timko@cern.ch" }]
 maintainers = [
   { name = "Alexandre Lasheen", email = "alexandre.lasheen@cern.ch" },
@@ -26,9 +26,10 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
@@ -115,7 +116,7 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
 line-length = 79
-target-version = "py310"                                              # Minimum supported version (no quotes)
+target-version = "py311"                                              # Minimum supported version (no quotes)
 fix = true                                                            # Enable autofix
 exclude = ["blond/legacy/*", "legacy/*", "integrationtests_blond3/*"]
 [tool.ruff.lint]

@@ -30,7 +30,7 @@ m_mu = physical_constants["muon mass"][0]
 
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 
 class ParticleType:

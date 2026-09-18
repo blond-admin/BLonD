@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import StrEnum
 from os import PathLike
 
 import numpy as np
@@ -122,7 +122,7 @@ class ExampleImpedanceReader1(ImpedanceReader):
         return freq, amplitude
 
 
-class ModesExampleReader2(str, Enum):
+class ModesExampleReader2(StrEnum):
     """Example modes of how to process a impedance table."""
 
     OPEN_LOOP = "open loop"

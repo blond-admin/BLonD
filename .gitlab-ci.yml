@@ -431,25 +431,6 @@ test_py_314_main_many_environments:
   tags:
     - k8s-gpu
 
-test_py_310:
-  image: gitlab-registry.cern.ch/blond/blond/python310
-  stage: test
-  interruptible: true
-  extends:
-    - .before
-    - .main
-    - .cache_test
-    # - .publish
-  dependencies: []
-  tags:
-    - k8s-gpu
-  rules:
-    # Run on branch blonder
-    - if: '$CI_COMMIT_BRANCH == "blonder"'
-
-    # ALSO run in merge requests targeting blonder
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
   stage: test
@@ -543,7 +524,7 @@ test_py_314_only_cupy:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_minimum:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: test
   interruptible: true
   extends:
@@ -594,8 +575,8 @@ test_minimum:
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
-release_sdist_310:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+release_sdist_311:
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: deploy
   extends:
     - .on_tag
