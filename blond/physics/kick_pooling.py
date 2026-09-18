@@ -75,6 +75,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         self._buffer_voltage = OrderedDict()
         self._buffer_time_axis = OrderedDict()
         self._buffer_sparse_metadata = OrderedDict()
+        self._buffer_reference_energy_change = OrderedDict()
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -128,12 +129,14 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         self._buffer_voltage.clear()
         self._buffer_time_axis.clear()
         self._buffer_sparse_metadata.clear()
+        self._buffer_reference_energy_change.clear()
 
     def register(
         self,
         time_axis: NumpyArray,
         voltage: NumpyArray,
         sparse_metadata: dict | None = None,
+        reference_energy_change: float = 0.0,
     ) -> None:
         """
         Register a voltage to be applied with the next `track` invocation.
@@ -152,6 +155,12 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             `EquidistantMultiProfile.sparse_kick_metadata`. Pass this
             when `time_axis` is a gapped, multi-island array. When
             omitted, `time_axis` must be uniformly spaced.
+        reference_energy_change
+            Change of the reference total energy this element imposes on
+            this turn, in [eV]. Accumulated separately from `voltage` and
+            handed to the kernel as `acceleration_kick`, because the
+            kernel computes ``dE += charge * voltage + acceleration_kick``
+            -- folding it into `voltage` would scale it by the charge.
         """
         key = id(time_axis)
 
@@ -159,6 +168,9 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             # Update existing entry
             self._buffer_voltage[key] += backend.array(
                 voltage, dtype=backend.float
+            )
+            self._buffer_reference_energy_change[key] += (
+                reference_energy_change
             )
         except KeyError:
             # Insert new entry
@@ -171,6 +183,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 dtype=backend.float,
             )
             self._buffer_sparse_metadata[key] = sparse_metadata
+            self._buffer_reference_energy_change[key] = reference_energy_change
 
             # Enforce maxsize
             if len(self._buffer_voltage) > self._maxsize:
@@ -185,6 +198,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 oldest_key, _ = self._buffer_voltage.popitem(last=False)
                 self._buffer_time_axis.pop(oldest_key, None)
                 self._buffer_sparse_metadata.pop(oldest_key, None)
+                self._buffer_reference_energy_change.pop(oldest_key, None)
         else:
             # sparse_metadata describes the fixed geometry of
             # `time_axis`, not an accumulating quantity like
@@ -195,6 +209,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             self._buffer_voltage.move_to_end(key)
             self._buffer_time_axis.move_to_end(key)
             self._buffer_sparse_metadata.move_to_end(key)
+            self._buffer_reference_energy_change.move_to_end(key)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -215,8 +230,10 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                     dE=beam.write_partial_dE(),
                     bin_centers=time,
                     voltage=voltage,
-                    charge=beam.particle_type.charge,
-                    acceleration_kick=0.0,
+                    charge=beam.signed_charge_with_direction(),
+                    acceleration_kick=-self._buffer_reference_energy_change[
+                        key
+                    ],  # Mind the minus!
                     **(sparse_metadata or {}),
                 )
 
@@ -224,6 +241,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             # so that `self._buffer_voltage[key] += voltage`
             # at `register(...)` accumulates correctly.
             self._buffer_voltage[key][:] = 0.0  # consume buffer
+            self._buffer_reference_energy_change[key] = 0.0
 
 
 class SupportsPooledInterpolationKickMixIn(Preparable):

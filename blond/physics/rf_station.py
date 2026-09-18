@@ -924,10 +924,15 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         sparse_metadata: dict | None = None,
     ):
         if self._delayed_kick is not None:
+            # `reference_energy_change` is handed over separately, not
+            # folded into `voltage`: the kernel computes
+            # ``dE += charge * voltage + acceleration_kick``, so adding it
+            # to the voltage would scale it by the particle charge.
             self._delayed_kick.register(
                 time_axis=time_axis,
-                voltage=voltage - reference_energy_change,
+                voltage=voltage,
                 sparse_metadata=sparse_metadata,
+                reference_energy_change=reference_energy_change,
             )
         else:
             backend.specials.kick_interpolated(

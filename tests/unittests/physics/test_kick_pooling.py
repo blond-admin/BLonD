@@ -4,7 +4,7 @@ import numpy as np
 
 from blond import PooledInterpolationKick, backend
 from blond.core.beam.beams import ProbeBeam
-from blond.core.beam.particle_types import lead_82
+from blond.core.beam.particle_types import lead_82, proton
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -137,6 +137,143 @@ class TestPooledInterpolationKick(BLonDTestCase):
         self.assertIs(
             self.pooled_kick._buffer_sparse_metadata[key],
             second_sparse_metadata,
+        )
+
+
+class TestPooledKickMatchesDirectKick(BLonDTestCase):
+    """Pooling must not change the physics, only when the kick is applied.
+
+    `RFStation._track_interp` either kicks immediately or hands the kick
+    to a `PooledInterpolationKick`. Both must leave the beam in the same
+    state; the pool exists to save a pass over the particle arrays, not
+    to approximate anything.
+
+    Two properties are easy to lose and invisible for the common case of
+    a singly-charged, co-rotating beam, so both are pinned with an ion
+    and, separately, with a counter-rotating beam:
+
+    * the kernel computes ``dE += charge * v + acceleration_kick``, so
+      the reference energy change must reach it as `acceleration_kick`.
+      Folding it into the voltage instead scales it by the charge.
+    * the charge must carry the beam direction, since a counter-rotating
+      beam sees the same field as a decelerating one.
+    """
+
+    TIME_AXIS = np.linspace(0.0, 1.0e-6, 33)
+    VOLTAGE = 1.0e6 * np.sin(2 * np.pi * np.linspace(0.0, 1.0, 33))
+    REFERENCE_ENERGY_CHANGE = 1.0e3
+
+    def _probe_beam(self, particle_type, is_counter_rotating: bool):
+        """Beam sampling the voltage at several points of the axis.
+
+        Parameters
+        ----------
+        particle_type
+            Particle species, which fixes the charge.
+        is_counter_rotating
+            Whether the beam travels against the reference direction.
+
+        Returns
+        -------
+        ProbeBeam
+            Beam with `dt` inside the time axis and `dE` at zero.
+        """
+        beam = ProbeBeam(
+            particle_type=particle_type,
+            dt=backend.array(self.TIME_AXIS[1:-1].copy(), dtype=backend.float),
+            reference_total_energy=1e12,
+        )
+        # `ProbeBeam` does not forward `is_counter_rotating` to
+        # `BeamBaseClass`, so there is no public way to build a
+        # counter-rotating probe. The flag is only read back through
+        # `signed_charge_with_direction`, which is what is under test.
+        beam._is_counter_rotating = is_counter_rotating
+        return beam
+
+    def _direct_kick(self, particle_type, is_counter_rotating: bool):
+        """`dE` after the kick applied immediately, as `_track_no_interp`.
+
+        Parameters
+        ----------
+        particle_type
+            Particle species, which fixes the charge.
+        is_counter_rotating
+            Whether the beam travels against the reference direction.
+
+        Returns
+        -------
+        numpy.ndarray
+            Resulting `dE`, on the host.
+        """
+        beam = self._probe_beam(particle_type, is_counter_rotating)
+        backend.specials.kick_interpolated(
+            dt=beam.read_partial_dt(),
+            dE=beam.write_partial_dE(),
+            voltage=backend.array(self.VOLTAGE, dtype=backend.float),
+            bin_centers=backend.array(self.TIME_AXIS, dtype=backend.float),
+            charge=beam.signed_charge_with_direction(),
+            acceleration_kick=-self.REFERENCE_ENERGY_CHANGE,
+        )
+        return beam.dE.copy_as_numpy()
+
+    def _pooled_kick(self, particle_type, is_counter_rotating: bool):
+        """`dE` after the same kick routed through the pool.
+
+        Parameters
+        ----------
+        particle_type
+            Particle species, which fixes the charge.
+        is_counter_rotating
+            Whether the beam travels against the reference direction.
+
+        Returns
+        -------
+        numpy.ndarray
+            Resulting `dE`, on the host.
+        """
+        beam = self._probe_beam(particle_type, is_counter_rotating)
+        pool = PooledInterpolationKick(maxsize=3)
+        pool.register(
+            time_axis=self.TIME_AXIS,
+            voltage=self.VOLTAGE,
+            reference_energy_change=self.REFERENCE_ENERGY_CHANGE,
+        )
+        pool._track(beam=beam)
+        return beam.dE.copy_as_numpy()
+
+    def test_matches_direct_kick_for_singly_charged_beam(self):
+        np.testing.assert_allclose(
+            self._pooled_kick(proton, False),
+            self._direct_kick(proton, False),
+            rtol=1e-12,
+        )
+
+    def test_matches_direct_kick_for_highly_charged_ion(self):
+        """Acceleration must not be scaled by the charge.
+
+        Folding the reference energy change into the registered voltage
+        makes the kernel multiply it by the charge, an error of
+        ``(charge - 1) * reference_energy_change`` per turn -- 81 keV a
+        turn for lead, and exactly zero for protons.
+        """
+        np.testing.assert_allclose(
+            self._pooled_kick(lead_82, False),
+            self._direct_kick(lead_82, False),
+            rtol=1e-12,
+        )
+
+    def test_matches_direct_kick_for_counter_rotating_beam(self):
+        """The pooled charge must carry the beam direction.
+
+        A counter-rotating beam traverses the same field in the opposite
+        sense, which `signed_charge_with_direction` expresses by negating
+        the charge. Using the unsigned particle charge inverts the whole
+        kick.
+        """
+        np.testing.assert_allclose(
+            self._pooled_kick(proton, True),
+            self._direct_kick(proton, True),
+            rtol=1e-12,
         )
 
 
