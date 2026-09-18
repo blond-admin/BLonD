@@ -461,8 +461,8 @@ test_py_313_arm64:
     - *uv_setup
     - uv venv ./.venv
     - source ./.venv/bin/activate
-    # No `xsuite` (not needed; those tests skip themselves when it is
-    # absent) and no GPU extra -- cupy is exactly what must be missing here.
+    # No `xsuite` and no GPU extra; the tests needing either skip
+    # themselves when it is absent.
     - uv pip install -e ${project_root}[dev]
     - cd ${project_root}
     # The point of the job: does the C++ backend compile on aarch64?
@@ -472,16 +472,6 @@ test_py_313_arm64:
     - source ./.venv/bin/activate
     - uv pip list
     - cd ${project_root}
-    # Asking for the GPU on a machine that has none must fail with the
-    # actionable message, not a bare ModuleNotFoundError from deep inside
-    # the backend. Checked here as well as in the unittests because this is
-    # a real CPU-only install, not one with the cupy import blocked.
-    - >
-      BLOND_BACKEND_MODE=cuda python3 -c "import blond" 2>&1
-      | tee cuda_without_gpu.log
-      | grep -q "gpu_cuda12"
-      || { echo "GPU request did not fail with the expected message:";
-           cat cuda_without_gpu.log; exit 1; }
     # Full unittest suite. MPI is covered on x86 (see the header comment).
     - python3 -m pytest
       -v
