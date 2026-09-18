@@ -2,7 +2,7 @@
 <img src="BLonD2_centered.png" alt="drawing" width="300"/>
 </div>
 
-[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
+[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14%20%7C%203.15-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
 
 # Developer Guide for BLonD

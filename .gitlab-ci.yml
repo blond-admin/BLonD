@@ -33,7 +33,7 @@ stages:
   - precommit
   - doc_build
   - test_without_gpu
-  - test_py314
+  - test_py315
   - test
   - deploy
 default:
@@ -382,7 +382,7 @@ workflow:
 precommit-check:
 
   # Harbor proxy cache: anonymous Docker Hub pulls get 429-throttled.
-  image: registry.cern.ch/docker.io/library/python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
+  image: registry.cern.ch/docker.io/library/python:3.15 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
   stage: precommit
   interruptible: true
   extends:
@@ -408,8 +408,8 @@ precommit-check:
       paths:
         - .cache/pre-commit
 
-test_py_314_no_cupy:
-  image: gitlab-registry.cern.ch/blond/blond/python314
+test_py_315_no_cupy:
+  image: gitlab-registry.cern.ch/blond/blond/python315
   stage: test_without_gpu
   interruptible: true
   extends:
@@ -418,9 +418,9 @@ test_py_314_no_cupy:
     - .cache_test
   dependencies: []
 
-test_py_314_main_many_environments:
-  image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: test_py314
+test_py_315_main_many_environments:
+  image: gitlab-registry.cern.ch/blond/blond/python315
+  stage: test_py315
   interruptible: true
   extends:
     - .before
@@ -506,8 +506,26 @@ test_py_314:
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
-test_py_314_only_cupy:
-  image: gitlab-registry.cern.ch/blond/blond/python314
+test_py_315:
+  image: gitlab-registry.cern.ch/blond/blond/python315
+  stage: test
+  interruptible: true
+  extends:
+    - .before
+    - .main
+    - .cache_test
+    # - .publish
+  dependencies: []
+  tags:
+    - k8s-gpu
+  rules:
+    # Run on branch blonder
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+    # ALSO run in merge requests targeting blonder
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test_py_315_only_cupy:
+  image: gitlab-registry.cern.ch/blond/blond/python315
   stage: test
   interruptible: true
   extends:
@@ -597,7 +615,7 @@ release_sdist_311:
       dist/*.tar.gz
 
 test_documentation_building:
-  image: gitlab-registry.cern.ch/blond/blond/python314
+  image: gitlab-registry.cern.ch/blond/blond/python315
   stage: doc_build
   interruptible: true
   extends:
@@ -622,7 +640,7 @@ test_documentation_building:
 
 
 pages:
-  image: gitlab-registry.cern.ch/blond/blond/python314
+  image: gitlab-registry.cern.ch/blond/blond/python315
   extends:
     - .cache_uv
   script:
