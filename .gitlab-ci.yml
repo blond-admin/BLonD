@@ -428,14 +428,10 @@ precommit-check:
 #    hence the apt step. The MPI-marked tests themselves are still skipped
 #    here; x86 already covers them.
 #
-# `allow_failure: true` because aarch64 has never been exercised: the C++
-# kernels and numba have only ever been built for x86. Remove it once the
-# job has been green for a few pipelines, so it becomes a real gate.
 test_py_313_arm64:
   image: registry.cern.ch/docker.io/library/python:3.13
   stage: test_without_gpu
   interruptible: true
-  allow_failure: true
   tags:
     - default-aarch64
   extends:
