@@ -111,7 +111,8 @@ Ensure the following tools are installed:
 * **GPU Support:**
 
   * [CUDA Compiler Driver (NVCC)](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
-* **MPI Support** (required to build `mpi4py`):
+* **MPI Support** (only for the optional `mpi` extra; `mpi4py` installs
+  from a wheel, but needs an MPI runtime on the system to import):
 
   * Linux: `libopenmpi-dev` / `openmpi` (or your distribution's equivalent)
   * macOS: `brew install open-mpi`
