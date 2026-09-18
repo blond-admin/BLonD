@@ -408,6 +408,86 @@ precommit-check:
       paths:
         - .cache/pre-commit
 
+# ---------------------------------------------------------------------------
+# aarch64 (ARM)
+# ---------------------------------------------------------------------------
+# Checks that the CPU half of BLonD builds and runs on ARM, and that asking
+# for the GPU there fails with a readable error rather than a bare
+# ModuleNotFoundError. Two things make this job differ from
+# `test_py_314_no_cupy` rather than just adding a `tags:` line to it:
+#
+#  * Image. The `gitlab-registry.cern.ch/blond/blond/pythonXXX` images are
+#    built for amd64 only, so they cannot run here. The stock Docker Hub
+#    python image is a multi-arch manifest and resolves to arm64 by itself.
+#    (Pulled through the CERN Harbor proxy: anonymous Docker Hub pulls get
+#    429-throttled.) Once the images in blond/developer-tools are published
+#    with `buildx --platform linux/amd64,linux/arm64`, this job can go back
+#    to `.before_no_gpu` + `.main_no_gpu` and drop the apt line below.
+#  * MPI. mpi4py is a *core* dependency, so BLonD does not install at all
+#    without an MPI implementation present, which the stock image lacks --
+#    hence the apt step. The MPI-marked tests themselves are still skipped
+#    here; x86 already covers them.
+#
+# `allow_failure: true` because aarch64 has never been exercised: the C++
+# kernels and numba have only ever been built for x86. Remove it once the
+# job has been green for a few pipelines, so it becomes a real gate.
+test_py_313_arm64:
+  image: registry.cern.ch/docker.io/library/python:3.13
+  stage: test_without_gpu
+  interruptible: true
+  allow_failure: true
+  tags:
+    - default-aarch64
+  extends:
+    - .cache_test
+  dependencies: []
+  variables:
+    BLOND_BACKEND_MODE: "cpp"
+    BLOND_FORCE_TEST_ALL_BACKENDS: "False"
+    MPLBACKEND: "Agg"
+  before_script:
+    # Size the thread pools from the runner's real CPU entitlement
+    # (see `.before` for why the host core count is the wrong number).
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
+    - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Fail loudly if the scheduler ever hands this job to an amd64 runner:
+    # the whole point of the job is the instruction set.
+    - test "$(uname -m)" = "aarch64"
+    - uname -m && python3 --version && gcc --version
+    # mpi4py is a core dependency and builds against an MPI installation.
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends libopenmpi-dev openmpi-bin
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate
+    # No `xsuite` (not needed; those tests skip themselves when it is
+    # absent) and no GPU extra -- cupy is exactly what must be missing here.
+    - uv pip install -e ${project_root}[dev]
+    - cd ${project_root}
+    # The point of the job: does the C++ backend compile on aarch64?
+    - python3 blond/core/backends/cpp/compile.py --limit-cachesize
+  script:
+    - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
+    - source ./.venv/bin/activate
+    - uv pip list
+    - cd ${project_root}
+    # Asking for the GPU on a machine that has none must fail with the
+    # actionable message, not a bare ModuleNotFoundError from deep inside
+    # the backend. Checked here as well as in the unittests because this is
+    # a real CPU-only install, not one with the cupy import blocked.
+    - >
+      BLOND_BACKEND_MODE=cuda python3 -c "import blond" 2>&1
+      | tee cuda_without_gpu.log
+      | grep -q "gpu_cuda12"
+      || { echo "GPU request did not fail with the expected message:";
+           cat cuda_without_gpu.log; exit 1; }
+    # Full unittest suite. MPI is covered on x86 (see the header comment).
+    - python3 -m pytest
+      -v
+      -m "not mpi"
+      --randomly-seed=$CI_PIPELINE_ID
+
 test_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
   stage: test_without_gpu

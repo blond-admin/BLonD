@@ -1147,6 +1147,17 @@ class NumpyBackend(BackendBaseClass):
 
             self.specials = NumbaSpecials()
             self.specials_mode = mode
+        elif mode == "cuda":
+            # 'cuda' is a valid mode, just not for a CPU backend -- say
+            # so, rather than letting the generic message below suggest
+            # the mode itself is a typo.
+            raise UnknownBackendMode(
+                f"Specials mode 'cuda' needs a GPU backend, but the "
+                f"active backend is {type(self).__name__}, which runs "
+                f"on the CPU. Switch the backend first, e.g. "
+                f"`backend.change_backend(Cupy64Bit)`, or keep the CPU "
+                f"and use 'numba', 'cpp' or 'python'."
+            )
         else:
             raise UnknownBackendMode(
                 f"Unknown specials mode {mode!r} for {type(self).__name__}."
@@ -1191,7 +1202,10 @@ class CupyBackend(BackendBaseClass):
             specials_mode="cuda",  # no other backend implemented at the moment
             is_gpu=True,
         )
-        import cupy as cp  # type: ignore # import only if needed, which is not always the case
+        # Imported only if needed, which is not always the case.
+        from blond.generals.cupy_.no_cupy_import import import_cupy
+
+        cp = import_cupy()
 
         with warnings.catch_warnings():
             warnings.filterwarnings(
