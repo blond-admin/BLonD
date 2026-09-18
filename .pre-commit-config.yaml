@@ -93,6 +93,23 @@ repos:
         # API; `legacy` is BLonD 2, excluded by repo convention.
         exclude: ^blond/(examples|legacy)/
 
+  # `blond/experimental/__init__.py` warns on import, to mark its contents
+  # as liable to change. That warning only means something if reaching for
+  # experimental code is what triggers it, so stable code must not import
+  # `blond.experimental` at module level -- otherwise a plain
+  # `import blond` warns every user about features they never asked for.
+  # Only column-zero imports are matched: an indented one inside a
+  # `TYPE_CHECKING` block or a function body does not run on import.
+  - repo: local
+    hooks:
+      - id: no-experimental-imports
+        name: stable code must not import blond.experimental on import
+        language: pygrep
+        entry: '^(from|import) blond\.experimental'
+        types: [python]
+        files: ^blond/
+        exclude: ^blond/(experimental|examples|legacy)/
+
   # Every class exported at BLonD toplevel needs a documentation category
   - repo: local
     hooks:

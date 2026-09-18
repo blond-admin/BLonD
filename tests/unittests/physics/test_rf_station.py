@@ -16,6 +16,7 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
+    PooledInterpolationKick,
     Ring,
     Simulation,
     StaticProfile,
@@ -37,7 +38,6 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.experimental import PooledInterpolationKick
 from blond.experimental.physics.feedbacks.base import (
     LocalFeedback,
 )

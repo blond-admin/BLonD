@@ -57,7 +57,8 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
     maxsize
-        Maximum time axis that can be stored/buffered at the sime time
+        Maximum number of registered kicks held in the buffer at
+        once. Registering more drops the oldest entry and warns.
     **kwargs
         Additional keyword arguments passed to the parent.
     """
@@ -123,9 +124,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         self.clear_buffer()
 
     def clear_buffer(self) -> None:
-        """
-        Reset the buffer and forget about all previous `register` calls.
-        """
+        """Reset the buffer and forget all previous `register` calls."""
         self._buffer_voltage.clear()
         self._buffer_time_axis.clear()
         self._buffer_sparse_metadata.clear()
@@ -154,7 +153,6 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             when `time_axis` is a gapped, multi-island array. When
             omitted, `time_axis` must be uniformly spaced.
         """
-
         key = id(time_axis)
 
         try:
@@ -182,6 +180,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                     f"from the memory. Use `clear_buffer()` to "
                     f"prevent this warning.",
                     UserWarning,
+                    stacklevel=2,
                 )
                 oldest_key, _ = self._buffer_voltage.popitem(last=False)
                 self._buffer_time_axis.pop(oldest_key, None)
@@ -206,7 +205,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         beam
             The beam object whose state will be updated by this element.
         """
-        for key in self._buffer_voltage.keys():
+        for key in self._buffer_voltage:
             if beam.common_array_size > 0:
                 voltage = self._buffer_voltage[key]
                 time = self._buffer_time_axis[key]

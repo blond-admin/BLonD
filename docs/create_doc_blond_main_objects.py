@@ -39,6 +39,7 @@ ASSIGNED_CATEGORIES = {
     "UserDefinedElement": Categories.LATTICE.value,
     "WakeField": Categories.LATTICE.value,
     "Music": Categories.LATTICE.value,
+    "PooledInterpolationKick": Categories.LATTICE.value,
     "StaticProfile": Categories.LATTICE.value,
     "DynamicProfileConstNBins": Categories.LATTICE.value,
     "EquidistantMultiProfile": Categories.LATTICE.value,

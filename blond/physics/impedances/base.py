@@ -18,7 +18,7 @@ from scipy.constants import elementary_charge as e
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.kick_pooling import (
+from blond.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.experimental.physics.kick_pooling import (
+    from blond.physics.kick_pooling import (
         PooledInterpolationKick,
     )
     from blond.physics.profiles import ProfileBaseClass

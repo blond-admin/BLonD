@@ -44,6 +44,7 @@ __all__ = [
     "SingleHarmonicRFStation",
     "BarrierRF",
     "DriftSimple",
+    "PooledInterpolationKick",
     "ReferenceEnergyChange",
     "WakeField",
     "InductiveImpedanceSolver",
@@ -131,6 +132,7 @@ from blond.physics.impedances.sources import (
     InductiveImpedance,
     Resonators,
 )
+from blond.physics.kick_pooling import PooledInterpolationKick
 from blond.physics.losses import BoxLosses
 from blond.physics.profiles import (
     DynamicProfileConstNBins,

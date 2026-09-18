@@ -2,10 +2,9 @@ import unittest
 
 import numpy as np
 
-from blond import backend
+from blond import PooledInterpolationKick, backend
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
-from blond.experimental import PooledInterpolationKick
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 

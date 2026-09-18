@@ -34,6 +34,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    PooledInterpolationKick,
     Resonators,
     Ring,
     Simulation,
@@ -46,7 +47,6 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.experimental import PooledInterpolationKick
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing import pytest_active
 

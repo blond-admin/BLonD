@@ -36,11 +36,11 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
-from blond.experimental.physics.kick_pooling import (
+from blond.physics.feedbacks.base import LocalFeedback
+from blond.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
 )
-from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
