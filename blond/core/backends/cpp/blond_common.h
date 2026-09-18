@@ -63,6 +63,11 @@ typedef double real_t;
 // puts 512-bit slightly behind 256-bit at 5.14 vs 5.03 cycles per
 // particle. It therefore stays at 256 bits on purpose.
 //
+// Those are single-core numbers. Threaded on a large beam the kick is
+// DRAM-bound instead: at 12 threads and 1e7 particles a single-harmonic
+// kick gains nothing measurable (1.01-1.03x, inside run-to-run noise),
+// while n_rf=4 still gains 1.28x. Costs ~1.5% all-core frequency.
+//
 // Placement matters: the attribute must follow `extern "C"`, not precede
 // it. In front of `extern "C"` GCC rejects it with a mere warning and
 // silently emits 256-bit code -- a no-op that looks just like success.
