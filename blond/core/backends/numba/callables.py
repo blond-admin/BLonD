@@ -716,6 +716,10 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     ) -> None:
         if first_left_cut is None:
             n_slices = len(bin_centers)
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
             if n_slices >= 2:  # noqa: PLR2004
                 diffs = np.diff(bin_centers)
                 if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
