@@ -2281,6 +2281,11 @@ closes the loop around it.
 ``test_the_cavity_model_takes_no_control_argument``
     No parameter of either names a gain, integral, delay, setpoint or
     output limit.
+``test_an_empty_cell_leaves_an_empty_cavity_at_positive_zero``
+    No beam and no drive keep every component at exactly ``+0.0``, also
+    under a phase-loop step of more than a quarter turn: the beam drive
+    is ``0 - 0.5 I_b`` as in the reference, since a bare ``-0.5 I_b``
+    leaves a ``-0.0`` there.
 ``test_both_laws_reduce_to_the_open_loop_cavity_at_zero_gain``
     With zero gains the PI and P scans command the bias throughout and
     reproduce the open-loop cavity bit for bit: the check that both
