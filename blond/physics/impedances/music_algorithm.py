@@ -238,6 +238,9 @@ class Music(BeamPhysicsRelevant):
         beam
             Beam class to interact with this element.
         """
+        assert self._const is not None, (
+            "`Music.configure_run` must be executed before tracking."
+        )
         # Re-checked here (not only in `configure_run`) because the active
         # backend can be switched between run setup and tracking.
         self._check_supported()

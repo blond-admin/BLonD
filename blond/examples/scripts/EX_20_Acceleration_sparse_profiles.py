@@ -82,6 +82,7 @@ def main():
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
     sim.print_one_turn_execution_order()
 
+    assert profile_sparse.profiles is not None  # created by `Simulation(...)`
     assert np.isclose(
         profile_normal.cut_left, profile_sparse.profiles[0].cut_left
     ), f"{(profile_normal.cut_left, profile_sparse.profiles[0].cut_left)}"

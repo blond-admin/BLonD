@@ -1047,6 +1047,9 @@ class Simulation(Preparable):
         if callbacks is not None:
             callbacks = _as_tuple(callbacks)
 
+        assert self.execution_model is not None, (
+            "No execution model selected, run `Simulation.finalize` first"
+        )
         self.execution_model.mainloop(
             simulation=self,
             beams=beams,

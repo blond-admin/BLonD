@@ -36,6 +36,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.generals.distributed.distributed_array import DistributedArray
 
 
+_BEAM_NOT_INITIALIZED = (
+    "Beam is not properly initialized. "
+    "You can use `setup_beam` or the beam preparation methods."
+)
+
+
 class BeamBaseClass(Preparable, ABC):
     """
     Base class to make beam classes.
@@ -604,6 +610,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._ids is not None, _BEAM_NOT_INITIALIZED
         return self._ids.array_local
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
@@ -624,6 +631,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._dt is not None, _BEAM_NOT_INITIALIZED
         return self._dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
@@ -644,6 +652,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._dt is not None, _BEAM_NOT_INITIALIZED
         return self._dt.array_local
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
@@ -664,6 +673,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._dE is not None, _BEAM_NOT_INITIALIZED
         return self._dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
@@ -684,6 +694,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._dE is not None, _BEAM_NOT_INITIALIZED
         return self._dE.array_local
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
@@ -704,6 +715,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._flags is not None, _BEAM_NOT_INITIALIZED
         return self._flags.array_local
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
@@ -724,6 +736,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
+        assert self._flags is not None, _BEAM_NOT_INITIALIZED
         return self._flags.array_local
 
     def sort_by_dt(self) -> None:

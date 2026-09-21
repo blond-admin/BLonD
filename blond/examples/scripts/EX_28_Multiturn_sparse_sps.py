@@ -250,6 +250,7 @@ def main():
     )
 
     cmap = matplotlib.colormaps["plasma"]
+    assert profile.profiles is not None  # created by `Simulation(...)`
     lims = [
         [profile.profiles[-1].cut_left, profile.profiles[-1].cut_right],
         [2 * _bunch._dE.min(), 2 * _bunch._dE.max()],

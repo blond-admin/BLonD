@@ -166,6 +166,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         reference_energy_change
             Change of reference energy [eV].
         """
+        assert self._ring is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
         # No energy program (e.g. created via ``headless(magnetic_cycle=None)``,
         # or an external code such as xsuite owns the reference): the reference
         # is left untouched and no acceleration kick is applied.
@@ -602,6 +605,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         This function is intended for small `ts` arrays
         and not executed in parallel.
         """
+        assert self.voltage is not None, "`voltage` must be set or scheduled."
         if harmonic_index is None and not isinstance(self.phi_rf, float):
             raise ValueError(
                 "If no `harmonic_index` is provided, `phi_rf` needs to be a float."
@@ -769,6 +773,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Synchrotron tune.
         """
         if eta_0 is None:
+            assert self._ring is not None, (
+                "Not available before instancing ``Simulation(...)``"
+            )
             eta_0 = self._ring.calc_average_eta_0(beam.reference.gamma)
 
         if phi_s is None:
@@ -811,6 +818,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
                 "was created via `headless(...)` without one "
                 "(`magnetic_cycle=None`)."
             )
+        assert self._ring is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=(
                 self._turn_counter.value
@@ -949,6 +959,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         Update the RF phase of all systems for the next turn
         Accumulated phase offset due to beam phase loop or frequency offset.
         """
+        assert (
+            self.harmonic is not None
+            and self.delta_omega_rf is not None
+            and self._dphi_rf_next is not None
+        ), "Not available before the concrete RF station is initialised."
         phi_increment = (
             2.0 * np.pi * self.harmonic * self.delta_omega_rf / self.omega_rf
         )
@@ -1024,6 +1039,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         omega
             Angular frequency (2 PI f) of RF station, in [rad/s].
         """
+        assert self.harmonic is not None, (
+            "`harmonic` must be set or scheduled."
+        )
         return self.harmonic * float(TWOPI_C0 * beam_beta / ring_circumference)
 
     def info_string(self, prefix="") -> str:
@@ -1184,6 +1202,9 @@ class SingleHarmonicRFStation(
         main_harmonic
             Harmonic number of the main harmonic.
         """
+        assert self.harmonic is not None, (
+            "`harmonic` must be set or scheduled."
+        )
         return self.harmonic
 
     def get_main_harmonic_voltage(self) -> float:
@@ -1202,6 +1223,7 @@ class SingleHarmonicRFStation(
                 UserWarning,
                 stacklevel=2,
             )
+        assert self.voltage is not None, "`voltage` must be set or scheduled."
         return self.voltage
 
     def get_main_harmonic_phi_rf(self) -> float:
@@ -1213,6 +1235,9 @@ class SingleHarmonicRFStation(
         main_harmonic_phi_rf
             The phi_rf of the main harmonic, in [rad].
         """
+        assert self.phi_rf is not None, (
+            "`phi_rf_design` must be set or scheduled."
+        )
         return self.phi_rf
 
     def calc_main_harmonic_omega_rf_design(
@@ -1249,6 +1274,9 @@ class SingleHarmonicRFStation(
         main_harmonic_omega_rf
             The omega_rf of the main harmonic, in [rad/s].
         """
+        assert self.omega_rf is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
         return self.omega_rf
 
     def get_main_harmonic_omega_rf_design(self) -> float:

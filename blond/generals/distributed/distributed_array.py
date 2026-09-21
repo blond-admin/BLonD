@@ -29,6 +29,8 @@ except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
     MPI = None
 
+_NO_MPI = "A distributed array requires a working `mpi4py`."
+
 
 class DistributedArray:
     """
@@ -111,6 +113,7 @@ class DistributedArray:
         if not self._is_distributed:
             return
 
+        assert self._comm is not None, _NO_MPI
         size = self._comm.Get_size()
         rank = self._comm.Get_rank()
 
@@ -156,6 +159,7 @@ class DistributedArray:
             else None.
         """
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             gathered = self._comm.gather(self.array_local, root=0)
 
             if self._rank != 0:  # pragma: no cover
@@ -192,6 +196,7 @@ class DistributedArray:
         local_size = self.array_local.size
 
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             total_size = self._comm.allreduce(local_size, op=MPI.SUM)
         else:
             total_size = local_size
@@ -210,6 +215,7 @@ class DistributedArray:
         local_min = float(backend.min(self.array_local))
 
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             global_min = self._comm.allreduce(local_min, op=MPI.MIN)
         else:
             global_min = local_min
@@ -228,6 +234,7 @@ class DistributedArray:
         local_max = float(backend.max(self.array_local))
 
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             global_max = self._comm.allreduce(local_max, op=MPI.MAX)
         else:
             global_max = local_max
@@ -247,6 +254,7 @@ class DistributedArray:
         local_count = self.array_local.size
 
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
             global_count = self._comm.allreduce(local_count, op=MPI.SUM)
         else:
@@ -271,6 +279,7 @@ class DistributedArray:
         local_count = self.array_local.size
 
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             # Gather global statistics
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
             global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
@@ -298,6 +307,7 @@ class DistributedArray:
         local_sum = float(backend.sum(self.array_local))
 
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
         else:
             global_sum = local_sum
@@ -351,6 +361,7 @@ class DistributedArray:
 
         # Combine histograms from all processes
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
 
             return array_write_local
@@ -418,6 +429,7 @@ class DistributedArray:
 
         # Combine histograms from all processes
         if self._is_distributed:
+            assert self._comm is not None and MPI is not None, _NO_MPI
             self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
 
             return array_write_local

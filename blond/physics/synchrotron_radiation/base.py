@@ -109,6 +109,9 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         beam
              BeamBaseClass object.
         """
+        assert self.share_of_radiation_integrals is not None, (
+            "`share_of_radiation_integrals` must be set before tracking."
+        )
         total_energy = beam.reference.total_energy
         (
             estimated_energy_lost,

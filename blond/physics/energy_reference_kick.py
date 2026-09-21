@@ -134,6 +134,9 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
         change
             Change of reference time or energy.
         """
+        assert (
+            self._magnetic_cycle is not None and self._turn_counter is not None
+        ), "Not available before instancing ``Simulation(...)``"
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_counter.value,
             section_i=self.section_index,

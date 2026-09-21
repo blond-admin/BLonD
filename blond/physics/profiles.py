@@ -310,6 +310,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         params
             Amplitude, mean and standard deviation the bunch.
         """
+        assert self._hist_x is not None and self._hist_y is not None, (
+            "Histogram arrays are not initialised."
+        )
         _hist_x = self._hist_x
         _hist_y = self._hist_y
 
@@ -337,6 +340,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Amplitude, mean and standard deviation for each bunch.
             Shape (n_bunches, 3).
         """
+        assert self._hist_x is not None and self._hist_y is not None, (
+            "Histogram arrays are not initialised."
+        )
         _hist_x = self._hist_x
         _hist_y = self._hist_y
 
@@ -355,6 +361,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         beam
             Beam class to interact with this element.
         """
+        assert self._hist_y is not None, (
+            "Histogram arrays are not initialised."
+        )
         if beam.is_distributed:
             raise NotImplementedError(
                 "Implement histogram on distributed array"

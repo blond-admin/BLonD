@@ -337,6 +337,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         if limit_cachesize:
             prune_siblings(compiled_dir)  # evict old siblings; keep this one
         if compiled_ok:
+            assert folder is not None  # set together with `compiled_dir`
             save_build_options(folder, **build_options)
 
 

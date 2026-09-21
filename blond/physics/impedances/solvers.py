@@ -55,6 +55,14 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
+_MSG_NOT_INITIALIZED = (
+    "The solver is not initialized yet,"
+    " `on_wakefield_init_simulation` must be executed first."
+)
+_MSG_PROFILE_NOT_TRACKED = (
+    "The profile must be tracked before its density factor is known."
+)
+
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
@@ -105,6 +113,9 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V].
         """
+        assert (
+            self._parent_wakefield is not None and self._simulation is not None
+        ), _MSG_NOT_INITIALIZED
         _factor = self._hist_y_to_intensity_factor(
             beam=beam,
             profile=self._parent_wakefield.profile,
@@ -264,6 +275,10 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def _update_internal_data(self):
         """Rebuild internal data model."""
+        assert (
+            self._parent_wakefield is not None
+            and self._t_periodicity is not None
+        ), _MSG_NOT_INITIALIZED
         assert self._parent_wakefield.profile is not None
         self._n_time = int(
             round(
@@ -316,6 +331,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
         # be lazy
         if not self._freq_y_needs_update:
             return
+        assert (
+            self._parent_wakefield is not None and self._freq_x is not None
+        ), _MSG_NOT_INITIALIZED
 
         if (self._freq_y is None) or (
             self._freq_x.shape != self._freq_y.shape
@@ -366,6 +384,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V].
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         if self.expect_profile_change:  # dynamic profiles
             self._update_internal_data()  # might cause performance issues :(
         elif self.expect_impedance_change:
@@ -520,6 +539,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         """
         if not self._impedance_from_wake_y_needs_update:
             return
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         _wake_x = self._parent_wakefield.profile.hist_x
         _wake_x = _wake_x - _wake_x.min()
 
@@ -578,6 +598,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V].
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         if self.expect_impedance_change:
             self._impedance_from_wake_y_needs_update = True
         self._update_impedance_sources(beam=beam)
@@ -674,6 +695,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         """
         if not self._wake_function_vals_needs_update:
             return
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         hist_step = self._parent_wakefield.profile.hist_step
         arr_len = len(self._parent_wakefield.profile.hist_x)
         if self._parent_wakefield.profile.hist_y[0] != 0.0:
@@ -723,6 +745,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V].
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         if self._wake_function_vals_needs_update:
             self._update_potential_sources()
 
@@ -933,6 +956,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             This prevents issues with the heaviside function
             around the 0 timestamp.
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         for prof_ind in range(len(self._past_profiles)):
             if (
                 prof_ind == 0
@@ -1001,6 +1025,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         beam
             Beam class to interact with this element.
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         self._update_past_profile_times_wake_times(beam.reference.time)
         self._remove_fully_decayed_wake_profiles()
 
@@ -1049,6 +1074,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V].
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         self._update_potential_sources(beam)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
@@ -1116,6 +1142,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
     def _check_source_ducktypes(self):
         """Check that the sources implement ``get_wake``."""
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
             if not hasattr(source, "get_wake"):
@@ -1151,6 +1178,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         """
         # The assumptions below work only with static profiles.
         # This could be rewritten if necessary.
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         width = (
             self._parent_wakefield.profile.cut_right
             - self._parent_wakefield.profile.cut_left
@@ -1183,6 +1211,9 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         AssertionError
             If the profile length does not correspond to one turn.
         """
+        assert (
+            self._parent_wakefield is not None and self._simulation is not None
+        ), _MSG_NOT_INITIALIZED
         if not isinstance(self._parent_wakefield.profile, StaticProfile):
             warnings.warn(
                 f"Expected StaticProfile, but"
@@ -1217,6 +1248,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
+        assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         if self._wake_kernel is None:
             self._update_wake_kernel()
 
@@ -1358,6 +1390,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
+        assert (
+            self._parent_wakefield is not None and self._profile is not None
+        ), _MSG_NOT_INITIALIZED
         profile_hist_y = (  # TODO: remove when assert linspace is implemented in other locations and api is same for both
             self._profile._continuous_memory_hist_y
             if type(self._profile) is EquidistantMultiProfile
@@ -1381,6 +1416,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             # reference time of the convolution (real part only). Each turn it
             # is shifted back by the time elapsed since the previous call, so
             # the pole decays are computed relative to the current profile.
+            assert self.last_reference_time is not None, (
+                "`last_reference_time` must be set once the poles exist."
+            )
             passed_time = beam.reference.time - self.last_reference_time
             self._states[-1] -= complex(passed_time)
             assert self._states[-1].real <= profile_dts[0]

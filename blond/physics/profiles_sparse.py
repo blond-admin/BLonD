@@ -240,6 +240,9 @@ class EquidistantMultiProfile(MultiProfile):
         n_bins
             Total number of bins among all profiles.
         """
+        assert self._continuous_memory_hist_x is not None, (
+            "Profiles are not built yet, call `configure` first."
+        )
         return len(self._continuous_memory_hist_x)
 
     @property
@@ -263,6 +266,9 @@ class EquidistantMultiProfile(MultiProfile):
             can do
             ``backend.specials.kick_interpolated(..., **profile.sparse_kick_metadata)``.
         """
+        assert self.profiles is not None, (
+            "Profiles are not built yet, call `configure` first."
+        )
         return {
             "first_left_cut": self._first_left_cut,
             "left_cut_distance": self._left_cut_distance,
@@ -286,6 +292,9 @@ class EquidistantMultiProfile(MultiProfile):
             Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
             for customizing the plot appearance (e.g., ``color='red', linewidth=2``).
         """
+        assert self.profiles is not None, (
+            "Profiles are not built yet, call `configure` first."
+        )
         for profile in self.profiles:
             profile.plot(**kwargs_plot)
 
@@ -405,6 +414,9 @@ class EquidistantMultiProfile(MultiProfile):
         so that no side effects appear when applying convolution
         on the full array.
         """
+        assert (
+            self.profiles is not None and self.profiles[0]._hist_x is not None
+        ), "Profiles are not built yet, call `configure` first."
         bins_per_profile = self._bins_per_profile
 
         total = len(self.profiles) * bins_per_profile
@@ -428,6 +440,11 @@ class EquidistantMultiProfile(MultiProfile):
 
     def _bind_profiles(self):
         """Bind the memory of all ``self.profiles`` to the contigous memory."""
+        assert (
+            self.profiles is not None
+            and self._continuous_memory_hist_x is not None
+            and self._continuous_memory_hist_y is not None
+        ), "Profiles are not built yet, call `configure` first."
         for i, _profile in enumerate(self.profiles):
             sel = self._get_slice_single_profile(i)
 
@@ -463,6 +480,13 @@ class EquidistantMultiProfile(MultiProfile):
         beam
             Beam class to interact with this element.
         """
+        assert (
+            beam._dt is not None
+            and self.profiles is not None
+            and self._continuous_memory_hist_y is not None
+            and self._first_left_cut is not None
+            and self._left_cut_distance is not None
+        ), "Beam or profiles are not initialised."
         if len(beam._dt.array_local) == 0:
             # No particles to track
             self._continuous_memory_hist_y[:] = 0

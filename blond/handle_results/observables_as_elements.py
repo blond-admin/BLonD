@@ -23,7 +23,10 @@ from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.array_recorders import DenseArrayRecorder
-from blond.handle_results.observables import ObservablesBaseClass
+from blond.handle_results.observables import (
+    _NOT_RUN_MESSAGE,
+    ObservablesBaseClass,
+)
 from blond.physics.impedances.base import WakeField
 
 
@@ -313,6 +316,14 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         if isinstance(beam, ProbeBeam):
             return
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
+            assert beam._dt is not None, "Beam is not initialized yet."
+            assert beam._dE is not None, "Beam is not initialized yet."
+            assert self._sigma_dt is not None, _NOT_RUN_MESSAGE
+            assert self._sigma_dE is not None, _NOT_RUN_MESSAGE
+            assert self._mean_dt is not None, _NOT_RUN_MESSAGE
+            assert self._mean_dE is not None, _NOT_RUN_MESSAGE
+            assert self._rms_emittance is not None, _NOT_RUN_MESSAGE
+
             self._sigma_dt.write(beam._dt.std())
             self._sigma_dE.write(beam._dE.std())
             self._mean_dt.write(beam._dt.mean())
@@ -331,6 +342,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         sigma_dt
             Standard deviation of the time coordinate.
         """
+        assert self._sigma_dt is not None, _NOT_RUN_MESSAGE
         return self._sigma_dt.get_valid_entries()
 
     @property  # as readonly attributes
@@ -343,6 +355,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         sigma_dE
             Standard deviation of the energy coordinate in eV.
         """
+        assert self._sigma_dE is not None, _NOT_RUN_MESSAGE
         return self._sigma_dE.get_valid_entries()
 
     @property  # as readonly attributes
@@ -355,6 +368,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         mean_dt
             Mean of the time coordinate.
         """
+        assert self._mean_dt is not None, _NOT_RUN_MESSAGE
         return self._mean_dt.get_valid_entries()
 
     @property  # as readonly attributes
@@ -367,6 +381,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         mean_dE
             Mean of the energy coordinate.
         """
+        assert self._mean_dE is not None, _NOT_RUN_MESSAGE
         return self._mean_dE.get_valid_entries()
 
     @property  # as readonly attributes
@@ -384,6 +399,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         rms_emittance
             Root-Mean-Square emittance.
         """
+        assert self._rms_emittance is not None, _NOT_RUN_MESSAGE
         return self._rms_emittance.get_valid_entries()
 
 
@@ -454,6 +470,8 @@ class InducedVoltageObservationCR(
         **kwargs
             Additional keyword arguments.
         """
+        assert self._wake_field._profile is not None, "No profile to observe."
+
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
@@ -493,6 +511,7 @@ class InducedVoltageObservationCR(
         induced_voltage
             Induced voltage arrays for both beams.
         """
+        assert self._induced_voltage is not None, _NOT_RUN_MESSAGE
         return self._induced_voltage.get_valid_entries()
 
     @property  # as readonly attributes
@@ -505,6 +524,7 @@ class InducedVoltageObservationCR(
         beam_reference_time
             Reference time according to the induced voltages for both beams.
         """
+        assert self._beam_reference_time is not None, _NOT_RUN_MESSAGE
         return self._beam_reference_time.get_valid_entries()
 
     @property  # as readonly attributes
@@ -517,6 +537,7 @@ class InducedVoltageObservationCR(
         beam_profile
             Beam profile array.
         """
+        assert self._beam_profile is not None, _NOT_RUN_MESSAGE
         return self._beam_profile.get_valid_entries()
 
     def _track(
@@ -531,6 +552,11 @@ class InducedVoltageObservationCR(
         beam
             Beam class to interact with this element.
         """
+        assert self.turn_counter is not None, _NOT_RUN_MESSAGE
+        assert self._induced_voltage is not None, _NOT_RUN_MESSAGE
+        assert self._beam_reference_time is not None, _NOT_RUN_MESSAGE
+        assert self._beam_profile is not None, _NOT_RUN_MESSAGE
+
         if (
             self.beam_state != beam._is_counter_rotating
             or self.last_turn != self.turn_counter.value

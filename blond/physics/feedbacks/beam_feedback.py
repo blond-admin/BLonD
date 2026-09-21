@@ -226,6 +226,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         to calculate the rf component phase of the beam based on the
         profile object.
         """
+        assert self._main_cavities is not None, (
+            "Main rf stations unknown, call `update_main_rf_stations` first."
+        )
         # Main RF frequency at the present turn
         omega_rf = self._main_cavities[0].get_main_harmonic_omega_rf()
 
@@ -273,6 +276,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         phase_noise
             Option to add phase noise through the beam control.
         """
+        assert self._simulation is not None, (
+            "Simulation unknown, call `on_run_simulation` first."
+        )
         # Correct for design stable phase
         counter = self._simulation.turn_counter.value
         self.dphi = self.phi_beam
@@ -294,6 +300,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         current_thres
             Beam current threshold for gating of the profiles.
         """
+        assert self._main_cavities is not None, (
+            "Main rf stations unknown, call `update_main_rf_stations` first."
+        )
         filled_slots: NumpyArray | None = None
         cavity_sum: NumpyArray | None = None
 
@@ -343,6 +352,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         beam
             The beam object used in the simulation.
         """
+        assert self._simulation is not None, (
+            "Simulation unknown, call `on_run_simulation` first."
+        )
         # Calculate alpha
         alpha = self._simulation.ring.momentum_compaction_factor
         ring_radius = self._simulation.ring.circumference / (2 * np.pi)
@@ -373,6 +385,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             the new main harmonic will be the lowest main harmonic of all
             rf stations in the ring.
         """
+        assert self.cavities is not None, (
+            "No rf stations known yet, call `on_init_simulation` first."
+        )
         harmonics = self.get_from_all_rf_stations(
             accessor=lambda rf: rf.get_main_harmonic()
         )
@@ -433,7 +448,14 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         beam
             The beam object used in the simulation.
         """
+        assert self._simulation is not None and self.cavities is not None, (
+            "Feedback not initialised, call `on_init_simulation` and "
+            "`on_run_simulation` first."
+        )
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),

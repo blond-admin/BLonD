@@ -658,6 +658,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         """
         key = hash(particle_type)
         if key not in self._momentum_cached:
+            assert self._magnetic_rigidity is not None, (
+                "Magnetic cycle is not configured, run `configure` first"
+            )
             self._momentum_cached[key] = (
                 conversions.magnetic_rigidity_to_momentum(
                     magnetic_rigidity=self._magnetic_rigidity[:, :],
@@ -910,6 +913,9 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         key = hash(particle_type)
 
         if key not in self._momentum_cached:
+            assert (
+                self._magnetic_rigidity_after_rf_station_per_turn is not None
+            ), "Magnetic cycle is not configured, run `configure` first"
             self._momentum_cached[key] = (
                 conversions.magnetic_rigidity_to_momentum(
                     magnetic_rigidity=self._magnetic_rigidity_after_rf_station_per_turn[

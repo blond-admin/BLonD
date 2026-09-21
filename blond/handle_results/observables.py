@@ -46,6 +46,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
+_NOT_RUN_MESSAGE = (
+    "Not initialized yet, `on_run_simulation` must be called first."
+)
+
 
 def _plot_profile_waterfall(
     hist_x: NumpyArray,
@@ -265,6 +269,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         turns_array
             Array with turn numbers for observations.
         """
+        assert self._turns_array is not None, _NOT_RUN_MESSAGE
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -274,6 +279,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
     def update(self) -> None:
         """Update memory with new values."""
+        assert self._simulation is not None, _NOT_RUN_MESSAGE
         if self._last_turn_i_observed != self._simulation.turn_counter.value:
             self._update()
             self._last_turn_i_observed = self._simulation.turn_counter.value
@@ -766,6 +772,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
                 "This needs to be implemented."
                 " Contact the devs if you need it."
             )
+        assert beam._dt is not None, "Beam is not initialized yet."
         self._beam = beam
         n_entries = self._calc_n_entries(n_turns)
         n_macroparticles = int(beam._dt.local_size)
@@ -803,6 +810,13 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     def _update(self) -> None:
         """Update memory with new values."""
         # TODO allow several bunches
+        assert self._beam is not None, _NOT_RUN_MESSAGE
+        assert self._beam._dt is not None, _NOT_RUN_MESSAGE
+        assert self._dts is not None, _NOT_RUN_MESSAGE
+        assert self._dEs is not None, _NOT_RUN_MESSAGE
+        assert self._flags is not None, _NOT_RUN_MESSAGE
+        assert self._reference_time is not None, _NOT_RUN_MESSAGE
+        assert self._reference_total_energy is not None, _NOT_RUN_MESSAGE
 
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
@@ -827,6 +841,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         reference_time
             Reference time array.
         """
+        assert self._reference_time is not None, _NOT_RUN_MESSAGE
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
@@ -839,6 +854,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         reference_total_energy
             Total energy array.
         """
+        assert self._reference_total_energy is not None, _NOT_RUN_MESSAGE
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
@@ -851,6 +867,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         dts
             Time coordinate array.
         """
+        assert self._dts is not None, _NOT_RUN_MESSAGE
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
@@ -863,6 +880,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         dEs
             Energy coordinate array.
         """
+        assert self._dEs is not None, _NOT_RUN_MESSAGE
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
@@ -875,6 +893,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         flags
             Particle flags array.
         """
+        assert self._flags is not None, _NOT_RUN_MESSAGE
         return self._flags.get_valid_entries()
 
 
@@ -976,6 +995,14 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     def _update(self) -> None:
         """Update memory with new values."""
         # TODO allow several bunches
+        assert self._beam is not None, _NOT_RUN_MESSAGE
+        assert self._beam._dt is not None, _NOT_RUN_MESSAGE
+        assert self._beam._dE is not None, _NOT_RUN_MESSAGE
+        assert self._bunch_position is not None, _NOT_RUN_MESSAGE
+        assert self._energy_spread is not None, _NOT_RUN_MESSAGE
+        assert self._bunch_length is not None, _NOT_RUN_MESSAGE
+        assert self._reference_time is not None, _NOT_RUN_MESSAGE
+        assert self._reference_total_energy is not None, _NOT_RUN_MESSAGE
 
         # MPI capable
         self._bunch_position.write(self._beam._dt.mean())
@@ -995,6 +1022,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         bunch_position
             Bunch position array.
         """
+        assert self._bunch_position is not None, _NOT_RUN_MESSAGE
         return self._bunch_position.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1007,6 +1035,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         energy_spread
             Energy spread array.
         """
+        assert self._energy_spread is not None, _NOT_RUN_MESSAGE
         return self._energy_spread.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1019,6 +1048,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         bunch_length
             Bunch length array.
         """
+        assert self._bunch_length is not None, _NOT_RUN_MESSAGE
         return self._bunch_length.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1031,6 +1061,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         reference_time
             Reference time array.
         """
+        assert self._reference_time is not None, _NOT_RUN_MESSAGE
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1043,6 +1074,7 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         reference_total_energy
             Total energy array.
         """
+        assert self._reference_total_energy is not None, _NOT_RUN_MESSAGE
         return self._reference_total_energy.get_valid_entries()
 
 
@@ -1139,6 +1171,10 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
+        assert self._phases is not None, _NOT_RUN_MESSAGE
+        assert self._omegas is not None, _NOT_RUN_MESSAGE
+        assert self._voltages is not None, _NOT_RUN_MESSAGE
+
         self._phases.write(self._rf_station.phi_rf)
         self._omegas.write(self._rf_station.omega_rf)
         self._voltages.write(self._rf_station.voltage)
@@ -1153,6 +1189,7 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
         phases
             Array of RF phases.
         """
+        assert self._phases is not None, _NOT_RUN_MESSAGE
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1165,6 +1202,7 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
         omegas
             Array of RF angular frequencies.
         """
+        assert self._omegas is not None, _NOT_RUN_MESSAGE
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1177,6 +1215,7 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
         voltages
             Array of RF voltages.
         """
+        assert self._voltages is not None, _NOT_RUN_MESSAGE
         return self._voltages.get_valid_entries()
 
 
@@ -1262,6 +1301,8 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
+        assert self._hist_y is not None, _NOT_RUN_MESSAGE
+
         self._hist_y.write(
             copy_to_cpu(self._profile.hist_y),
         )
@@ -1288,6 +1329,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         hist_y
             Histogram amplitude array.
         """
+        assert self._hist_y is not None, _NOT_RUN_MESSAGE
         return self._hist_y.get_valid_entries()
 
     def plot_waterfall(
@@ -1313,6 +1355,8 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         mesh
             The `QuadMesh` pyplot object holding the waterfall plot.
         """
+        assert self.turns_array is not None, _NOT_RUN_MESSAGE
+
         hist_y = self.hist_y
         turns = self.turns_array[: hist_y.shape[0]]
         return _plot_profile_waterfall(
@@ -1414,6 +1458,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
+        assert self._turns_array is not None  # set by super() call above
 
         n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
         n_bins = self._profiles[0].n_bins
@@ -1528,6 +1573,8 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
+        assert self._wakefield._profile is not None, "No profile to observe."
+
         n_entries = self._calc_n_entries(n_turns)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
@@ -1537,6 +1584,9 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
+        assert self._induced_voltage is not None, _NOT_RUN_MESSAGE
+        assert self._wakefield._profile is not None, "No profile to observe."
+
         try:
             self._induced_voltage.write(
                 self._wakefield.induced_voltage,
@@ -1556,6 +1606,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         induced_voltage
             Array of induced voltages.
         """
+        assert self._induced_voltage is not None, _NOT_RUN_MESSAGE
         return self._induced_voltage.get_valid_entries()
 
 
@@ -1644,6 +1695,8 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
+        assert self._hist_y is not None, _NOT_RUN_MESSAGE
+
         self._hist_y.write(self._profile.hist_y)
         self._hist_x.write(self._profile.hist_x)
 
@@ -1657,6 +1710,7 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         hist_y
             Histogram amplitude array.
         """
+        assert self._hist_y is not None, _NOT_RUN_MESSAGE
         return self._hist_y.get_valid_entries()
 
     @property  # as readonly attributes
@@ -1694,6 +1748,8 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         mesh
             The `QuadMesh` pyplot object holding the waterfall plot.
         """
+        assert self.turns_array is not None, _NOT_RUN_MESSAGE
+
         hist_y = self.hist_y
         turns = self.turns_array[: hist_y.shape[0]]
         return _plot_profile_waterfall(
@@ -1811,6 +1867,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         t_rev
             Revolution time, in [s] of shape ``(n_observations)``.
         """
+        assert self._t_revs is not None, _NOT_RUN_MESSAGE
         return self._t_revs.get_valid_entries()
 
 
@@ -1889,4 +1946,5 @@ class DriftObservation(ObservablesOncePerTurnBase):
         eta_0
             Drift in arc parameter eta of shape ``(n_observations)``.
         """
+        assert self._eta_0s is not None, _NOT_RUN_MESSAGE
         return self._eta_0s.get_valid_entries()
