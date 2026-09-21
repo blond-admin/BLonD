@@ -2001,6 +2001,67 @@ observed RED (11 failed / 2 passed) before the implementation.
 **Note for whoever reads §2.30 next:** its guard no longer exists. The
 problem it solved is now structural.
 
+### 2.32 P generator loop; control laws taken out of the cavity kernel (2026-09-21)
+
+Maintainer request: a proportional generator loop, fully separate from the
+PI one, with its own tuning and stability laws. Mid-task: "the PI law should
+not be coupled into the cavity model."
+
+- **The kernel was the PI.** `envelope_pi_scan` fused the cavity recursion
+  with the PI law, the no-controller path ran through it with a
+  `controller_active=False` flag, and `_circuit_track_cells_kernel`
+  unpacked the scan's return as exactly the PI's three state values -- so
+  the "any controller may supply a compiled scan" promise of the §2.12
+  abstraction was false for a second compiled law.
+- **Now three layers.** `envelope_kernel.py` is the cavity only:
+  `propagate_envelope_cell` (one cell, both source-split components, the
+  composition) and `envelope_open_loop_scan` (no controller). New
+  `control_law_kernels.py`: the law-independent measurement
+  (`regulation_error`, `delay_line_push`), one function per law
+  (`pi_law_step`, `p_law_step`), and one closed-loop scan per law
+  (`envelope_pi_scan`, `envelope_p_scan`). The feedback passes a
+  controller's state in and its scan's result back without unpacking it.
+  `controller_active` and `inactive_controller_scan_state` are gone.
+- **The loop skeleton is written twice** (drive selection, sample clock,
+  hold): numba cannot take the law as an argument and still cache the
+  scan. The cavity physics is single-sourced, and
+  `test_both_laws_reduce_to_the_open_loop_cavity_at_zero_gain` pins that
+  both scans propagate it exactly.
+- **Byte identity preserved.** Every pre-existing kernel-vs-reference test
+  passed unchanged after the split (62 in the kernel/controller/
+  feed-forward modules), so the PI computes exactly what it did.
+- **`GeneratorCurrentPController`**: not a PI subclass, no integral, no
+  anti-windup, own delay line (same circular-buffer convention),
+  `ValueError` on a negative delay (the PI still `assert`s), own scan.
+- **Found, not fixed:** `TestEnvelopeKernelBitIdentity.
+  test_saturating_segment_is_not_deferred_to_python` claims both sides
+  spell the clamp magnitude as `hypot` through a `complex_magnitude`
+  helper. No such helper exists anywhere in the tree; both still use
+  `np.abs`, which is why the saturated cases still need `SATURATED_RTOL`.
+
+**Tests.** New `test_generator_current_p_controller.py` (17 tests,
+8 subtests); `test_envelope_kernel.py` +2 classes
+(`TestProportionalControllerKernel`, `TestCavityModelCarriesNoControlLaw`);
+`test_beam_loading_feedforward.py` moved to the new scan API. RED observed
+first (all three modules failing at import). Full `tests/unittests`:
+**1873 passed / 89 skipped / 426 subtests / 0 failed** (1834 / 89 / 392
+before). Feedbacks + cavities + simulation + observables + testing: 876 /
+15 / 394. Pre-commit clean on every touched file except `check copyright`
+(bare-`python` 9009, §0); the venv check exits 0.
+
+**Outer repo, same change.** `RunConfig.llrf_controller` (`--llrf-controller
+pi|p`, default `pi`); `llrf_tuning` derives the P gain on the pure-P
+boundary `critical_stability_product(inf, n_delay)` (1.5611 at 81 samples,
+15 % more gain than the PI at the same margin) and refuses an explicit
+integral time; `LlrfTuning` carries `controller` and `static_loop_gain`
+(`|K_p Z|`, 108 on RCS1). `loop_analysis` split the same way:
+`SampledCavityModel` (propagator, static impedance, pole counting) under
+`CavityLoop` (PI) and the new `ProportionalCavityLoop` (P), whose
+static-error law `(V_set - Z I) / (1 + K_p Z)` matches a beam-free tracked
+BLonD run to 2.8e-11 relative. A `CavityLoop` with `gain_integral=0` is NOT
+a P model: its polynomial keeps the integrator's `(z - 1)` and reports a
+spurious pole on the unit circle.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam

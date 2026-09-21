@@ -27,6 +27,7 @@ from blond.physics.feedbacks.cavity_feedback import (
 )
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
+    GeneratorCurrentPController,
     GeneratorCurrentPIController,
 )
 
@@ -1336,6 +1337,267 @@ class TestControllerAbstractionContract(unittest.TestCase):
             np.array_equal(kernel_current, python_current),
             msg="generator current differs between kernel and python paths",
         )
+
+
+class TestProportionalControllerKernel(unittest.TestCase):
+    """The P controller's compiled scan reproduces its reference path.
+
+    Byte-for-byte while the klystron clamp is idle; to
+    :data:`SATURATED_RTOL` once it fires, where numpy's and numba's complex
+    ``abs`` differ by an ULP.
+    """
+
+    N_CELLS = 48
+    SETPOINT = 3.0e7 + 0.0j
+
+    def _run(self, use_kernel, *, interval, max_output, delta_omega):
+        controller = GeneratorCurrentPController(
+            gain_proportional=1.0e-9,
+            generator_current_bias=BIAS,
+            n_delay=3,
+            max_output=max_output,
+        )
+        feedback = _make_feedback(
+            use_kernel,
+            controller=controller,
+            voltage_setpoint=self.SETPOINT,
+            delta_omega=delta_omega,
+            controller_update_interval=interval,
+        )
+        rng = np.random.default_rng(5)
+        beam = (
+            rng.standard_normal(self.N_CELLS)
+            + 1j * rng.standard_normal(self.N_CELLS)
+        ) * 1e-4
+        _seed_single_segment(
+            feedback,
+            self.N_CELLS,
+            v_init=3.0e7 + 1.0e6j,
+            i_init=BIAS,
+            beam=beam,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            feedback._circuit_track_cells(
+                omega_input=OMEGA_RF,
+                no_beam=False,
+                start_index=0,
+                end_index=self.N_CELLS,
+            )
+        return {
+            "V": feedback.antenna_voltage_coarse_grid.copy(),
+            "V_gen": feedback.antenna_voltage_gen_coarse_grid.copy(),
+            "V_beam": feedback.antenna_voltage_beam_coarse_grid.copy(),
+            "I": feedback.generator_current_coarse_grid.copy(),
+            "delay": list(controller._delay_line),
+        }
+
+    def test_kernel_matches_the_reference_path(self):
+        for interval in (1, 4):
+            for delta_omega in (0.0, 2.0e5):
+                for max_output in (None, 0.02001):
+                    with self.subTest(
+                        interval=interval,
+                        delta_omega=delta_omega,
+                        max_output=max_output,
+                    ):
+                        settings = dict(
+                            interval=interval,
+                            max_output=max_output,
+                            delta_omega=delta_omega,
+                        )
+                        kernel = self._run(True, **settings)
+                        python = self._run(False, **settings)
+                        if max_output is None:
+                            for key in ("V", "V_gen", "V_beam", "I"):
+                                self.assertTrue(
+                                    np.array_equal(kernel[key], python[key]),
+                                    msg=f"{key} differs between the paths",
+                                )
+                        else:
+                            # Non-vacuous: the clamp really fired.
+                            self.assertTrue(
+                                np.any(
+                                    np.isclose(
+                                        np.abs(kernel["I"]),
+                                        max_output,
+                                        rtol=1e-12,
+                                    )
+                                )
+                            )
+                            _assert_close(self, kernel, python)
+                        np.testing.assert_allclose(
+                            kernel["delay"],
+                            python["delay"],
+                            rtol=SATURATED_RTOL,
+                        )
+
+    def test_runs_on_the_compiled_path(self):
+        """It supplies its own scan, so no span falls back to Python."""
+        original = IQCavityFeedbackCoarseGrid._circuit_track_cells_python
+        calls = []
+
+        def _spy(self, *args, **kwargs):
+            calls.append(1)
+            return original(self, *args, **kwargs)
+
+        IQCavityFeedbackCoarseGrid._circuit_track_cells_python = _spy
+        try:
+            self._run(True, interval=1, max_output=None, delta_omega=0.0)
+        finally:
+            IQCavityFeedbackCoarseGrid._circuit_track_cells_python = original
+        self.assertEqual(len(calls), 0)
+
+
+class TestCavityModelCarriesNoControlLaw(unittest.TestCase):
+    """The envelope kernel is the cavity; the laws close the loop around it.
+
+    Each controller owns a compiled closed-loop scan that composes the
+    shared cavity model with its own law. The cavity model itself never
+    sees a gain, an integral or a delay line.
+    """
+
+    N_CELLS = 40
+
+    def _span(self):
+        rng = np.random.default_rng(13)
+        n = self.N_CELLS
+
+        def unit(scale):
+            return np.exp(1j * scale * rng.standard_normal(n))
+
+        return {
+            "voltage_multiplier": (1.0 - 1e-4) * unit(1e-3),
+            "drive_weight": (1.0 - 5e-5) * unit(1e-3),
+            "omega_times_dt": np.full(n, 2.0 * np.pi),
+            "beam_current": 1e-2
+            * (rng.standard_normal(n) + 1j * rng.standard_normal(n)),
+            "generator_frame_rotation": unit(1e-2),
+            "kick_frame_rotation": unit(1e-2),
+            "error_frame_rotation": unit(1e-2),
+            "beam_step_rotation": np.ones(n, dtype=np.complex128),
+        }
+
+    def test_the_cavity_model_module_holds_no_closed_loop(self):
+        from blond.physics.feedbacks import envelope_kernel
+
+        self.assertTrue(hasattr(envelope_kernel, "propagate_envelope_cell"))
+        self.assertTrue(hasattr(envelope_kernel, "envelope_open_loop_scan"))
+        for name in ("envelope_pi_scan", "envelope_p_scan"):
+            self.assertFalse(hasattr(envelope_kernel, name), msg=name)
+
+    def test_the_cavity_model_takes_no_control_argument(self):
+        import inspect
+
+        from blond.physics.feedbacks.envelope_kernel import (
+            envelope_open_loop_scan,
+            propagate_envelope_cell,
+        )
+
+        for function in (propagate_envelope_cell, envelope_open_loop_scan):
+            names = inspect.signature(function.py_func).parameters
+            for word in ("gain", "integral", "delay", "setpoint", "max_out"):
+                with self.subTest(function=function.__name__, word=word):
+                    self.assertFalse(any(word in name for name in names))
+
+    def test_both_laws_reduce_to_the_open_loop_cavity_at_zero_gain(self):
+        """Closing the loop with no gain adds nothing to the cavity model.
+
+        With both gains zero each law commands the bias at every sample,
+        so the closed-loop scans must reproduce the open-loop cavity driven
+        by that bias bit for bit -- the check that the shared cavity model
+        is what both of them propagate.
+        """
+        from blond.physics.feedbacks.control_law_kernels import (
+            envelope_p_scan,
+            envelope_pi_scan,
+        )
+        from blond.physics.feedbacks.envelope_kernel import (
+            envelope_open_loop_scan,
+        )
+
+        span = self._span()
+        n = self.N_CELLS
+        voltage_gen_init = 3.0e7 + 1.0e6j
+        voltage_beam_init = -2.0e5 + 4.0e5j
+
+        def outputs():
+            return (
+                np.empty(n, dtype=np.complex128),
+                np.empty(n, dtype=np.complex128),
+                np.empty(n, dtype=np.complex128),
+                np.full(n, BIAS, dtype=np.complex128),
+            )
+
+        open_gen, open_beam, open_sum, open_current = outputs()
+        envelope_open_loop_scan(
+            span["voltage_multiplier"],
+            span["drive_weight"],
+            span["omega_times_dt"],
+            span["beam_current"],
+            open_gen,
+            open_beam,
+            open_sum,
+            open_current,
+            voltage_gen_init,
+            voltage_beam_init,
+            BIAS,
+            R_OVER_Q,
+            span["generator_frame_rotation"],
+            span["beam_step_rotation"],
+        )
+
+        def closed(scan, law_state):
+            gen, beam, total, current = outputs()
+            scan(
+                span["voltage_multiplier"],
+                span["drive_weight"],
+                span["omega_times_dt"],
+                span["beam_current"],
+                gen,
+                beam,
+                total,
+                current,
+                voltage_gen_init,
+                voltage_beam_init,
+                BIAS,
+                R_OVER_Q,
+                span["generator_frame_rotation"],
+                span["kick_frame_rotation"],
+                span["error_frame_rotation"],
+                span["beam_step_rotation"],
+                3,
+                1,
+                3.0e7 + 0.0j,
+                np.zeros(n, dtype=np.complex128),
+                OMEGA_RF,
+                *law_state,
+            )
+            return gen, beam, total, current
+
+        pi = closed(
+            envelope_pi_scan,
+            (
+                0.0,
+                0.0,
+                BIAS,
+                np.zeros(2, dtype=np.complex128),
+                0,
+                0.0 + 0.0j,
+                np.inf,
+            ),
+        )
+        p = closed(
+            envelope_p_scan,
+            (0.0, BIAS, np.zeros(2, dtype=np.complex128), 0, np.inf),
+        )
+        reference = (open_gen, open_beam, open_sum, open_current)
+        for law, result in (("PI", pi), ("P", p)):
+            for name, got, expected in zip(
+                ("V_gen", "V_beam", "V", "I"), result, reference
+            ):
+                with self.subTest(law=law, grid=name):
+                    self.assertTrue(np.array_equal(got, expected))
 
 
 if __name__ == "__main__":

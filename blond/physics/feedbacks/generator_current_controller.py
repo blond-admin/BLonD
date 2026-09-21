@@ -7,13 +7,21 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Standalone PI controller for the generator current of a cavity feedback.
+Standalone generator-current controllers for a cavity feedback.
 
-The controller is the pure signal-processing part of the feedback loop: it
+A controller is the pure signal-processing part of the feedback loop: it
 maps a (complex, IQ) antenna-voltage error to a generator-current command,
 independent of any cavity, profile or RF station. This makes it directly
 testable with plain numbers and stubs, and lets a cavity feedback delegate
 the error-to-current conversion instead of implementing it inline.
+
+Two control laws implement the interface, and they share nothing but it:
+:class:`GeneratorCurrentPIController` (proportional-integral, with
+conditional anti-windup) and :class:`GeneratorCurrentPController`
+(proportional only). Each carries its own tuning and state and names its
+own compiled closed-loop scan in
+:mod:`~blond.physics.feedbacks.control_law_kernels`; the cavity model in
+:mod:`~blond.physics.feedbacks.envelope_kernel` knows neither.
 """
 
 from __future__ import annotations
@@ -318,7 +326,7 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         #
         # Invariant: ``_delay_buffer[_delay_head]`` is the slot written
         # next and currently holds the oldest error -- exactly the
-        # convention ``envelope_pi_scan`` uses, so the two representations
+        # convention ``control_law_kernels.delay_line_push`` uses, so the two representations
         # need no translation.
         self._delay_buffer: NumpyArray = np.zeros(
             self._n_delay + 1, dtype=np.complex128
@@ -383,12 +391,14 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         Returns
         -------
         kernel
-            :func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`,
+            :func:`~blond.physics.feedbacks.control_law_kernels.envelope_pi_scan`,
             which reproduces :meth:`update_generator_current` byte-for-byte.
         """
         # Imported lazily: this keeps importing a controller free of numba,
         # which only the compiled path needs.
-        from blond.physics.feedbacks.envelope_kernel import envelope_pi_scan
+        from blond.physics.feedbacks.control_law_kernels import (
+            envelope_pi_scan,
+        )
 
         return envelope_pi_scan
 
@@ -502,3 +512,201 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             The input with ``|I_gen| <= max_output`` (unchanged if no limit).
         """
         return clamp_magnitude(generator_current, self.max_output)
+
+
+class GeneratorCurrentPController(GeneratorCurrentController):
+    r"""
+    Saturating proportional controller mapping a voltage error to a current.
+
+    The second control law beside :class:`GeneratorCurrentPIController`,
+    and deliberately not derived from it: it has no integral, so no
+    anti-windup and no running state beyond the loop's delay line. Each
+    :meth:`update_generator_current` returns
+
+    .. math::
+        I_\mathsf{gen} = \mathrm{clamp}\big(I_0 + K_p\,e_\mathsf{d}\big)
+
+    with :math:`e_\mathsf{d}` the error delayed by ``n_delay`` samples,
+    :math:`I_0` the generator-current bias and the clamp the klystron
+    current limit.
+
+    Why a proportional law suits a cavity loop: over the loop's own
+    timescale the cavity integrates the generator current (its
+    half-bandwidth time is hundreds of loop delays), so the loop is
+    already of type one and tracks a constant setpoint without an
+    integrator in the controller. What it gives up is the rejection of a
+    constant *drive* disturbance -- a bias error, a detuning mismatch --
+    which leaves a static error of the disturbance's open-loop response
+    divided by ``1 + K_p Z``, ``Z`` the cavity's static impedance. What it
+    gains is about 15 % more gain for the same stability margin (the
+    boundary of ``gain * delay`` is ``pi / 2`` against 1.37 for a PI with
+    the integral time at four delays), and no integrator to wind up while
+    the klystron is saturated.
+
+    Parameters
+    ----------
+    gain_proportional
+        Proportional gain :math:`K_p` [A/V].
+    generator_current_bias
+        Generator current bias :math:`I_0` [A] the correction is added to.
+    n_delay
+        Loop delay in samples, fixed at construction; the error acted on
+        is the one from ``n_delay`` updates ago. Default 0.
+    max_output
+        Maximum generator-current magnitude [A] (klystron limit). If None,
+        the output is not limited.
+
+    Raises
+    ------
+    ValueError
+        If ``n_delay`` is negative.
+    """
+
+    #: The P law has a compiled counterpart (see :meth:`envelope_scan_kernel`).
+    supports_envelope_scan: bool = True
+
+    def __init__(
+        self,
+        gain_proportional: float,
+        generator_current_bias: complex,
+        n_delay: int = 0,
+        max_output: float | None = None,
+    ):
+        if n_delay < 0:
+            raise ValueError(f"n_delay={n_delay} must be >= 0")
+        self.gain_proportional = gain_proportional
+        self.generator_current_bias = generator_current_bias
+        self._n_delay = int(n_delay)
+        self.max_output = max_output
+        # Circular buffer: ``_delay_buffer[_delay_head]`` is the slot written
+        # next and holds the oldest error -- the convention of
+        # ``control_law_kernels.delay_line_push``, so the compiled scan
+        # takes and returns it without translation.
+        self._delay_buffer: NumpyArray = np.zeros(
+            self._n_delay + 1, dtype=np.complex128
+        )
+        self._delay_head: int = 0
+
+    @property
+    def n_delay(self) -> int:
+        """
+        Loop delay in controller samples, fixed at construction.
+
+        Returns
+        -------
+        n_delay
+            The loop delay this controller was built with [samples].
+        """
+        return self._n_delay
+
+    @property
+    def _delay_line(self) -> collections.deque[complex]:
+        """
+        The delay line as a deque, oldest error first.
+
+        Returns
+        -------
+        delay_line
+            The ``n_delay + 1`` most recent errors [V], oldest first.
+        """
+        return collections.deque(
+            (
+                complex(value)
+                for value in np.roll(self._delay_buffer, -self._delay_head)
+            ),
+            maxlen=self._n_delay + 1,
+        )
+
+    def update_generator_current(
+        self, error: complex, delta_t: float
+    ) -> complex:
+        """
+        Advance the controller by one sample and return the current command.
+
+        Parameters
+        ----------
+        error
+            Antenna-voltage error of this sample, ``V_set - V_ant`` [V].
+        delta_t
+            Time step of this sample [s]; unused, since a proportional law
+            has no time constant of its own.
+
+        Returns
+        -------
+        generator_current
+            The (clamped) generator-current command for this sample [A].
+        """
+        self._delay_buffer[self._delay_head] = error
+        self._delay_head = (self._delay_head + 1) % self._delay_buffer.size
+        delayed_error = complex(self._delay_buffer[self._delay_head])
+        output = self.generator_current_bias + (
+            self.gain_proportional * delayed_error
+        )
+        return clamp_magnitude(output, self.max_output)
+
+    def limit(
+        self, generator_current: complex | NumpyArray
+    ) -> complex | NumpyArray:
+        """
+        Clamp a generator current to this controller's klystron limit.
+
+        Parameters
+        ----------
+        generator_current
+            Generator current [A], scalar or array.
+
+        Returns
+        -------
+        limited
+            The input with ``|I_gen| <= max_output`` (unchanged if no limit).
+        """
+        return clamp_magnitude(generator_current, self.max_output)
+
+    def envelope_scan_kernel(self) -> Callable:
+        """
+        Compiled counterpart of this proportional law.
+
+        Returns
+        -------
+        kernel
+            :func:`~blond.physics.feedbacks.control_law_kernels.envelope_p_scan`.
+        """
+        from blond.physics.feedbacks.control_law_kernels import (
+            envelope_p_scan,
+        )
+
+        return envelope_p_scan
+
+    def envelope_scan_state(self) -> tuple:
+        """
+        Gain, bias, delay line and limit, in the kernel's argument order.
+
+        The buffer is copied: the kernel advances it in place, and only
+        :meth:`absorb_envelope_scan_state` commits the result.
+
+        Returns
+        -------
+        state
+            ``(gain_proportional, generator_current_bias, delay_buffer,
+            delay_head, max_output)``.
+        """
+        return (
+            float(self.gain_proportional),
+            complex(self.generator_current_bias),
+            self._delay_buffer.copy(),
+            self._delay_head,
+            np.inf if self.max_output is None else float(self.max_output),
+        )
+
+    def absorb_envelope_scan_state(self, state: tuple) -> None:
+        """
+        Take back the delay line the compiled scan advanced.
+
+        Parameters
+        ----------
+        state
+            ``(delay_buffer, delay_head)`` as returned by the kernel.
+        """
+        delay_buffer, delay_head = state
+        self._delay_buffer = delay_buffer
+        self._delay_head = int(delay_head)

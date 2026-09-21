@@ -2050,6 +2050,30 @@ and its gate are what is asserted.
     legitimately walks.
 
 
+``test_generator_current_p_controller.py``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Unit tests for ``GeneratorCurrentPController``, the proportional law,
+driven with plain numbers.
+
+``TestProportionalLaw``
+    It is a controller and not a PI (no subclass, no integral attribute);
+    the output is exactly ``I_0 + K_p e``; a constant error gives a
+    constant output (no integrator); the sample time does not enter; the
+    delay counts samples; no state outlives the delay line; and the
+    circular buffer matches a deque reference bit for bit, limited and
+    unlimited, for delays up to 137.
+``TestProportionalClamp``
+    The clamp bounds the magnitude and keeps the phase, on scalars and
+    arrays; no limit is a no-op.
+``TestProportionalConstruction``
+    A negative delay raises ``ValueError``; ``n_delay`` is read-only.
+``TestProportionalScanHandoff``
+    It names ``envelope_p_scan``, not the PI's; its scan state carries no
+    integral; an unlimited controller hands the kernel ``inf``; the state
+    round-trips losslessly and the buffer is handed out as a copy.
+
+
 ``test_envelope_kernel.py``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -2229,6 +2253,38 @@ non-PI implementation with no compiled scan, over one 32-cell forward segment.
 ``test_non_pi_controller_matches_the_python_path``
     A controller without a compiled scan still reproduces the pure-Python
     reference exactly (``np.array_equal`` on both coarse grids).
+
+``TestProportionalControllerKernel``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The P controller's own compiled scan against its reference path, over one
+48-cell forward segment with beam and a three-sample delay.
+
+``test_kernel_matches_the_reference_path``
+    Byte-identical over update intervals 1 and 4, with and without
+    detuning, while the clamp is idle; to ``SATURATED_RTOL`` with a limit
+    tight enough that the clamp fires (checked non-vacuously), numba's and
+    numpy's complex ``abs`` differing by an ULP there. The delay line
+    handed back agrees too.
+``test_runs_on_the_compiled_path``
+    It supplies its own scan, so no span falls back to Python.
+
+``TestCavityModelCarriesNoControlLaw``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The layering: ``envelope_kernel`` is the cavity, ``control_law_kernels``
+closes the loop around it.
+
+``test_the_cavity_model_module_holds_no_closed_loop``
+    The cavity module offers ``propagate_envelope_cell`` and
+    ``envelope_open_loop_scan`` and no closed-loop scan.
+``test_the_cavity_model_takes_no_control_argument``
+    No parameter of either names a gain, integral, delay, setpoint or
+    output limit.
+``test_both_laws_reduce_to_the_open_loop_cavity_at_zero_gain``
+    With zero gains the PI and P scans command the bias throughout and
+    reproduce the open-loop cavity bit for bit: the check that both
+    propagate the one shared cavity model.
 
 
 ``test_station_readout_edge_cases.py``

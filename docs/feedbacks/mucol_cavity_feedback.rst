@@ -355,6 +355,18 @@ Classes at a glance
     It is pure signal processing -- no cavity, profile or station -- and is
     attached to the feedback via the ``controller`` argument.
 
+:class:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentPController`
+    The second control law, proportional only: the same delay line and
+    clamp, no integral, no anti-windup and no state beyond the delay line.
+    It is a separate class, not the PI with its integral switched off, and
+    names its own compiled scan. Over the loop's timescale the cavity
+    integrates the generator current, so the loop tracks a constant
+    setpoint without an integrator in the controller; what it gives up is
+    the rejection of a constant drive error, which settles at its
+    open-loop voltage error divided by ``1 + K_p Z`` (``Z`` the cavity's
+    static impedance). On a detuned cavity that residual lands mostly in
+    quadrature, as a phase offset.
+
 :mod:`blond.physics.feedbacks.rf_center_grid`
     The coarse-grid construction: ``RFCenterGridMixin``, the
     forward/backfill reference walks and per-turn segment generation of the
@@ -434,12 +446,25 @@ Classes at a glance
     2026-09-11 (see *Coarse-grid cavity update*).
 
 :mod:`blond.physics.feedbacks.envelope_kernel`
-    The compiled numba host kernel (``envelope_pi_scan``) the coarse
-    per-cell recursion runs on by default
-    (``use_numba_envelope_kernel``); it advances the two source-split
-    envelope components, composes their demodulation-frame sum and runs
-    the kick-frame PI per cell, taking the generator and kick frame
-    rotations as per-cell arrays. It is byte-identical to the
+    The cavity model, compiled, and nothing else: no gain, integral,
+    delay line or setpoint appears in it.
+    ``propagate_envelope_cell`` advances the two source-split envelope
+    components by one cell and composes their demodulation-frame sum;
+    ``envelope_open_loop_scan`` runs it over a span with no controller.
+
+:mod:`blond.physics.feedbacks.control_law_kernels`
+    What a digital LLRF adds around that cavity, in three layers kept
+    apart: the law-independent measurement (``regulation_error`` in the
+    kick frame, rotated into the actuator frame, and the delay line
+    ``delay_line_push``), one compiled function per control law
+    (``pi_law_step``, ``p_law_step``), and one closed-loop scan per law
+    (``envelope_pi_scan``, ``envelope_p_scan``) that steps the shared
+    cavity model cell by cell, samples every
+    ``controller_update_interval`` cells and holds the command in between.
+    The coarse per-cell recursion runs on these by default
+    (``use_numba_envelope_kernel``), a controller's scan fed its own state
+    and handed back whatever the scan returns, the feedback never looking
+    inside either. The scans are byte-identical to the
     pure-Python per-cell reference wherever the klystron clamp does not
     fire, and agrees with it to ``SATURATED_RTOL`` (1e-12) where it does:
     numba's complex ``abs`` and numpy's differ by one or two ULP, which

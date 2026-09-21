@@ -41,10 +41,7 @@ from blond.physics.feedbacks.cavity_solvers import (
     pretrack_fill_voltage,
     propagate_beam_free_voltage,
 )
-from blond.physics.feedbacks.envelope_kernel import (
-    envelope_pi_scan,
-    inactive_controller_scan_state,
-)
+from blond.physics.feedbacks.envelope_kernel import envelope_open_loop_scan
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
 )
@@ -1459,10 +1456,10 @@ class IQCavityFeedbackCoarseGrid(
         """
         Advance the coarse-grid recursion over ``[start_index, end_index)``.
 
-        Dispatches to the compiled numba kernel
-        (:func:`~blond.physics.feedbacks.envelope_kernel.envelope_pi_scan`)
-        when ``use_numba_envelope_kernel`` is set, otherwise to the pure-Python
-        per-cell reference. Both produce byte-identical coarse grids; the
+        Dispatches to the compiled path (:meth:`_circuit_track_cells_kernel`)
+        when ``use_numba_envelope_kernel`` is set and the controller, if any,
+        supplies a compiled scan, otherwise to the pure-Python per-cell
+        reference. Both produce byte-identical coarse grids; the
         kernel exists only to remove the per-cell interpreter overhead.
 
         Parameters
@@ -1662,11 +1659,17 @@ class IQCavityFeedbackCoarseGrid(
 
         Precomputes on the host the per-cell step sizes, the exact
         propagator's voltage multiplier / drive weight and the frame rotations
-        (all state-independent), marshals the
-        PI controller state into a circular buffer, and runs the sequential
-        recursion in a single :func:`~blond.physics.feedbacks.envelope_kernel.\
-envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
-        coincident points) fall back to :meth:`_circuit_track_cells_python`.
+        (all state-independent), and runs the sequential recursion in one
+        compiled call: with a controller attached, the controller's own
+        closed-loop scan (its law around the shared cavity model, see
+        :mod:`~blond.physics.feedbacks.control_law_kernels`), fed its own
+        state and handed back whatever the scan returns; without one, the
+        open-loop cavity model
+        (:func:`~blond.physics.feedbacks.envelope_kernel.envelope_open_loop_scan`).
+        This method never looks inside a controller's state, so any law
+        that supplies a compiled scan runs here unchanged. Degenerate
+        segments (a zero-length coarse step from coincident points) fall
+        back to :meth:`_circuit_track_cells_python`.
 
         Parameters
         ----------
@@ -1716,32 +1719,14 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
                 start_index - 1
             ]
 
-        controller_active = self._controller_active
-        # The controller owns its compiled law and marshals its own tuning and
-        # state; this class passes the result straight through without
-        # inspecting it. It runs on every tracked span, the no-beam backfill
-        # segments included (see ``cavity_response``); only when no
-        # controller is attached does the neutral state keep the generator
-        # current constant.
-        if controller_active:
-            envelope_scan = self._controller.envelope_scan_kernel()
-            controller_state = self._controller.envelope_scan_state()
-            voltage_setpoint = complex(self.pi_setpoint)
-        else:
-            envelope_scan = envelope_pi_scan
-            controller_state = inactive_controller_scan_state()
-            # No controller attached, so the error is never formed and the
-            # setpoint stays unevaluated (it may need the parent RF station).
-            voltage_setpoint = 0.0 + 0.0j
-
         voltage_gen_out = np.empty(n_cells, dtype=np.complex128)
         voltage_beam_out = np.empty(n_cells, dtype=np.complex128)
         voltage_out = np.empty(n_cells, dtype=np.complex128)
-        # Pre-fill with the current generator grid: the inactive (no-beam /
-        # constant-current) path reads it as each cell's drive current, matching
-        # cavity_response reading generator_current_coarse_grid[idx-1]; the
-        # active path overwrites every cell with its PI output. astype copies,
-        # so the kernel never mutates the grid before the write-back below.
+        # Pre-filled with the current generator grid: the open-loop scan
+        # reads it as each cell's drive, matching cavity_response reading
+        # generator_current_coarse_grid[idx-1]; a closed-loop scan overwrites
+        # every cell with its command. astype copies, so no scan mutates the
+        # grid before the write-back below.
         generator_current_out = self.generator_current_coarse_grid[
             start_index:end_index
         ].astype(np.complex128)
@@ -1750,34 +1735,62 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
         (
             generator_frame_rotations,
             kick_frame_rotations,
-            pi_error_frame_rotations,
+            error_frame_rotations,
             beam_step_rotations,
         ) = self._calculate_coarse_frame_rotations(start_index, end_index)
-        delay_buffer, delay_head, integral = envelope_scan(
-            voltage_multiplier,
-            drive_weight,
-            omega_times_dt,
-            beam_current,
-            voltage_gen_out,
-            voltage_beam_out,
-            voltage_out,
-            generator_current_out,
-            voltage_gen_init,
-            voltage_beam_init,
-            generator_current_init,
-            float(self.R_over_Q),
-            generator_frame_rotations,
-            kick_frame_rotations,
-            pi_error_frame_rotations,
-            beam_step_rotations,
-            controller_active,
-            self._controller_update_interval,
-            self._controller_update_phase,
-            voltage_setpoint,
-            self._kernel_setpoint_feedforward(start_index, end_index),
-            float(omega_input),
-            *controller_state,
-        )
+
+        if not self._controller_active:
+            # No controller: the cavity alone, driven by the grid as it
+            # stands. The setpoint stays unevaluated (it may need the
+            # parent RF station) and the generator grid is left untouched.
+            envelope_open_loop_scan(
+                voltage_multiplier,
+                drive_weight,
+                omega_times_dt,
+                beam_current,
+                voltage_gen_out,
+                voltage_beam_out,
+                voltage_out,
+                generator_current_out,
+                voltage_gen_init,
+                voltage_beam_init,
+                generator_current_init,
+                float(self.R_over_Q),
+                generator_frame_rotations,
+                beam_step_rotations,
+            )
+        else:
+            # The controller owns its compiled law and marshals its own
+            # tuning and state; this class passes the state straight
+            # through and hands the scan's result straight back, without
+            # knowing either layout. It runs on every tracked span, the
+            # no-beam backfill segments included (see ``cavity_response``).
+            closed_loop_scan = self._controller.envelope_scan_kernel()
+            controller_state_after = closed_loop_scan(
+                voltage_multiplier,
+                drive_weight,
+                omega_times_dt,
+                beam_current,
+                voltage_gen_out,
+                voltage_beam_out,
+                voltage_out,
+                generator_current_out,
+                voltage_gen_init,
+                voltage_beam_init,
+                generator_current_init,
+                float(self.R_over_Q),
+                generator_frame_rotations,
+                kick_frame_rotations,
+                error_frame_rotations,
+                beam_step_rotations,
+                self._controller_update_interval,
+                self._controller_update_phase,
+                complex(self.pi_setpoint),
+                self._kernel_setpoint_feedforward(start_index, end_index),
+                float(omega_input),
+                *self._controller.envelope_scan_state(),
+            )
+            self._controller.absorb_envelope_scan_state(controller_state_after)
 
         self.antenna_voltage_beam_coarse_grid[start_index:end_index] = (
             voltage_beam_out
@@ -1786,17 +1799,13 @@ envelope_pi_scan` call. Degenerate segments (a zero-length coarse step from
             voltage_gen_out
         )
         self.antenna_voltage_coarse_grid[start_index:end_index] = voltage_out
-        # Commit the generator grid. Active: the PI outputs. Inactive: the
-        # unchanged pre-filled values, i.e. a no-op vs the reference (which
-        # leaves the generator grid untouched on the constant-current/no-beam
-        # path). Only the controller's own state is synced when it actually ran.
+        # Commit the generator grid: the commands of a closed loop, or the
+        # pre-filled values unchanged on the open-loop path -- a no-op, as
+        # on the reference path, which leaves the grid alone without a
+        # controller.
         self.generator_current_coarse_grid[start_index:end_index] = (
             generator_current_out
         )
-        if controller_active:
-            self._controller.absorb_envelope_scan_state(
-                (delay_buffer, delay_head, integral)
-            )
 
     def _step_into_first_cell(
         self,
