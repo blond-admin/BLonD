@@ -61,9 +61,9 @@ extern "C" __global__ void
 kick_single_harmonic(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                      const real_t charge, const real_t voltage,
                      const real_t omega_RF, const real_t phi_RF,
-                     const int n_macroparticles, const real_t acc_kick) {
+                     const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     beam_dE[i] +=
         charge * voltage * sin(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
   }
