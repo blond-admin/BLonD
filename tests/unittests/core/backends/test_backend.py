@@ -1202,17 +1202,26 @@ class TestSpecials(BLonDTestCase):
             voltage = backend.array([1.0], dtype=backend.float)
             charge = backend.float(10)
             acceleration_kick = backend.float(0.5)
-            with self.assertRaisesRegex(
-                AssertionError, "kick_interpolated needs at least 2 bins"
-            ):
-                backend.specials.kick_interpolated(
-                    dt=dt,
-                    dE=dE,
-                    voltage=voltage,
-                    bin_centers=bin_centers,
-                    charge=charge,
-                    acceleration_kick=acceleration_kick,
-                )
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result = dE
+            if special == "cuda":
+                result = result.get()
+            np.testing.assert_array_equal(
+                np.asarray(result),
+                0.5,
+                err_msg=(
+                    "a single-bin profile has no width to interpolate "
+                    "across, so no particle receives an interpolated "
+                    f"voltage -- only `acceleration_kick`, {special=}"
+                ),
+            )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_applies_acceleration_kick_everywhere(
