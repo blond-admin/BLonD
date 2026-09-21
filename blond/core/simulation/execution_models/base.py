@@ -23,7 +23,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
-from blond import Simulation
+from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass

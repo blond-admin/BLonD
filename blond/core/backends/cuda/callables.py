@@ -21,6 +21,7 @@ import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
+from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -172,20 +173,16 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert dE.dtype == FLOAT
         assert flags.dtype == np.int32
 
-        assert isinstance(e_max, FLOAT)
-        assert isinstance(e_min, FLOAT)
-        assert isinstance(t_min, FLOAT)
-        assert isinstance(t_max, FLOAT)
-
         _loss_box(
             args=(
-                e_max,
-                e_min,
-                t_min,
-                t_max,
+                FLOAT(e_max),
+                FLOAT(e_min),
+                FLOAT(t_min),
+                FLOAT(t_max),
                 dt,
                 dE,
                 flags,
+                np.int32(BeamFlags.LOST.value),  # flag_lost
                 INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
@@ -546,6 +543,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(filling_pattern)),
                 filling_pattern,
                 bucket_index_to_memory_index,
+                acceleration_kick,
                 glob_vkick_factor,
             ),
             grid=grid_size,
@@ -969,6 +967,9 @@ class CudaSpecials(Specials):  # NOQA: D101
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),
         )
+        # `t_start` of the next call, set only after every pole thread has
+        # read the current one. Queued on the device, no host sync.
+        states[-1] = profile_dts[-1]
 
         @staticmethod
         def music_track(  # NOQA: D102 inherited from `Specials.music_track`

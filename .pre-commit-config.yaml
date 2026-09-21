@@ -57,6 +57,42 @@ repos:
         entry: python dev_tools/precommit_check_copyright.py
         language: system
 
+  # ruff's missing-docstring rules (D1xx) skip everything inside a
+  # `_private` folder or file. This reruns them as if the path had no
+  # underscores, so making a folder private does not lose the check.
+  # Same file scope as ruff's `lint.exclude`; keep the ruff pin in sync.
+  - repo: local
+    hooks:
+      - id: check-docstrings-in-private-paths
+        name: check docstrings in private folders and files
+        entry: python dev_tools/precommit_check_docstrings.py
+        language: python
+        additional_dependencies: ["ruff==0.15.15"]
+        types: [python]
+        files: ^blond/
+        exclude: ^blond/(experimental|examples)/
+
+  # `blond/__init__.py` is a one-way door: it re-exports the public API
+  # for users, and package code must not import back through it. Doing so
+  # makes the facade a cycle -- importing the package runs `__init__.py`,
+  # which imports the module, which asks `__init__.py` back for a name it
+  # may not have bound yet -- which in turn makes the order of the
+  # re-exports load-bearing for unrelated modules. Internal code imports
+  # from the module that defines the name.
+  - repo: local
+    hooks:
+      - id: no-facade-imports
+        name: internal code must not import from the blond facade
+        language: pygrep
+        # Matches `from blond import X` but not `from blond.x import X`,
+        # since the literal " import" must follow "blond" directly.
+        entry: '^\s*(from blond import|import blond\s*$)'
+        types: [python]
+        files: ^blond/
+        # `examples` is user-facing and should demonstrate the public
+        # API; `legacy` is BLonD 2, excluded by repo convention.
+        exclude: ^blond/(examples|legacy)/
+
   # Every class exported at BLonD toplevel needs a documentation category
   - repo: local
     hooks:

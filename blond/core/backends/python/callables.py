@@ -6,7 +6,19 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `PythonSpecials` and helper functions."""
+"""
+Holds `PythonSpecials` and helper functions.
+
+Precondition for every kernel in this module: coordinates are finite.
+The beam coordinates (`dt`, `dE`) and the profile coordinates
+(`bin_centers`, cut edges) must contain neither NaN nor +/-Inf. Nothing
+here checks for it. This backend is the readable reference
+implementation, so it holds the same contract as the compiled backends
+even where NumPy would merely give a silently wrong answer rather than
+the undefined behaviour of a C/CUDA index conversion. The caller must
+not produce non-finite coordinates. See `Specials` in
+`blond/core/backends/backend.py`.
+"""
 
 from __future__ import annotations
 
@@ -510,30 +522,51 @@ class PythonSpecials(Specials):
         ) + acceleration_kick
 
         if not sparse:
-            fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(
-                np.int32
-            )
+            # Range-check in floating point *before* casting to an
+            # integer index: a far-out particle scales past the integer
+            # range, where the cast is undefined (and warns).
+            fbin = np.floor((dt - bin_centers[0]) * inv_bin_width)
+            in_range = (fbin >= 0) & (fbin < n_slices - 1)
             for i in range(len(dt)):
-                if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
-                    dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+                if in_range[i]:
+                    bin_i = int(fbin[i])
+                    dE[i] += dt[i] * helper1[bin_i] + helper2[bin_i]
+                else:
+                    # Only the interpolated voltage is undefined outside
+                    # the window. `acceleration_kick` carries the
+                    # reference energy change, which applies to the whole
+                    # beam, so it must still be applied here (`helper2`
+                    # already folds it in for in-window particles).
+                    dE[i] += acceleration_kick
             return
 
         n_buckets = len(filling_pattern)
         inv_hist_dist = 1.0 / left_cut_distance
         bin_width = cut_width / bins_per_profile
         for i in range(len(dt)):
-            bucket_i = int(np.floor((dt[i] - first_left_cut) * inv_hist_dist))
-            if bucket_i < 0 or bucket_i >= n_buckets:
+            # Range-check before the conversion -- see the dense
+            # branch above.
+            bucket_real = np.floor((dt[i] - first_left_cut) * inv_hist_dist)
+            # A particle with no interpolated voltage still receives
+            # `acceleration_kick` (the reference energy change applies to
+            # the whole beam) -- in particular one sitting in an *unfilled*
+            # bucket, which is fully inside the turn.
+            if not (0 <= bucket_real < n_buckets):
+                dE[i] += acceleration_kick
                 continue
+            bucket_i = int(bucket_real)
             if not filling_pattern[bucket_i]:
+                dE[i] += acceleration_kick
                 continue
             cut_left = first_left_cut + bucket_i * left_cut_distance
             bucket_bin_center0 = cut_left + bin_width / 2.0
-            local_bin = int(
-                np.floor((dt[i] - bucket_bin_center0) * inv_bin_width)
+            local_bin_real = np.floor(
+                (dt[i] - bucket_bin_center0) * inv_bin_width
             )
-            if local_bin < 0 or local_bin >= bins_per_profile - 1:
+            if not (0 <= local_bin_real < bins_per_profile - 1):
+                dE[i] += acceleration_kick
                 continue
+            local_bin = int(local_bin_real)
             fbin = bucket_index_to_memory_index[bucket_i] + local_bin
             dE[i] += dt[i] * helper1[fbin] + helper2[fbin]
 

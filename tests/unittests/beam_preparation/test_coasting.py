@@ -9,10 +9,10 @@ from blond.core.beam import beams
 from blond.core.beam.particle_types import proton
 from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 
 
-class TestCoasting(unittest.TestCase):
+class TestCoasting(BLonDTestCase):
     def setUp(self):
         cycle = ConstantMagneticCycle(
             proton, 0.2, in_unit="bending field", bending_radius=8

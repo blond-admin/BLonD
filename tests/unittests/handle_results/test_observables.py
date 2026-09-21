@@ -44,6 +44,7 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
+from blond.testing.backend_testing import BLonDTestCase
 from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )
@@ -91,7 +92,7 @@ class ObservablesHelper(ObservablesOncePerTurnBase):
         pass
 
 
-class TestDenseArrayRecorder(unittest.TestCase):
+class TestDenseArrayRecorder(BLonDTestCase):
     def test___init__(self):
         DenseArrayRecorder(
             filepath=callers_relative_path("not_exists.txt", stacklevel=1),
@@ -118,7 +119,7 @@ class TestDenseArrayRecorder(unittest.TestCase):
             )
 
 
-class TestObservables(unittest.TestCase):
+class TestObservables(BLonDTestCase):
     def setUp(self) -> None:
         self.observables = ObservablesHelper(
             each_turn_i=1,
@@ -215,7 +216,7 @@ class TestObservables(unittest.TestCase):
             obs_helper.assert_lateinit()
 
 
-class TestBeamObservation(unittest.TestCase):
+class TestBeamObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
@@ -415,7 +416,7 @@ class TestBeamObservation(unittest.TestCase):
         plt.show()
 
 
-class TestBunchStatistics(unittest.TestCase):
+class TestBunchStatistics(BLonDTestCase):
     def setUp(self) -> None:
         self.beam = Beam(
             intensity=100,
@@ -517,7 +518,7 @@ class TestBunchStatistics(unittest.TestCase):
         )
 
 
-class TestRFStationPhaseObservation(unittest.TestCase):
+class TestRFStationPhaseObservation(BLonDTestCase):
     def setUp(self) -> None:
         rf_station = Mock(
             SingleHarmonicRFStation,
@@ -594,7 +595,7 @@ class TestRFStationPhaseObservation(unittest.TestCase):
         )
 
 
-class TestStaticProfileObservation(unittest.TestCase):
+class TestStaticProfileObservation(BLonDTestCase):
     def setUp(self) -> None:
         profile = Mock(StaticProfile)
         profile.n_bins = 12
@@ -676,7 +677,7 @@ class TestStaticProfileObservation(unittest.TestCase):
         plt.close(mesh.axes.figure)
 
 
-class TestWakeFieldObservation(unittest.TestCase):
+class TestWakeFieldObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.wakefield = Mock(WakeField)
         self.wakefield._profile = Mock(StaticProfile)
@@ -751,7 +752,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
 
 
-class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
+class TestDynamicProfileConstNBinsObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.profile = Mock(DynamicProfileConstNBins)
         self.profile.n_bins = 12
@@ -829,7 +830,7 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
         plt.close(mesh.axes.figure)
 
 
-class TestStaticMultiProfileObservation(unittest.TestCase):
+class TestStaticMultiProfileObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.profile = Mock(StaticProfile)
         self.profile.n_bins = 12
@@ -928,7 +929,7 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         )
 
 
-class TestSimulationObservation(unittest.TestCase):
+class TestSimulationObservation(BLonDTestCase):
     def setUp(self):
         self.obs = SimulationObservation(each_turn_i=2)
 
@@ -954,7 +955,7 @@ class TestSimulationObservation(unittest.TestCase):
         self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
 
 
-class TestDriftObservation(unittest.TestCase):
+class TestDriftObservation(BLonDTestCase):
     def setUp(self):
         drift = Mock(DriftSimple)
         drift._last_eta_0 = 222

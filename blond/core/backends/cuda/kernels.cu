@@ -6,6 +6,16 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
+// Precondition for every kernel in this file: coordinates are finite.
+// The beam coordinates (beam_dt, beam_dE) and the profile coordinates
+// (bin_centers, cut edges) must contain neither NaN nor +/-Inf. Nothing
+// here checks for it -- the check would not be free in a per-particle
+// loop. Note that the guards protecting the conversion of a bin index
+// to `int` are written as `index < lo || index >= hi`: a NaN index
+// compares false against both bounds, passes the guard and reaches the
+// conversion, which is undefined behaviour. The caller must not produce
+// non-finite coordinates. See `Specials` in blond/core/backends/backend.py.
+
 #ifdef USEFLOAT
 typedef float real_t;
 #else
@@ -183,17 +193,18 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   const int high_tbin = low_tbin + capacity;
 
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    if (input[i] == cut_right) {
-      target_bin = n_slices - 1;
-      if (target_bin >= low_tbin && target_bin < high_tbin)
-        atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
-      else
-        atomicAdd(&(output[target_bin]), 1);
+    // Range-check in floating point *before* the conversion:
+    // converting an out-of-range value to `int` is undefined
+    // behaviour.
+    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    // Scaling is not exact: a value at or just below cut_right can land
+    // on n_slices. Fold it back into the last bin, as np.histogram
+    // does, instead of dropping the particle.
+    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right)
+      target_bin_real = real_t(n_slices - 1);
+    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
       continue;
-    }
-    target_bin = floor((input[i] - cut_left) * inv_bin_width);
-    if (target_bin < 0 || target_bin >= n_slices)
-      continue;
+    target_bin = (int)target_bin_real;
     if (target_bin >= low_tbin && target_bin < high_tbin)
       atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
     else
@@ -216,16 +227,15 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   int target_bin;
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    target_bin = floor((input[i] - cut_left) * inv_bin_width);
-
-    if (input[i] == cut_right) {
-      target_bin = n_slices - 1;
-      atomicAdd(&(block_hist[target_bin]), 1);
+    // See `hybrid_histogram`: range-check before converting to `int`,
+    // and fold a value that scales onto n_slices back into the last
+    // bin instead of dropping it.
+    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
+    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right)
+      target_bin_real = real_t(n_slices - 1);
+    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
       continue;
-    }
-
-    if (target_bin < 0 || target_bin >= n_slices)
-      continue;
+    target_bin = (int)target_bin_real;
 
     atomicAdd(&(block_hist[target_bin]), 1);
   }
@@ -264,13 +274,20 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   real_t const inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
-  int fbin;
   const real_t bin0 = bin_centers[0];
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    fbin = floor((beam_dt[i] - bin0) * inv_bin_width);
-    if ((fbin < n_slices - 1) && (fbin >= 0))
+    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    const real_t fbin_real = floor((beam_dt[i] - bin0) * inv_bin_width);
+    if (fbin_real >= real_t(0) && fbin_real < real_t(n_slices - 1)) {
+      const int fbin = (int)fbin_real;
       beam_dE[i] += beam_dt[i] * glob_vkick_factor[2 * fbin] +
                     glob_vkick_factor[2 * fbin + 1];
+    } else {
+      // Out of range only the interpolated voltage is undefined; acc_kick
+      // carries the reference energy change and applies to the whole beam
+      // (glob_vkick_factor already folds it in for in-range particles).
+      beam_dE[i] += acc_kick;
+    }
   }
 }
 
@@ -306,6 +323,7 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                    const int bins_per_profile, const int n_buckets,
                    const bool *__restrict__ filling_pattern,
                    const int *__restrict__ bucket_index_to_memory_index,
+                   const real_t acc_kick,
                    real_t *__restrict__ glob_vkick_factor) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
@@ -314,17 +332,31 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
 
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = beam_dt[i];
-    const int bucket_i = (int)floor((dt - first_left_cut) * inv_hist_dist);
-    if (bucket_i < 0 || bucket_i >= n_buckets)
+    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    const real_t bucket_real = floor((dt - first_left_cut) * inv_hist_dist);
+    // A particle that gets no interpolated voltage still receives
+    // acc_kick -- notably one in an *unfilled* bucket, which is fully
+    // inside the turn.
+    if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets)) {
+      beam_dE[i] += acc_kick;
       continue;
-    if (!filling_pattern[bucket_i])
+    }
+    const int bucket_i = (int)bucket_real;
+    if (!filling_pattern[bucket_i]) {
+      beam_dE[i] += acc_kick;
       continue;
+    }
 
     const real_t cut_left = first_left_cut + bucket_i * left_cut_distance;
     const real_t bucket_bin_center0 = cut_left + bin_width / real_t(2);
-    const int local_bin = (int)floor((dt - bucket_bin_center0) * inv_bin_width);
-    if (local_bin < 0 || local_bin >= bins_per_profile - 1)
+    const real_t local_bin_real =
+        floor((dt - bucket_bin_center0) * inv_bin_width);
+    if (local_bin_real < real_t(0) ||
+        local_bin_real >= real_t(bins_per_profile - 1)) {
+      beam_dE[i] += acc_kick;
       continue;
+    }
+    const int local_bin = (int)local_bin_real;
 
     const int fbin = bucket_index_to_memory_index[bucket_i] + local_bin;
     beam_dE[i] +=
@@ -332,17 +364,20 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   }
 }
 
+// `flag_lost` is `BeamFlags.LOST` (blond/core/beam/flags.py), passed in by
+// the Python wrapper so the enum stays the single source of truth.
 extern "C" __global__ void loss_box(const real_t e_max, const real_t e_min,
                                     const real_t t_min, const real_t t_max,
                                     const real_t *dt, const real_t *dE,
                                     int *__restrict__ flags,
+                                    const int flag_lost,
                                     const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   for (index_t i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
     const bool outside = (dE[i] > e_max) || (dE[i] < e_min) ||
                          (dt[i] < t_min) || (dt[i] > t_max);
     if (outside) {
-      flags[i] = -500; // assume (BeamFlags.LOST.value)
+      flags[i] = flag_lost;
     }
   }
 }
@@ -454,9 +489,11 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = input[i];
 
-    const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
-    if (bucket_i >= n_buckets || bucket_i < 0)
+    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
+    if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
       continue;
+    const int bucket_i = (int)bucket_real;
     if (!filling_pattern[bucket_i]) {
       continue;
     }
@@ -589,13 +626,9 @@ extern "C" __global__ void wake_from_pole_residue(
     state_re += half_step;
   }
 
-  // Persist state for the next call.
+  // Persist state for the next call. `t_start` for the next call is
+  // written by the caller after the launch: writing it here would race
+  // with pole threads that have not yet read it.
   states[pole_n] = state_re;
   states[pole_n + 1] = state_im;
-
-  // Only one thread writes t_start for the next call.
-  if (pole_i == 0) {
-    states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-    states[2 * n_poles + 1] = real_t(0);
-  }
 }

@@ -3,9 +3,10 @@ import unittest
 import numpy as np
 
 from blond import Beam, make_multibunch_beam, uranium_29
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_make_multibunch_beam_fails(self):
         beam = Beam(
             intensity=1, particle_type=uranium_29, is_counter_rotating=False
@@ -30,17 +31,19 @@ class TestCallables(unittest.TestCase):
             common_offset=111,
         )
 
+        # Particles are grouped bunch by bunch, so that neighbouring
+        # entries share a narrow ``dt`` range (cache-friendly histogramming)
         np.testing.assert_allclose(
             beam.dt.copy_as_numpy(),
             [
                 112.0,  # dt[0] + common_offset
+                113.0,  # dt[1] + common_offset
+                114.0,  # dt[2] + common_offset
                 334.0,  # dt[0] + common_offset + t_distance
-                556.0,  # dt[0] + common_offset + 2 * t_distance
-                113.0,
                 335.0,
-                557.0,
-                114.0,
                 336.0,
+                556.0,  # dt[0] + common_offset + 2 * t_distance
+                557.0,
                 558.0,
             ],
         )
@@ -48,13 +51,13 @@ class TestCallables(unittest.TestCase):
             beam.dE.copy_as_numpy(),
             [
                 1000.0,  # dE[0]
-                1000.0,  # dE[0]
-                1000.0,  # dE[0]
-                2000.0,
-                2000.0,
+                2000.0,  # dE[1]
+                3000.0,  # dE[2]
+                1000.0,
                 2000.0,
                 3000.0,
-                3000.0,
+                1000.0,
+                2000.0,
                 3000.0,
             ],
         )

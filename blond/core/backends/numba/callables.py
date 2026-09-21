@@ -6,7 +6,20 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `NumbaSpecials` and helper functions."""
+"""Holds `NumbaSpecials` and helper functions.
+
+Precondition for every kernel in this module: coordinates are finite.
+The beam coordinates (`dt`, `dE`) and the profile coordinates
+(`bin_centers`, cut edges) must contain neither NaN nor +/-Inf. Nothing
+here checks for it -- the check would not be free in a per-particle
+loop, and the kernels are compiled with ``fastmath=True``, which already
+licenses the compiler to assume no non-finite values. Note that the
+guards protecting the conversion of a bin index to `int` are written as
+``index < lo or index >= hi``: a NaN index compares False against both
+bounds, passes the guard and reaches the conversion. The caller must not
+produce non-finite coordinates. See `Specials` in
+`blond/core/backends/backend.py`.
+"""
 # pragma: no cover
 
 from __future__ import annotations
@@ -262,6 +275,11 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
         # raise `ZeroDivisionError` (unlike the float division the
         # python/cpp backends perform, which quietly yields `nan` and
         # skips every particle via the range check).
+        # `acceleration_kick` is not an interpolated quantity -- it carries
+        # the reference energy change and applies to the whole beam, so it
+        # is still delivered to every particle here.
+        for i in prange(len(dE)):
+            dE[i] += acceleration_kick
         return
     dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
     inv_dx = 1 / dx
@@ -270,7 +288,13 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
     for i in prange(len(dE)):
         x = dt[i]
 
+        # Range-check the coordinate before `int()` turns it into an
+        # index: a far-out particle scales past the integer range, where
+        # the conversion is undefined and would index out of bounds.
         if x < x_min or x >= x_max:
+            # Only the interpolated voltage is undefined out of range;
+            # the reference energy change still applies.
+            dE[i] += acceleration_kick
             continue
         else:
             idx = int((x - x_min) * inv_dx)
@@ -308,16 +332,26 @@ def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     bin_width = cut_width / bins_per_profile
     for i in prange(len(dE)):
         x = dt[i]
-        bucket_i = int(np.floor((x - first_left_cut) * inv_hist_dist))
-        if bucket_i < 0 or bucket_i >= n_buckets:
+        # Range-check in floating point *before* the conversion -- see
+        # `_kick_interpolated_dense_nb`.
+        bucket_real = np.floor((x - first_left_cut) * inv_hist_dist)
+        # A particle with no interpolated voltage still receives
+        # `acceleration_kick` -- in particular one in an *unfilled* bucket,
+        # which is fully inside the turn.
+        if bucket_real < 0.0 or bucket_real >= n_buckets:
+            dE[i] += acceleration_kick
             continue
+        bucket_i = int(bucket_real)
         if not filling_pattern[bucket_i]:
+            dE[i] += acceleration_kick
             continue
         cut_left = first_left_cut + bucket_i * left_cut_distance
         bucket_bin_center0 = cut_left + bin_width / 2.0
-        local_bin = int(np.floor((x - bucket_bin_center0) * inv_bin_width))
-        if local_bin < 0 or local_bin >= bins_per_profile - 1:
+        local_bin_real = np.floor((x - bucket_bin_center0) * inv_bin_width)
+        if local_bin_real < 0.0 or local_bin_real >= bins_per_profile - 1:
+            dE[i] += acceleration_kick
             continue
+        local_bin = int(local_bin_real)
         idx = bucket_index_to_memory_index[bucket_i] + local_bin
         v = voltage[idx] + (
             voltage[idx + 1] - voltage[idx]
@@ -448,11 +482,16 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         array_write[:] = 0
         for i in prange(len(array_read)):
             curr_thread = numba.get_thread_id()
-            if array_read[i] == stop:
-                array_tmp[curr_thread, -1] += 1
-                continue
             idx = (array_read[i] - start) * inv_bin_step
-            if idx < 0 or idx >= n_bins:
+            # Scaling is not exact: a value at or just below `stop` can
+            # land on `n_bins`. Fold it back into the last bin, as
+            # `np.histogram` does, instead of dropping the particle.
+            if idx >= n_bins and array_read[i] <= stop:
+                idx = n_bins - 1
+            # Range-check before `int()` turns the index into an
+            # integer: a far-out particle scales past the integer range,
+            # where the conversion is undefined.
+            if idx < 0.0 or idx >= n_bins:
                 continue
             else:
                 array_tmp[curr_thread, int(idx)] += 1
@@ -789,10 +828,12 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
             xi = x[i]
 
-            bucket_i = int((xi - first_left_cut) * ive_profile_dist)
-
-            if bucket_i < 0 or bucket_i >= n_buckets:
+            # Range-check in floating point *before* the conversion --
+            # see `histogram`.
+            bucket_real = (xi - first_left_cut) * ive_profile_dist
+            if bucket_real < 0.0 or bucket_real >= n_buckets:
                 continue
+            bucket_i = int(bucket_real)
             if not filling_pattern[bucket_i]:
                 continue
 
@@ -814,10 +855,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             if xi < start_loc or xi >= stop_loc:
                 continue
 
-            idx = int((xi - start_loc) * inv_bin_step)
-            if idx < 0 or idx >= bins_per_profile:
+            idx_real = (xi - start_loc) * inv_bin_step
+            if idx_real < 0.0 or idx_real >= bins_per_profile:
                 continue
             else:
+                idx = int(idx_real)
                 write_idx = int(bucket_index_to_memory_index[bucket_i] + idx)
                 array_tmp[thread_i, write_idx] += 1
 

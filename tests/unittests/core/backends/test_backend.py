@@ -19,8 +19,10 @@ from blond.core.backends.backend import (
     backend,
 )
 from blond.core.backends.cpp.callables import check_index_abi
+from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
+    BLonDTestCase,
     multi_backend_testcase,
     skip_if_no_cupy,
 )
@@ -48,7 +50,7 @@ backend_org = backend.__class__
 backend_specials_mode_org = backend.specials_mode
 
 
-class TestBackendBaseClass(unittest.TestCase):
+class TestBackendBaseClass(BLonDTestCase):
     @classmethod
     def tearDownClass(cls):
         backend.change_backend(backend_org)
@@ -250,6 +252,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
         env.pop(key, None)
     return subprocess.run(
         [sys.executable, "-c", code],
+        check=False,
         capture_output=True,
         text=True,
         env=env,
@@ -257,7 +260,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     )
 
 
-class TestImportSideEffects(unittest.TestCase):
+class TestImportSideEffects(BLonDTestCase):
     """Importing the backend must not print, probe, or compile anything."""
 
     def test_import_has_no_stdout_side_effects(self):
@@ -297,7 +300,7 @@ class TestImportSideEffects(unittest.TestCase):
         )
 
 
-class TestCupy64Bit(unittest.TestCase):
+class TestCupy64Bit(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
@@ -305,7 +308,7 @@ class TestCupy64Bit(unittest.TestCase):
         self.cupy64_bit = Cupy64Bit()
 
 
-class TestCupyBackend(unittest.TestCase):
+class TestCupyBackend(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test___init__(self) -> None:
         if not cupy_available:
@@ -334,7 +337,7 @@ class TestCupyBackend(unittest.TestCase):
             self.cupy_backend.set_specials("doesnt exist")
 
 
-class TestNumpy64Bit(unittest.TestCase):
+class TestNumpy64Bit(BLonDTestCase):
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
@@ -343,7 +346,7 @@ class TestNumpy64Bit(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
 
-class TestNumpyBackend(unittest.TestCase):
+class TestNumpyBackend(BLonDTestCase):
     def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
             float_=np.float64,
@@ -382,7 +385,7 @@ class TestNumpyBackend(unittest.TestCase):
             self.numpy_backend.set_specials("doesnt exist")
 
 
-class TestSpecials(unittest.TestCase):
+class TestSpecials(BLonDTestCase):
     def setUp(self) -> None:
         self.n_voltages = 3
         self.special_modes = [
@@ -1037,7 +1040,7 @@ class TestSpecials(unittest.TestCase):
             bin_centers = dt.copy()
             voltage = bin_centers**2
             charge = float(10)
-            acceleration_kick = float(0.5)
+            acceleration_kick = 0.5
             backend.specials.kick_interpolated(
                 dt=dt,
                 dE=dE,
@@ -1061,17 +1064,38 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_far_outside_window(self) -> None:
-        """Particles far outside the window must not receive any kick.
+        """Particles far outside the window receive no *interpolated
+        voltage* -- only the bare ``acceleration_kick``.
 
         The C++ kernel converted ``floor(...)`` of the bin index to
         ``unsigned``, which is undefined behaviour for negative values: on
         x86 it happens to produce a huge value that is skipped, but e.g. on
         ARM the conversion saturates to 0 and such particles would wrongly
-        receive the kick of bin 0.
+        receive the kick of bin 0. The range check must therefore happen
+        in floating point, before the conversion to an integer bin index.
+
+        ``dt`` is assumed finite -- the kernels are compiled with
+        ``-ffast-math``/``fastmath=True``, which lets the compiler assume
+        no operand is NaN or infinite -- so only finite outliers are
+        covered here.
+
+        ``acceleration_kick`` is excluded from that reasoning: it carries
+        the reference energy change and applies to the whole beam, so it is
+        the expected result here rather than zero (see
+        ``test_kick_interpolated_applies_acceleration_kick_everywhere``).
         """
         dtype = np.float64
         dt_np = np.array(
-            [-1e30, -1e12, -4.5, 0.0, 4.5, 1e12, 1e30], dtype=dtype
+            [
+                -1e30,
+                -1e12,
+                -4.5,
+                0.0,
+                4.5,
+                1e12,
+                1e30,
+            ],
+            dtype=dtype,
         )
         in_range = np.zeros_like(dt_np, dtype=bool)
         in_range[3] = True  # only dt = 0.0 is inside bin_centers [-4, 4]
@@ -1099,10 +1123,10 @@ class TestSpecials(unittest.TestCase):
             result = np.asarray(result)
             np.testing.assert_array_equal(
                 result[~in_range],
-                0.0,
+                0.5,
                 err_msg=(
-                    f"out-of-window particles must not be kicked, "
-                    f"{special=} {dtype=}"
+                    f"out-of-window particles must receive only the bare "
+                    f"`acceleration_kick`, {special=} {dtype=}"
                 ),
             )
             self.assertNotEqual(
@@ -1124,7 +1148,8 @@ class TestSpecials(unittest.TestCase):
     def test_kick_interpolated_rejects_non_uniform_bin_centers(self) -> None:
         """Non-uniform bin_centers (e.g. a sparse multi-island hist_x from
         EquidistantMultiProfile) must raise, not silently compute the wrong
-        physics by assuming a global uniform grid."""
+        physics by assuming a global uniform grid.
+        """
         dtype = np.float64
         for special in self.special_modes:
             try:
@@ -1162,7 +1187,8 @@ class TestSpecials(unittest.TestCase):
         """A single-bin `bin_centers` cannot expose non-uniform spacing
         (`np.diff` on it is empty), so the uniformity guard must not even
         attempt the check -- and must not kick any particle, since there is
-        no bin width to interpolate across."""
+        no bin width to interpolate across.
+        """
         dtype = np.float64
         for special in self.special_modes:
             try:
@@ -1189,10 +1215,149 @@ class TestSpecials(unittest.TestCase):
                 result = result.get()
             np.testing.assert_array_equal(
                 np.asarray(result),
-                0.0,
+                0.5,
                 err_msg=(
                     "a single-bin profile has no width to interpolate "
-                    f"across, so no particle should be kicked, {special=}"
+                    "across, so no particle receives an interpolated "
+                    f"voltage -- only `acceleration_kick`, {special=}"
+                ),
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_applies_acceleration_kick_everywhere(
+        self,
+    ) -> None:
+        """`acceleration_kick` must reach every particle, in or out of the
+        profile window -- only the interpolated *voltage* is withheld.
+
+        It carries the reference energy change, which applies globally to
+        the whole beam, so it cannot depend on where a particle happens to
+        sit relative to the slicing window.  `kick_single_harmonic` and
+        `kick_multi_harmonic` already apply it unconditionally, and
+        `rf_station` hands the very same `-reference_energy_change` to all
+        three kernels (`rf_station.py:939` vs `:1385`/`:1963`), choosing
+        between them only on whether a cavity feedback is attached.  If the
+        interpolated path drops it, enabling a feedback silently changes the
+        physics: on a ramp, every particle outside the window loses the full
+        per-turn energy gain and runs away in `dE`.  The sparse kernel makes
+        this sharper still -- a particle in an *unfilled* bucket is fully
+        inside the turn, yet is skipped.
+
+        Zeroing the voltage isolates the acceleration kick: the
+        interpolation term vanishes for in-window particles too, so *every*
+        particle must come out with exactly `acceleration_kick`, whatever
+        bucket it does or does not land in.
+        """
+        dtype = np.float64
+        acceleration_kick_np = 0.5
+
+        # --- dense: far outside, just outside, and inside the window ---
+        dt_dense_np = np.array(
+            [-1e30, -1e12, -4.5, 0.0, 4.5, 1e12, 1e30], dtype=dtype
+        )
+
+        # --- sparse: buckets 0 and 3 filled, 1 and 2 empty ---
+        bins_per_profile = 4
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        first_left_cut = 0.0
+        left_cut_distance = 1.0
+        cut_width = 1.0
+        bin_width = cut_width / bins_per_profile
+        bin_centers_sparse_np = np.concatenate(
+            [
+                first_left_cut
+                + b * left_cut_distance
+                + bin_width * (np.arange(bins_per_profile) + 0.5)
+                for b in (0, 3)
+            ]
+        )
+        dt_sparse_np = np.array(
+            [
+                bin_centers_sparse_np[1],  # filled bucket 0
+                1.5,  # unfilled bucket 1
+                2.5,  # unfilled bucket 2
+                bin_centers_sparse_np[5],  # filled bucket 3
+                -5.0,  # left of every bucket
+                99.0,  # right of every bucket
+            ],
+            dtype=dtype,
+        )
+
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            charge = backend.float(10)
+            acceleration_kick = backend.float(acceleration_kick_np)
+
+            # --- dense ---
+            dt = backend.array(dt_dense_np, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
+            voltage = backend.zeros_like(bin_centers, dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+            )
+            result_dense = dE
+            if special == "cuda":
+                result_dense = result_dense.get()
+            np.testing.assert_allclose(
+                np.asarray(result_dense),
+                np.full(len(dt_dense_np), acceleration_kick_np),
+                rtol=self.rtol,
+                err_msg=(
+                    "every particle must receive `acceleration_kick`, "
+                    f"including outside the window, {special=} {dtype=}"
+                ),
+            )
+
+            # --- sparse ---
+            dt_s = backend.array(dt_sparse_np, dtype=backend.float)
+            dE_s = backend.zeros_like(dt_s, dtype=backend.float)
+            bin_centers_s = backend.array(
+                bin_centers_sparse_np, dtype=backend.float
+            )
+            voltage_s = backend.zeros_like(bin_centers_s, dtype=backend.float)
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            backend.specials.kick_interpolated(
+                dt=dt_s,
+                dE=dE_s,
+                voltage=voltage_s,
+                bin_centers=bin_centers_s,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+                first_left_cut=first_left_cut,
+                left_cut_distance=left_cut_distance,
+                cut_width=cut_width,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result_sparse = dE_s
+            if special == "cuda":
+                result_sparse = result_sparse.get()
+            np.testing.assert_allclose(
+                np.asarray(result_sparse),
+                np.full(len(dt_sparse_np), acceleration_kick_np),
+                rtol=self.rtol,
+                err_msg=(
+                    "every particle must receive `acceleration_kick`, "
+                    "including in unfilled buckets and outside every "
+                    f"bucket, {special=} {dtype=}"
                 ),
             )
 
@@ -1200,7 +1365,8 @@ class TestSpecials(unittest.TestCase):
     def test_kick_interpolated_sparse(self) -> None:
         """A particle sitting exactly on the first bin of the *second*
         island must be kicked using that island's own voltage segment, not
-        misindexed into a neighboring island by a naive global floor()."""
+        misindexed into a neighboring island by a naive global floor().
+        """
         dtype = np.float64
         bins_per_profile = 4
         # bucket 0 and 3 filled, buckets 1 and 2 empty (a real gap)
@@ -1310,7 +1476,8 @@ class TestSpecials(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_kick_interpolated_sparse_skips_unfilled_bucket(self) -> None:
         """A particle whose dt falls into an unfilled bucket's time window
-        must receive no kick (mirrors histogram_sparse's `continue`)."""
+        must receive no kick (mirrors histogram_sparse's `continue`).
+        """
         dtype = np.float64
         bins_per_profile = 4
         filling_pattern_np = np.array([True, False, False, True])
@@ -1357,6 +1524,62 @@ class TestSpecials(unittest.TestCase):
                 result = result.get()
             np.testing.assert_allclose(
                 result, np.zeros(1), err_msg=f"Failed `{special}` {dtype}"
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_sparse_extreme_outliers(self) -> None:
+        """Extreme ``dt`` must receive no sparse kick.
+
+        Their bucket/bin indices are not representable as an ``int``, so
+        the range check must happen in floating point before the
+        conversion; otherwise the undefined conversion result decides
+        whether the particle is kicked.
+        """
+        dtype = np.float64
+        bins_per_profile = 4
+        filling_pattern_np = np.array([True, False, False, True])
+        bucket_index_to_memory_index_np = np.array(
+            [0, 0, 0, bins_per_profile], dtype=np.int32
+        )
+        dt_np = np.array([1e30, -1e30], dtype=dtype)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt = backend.array(dt_np, dtype=backend.float)
+            dE = backend.zeros_like(dt, dtype=backend.float)
+            voltage = backend.array(
+                np.array([1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+                dtype=backend.float,
+            )
+            filling_pattern = backend.array(filling_pattern_np, dtype=bool)
+            bucket_index_to_memory_index = backend.array(
+                bucket_index_to_memory_index_np, dtype=np.int32
+            )
+            bin_centers = backend.array(
+                np.arange(8) * 0.25, dtype=backend.float
+            )
+            backend.specials.kick_interpolated(
+                dt=dt,
+                dE=dE,
+                voltage=voltage,
+                bin_centers=bin_centers,
+                charge=backend.float(1.0),
+                acceleration_kick=backend.float(0.0),
+                first_left_cut=0.0,
+                left_cut_distance=1.0,
+                cut_width=1.0,
+                bins_per_profile=bins_per_profile,
+                filling_pattern=filling_pattern,
+                bucket_index_to_memory_index=bucket_index_to_memory_index,
+            )
+            result = copy_to_cpu(dE)
+            np.testing.assert_array_equal(
+                result,
+                np.zeros_like(dt_np),
+                err_msg=f"Failed `{special}` {dtype}",
             )
 
     @pytest.mark.backend_mutation
@@ -1502,18 +1725,35 @@ class TestSpecials(unittest.TestCase):
 
     @pytest.mark.backend_mutation
     def test_histogram_extreme_outliers(self) -> None:
-        """Histogram must ignore values of extreme magnitude.
+        """Histogram must ignore extreme values.
 
         Bin indices of such values overflow ``int``; the conversion is
-        undefined behaviour in C++ and must not be relied on. Also pins
-        the edge semantics: ``== start`` is counted in the first bin,
-        ``== stop`` in the last bin.
+        undefined behaviour in C/C++ and must not be relied on, so the
+        range check has to happen in floating point *before* the
+        conversion. Also pins the edge semantics: ``== start`` is
+        counted in the first bin, ``== stop`` in the last bin.
+
+        ``n_bins = 21`` exercises the CUDA shared-memory histogram; the
+        large ``n_bins`` exceeds the shared-memory budget and exercises
+        the hybrid kernel instead.
         """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_ignores_extreme_outliers(n_bins)
+
+    def _assert_histogram_ignores_extreme_outliers(self, n_bins: int) -> None:
         dtype = np.float64
         values_np = np.array(
-            [-1e30, -1e12, -12.0, 0.0, 8.0, 1e12, 1e30], dtype=dtype
+            [
+                -1e30,
+                -1e12,
+                -12.0,
+                0.0,
+                8.0,
+                1e12,
+                1e30,
+            ],
+            dtype=dtype,
         )
-        n_bins = 21
         expected = np.zeros(n_bins, dtype=dtype)
         expected[0] += 1  # -12.0 == start
         expected[int((0.0 - -12.0) / 20.0 * n_bins)] += 1  # 0.0
@@ -1538,6 +1778,53 @@ class TestSpecials(unittest.TestCase):
                 np.asarray(result),
                 expected,
                 err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_value_rounding_to_stop_edge(self) -> None:
+        """Values just below ``stop`` belong in the last bin.
+
+        The bin index ``(value - start) * n_bins / (stop - start)`` can
+        round up to exactly ``n_bins`` for a value that is strictly
+        smaller than ``stop``. Dropping it as out-of-range silently
+        loses edge particles and disagrees with ``np.histogram``, which
+        counts them in the last bin.
+        """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_counts_values_below_stop(n_bins)
+
+    def _assert_histogram_counts_values_below_stop(self, n_bins: int) -> None:
+        dtype = np.float64
+        start, stop = -12.0, 8.0
+        values_np = np.array(
+            [np.nextafter(stop, start), 7.999999999999999],
+            dtype=dtype,
+        )
+        # Guard the premise: these values really do scale to `n_bins`.
+        scaled = (values_np - start) * (n_bins / (stop - start))
+        self.assertTrue(
+            np.all(np.floor(scaled) >= n_bins),
+            msg=f"{n_bins=} does not trigger the rounding edge case",
+        )
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[-1] = len(values_np)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(start),
+                stop=backend.float(stop),
+            )
+            np.testing.assert_array_equal(
+                copy_to_cpu(array_write),
+                expected,
+                err_msg=f"{special=} {dtype=} {n_bins=}",
             )
 
     @pytest.mark.backend_mutation
@@ -2257,6 +2544,91 @@ class TestSpecials(unittest.TestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_loss_box_flags_lost_particles_with_beam_flags_lost(self) -> None:
+        """Every backend must write exactly `BeamFlags.LOST` on a loss.
+
+        The compiled backends cannot import the enum, so the value has to
+        reach them from Python; this guards that what they write still is
+        `BeamFlags.LOST` and not some other hardcoded constant.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            # Two particles inside the box, two outside (one in dE, one
+            # in dt), so both the untouched and the flagged path are seen.
+            dt = backend.array([0.0, 1.0, 0.0, 20.0], dtype=backend.float)
+            dE = backend.array([0.0, 0.0, 5.0, 0.0], dtype=backend.float)
+            flags = backend.array(4 * [BeamFlags.ACTIVE.value], dtype=np.int32)
+
+            backend.specials.loss_box(
+                e_max=backend.float(1),
+                e_min=backend.float(-1),
+                t_min=backend.float(-10),
+                t_max=backend.float(10),
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+
+            np.testing.assert_array_equal(
+                copy_to_cpu(flags),
+                np.array(
+                    [
+                        BeamFlags.ACTIVE.value,
+                        BeamFlags.ACTIVE.value,
+                        BeamFlags.LOST.value,
+                        BeamFlags.LOST.value,
+                    ],
+                    dtype=np.int32,
+                ),
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_loss_box_accepts_python_float_scalars(self) -> None:
+        """`loss_box` must accept plain Python floats on every backend.
+
+        The box limits come from user input and may well be Python
+        floats; every backend has to coerce them to its own precision
+        rather than reject them.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+
+            dt = backend.array([0.0, 20.0], dtype=backend.float)
+            dE = backend.array([0.0, 0.0], dtype=backend.float)
+            flags = backend.array(2 * [BeamFlags.ACTIVE.value], dtype=np.int32)
+
+            backend.specials.loss_box(
+                e_max=1.0,
+                e_min=-1.0,
+                t_min=-10.0,
+                t_max=10.0,
+                dt=dt,
+                dE=dE,
+                flags=flags,
+            )
+
+            np.testing.assert_array_equal(
+                copy_to_cpu(flags),
+                np.array(
+                    [BeamFlags.ACTIVE.value, BeamFlags.LOST.value],
+                    dtype=np.int32,
+                ),
+                err_msg=f"Failed test `{special}` with {dtype}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_beam_phase(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
@@ -2724,7 +3096,9 @@ class TestSpecials(unittest.TestCase):
         Regression test: the numba backend truncated negative float bin
         indices toward zero (``int(-0.5) == 0``), so a particle up to one
         bin width left of ``first_left_cut`` was counted into bin 0 of the
-        first profile.
+        first profile. Extreme values are covered too: their bucket
+        index is not representable as an ``int``, so the range check must
+        happen in floating point before the conversion.
         """
         dtype = np.float64
         bins_per_profile = 4  # bin width = cut_width / 4 = 1
@@ -2744,6 +3118,8 @@ class TestSpecials(unittest.TestCase):
                 -20.5,  # more than one bucket distance left of first cut
                 8.5,  # just right of window [4,8], in a gap
                 24.5,  # just right of last window [20,24]
+                1e30,  # bucket index overflows int
+                -1e30,
                 # inside windows, must be counted
                 -11.5,  # profile 0, bin 0
                 5.5,  # profile 1, bin 1
@@ -2898,6 +3274,7 @@ class TestSpecials(unittest.TestCase):
         self,
         update_on_bin_np: np.ndarray,
         n_calls: int = 1,
+        n_poles: int = 2,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Run `wake_from_pole_residue` on the active backend.
 
@@ -2916,14 +3293,18 @@ class TestSpecials(unittest.TestCase):
             dtype=complex,
         )
         residues_np = np.array([1.0 + 0.5j, 0.7 - 0.2j], dtype=complex)
+        # Cycle through the two poles to reach `n_poles`
+        poles_np = np.resize(poles_np, n_poles)
+        residues_np = np.resize(residues_np, n_poles)
 
         profile = backend.array(profile_np, dtype=backend.float)
         centers = backend.array(centers_np, dtype=backend.float)
         poles = backend.array(poles_np, dtype=backend.complex)
         residues = backend.array(residues_np, dtype=backend.complex)
         states = backend.zeros(len(poles_np) + 1, dtype=backend.complex)
-        # non-zero state so decay handling is observable in the output
-        states[0] = 0.3 + 0.1j
+        # non-zero states so decay and time jumps are observable in the
+        # output of every pole
+        states[:-1] = 0.3 + 0.1j
         states[-1] = centers_np[0] - bin_dt
         voltage = backend.zeros(n, dtype=backend.float)
         for _ in range(n_calls):
@@ -2950,7 +3331,10 @@ class TestSpecials(unittest.TestCase):
         return np.asarray(voltage), np.asarray(states)
 
     def _assert_wake_matches_python(
-        self, update_on_bin_np: np.ndarray, n_calls: int = 1
+        self,
+        update_on_bin_np: np.ndarray,
+        n_calls: int = 1,
+        n_poles: int = 2,
     ) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
@@ -2962,6 +3346,7 @@ class TestSpecials(unittest.TestCase):
             voltage, states = self._run_wake_from_pole_residue(
                 update_on_bin_np=update_on_bin_np,
                 n_calls=n_calls,
+                n_poles=n_poles,
             )
             if i == 0:
                 voltage_python = voltage
@@ -2986,6 +3371,23 @@ class TestSpecials(unittest.TestCase):
         self._assert_wake_matches_python(
             update_on_bin_np=np.array([0], dtype=np.int32),
             n_calls=2,
+        )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_many_poles(self) -> None:
+        """Every pole must jump from the same `t_start`.
+
+        The CUDA kernel read `t_start` from `states` in each pole thread
+        while pole 0 overwrote it for the next call, so pole threads that
+        started after pole 0 had finished (e.g. in later blocks) used the
+        wrong time jump on bin 0.
+        """
+        self._assert_wake_matches_python(
+            update_on_bin_np=np.array([0], dtype=np.int32),
+            n_calls=2,
+            # More poles than the device runs concurrently, so that pole
+            # threads start after pole 0 has finished.
+            n_poles=10000,
         )
 
     @pytest.mark.backend_mutation

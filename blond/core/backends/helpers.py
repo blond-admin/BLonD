@@ -32,17 +32,17 @@ def setup_backend(
     This should be called at the start of the user input script,
     as it will define the state of all internal arrays.
     """
-    from blond import backend
+    from blond.core.backends.backend import backend
 
     if mode == "auto":
         backend.autoselect_backend()
     elif mode == "cuda":
-        from blond import Cupy64Bit
+        from blond.core.backends.backend import Cupy64Bit
 
         backend.change_backend(Cupy64Bit)
         backend.set_specials(mode)
     elif mode in ("python", "cpp", "cpp_single_core", "numba"):
-        from blond import Numpy64Bit
+        from blond.core.backends.backend import Numpy64Bit
 
         backend.change_backend(Numpy64Bit)
         backend.set_specials(mode)

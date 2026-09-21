@@ -8,10 +8,11 @@ from numpy import random
 from blond import DriftSimple, SingleHarmonicRFStation
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import ExampleSimulation01
 
 
-class TestXsuiteRFBucketMatcher(unittest.TestCase):
+class TestXsuiteRFBucketMatcher(BLonDTestCase):
     def setUp(self):
         self.example = ExampleSimulation01()
 

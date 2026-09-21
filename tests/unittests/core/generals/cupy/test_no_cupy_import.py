@@ -8,9 +8,10 @@ from blond.generals.cupy_.no_cupy_import import (
     copy_to_cpu,
     is_cupy_array,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_is_cupy_array_cpu(self):
         self.assertFalse(is_cupy_array(np.ones(10)))
 
@@ -38,7 +39,7 @@ class TestCallables(unittest.TestCase):
         self.assertTrue(array1 is not array2)
 
 
-class TestAsarrayOverrideManager(unittest.TestCase):
+class TestAsarrayOverrideManager(BLonDTestCase):
     def setUp(self):
         self.manger = _AsarrayOverrideManager()
 
