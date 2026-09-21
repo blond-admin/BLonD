@@ -122,12 +122,13 @@ def _get_len(x: NumpyArray) -> ct.c_int:
     ct.c_int
         ``len(x)`` wrapped as a ctypes ``c_int``.
     """
-    assert len(x) <= _C_INT_MAX, (
-        f"Array length {len(x)} overflows the C int (max {_C_INT_MAX}) this"
+    len_ = len(x)
+    assert len_ <= _C_INT_MAX, (
+        f"Array length {len_} overflows the C int (max {_C_INT_MAX}) this"
         " kernel argument is declared as. Particle counts must be passed"
         " with `_get_beam_len` (index_t) instead."
     )
-    return ct.c_int(len(x))
+    return ct.c_int(len_)
 
 
 def c_real(
