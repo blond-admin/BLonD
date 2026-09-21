@@ -464,9 +464,15 @@ class CudaSpecials(Specials):  # NOQA: D101
                 "kick_interpolated needs at least 2 bins to interpolate "
                 f"across, got {n_slices}"
             )
-            if n_slices >= 2 and not _is_uniformly_spaced(  # noqa: PLR2004
-                bin_centers
-            ):
+            if n_slices < 2:  # noqa: PLR2004  # pragma: no cover
+                # Reached only under `python -O`, where the assert above
+                # is stripped. A device kernel cannot raise, so refuse
+                # here rather than launch it.
+                raise ValueError(
+                    "kick_interpolated needs at least 2 bins to "
+                    f"interpolate across, got {n_slices}"
+                )
+            if not _is_uniformly_spaced(bin_centers):
                 raise ValueError(
                     "bin_centers is not uniformly spaced (looks like "
                     "a sparse/multi-island "

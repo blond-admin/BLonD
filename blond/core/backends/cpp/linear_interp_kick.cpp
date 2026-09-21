@@ -17,13 +17,15 @@
 
 #include "blond_common.h"
 
-extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
-                                   real_t *__restrict__ beam_dE,
-                                   const real_t *__restrict__ voltage_array,
-                                   const real_t *__restrict__ bin_centers,
-                                   const real_t charge, const int n_slices,
-                                   const index_t n_macroparticles,
-                                   const real_t acc_kick) {
+// Returns 0 on success and 1 if the kick was refused (see below); the
+// Python wrapper turns a non-zero status into an exception.
+extern "C" int linear_interp_kick(real_t *__restrict__ beam_dt,
+                                  real_t *__restrict__ beam_dE,
+                                  const real_t *__restrict__ voltage_array,
+                                  const real_t *__restrict__ bin_centers,
+                                  const real_t charge, const int n_slices,
+                                  const index_t n_macroparticles,
+                                  const real_t acc_kick) {
 
   // A single bin (or none) has no width to interpolate across. Bail out
   // before the division below, which would be 0/0: the resulting `nan`
@@ -31,14 +33,11 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
   // built with -ffast-math, so the compiler may assume `nan` never occurs
   // and take the in-range branch anyway -- indexing the zero-length
   // helper arrays and writing heap garbage into beam_dE (seen on
-  // aarch64). `acc_kick` is not an interpolated quantity: it carries the
-  // reference energy change and still applies to the whole beam.
+  // aarch64). The wrapper asserts n_slices >= 2, so this is reached only
+  // under `python -O`: refuse outright rather than apply `acc_kick`
+  // alone, which would be only part of the kick.
   if (n_slices < 2) {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      beam_dE[i] += acc_kick;
-    }
-    return;
+    return 1;
   }
 
   const int STEP = 64;
@@ -89,6 +88,7 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
   }
   free(voltageKick);
   free(factor);
+  return 0;
 }
 
 // Sparse variant of linear_interp_kick: bin_centers/voltage are a
