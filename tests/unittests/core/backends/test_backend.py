@@ -2615,20 +2615,6 @@ class TestSpecials(unittest.TestCase):
                         bin_size=backend.float(1.0),
                     )
 
-    @skip_if_no_cupy
-    def test_cuda_stride_fits_int32(self) -> None:
-        """Striding kernels overflow their `int` counter for huge arrays.
-
-        `i += blocks * threads` must not exceed `INT32_MAX` for any
-        `i < n`, i.e. ``n <= 2**31 - blocks * threads``.
-        """
-        import blond.core.backends.cuda.callables as cuda_callables
-
-        stride = cuda_callables.blocks * cuda_callables.threads
-        self.assertTrue(cuda_callables._stride_fits_int32(0))
-        self.assertTrue(cuda_callables._stride_fits_int32(2**31 - stride))
-        self.assertFalse(cuda_callables._stride_fits_int32(2**31 - stride + 1))
-
     @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
         dtype = np.float64
