@@ -31,7 +31,7 @@ CUPY_MISSING_MESSAGE = (
 )
 
 
-def import_cupy() -> Any:
+def import_cupy_with_error_hint() -> Any:
     """
     Import CuPy, or fail with an actionable error message.
 

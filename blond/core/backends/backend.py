@@ -1203,9 +1203,9 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         # Imported only if needed, which is not always the case.
-        from blond.generals.cupy_.no_cupy_import import import_cupy
+        from blond.generals.cupy_.no_cupy_import import import_cupy_with_error_hint
 
-        cp = import_cupy()
+        cp = import_cupy_with_error_hint()
 
         with warnings.catch_warnings():
             warnings.filterwarnings(

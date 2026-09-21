@@ -182,19 +182,19 @@ class TestImportCupy(BLonDTestCase):
     def test_returns_module_when_cupy_is_installed(self):
         cupy = pytest.importorskip("cupy")
 
-        from blond.generals.cupy_.no_cupy_import import import_cupy
+        from blond.generals.cupy_.no_cupy_import import import_cupy_with_error_hint
 
-        self.assertIs(import_cupy(), cupy)
+        self.assertIs(import_cupy_with_error_hint(), cupy)
 
     def test_raises_module_not_found_when_cupy_is_missing(self):
-        from blond.generals.cupy_.no_cupy_import import import_cupy
+        from blond.generals.cupy_.no_cupy_import import import_cupy_with_error_hint
 
         # `None` in sys.modules makes `import cupy` raise
         # ModuleNotFoundError, which is exactly what a CPU-only (e.g.
         # aarch64) install does -- without uninstalling anything.
         with patch.dict(sys.modules, {"cupy": None}):
             with self.assertRaises(ModuleNotFoundError) as ctx:
-                import_cupy()
+                import_cupy_with_error_hint()
 
         message = str(ctx.exception)
         # The message must name what is missing, how to install it, and
