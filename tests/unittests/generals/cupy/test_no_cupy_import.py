@@ -182,12 +182,16 @@ class TestImportCupy(BLonDTestCase):
     def test_returns_module_when_cupy_is_installed(self):
         cupy = pytest.importorskip("cupy")
 
-        from blond.generals.cupy_.no_cupy_import import import_cupy_with_error_hint
+        from blond.generals.cupy_.no_cupy_import import (
+            import_cupy_with_error_hint,
+        )
 
         self.assertIs(import_cupy_with_error_hint(), cupy)
 
     def test_raises_module_not_found_when_cupy_is_missing(self):
-        from blond.generals.cupy_.no_cupy_import import import_cupy_with_error_hint
+        from blond.generals.cupy_.no_cupy_import import (
+            import_cupy_with_error_hint,
+        )
 
         # `None` in sys.modules makes `import cupy` raise
         # ModuleNotFoundError, which is exactly what a CPU-only (e.g.
