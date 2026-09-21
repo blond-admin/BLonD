@@ -41,7 +41,10 @@ class TestImportTime(BLonDTestCase):
             check=True,
         )
 
-        self.assertEqual(completed.stdout.strip(), "False")
+        # ``import blond`` may itself write to stdout (e.g. "Using
+        # environment variable BLOND_BACKEND_MODE = ..." in CI), so only
+        # the last line is the answer.
+        self.assertEqual(completed.stdout.splitlines()[-1], "False")
 
 
 if __name__ == "__main__":
