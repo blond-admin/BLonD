@@ -98,6 +98,9 @@ class WakeFieldSolver:
             Factor converting between wakefield
             (macroparticles vs. real particles).
         """
+        assert profile.hist_y_to_density_factor is not None, (
+            "The profile must be tracked before its density factor is known."
+        )
         # TODO this might fail with MOI?
         _factor = (-1 * beam.particle_type.charge * e) * (
             beam.intensity * profile.hist_y_to_density_factor

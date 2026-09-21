@@ -493,6 +493,9 @@ class PythonSpecials(Specials):
         n_slices = len(bin_centers)
 
         if sparse:
+            assert bins_per_profile is not None and cut_width is not None, (
+                "The sparse kick needs the complete sparse metadata."
+            )
             inv_bin_width = bins_per_profile / cut_width
         else:
             assert n_slices >= 2, (  # noqa: PLR2004
@@ -546,6 +549,14 @@ class PythonSpecials(Specials):
                     dE[i] += acceleration_kick
             return
 
+        assert (
+            first_left_cut is not None
+            and left_cut_distance is not None
+            and cut_width is not None
+            and bins_per_profile is not None
+            and filling_pattern is not None
+            and bucket_index_to_memory_index is not None
+        ), "The sparse kick needs the complete sparse metadata."
         n_buckets = len(filling_pattern)
         inv_hist_dist = 1.0 / left_cut_distance
         bin_width = cut_width / bins_per_profile

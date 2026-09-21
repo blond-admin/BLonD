@@ -181,6 +181,9 @@ class LHCBeamControl(BeamFeedbackBase):
             n_turns=n_turns,
             **kwargs,
         )
+        assert self._main_cavities is not None, (
+            "Main rf stations unknown, call `update_main_rf_stations` first."
+        )
         if (
             self.current_thres is None
             and self._main_cavities[0].any_feedback_not_none
@@ -226,6 +229,11 @@ class LHCBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
+        assert (
+            self._main_cavities is not None
+            and self.lhc_a is not None
+            and self.lhc_t is not None
+        ), "Beam control not initialised, call `on_run_simulation` first."
         dphi_rf = self._main_cavities[0].delta_phi_rf
 
         self.update_phase_error(phase_noise=self.phase_noise)
@@ -264,6 +272,9 @@ class LHCBeamControl(BeamFeedbackBase):
         lhc_t
             The synchronization loop time constant.
         """
+        assert (
+            self._main_cavities is not None and self._simulation is not None
+        ), "Beam control not initialised, call `on_run_simulation` first."
         voltages = self.get_from_all_rf_stations(
             accessor=lambda rf: rf.get_main_harmonic_voltage(),
             rf_station_list=self._main_cavities,

@@ -672,6 +672,9 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         """
         # Apply schedules if active
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,

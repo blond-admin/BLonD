@@ -292,6 +292,12 @@ class FilamentationMatcher(MatchingRoutine):
         if self.animate:
             plt.ioff()
         if self.purge:
+            assert self.purge_limit_time is not None, (
+                "`purge_limit_time` is required when `purge=True`"
+            )
+            assert self.purge_limit_energy is not None, (
+                "`purge_limit_energy` is required when `purge=True`"
+            )
             intensity_before = beam.intensity
             BoxLosses(
                 t_min=self.purge_limit_time[0],

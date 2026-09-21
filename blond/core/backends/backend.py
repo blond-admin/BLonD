@@ -620,6 +620,7 @@ class _ModeSwitchHelper:
         self.backend.set_specials(mode=self.mode_tmp)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        assert self.mode_org is not None, "`__exit__` without `__enter__`"
         self.backend.set_specials(mode=self.mode_org)
 
 

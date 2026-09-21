@@ -207,6 +207,9 @@ class PSBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
+        assert self._simulation is not None, (
+            "Simulation unknown, call `on_run_simulation` first."
+        )
         counter = self._simulation.turn_counter.value
 
         if (

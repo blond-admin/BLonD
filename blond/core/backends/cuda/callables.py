@@ -506,6 +506,13 @@ class CudaSpecials(Specials):  # NOQA: D101
             )
             return
 
+        assert (
+            left_cut_distance is not None
+            and cut_width is not None
+            and bins_per_profile is not None
+            and filling_pattern is not None
+            and bucket_index_to_memory_index is not None
+        ), "The sparse kick needs the complete sparse metadata."
         assert filling_pattern.device != "cpu", (
             f"Requires Cupy array, but got {type(filling_pattern)}."
         )

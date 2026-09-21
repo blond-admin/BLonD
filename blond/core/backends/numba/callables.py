@@ -738,6 +738,13 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 dt, dE, voltage, bin_centers, charge, acceleration_kick
             )
             return
+        assert (
+            left_cut_distance is not None
+            and cut_width is not None
+            and bins_per_profile is not None
+            and filling_pattern is not None
+            and bucket_index_to_memory_index is not None
+        ), "The sparse kick needs the complete sparse metadata."
         _kick_interpolated_sparse_nb(
             dt,
             dE,

@@ -245,4 +245,7 @@ class GlobalFeedback(FeedbackBaseClass):
         cavity_list = (
             self.cavities if rf_station_list is None else rf_station_list
         )
+        assert cavity_list is not None, (
+            "No rf stations known yet, call `on_init_simulation` first."
+        )
         return np.array([accessor(obj) for obj in cavity_list])

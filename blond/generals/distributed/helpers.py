@@ -219,6 +219,7 @@ def mpi_barrier():
     In non-distributed mode (single process), this is a no-op.
     """
     if mpi_is_distributed():
+        assert MPI_COMM_WORLD is not None, "Distributed run without MPI."
         MPI_COMM_WORLD.Barrier()
 
 

@@ -236,6 +236,9 @@ class SynchrotronRadiationMaster(Schedulable):
         beam
             `Beam` object.
         """
+        assert ring.radiation_integrals is not None, (
+            "The ring has no radiation integrals."
+        )
         # scalars, because the reference energy is one
         (
             self._energy_loss_per_turn,
@@ -409,6 +412,9 @@ class SynchrotronRadiationMaster(Schedulable):
         share_of_radiation_integrals
             Share of synchrotron radiation integrals.
         """
+        assert ring.radiation_integrals is not None, (
+            "The ring has no radiation integrals."
+        )
         shares_of_radiation_integrals: list[NumpyArray] = []
 
         drift_list_ = (
@@ -457,6 +463,9 @@ class SynchrotronRadiationMaster(Schedulable):
         share_of_radiation_integrals
             Share of synchrotron radiation integrals.
         """
+        assert ring.radiation_integrals is not None, (
+            "The ring has no radiation integrals."
+        )
         cavities_section_indexes = [e.section_index for e in cavity_list]
         shares_of_radiation_integrals = []
         for i, cavity in enumerate(cavity_list):
@@ -510,6 +519,9 @@ class SynchrotronRadiationMaster(Schedulable):
             RFStationBaseClass,  # prevent cyclic import
         )
 
+        assert ring.radiation_integrals is not None, (
+            "The ring has no radiation integrals."
+        )
         if all(isinstance(e, DriftBaseClass) for e in element_list):
             # _SynchrotronRadiationDrift tracker placed before the
             # drift

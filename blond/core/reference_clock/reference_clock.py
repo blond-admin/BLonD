@@ -24,6 +24,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
 
 
+_TOTAL_ENERGY_NOT_SET = (
+    "Beam is not properly set up, please set `total_energy` first!"
+)
+
+
 class ReferenceCoordinates:
     """
     Helper class that holds the reference to the coordinate system.
@@ -116,6 +121,7 @@ class ReferenceCoordinates:
         beta
             Beam reference fraction of speed of light (v/c0) [].
         """
+        assert self._total_energy is not None, _TOTAL_ENERGY_NOT_SET
         beta = beta_nb(self._total_energy, self._particle_type.mass_inv)
         assert not np.isnan(beta), f"{beta=}"
         return beta
@@ -130,4 +136,5 @@ class ReferenceCoordinates:
         velocity
             Beam reference speed [m/s].
         """
+        assert self._total_energy is not None, _TOTAL_ENERGY_NOT_SET
         return velocity_nb(self._total_energy, self._particle_type.mass_inv)

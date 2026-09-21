@@ -214,6 +214,9 @@ class PSBBeamControl(BeamFeedbackBase):
         n_turns
             Number of turns of the simulation.
         """
+        assert self.cavities is not None, (
+            "No rf stations known yet, call `on_init_simulation` first."
+        )
         if self.dt > 0:
             n = self._delay + 1
             while n < n_turns + 1:
@@ -254,6 +257,9 @@ class PSBBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
+        assert (
+            self._simulation is not None and self._main_cavities is not None
+        ), "Beam control not initialised, call `on_run_simulation` first."
         # Average phase error while frequency is updated
         counter = self._simulation.turn_counter.value
 

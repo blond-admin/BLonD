@@ -155,6 +155,7 @@ def _resolve_cpp_basepath(folder: str) -> str:
         valid = build_options_valid(build_options, expected_keys)
 
     if valid:
+        assert build_options is not None  # implied by `valid`
         # The last compile's options are still usable on this machine:
         # rendezvous with the directory built for them.
         basepath = cpp_compiled_dir(folder, **build_options)
@@ -597,6 +598,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 )
                 return
 
+            assert (
+                left_cut_distance is not None
+                and cut_width is not None
+                and bins_per_profile is not None
+                and filling_pattern is not None
+                and bucket_index_to_memory_index is not None
+            ), "The sparse kick needs the complete sparse metadata."
             assert filling_pattern.dtype == np.bool_
             assert bucket_index_to_memory_index.dtype == np.int32
             assert filling_pattern.flags.c_contiguous

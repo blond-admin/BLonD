@@ -193,6 +193,9 @@ class SPSBeamControl(BeamFeedbackBase):
             n_turns=n_turns,
             **kwargs,
         )
+        assert self._main_cavities is not None, (
+            "Main rf stations unknown, call `update_main_rf_stations` first."
+        )
         if (
             self.current_thres is None
             and self._main_cavities[0].any_feedback_not_none
@@ -229,6 +232,9 @@ class SPSBeamControl(BeamFeedbackBase):
         beam
             A beam object to extract the beam attribute from.
         """
+        assert self.cavities is not None and self._main_cavities is not None, (
+            "Beam control not initialised, call `on_run_simulation` first."
+        )
         t_rev = float(
             (2 * np.pi * self.cavities[0].get_main_harmonic())
             / self.cavities[0].get_main_harmonic_omega_rf_design()
