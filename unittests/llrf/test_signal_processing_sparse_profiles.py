@@ -485,31 +485,15 @@ class TestRFBeamCurrent(unittest.TestCase):
                     charges_coarse_sparse = self._charges_coarse(
                         charges_fine_sparse, profile_sparse.bin_centers
                     )
-                    with self.assertRaises(AssertionError):
-                        np.testing.assert_allclose(
-                            charges_coarse_std,
-                            charges_coarse_sparse,
-                            rtol=self.rtol,
-                            atol=self.atol,
-                        )
-                # Extending the sparse grid with empty bins past the last
-                # window recovers the standard result
-                (
-                    charges_fine_for_coarse_grid,
-                    profile_bin_centers_for_coarse,
-                ) = self._charges_fine_extended(profile_sparse)
-                charges_coarse_sparse = self._charges_coarse(
-                    charges_fine_for_coarse_grid,
-                    profile_bin_centers_for_coarse,
-                )
-                np.testing.assert_allclose(
-                    charges_coarse_std,
-                    charges_coarse_sparse,
-                    rtol=self.rtol,
-                    atol=self.atol,
-                    err_msg="coarse-grid charges differ between standard "
-                    f"Profile and {name}",
-                )
+
+                    np.testing.assert_allclose(
+                        charges_coarse_std,
+                        charges_coarse_sparse,
+                        rtol=self.rtol,
+                        atol=self.atol,
+                        err_msg="coarse-grid charges differ between standard "
+                        f"Profile and {name}",
+                    )
 
     def _check_rf_beam_current(self):
         rf_current_std = rf_beam_current(
