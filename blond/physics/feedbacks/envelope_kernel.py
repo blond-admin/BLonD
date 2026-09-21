@@ -113,23 +113,19 @@ def propagate_envelope_cell(
     voltage_beam, voltage_gen, voltage
         The two components and their demodulation-frame sum.
     """
-    # Beam-sourced component: the generator current pinned to (0 + 0j).
-    drive_beam = (
-        r_over_q * omega_times_dt * ((0.0 + 0.0j) - 0.5 * beam_current)
-    )
+    # Beam-sourced component: no generator current. ``0.0 -`` rather than
+    # a bare negation keeps an empty cell's drive at +0.0, as in the
+    # reference; ``-0.5 * beam_current`` would make it -0.0.
+    drive_beam = r_over_q * omega_times_dt * (0.0 - 0.5 * beam_current)
     if beam_step_rotation != 1.0:
         voltage_beam_previous = voltage_beam_previous * beam_step_rotation
     voltage_beam = voltage_beam_previous * voltage_multiplier + (
         drive_beam * drive_weight
     )
-    # Generator-sourced component: same propagator, beam current pinned to
-    # (0 + 0j). With nothing driving the generator it stays exactly zero
-    # and the composition adds an exact zero.
-    drive_gen = (
-        r_over_q
-        * omega_times_dt
-        * (generator_current_drive - 0.5 * (0.0 + 0.0j))
-    )
+    # Generator-sourced component: same propagator, no beam current. With
+    # nothing driving the generator it stays exactly zero and the
+    # composition adds an exact zero.
+    drive_gen = r_over_q * omega_times_dt * generator_current_drive
     voltage_gen = voltage_gen_previous * voltage_multiplier + (
         drive_gen * drive_weight
     )

@@ -1500,6 +1500,49 @@ class TestCavityModelCarriesNoControlLaw(unittest.TestCase):
                 with self.subTest(function=function.__name__, word=word):
                     self.assertFalse(any(word in name for name in names))
 
+    def test_an_empty_cell_leaves_an_empty_cavity_at_positive_zero(self):
+        """No beam and no drive keep every component exactly ``+0.0``.
+
+        The beam drive is formed as ``0 - 0.5 I_b``, as in the Python
+        reference, which calls one drive function per source with the
+        other source's current at zero. The shorter ``-0.5 I_b`` has the
+        same value but a ``-0.0`` where the reference has ``+0.0``, and
+        that zero survives when an empty cavity is stepped by more than a
+        quarter turn (a step rotation with a negative real part turns the
+        carried ``+0.0`` into ``-0.0`` first). Pinned over both signs of
+        the multiplier's and the weight's imaginary parts, which decide
+        where a negative zero survives the complex products.
+        """
+        from blond.physics.feedbacks.envelope_kernel import (
+            propagate_envelope_cell,
+        )
+
+        zero = 0.0 + 0.0j
+        for step in (0.0, 0.3, 2.0, -2.0):
+            for multiplier_sign in (1.0, -1.0):
+                for weight_sign in (1.0, -1.0):
+                    with self.subTest(
+                        step=step,
+                        multiplier_sign=multiplier_sign,
+                        weight_sign=weight_sign,
+                    ):
+                        components = propagate_envelope_cell(
+                            zero,
+                            zero,
+                            zero,
+                            zero,
+                            2.0 * np.pi,
+                            complex(1.0 - 1e-4, multiplier_sign * 1e-4),
+                            complex(1.0 - 5e-5, weight_sign * 1e-5),
+                            R_OVER_Q,
+                            1.0 + 0.0j if step == 0.0 else np.exp(1j * step),
+                            np.exp(0.3j),
+                        )
+                        for component in components:
+                            self.assertEqual(component, 0.0)
+                            self.assertFalse(np.signbit(component.real))
+                            self.assertFalse(np.signbit(component.imag))
+
     def test_both_laws_reduce_to_the_open_loop_cavity_at_zero_gain(self):
         """Closing the loop with no gain adds nothing to the cavity model.
 
