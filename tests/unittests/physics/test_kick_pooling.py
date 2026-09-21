@@ -5,6 +5,7 @@ import numpy as np
 from blond import PooledInterpolationKick, backend
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82, proton
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -27,13 +28,54 @@ class TestPooledInterpolationKick(BLonDTestCase):
         self.assertEqual(len(self.pooled_kick._buffer_time_axis), 0)
 
     def test_register(self):
-        for i in range(self.pooled_kick._maxsize + 1):  # intentional overflow
-            self.pooled_kick.register(
-                time_axis=np.ones(1) * i + 1,
-                voltage=np.ones(1),
-            )
+        # Keep every `time_axis` alive: the buffer is keyed by
+        # `id(time_axis)`, and a freed temporary's id gets reused.
+        time_axes = [
+            np.ones(1) * i for i in range(self.pooled_kick._maxsize + 1)
+        ]
+        with self.assertWarns(UserWarning):  # intentional overflow
+            for i, time_axis in enumerate(time_axes):
+                self.pooled_kick.register(
+                    time_axis=time_axis,
+                    voltage=np.ones(1),
+                    sparse_metadata={"index": i},
+                    reference_energy_change=float(i),
+                )
+
+        oldest_key = id(time_axes[0])
+        buffers = (
+            self.pooled_kick._buffer_voltage,
+            self.pooled_kick._buffer_time_axis,
+            self.pooled_kick._buffer_sparse_metadata,
+            self.pooled_kick._buffer_reference_energy_change,
+        )
+        for buffer in buffers:
+            self.assertEqual(len(buffer), self.pooled_kick._maxsize)
+            self.assertNotIn(oldest_key, buffer)
         vals = [v[0] for v in self.pooled_kick._buffer_time_axis.values()]
-        assert 0 not in vals
+        self.assertNotIn(0.0, vals)
+
+    def test__track_empty_beam_consumes_buffer(self):
+        time_axis = backend.linspace(0, 1, 10)
+        self.pooled_kick.register(
+            time_axis=time_axis,
+            voltage=backend.ones(10),
+            reference_energy_change=1.0,
+        )
+        beam = ProbeBeam(
+            particle_type=proton,
+            dt=backend.zeros(0),
+            reference_total_energy=1e12,
+        )
+        self.pooled_kick._track(beam=beam)
+
+        key = id(time_axis)
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.pooled_kick._buffer_voltage[key]), 0.0
+        )
+        self.assertEqual(
+            self.pooled_kick._buffer_reference_energy_change[key], 0.0
+        )
 
     def test__track(self):
         time_axis = backend.linspace(
