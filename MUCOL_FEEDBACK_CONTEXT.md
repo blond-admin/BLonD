@@ -2062,6 +2062,108 @@ BLonD run to 2.8e-11 relative. A `CavityLoop` with `gain_integral=0` is NOT
 a P model: its polynomial keeps the integrator's `(z - 1)` and reports a
 spurious pole on the unit circle.
 
+### 2.33 Feedforward is received, not learned: whole-run tables (2026-09-21)
+
+**Why.** A feedforward is a programme computed *before* the cell it acts
+on; a loop that learns one is feedback on another axis. The feedback held
+such a loop (`beam_loading_feedforward`: record each passage's
+beam-sourced ripple, install it as next passage's reference), and only a
+reference-side entry point, a one-passage `setpoint_feedforward_coarse_grid`
+that the learner re-installed every passage. A shot-to-shot learner or a
+model inversion needs neither: it needs a **drive-side** entry and a table
+that covers the **whole run**.
+
+**What.**
+
+- New `feedforward_table.FeedforwardTable(values, cells_per_entry,
+  first_cell=0)`: complex, piecewise constant, indexed on the feedback's
+  free-running cell clock (`_cells_tracked`, the same clock `GainSchedule`
+  is read on). Exact zero outside the table -- a feedforward that outlives
+  its prediction must stop acting, unlike a gain, which coasts.
+- `IQCavityFeedbackCoarseGrid.setpoint_feedforward` [V] replaces
+  `setpoint_feedforward_coarse_grid`; `generator_current_feedforward` [A]
+  is new. Both constructor arguments and plain attributes, `None` by
+  default and bit-neutral.
+- The drive term enters both compiled scans as a per-cell array handed to
+  the law **as that sample's bias** (`generator_current_bias + ff[cell]`),
+  so every law clamps the sum -- and the PI's anti-windup sees it --
+  without the law functions knowing the term exists. The Python twins take
+  `update_generator_current(..., generator_current_feedforward=0j)` and sum
+  in the same order, so kernel and reference stay byte-identical. The
+  feedback passes the keyword only when a drive table is attached, so a
+  custom law written without it keeps working.
+- Both tables are read on controller samples only (the command is formed
+  there and held), so one entry per `controller_update_interval` cells
+  loses nothing; a finer table carries entries nothing reads.
+- `_grid_first_cell` (the clock when index 0 of the standing grid was
+  tracked) + `_cell_clock_of()` tie a grid index to the clock; a passage's
+  spans are tracked in order from index 0, so one number places the whole
+  grid.
+- **The read side, public** (added the same day for the outer repo's
+  learner, which must not reach into private state): `cell_clock`,
+  `coarse_grid_first_cell`, `regulation_error_coarse_grid(
+  include_feedforward=True)` -- on a controller sample exactly the error
+  the law was handed (pinned against a recording controller), with
+  `False` the error against the *setpoint* -- and
+  `error_frame_rotation_coarse_grid()`, which carries a kick-frame
+  quantity (the reference table) into the actuator frame (everything
+  else).
+- A drive table without a controller raises `ValueError`: nothing else
+  writes the generator grid. Feedforward *without* feedback is a zero-gain
+  `GeneratorCurrentPController`, which commands `clamp(I_0 + I_ff)`.
+- **Removed:** `beam_loading_feedforward` (argument and attribute),
+  `_beam_loading_history`, `_learn_` / `_install_beam_loading_feedforward`,
+  `setpoint_feedforward_coarse_grid`, `_kernel_setpoint_feedforward`.
+  `test_beam_loading_feedforward.py` stays: it never tested the learner,
+  only the reference-side term of the kernel.
+
+**Verified.** RED first (`ModuleNotFoundError`, then the kernel signature).
+`tests/unittests/physics/feedbacks`: 705 passed, 8 skipped. New
+`test_feedforward_table.py` (23 tests): zero table bit-neutral in both
+laws; a uniform drive table is exactly a raised law bias; clamp and
+anti-windup act on the sum; entries between samples never reach the
+generator; kernel == reference path with both tables, both laws; tables
+follow the cell clock across span boundaries that fall off the controller
+clock. In a real 3-turn RCS1 run the cell clock came out identical for a
+different seed and 0.8 of the intensity (78 473 cells at station 0), which
+is what lets an entry mean the same cell from shot to shot -- measured on
+that one configuration, not proven in general.
+
+**Flagged, not fixed.** Splitting one segment into several
+`_circuit_track_cells` spans is *not* equivalent to tracking it whole: the
+step into a span's first cell is taken as a segment-boundary step
+(`_rf_centers[start] + preceding residual`). Real spans start on segment
+boundaries, so nothing is wrong in a run, but a test that compares a split
+against a whole grid will fail for that reason and not for the one it is
+looking for.
+
+### 2.34 The phase loop carries a phase programme (2026-09-21)
+
+**Why.** The cavity tables of §2.33 fix the voltage the bunch meets; the
+outer repo measured that this does not move RCS1's dipole oscillation. The
+programme that can is an RF *phase* offset per passage, and the loop is
+already the thing that writes `phi_rf_loop` cell by cell on the feedback's
+clock -- so it is the receiving end, exactly as the feedback is for §2.33.
+
+**What.** `StationPhaseLoop(offset_programme=FeedforwardTable | None)`,
+also a settable property. Inside `offsets_for_n_coarse_cells` the output of
+a controller sample is `-gain * error + programme.value_at(cell).real`,
+held to the next sample like the loop's own. `None` is bit-neutral. A
+table with an imaginary part raises `ValueError` (a phase is real; halving
+it silently would be worse). **With `gain=0` the loop records and the
+programme alone acts**: a phase feedforward with the measurement its
+author needs (`record.cells / errors / corrections`) thrown in -- which is
+how the outer learner uses it. Nothing here computes a programme.
+
+**Verified.** RED first (`TypeError` on the keyword). Six new tests in
+`test_station_phase_loop.py` (`TestOffsetProgramme`): off by default,
+alone it is the output sample by sample, read on samples and held from a
+span that starts off the clock, adds to the loop's own output, attachable
+later, imaginary part refused. `tests/unittests/physics/feedbacks`: 711
+passed, 8 skipped. In tracking (outer repo) the offset in force at every
+kick equals the programme entry to 1e-12, and record-only loops leave the
+beam bit-identical to no loops.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam

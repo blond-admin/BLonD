@@ -444,6 +444,19 @@ class GeneratorRegulationMixin:
             / self._omega_input_for_pi
             * self._controller_update_interval
         )
+        if self.generator_current_feedforward is None:
+            # The plain call, so a custom law that was never written to be
+            # fed forward keeps working unchanged.
+            self.generator_current_coarse_grid[idx] = (
+                self._controller.update_generator_current(error, delta_t)
+            )
+            return
         self.generator_current_coarse_grid[idx] = (
-            self._controller.update_generator_current(error, delta_t)
+            self._controller.update_generator_current(
+                error,
+                delta_t,
+                generator_current_feedforward=(
+                    self._generator_current_feedforward_of_cell(idx)
+                ),
+            )
         )

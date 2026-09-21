@@ -477,6 +477,22 @@ Classes at a glance
     (``supports_envelope_scan``) is driven cell by cell instead.
     Set the flag ``False`` on an instance to force the reference path.
 
+:mod:`blond.physics.feedbacks.feedforward_table`
+    ``FeedforwardTable``, a precomputed complex programme over a whole
+    run, indexed on the feedback's free-running cell clock and an exact
+    zero outside its cells. A feedback takes two, both ``None`` by
+    default and bit-neutral: ``setpoint_feedforward`` [V], added to the
+    reference the error is formed against, and
+    ``generator_current_feedforward`` [A], handed to the control law as
+    part of that sample's bias, so the klystron clamp and the PI's
+    anti-windup act on the sum. Both are read on controller samples
+    only, so one entry per ``controller_update_interval`` cells loses
+    nothing. Nothing here computes a table: the feedback is the
+    receiving end, and whatever owns the prediction (a model inversion,
+    a shot-to-shot learner) lives with the caller. A drive table needs a
+    controller; feedforward without feedback is a zero-gain
+    ``GeneratorCurrentPController``.
+
 :mod:`blond.physics.feedbacks.station_phase_loop`
     ``StationPhaseLoop``, a beam phase loop attached to one cavity
     feedback, which clocks it and writes its parent RF station's phase

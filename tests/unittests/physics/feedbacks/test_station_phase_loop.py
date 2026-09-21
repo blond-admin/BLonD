@@ -21,6 +21,7 @@ from unittest.mock import Mock
 import numpy as np
 
 from blond import SingleHarmonicRFStation
+from blond.physics.feedbacks.feedforward_table import FeedforwardTable
 from blond.physics.feedbacks.station_phase_loop import (
     GainSchedule,
     StationPhaseLoop,
@@ -308,6 +309,85 @@ class TestScheduledGain(unittest.TestCase):
         self.assertEqual(loop.gain_at(1_000), 0.25)
         loop.measure(self.REFERENCE + 0.4, time=0.0, cell=0, applied=0.0)
         np.testing.assert_allclose(self._offsets(loop, 0, 8), [-0.1] * 8)
+
+
+class TestOffsetProgramme(unittest.TestCase):
+    """A precomputed RF phase programme, added to whatever the loop says.
+
+    The loop is feedback: its output is built from what it measured. The
+    programme is feedforward: a table on the feedback's cell clock,
+    computed elsewhere, read on the same controller samples and held the
+    same way. With a gain of zero the loop records and the programme alone
+    acts, which is a phase feedforward with the measurement a learner
+    needs thrown in.
+    """
+
+    INTERVAL = 4
+
+    def _loop(self, gain, programme):
+        return StationPhaseLoop(
+            feedback=Mock(phase_loop=None),
+            reference_phase=0.5,
+            gain=gain,
+            n_delay=0,
+            offset_programme=programme,
+        )
+
+    def _offsets(self, loop, first_cell=0, n_cells=16, carried=0.0):
+        return loop.offsets_for_n_coarse_cells(
+            first_cell,
+            n_cells,
+            controller_update_interval=self.INTERVAL,
+            carried=carried,
+        )
+
+    def _programme(self):
+        return FeedforwardTable(
+            values=[0.01, -0.02, 0.03], cells_per_entry=self.INTERVAL
+        )
+
+    def test_it_is_off_by_default(self):
+        loop = self._loop(0.2, None)
+        self.assertIsNone(loop.offset_programme)
+        np.testing.assert_array_equal(self._offsets(loop), np.zeros(16))
+
+    def test_alone_it_is_the_output_sample_by_sample(self):
+        loop = self._loop(0.0, self._programme())
+        np.testing.assert_array_equal(
+            self._offsets(loop),
+            np.repeat([0.01, -0.02, 0.03, 0.0], self.INTERVAL),
+        )
+
+    def test_it_is_read_on_samples_and_held_between(self):
+        """A span starting off the clock carries until its first sample."""
+        loop = self._loop(0.0, self._programme())
+        offsets = self._offsets(loop, first_cell=2, n_cells=8, carried=0.7)
+        np.testing.assert_array_equal(
+            offsets, [0.7, 0.7, -0.02, -0.02, -0.02, -0.02, 0.03, 0.03]
+        )
+
+    def test_it_adds_to_the_loops_own_output(self):
+        loop = self._loop(0.2, self._programme())
+        loop.measure(0.5 + 0.1, time=0.0, cell=0, applied=0.0)
+        fed = self._offsets(loop)
+        unfed_loop = self._loop(0.2, None)
+        unfed_loop.measure(0.5 + 0.1, time=0.0, cell=0, applied=0.0)
+        np.testing.assert_allclose(
+            fed - self._offsets(unfed_loop),
+            np.repeat([0.01, -0.02, 0.03, 0.0], self.INTERVAL),
+            atol=1e-16,
+        )
+
+    def test_it_can_be_attached_later(self):
+        loop = self._loop(0.0, None)
+        loop.offset_programme = self._programme()
+        self.assertEqual(self._offsets(loop)[0], 0.01)
+
+    def test_a_phase_is_real(self):
+        with self.assertRaises(ValueError):
+            self._loop(
+                0.0, FeedforwardTable(values=[0.01 + 0.01j], cells_per_entry=4)
+            )
 
 
 if __name__ == "__main__":

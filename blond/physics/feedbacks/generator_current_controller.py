@@ -133,7 +133,10 @@ class GeneratorCurrentController(ABC):
 
     @abstractmethod
     def update_generator_current(
-        self, error: complex, delta_t: float
+        self,
+        error: complex,
+        delta_t: float,
+        generator_current_feedforward: complex = 0.0 + 0.0j,
     ) -> complex:
         """
         Map one antenna-voltage error sample to a generator current.
@@ -144,6 +147,12 @@ class GeneratorCurrentController(ABC):
             Antenna-voltage error of this sample, ``V_set - V_ant`` [V].
         delta_t
             Time step of this sample [s].
+        generator_current_feedforward
+            Drive-side feedforward of this sample [A]: a precomputed
+            addition to the bias, summed *before* any actuator limit so
+            the limit acts on the total. The feedback passes it only when
+            a drive table is attached, so a law that is never fed forward
+            may leave the parameter out of its signature.
 
         Returns
         -------
@@ -454,7 +463,10 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         self._integral = integral
 
     def update_generator_current(
-        self, error: complex, delta_t: float
+        self,
+        error: complex,
+        delta_t: float,
+        generator_current_feedforward: complex = 0.0 + 0.0j,
     ) -> complex:
         """
         Advance the controller by one sample and return the current command.
@@ -465,6 +477,11 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             Antenna-voltage error of this sample, ``V_set - V_ant`` [V].
         delta_t
             Time step of this sample [s], used to integrate the error.
+        generator_current_feedforward
+            Drive-side feedforward of this sample [A], added to the bias.
+            The clamp and the anti-windup act on the sum, exactly as in
+            the compiled scan, which hands the law ``I_0 + I_ff`` as its
+            bias.
 
         Returns
         -------
@@ -479,8 +496,10 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         delayed_error = complex(self._delay_buffer[self._delay_head])
 
         candidate_integral = self._integral + delayed_error * delta_t
+        # Bias and feedforward are summed first, as in the compiled scan,
+        # so the two stay byte-identical.
         output = (
-            self.generator_current_bias
+            (self.generator_current_bias + generator_current_feedforward)
             + self.gain_proportional * delayed_error
             + self.gain_integral * candidate_integral
         )
@@ -618,7 +637,10 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         )
 
     def update_generator_current(
-        self, error: complex, delta_t: float
+        self,
+        error: complex,
+        delta_t: float,
+        generator_current_feedforward: complex = 0.0 + 0.0j,
     ) -> complex:
         """
         Advance the controller by one sample and return the current command.
@@ -630,6 +652,9 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         delta_t
             Time step of this sample [s]; unused, since a proportional law
             has no time constant of its own.
+        generator_current_feedforward
+            Drive-side feedforward of this sample [A], added to the bias
+            and clamped with it.
 
         Returns
         -------
@@ -639,9 +664,9 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         self._delay_buffer[self._delay_head] = error
         self._delay_head = (self._delay_head + 1) % self._delay_buffer.size
         delayed_error = complex(self._delay_buffer[self._delay_head])
-        output = self.generator_current_bias + (
-            self.gain_proportional * delayed_error
-        )
+        output = (
+            self.generator_current_bias + generator_current_feedforward
+        ) + self.gain_proportional * delayed_error
         return clamp_magnitude(output, self.max_output)
 
     def limit(

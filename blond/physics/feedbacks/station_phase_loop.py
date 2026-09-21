@@ -62,6 +62,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.physics.cavities import RFStationBaseClass
     from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackBase
+    from blond.physics.feedbacks.feedforward_table import FeedforwardTable
 
 
 def wrap_phase(phase: float) -> float:
@@ -288,6 +289,11 @@ class StationPhaseLoop:
         from the newest measurement at least this many samples old,
         whichever bunch left it. ``0`` acts from the first sample at or
         after the passage's cell.
+    offset_programme
+        A precomputed RF phase programme [rad] on the feedback's cell
+        clock, added to the loop's own output on every controller sample
+        and held with it; see :attr:`offset_programme`. ``None`` (the
+        default) is none, and changes nothing.
     record
         Record to append to; a fresh one of its own if ``None``.
     name
@@ -296,7 +302,8 @@ class StationPhaseLoop:
     Raises
     ------
     ValueError
-        If ``n_delay`` is negative or the feedback already carries a loop.
+        If ``n_delay`` is negative, the feedback already carries a loop,
+        or the programme has an imaginary part.
     """
 
     def __init__(
@@ -307,6 +314,7 @@ class StationPhaseLoop:
         gain: float,
         gain_schedule: GainSchedule | None = None,
         n_delay: int = 1,
+        offset_programme: FeedforwardTable | None = None,
         record: StationPhaseLoopRecord | None = None,
         name: str | None = None,
     ) -> None:
@@ -324,6 +332,8 @@ class StationPhaseLoop:
         self._n_delay = int(n_delay)
         self._record = StationPhaseLoopRecord() if record is None else record
         self.name = name
+        self._offset_programme: FeedforwardTable | None = None
+        self.offset_programme = offset_programme
         feedback.phase_loop = self
 
     @property
@@ -394,6 +404,41 @@ class StationPhaseLoop:
         if self._gain_schedule is None:
             return self._gain
         return self._gain_schedule.gain_at(cell)
+
+    @property
+    def offset_programme(self) -> FeedforwardTable | None:
+        """
+        The feedforward half of the station's RF phase offset [rad].
+
+        The loop's output is feedback: ``-gain`` times what it measured.
+        This is the other half, a table computed elsewhere -- by a model,
+        or by a learner looking at the previous shot -- and only
+        *received* here: read on the same controller samples, on the same
+        cell clock, and held the same way, the two simply add. With a gain
+        of zero the loop records and the programme alone acts, which is a
+        phase feedforward with the measurement its author needs thrown in.
+        Like the loop's own output it moves the RF *reference*; the bunch
+        is kicked with the field, which the generator loop settles on it.
+
+        A :class:`~blond.physics.feedbacks.feedforward_table.FeedforwardTable`
+        holds complex values; a phase is its real part, and a table with
+        an imaginary part is refused rather than silently halved.
+
+        Returns
+        -------
+        offset_programme
+            The programme, or ``None`` for none.
+        """
+        return self._offset_programme
+
+    @offset_programme.setter
+    def offset_programme(self, programme: FeedforwardTable | None) -> None:
+        if programme is not None and np.any(programme.values.imag != 0.0):
+            raise ValueError(
+                "an RF phase programme is real [rad]; the table handed to "
+                f"{self.name or 'the phase loop'} has an imaginary part"
+            )
+        self._offset_programme = programme
 
     @property
     def n_delay(self) -> int:
@@ -482,7 +527,8 @@ class StationPhaseLoop:
             One offset per cell [rad]: on a sample cell
             ``-gain_at(cell)`` times the error of the newest measurement
             at least ``n_delay`` samples old (``0`` if there is none),
-            otherwise the previous cell's.  The gain is read per sample
+            plus the :attr:`offset_programme` at that cell, otherwise the
+            previous cell's.  The gain is read per sample
             and not once per call, so a run spanning a step of the
             schedule -- a backfill span reconstructed after the step fell
             due included -- carries the entry each cell is covered by.
@@ -491,6 +537,7 @@ class StationPhaseLoop:
         value = float(carried)
         record = self._record
         schedule = self._gain_schedule
+        programme = self._offset_programme
         gain = self._gain
         delay_cells = self._n_delay * controller_update_interval
         for local in range(n_cells):
@@ -501,5 +548,7 @@ class StationPhaseLoop:
                 if schedule is not None:
                     gain = schedule.gain_at(cell)
                 value = -gain * used
+                if programme is not None:
+                    value += programme.value_at(cell).real
             offsets[local] = value
         return offsets

@@ -1613,6 +1613,7 @@ class TestCavityModelCarriesNoControlLaw(unittest.TestCase):
                 1,
                 3.0e7 + 0.0j,
                 np.zeros(n, dtype=np.complex128),
+                np.zeros(n, dtype=np.complex128),
                 OMEGA_RF,
                 *law_state,
             )
