@@ -2604,7 +2604,9 @@ class TestSpecials(unittest.TestCase):
             for n_bins in (0, 1):
                 with (
                     self.subTest(special=special, n_bins=n_bins),
-                    self.assertRaises(AssertionError),
+                    self.assertRaisesRegex(
+                        AssertionError, "requires at least two bins"
+                    ),
                 ):
                     backend.specials.beam_phase(
                         hist_x=backend.zeros(n_bins, dtype=backend.float),
