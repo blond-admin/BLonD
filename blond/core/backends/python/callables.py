@@ -502,10 +502,13 @@ class PythonSpecials(Specials):
             if n_slices < 2:  # noqa: PLR2004  # pragma: no cover
                 # Reached only under `python -O`, where the assert above
                 # is stripped. Mirrors the kernel guards in the compiled
-                # backends: no interpolation is possible, but
-                # `acceleration_kick` still applies to the whole beam.
-                dE += acceleration_kick
-                return
+                # backends: refuse outright rather than apply
+                # `acceleration_kick` alone, which would be only part of
+                # the kick.
+                raise ValueError(
+                    "kick_interpolated needs at least 2 bins to "
+                    f"interpolate across, got {n_slices}"
+                )
             # n_slices >= 2 is guaranteed by the guard above.
             diffs = np.diff(bin_centers)
             if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
