@@ -27,6 +27,7 @@ from blond.core.backends.cpp.compiled_dir_handler import (
     cpp_compiled_dir,
     load_build_options,
 )
+from blond.core.backends.cpp.histogram_n_threads import histogram_n_threads
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 
@@ -529,6 +530,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             start = floattype(start)
             stop = floattype(stop)
 
+            n_threads = histogram_n_threads(
+                n_macroparticles=len(array_read),
+                n_slices=len(array_write),
+                max_threads=_LIBBLOND.blond_omp_get_max_threads(),
+            )
+
             _LIBBLOND.histogram(
                 _get_pointer(array_read),
                 _get_pointer(array_write),
@@ -536,6 +543,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(stop, floattype),
                 ct.c_int(len(array_write)),
                 _get_beam_len(array_read),
+                ct.c_int(n_threads),
             )
 
         @staticmethod

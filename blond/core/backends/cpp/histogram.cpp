@@ -116,7 +116,7 @@ static inline void bin_indices_of_tile(const real_t *__restrict__ coordinates,
 extern "C" void histogram(const real_t *__restrict__ input,
                           real_t *__restrict__ output, const real_t cut_left,
                           const real_t cut_right, const int n_slices,
-                          const index_t n_macroparticles) {
+                          const index_t n_macroparticles, const int n_threads) {
   const double inv_bin_width = n_slices / ((double)cut_right - cut_left);
 
   // One private histogram per thread, plus the trash bin each of them
@@ -124,12 +124,17 @@ extern "C" void histogram(const real_t *__restrict__ input,
   // particles. One flat block rather than a table of per-thread
   // pointers: that indirection would sit inside the counting loop's
   // read-modify-write and roughly doubles its cost.
-  const int max_threads = omp_get_max_threads();
+  //
+  // `n_threads` is chosen by the caller (`histogram_n_threads.py`):
+  // every thread is woken up and zeroes a private histogram, which with
+  // few particles or many bins costs more than the counting it takes
+  // over. The counters are integers, so the result does not depend on
+  // it.
   const size_t bins_per_thread = (size_t)n_slices + 1;
-  index_t *histo = (index_t *)malloc((size_t)max_threads * bins_per_thread *
-                                     sizeof(index_t));
+  index_t *histo =
+      (index_t *)malloc((size_t)n_threads * bins_per_thread * sizeof(index_t));
 
-#pragma omp parallel
+#pragma omp parallel num_threads(n_threads)
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
