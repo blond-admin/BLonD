@@ -280,11 +280,11 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   // A single bin has no width to interpolate across: the division below
   // would be 0/0, and `glob_vkick_factor` is empty, so relying on the
   // resulting `nan` to fail the range check would index out of bounds.
-  // `acc_kick` still applies to the whole beam.
+  // The host wrapper refuses n_slices < 2 before launching (a device
+  // kernel cannot raise), so this only guards a direct launch: do
+  // nothing rather than apply `acc_kick` alone, which would be only part
+  // of the kick.
   if (n_slices < 2) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      beam_dE[i] += acc_kick;
-    }
     return;
   }
   real_t const inv_bin_width =

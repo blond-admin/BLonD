@@ -270,17 +270,14 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
 ) -> None:
     if len(bin_centers) < 2:  # noqa: PLR2004
         # A single-bin (or empty) `bin_centers` has no width to
-        # interpolate across -- nothing can be kicked. Bail out before the
-        # `len(bin_centers) - 1` division below, which would otherwise
-        # raise `ZeroDivisionError` (unlike the float division the
-        # python/cpp backends perform, which quietly yields `nan` and
-        # skips every particle via the range check).
-        # `acceleration_kick` is not an interpolated quantity -- it carries
-        # the reference energy change and applies to the whole beam, so it
-        # is still delivered to every particle here.
-        for i in prange(len(dE)):
-            dE[i] += acceleration_kick
-        return
+        # interpolate across. The wrapper asserts this, so it is reached
+        # only under `python -O`; refuse outright rather than apply
+        # `acceleration_kick` alone, which would be only part of the kick
+        # (and rather than the bare `ZeroDivisionError` of the
+        # `len(bin_centers) - 1` division below).
+        raise ValueError(
+            "kick_interpolated needs at least 2 bins to interpolate across"
+        )
     dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
     inv_dx = 1 / dx
     x_min = bin_centers[0]

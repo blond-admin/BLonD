@@ -239,7 +239,9 @@ class TestBackendBaseClass(BLonDTestCase):
         self.assertEqual(backend.specials_mode, "cpp_single_core")
 
 
-def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
+def _run_python(
+    code: str, *interpreter_flags: str
+) -> "subprocess.CompletedProcess[str]":
     """Run a code snippet in a fresh interpreter without BLOND env vars."""
     env = os.environ.copy()
     # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
@@ -251,7 +253,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     ):
         env.pop(key, None)
     return subprocess.run(
-        [sys.executable, "-c", code],
+        [sys.executable, *interpreter_flags, "-c", code],
         check=False,
         capture_output=True,
         text=True,
@@ -1213,6 +1215,79 @@ class TestSpecials(BLonDTestCase):
                     charge=charge,
                     acceleration_kick=acceleration_kick,
                 )
+
+    def test_kick_interpolated_single_bin_raises_without_asserts(
+        self,
+    ) -> None:
+        """Under `python -O` the wrapper `assert` is stripped, so the
+        kernels are the last line of defence for a single-bin
+        `bin_centers`. They must then refuse as well -- not apply
+        `acceleration_kick` alone, which is only part of the kick the
+        wrapper just declared impossible.
+        """
+        code = "\n".join(
+            [
+                "import sys",
+                "from blond.core.backends.backend import (",
+                "    Cupy64Bit, Numpy64Bit, backend,",
+                ")",
+                "from blond import copy_to_cpu",
+                "print('RESULT optimize', sys.flags.optimize)",
+                f"for mode in {self.special_modes!r}:",
+                "    try:",
+                "        backend.change_backend(",
+                "            Cupy64Bit if mode == 'cuda' else Numpy64Bit",
+                "        )",
+                "        backend.set_specials(mode)",
+                "    except (FileNotFoundError, OSError):",
+                "        print('RESULT', mode, 'unavailable')",
+                "        continue",
+                "    dE = backend.zeros(20, dtype=backend.float)",
+                "    try:",
+                "        backend.specials.kick_interpolated(",
+                "            dt=backend.linspace(",
+                "                -5, 5, 20, dtype=backend.float",
+                "            ),",
+                "            dE=dE,",
+                "            voltage=backend.array(",
+                "                [1.0], dtype=backend.float",
+                "            ),",
+                "            bin_centers=backend.array(",
+                "                [0.0], dtype=backend.float",
+                "            ),",
+                "            charge=backend.float(10),",
+                "            acceleration_kick=backend.float(0.5),",
+                "        )",
+                "        outcome = 'no-error'",
+                "    except ValueError as exc:",
+                "        outcome = 'ValueError:' + str(",
+                "            'at least 2 bins' in str(exc)",
+                "        )",
+                "    dE_max = float(abs(copy_to_cpu(dE)).max())",
+                "    print('RESULT', mode, outcome, dE_max)",
+            ]
+        )
+        result = _run_python(code, "-O")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        # `set_specials` prints too, so only the tagged lines count.
+        lines = [
+            line.removeprefix("RESULT ")
+            for line in result.stdout.splitlines()
+            if line.startswith("RESULT ")
+        ]
+        self.assertEqual(
+            lines[0], "optimize 1", msg="asserts must be stripped here"
+        )
+        self.assertEqual(len(lines) - 1, len(self.special_modes))
+        for line in lines[1:]:
+            mode, *outcome = line.split()
+            if outcome == ["unavailable"]:
+                continue
+            self.assertEqual(
+                outcome,
+                ["ValueError:True", "0.0"],
+                msg=f"`{mode}` must raise and leave dE untouched",
+            )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_applies_acceleration_kick_everywhere(

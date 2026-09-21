@@ -585,7 +585,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                             "EquidistantMultiProfile.profiles[i].hist_x "
                             "for a single bucket."
                         )
-                _LIBBLOND.linear_interp_kick(
+                kick_refused = _LIBBLOND.linear_interp_kick(
                     _get_pointer(dt),
                     _get_pointer(dE),
                     _get_pointer(voltage),
@@ -595,6 +595,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     _get_beam_len(dt),
                     c_real(acceleration_kick, floattype),
                 )
+                if kick_refused:  # pragma: no cover
+                    # Reached only under `python -O`, where the assert
+                    # above is stripped: the kernel's own guard refused.
+                    raise ValueError(
+                        "kick_interpolated needs at least 2 bins to "
+                        f"interpolate across, got {n_slices}"
+                    )
                 return
 
             assert filling_pattern.dtype == np.bool_
