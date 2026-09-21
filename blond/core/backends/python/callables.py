@@ -499,7 +499,7 @@ class PythonSpecials(Specials):
                 "kick_interpolated needs at least 2 bins to interpolate "
                 f"across, got {n_slices}"
             )
-            if n_slices < 2:  # noqa: PLR2004
+            if n_slices < 2:  # noqa: PLR2004  # pragma: no cover
                 # Reached only under `python -O`, where the assert above
                 # is stripped. Mirrors the kernel guards in the compiled
                 # backends: no interpolation is possible, but
