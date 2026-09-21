@@ -2313,6 +2313,13 @@ class TestSpecials(BLonDTestCase):
                 ids=ids,
             )
             self.assertEqual(n_new, 10 - 3)
+            # Every backend must hand back a host `int`, never a
+            # NumPy scalar or a CuPy 0-d array.
+            self.assertIs(
+                type(n_new),
+                int,
+                msg=f"Failed test `{special}` with {dtype}",
+            )
             flags = flags[:n_new]
             dt = dt[:n_new]
             dE = dE[:n_new]
