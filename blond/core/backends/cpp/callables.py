@@ -791,7 +791,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _get_len(dt),
+                _get_beam_len(dt),
             )
 
         @staticmethod
