@@ -162,8 +162,10 @@ def get_main_harmonic_attributes(
         Main voltage, in [V].
     """
     # TODO move this into ring.
-    from blond import MultiHarmonicRFStation
-    from blond.physics.rf_station import SingleHarmonicRFStation
+    from blond.physics.rf_station import (
+        MultiHarmonicRFStation,
+        SingleHarmonicRFStation,
+    )
 
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation, recursive=False

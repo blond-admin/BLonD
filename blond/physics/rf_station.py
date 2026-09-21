@@ -49,8 +49,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Ring
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.ring.ring import Ring
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
     from blond.experimental.physics.feedbacks.base import (
