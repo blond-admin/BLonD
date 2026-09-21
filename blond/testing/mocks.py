@@ -10,16 +10,14 @@
 
 from unittest.mock import Mock
 
-from blond import (
-    Beam,
-    ConstantMagneticCycle,
-    DriftSimple,
-    Simulation,
-    SingleHarmonicRFStation,
-    StaticProfile,
-    WakeField,
-)
+from blond.core.beam.beams import Beam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.simulation.simulation import Simulation
+from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+from blond.physics.drifts import DriftSimple
+from blond.physics.impedances.base import WakeField
+from blond.physics.profiles import StaticProfile
+from blond.physics.rf_station import SingleHarmonicRFStation
 
 simulation_mock = Mock(Simulation)
 

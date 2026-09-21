@@ -25,8 +25,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 import numpy as np
 
-from blond import Simulation
 from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 
 
