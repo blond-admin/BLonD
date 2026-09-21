@@ -77,6 +77,28 @@ class TestPooledInterpolationKick(BLonDTestCase):
             self.pooled_kick._buffer_reference_energy_change[key], 0.0
         )
 
+    def test__track_twice_kicks_once(self):
+        # A pool tracked twice without new `register` calls in between
+        # (e.g. placed twice in the ring) must not re-apply the kick.
+        time_axis = backend.linspace(0, 1, 10)
+        self.pooled_kick.register(
+            time_axis=time_axis,
+            voltage=backend.ones(10),
+            reference_energy_change=1.0,
+        )
+        beam = ProbeBeam(
+            particle_type=proton,
+            dt=backend.linspace(0.1, 0.9, 5),
+            reference_total_energy=1e12,
+        )
+        self.pooled_kick._track(beam=beam)
+        dE_after_first_track = beam.dE.copy_as_numpy()
+        self.pooled_kick._track(beam=beam)
+
+        np.testing.assert_array_equal(
+            beam.dE.copy_as_numpy(), dE_after_first_track
+        )
+
     def test__track(self):
         time_axis = backend.linspace(
             0,
