@@ -22,7 +22,7 @@ from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
-from blond.generals.cupy_.no_cupy_import import import_cupy_with_error_hint
+from blond.generals.cupy_ import import_cupy_with_error_hint
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
