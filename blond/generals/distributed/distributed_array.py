@@ -83,8 +83,11 @@ class DistributedArray:
             A copy of the local array, guaranteed to be in the GPU-RAM.
         """
         # just a shortcut
+        from blond.generals.cupy_.no_cupy_import import (
+            import_cupy_with_error_hint,
+        )
 
-        import cupy as cp  # this will fail if cupy is not available
+        cp = import_cupy_with_error_hint()
 
         return cp.array(self.array_local, copy=True)
 

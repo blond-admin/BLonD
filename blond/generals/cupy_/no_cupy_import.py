@@ -21,6 +21,47 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
+CUPY_MISSING_MESSAGE = (
+    "The CUDA backend needs CuPy, which is not installed. Install the "
+    "GPU extra matching your CUDA toolkit, e.g. "
+    "`pip install blond[gpu_cuda12]` for CUDA 12 or "
+    "`pip install blond[gpu_cuda13]` for CUDA 13. To stay on the CPU "
+    "instead, pick a CPU backend, e.g. BLOND_BACKEND_MODE=numba "
+    "(or 'cpp' / 'python')."
+)
+
+
+def import_cupy_with_error_hint() -> Any:
+    """
+    Import CuPy, or fail with an actionable error message.
+
+    Returns
+    -------
+    cupy
+        The imported ``cupy`` module.
+
+    Raises
+    ------
+    ModuleNotFoundError
+        If CuPy is not installed. The message names the extra to
+        install and the CPU alternative; the original import error is
+        kept as ``__cause__``.
+
+    Notes
+    -----
+    Use this instead of a bare ``import cupy`` on any code path a
+    CPU-only machine can reach. Most machines running BLonD have no
+    GPU at all, so the bare ``ModuleNotFoundError: No module named
+    'cupy'`` -- raised from deep inside the backend machinery -- is a
+    common and needlessly confusing first contact with the library.
+    """
+    try:
+        import cupy  # type: ignore
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(CUPY_MISSING_MESSAGE) from exc
+    return cupy
+
+
 def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
     """
     Check if the array is a Cupy array.
