@@ -348,7 +348,7 @@ class BeamPhysicsRelevantElements(Preparable):
         if self._on_init_simulation_passed and key in self._get_element_cache:
             return self._get_element_cache[key]
 
-        def is_in_section(element: T) -> bool:
+        def is_in_section(element: SimulationElementBase) -> bool:
             return element.section_index == section_i
 
         elements = self.elements

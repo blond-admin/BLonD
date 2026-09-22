@@ -92,7 +92,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         orbit_length: float,
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ) -> None:
         super().__init__(
             section_index=section_index,
@@ -115,7 +115,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
-    def eta_0(self, gamma: float) -> backend.float:
+    def eta_0(self, gamma: float) -> float:
         """
         Drift in arc parameter eta for one turn in synchrotron.
 
@@ -185,7 +185,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
         momentum_compaction_factor: float | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ) -> None:
         """
         Simple, fully linearised longitudinal drift (fastest solver).
@@ -392,14 +392,15 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
-    def alpha_0(self) -> float:
+    def alpha_0(self) -> float | None:
         """
         Momentum compaction factor.
 
         Returns
         -------
         alpha_0
-            Momentum compaction factor.
+            Momentum compaction factor, ``None`` while it is neither set nor
+            applied by a schedule.
 
         See Also
         --------
@@ -515,7 +516,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         section_index: int = 0,
         momentum_compaction_factor: float | None = None,
         higher_order_alpha: NumpyArray | None = None,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             orbit_length=orbit_length,
@@ -748,7 +749,7 @@ class _DriftLikeLineSegment(DriftSimple):
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
         momentum_compaction_factor: float | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ) -> None:
         super().__init__(
             orbit_length=orbit_length,

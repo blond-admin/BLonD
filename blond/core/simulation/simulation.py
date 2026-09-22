@@ -991,7 +991,8 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         until_section_index: int = -1,
@@ -1016,7 +1017,11 @@ class Simulation(Preparable):
             called at the end of each turn.
             Useful for custom data collection or live plotting. Default is None.
 
-            The callback can be defined as follows.
+            Each callback is called as ``callback(simulation, beam)``
+            with the running
+            :class:`~blond.core.simulation.simulation.Simulation` and
+            the tracked beam, e.g. a
+            :class:`~blond.core.beam.beams.Beam`.
             The rate at with which this function is
             called can be set by `each_turn_i`.
 
@@ -1137,7 +1142,11 @@ class Simulation(Preparable):
             called at the end of each turn.
             Useful for custom data collection or live plotting. Default is None.
 
-            The callback can be defined as follows.
+            Each callback is called as ``callback(simulation, beam)``
+            with the running
+            :class:`~blond.core.simulation.simulation.Simulation` and
+            the tracked beam, e.g. a
+            :class:`~blond.core.beam.beams.Beam`.
             The rate at with which this function is
             called can be set by `each_turn_i`.
         verbose
@@ -1261,7 +1270,8 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
     ) -> int:
         """
         Initialize all simulation components before running or loading results.

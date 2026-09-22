@@ -25,7 +25,9 @@ class ImpedanceReader(ABC):
         super().__init__()
 
     @abstractmethod  # pragma: no cover
-    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+    def load_file(
+        self, filepath: PathLike | str
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
         Load a textfile from a file on the disk.
 
@@ -58,7 +60,9 @@ class CsvReader(ImpedanceReader):
         super().__init__()
         self.kwargs = kwargs
 
-    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+    def load_file(
+        self, filepath: PathLike | str
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
         Load a textfile from a file on the disk.
 
@@ -84,7 +88,9 @@ class ExampleImpedanceReader1(ImpedanceReader):
     def __init__(self):
         super().__init__()
 
-    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+    def load_file(
+        self, filepath: PathLike | str
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
         Load a textfile from a file on the disk.
 
@@ -146,7 +152,9 @@ class ExampleImpedanceReader2(ImpedanceReader):
         super().__init__()
         self._mode = mode
 
-    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+    def load_file(
+        self, filepath: PathLike | str
+    ) -> tuple[NumpyArray, NumpyArray]:
         """
         Load a textfile from a file on the disk.
 

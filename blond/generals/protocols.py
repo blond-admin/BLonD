@@ -39,7 +39,7 @@ class AnyInterpolator(Protocol):
 
     def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None: ...
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
+    def __call__(self, x: float | np.ndarray) -> np.ndarray:
         """
         Interpolate at new points x.
 

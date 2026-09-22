@@ -22,6 +22,7 @@ from blond.core.ring.helpers import requires
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -148,8 +149,8 @@ class EquidistantMultiProfile(MultiProfile):
         self._first_left_cut: float | None = None
         self.profiles: tuple[StaticProfile, ...] | None = None
 
-        self._continuous_memory_hist_x = None
-        self._continuous_memory_hist_y = None
+        self._continuous_memory_hist_x: NumpyArray | CupyArray | None = None
+        self._continuous_memory_hist_y: NumpyArray | CupyArray | None = None
 
         self.hist_y_to_density_factor: float | None = None
 

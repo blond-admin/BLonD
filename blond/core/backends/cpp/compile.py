@@ -341,7 +341,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
 
 def _get_libname(
-    libname: str, build_options: dict[str, bool | str]
+    libname: str | None, build_options: dict[str, bool | str | None]
 ) -> tuple[str, str | None, str | None]:
 
     compiled_dir = None

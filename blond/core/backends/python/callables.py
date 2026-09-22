@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # The function definition is recycled by the numba backend.
 def _move_flagged_elements_to_end_py(
-    flag: int,
+    flag: np.int32,
     flags: NumpyArray,  # also purged
     dt: NumpyArray,
     dE: NumpyArray,

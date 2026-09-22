@@ -26,9 +26,19 @@ from blond.generals.warnings_ import PrecisionWarning
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
-    from typing import TYPE_CHECKING, Any, Literal, TypeVar
+    from typing import TYPE_CHECKING, Literal, TypeVar
 
-    BackendType = TypeVar("BackendType", bound="type[BackendBaseClass]")
+    BackendType = TypeVar("BackendType", bound="type[Numpy64Bit | Cupy64Bit]")
+    # Every mode of every backend family: `change_backend` swaps the
+    # family of the global `backend` in place, so which modes are valid
+    # is only known at runtime (`UnknownBackendMode` otherwise).
+    SpecialsMode = Literal[
+        "python",
+        "cpp",
+        "cpp_single_core",
+        "numba",
+        "cuda",
+    ]
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -45,7 +55,7 @@ DEFAULT_BITS = "64"
 #: Must match `index_t` in `cpp/blond_common.h` and `cuda/kernels.cu`.
 INDEX_DTYPE = np.int64
 
-ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
+ALL_BACKENDS: dict[str, type[Numpy64Bit | Cupy64Bit]] = {}
 # `AVAILABLE_BACKENDS` is provided lazily via the module-level
 # `__getattr__` below; see `_probe_available_backends`.
 
@@ -350,7 +360,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ) -> None:
+    ) -> int:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
@@ -368,6 +378,11 @@ class Specials(ABC):
             Macro-particle ids.
             This allows to identify single particles,
             even if the array indexing is changed.
+
+        Returns
+        -------
+        n_new
+            Number of particles that are not flagged.
         """
         raise NotImplementedError(
             "The backend for `move_flagged_elements_to_end` is missing."
@@ -595,9 +610,9 @@ class _ModeSwitchHelper:
         The mode of the specials to be set.
     """
 
-    def __init__(self, backend: BackendBaseClass, mode: str):
+    def __init__(self, backend: BackendBaseClass, mode: SpecialsMode):
         self.backend = backend
-        self.mode_org = None
+        self.mode_org: SpecialsMode | None = None
         self.mode_tmp = mode
 
     def __enter__(self):
@@ -634,13 +649,7 @@ class BackendBaseClass(ABC):
         self,
         float_: type[np.float64],
         complex_: type[np.complex128],
-        specials_mode: Literal[
-            "python",
-            "cpp",
-            "cpp_single_core",
-            "numba",
-            "cuda",
-        ],
+        specials_mode: SpecialsMode,
         is_gpu: bool,
         verbose: bool = False,
     ) -> None:
@@ -718,7 +727,7 @@ class BackendBaseClass(ABC):
         self.repeat: Callable = None  # type: ignore
         self.ndarray: type = None  # type: ignore
         self.where: Callable = None  # type: ignore
-        self.hstack: type = None  # type: ignore
+        self.hstack: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -787,7 +796,7 @@ class BackendBaseClass(ABC):
             self.set_specials(specials_mode_org)
 
     @abstractmethod  # pragma: no cover
-    def set_specials(self, mode: Any) -> None:
+    def set_specials(self, mode: SpecialsMode) -> None:
         """
         Set the special compiled functions.
 
@@ -879,7 +888,7 @@ class BackendBaseClass(ABC):
         self.change_backend(backend_class_for_mode(_backend_mode))
         self.set_specials(mode=_backend_mode)  # type: ignore
 
-    def temporary_specials_mode(self, mode: str):
+    def temporary_specials_mode(self, mode: SpecialsMode):
         """
         Helper to be used in a `with` statement to set the specials temporarily.
 
@@ -1106,15 +1115,7 @@ class NumpyBackend(BackendBaseClass):
 
         self._finalize()
 
-    def set_specials(
-        self,
-        mode: Literal[
-            "python",
-            "cpp",
-            "cpp_single_core",
-            "numba",
-        ],
-    ) -> None:
+    def set_specials(self, mode: SpecialsMode) -> None:
         """
         Set the special compiled functions.
 
@@ -1259,7 +1260,7 @@ class CupyBackend(BackendBaseClass):
 
         self._finalize()
 
-    def set_specials(self, mode: Literal["cuda"]) -> None:
+    def set_specials(self, mode: SpecialsMode) -> None:
         """
         Set the special compiled functions.
 
@@ -1291,7 +1292,7 @@ class Cupy64Bit(CupyBackend):
         )
 
 
-def _probe_available_backends() -> dict[str, type[BackendBaseClass]]:
+def _probe_available_backends() -> dict[str, type[Numpy64Bit | Cupy64Bit]]:
     """
     Probe which of the registered backends can be instantiated.
 
@@ -1300,7 +1301,7 @@ def _probe_available_backends() -> dict[str, type[BackendBaseClass]]:
     available_backends
         Mapping from backend name to backend class.
     """
-    available: dict[str, type[BackendBaseClass]] = {}
+    available: dict[str, type[Numpy64Bit | Cupy64Bit]] = {}
     for k, v in ALL_BACKENDS.items():
         try:
             v()

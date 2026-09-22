@@ -64,7 +64,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         self._hist_y: NumpyArray | CupyArray | None = None
         self.hist_y_to_density_factor: float | None = None
 
-        self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
+        self._beam_spectrum_buffer: dict[
+            int | None, NumpyArray | CupyArray
+        ] = {}
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -96,7 +98,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         *,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Validate histogram arrays and invalidate cache at run start.
@@ -115,7 +117,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_y is not None
         self.invalidate_cache()
 
-    def plot(self, **kwargs_plot: dict[str, Any]) -> list[Any]:
+    def plot(self, **kwargs_plot: Any) -> list[Any]:
         """
         Plot the current histogram.
 
@@ -613,7 +615,7 @@ class DynamicProfile(ProfileBaseClass):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -636,7 +638,7 @@ class DynamicProfile(ProfileBaseClass):
         *,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Update histogram limits from the beam at run start.

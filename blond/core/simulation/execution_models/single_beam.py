@@ -140,7 +140,7 @@ class MainloopSingleBeam(ExecutionModel):
 
     @staticmethod
     def _add_progressbar_info(
-        iterator: tqdm, n_particles: int, show_progressbar: bool
+        iterator: range | tqdm, n_particles: int, show_progressbar: bool
     ):
         # Update tqdm with particle throughput metrics
         if show_progressbar and hasattr(iterator, "format_dict"):

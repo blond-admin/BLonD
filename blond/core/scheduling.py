@@ -219,7 +219,7 @@ class ScheduledFunctional(ScheduledBaseClass):
 
     def __init__(
         self,
-        function: Callable[[int, float], Any],
+        function: Callable[..., Any],
     ) -> None:
         super().__init__()
         self.function = function
@@ -248,9 +248,7 @@ class ScheduledFunctional(ScheduledBaseClass):
 
 
 def get_scheduler(
-    value: NumpyArray
-    | tuple[NumpyArray, NumpyArray]
-    | Callable[[int, float], Any],
+    value: NumpyArray | tuple[NumpyArray, NumpyArray] | Callable[..., Any],
 ) -> ScheduledBaseClass:
     """
     Auto-select the correct class of the schedulers.
