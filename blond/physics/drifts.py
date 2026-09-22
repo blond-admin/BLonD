@@ -388,7 +388,11 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         eta_0
             Drift in arc parameter eta for one turn in synchrotron.
         """
-        return self.alpha_0 - (1 / (gamma * gamma))
+        alpha_0 = self.alpha_0
+        assert alpha_0 is not None, (
+            "`momentum_compaction_factor` must be set or scheduled first."
+        )
+        return alpha_0 - (1 / (gamma * gamma))
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
@@ -679,6 +683,10 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,
             )
+        alpha_0 = self.alpha_0
+        assert alpha_0 is not None, (
+            "`momentum_compaction_factor` must be set or scheduled first."
+        )
 
         # Advance reference
         dt = self.track_reference(beam.reference)
@@ -696,7 +704,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
                 dt=beam.write_partial_dt(),
                 dE=beam.read_partial_dE(),
                 T=dt,
-                alpha_0=self.alpha_0,
+                alpha_0=alpha_0,
                 higher_alpha=higher_alpha,
                 beta=beam.reference.beta,
                 energy=beam.reference.total_energy,
