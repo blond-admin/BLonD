@@ -176,7 +176,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=(
+            turn_i=(  # ty: ignore[invalid-argument-type]  # FIXME: `turn_i=None` violates `get_target_total_energy(turn_i: int)`
                 self._turn_counter.value
                 if self._turn_counter is not None
                 else None
@@ -822,7 +822,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             "Not available before instancing ``Simulation(...)``"
         )
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=(
+            turn_i=(  # ty: ignore[invalid-argument-type]  # FIXME: `turn_i=None` violates `get_target_total_energy(turn_i: int)`
                 self._turn_counter.value
                 if self._turn_counter is not None
                 else None
@@ -1001,7 +1001,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             return 0.0
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
-            turn_i=(
+            turn_i=(  # ty: ignore[invalid-argument-type]  # FIXME: `turn_i=None` violates `get_target_total_energy(turn_i: int)`
                 self._turn_counter.value
                 if self._turn_counter is not None
                 else None
