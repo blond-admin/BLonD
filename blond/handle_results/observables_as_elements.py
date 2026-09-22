@@ -104,9 +104,9 @@ class BeamObservationInRingElement(
         num_elements_of_own_instance_in_pipeline = sum(
             [1 if el is self else 0 for el in own_class_in_simulation_elements]
         )
-        n_entries = (
-            n_turns * num_elements_of_own_instance_in_pipeline
-        ) // self.each_turn_i + 2
+        n_entries = num_elements_of_own_instance_in_pipeline * math.ceil(
+            n_turns / self.each_turn_i
+        )
 
         self._dEs = DenseArrayRecorder(
             self.common_filepath + "_dEs", (n_entries, beam.common_array_size)

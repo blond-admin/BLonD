@@ -89,7 +89,7 @@ class TestBeamObservationInRingElement(BLonDTestCase):
         ]:
             self.assertTrue(hasattr(self.observation, rec_name))
             rec = getattr(self.observation, rec_name)
-            self.assertEqual(rec._memory.shape[0], 5)
+            self.assertEqual(rec._memory.shape[0], 3)
 
     def test_track_and_retrieve_data(self):
         """Ensure that calling track() stores data and public properties return it."""
