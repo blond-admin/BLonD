@@ -198,6 +198,10 @@ class TestSynchrotronRadiationBaseClass(BLonDTestCase):
         self.assertIsNone(self.SRB._damping_time)
         self.assertIsNone(self.SRB._natural_energy_spread)
 
+    def test_default_section_index_is_zero(self):
+        """Default section_index is 0, like every other element."""
+        self.assertEqual(SynchrotronRadiationBaseClass().section_index, 0)
+
     def test_inputs_SynchrotronRadiationDrift(self):
         np.testing.assert_array_equal(
             self.SRD.share_of_radiation_integrals,
