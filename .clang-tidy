@@ -1,0 +1,40 @@
+# Static analysis for the C++ backend (blond/core/backends/cpp), run in CI
+# by dev_tools/run_clang_tidy.py (version pinned there and in CI).
+#
+# Disabled checks, and why:
+# - pro-bounds-pointer-arithmetic / pro-bounds-constant-array-index /
+#   easily-swappable-parameters: the kernels are an `extern "C"` ABI called
+#   via ctypes with raw pointers, so these fire on every kernel by design.
+# - identifier-length: `dt`, `dE`, `t`, `x` are the physics symbols.
+# - magic-numbers: polynomial coefficients and physical constants.
+# - math-missing-parentheses, use-auto, use-trailing-return-type: taste.
+# - include-cleaner: depends on the platform's standard headers.
+# - avoid-const-params-in-decls: harmless `const` on by-value parameters.
+# - avoid-pragma-once: every compiler we support (gcc, clang, nvcc) has it.
+# - cert-*: mostly aliases of checks already enabled below.
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -misc-include-cleaner,
+  -modernize-use-auto,
+  -modernize-use-trailing-return-type,
+  -portability-avoid-pragma-once,
+  -readability-avoid-const-params-in-decls,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-math-missing-parentheses
+
+# Lint our own headers, but not the vendored VDT math library.
+HeaderFilterRegex: 'blond[/\\]core[/\\]backends[/\\]cpp[/\\]'
+ExcludeHeaderFilterRegex: '(vdtcore_common|sin|cos|exp|sincos)\.h$'
