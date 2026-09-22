@@ -118,7 +118,7 @@ class ObservablesBaseClass(MainLoopRelevant):
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str | None = None, **kwargs):
+    def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
@@ -1413,7 +1413,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
+        n_turns_observation = len(self._turns_array)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(
