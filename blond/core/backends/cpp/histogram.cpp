@@ -73,7 +73,8 @@ extern "C" void histogram(const real_t *__restrict__ input,
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
       for (int t = 0; t < threads; t++) {
-        output[i] += histo[(size_t)t * n_slices + i];
+        // exact while a bin holds fewer than 2^53 particles
+        output[i] += static_cast<real_t>(histo[(size_t)t * n_slices + i]);
       }
     }
   }
