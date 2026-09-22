@@ -319,5 +319,6 @@ class Music(BeamPhysicsRelevant):
         """
         music = Music(source=source, section_index=section_index)
         music.configure()
-        music.configure_run(beam=beam, n_turns=None)
+        # FIXME: `n_turns` is declared as `int`, but `None` is passed.
+        music.configure_run(beam=beam, n_turns=None)  # ty: ignore[invalid-argument-type]
         return music
