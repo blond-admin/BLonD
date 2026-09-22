@@ -54,7 +54,11 @@ class BeamPhysicsRelevantElements(Preparable):
 
         self._get_element_cache = {}
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    # FIXME: drops the `**kwargs` of `Preparable.on_init_simulation` and
+    #  does not chain to `super()`, unlike the other `Preparable` classes.
+    def on_init_simulation(  # ty: ignore[invalid-method-override]
+        self, simulation: Simulation
+    ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
