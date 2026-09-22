@@ -46,6 +46,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftSimple
+from blond.physics.feedbacks.base import LocalFeedback as PhysicsLocalFeedback
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -1664,6 +1665,38 @@ class TestCavityFeedbackSparseProfileIntegration(BLonDTestCase):
             "Expected the sparse-aware cavity feedback kick to change "
             "dE, but dE was unchanged.",
         )
+
+
+class _NoOpLocalFeedback(PhysicsLocalFeedback):
+    """Concrete local feedback that never updates its corrections."""
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        pass
+
+
+class TestRFStationKeywordArguments(BLonDTestCase):
+    def test_unknown_keyword_raises_single(self):
+        """A typo'd keyword must raise ``TypeError`` instead of being
+        swallowed by ``SupportsPooledInterpolationKickMixIn``."""
+        with self.assertRaises(TypeError):
+            SingleHarmonicRFStation(voltage=1e6, harmonc=10)
+
+    def test_unknown_keyword_raises_multi(self):
+        """A typo'd keyword must raise ``TypeError`` instead of being
+        swallowed by ``SupportsPooledInterpolationKickMixIn``."""
+        with self.assertRaises(TypeError):
+            MultiHarmonicRFStation(
+                n_harmonics=2, main_harmonic_idx=0, harmonc=10
+            )
+
+    def test_single_feedback_attached_at_main_harmonic(self):
+        """A single (non-list) feedback lands on ``main_harmonic_idx``."""
+        profile = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=16)
+        feedback = _NoOpLocalFeedback(profile=profile)
+        rf = MultiHarmonicRFStation(
+            n_harmonics=2, main_harmonic_idx=1, cavity_feedback=feedback
+        )
+        self.assertEqual(rf.cavity_feedback_list, [None, feedback])
 
 
 if __name__ == "__main__":

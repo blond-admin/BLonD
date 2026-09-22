@@ -268,7 +268,7 @@ class SupportsPooledInterpolationKickMixIn(Preparable):
         delayed_kick: PooledInterpolationKick | None = None,
         **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self._delayed_kick = delayed_kick
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:

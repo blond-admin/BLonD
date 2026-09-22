@@ -244,6 +244,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         array such as `EquidistantMultiProfile.hist_x`, since the
         sparse-profile metadata needed to resolve particles to their
         own bucket is not (yet) forwarded through this parameter.
+    main_harmonic_idx
+        Harmonic index at which a single (non-list) `cavity_feedback`
+        is attached.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -262,6 +265,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        main_harmonic_idx: int = 0,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
         assert n_rf > 0, f"{n_rf=}"
@@ -286,7 +290,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if not isinstance(cavity_feedback, list | None):
             self.attach_cavity_feedback(
                 cavity_feedback=cavity_feedback,
-                harmonic_index=kwargs.get("main_harmonic_idx", 0),
+                harmonic_index=main_harmonic_idx,
             )
         elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
