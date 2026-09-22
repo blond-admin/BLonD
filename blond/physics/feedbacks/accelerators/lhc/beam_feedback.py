@@ -248,13 +248,13 @@ class LHCBeamControl(BeamFeedbackBase):
 
         # Frequency correction from phase loop and synchro loop
         self.delta_omega_rf = -self.pl_gain * self.dphi - self.sl_gain * (
-            self.lhc_y + self.lhc_a * (dphi_rf + self.reference)
+            self.lhc_y + self.lhc_a * (dphi_rf + self.reference)  # ty: ignore[unsupported-operator]  # FIXME: `delta_phi_rf` is declared Optional on RFStationBaseClass
         )
 
         # Update recursion variable
         self._lhc_y = (1 - self.lhc_t) * self.lhc_y + (
             1 - self.lhc_a
-        ) * self.lhc_t * (dphi_rf + self.reference)
+        ) * self.lhc_t * (dphi_rf + self.reference)  # ty: ignore[unsupported-operator]  # FIXME: `delta_phi_rf` is declared Optional on RFStationBaseClass
 
     def calculate_synchro_coefficients(self, beam: BeamBaseClass):
         """
