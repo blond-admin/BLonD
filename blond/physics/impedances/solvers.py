@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import warnings
 from copy import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from scipy.constants import elementary_charge as e
@@ -92,7 +92,9 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         assert all(
             isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
         )
-        impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
+        impedances = cast(
+            "tuple[InductiveImpedance, ...]", parent_wakefield.sources
+        )
         self._Z_over_n = float(sum(o.Z_over_n for o in impedances))
         self._turn_counter = simulation.turn_counter
         self._simulation = simulation
@@ -723,7 +725,11 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
                 * len(self._wake_function_time)
             ] = 0.0
         self._wake_function_vals = backend.zeros_like(self._wake_function_time)
-        for source in self._parent_wakefield.sources:
+        # validated to be `Resonators` in `on_wakefield_init_simulation`
+        resonators = cast(
+            "tuple[Resonators, ...]", self._parent_wakefield.sources
+        )
+        for source in resonators:
             self._wake_function_vals += source.get_wake(
                 self._wake_function_time
             )
@@ -835,8 +841,12 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             raise RuntimeError(
                 "Parent wakefield must be present before this function can be called."
             )
-        for source in self._parent_wakefield.sources:
-            # Guarding against non-resonator sources is done in on_wakefield_init_simulation
+        assert self._maximum_storage_time is not None, _MSG_NOT_INITIALIZED
+        # Guarding against non-resonator sources is done in on_wakefield_init_simulation
+        resonators = cast(
+            "tuple[Resonators, ...]", self._parent_wakefield.sources
+        )
+        for source in resonators:
             storage_time = source.get_decay_time(
                 self._decay_fraction_threshold
             )
@@ -1341,9 +1351,11 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         residues = []
         counter_rotation_pole_flip = []
         assert self._parent_wakefield is not None
-        for source in self._parent_wakefield.sources:
-            vector_source: SupportsVectorFittedModel = source
-
+        vector_sources = cast(
+            "tuple[SupportsVectorFittedModel, ...]",
+            self._parent_wakefield.sources,
+        )
+        for vector_source in vector_sources:
             poles_, residues_, cr_signs_ = vector_source.get_vectorfit()
 
             poles.extend(poles_)
