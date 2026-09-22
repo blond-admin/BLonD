@@ -600,5 +600,47 @@ class TestBarrierBucketGenerator(BLonDTestCase):
         self.assertEqual(reference.total_energy, 938e6)
 
 
+class TestBarrierRFTrack(BLonDTestCase):
+    def _kicked_dE(self, is_counter_rotating: bool):
+        charge = 1.0
+        barrier = bbuck.BarrierRF(
+            t_center=185e-9, t_width=100e-9, peak_voltage=1e3, n_bins=1000
+        )
+        barrier.configure(
+            turn_counter=Mock(value=0),
+            magnetic_cycle=None,
+            ring=Mock(circumference=100.0),
+        )
+        dt = backend.array([160e-9, 170e-9, 200e-9], dtype=backend.float)
+        dE = backend.zeros(3, dtype=backend.float)
+
+        beam = Mock()
+        beam.reference.beta = 0.9
+        beam.reference.time = 0.0
+        beam.is_counter_rotating = is_counter_rotating
+        beam.particle_type.charge = charge
+        # mirrors ``BeamBaseClass.signed_charge_with_direction``
+        beam.signed_charge_with_direction.return_value = (
+            -charge if is_counter_rotating else charge
+        )
+        beam.write_partial_dt.return_value = dt
+        beam.write_partial_dE.return_value = dE
+
+        barrier._track(beam)
+        return copy_to_cpu(dE)
+
+    def test_counter_rotating_beam_is_kicked_with_opposite_sign(self):
+        """A counter-rotating beam sees the barrier field with inverted sign.
+
+        Like the RF stations, the kick must use
+        ``beam.signed_charge_with_direction()``.
+        """
+        dE_co = self._kicked_dE(is_counter_rotating=False)
+        dE_counter = self._kicked_dE(is_counter_rotating=True)
+
+        self.assertTrue(np.any(dE_co != 0))
+        nptest.assert_allclose(dE_counter, -dE_co)
+
+
 if __name__ == "__main__":
     unittest.main()
