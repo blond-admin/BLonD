@@ -756,14 +756,17 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         if self._wake_function_vals_needs_update:
             self._update_potential_sources()
 
+        profile = self._parent_wakefield.profile
+        assert profile.hist_y_to_density_factor is not None, (
+            _MSG_PROFILE_NOT_TRACKED
+        )
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity
-            * self._parent_wakefield.profile.hist_y_to_density_factor
+            beam.intensity * profile.hist_y_to_density_factor
         )
 
         return _charge_per_macroparticle * backend.convolve(
             self._wake_function_vals,
-            self._parent_wakefield.profile.hist_y,
+            profile.hist_y,
             mode="valid",
         )
 
@@ -1088,9 +1091,12 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         self._update_potential_sources(beam)
 
+        profile = self._parent_wakefield.profile
+        assert profile.hist_y_to_density_factor is not None, (
+            _MSG_PROFILE_NOT_TRACKED
+        )
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity
-            * self._parent_wakefield.profile.hist_y_to_density_factor
+            beam.intensity * profile.hist_y_to_density_factor
         )
         self._past_charge_per_macroparticle.appendleft(
             _charge_per_macroparticle
@@ -1426,6 +1432,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             self._profile._continuous_memory_hist_x
             if type(self._profile) is EquidistantMultiProfile
             else self._profile.hist_x
+        )
+        assert profile_hist_y is not None and profile_dts is not None, (
+            "The profile memory must be allocated before calculating wakes."
         )
 
         if self._poles is None:
