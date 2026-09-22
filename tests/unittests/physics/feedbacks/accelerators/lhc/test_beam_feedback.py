@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 
@@ -8,6 +8,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    MultiHarmonicRFStation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -448,3 +449,39 @@ class TestLHCBeamFeedback(BLonDTestCase):
             injection_offset_phase + 10,
             places=2,
         )
+
+
+class TestLHCBeamControlUnit(BLonDTestCase):
+    def test_multi_harmonic_station_gives_scalar_correction(self):
+        """With a ``MultiHarmonicRFStation`` the corrections stay scalar.
+
+        ``delta_phi_rf`` of that station holds one entry per harmonic;
+        the synchro loop must only use the main harmonic, so
+        ``delta_omega_rf`` and ``lhc_y`` must not become arrays.
+        """
+        cavity = MultiHarmonicRFStation(
+            voltage=np.array([1e6, 5e5]),
+            phi_rf=np.array([0.0, 0.0]),
+            harmonic=np.array([1, 2]),
+            n_harmonics=2,
+            main_harmonic_idx=0,
+        )
+        cavity.delta_phi_rf = np.array([0.1, 0.2])
+
+        control = LHCBeamControl(
+            profile=Mock(), sl_gain=1.0, lhc_a=0.5, lhc_t=0.1
+        )
+        control._simulation = Mock()
+        control._simulation.turn_counter.value = 0
+        control._main_cavities = [cavity]
+
+        with (
+            patch.object(control, "cavity_sum_phase"),
+            patch.object(
+                cavity, "calc_phi_s_main_harmonic", return_value=np.pi
+            ),
+        ):
+            control.update_frequency_correction(beam=Mock())
+
+        self.assertEqual(np.ndim(control.delta_omega_rf), 0)
+        self.assertEqual(np.ndim(control.lhc_y), 0)
