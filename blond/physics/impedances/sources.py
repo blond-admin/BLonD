@@ -702,7 +702,9 @@ class Resonators(
 
         return storage_time
 
-    def get_impedance(
+    def get_impedance(  # ty: ignore[invalid-method-override]
+        # FIXME: `counter_rotation` sits before `hist_step`, so the
+        #  positional order differs from `FreqDomain.get_impedance`.
         self,
         freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
