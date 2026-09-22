@@ -16,7 +16,7 @@
 #include "blond_common.h"
 #include "scratch_buffer.h"
 
-extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
+extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
                                    real_t *__restrict__ beam_dE,
                                    const real_t *__restrict__ voltage_array,
                                    const real_t *__restrict__ bin_centers,
@@ -85,7 +85,7 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
 // interpolated within that bucket's own bins using the same
 // voltageKick/factor formula as the dense kernel.
 extern "C" void linear_interp_kick_sparse(
-    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
+    const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const real_t *__restrict__ voltage_array,
     const real_t *__restrict__ bin_centers, const real_t charge,
     const int n_slices_total, const index_t n_macroparticles,
@@ -159,9 +159,9 @@ extern "C" void linear_interp_kick_sparse(
 // Only right extrapolation is assumed; it gives zero values.
 // This routine contributes to the computation of multi-turn wake with
 // acceleration
-extern "C" void linear_interp_time_translation(real_t *__restrict__ xp,
-                                               real_t *__restrict__ yp,
-                                               real_t *__restrict__ x,
+extern "C" void linear_interp_time_translation(const real_t *__restrict__ xp,
+                                               const real_t *__restrict__ yp,
+                                               const real_t *__restrict__ x,
                                                real_t *__restrict__ y,
                                                const int len_xp) {
 
