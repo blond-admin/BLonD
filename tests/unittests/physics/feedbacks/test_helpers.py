@@ -121,7 +121,7 @@ class TestRFBeamCurrent(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_1(self):
         t = self.profile.hist_x
-        self.profile._hist_y = 2600 * np.exp(
+        self.profile._hist_y[:] = 2600 * np.exp(
             -((t - 2.5e-9) ** 2) / (2 * 0.5e-9) ** 2
         )
 

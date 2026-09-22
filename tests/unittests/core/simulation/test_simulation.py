@@ -741,7 +741,7 @@ class TestSimulation(BLonDTestCase):
                 callers_relative_path("hist_y_override.txt", stacklevel=1),
             )
             wakefield = sim.simulation.ring.elements.get_element(WakeField)
-            wakefield.profile._hist_y = backend.array(
+            wakefield.profile._hist_y[:] = backend.array(
                 hist_y_override, dtype=wakefield.profile._hist_y.dtype
             )
             wakefield.profile.hist_y_to_density_factor = 1e-05

@@ -22,7 +22,7 @@ from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
-from blond.generals.cupy_.no_cupy_import import is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -53,6 +53,17 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
 
+    # The geometry (edges and the arrays sized by it) is only written by
+    # `_set_window` and `_bind_arrays`, so it can never disagree.
+    # `hist_y` changes every turn, but in place. See `__setattr__`.
+    _GEOMETRY_FIELDS = frozenset(
+        ("_cut_left", "_cut_right", "_hist_x", "_hist_y")
+    )
+    _cut_left: float | None = None
+    _cut_right: float | None = None
+    _hist_x: NumpyArray | CupyArray | None = None
+    _hist_y: NumpyArray | CupyArray | None = None
+
     def __init__(
         self, section_index: int = 0, name: str | None = None
     ) -> None:
@@ -60,11 +71,92 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             section_index=section_index,
             name=name,
         )
-        self._hist_x: NumpyArray | CupyArray | None = None
-        self._hist_y: NumpyArray | CupyArray | None = None
         self.hist_y_to_density_factor: float | None = None
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
+
+    def _set_window(
+        self, cut_left: float, cut_right: float, n_bins: int
+    ) -> None:
+        """
+        Set the histogram window and allocate the according arrays.
+
+        This is the only place the geometry changes, so `cut_left`,
+        `cut_right` and `hist_step` are stored instead of re-derived from
+        `hist_x`, which would round the edges and cost device->host syncs.
+
+        Parameters
+        ----------
+        cut_left
+            Left outer edge of the histogram, in [s].
+        cut_right
+            Right outer edge of the histogram, in [s].
+        n_bins
+            Number of bins in the histogram.
+        """
+        hist_x, hist_y = ProfileBaseClass.get_arrays(
+            cut_left=float(cut_left),
+            cut_right=float(cut_right),
+            n_bins=int(n_bins),
+        )
+        object.__setattr__(self, "_cut_left", float(cut_left))
+        object.__setattr__(self, "_cut_right", float(cut_right))
+        object.__setattr__(self, "_hist_x", hist_x)
+        object.__setattr__(self, "_hist_y", hist_y)
+        self.invalidate_cache()
+
+    def _bind_arrays(
+        self,
+        hist_x: NumpyArray | CupyArray,
+        hist_y: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Replace the histogram arrays by others holding the same geometry.
+
+        Intended to bind the profile to externally owned memory, e.g. a
+        view into one continuous array.
+
+        Parameters
+        ----------
+        hist_x
+            X-axis of histogram, in [s], equal to the current `hist_x`.
+        hist_y
+            Y-axis of histogram.
+        """
+        assert len(hist_x) == len(hist_y) == self.n_bins
+        assert hist_y.dtype == self._hist_y.dtype
+        assert np.allclose(copy_to_cpu(hist_x), copy_to_cpu(self._hist_x)), (
+            "`hist_x` must keep the geometry, use `_set_window` to change it"
+        )
+        object.__setattr__(self, "_hist_x", hist_x)
+        object.__setattr__(self, "_hist_y", hist_y)
+        self.invalidate_cache()
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Refuse direct writes to the geometry.
+
+        Parameters
+        ----------
+        name
+            Name of the attribute.
+        value
+            Value of the attribute.
+
+        Raises
+        ------
+        AttributeError
+            If `name` is part of the geometry.
+        """
+        # rebinding the same object, e.g. by `hist_y *= 2`, changes nothing
+        if name in self._GEOMETRY_FIELDS and value is not getattr(
+            self, name, None
+        ):
+            raise AttributeError(
+                f"`{name}` is part of the profile geometry, set it via"
+                " `_set_window` (or `_bind_arrays` for the same geometry)."
+            )
+        super().__setattr__(name, value)
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -159,7 +251,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """
         return self._hist_y
 
-    @cached_property  # as readonly attributes
+    @property  # as readonly attributes
     def n_bins(self) -> int:
         """
         Number of bins in the histogram.
@@ -186,7 +278,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
-    @cached_property
+    @property  # as readonly attributes
     def hist_step(self) -> float:
         """
         Size of a single histogram bin.
@@ -196,17 +288,12 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         hist_step
             Size of a single histogram bin.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # `_cut_left`, `_cut_right` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        first_hist_x = self._hist_x[0]  # type: ignore
-        second_hist_x = self._hist_x[1]  # type: ignore
-        if backend.is_gpu:
-            first_hist_x = first_hist_x.get()
-            second_hist_x = second_hist_x.get()
-        return float(second_hist_x - first_hist_x)  # type: ignore
+        return (self._cut_right - self._cut_left) / self.n_bins  # type: ignore
 
-    @cached_property
+    @property  # as readonly attributes
     def cut_left(self) -> float:
         """
         Left outer edge of the histogram.
@@ -216,15 +303,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cut_left
             Left outer edge of the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        fist_hist_x = self._hist_x[0]
-        if backend.is_gpu:
-            fist_hist_x = fist_hist_x.get()
-        return float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
+        return self._cut_left  # type: ignore
 
-    @cached_property
+    @property  # as readonly attributes
     def cut_right(self) -> float:
         """
         Right outer edge of the histogram.
@@ -234,15 +315,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cut_right
             Right outer edge of the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        last_hist_x = self._hist_x[-1]
-        if backend.is_gpu:
-            last_hist_x = last_hist_x.get()
-        return float(last_hist_x + self.hist_step / 2.0)  # type: ignore
+        return self._cut_right  # type: ignore
 
-    @cached_property
+    @property  # as readonly attributes
     def bin_edges(self) -> NumpyArray | CupyArray:
         """
         Get the edges from cut_left to cut_right of the histogram.
@@ -464,16 +539,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property."""
-        self._invalidate_cache(
-            props=(
-                "gradient_hist_y",
-                "hist_step",
-                "cut_left",
-                "cut_right",
-                "bin_edges",
-                "n_bins",
-            )
-        )
+        self._invalidate_cache(props=("gradient_hist_y",))
 
 
 class StaticProfile(ProfileBaseClass):
@@ -506,11 +572,7 @@ class StaticProfile(ProfileBaseClass):
             section_index=section_index,
             name=name,
         )
-        self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
-            cut_left=float(cut_left),
-            cut_right=float(cut_right),
-            n_bins=int(n_bins),
-        )
+        self._set_window(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
         assert len(self._hist_x.shape) == 1
 
     @staticmethod
@@ -717,10 +779,14 @@ class DynamicProfileConstCutoff(DynamicProfile):
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
-        n_bins = int(math.ceil((cut_right - cut_left) / self.timestep))
-        self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
-            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
-        )
+        timesteps = (cut_right - cut_left) / self.timestep
+        # a whole number of timesteps must not get an extra bin
+        # from float rounding
+        if math.isclose(timesteps, round(timesteps)):
+            n_bins = round(timesteps)
+        else:
+            n_bins = math.ceil(timesteps)
+        self._set_window(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
 
 
 class DynamicProfileConstNBins(DynamicProfile):
@@ -737,6 +803,8 @@ class DynamicProfileConstNBins(DynamicProfile):
         User given name of the element.
     """
 
+    _GEOMETRY_FIELDS = DynamicProfile._GEOMETRY_FIELDS | {"_n_bins"}
+
     def __init__(
         self, n_bins: int, section_index: int = 0, name: str | None = None
     ) -> None:
@@ -744,20 +812,23 @@ class DynamicProfileConstNBins(DynamicProfile):
             section_index=section_index,
             name=name,
         )
-        self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
-
-    def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property."""
-        self._invalidate_cache(
-            props=(
-                "gradient_hist_y",
-                "hist_step",
-                "cut_left",
-                "cut_right",
-                "bin_edges",
-                # n_bins is excluded: it's a user-set constant, not a cached computed value
-            )
+        object.__setattr__(  # fixed, it sizes every window
+            self,
+            "_n_bins",
+            int_from_float_with_warning(n_bins, warning_stacklevel=2),
         )
+
+    @property  # as readonly attributes
+    def n_bins(self) -> int:
+        """
+        Number of bins in the histogram, known before the first window.
+
+        Returns
+        -------
+        n_bins
+            Number of bins in the histogram.
+        """
+        return self._n_bins
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
         """
@@ -770,6 +841,6 @@ class DynamicProfileConstNBins(DynamicProfile):
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
-        self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
+        self._set_window(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )

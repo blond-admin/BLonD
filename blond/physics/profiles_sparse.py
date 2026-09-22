@@ -430,8 +430,10 @@ class EquidistantMultiProfile(MultiProfile):
         for i, _profile in enumerate(self.profiles):
             sel = self._get_slice_single_profile(i)
 
-            self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
-            self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
+            self.profiles[i]._bind_arrays(
+                hist_x=self._continuous_memory_hist_x[sel],
+                hist_y=self._continuous_memory_hist_y[sel],
+            )
 
     def _get_slice_single_profile(self, index: int) -> slice:
         """
