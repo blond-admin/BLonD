@@ -322,20 +322,20 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             if _cavity_feedback is not None and filled_slots is None:
                 filled_slots = (
                     np.abs(
-                        _cavity_feedback.I_BEAM_COARSE[
-                            -_cavity_feedback.n_coarse :
+                        _cavity_feedback.I_BEAM_COARSE[  # ty: ignore[unresolved-attribute]  # FIXME: not part of LocalFeedback API
+                            -_cavity_feedback.n_coarse :  # ty: ignore[unresolved-attribute]  # FIXME: not part of LocalFeedback API
                         ]
                     )
                     > current_thres
                 )
 
-                cavity_sum = _cavity_feedback.V_ANT_COARSE[
-                    -_cavity_feedback.n_coarse :
+                cavity_sum = _cavity_feedback.V_ANT_COARSE[  # ty: ignore[unresolved-attribute]  # FIXME: not part of LocalFeedback API
+                    -_cavity_feedback.n_coarse :  # ty: ignore[unresolved-attribute]  # FIXME: not part of LocalFeedback API
                 ]
 
             elif _cavity_feedback is not None and filled_slots is not None:
-                cavity_sum += _cavity_feedback.V_ANT_COARSE[
-                    -_cavity_feedback.n_coarse :
+                cavity_sum += _cavity_feedback.V_ANT_COARSE[  # ty: ignore[unresolved-attribute]  # FIXME: not part of LocalFeedback API
+                    -_cavity_feedback.n_coarse :  # ty: ignore[unresolved-attribute]  # FIXME: not part of LocalFeedback API
                 ]
 
         if cavity_sum is not None:
