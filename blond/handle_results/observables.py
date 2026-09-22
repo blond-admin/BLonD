@@ -123,7 +123,11 @@ class ObservablesBaseClass(MainLoopRelevant):
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str | None = None, **kwargs):
+    def __init__(
+        self,
+        folder: str = None,  # ty: ignore[invalid-parameter-default]  # FIXME: default `None` crashes in `len(folder)` below
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
