@@ -1168,7 +1168,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         """Check that the sources implement ``get_wake``."""
         assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
         for source in self._parent_wakefield.sources:
-            source: TimeDomain  # type hint what what we expect
+            # `TimeDomain` sources with a `get_wake` method are expected
             if not hasattr(source, "get_wake"):
                 raise AttributeError(
                     f"The {source=} should implement `TimeDomain.get_wake`."
@@ -1216,8 +1216,10 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
-            source: TimeDomain  # type hint what the we expect
-            wake_kernel_tmp = source.get_wake(time_axis)
+            # `TimeDomain` sources with a `get_wake` method are expected.
+            # FIXME: `get_wake` is not part of the `TimeDomain` interface,
+            #  it is only duck-typed (see `_check_source_ducktypes`).
+            wake_kernel_tmp = source.get_wake(time_axis)  # ty: ignore[unresolved-attribute]
 
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
