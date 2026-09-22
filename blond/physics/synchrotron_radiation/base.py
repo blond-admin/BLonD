@@ -110,14 +110,18 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
              BeamBaseClass object.
         """
         total_energy = beam.reference.total_energy
+        # scalars, because the reference energy is one
         (
             estimated_energy_lost,
             estimated_damping_time,
             estimated_natural_energy_spread,
-        ) = gather_longitudinal_synchrotron_radiation_parameters(
-            particle_type=beam.particle_type,
-            energy=total_energy,
-            radiation_integrals=self.share_of_radiation_integrals,
+        ) = map(
+            float,
+            gather_longitudinal_synchrotron_radiation_parameters(
+                particle_type=beam.particle_type,
+                energy=total_energy,
+                radiation_integrals=self.share_of_radiation_integrals,
+            ),
         )
         self._energy_lost_due_to_synchrotron_radiation = estimated_energy_lost
         self._damping_time = estimated_damping_time

@@ -32,14 +32,14 @@ def _selective_calculate_partition_numbers(
     x: bool = False,
     y: bool = False,
     z: bool = False,
-) -> dict[str, NumpyArray]:
+) -> dict[str, float]:
     """
     Helper for the calculation of the damping partition numbers.
 
     Parameters
     ----------
     radiation_integrals
-        Synchrotron radiation integrals.
+        Synchrotron radiation integrals, flat array ``[I1, ..., I5]``.
     x
         Enables calculation in the horizontal plane.
     y
@@ -52,15 +52,19 @@ def _selective_calculate_partition_numbers(
     result
         Dictionary containing the requested damping partition numbers.
     """
-    result = {}
+    result: dict[str, float] = {}
     if x:
-        result["x"] = 1 - radiation_integrals[3] / radiation_integrals[1]
+        result["x"] = float(
+            1 - radiation_integrals[3] / radiation_integrals[1]
+        )
 
     if y:
-        result["y"] = 1
+        result["y"] = 1.0
 
     if z:
-        result["z"] = 2 + radiation_integrals[3] / radiation_integrals[1]
+        result["z"] = float(
+            2 + radiation_integrals[3] / radiation_integrals[1]
+        )
 
     return result
 

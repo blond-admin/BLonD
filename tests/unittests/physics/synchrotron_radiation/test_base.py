@@ -239,6 +239,17 @@ class TestSynchrotronRadiationBaseClass(BLonDTestCase):
             places=self.decimal,
         )
 
+    def test_kick_parameters_are_plain_floats(self):
+        # the reference energy is a scalar, so are the derived parameters
+        self.SRB._apply_kick(beam=self.beam)
+        for name in (
+            "_energy_lost_due_to_synchrotron_radiation",
+            "_damping_time",
+            "_natural_energy_spread",
+        ):
+            with self.subTest(attribute=name):
+                self.assertIs(type(getattr(self.SRB, name)), float)
+
     def test_calculate_kick_SynchrotronRadiationDrift(self):
         np.random.seed(seed=self.seed)
         _ = self.SRD._apply_kick(

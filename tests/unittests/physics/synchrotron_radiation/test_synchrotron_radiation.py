@@ -689,6 +689,15 @@ class TestSynchrotronRadiationMaster(BLonDTestCase):
         )
         self.assertEqual(SRM._energy_loss_per_turn, SRM.energy_loss_per_turn)
 
+        # the reference energy is a scalar, so are the derived parameters
+        for name in (
+            "energy_loss_per_turn",
+            "longitudinal_damping_time",
+            "natural_energy_spread",
+        ):
+            with self.subTest(attribute=name):
+                self.assertIs(type(getattr(SRM, name)), float)
+
     def test_print_synchrotron_radiation_parameters(self):
         SRM = SynchrotronRadiationMaster()
         radiation_integrals = np.array(

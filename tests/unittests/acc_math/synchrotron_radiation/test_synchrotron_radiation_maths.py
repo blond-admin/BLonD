@@ -44,6 +44,20 @@ class TestSynchrotronRadiationMaths_float_inputs(BLonDTestCase):
         self.assertEqual(jx, jx_1, msg="Expected value ~= 1")
         self.assertEqual(jz, jz_1, msg="Expected value ~= 2")
 
+    def test_selective_partition_numbers_are_plain_floats(self):
+        # `radiation_integrals` is a flat array, so every partition number
+        # is a scalar and is handed out as a builtin `float`
+        from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+            _selective_calculate_partition_numbers,
+        )
+
+        partitions = _selective_calculate_partition_numbers(
+            self.radiation_integrals, x=True, y=True, z=True
+        )
+        for plane in ("x", "y", "z"):
+            with self.subTest(plane=plane):
+                self.assertIs(type(partitions[plane]), float)
+
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turns(
             energy=self.beam_energy,

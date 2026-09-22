@@ -115,9 +115,9 @@ class SynchrotronRadiationMaster(Schedulable):
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
-        self._natural_energy_spread: NumpyArray | None = None
-        self._energy_loss_per_turn: NumpyArray | None = None
-        self._longitudinal_damping_time: NumpyArray | None = None
+        self._natural_energy_spread: float | None = None
+        self._energy_loss_per_turn: float | None = None
+        self._longitudinal_damping_time: float | None = None
 
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
@@ -139,7 +139,7 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
     @property
-    def energy_loss_per_turn(self) -> NumpyArray | None:
+    def energy_loss_per_turn(self) -> float | None:
         """
         Energy loss per turn, in [eV per turn].
 
@@ -151,7 +151,7 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._energy_loss_per_turn
 
     @property
-    def longitudinal_damping_time(self) -> NumpyArray | None:
+    def longitudinal_damping_time(self) -> float | None:
         """
         Longitudinal damping time.
 
@@ -163,7 +163,7 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._longitudinal_damping_time
 
     @property
-    def natural_energy_spread(self) -> NumpyArray | None:
+    def natural_energy_spread(self) -> float | None:
         """
         Natural energy spread.
 
@@ -236,14 +236,18 @@ class SynchrotronRadiationMaster(Schedulable):
         beam
             `Beam` object.
         """
+        # scalars, because the reference energy is one
         (
             self._energy_loss_per_turn,
             self._longitudinal_damping_time,
             self._natural_energy_spread,
-        ) = gather_longitudinal_synchrotron_radiation_parameters(
-            particle_type=beam.particle_type,
-            energy=beam.reference.total_energy,
-            radiation_integrals=ring.radiation_integrals,
+        ) = map(
+            float,
+            gather_longitudinal_synchrotron_radiation_parameters(
+                particle_type=beam.particle_type,
+                energy=beam.reference.total_energy,
+                radiation_integrals=ring.radiation_integrals,
+            ),
         )
 
     def _user_warning_set_radiation_integrals(
@@ -388,7 +392,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def _get_share_of_radiation_integrals_drifts(
         self,
         ring: Ring,
-        drift_list: list[type[DriftBaseClass]],
+        drift_list: list[DriftBaseClass],
     ) -> list[NumpyArray]:
         """
         Distribute the radiation integrals for drift tracker.
@@ -405,7 +409,7 @@ class SynchrotronRadiationMaster(Schedulable):
         share_of_radiation_integrals
             Share of synchrotron radiation integrals.
         """
-        shares_of_radiation_integrals = []
+        shares_of_radiation_integrals: list[NumpyArray] = []
 
         drift_list_ = (
             drift.radiation_integrals is not None for drift in drift_list
@@ -436,7 +440,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def _get_share_of_radiation_integrals_cavities(
         self,
         ring: Ring,
-        cavity_list: list[type[RFStationBaseClass]],
+        cavity_list: list[RFStationBaseClass],
     ) -> list[NumpyArray]:
         """
         Distribute the synchrotron radiation integrals for cavity trackers.
@@ -478,7 +482,7 @@ class SynchrotronRadiationMaster(Schedulable):
     def _generate_radiation_trackers(
         self,
         ring: Ring,
-        element_list: list[type[RFStationBaseClass | DriftBaseClass]],
+        element_list: list[RFStationBaseClass | DriftBaseClass],
     ) -> None:
         """
         Function to create and insert the SR trackers in the ring.
@@ -695,7 +699,9 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         )
 
     @property
-    def energy_lost_due_to_synchrotron_radiation_tracker(self) -> float | None:
+    def energy_lost_due_to_synchrotron_radiation_tracker(
+        self,
+    ) -> float | None:
         """
         Energy lost by passing through the arc covered by the tracker.
 
