@@ -86,6 +86,26 @@ class TestEquidistantMultiProfile(BLonDTestCase):
         if DEV_DRAW:
             plt.show()
 
+    def test_track_invalidates_sub_profile_gradient(self):
+        """After a new ``_track`` the sub-profiles' cached
+        ``gradient_hist_y`` must match their new ``hist_y``."""
+        self.multiprofile_equidistant.track(self.beam)
+        profile = self.multiprofile_equidistant.profiles[0]
+        _ = profile.gradient_hist_y  # fill the cache
+
+        other_beam = ProbeBeam(
+            dt=np.full(7, float(profile.hist_x[1])),
+            particle_type=uranium_29,
+        )
+        self.multiprofile_equidistant.track(other_beam)
+
+        np.testing.assert_allclose(
+            copy_to_cpu(profile.gradient_hist_y),
+            np.gradient(
+                copy_to_cpu(profile.hist_y), profile.hist_step, edge_order=2
+            ),
+        )
+
     def test_track_after_deepcopy(self):
         DEV_DRAW = False
         for fun in (copy.copy, copy.deepcopy):
