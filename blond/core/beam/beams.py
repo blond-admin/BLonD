@@ -372,8 +372,7 @@ class Beam(BeamBaseClass):
         scatter_path_collection
             The `PathCollection` of the scatter plot.
         """
-        if ax is None:
-            ax = plt
+        axes_or_pyplot = plt if ax is None else ax
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -388,9 +387,9 @@ class Beam(BeamBaseClass):
             # variables below are just for the type hints to function correctly
             dE: CupyArray = self._dE.array_local
             dt: CupyArray = self._dt.array_local
-            scat = ax.scatter(dt.get(), dE.get(), **kwargs)
+            scat = axes_or_pyplot.scatter(dt.get(), dE.get(), **kwargs)
         else:
-            scat = ax.scatter(
+            scat = axes_or_pyplot.scatter(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
 
