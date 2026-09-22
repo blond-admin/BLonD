@@ -483,6 +483,6 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
                 # delta_omega_rf is updated later
                 # this means delta_omega_rf is effectively from last turn
                 omega_increment = (
-                    self.delta_omega_rf * cav.harmonic / self.main_harmonic
+                    self.delta_omega_rf * cav.harmonic / self.main_harmonic  # ty: ignore[unsupported-operator]  # FIXME: `harmonic` is declared Optional on RFStationBaseClass
                 )
                 cav.delta_omega_rf = omega_increment
