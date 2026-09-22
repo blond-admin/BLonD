@@ -11,6 +11,19 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 
 
+def _plot_original_and_mirrored(
+    pwh: PotentialWellHelper, pwh_mirrored: PotentialWellHelper
+) -> None:
+    """Show a signal and its mirror image with their buckets."""
+    plt.subplot(2, 1, 1)
+    plt.title("original")
+    pwh.plot()
+    plt.subplot(2, 1, 2)
+    plt.title("mirrored")
+    pwh_mirrored.plot()
+    plt.show()
+
+
 class TestPotentialWellHelper(BLonDTestCase):
     def test_single_not_bucket(self):
         DEV_PLOT = False
@@ -204,6 +217,14 @@ class TestPotentialWellHelper(BLonDTestCase):
         pwh = PotentialWellHelper(xs, ys)
         mask = pwh.get_in_bucket_mask()
         slices = pwh.get_principal_bucket_slices()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            pwh.plot()
+            plt.twinx()
+            plt.plot(xs, mask, color="gray")
+            for slice_ in slices:
+                plt.axvspan(xs[slice_.start], xs[slice_.stop - 1], alpha=0.2)
+            plt.show()
         for slice_ in slices:
             assert np.all(mask[slice_])
             # show that the next one is already outside the mask
@@ -252,6 +273,12 @@ class TestPotentialWellHelper(BLonDTestCase):
         ):
             mask = pwh.get_in_bucket_mask()
             slices = pwh.get_principal_bucket_slices()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            pwh.plot()
+            plt.twinx()
+            plt.plot(xs, mask, color="gray")
+            plt.show()
         assert len(slices) == 1
         assert (mask == expected_mask).all()
         np.testing.assert_allclose(mask[slices[0]], mask)
@@ -288,14 +315,14 @@ class TestPotentialWellHelper(BLonDTestCase):
 
         pwh = PotentialWellHelper(xs, ys)
         pinned = [[4.00e-08, 1.12e-07]]
-        DEV_DEBUG = False
-        if DEV_DEBUG:
+        DEV_PLOT = False
+        if DEV_PLOT:
             pwh.plot()
             plt.show()
         np.testing.assert_allclose(pwh.bucket_list, pinned)
 
     def test_analyze_bug2(self):
-        DEV_DEBUG = False
+        DEV_PLOT = False
 
         for i in range(3):
             data = np.load(
@@ -308,7 +335,7 @@ class TestPotentialWellHelper(BLonDTestCase):
             ys = data["voltage_array"]
 
             pwh = PotentialWellHelper(xs, ys)
-            if DEV_DEBUG:
+            if DEV_PLOT:
                 pwh.plot()
                 plt.show()
             # np.testing.assert_allclose(pwh.bucket_list, pinned)
@@ -361,6 +388,9 @@ class TestPotentialWellHelper(BLonDTestCase):
         ys = np.sin(xs)
         pwh = PotentialWellHelper(xs, ys)
         pwh.plot()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.show()
         plt.close("all")
         pwh_bucket_list_pinned = [
             [-10.0, -5.7357357357357355],
@@ -394,6 +424,10 @@ class TestPotentialWellHelper(BLonDTestCase):
         """Detected buckets never differ only by one grid step."""
         xs = np.linspace(-10, 20, 1000)
         pwh = PotentialWellHelper(xs, np.sin(xs))
+        DEV_PLOT = False
+        if DEV_PLOT:
+            pwh.plot()
+            plt.show()
         step = xs[1] - xs[0]
         buckets = np.asarray(pwh.bucket_list)
         for i in range(len(buckets)):
@@ -414,6 +448,10 @@ class TestPotentialWellHelper(BLonDTestCase):
         # right maximum 0.05 % higher, inside the 0.1 % epsilon
         ys = np.cos(xs) * (1 + 0.0005 * (xs > np.pi))
         pwh = PotentialWellHelper(xs, ys)
+        DEV_PLOT = False
+        if DEV_PLOT:
+            pwh.plot()
+            plt.show()
         left_peak = xs[np.argmax(ys[xs < np.pi])]
         right_peak = xs[np.argmax(np.where(xs > np.pi, ys, -np.inf))]
         buckets = np.asarray(pwh.bucket_list)
@@ -431,6 +469,10 @@ class TestPotentialWellHelper(BLonDTestCase):
         xs = np.linspace(-1, 3 * np.pi + 1, 10000)
         ys = np.round(np.cos(xs) * 100)  # ADC-like quantisation
         pwh = PotentialWellHelper(xs, ys)
+        DEV_PLOT = False
+        if DEV_PLOT:
+            pwh.plot()
+            plt.show()
         left_peak, right_peak = xs[find_peaks(ys)[0]]
         buckets = np.asarray(pwh.bucket_list)
         # the second bucket is the partial one at the right border
@@ -450,12 +492,15 @@ class TestPotentialWellHelper(BLonDTestCase):
         # keep up to the first sample above the maximum after the trough
         n_samples = trough + np.argmax(ys[trough:] > ys[peak]) + 1
         xs, ys = xs[:n_samples], ys[:n_samples]
-        buckets = np.asarray(PotentialWellHelper(xs, ys).bucket_list)
+        pwh = PotentialWellHelper(xs, ys)
+        pwh_mirrored = PotentialWellHelper(-xs[::-1], ys[::-1])
+        DEV_PLOT = False
+        if DEV_PLOT:
+            _plot_original_and_mirrored(pwh, pwh_mirrored)
+        buckets = np.asarray(pwh.bucket_list)
         np.testing.assert_array_equal(buckets, [[xs[peak], xs[-2]]])
 
-        buckets_mirrored = np.asarray(
-            PotentialWellHelper(-xs[::-1], ys[::-1]).bucket_list
-        )
+        buckets_mirrored = np.asarray(pwh_mirrored.bucket_list)
         np.testing.assert_array_equal(buckets_mirrored, -buckets[:, ::-1])
 
     def test_mirrored_signal_gives_mirrored_buckets(self):
@@ -468,12 +513,15 @@ class TestPotentialWellHelper(BLonDTestCase):
         xs = np.linspace(-0.5, 3 * np.pi, 2000)
         ys = np.cos(xs) - 0.02 * xs  # higher maximum at 0, lower at 2 pi
         ys[-1] = ys.max() + 0.1  # only the last sample exceeds both
-        buckets = np.asarray(PotentialWellHelper(xs, ys).bucket_list)
+        pwh = PotentialWellHelper(xs, ys)
+        pwh_mirrored = PotentialWellHelper(-xs[::-1], ys[::-1])
+        DEV_PLOT = False
+        if DEV_PLOT:
+            _plot_original_and_mirrored(pwh, pwh_mirrored)
+        buckets = np.asarray(pwh.bucket_list)
         self.assertIn([xs[find_peaks(ys)[0][0]], xs[-2]], buckets.tolist())
 
-        buckets_mirrored = np.asarray(
-            PotentialWellHelper(-xs[::-1], ys[::-1]).bucket_list
-        )
+        buckets_mirrored = np.asarray(pwh_mirrored.bucket_list)
         self.assertEqual(
             sorted(buckets_mirrored.tolist()),
             sorted((-buckets[:, ::-1]).tolist()),
