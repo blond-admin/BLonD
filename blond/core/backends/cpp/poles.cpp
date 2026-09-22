@@ -68,7 +68,7 @@ extern "C" void wake_from_pole_residue(
   memset(voltage_threaded, 0, (size_t)n_used_threads * n_bins * sizeof(real_t));
 
   // t_start from states[-1] (real part of last complex element)
-  const real_t t_start = states[2 * n_poles];
+  const real_t t_start = states[(size_t)2 * n_poles];
 
   // Parallel over poles: each pole carries sequential state across bins,
   // but different poles are fully independent. With schedule(static) and
@@ -163,8 +163,8 @@ extern "C" void wake_from_pole_residue(
     }
 
     // Store state back
-    states[2 * pole_i] = state_re;
-    states[2 * pole_i + 1] = state_im;
+    states[(size_t)2 * pole_i] = state_re;
+    states[(size_t)2 * pole_i + 1] = state_im;
   }
 
   // Reduce the used rows of voltage_threaded into voltage (parallel over bins)
@@ -178,6 +178,6 @@ extern "C" void wake_from_pole_residue(
   }
 
   // Store last profile_dts value into states[-1] for next call
-  states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-  states[2 * n_poles + 1] = 0;
+  states[(size_t)2 * n_poles] = profile_dts[n_profile_dts - 1];
+  states[(size_t)2 * n_poles + 1] = 0;
 }
