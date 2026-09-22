@@ -425,5 +425,26 @@ class TestMultiPoleSparseFinalize(BLonDTestCase):
         return solver
 
 
+class TestMultiPoleSparseInitValidation(BLonDTestCase):
+    def test_rejects_source_without_vectorfit(self):
+        """Sources lacking `SupportsVectorFittedModel` fail at init.
+
+        Like the Resonator solvers, the check belongs in
+        `on_wakefield_init_simulation`, not deep in `_finalize_solver`.
+        """
+        from unittest.mock import Mock
+
+        from blond import InductiveImpedance, Simulation, WakeField
+
+        solver = MultiPoleSparseSolve()
+        parent = Mock(WakeField)
+        parent.sources = (InductiveImpedance(Z_over_n=1.0),)
+        parent.profile = Mock(EquidistantMultiProfile)
+        with self.assertRaises(RuntimeError):
+            solver.on_wakefield_init_simulation(
+                simulation=Mock(Simulation), parent_wakefield=parent
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
