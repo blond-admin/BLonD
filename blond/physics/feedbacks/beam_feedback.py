@@ -281,7 +281,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         if phase_noise is not None:
             self.dphi += phase_noise.dphi[counter]
 
-    def cavity_sum_phase(self, current_thres: float):
+    def cavity_sum_phase(self, current_thres: float | None):
         """
         Calculate the cavity sum phase when tracking with cavity feedbacks.
 
@@ -292,7 +292,8 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         Parameters
         ----------
         current_thres
-            Beam current threshold for gating of the profiles.
+            Beam current threshold for gating of the profiles. May only be
+            None if no main rf station has a cavity feedback.
         """
         filled_slots: NumpyArray | None = None
         cavity_sum: NumpyArray | None = None
@@ -359,7 +360,7 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             / (beam.reference.beta**2.0 * beam.reference.total_energy)
         )
 
-    def update_main_rf_stations(self, new_main_harmonic: int = None):
+    def update_main_rf_stations(self, new_main_harmonic: int | None = None):
         """
         Update which rf stations are ones with the main harmonic.
 

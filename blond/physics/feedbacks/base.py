@@ -195,7 +195,7 @@ class GlobalFeedback(FeedbackBaseClass):
     def configure(
         self,
         *,
-        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
+        cavities: list[RFStationBaseClass],
         **kwargs,
     ) -> None:
         """
@@ -204,7 +204,11 @@ class GlobalFeedback(FeedbackBaseClass):
         Parameters
         ----------
         cavities
-            List of RF stations in the ring section.
+            List of RF stations in the ring section, i.e.
+            :class:`~blond.physics.rf_station.SingleHarmonicRFStation`
+            and/or
+            :class:`~blond.physics.rf_station.MultiHarmonicRFStation`
+            instances.
         **kwargs
             Passed to the next level in the MRO chain.
         """
