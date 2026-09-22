@@ -157,6 +157,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
                 "`momentum_compaction_factor` is not set in the first drift element."
             )
 
+        phi_rf = rf_station.phi_rf
+        assert phi_rf is not None, "`phi_rf` of the RF station is not set."
+
         alpha_c = drift.momentum_compaction_factor
         mass_kg = beam.particle_type.mass * e / c**2
         charge_coulomb = beam.particle_type.charge * e
@@ -169,7 +172,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             alpha_array=np.atleast_1d(alpha_c),
             harmonic_list=np.atleast_1d(rf_station.harmonic),
             voltage_list=np.atleast_1d(rf_station.voltage),
-            phi_offset_list=np.atleast_1d(rf_station.phi_rf + np.pi),
+            phi_offset_list=np.atleast_1d(phi_rf + np.pi),
             p_increment=0,
         )
 
