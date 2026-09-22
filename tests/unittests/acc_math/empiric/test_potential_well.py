@@ -382,6 +382,30 @@ class TestPotentialWellHelper(BLonDTestCase):
             rtol=1e-12,
         )
 
+    def test_purge_duplicates_off_by_one_odd_pair(self):
+        """Buckets one grid step apart are merged, whatever the parity.
+
+        ``idx // 2`` only merges index pairs ``(2k, 2k+1)``; the pair
+        ``(3, 4)`` must be merged as well.
+        """
+        pwh = PotentialWellHelper.__new__(PotentialWellHelper)
+        pwh.time_axis = np.arange(10.0)
+        bucket_list = [(3.0, 6.0), (4.0, 6.0)]
+        self.assertEqual(len(pwh._purge_duplicates_off_by_one(bucket_list)), 1)
+
+    def test_no_off_by_one_duplicate_buckets(self):
+        """Detected buckets never differ only by one grid step."""
+        xs = np.linspace(-10, 20, 1000)
+        pwh = PotentialWellHelper(xs, np.sin(xs))
+        step = xs[1] - xs[0]
+        buckets = np.asarray(pwh.bucket_list)
+        for i in range(len(buckets)):
+            for j in range(i + 1, len(buckets)):
+                self.assertFalse(
+                    np.all(np.abs(buckets[i] - buckets[j]) <= 1.5 * step),
+                    msg=f"duplicate buckets {buckets[i]} and {buckets[j]}",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
