@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 
 import numba
 import numpy as np
-from numba import boolean, complex128, int32, njit, prange, void
+from numba import boolean, complex128, int32, njit, void
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.python.callables import (
@@ -42,6 +42,11 @@ from .fastmath import fast_sin
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
+
+    # `numba.prange.__new__` returns a `range`, which is not annotated.
+    prange = range
+else:
+    from numba import prange
 
 logger = logging.getLogger(__name__)
 
