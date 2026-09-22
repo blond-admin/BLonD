@@ -14,20 +14,24 @@
 #include "blond_common.h"
 #include "openmp.h"
 
+namespace {
+
 // Complex exponential: exp(a + bi) = exp(a) * (cos(b) + i*sin(b))
-static inline void fast_cexp(const real_t re, const real_t im, real_t &out_re,
-                             real_t &out_im) {
+inline void fast_cexp(const real_t re, const real_t im, real_t &out_re,
+                      real_t &out_im) {
   const real_t cmplx_res = FAST_EXP(re);
   out_re = cmplx_res * FAST_COS(im);
   out_im = cmplx_res * FAST_SIN(im);
 }
 
 // Complex multiply: (a + bi) * (c + di)
-static inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
-                        const real_t b_im, real_t &out_re, real_t &out_im) {
+inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
+                 const real_t b_im, real_t &out_re, real_t &out_im) {
   out_re = a_re * b_re - a_im * b_im;
   out_im = a_re * b_im + a_im * b_re;
 }
+
+} // namespace
 
 /**
  * Apply poles based on the profile to generate voltage.
