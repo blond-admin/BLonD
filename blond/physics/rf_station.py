@@ -970,7 +970,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         self._dphi_rf_next += phi_increment
 
-    def track_reference(
+    def track_reference(  # ty: ignore[invalid-method-override]  # FIXME: `AltersReference.track_reference` declares `**kwargs` as placeholder for subclass parameters
         self,
         reference: ReferenceCoordinates,
         is_counter_rotating: bool = False,
