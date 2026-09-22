@@ -437,6 +437,48 @@ class TestPotentialWellHelper(BLonDTestCase):
         self.assertEqual(len(buckets), 2, msg=f"buckets {buckets}")
         np.testing.assert_array_equal(buckets[0], [left_peak, right_peak])
 
+    def test_border_not_snapped_onto_edge_sample(self):
+        """A border before a rise to the array edge stays where it is.
+
+        The signal is cut so that only the last sample exceeds the
+        maximum; the edge sample is no maximum to snap the border onto.
+        """
+        xs = np.linspace(-0.5, 7, 2000)
+        ys = np.cos(xs) + 0.01 * xs
+        peak = find_peaks(ys)[0][0]
+        trough = peak + np.argmin(ys[peak:])
+        # keep up to the first sample above the maximum after the trough
+        n_samples = trough + np.argmax(ys[trough:] > ys[peak]) + 1
+        xs, ys = xs[:n_samples], ys[:n_samples]
+        buckets = np.asarray(PotentialWellHelper(xs, ys).bucket_list)
+        np.testing.assert_array_equal(buckets, [[xs[peak], xs[-2]]])
+
+        buckets_mirrored = np.asarray(
+            PotentialWellHelper(-xs[::-1], ys[::-1]).bucket_list
+        )
+        np.testing.assert_array_equal(buckets_mirrored, -buckets[:, ::-1])
+
+    def test_mirrored_signal_gives_mirrored_buckets(self):
+        """The left search reaches the second sample like the right one.
+
+        The outer bucket from the higher maximum spans the lower one and
+        ends at the second-to-last sample; mirrored, it must end at the
+        second sample.
+        """
+        xs = np.linspace(-0.5, 3 * np.pi, 2000)
+        ys = np.cos(xs) - 0.02 * xs  # higher maximum at 0, lower at 2 pi
+        ys[-1] = ys.max() + 0.1  # only the last sample exceeds both
+        buckets = np.asarray(PotentialWellHelper(xs, ys).bucket_list)
+        self.assertIn([xs[find_peaks(ys)[0][0]], xs[-2]], buckets.tolist())
+
+        buckets_mirrored = np.asarray(
+            PotentialWellHelper(-xs[::-1], ys[::-1]).bucket_list
+        )
+        self.assertEqual(
+            sorted(buckets_mirrored.tolist()),
+            sorted((-buckets[:, ::-1]).tolist()),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

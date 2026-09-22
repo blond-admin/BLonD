@@ -193,7 +193,7 @@ class PotentialWellHelper:
                 (1, -1),
                 (
                     (max_idx + 1, len(voltage_axis) - 1, +1),
-                    (max_idx + -1, 1, -1),
+                    (max_idx + -1, 0, -1),
                 ),
                 strict=False,
             ):
@@ -263,7 +263,8 @@ class PotentialWellHelper:
         border_index
             Index of the maximum reached by going uphill from `index`
             (the centre of a flat top, like ``find_peaks``) if its
-            voltage is at most `max_voltage`, else `index`.
+            voltage is at most `max_voltage`, else `index`. Going uphill
+            up to the first or last sample does not reach a maximum.
         """
         last_index = len(voltage_axis) - 1
         peak_start = index
@@ -278,7 +279,8 @@ class PotentialWellHelper:
             and voltage_axis[peak_stop + direction] == voltage_axis[peak_start]
         ):
             peak_stop += direction
-        if voltage_axis[peak_start] > max_voltage:
+        reached_edge = peak_stop in (0, last_index)  # not a maximum
+        if reached_edge or voltage_axis[peak_start] > max_voltage:
             return index
         return (peak_start + peak_stop) // 2
 
