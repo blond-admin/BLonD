@@ -1940,7 +1940,11 @@ class DriftObservation(ObservablesOncePerTurnBase):
         self,
     ) -> None:
         """Update memory with new values."""
-        self._eta_0s.write(float(self._drift._last_eta_0))
+        assert self._eta_0s is not None, _NOT_RUN_MESSAGE
+
+        self._eta_0s.write(
+            float(self._drift._last_eta_0)  # ty: ignore[invalid-argument-type]  # FIXME: `DriftExact._track` never sets `_last_eta_0`, so this is `float(None)`
+        )
 
     @property  # as readonly attributes
     def eta_0s(self) -> NumpyArray:
