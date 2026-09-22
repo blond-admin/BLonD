@@ -14,6 +14,7 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from blond.core.base import BeamObservationElement, DynamicParameter
@@ -274,7 +275,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
         count = sum([el == self for el in simulation.ring.elements.elements])
 
-        n_entries = int(n_turns * count // self.each_turn_i)
+        n_entries = count * math.ceil(n_turns / self.each_turn_i)
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
@@ -465,7 +466,7 @@ class InducedVoltageObservationCR(
 
         ind_volt_len = len(self._wake_field._profile.hist_x)
 
-        n_entries = int(n_turns * count // self.each_turn_i)
+        n_entries = count * math.ceil(n_turns / self.each_turn_i)
         shape = (n_entries, ind_volt_len)
 
         self._induced_voltage = DenseArrayRecorder(
