@@ -1593,7 +1593,7 @@ class SingleHarmonicRFStation(
 
         return (
             q * V / omega * sympy.cos(omega * dt + phi)
-            + float(self._last_reference_energy_change) * dt
+            + float(self._last_reference_energy_change) * dt  # ty: ignore[invalid-argument-type]  # FIXME: `None` before the first `track_reference`, contradicting the docstring
         )
 
 
@@ -2164,4 +2164,4 @@ class MultiHarmonicRFStation(
 
             expr += q * V_j / omega_j * sympy.cos(omega_j * dt + phi_j)
 
-        return expr + float(self._last_reference_energy_change) * dt
+        return expr + float(self._last_reference_energy_change) * dt  # ty: ignore[invalid-argument-type]  # FIXME: `None` before the first `track_reference`, contradicting the docstring
