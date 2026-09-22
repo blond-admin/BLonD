@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 
@@ -366,3 +366,60 @@ class TestSPSBeamFeedback(BLonDTestCase):
         self.assertEqual(
             self.cavity.cavity_feedback_list[1], self.cavity_feedback
         )
+
+
+def _mock_cavity(harmonic: int, phi_rf: float) -> Mock:
+    t_rev = 1e-6
+    cavity = Mock()
+    cavity.harmonic = harmonic
+    cavity.get_main_harmonic.return_value = harmonic
+    cavity.get_main_harmonic_omega_rf_design.return_value = (
+        2 * np.pi * harmonic / t_rev
+    )
+    cavity.get_main_harmonic_phi_rf.return_value = phi_rf
+    cavity.calc_phi_s_main_harmonic.return_value = np.pi
+    return cavity
+
+
+class TestSPSBeamControlUnit(BLonDTestCase):
+    def _control(self, cavities: list, **kwargs) -> SPSBeamControl:
+        control = SPSBeamControl(profile=Mock(), **kwargs)
+        control._simulation = Mock()
+        control._simulation.turn_counter.value = 1
+        control.cavities = cavities
+        control.update_main_rf_stations()
+        return control
+
+    def test_synchro_loop_uses_main_harmonic_cavity(self):
+        """The synchro-loop error is taken from a main-harmonic cavity.
+
+        ``cavities[0]`` need not be on the main harmonic; the phase
+        must come from ``_main_cavities[0]``, like ``phi_s`` does.
+        """
+        main_cavity = _mock_cavity(harmonic=1, phi_rf=0.5)
+        second_harmonic_cavity = _mock_cavity(harmonic=4, phi_rf=7.0)
+        control = self._control(
+            cavities=[second_harmonic_cavity, main_cavity], k_eps_n=1.0
+        )
+
+        with patch.object(control, "cavity_sum_phase"):
+            control.update_frequency_correction(beam=Mock())
+
+        self.assertAlmostEqual(control.epsilon, 0.5)
+
+    def test_phase_noise_is_added_to_phase_error(self):
+        """``phase_noise`` given to the constructor enters ``dphi``."""
+        phase_noise = Mock()
+        phase_noise.dphi = np.array([0.1, 0.2])
+        control = self._control(
+            cavities=[_mock_cavity(harmonic=1, phi_rf=0.0)],
+            phase_noise=phase_noise,
+        )
+        control.phi_beam = 0.5
+
+        with patch.object(control, "cavity_sum_phase"):
+            control.update_frequency_correction(beam=Mock())
+
+        # calc_phi_s_main_harmonic is mocked to pi, which cancels the
+        # +pi offset of the synchronous-phase correction
+        self.assertAlmostEqual(control.dphi, 0.5 + 0.2)
