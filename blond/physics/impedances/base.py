@@ -293,7 +293,10 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         profile
             The reference profile object.
         """
-        return self._profile
+        # FIXME: is `None` until a profile is passed or found in
+        # `on_init_simulation`; the solvers rely on that (`is None`
+        # checks), so the annotation should really be Optional.
+        return self._profile  # ty: ignore[invalid-return-type]
 
     @abstractmethod  # pragma: no cover
     def calc_induced_voltage(
