@@ -1135,12 +1135,22 @@ class NumpyBackend(BackendBaseClass):
         elif mode == "cpp":
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
-            self.specials = reload_cpp_backend(self.float, parallel=True)
+            # FIXME: `reload_cpp_backend` returns the `CppSpecials` class,
+            #  not an instance like the other modes (works because all
+            #  its methods are static).
+            self.specials = reload_cpp_backend(  # ty: ignore[invalid-assignment]
+                self.float, parallel=True
+            )
             self.specials_mode = mode
         elif mode == "cpp_single_core":
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
-            self.specials = reload_cpp_backend(self.float, parallel=False)
+            # FIXME: `reload_cpp_backend` returns the `CppSpecials` class,
+            #  not an instance like the other modes (works because all
+            #  its methods are static).
+            self.specials = reload_cpp_backend(  # ty: ignore[invalid-assignment]
+                self.float, parallel=False
+            )
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (
