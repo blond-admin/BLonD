@@ -252,6 +252,30 @@ class TestStaticProfile(BLonDTestCase):
             np.linspace(-5, 5, 11),
         )
 
+    def test_track_keeps_hist_x_derived_cache(self):
+        """``hist_x`` of a static profile never changes, so ``_track`` must
+        only invalidate ``gradient_hist_y`` and keep the cached geometry
+        (recomputing it costs device->host syncs every turn on GPU)."""
+        beam = Beam(
+            intensity=1,
+            particle_type=uranium_29,
+        )
+        beam.setup_beam(
+            dt=np.linspace(-4, 4, 10),
+            dE=np.zeros(10),
+            reference_time=0,
+            reference_total_energy=450e9,
+        )
+        geometry = ("cut_left", "cut_right", "hist_step", "bin_edges")
+        for name in geometry + ("n_bins", "gradient_hist_y"):
+            getattr(self.static_profile, name)  # fill the cache
+
+        self.static_profile.track(beam=beam)
+
+        for name in geometry + ("n_bins",):
+            self.assertIn(name, self.static_profile.__dict__, msg=name)
+        self.assertNotIn("gradient_hist_y", self.static_profile.__dict__)
+
 
 class TestDynamicProfileConstCutoff(BLonDTestCase):
     def setUp(self):
@@ -297,6 +321,32 @@ class TestDynamicProfileConstNBins(BLonDTestCase):
 
     def test___init__(self):
         pass
+
+    def test_track_after_reading_cut_uses_new_window(self):
+        """Reading ``cut_left``/``cut_right`` between two turns (as e.g. a
+        wake solver does) must not make the next histogram use the
+        previous turn's window."""
+        profile = self.dynamic_profile_const_cutoff
+        n_particles = 10
+        for turn_i, dt_start in enumerate((0.0, 5e-9)):
+            beam = Beam(
+                intensity=1,
+                particle_type=uranium_29,
+            )
+            beam.setup_beam(
+                dt=np.linspace(dt_start, dt_start + 1e-9, n_particles),
+                dE=np.zeros(n_particles),
+                reference_time=0,
+                reference_total_energy=450e9,
+            )
+            profile.track(beam=beam)
+            _ = profile.cut_left, profile.cut_right  # fill the cache
+            # the outermost particle may fall off the float-rounded edge
+            self.assertGreaterEqual(
+                float(copy_to_cpu(profile.hist_y).sum()),
+                n_particles - 1,
+                msg=f"turn {turn_i}",
+            )
 
     def test_update_attributes(self):
         beam = Beam(
