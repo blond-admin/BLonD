@@ -153,6 +153,12 @@ ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ty.analysis]
+# CuPy is optional: type it as `Any` whether or not it happens to be
+# installed, so `ty` reports the same diagnostics on every machine.
+replace-imports-with-any = ["cupy.**"]
+
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"
