@@ -194,7 +194,9 @@ def single_section_simulation(  # noqa: PLR0912
             cut_right=_cycle.get_t_rev_init(
                 circumference=ring_circumference, particle_type=particle_type
             )
-            / rf_station.harmonic,
+            # FIXME: `harmonic` is an array for `MultiHarmonicRFStation`
+            #  (or `None`), but `cut_right` must be a float
+            / rf_station.harmonic,  # ty: ignore[unsupported-operator]
             cutoff_frequency=wakefield_cutoff_frequency,
         )
         wakefield = WakeField(
