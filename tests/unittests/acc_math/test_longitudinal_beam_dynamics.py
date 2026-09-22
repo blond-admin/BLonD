@@ -194,6 +194,23 @@ class TestLongitudinalBeamDynamics_array_inputs(BLonDTestCase):
             rtol=1e-12,
         )
 
+    def test_uneven_beta_raises(self):
+        """`beta` takes part in the uneven-array-size check.
+
+        A length-1 `beta` next to length-5 arrays must raise like any
+        other mismatched argument, not broadcast silently.
+        """
+        with self.assertRaises(UnevenArraySizes):
+            get_small_amplitude_angular_synchrotron_tune(
+                energy=self.energy,
+                voltage=self.voltage,
+                harmonic_number=self.harmonic_number,
+                synchronous_phase=self.synchronous_phase,
+                phase_slip_factor=self.phase_slip_factor,
+                beta=self.beta[0:1],
+                charge=self.charge,
+            )
+
     def test_get_small_amplitude_angular_synchrotron_frequency(self):
         frequency = get_small_amplitude_angular_synchrotron_frequency(
             energy=self.energy,
