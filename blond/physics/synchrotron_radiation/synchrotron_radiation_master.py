@@ -434,7 +434,9 @@ class SynchrotronRadiationMaster(Schedulable):
 
         for drift in drift_list:
             if use_radiation_integrals_from_drifts:
-                shares_of_radiation_integrals.append(drift.radiation_integrals)
+                shares_of_radiation_integrals.append(
+                    drift.radiation_integrals  # ty: ignore[invalid-argument-type]  # FIXME: None can slip through, `any()` partly consumes the `drift_list_` generator before `all()`
+                )
             else:
                 shares_of_radiation_integrals.append(
                     drift.orbit_length

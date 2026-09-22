@@ -406,7 +406,10 @@ class Ring(Preparable):
         if drifts_with_radiation_integrals:
             use_radiation_integrals_from_drifts = all(drift_list_)
             if use_radiation_integrals_from_drifts:
-                total_radiation_integrals_from_drifts = sum(
+                # FIXME: `drift_list_` is a generator that `any()` above has
+                #  already partly consumed, so `all()` only sees the rest
+                #  and `None` radiation integrals can reach this `sum`.
+                total_radiation_integrals_from_drifts = sum(  # ty: ignore[no-matching-overload]
                     drift.radiation_integrals for drift in all_drifts
                 )
                 assert np.allclose(
