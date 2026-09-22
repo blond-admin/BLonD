@@ -1354,11 +1354,13 @@ class SingleHarmonicRFStation(
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
-                time_axis = self.cavity_feedback_list[0].profile.hist_x
+                feedback = self.cavity_feedback_list[0]
+                assert feedback is not None  # as `n_rf == 1`
+                time_axis = feedback.profile.hist_x
                 sparse_metadata = (
-                    self.cavity_feedback_list[0].profile.sparse_kick_metadata
+                    feedback.profile.sparse_kick_metadata
                     if isinstance(
-                        self.cavity_feedback_list[0].profile,
+                        feedback.profile,
                         EquidistantMultiProfile,
                     )
                     else None
