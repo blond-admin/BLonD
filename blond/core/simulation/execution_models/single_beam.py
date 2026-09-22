@@ -28,11 +28,16 @@ from tqdm import tqdm
 from blond.core.simulation.execution_models.base import ExecutionModel
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
-    CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
+    # The beam parameter is `Any`: callable parameters are contravariant,
+    # so `BeamBaseClass` here would reject the documented
+    # `def callback(simulation: Simulation, beam: Beam)`.
+    CallbackTypeHint = Callable[["Simulation", Any], None]
 
 logger = logging.getLogger(__name__)
 

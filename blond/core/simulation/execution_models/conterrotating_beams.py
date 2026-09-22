@@ -30,10 +30,15 @@ from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import NotTestedWarning
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from blond.core.beam.base import BeamBaseClass
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
-    CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
+    # The beam parameter is `Any`: callable parameters are contravariant,
+    # so `BeamBaseClass` here would reject the documented
+    # `def callback(simulation: Simulation, beam: Beam)`.
+    CallbackTypeHint = Callable[["Simulation", Any], None]
 
 logger = logging.getLogger(__name__)
 
