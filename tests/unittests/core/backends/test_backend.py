@@ -376,6 +376,20 @@ class TestNumpyBackend(BLonDTestCase):
             self.skipTest("cpp_single_core not available!")
 
     @pytest.mark.backend_mutation
+    def test_set_specials_cpp_stores_instance(self) -> None:
+        """`cpp` stores a `Specials` instance, like the other modes."""
+        from blond.core.backends.backend import Specials
+
+        for mode in ("cpp", "cpp_single_core"):
+            try:
+                self.numpy_backend.set_specials(mode=mode)
+            except (FileNotFoundError, OSError):
+                self.skipTest(f"{mode} not available!")
+            self.assertIsInstance(
+                self.numpy_backend.specials, Specials, msg=mode
+            )
+
+    @pytest.mark.backend_mutation
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
 
