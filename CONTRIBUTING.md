@@ -286,6 +286,14 @@ An optional check of the code can be done using the command
 ruff check
 ```
 
+**Type checking.** The `ty` hook type-checks the whole `blond/` tree with
+[ty](https://docs.astral.sh/ty/) (configured under `[tool.ty]` in
+`pyproject.toml`; reproduce with `ty check`). Unlike the other hooks it runs in
+*your* environment, because it needs BLonD's dependencies to resolve imports —
+both `ty` and those come with `pip install -e ".[dev]"`. Prefer fixing the type
+over silencing it; where the checker is wrong, use a rule-specific
+`# ty: ignore[<rule>]` with a short reason.
+
 **Docstring style.** Public functions, classes, and modules use the
 [NumPy docstring convention](https://numpydoc.readthedocs.io/en/latest/format.html);
 docstrings are validated by `numpydoc` (configured in `pyproject.toml`).

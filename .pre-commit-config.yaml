@@ -37,6 +37,23 @@ repos:
       - id: ruff-check  # This runs `ruff check`
         args: ["--fix"] # otherwise not compatible with Ruff
 
+  # Static type check, configured in `[tool.ty]` of pyproject.toml.
+  # use `ty check` to debug this hook
+  # `language: system` on purpose: ty resolves imports (numpy, scipy, ...)
+  # from the environment BLonD is installed in, which pre-commit's own
+  # isolated hook environments do not have. ty itself comes from the
+  # `dev` extra, pinned there because every release changes diagnostics.
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty check
+        entry: ty check
+        language: system
+        types_or: [python, pyi, toml]
+        # Types cross file boundaries, so check the whole configured
+        # source tree rather than only the staged files.
+        pass_filenames: false
+
   # Formats the C/C++ and CUDA backends (style in .clang-format).
   # clang-format comes from a pinned PyPI wheel inside pre-commit's own
   # environment, so no system clang is needed and every OS gets the same

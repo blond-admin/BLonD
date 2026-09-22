@@ -49,6 +49,7 @@ dependencies = [
 dev = [
   "pytest>=9",           # test runner
   "pre-commit",          # automatic checks before `git commit`
+  "ty==0.0.82",          # static type checker, run by pre-commit
   "pytest-cov>=6",       # test coverage reporting
   "mpmath>=1",           # part of the testing against blond2
   "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
@@ -153,6 +154,31 @@ ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+# Static type checker, run by the `ty` pre-commit hook (`ty check`).
+[tool.ty.src]
+include = ["blond"]
+exclude = ["blond/legacy/", "blond/experimental/"]
+
+[tool.ty.environment]
+# 3.11 although `requires-python` still says 3.10: 3.10 support is about to
+# be dropped and type-check-only imports such as `typing.Self` are already
+# written for 3.11. Bump together with `requires-python`.
+python-version = "3.11"
+
+[tool.ty.analysis]
+# Optional dependencies are typed as `Any` whether or not they happen to be
+# installed, so `ty` reports the same diagnostics on every machine (a
+# CPU-only laptop, the CI pre-commit job, a GPU node with MPI).
+replace-imports-with-any = [
+  "cupy.**",
+  "cupyx.**",
+  "mpi4py.**",
+  "xobjects.**",
+  "xpart.**",
+  "xtrack.**",
+]
+
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"

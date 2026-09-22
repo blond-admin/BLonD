@@ -304,7 +304,7 @@ One GitLab MR per item, each on its own branch off `blonder`
   line-rate to GitLab; the project's MR rule fails on any drop. New code needs tests —
   budget for them, don't bolt them on after.
 - **Fails pre-commit.** The hooks below run in CI too (ruff, isort, copyright,
-  numpydoc, …); a hook that fails locally fails the pipeline.
+  numpydoc, ty, …); a hook that fails locally fails the pipeline.
 - **Fails the doc build.** `sphinx-build … -W` treats warnings as errors (see below).
 
 **Docs are Sphinx; docstrings are NumPy style.** Public-API docstrings follow the
@@ -328,6 +328,17 @@ commit, not from a surprise at `git commit` time. Same fixes apply either way.)
   `python dev_tools/copy_copyright_to_all_files.py`.
 - `numpydoc-validation` enforces NumPy-style docstrings on public API (config in
   `pyproject.toml`; `callables.py` files are excluded there).
+- `ty` (static type check, config in `[tool.ty]` of `pyproject.toml`) is a
+  `language: system` hook: it needs `ty` **and** BLonD's dependencies in the
+  active environment, so `ty: command not found` / a flood of
+  `unresolved-import` means the `dev` extra isn't installed there
+  (`pip install -e ".[dev]"`). It always checks the whole `blond/` tree, not
+  just staged files; reproduce with `ty check`. Optional dependencies (CuPy,
+  mpi4py, xsuite) are typed as `Any` on purpose so results don't depend on
+  what is installed. Fix the type rather than suppress it; when the checker
+  really is wrong, use a rule-specific `# ty: ignore[<rule>]` with a reason —
+  never a blanket `# type: ignore`. `ty` is pinned in the `dev` extra because
+  each release changes diagnostics; bump the pin deliberately.
 
 **Doc build fails (`cd docs && bash create_docs.sh`).**
 - `sphinx-build -b html . ./_build/html -W` uses **`-W`: warnings are errors.** A

@@ -397,7 +397,10 @@ precommit-check:
     - *uv_setup
     - uv venv ./.venv
     - source ./.venv/bin/activate
-    - uv pip install pre-commit
+    # The `ty` hook is `language: system`: it type-checks against the
+    # environment BLonD is installed in, so the `dev` extra (which also
+    # brings pre-commit and the pinned ty) has to be installed here.
+    - uv pip install -e ${project_root}[dev]
   script:
     - pre-commit run --all-files
   cache:
