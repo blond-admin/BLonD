@@ -163,18 +163,20 @@ def single_section_simulation(  # noqa: PLR0912
             main_harmonic_idx=0,
         )
 
+    # FIXME: not validated that floats go to the single-harmonic and arrays
+    #  to the multi-harmonic station (see the ignored assignments below)
     if not isinstance(cavity_voltage, ScheduledBaseClass):
-        rf_station.voltage = cavity_voltage
+        rf_station.voltage = cavity_voltage  # ty: ignore[invalid-assignment]
     else:
         rf_station.schedule("voltage", cavity_voltage)
 
     if not isinstance(cavity_phi_rf, ScheduledBaseClass):
-        rf_station.phi_rf_design = cavity_phi_rf
+        rf_station.phi_rf_design = cavity_phi_rf  # ty: ignore[invalid-assignment]
     else:
         rf_station.schedule("phi_rf_design", cavity_phi_rf)
 
     if not isinstance(cavity_harmonic, ScheduledBaseClass):
-        rf_station.harmonic = cavity_harmonic
+        rf_station.harmonic = cavity_harmonic  # ty: ignore[invalid-assignment]
     else:
         rf_station.schedule("harmonic", cavity_harmonic)
 
