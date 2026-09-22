@@ -21,7 +21,7 @@ import os
 import unittest
 import warnings
 from functools import partial, wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -179,10 +179,10 @@ def multi_backend_testcase(*args: str | Callable) -> Callable:
     bare = bool(callable(args[0]))
 
     if bare:
-        fn = args[0]
+        fn = cast("Callable", args[0])
         tested_backends = _backend_selection(*backend.ALL_BACKENDS.keys())
     else:
-        tested_backends = _backend_selection(*args)
+        tested_backends = _backend_selection(*cast("tuple[str, ...]", args))
 
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
