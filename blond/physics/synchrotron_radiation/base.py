@@ -79,7 +79,10 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
                 "tracking if you need reproducibility."
             )
 
-        super().__init__(name=name, section_index=section_index)
+        super().__init__(
+            name=name,
+            section_index=section_index,  # ty: ignore[invalid-argument-type]  # FIXME: defaults to None, but `BeamPhysicsRelevant` expects an int
+        )
 
         self._turn_counter = None
         self._register_schedulable_variables(
