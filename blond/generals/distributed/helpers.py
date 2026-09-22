@@ -203,8 +203,7 @@ def mpi_is_distributed():
     """
     if MPI_COMM_WORLD is None:
         return False
-    if MPI_COMM_WORLD.Get_size() > 1:
-        return True
+    return MPI_COMM_WORLD.Get_size() > 1
 
 
 def mpi_barrier():
