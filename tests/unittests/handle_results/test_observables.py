@@ -22,6 +22,7 @@ from blond import (
 )
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
@@ -32,6 +33,7 @@ from blond.handle_results.observables import (
     BeamStatisticsOncePerTurn,
     DriftObservation,
     DynamicProfileConstNBinsObservation,
+    ObservablesBaseClass,
     ObservablesOncePerTurnBase,
     RFStationPhaseObservation,
     SimulationObservation,
@@ -39,6 +41,7 @@ from blond.handle_results.observables import (
     StaticProfileObservation,
     WakeFieldObservation,
 )
+from blond.physics.drifts import DriftExact
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
@@ -90,6 +93,18 @@ class ObservablesHelper(ObservablesOncePerTurnBase):
 
     def from_disk(self) -> None:
         pass
+
+
+class ObservablesBaseHelper(ObservablesBaseClass):
+    def update(self) -> None:
+        pass
+
+
+class TestObservablesBaseClass(BLonDTestCase):
+    def test___init___default_folder(self) -> None:
+        """The default ``folder=None`` must not crash the constructor."""
+        observables = ObservablesBaseHelper()
+        self.assertTrue(observables.common_filepath.endswith("last"))
 
 
 class TestDenseArrayRecorder(BLonDTestCase):
@@ -883,6 +898,23 @@ class TestStaticMultiProfileObservation(BLonDTestCase):
                 )
             )
 
+    def test_on_run_simulation_each_turn_i_2(self) -> None:
+        """With ``each_turn_i=2`` every one of the ``n_turns / 2``
+        observations must fit into the recorder."""
+        obs = StaticMultiProfileObservation(
+            each_turn_i=2,
+            profiles=[self.profile, self.profile_2],
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        for _ in range(50):
+            obs._update()
+        self.assertEqual(len(obs.hist_y), 50)
+
     def test_from_disk(self) -> None:
         self.static_multi_profile_observation.on_init_simulation(
             simulation=simulation
@@ -981,6 +1013,33 @@ class TestDriftObservation(BLonDTestCase):
         self.obs._update()
         self.assertEqual(self.obs.eta_0s[0], 222)
         self.assertEqual(len(self.obs.eta_0s), 2)  # two updates before
+
+    def test_update_drift_exact(self):
+        """``DriftExact`` is a ``DriftSimple``; observing it after a track
+        must record its ``eta_0``."""
+        drift = DriftExact.headless(
+            orbit_length=100,
+            section_index=0,
+            momentum_compaction_factor=1e-3,
+            higher_order_alpha=None,
+            turn_counter=DynamicParameter(0),
+        )
+        probe_beam = ProbeBeam(
+            dE=np.array([1e6, -1e6]),
+            dt=np.array([1e-9, -1e-9]),
+            reference_total_energy=1e10,
+            reference_time=0,
+            particle_type=proton,
+        )
+        drift.track(probe_beam)
+        obs = DriftObservation(each_turn_i=1, drift=drift)
+        obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=1,
+        )
+        obs._update()
+        self.assertTrue(np.isfinite(obs.eta_0s[0]))
 
 
 if __name__ == "__main__":
