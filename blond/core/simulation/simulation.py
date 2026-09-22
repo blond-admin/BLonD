@@ -630,7 +630,8 @@ class Simulation(Preparable):
         potential_well = -cumulative_simpson(
             probe_bunch.read_partial_dE()
             if backend.specials_mode != "cuda"
-            else probe_bunch.read_partial_dE().get(),
+            # FIXME: should be `copy_to_cpu`, not mode check + `.get()`
+            else probe_bunch.read_partial_dE().get(),  # ty: ignore[unresolved-attribute]
             initial=0,
         ) / len(dt)
 
