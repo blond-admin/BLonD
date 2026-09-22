@@ -116,6 +116,12 @@ class TestBeamObservationInRingElement(BLonDTestCase):
             err_msg="Reference total energy not recorded correctly",
         )
 
+    def test___init___folder_none(self):
+        """``folder=None`` is documented as "data is kept in memory" and
+        must be accepted by the constructor."""
+        observation = BeamObservationInRingElement(folder=None)
+        self.assertIsNotNone(observation.common_filepath)
+
     def test_ignores_probe_beam(self):
         observation = BeamObservationInRingElement(
             each_turn_i=1,
