@@ -237,7 +237,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     return found
 
 
-def find_instances_by_class(root: Any, class_: type[T]) -> T:
+def find_instances_by_class(root: Any, class_: type[T]) -> set[T]:
     """
     Find all instances within root that are ``isinstance`` of `class_`.
 

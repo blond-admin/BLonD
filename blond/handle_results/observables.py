@@ -32,6 +32,7 @@ from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Sequence
     from typing import Any
 
     from blond.core.beam.base import BeamBaseClass
@@ -252,7 +253,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         return int(math.ceil(n_turns / self.each_turn_i))
 
     @property  # as readonly attributes
-    def turns_array(self) -> NumpyArray | None:
+    def turns_array(self) -> NumpyArray:
         """
         Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
@@ -1373,7 +1374,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        profiles: list[StaticProfile],
+        profiles: Sequence[StaticProfile],
         folder: str = "",
         sort_profiles_by_section=True,
     ):
@@ -1413,6 +1414,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
+
         n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)

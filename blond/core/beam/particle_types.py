@@ -26,11 +26,10 @@ from scipy.constants import (  # type: ignore[import-untyped]
 
 import blond.generals.formatting_ as format
 
-m_mu = physical_constants["muon mass"][0]
-
-
 if TYPE_CHECKING:
     from typing_extensions import Self
+
+m_mu = physical_constants["muon mass"][0]
 
 
 class ParticleType:

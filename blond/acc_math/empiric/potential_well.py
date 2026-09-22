@@ -363,8 +363,8 @@ class PotentialWellHelper:
         return slices
 
     def _purge_duplicates_off_by_one(
-        self, bucket_list: list[tuple[float, float]]
-    ) -> list[tuple[float, float]]:
+        self, bucket_list: NumpyArray
+    ) -> NumpyArray:
         """
         Purge duplicate buckets from bucket list.
 

@@ -15,13 +15,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
+    from typing import Any, TypeGuard
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
-def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
+def is_cupy_array(
+    arr: NumpyArray | CupyArray | Any,
+) -> TypeGuard[CupyArray]:
     """
     Check if the array is a Cupy array.
 

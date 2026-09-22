@@ -20,7 +20,7 @@ from blond.generals.exceptions_ import UnevenArraySizes
 
 
 def raise_on_uneven_array_sizes(
-    *args: tuple[float | Sequence | NumpyArray],
+    *args: float | Sequence | NumpyArray,
 ) -> Any:
     """
     Check if the tuple of arguments have the same length.

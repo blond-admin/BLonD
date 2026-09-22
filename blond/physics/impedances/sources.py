@@ -807,7 +807,7 @@ class ImpedanceTable(WakeFieldSource):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def from_file(
-        filepath: PathLike, reader: ImpedanceReader
+        filepath: PathLike | str, reader: ImpedanceReader
     ) -> ImpedanceTable:
         """
         Instance table from a file on the disk.
@@ -849,7 +849,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         self._freq_x = backend.array(freq_x)
         self._freq_y = backend.array(freq_y)
 
-        self._cache_impedance = None
+        self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
 
     def get_impedance(
@@ -858,7 +858,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         hist_step: float | None = None,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
 
@@ -894,7 +894,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
     @staticmethod
     def from_file(
-        filepath: PathLike, reader: ImpedanceReader
+        filepath: PathLike | str, reader: ImpedanceReader
     ) -> ImpedanceTableFreq:
         """
         Instance table from a file on the disk.
@@ -969,7 +969,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in time domain.
 

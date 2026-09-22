@@ -322,7 +322,7 @@ def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     first_left_cut: float,
     left_cut_distance: float,
     cut_width: float,
-    bins_per_profile: int,
+    bins_per_profile: np.int32,
     filling_pattern: NumpyArray,
     bucket_index_to_memory_index: NumpyArray,
 ) -> None:

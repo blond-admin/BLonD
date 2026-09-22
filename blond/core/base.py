@@ -94,7 +94,7 @@ class Preparable(ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -116,7 +116,7 @@ class Preparable(ABC):
         self,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Set run-specific state for each simulation run.
@@ -246,7 +246,8 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
+        value: ScheduledBaseClass
+        | ScheduledArray
         | ScheduledInterpolation
         | ScheduledFunctional
         | NumpyArray

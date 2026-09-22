@@ -31,7 +31,7 @@ from blond.generals.cupy_ import no_cupy_import as no_cupy
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-    from blond.core.backends.backend import BackendBaseClass
+    from blond.core.backends.backend import Cupy64Bit, Numpy64Bit
     from blond.generals.typing_ import AnyArray
 
 try:
@@ -55,7 +55,7 @@ def _set_forcing() -> bool:
 FORCE_ALL_BACKENDS = _set_forcing()
 
 
-def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
+def _backend_selection(*args: str) -> list[type[Numpy64Bit | Cupy64Bit]]:
     if FORCE_ALL_BACKENDS:
         # If FORCE_ALL_BACKENDS is True, the requested backends will all
         # be used, whether or not they can be initialised.  For backends
@@ -134,7 +134,7 @@ def pin_fast_test_backends() -> None:
             backend.backend.set_specials("numba")
 
 
-def multi_backend_testcase(*args: tuple[str]) -> Callable:
+def multi_backend_testcase(*args: str | Callable) -> Callable:
     """
     Decorator to run a unittest testcase with multiple backends.
 
@@ -263,7 +263,7 @@ class ArrayLikeScan:
     ...     np.max(inp_cast([1, 2, 3]))
     """
 
-    def __init__(self, array_likes: Iterable[type] | None = None):
+    def __init__(self, array_likes: Iterable[Callable] | None = None):
         if array_likes is None:
             array_likes = [list, tuple, np.array]
             if cupy_available:
@@ -278,7 +278,7 @@ class ArrayLikeScan:
 
             yield func
 
-    def _cast_to(self, type_: type, value: AnyArray) -> AnyArray:
+    def _cast_to(self, type_: Callable, value: AnyArray) -> AnyArray:
         # Wrapper to ensure cupy arrays are first converted to numpy
         # arrays, otherwise most conversions raise an error
         # because automatic convertion (`.get()`) is not possible.
