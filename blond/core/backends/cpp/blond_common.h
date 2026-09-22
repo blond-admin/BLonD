@@ -32,23 +32,23 @@ BLonD common header file
 
 #ifdef USEFLOAT
 
-typedef float real_t;
+using real_t = float;
 #define FAST_SIN vdt::fast_sinf
 #define FAST_COS vdt::fast_cosf
 #define FAST_EXP vdt::fast_expf
 
 #else
 
-typedef double real_t;
+using real_t = double;
 #define FAST_SIN vdt::fast_sin
 #define FAST_COS vdt::fast_cos
 #define FAST_EXP vdt::fast_exp
 
 #endif
 
-typedef std::complex<real_t> complex_t;
+using complex_t = std::complex<real_t>;
 
 // Integer type of macro-particle counts, particle loop counters and particle
 // ids, so a single process can hold more than 2^31 - 1 macro-particles.
 // Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
-typedef std::int64_t index_t;
+using index_t = std::int64_t;
