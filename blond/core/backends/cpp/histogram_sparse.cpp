@@ -6,11 +6,7 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-#include <cstdio>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-
+#include <cstring>
 #include <vector>
 
 #include "blond_common.h"
@@ -52,7 +48,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
     real_t *__restrict__ h = histo + (size_t)id * n_out;
-    memset(h, 0, n_out * sizeof(real_t));
+    std::memset(h, 0, n_out * sizeof(real_t));
 
 // ---------------------------------
 // Particle loop (into the private histogram, no atomics)

@@ -9,9 +9,7 @@
 // C++ implementation of induced voltage calculation using pole-residue
 // (vector fitting) models, parallelized with OpenMP over poles.
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "blond_common.h"
 #include "openmp.h"
@@ -64,8 +62,9 @@ extern "C" void wake_from_pole_residue(
   const int n_used_threads = (n_poles < n_threads) ? n_poles : n_threads;
 
   // Zero voltage and the used rows of voltage_threaded from previous call
-  memset(voltage, 0, n_bins * sizeof(real_t));
-  memset(voltage_threaded, 0, (size_t)n_used_threads * n_bins * sizeof(real_t));
+  std::memset(voltage, 0, n_bins * sizeof(real_t));
+  std::memset(voltage_threaded, 0,
+              (size_t)n_used_threads * n_bins * sizeof(real_t));
 
   // t_start from states[-1] (real part of last complex element)
   const real_t t_start = states[(size_t)2 * n_poles];

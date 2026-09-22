@@ -9,10 +9,8 @@
 // Optimised C++ routine that calculates the histogram
 // Author: Danilo Quartullo, Alexandre Lasheen, Konstantinos Iliakis
 
-#include <math.h>
-#include <stdlib.h> // mmalloc()
-#include <string.h> // memset()
-
+#include <cmath>
+#include <cstring>
 #include <memory>
 
 #include "blond_common.h"
@@ -37,7 +35,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
     index_t *__restrict__ thread_histo = &histo[(size_t)id * n_slices];
-    memset(thread_histo, 0, n_slices * sizeof(index_t));
+    std::memset(thread_histo, 0, n_slices * sizeof(index_t));
     // Keep the bin index in double until it is range-checked: a float
     // cannot represent indices above 2^24 exactly, and converting an
     // out-of-range double to int is undefined behaviour (on x86 it
@@ -51,7 +49,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
 
       // First calculate the index to update
       for (index_t j = 0; j < loop_count; j++) {
-        fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
+        fbin[j] = std::floor((input[i + j] - cut_left) * inv_bin_width);
 
         // Scaling is not exact: a value at or just below cut_right can
         // land on n_slices. Fold it back into the last bin, as
@@ -98,7 +96,7 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
     real_t *__restrict__ thread_histo = &histo[(size_t)id * n_slices];
-    memset(thread_histo, 0, n_slices * sizeof(real_t));
+    std::memset(thread_histo, 0, n_slices * sizeof(real_t));
 
 // main caclulation
 #pragma omp for

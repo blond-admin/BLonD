@@ -12,9 +12,6 @@
 // particles
 
 #include <cmath>
-#include <math.h>
-#include <stdlib.h>
-
 #include <memory>
 
 #include "blond_common.h"

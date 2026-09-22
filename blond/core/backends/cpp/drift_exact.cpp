@@ -10,7 +10,7 @@
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen, Elleanor Lamb
 
 #include "blond_common.h"
-#include <math.h>
+#include <cmath>
 
 extern "C" void drift_exact(real_t *__restrict__ beam_dt,
                             const real_t *__restrict__ beam_dE, const real_t T,
@@ -28,9 +28,10 @@ extern "C" void drift_exact(real_t *__restrict__ beam_dt,
 
     const real_t dE = beam_dE[i];
 
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
+    const real_t delta =
+        std::sqrt(1.0 + inv_beta_sq *
+                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
+        1.0;
 
     real_t poly = 1.0 + alpha_zero * delta;
 

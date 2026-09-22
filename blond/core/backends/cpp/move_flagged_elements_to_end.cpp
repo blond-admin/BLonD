@@ -8,9 +8,6 @@
 
 // Author: Simon Lauber
 
-#include <math.h>
-#include <string.h>
-
 #include "blond_common.h"
 
 extern "C" index_t
