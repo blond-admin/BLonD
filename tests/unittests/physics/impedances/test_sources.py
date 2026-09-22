@@ -1007,6 +1007,39 @@ class TestResonators(BLonDTestCase):
         self.assertEqual(len(copy_to_cpu(freq)), len(copy_to_cpu(imp)))
         np.testing.assert_allclose(copy_to_cpu(freq), expected_freq)
 
+    def test_get_impedance_counter_rotation_without_shunt_raises(self):
+        """Missing counter-rotating shunts raise `RuntimeError`.
+
+        Same contract as `get_wake_counter_rotation`, instead of
+        subscripting `None`.
+        """
+        resonators = Resonators(
+            shunt_impedances=np.array([1.0]),
+            center_frequencies=np.array([500e6]),
+            quality_factors=np.array([5.0]),
+        )
+        freq_x = backend.linspace(0, 1e9, 16, dtype=backend.float)
+        with self.assertRaises(RuntimeError):
+            resonators.get_impedance(
+                freq_x=freq_x,
+                simulation=Mock(Simulation),
+                beam=Mock(BeamBaseClass),
+                counter_rotation=True,
+            )
+
+    def test_get_impedance_counter_rotation_is_keyword_only(self):
+        """A positional 4th argument must not be read as `counter_rotation`.
+
+        `FreqDomain.get_impedance(freq_x, simulation, beam, hist_step)`
+        takes `hist_step` 4th; `Resonators` must not silently reinterpret
+        it.
+        """
+        freq_x = backend.linspace(0, 1e9, 16, dtype=backend.float)
+        with self.assertRaises(TypeError):
+            self.resonators.get_impedance(
+                freq_x, Mock(Simulation), Mock(BeamBaseClass), 1e-10
+            )
+
 
 class TestFitPoles(BLonDTestCase):
     def test_recovers_resonator_impedance(self):
