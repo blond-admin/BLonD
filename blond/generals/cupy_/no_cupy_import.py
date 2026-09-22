@@ -38,7 +38,7 @@ def is_cupy_array(
         True if it's a GPU array, False otherwise.
     """
     if hasattr(arr, "device"):
-        return arr.device != "cpu"  # type: ignore
+        return arr.device != "cpu"
     elif hasattr(arr, "gpu_data"):  # numba.cuda array
         # Overall there is no problem with numba-cuda arrays.
         # Its just that the entire code is tested against Cupy
@@ -129,7 +129,7 @@ class _AsarrayOverrideManager:
         if is_cupy_array(a):
             a = a.get()  # copy data from GPU
 
-        return self._numpy_array_original(  # type: ignore
+        return self._numpy_array_original(
             a,
             dtype=dtype,
             *args,  # NOQA: B026

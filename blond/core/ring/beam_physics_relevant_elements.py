@@ -105,7 +105,7 @@ class BeamPhysicsRelevantElements(Preparable):
             for section_index in np.sort(unique_section_indices):
                 rf_stations = self.get_elements(
                     RFStationBaseClass,
-                    section_i=section_index,  # type: ignore
+                    section_i=section_index,
                     recursive=False,
                 )
                 drifts = self.get_elements(

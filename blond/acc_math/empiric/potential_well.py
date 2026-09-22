@@ -185,8 +185,8 @@ class PotentialWellHelper:
         buckets = []
         epsilon = 0.1 / 100 * (np.max(voltage_axis) - np.min(voltage_axis))
 
-        for nth_maximum in range(len(maxima_indices)):  # type: ignore
-            max_idx: int = maxima_indices[nth_maximum]  # type: ignore
+        for nth_maximum in range(len(maxima_indices)):
+            max_idx: int = maxima_indices[nth_maximum]
 
             threshold_y = float(voltage_axis[max_idx])
             for direction, range_args in zip(
@@ -307,7 +307,7 @@ class PotentialWellHelper:
         time_axis = self.time_axis
         plt.plot(time_axis, voltage_axis)
         plt.ylim(*plt.ylim())
-        for _i, bucket in enumerate(self.bucket_list):  # type: ignore
+        for _i, bucket in enumerate(self.bucket_list):
             x1 = bucket[0]
             x2 = bucket[1]
             y1 = voltage_axis[np.argmin(np.abs(time_axis - x1))]
@@ -326,7 +326,7 @@ class PotentialWellHelper:
         """
         mask = np.zeros(len(self.time_axis), dtype=bool)
 
-        for start, stop in self.bucket_list:  # type: ignore
+        for start, stop in self.bucket_list:
             sel = (self.time_axis >= start) & (self.time_axis <= stop)
             mask |= sel
 
