@@ -24,7 +24,7 @@ from blond.experimental.physics.kick_pooling import (
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass

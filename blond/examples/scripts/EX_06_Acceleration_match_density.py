@@ -32,7 +32,7 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
 
 
 if not pytest_active():  # pragma: no cover

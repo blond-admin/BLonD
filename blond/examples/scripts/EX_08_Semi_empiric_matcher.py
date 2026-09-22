@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
 from blond import (  # NOQA

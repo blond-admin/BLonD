@@ -20,7 +20,7 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
 try:

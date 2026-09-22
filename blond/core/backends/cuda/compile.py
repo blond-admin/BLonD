@@ -97,7 +97,7 @@ def compile_cuda_library(  # NOQA: PLR0915
     # The CUDA library name, without the file extension.
     cuda_libname = os.path.join(target, "kernels")
 
-    import cupy as cp  # type: ignore # NOQA must be installed to be compiled / force exception
+    import cupy as cp  # NOQA must be installed to be compiled / force exception
 
     # if something is wrong with the installation
 

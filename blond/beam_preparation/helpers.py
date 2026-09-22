@@ -24,7 +24,7 @@ from blond.generals.distributed.helpers import (
 )
 
 if TYPE_CHECKING:
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
 
 

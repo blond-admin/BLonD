@@ -23,7 +23,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 from blond.core.simulation.execution_models.base import ExecutionModel
 
