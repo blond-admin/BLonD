@@ -1891,20 +1891,19 @@ class MultiHarmonicRFStation(
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
-        gap_voltage = backend.zeros(
-            self.cavity_feedback_list[0].profile.n_bins
-        )
+        profile = self.cavity_feedback_list[0].profile  # ty: ignore[unresolved-attribute]  # FIXME: feedback 0 may be `None` while another harmonic has a feedback
+        gap_voltage = backend.zeros(profile.n_bins)
         for ind, feedback in enumerate(self.cavity_feedback_list):
             if feedback is not None:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
-                    ts=self.cavity_feedback_list[0].profile.hist_x,
+                    ts=profile.hist_x,
                     harmonic_index=ind,
                     voltage_correction_factors=feedback.relative_voltage_correction,  # ty: ignore[invalid-argument-type, unresolved-attribute]  # FIXME: `None` until the feedback tracked once; attribute missing on the experimental `LocalFeedback`
                     phase_offsets=feedback.phase_correction,  # ty: ignore[invalid-argument-type, unresolved-attribute]  # FIXME: `None` until the feedback tracked once; attribute missing on the experimental `LocalFeedback`
                 )
             else:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
-                    ts=self.cavity_feedback_list[0].profile.hist_x,
+                    ts=profile.hist_x,
                     harmonic_index=ind,
                 )
 
@@ -1935,11 +1934,12 @@ class MultiHarmonicRFStation(
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
                 )
-                time_axis = self.cavity_feedback_list[0].profile.hist_x
+                profile = self.cavity_feedback_list[0].profile  # ty: ignore[unresolved-attribute]  # FIXME: feedback 0 may be `None` while another harmonic has a feedback
+                time_axis = profile.hist_x
                 sparse_metadata = (
-                    self.cavity_feedback_list[0].profile.sparse_kick_metadata
+                    profile.sparse_kick_metadata
                     if isinstance(
-                        self.cavity_feedback_list[0].profile,
+                        profile,
                         EquidistantMultiProfile,
                     )
                     else None
