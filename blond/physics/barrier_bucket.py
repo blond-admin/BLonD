@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
 import scipy.constants as cont
@@ -66,9 +66,9 @@ class BarrierRF(RFManipulationBaseClass):
     ):
         super().__init__(section_index=section_index)
 
-        self.t_center: float = t_center
-        self.t_width: float = t_width
-        self.peak_voltage: float = peak_voltage
+        self.t_center: float | None = t_center
+        self.t_width: float | None = t_width
+        self.peak_voltage: float | None = peak_voltage
         self.n_bins = n_bins
 
         self._register_schedulable_variables(
@@ -99,6 +99,11 @@ class BarrierRF(RFManipulationBaseClass):
             The array of the barrier waveform.
         """
         self.apply_schedules(turn_i, reference_time)
+        assert (
+            self.t_center is not None
+            and self.t_width is not None
+            and self.peak_voltage is not None
+        ), "`t_center`, `t_width`, `peak_voltage` must be set or scheduled."
 
         return compute_sin_barrier(
             self.t_center, self.t_width, self.peak_voltage, bin_centers
@@ -106,8 +111,8 @@ class BarrierRF(RFManipulationBaseClass):
 
     def to_fourier_series(
         self,
-        t_rev: Iterable[float],
-        harmonics: Iterable[int],
+        t_rev: Collection[float],
+        harmonics: Collection[int],
         turns: Iterable[int] | None = None,
         times: Iterable[float] | None = None,
         filter_order: int = 1,
@@ -147,21 +152,23 @@ class BarrierRF(RFManipulationBaseClass):
         ------
             ValueError: Raised if len(times) != len(t_rev)
         """
+        turn_list: list[int | None]
+        time_list: list[float | None]
         match (turns, times):
             case None, None:
                 raise ValueError(
                     "At least one of turns or times must be supplied"
                 )
             case Iterable(), None:
-                turns = list(turns)
-                times = [None for _ in turns]
+                turn_list = list(turns)
+                time_list = [None for _ in turn_list]
             case None, Iterable():
-                times = list(times)
-                turns = [None for _ in times]
+                time_list = list(times)
+                turn_list = [None for _ in time_list]
             case Iterable(), Iterable():
-                times = list(times)
-                turns = list(turns)
-                if len(times) != len(turns):
+                time_list = list(times)
+                turn_list = list(turns)
+                if len(time_list) != len(turn_list):
                     raise ValueError(
                         "If specifying both turns and times, the same number "
                         "of elements must be given for both."
@@ -170,7 +177,7 @@ class BarrierRF(RFManipulationBaseClass):
         max_h = backend.max(harmonics)
 
         # Should not be possible to enter, kept for safety
-        if len(times) != len(t_rev):  # pragma: no cover
+        if len(time_list) != len(t_rev):  # pragma: no cover
             raise ValueError(
                 "Input times and t_rev must have the same"
                 + " number of elements"
@@ -181,20 +188,20 @@ class BarrierRF(RFManipulationBaseClass):
         harmonics = list(harmonics)
 
         for _ in harmonics:
-            v = backend.zeros(len(times))
-            p = backend.zeros(len(times))
+            v = backend.zeros(len(time_list))
+            p = backend.zeros(len(time_list))
             voltages.append(v)
             phases.append(p)
 
         for i, (tn, tm, tr) in enumerate(
-            zip(turns, times, t_rev, strict=False)
+            zip(turn_list, time_list, t_rev, strict=False)
         ):
             # Used 10*max_h to go well above the Nyquist frequency,
             # exact value not important
             bin_width = tr / (10 * max_h)
             n_bins = int(tr / bin_width)
             bin_cents = backend.linspace(0, tr, n_bins)
-            barrier = self.waveform_at_turn_or_time(tn, tm, bin_cents)
+            barrier = self.waveform_at_turn_or_time(tn, tm, bin_cents)  # ty: ignore[invalid-argument-type]  # FIXME: `None` is forwarded to the schedules for the turn/time that was not given
 
             amps, phis = waveform_to_harmonics(barrier, harmonics)
             amps = sinc_filtering(amps, filter_order)
@@ -221,6 +228,9 @@ class BarrierRF(RFManipulationBaseClass):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
+        assert self._turn_counter is not None and self._ring is not None, (
+            "Not available before instancing ``Simulation(...)``"
+        )
 
         turn = self._turn_counter.value
         time = beam.reference.time
@@ -376,7 +386,7 @@ def harmonics_to_waveform(
 
 def waveform_to_harmonics(
     waveform: AnyArray, harmonics: Iterable[int] | None = None
-) -> tuple[tuple[float, ...], tuple[float, ...]]:
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Convert a waveform to a Fourier series.
 
@@ -398,7 +408,7 @@ def waveform_to_harmonics(
     Returns
     -------
     harmonic_amps, harmonic_phases
-        Two tuples of float, length equal to len(harmonics).
+        Two arrays of float, length equal to len(harmonics).
         Element 0 is the amplitudes, element 1 is the phases.
     """
     harm_series = backend.fft.rfft(backend._asarray_if_needed(waveform))
@@ -418,8 +428,8 @@ def waveform_to_harmonics(
 
 
 def sinc_filtering(
-    harmonic_amplitudes: Iterable[float], filter_order: int = 1
-) -> NumpyArray:
+    harmonic_amplitudes: Collection[float], filter_order: int = 1
+) -> NumpyArray | CupyArray:
     """
     Sinc filtering of a Fourier series.
 
@@ -463,13 +473,13 @@ def sinc_filtering(
 
 
 def _gain_compensation(
-    barrier_time: NumpyArray,
-    barrier_waveform: NumpyArray,
-    harmonics: NumpyArray,
-    harmonic_amplitudes: NumpyArray,
-    harmonic_phases: NumpyArray,
+    barrier_time: NumpyArray | CupyArray,
+    barrier_waveform: NumpyArray | CupyArray,
+    harmonics: Iterable[int],
+    harmonic_amplitudes: NumpyArray | CupyArray,
+    harmonic_phases: NumpyArray | CupyArray,
     t_rev: float | None = None,
-) -> NumpyArray:
+) -> float | CupyArray:
     reconstructed = harmonics_to_waveform(
         barrier_time, harmonics, harmonic_amplitudes, harmonic_phases, t_rev
     )
