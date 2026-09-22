@@ -602,7 +602,7 @@ class SynchrotronRadiationMaster(Schedulable):
             )
             self.generated_children.append(SRClass_child)
 
-    def schedule(
+    def schedule(  # ty: ignore[invalid-method-override]  # FIXME: accepts fewer `value` types than `Schedulable.schedule`
         self,
         attribute: str,
         value: ScheduledBaseClass | NumpyArray | tuple[NumpyArray, NumpyArray],
