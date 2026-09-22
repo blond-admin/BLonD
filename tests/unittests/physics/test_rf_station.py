@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import unittest
 from copy import deepcopy
 from types import SimpleNamespace
@@ -46,6 +48,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.drifts import DriftSimple
+from blond.physics.feedbacks.base import LocalFeedback as PhysicsLocalFeedback
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -1664,6 +1667,186 @@ class TestCavityFeedbackSparseProfileIntegration(BLonDTestCase):
             "Expected the sparse-aware cavity feedback kick to change "
             "dE, but dE was unchanged.",
         )
+
+
+class _NoOpLocalFeedback(PhysicsLocalFeedback):
+    """Concrete local feedback that never updates its corrections.
+
+    Leaves ``phase_correction`` / ``relative_voltage_correction`` in the
+    state a real feedback has before its first ``track`` call.
+    """
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        pass
+
+
+class TestRFStationTypeCheckFindings(BLonDTestCase):
+    """Red tests for bugs surfaced while introducing ``ty``."""
+
+    def setUp(self) -> None:
+        self.beam = ProbeBeam(
+            dt=np.linspace(-5e-10, 5e-10, 11),
+            particle_type=proton,
+            reference_total_energy=1e9,
+        )
+
+    def _single_harmonic_headless(self, **kwargs):
+        return SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=np.pi * 0.3,
+            harmonic=10,
+            circumference=2 * np.pi * 100.0,
+            beam_reference_beta=self.beam.reference.beta,
+            **kwargs,
+        )
+
+    def _multi_harmonic_headless(self, **kwargs):
+        return MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e6, 5e5]),
+            phi_rf=np.array([np.pi * 0.3, 0.1]),
+            harmonic=np.array([10, 20]),
+            circumference=2 * np.pi * 100.0,
+            main_harmonic_idx=0,
+            beam_reference_beta=self.beam.reference.beta,
+            **kwargs,
+        )
+
+    def _assert_hamiltonian_without_acceleration(self, rf) -> None:
+        # Reference: the same station with the acceleration term set to 0
+        reference = deepcopy(rf)
+        reference._last_reference_energy_change = 0.0
+        expected = reference.get_hamilton_symbolic()
+
+        hamiltonian = rf.get_hamilton_symbolic()
+
+        self.assertEqual(sympy.simplify(hamiltonian - expected), 0)
+
+    def test_get_hamilton_symbolic_before_first_track_single(self):
+        """Before the first track the acceleration term must be zero,
+        as the docstring promises, instead of ``float(None)``."""
+        self._assert_hamiltonian_without_acceleration(
+            self._single_harmonic_headless()
+        )
+
+    def test_get_hamilton_symbolic_before_first_track_multi(self):
+        """Before the first track the acceleration term must be zero,
+        as the docstring promises, instead of ``float(None)``."""
+        self._assert_hamiltonian_without_acceleration(
+            self._multi_harmonic_headless()
+        )
+
+    def test_headless_calc_phi_s_main_harmonic(self):
+        """A headless station with an energy program must not crash on
+        the ``SimpleNamespace`` ring (``radiation_integrals`` /
+        ``is_below_transition`` missing)."""
+        rf = self._single_harmonic_headless(
+            magnetic_cycle=_fixed_total_energy_cycle(
+                float(self.beam.reference.total_energy)
+            ),
+        )
+        try:
+            rf.calc_phi_s_main_harmonic(beam=self.beam)
+        except AttributeError as exc:
+            self.fail(f"headless ring lacks attribute: {exc}")
+
+    def test_headless_calc_synchrotron_tune_main_harmonic(self):
+        """``calc_synchrotron_tune_main_harmonic`` on a headless station
+        must not crash on the ``SimpleNamespace`` ring
+        (``calc_average_eta_0`` missing)."""
+        rf = self._single_harmonic_headless(
+            magnetic_cycle=_fixed_total_energy_cycle(
+                float(self.beam.reference.total_energy)
+            ),
+        )
+        try:
+            rf.calc_synchrotron_tune_main_harmonic(beam=self.beam, phi_s=0.0)
+        except AttributeError as exc:
+            self.fail(f"headless ring lacks attribute: {exc}")
+
+    def test_multi_harmonic_feedback_only_on_second_harmonic(self):
+        """The documented ``[None, feedback]`` list must work: the gap
+        voltage has to be taken on the profile of the feedback that is
+        actually present, not ``cavity_feedback_list[0]``."""
+        rf = self._multi_harmonic_headless()
+        profile = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=16)
+        feedback = _NoOpLocalFeedback(profile=profile)
+        feedback.phase_correction = np.zeros(profile.n_bins)
+        feedback.relative_voltage_correction = np.ones(profile.n_bins)
+        rf.attach_cavity_feedback([None, feedback])
+
+        gap_voltage = rf.calc_gap_voltage_with_feedbacks()
+
+        np.testing.assert_allclose(
+            copy_to_cpu(gap_voltage),
+            copy_to_cpu(
+                rf.calc_gap_voltage_without_feedbacks(ts=profile.hist_x)
+            ),
+        )
+
+    def test_track_reference_without_turn_counter_per_turn_cycle(self):
+        """Without a turn counter, a per-turn energy program must fail
+        with a clear error naming the turn counter instead of passing
+        ``turn_i=None`` into ``get_target_total_energy``."""
+        cycle = MagneticCyclePerTurn.headless(
+            reference_particle=proton,
+            value_init=1e9,
+            values_after_turn=np.array([1e9, 1e9, 1e9]),
+            n_rf_stations=1,
+            in_unit="total energy",
+        )
+        rf = self._single_harmonic_headless(
+            magnetic_cycle=cycle, turn_counter=None
+        )
+        with self.assertRaisesRegex(
+            (ValueError, RuntimeError), "turn_counter"
+        ):
+            rf.track_reference(reference=self.beam.reference)
+
+    def test_probe_beam_tracked_before_feedback(self):
+        """Tracking a ``ProbeBeam`` before the feedback ever tracked must
+        treat the still-``None`` corrections as no correction instead of
+        raising in ``np.sin(... + None)``."""
+        profile = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=16)
+        feedback = _NoOpLocalFeedback(profile=profile)
+        rf = self._single_harmonic_headless(cavity_feedback=feedback)
+        try:
+            rf.track(beam=self.beam)
+        except TypeError as exc:
+            self.fail(f"uninitialised feedback corrections: {exc}")
+
+    def test_unknown_keyword_raises_single(self):
+        """A typo'd keyword must raise ``TypeError`` instead of being
+        swallowed by ``SupportsPooledInterpolationKickMixIn``."""
+        with self.assertRaises(TypeError):
+            SingleHarmonicRFStation(voltage=1e6, harmonc=10)
+
+    def test_unknown_keyword_raises_multi(self):
+        """A typo'd keyword must raise ``TypeError`` instead of being
+        swallowed by ``SupportsPooledInterpolationKickMixIn``."""
+        with self.assertRaises(TypeError):
+            MultiHarmonicRFStation(
+                n_harmonics=2, main_harmonic_idx=0, harmonc=10
+            )
+
+    def test_import_emits_no_experimental_warning(self):
+        """Importing the stable RF-station module in a fresh interpreter
+        must not import ``blond.experimental`` (and thereby warn)."""
+        code = (
+            "import warnings\n"
+            "with warnings.catch_warnings(record=True) as caught:\n"
+            "    warnings.simplefilter('always')\n"
+            "    import blond.physics.rf_station\n"
+            "print([w.category.__name__ for w in caught])\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertNotIn("ExperimentalFeaturesWarning", result.stdout)
 
 
 if __name__ == "__main__":
