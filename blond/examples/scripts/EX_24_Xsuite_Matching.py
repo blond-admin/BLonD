@@ -102,14 +102,14 @@ def main():
     try:
         sim.load_results(
             n_turns=N_TURNS,
-            observe=[phase_observation],
-            beams=[beam1],
+            observe=(phase_observation,),
+            beams=(beam1,),
         )
     except AssertionError as exc:
         sim.run_simulation(
             beams=(beam1,),
             n_turns=N_TURNS,
-            observe=[phase_observation, bunch_observation],
+            observe=(phase_observation, bunch_observation),
         )
 
     ANIMATE = False

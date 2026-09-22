@@ -117,7 +117,7 @@ def main(
 
     n_turns = int((voltage_h7_prog[-1, 0] * 1e-3) / t_rev)
 
-    time_limit = [-t_rf / 2, t_rf / 2]
+    time_limit = (-t_rf / 2, t_rf / 2)
 
     preparation_routine = SemiEmpiricMatcher(
         time_limit,
@@ -154,7 +154,7 @@ def main(
         aspect="auto",
         origin="lower",
         cmap="turbo",
-        extent=[bunch_time[0], bunch_time[-1], cycle_time[0], cycle_time[-1]],
+        extent=(bunch_time[0], bunch_time[-1], cycle_time[0], cycle_time[-1]),
     )
     plt.xlabel("Time [ns]")
     plt.ylabel("Cycle time [ms]")

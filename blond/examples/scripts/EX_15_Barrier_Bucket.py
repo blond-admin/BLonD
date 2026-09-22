@@ -109,10 +109,10 @@ def main(
 
     sim = Simulation(ring, energy_cycle)
 
-    time_limit = [
+    time_limit = (
         0.5 * t_rev / main_rf.harmonic,
         (main_rf.harmonic - 0.5) * t_rev / main_rf.harmonic,
-    ]
+    )
 
     preparation_routine = SemiEmpiricMatcher(
         time_limit,
@@ -145,7 +145,7 @@ def main(
         aspect="auto",
         origin="lower",
         cmap="turbo",
-        extent=[bunch_time[0], bunch_time[-1], cycle_time[0], cycle_time[-1]],
+        extent=(bunch_time[0], bunch_time[-1], cycle_time[0], cycle_time[-1]),
     )
     plt.xlabel("Time [ns]")
     plt.ylabel("Cycle time [ms]")

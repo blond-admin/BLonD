@@ -188,8 +188,9 @@ def main():
         ),
         orbit_length=1.0 * ring.circumference,
     )
+    harmonic = 4620
     rf_station = SingleHarmonicRFStation(
-        harmonic=4620,
+        harmonic=harmonic,
         voltage=4e6,
         phi_rf=0.0,
     )
@@ -198,10 +199,10 @@ def main():
             ring.circumference,
             particle_type=proton,
         )
-        / rf_station.harmonic
+        / harmonic
     )
 
-    filling_pattern = np.zeros(rf_station.harmonic, bool)
+    filling_pattern = np.zeros(harmonic, bool)
     filling_pattern[::10] = 1
     bins_per_profile = 256
 
@@ -216,10 +217,12 @@ def main():
     poles.sort(by="residues")
     poles.plot(freq=np.linspace(0, 1e9, 10_000))
 
+    solver = MultiPoleSparseSolve()
     wakefield = WakeField(
         sources=(poles,),
-        solver=MultiPoleSparseSolve(),
-        profile=profile,  # type: ignore
+        solver=solver,
+        # FIXME: `WakeField` only annotates single profiles
+        profile=profile,  # ty: ignore[invalid-argument-type]
     )
     ring.add_elements(
         (
@@ -245,14 +248,15 @@ def main():
 
     beam = make_multibunch_beam(
         beam=_bunch,
-        n_times=int(rf_station.harmonic // 10),
+        n_times=harmonic // 10,
         t_distance=t_rf * 10,
     )
 
     cmap = matplotlib.colormaps["plasma"]
     assert profile.profiles is not None  # created by `Simulation(...)`
+    last_profile = profile.profiles[-1]
     lims = [
-        [profile.profiles[-1].cut_left, profile.profiles[-1].cut_right],
+        [last_profile.cut_left, last_profile.cut_right],
         [2 * _bunch._dE.min(), 2 * _bunch._dE.max()],
     ]
 
@@ -267,8 +271,6 @@ def main():
         beam
             `blond.core.beam.beams.Beam` object.
         """
-        solver_: MultiPoleSparseSolve = wakefield.solver  # type: ignore
-
         plt.figure(0)
         plt.cla()
         plt.title("Last Bunch in Train")
@@ -293,8 +295,9 @@ def main():
             plt.title("Pole Attenuation per Turn")
             plt.xlabel("Turn")
             plt.ylabel(r"$\mathcal{Re}(r \cdot W)$")
-        states = solver_._states[:-1]
-        residues = solver_._residues
+        states = solver._states[:-1]
+        residues = solver._residues
+        assert residues is not None  # set by the first wake calculation
         with AllowPlotting():  # handle GPU gracefully
             plt.scatter(
                 simulation.turn_counter.value * np.ones(len(states[:])),
@@ -306,7 +309,8 @@ def main():
             plt.draw()
             plt.pause(0.1)
 
-    live_animation.each_turn_i = 10
+    # the callback rate is duck-typed as a function attribute
+    live_animation.each_turn_i = 10  # ty: ignore[unresolved-attribute]
 
     sim.run_simulation(
         beams=beam,

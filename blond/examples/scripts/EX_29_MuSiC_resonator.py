@@ -189,9 +189,16 @@ def get_fresh_ring() -> Ring:
 
 
 def analytical_induced_voltage(tau: np.ndarray) -> np.ndarray:
-    return analytical_gaussian_resonator(
-        SIGMA_DT, Q, R_S, 2 * np.pi * FREQUENCY_R, tau, INTENSITY
-    ).real
+    induced_voltage = analytical_gaussian_resonator(
+        SIGMA_DT,
+        Q,
+        R_S,
+        2 * np.pi * FREQUENCY_R,
+        tau,
+        # the legacy helper annotates the (float) intensity as `int`
+        INTENSITY,  # ty: ignore[invalid-argument-type]
+    )
+    return np.asarray(induced_voltage).real
 
 
 def bin_average(
@@ -209,7 +216,7 @@ def bin_average(
     sums = np.bincount(idx, weights=values[in_range], minlength=n_bins)
     counts = np.bincount(idx, minlength=n_bins)
     binned = sums / np.maximum(counts, 1)
-    binned[counts < 0.02 * counts.max()] = np.nan
+    binned[counts < 0.02 * np.max(counts)] = np.nan
     return centers, binned
 
 

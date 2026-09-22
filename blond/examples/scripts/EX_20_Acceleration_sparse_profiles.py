@@ -101,12 +101,9 @@ def main():
     profile_normal.plot(label="profile_normal")
     profile_sparse.plot(linestyle="--", label="profile_sparse")
     plt.legend()
-    assert (
-        np.sum(profile_sparse._continuous_memory_hist_y)
-        == beam1._dt.global_size
-    ), f"""{
+    assert np.sum(profile_sparse.hist_y) == beam1._dt.global_size, f"""{
         (
-            np.sum(profile_sparse._continuous_memory_hist_y),
+            np.sum(profile_sparse.hist_y),
             beam1._dt.global_size,
         )
     }"""

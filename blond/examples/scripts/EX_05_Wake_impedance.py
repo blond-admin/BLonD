@@ -42,11 +42,11 @@ from blond import (
     StaticProfile,
     TimeDomainFftSolver,
     WakeField,
-    backend,
     momentum_compaction_factor,
     proton,
     setup_backend,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.legacy.blond2.impedances.induced_voltage_analytical import (
     analytical_gaussian_resonator,
@@ -156,7 +156,8 @@ def main():
 
     # Analytic result-----------------------------------------------------------
 
-    VindGauss = np.zeros(len(profile.hist_x))
+    hist_x = copy_to_cpu(profile.hist_x)
+    VindGauss = np.zeros(len(hist_x))
     for r in range(len(Q_factor)):
         # Notice that the time-argument of inducedVoltageGauss is shifted by
         # mean(my_slices.hist_x), because the analytical equation assumes the
@@ -167,10 +168,9 @@ def main():
             Q_factor[r],
             R_shunt[r],
             2 * np.pi * f_res[r],
-            profile.hist_x.get() - np.mean(profile.hist_x.get())
-            if backend.is_gpu
-            else profile.hist_x - np.mean(profile.hist_x),
-            beam.intensity,
+            hist_x - np.mean(hist_x),
+            # the legacy helper annotates the (float) intensity as `int`
+            beam.intensity,  # ty: ignore[invalid-argument-type]
         )
         VindGauss += tmp.real
     with AllowPlotting():

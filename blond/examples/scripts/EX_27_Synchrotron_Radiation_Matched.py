@@ -62,7 +62,8 @@ class SynchrotronRadiationSimulation:
 
         self.cavity = SingleHarmonicRFStation()
         self.cavity.harmonic = 242400
-        self.cavity.voltage = 50.1e6
+        self.cavity_voltage = 50.1e6
+        self.cavity.voltage = self.cavity_voltage
         self.cavity.phi_rf_design = 0  # any phase should work
 
         self.n_turns = n_turns
@@ -163,7 +164,7 @@ def main(n_turns: int = 100, n_macroparticles=int(1e4)):
     )
     fig, ax = plt.subplots(nrows=4, figsize=(8, 12), constrained_layout=True)
     synchronous_phase = np.pi - np.arcsin(
-        energy_loss_per_turn / params.cavity.voltage
+        energy_loss_per_turn / params.cavity_voltage
     )
     ax[0].plot(bunch_statistics.bunch_position * 1e9, label="Bunch position")
     ax[0].plot(
