@@ -14,7 +14,7 @@ import logging
 import math
 import warnings
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -162,14 +162,16 @@ class ObservablesBaseClass(MainLoopRelevant):
         """
         old_common_filepath = self.common_filepath
         for _attribute_name, instance in self.get_recorders():
-            if old_common_filepath not in instance.filepath:
+            # observables create their recorders with `str` paths only
+            filepath = cast(str, instance.filepath)
+            if old_common_filepath not in filepath:
                 # it would not make sense to replace the old filepath
                 raise NameError(
-                    f"{instance.filepath} does not include"
+                    f"{filepath} does not include"
                     f" {old_common_filepath} anymore. This might be caused"
                     f" by a manual override of the filename."
                 )
-            instance.filepath = instance.filepath.replace(
+            instance.filepath = filepath.replace(
                 old_common_filepath,
                 new_common_filepath,
             )
