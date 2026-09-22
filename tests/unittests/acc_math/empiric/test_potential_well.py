@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import find_peaks
 
 from blond import backend
 from blond.acc_math.empiric.potential_well import PotentialWellHelper
@@ -129,8 +130,6 @@ class TestPotentialWellHelper(BLonDTestCase):
             [-10.0, -5.7357357357357355],
             [-4.714714714714715, 1.561561561561561],
             [1.561561561561561, 7.867867867867869],
-            [7.867867867867869, 14.114114114114113],
-            [1.591591591591591, 7.867867867867869],
             [7.867867867867869, 14.144144144144143],
             [14.564564564564563, 20.0],
         ]
@@ -367,8 +366,6 @@ class TestPotentialWellHelper(BLonDTestCase):
             [-10.0, -5.7357357357357355],
             [-4.714714714714715, 1.561561561561561],
             [1.561561561561561, 7.867867867867869],
-            [7.867867867867869, 14.114114114114113],
-            [1.591591591591591, 7.867867867867869],
             [7.867867867867869, 14.144144144144143],
             [14.564564564564563, 20.0],
         ]
@@ -405,6 +402,40 @@ class TestPotentialWellHelper(BLonDTestCase):
                     np.all(np.abs(buckets[i] - buckets[j]) <= 1.5 * step),
                     msg=f"duplicate buckets {buckets[i]} and {buckets[j]}",
                 )
+
+    def test_near_equal_maxima_give_single_bucket(self):
+        """Maxima equal within epsilon bound one bucket, peak to peak.
+
+        The search from the lower maximum must not stop where the
+        voltage first exceeds its height, many grid steps before the
+        higher maximum, which would leave a far-off duplicate bucket.
+        """
+        xs = np.linspace(-1, 3 * np.pi + 1, 10000)
+        # right maximum 0.05 % higher, inside the 0.1 % epsilon
+        ys = np.cos(xs) * (1 + 0.0005 * (xs > np.pi))
+        pwh = PotentialWellHelper(xs, ys)
+        left_peak = xs[np.argmax(ys[xs < np.pi])]
+        right_peak = xs[np.argmax(np.where(xs > np.pi, ys, -np.inf))]
+        buckets = np.asarray(pwh.bucket_list)
+        np.testing.assert_array_equal(
+            buckets[buckets[:, 0] == left_peak],
+            [[left_peak, right_peak]],
+        )
+
+    def test_flat_top_maxima_give_single_bucket(self):
+        """Quantised flat-top maxima bound one bucket, centre to centre.
+
+        ``find_peaks`` puts a plateau maximum at the plateau centre; the
+        bucket search must end there too, not on the plateau edge.
+        """
+        xs = np.linspace(-1, 3 * np.pi + 1, 10000)
+        ys = np.round(np.cos(xs) * 100)  # ADC-like quantisation
+        pwh = PotentialWellHelper(xs, ys)
+        left_peak, right_peak = xs[find_peaks(ys)[0]]
+        buckets = np.asarray(pwh.bucket_list)
+        # the second bucket is the partial one at the right border
+        self.assertEqual(len(buckets), 2, msg=f"buckets {buckets}")
+        np.testing.assert_array_equal(buckets[0], [left_peak, right_peak])
 
 
 if __name__ == "__main__":

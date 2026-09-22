@@ -199,7 +199,7 @@ class PotentialWellHelper:
             ):
                 inside_local_region = True
 
-                # Search to the left of the maximum
+                # Search away from the maximum in `direction`
                 for j in range(range_args[0], range_args[1], range_args[2]):
                     current_y = voltage_axis[j]
                     next_y = voltage_axis[j + direction]
@@ -215,7 +215,12 @@ class PotentialWellHelper:
                         and above_threshold
                         and next_falling
                     ) or (not inside_local_region and next_above):
-                        second_anchor_index = j
+                        second_anchor_index = self._snap_to_near_equal_max(
+                            voltage_axis,
+                            j,
+                            direction,
+                            threshold_y + epsilon,
+                        )
                         buckets.append(
                             (
                                 time_axis[min(max_idx, second_anchor_index)],
@@ -224,6 +229,58 @@ class PotentialWellHelper:
                         )
                         break
         return buckets
+
+    @staticmethod
+    def _snap_to_near_equal_max(
+        voltage_axis: NumpyArray,
+        index: int,
+        direction: int,
+        max_voltage: float,
+    ) -> int:
+        """
+        Move a bucket border onto an adjacent, near-equal maximum.
+
+        Each bucket is found twice, once from each maximum bounding it.
+        Without snapping, the search from the lower of two maxima that
+        are equal within epsilon stops before the higher one (where the
+        voltage first exceeds its own height), and a search reaching a
+        flat top stops on its edge. The border then differs from the
+        maximum found by ``find_peaks``, leaving a duplicate bucket.
+
+        Parameters
+        ----------
+        voltage_axis
+            The voltage values.
+        index
+            Index of the border found by the search.
+        direction
+            Search direction, ``+1`` or ``-1``.
+        max_voltage
+            Highest voltage of a maximum that counts as near-equal.
+
+        Returns
+        -------
+        border_index
+            Index of the maximum reached by going uphill from `index`
+            (the centre of a flat top, like ``find_peaks``) if its
+            voltage is at most `max_voltage`, else `index`.
+        """
+        last_index = len(voltage_axis) - 1
+        peak_start = index
+        while (
+            0 <= peak_start + direction <= last_index
+            and voltage_axis[peak_start + direction] > voltage_axis[peak_start]
+        ):
+            peak_start += direction
+        peak_stop = peak_start
+        while (
+            0 <= peak_stop + direction <= last_index
+            and voltage_axis[peak_stop + direction] == voltage_axis[peak_start]
+        ):
+            peak_stop += direction
+        if voltage_axis[peak_start] > max_voltage:
+            return index
+        return (peak_start + peak_stop) // 2
 
     def _handle_border(
         self,
@@ -397,9 +454,16 @@ class PotentialWellHelper:
         )
 
         idx = np.column_stack((left_idx, right_idx))
-        canon = idx // 2
-        _, keep = np.unique(canon, axis=0, return_index=True)
-        filtered_idx = idx[np.sort(keep)]
+        # keep the first of any buckets whose borders both differ by at
+        # most one grid step (regardless of index parity)
+        kept_idx: list[NumpyArray] = []
+        for borders_idx in idx:
+            is_duplicate = any(
+                np.all(np.abs(borders_idx - other) <= 1) for other in kept_idx
+            )
+            if not is_duplicate:
+                kept_idx.append(borders_idx)
+        filtered_idx = np.array(kept_idx)
         filtered_borders = np.column_stack(
             (time_axis[filtered_idx[:, 0]], time_axis[filtered_idx[:, 1]])
         )
