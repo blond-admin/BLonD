@@ -104,12 +104,12 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
 #pragma omp for
     for (index_t i = 0; i < n_macroparticles; i++) {
       int fffbin = 0;
-      real_t a = input[i];
+      const real_t a = input[i];
       if ((a < const1) || (a > const2))
         continue;
-      real_t fbin = (a - cut_left) * inv_bin_width;
-      int ffbin = (int)(fbin);
-      real_t distToCenter = fbin - (real_t)(ffbin);
+      const real_t fbin = (a - cut_left) * inv_bin_width;
+      const int ffbin = (int)(fbin);
+      const real_t distToCenter = fbin - (real_t)(ffbin);
       if (distToCenter > 0.5)
         fffbin = (int)(fbin + 1.0);
       else

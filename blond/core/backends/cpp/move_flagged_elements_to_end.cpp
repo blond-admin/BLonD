@@ -45,19 +45,19 @@ move_flagged_elements_to_end(const int flag, int *__restrict__ flags,
     // If pointers haven't crossed, swap elements
     if (i < j) {
       // Swap all fields between i and j
-      real_t dt_tmp = dt[i];
+      const real_t dt_tmp = dt[i];
       dt[i] = dt[j];
       dt[j] = dt_tmp;
 
-      real_t dE_tmp = dE[i];
+      const real_t dE_tmp = dE[i];
       dE[i] = dE[j];
       dE[j] = dE_tmp;
 
-      int flags_tmp = flags[i];
+      const int flags_tmp = flags[i];
       flags[i] = flags[j];
       flags[j] = flags_tmp;
 
-      index_t ids_tmp = ids[i];
+      const index_t ids_tmp = ids[i];
       ids[i] = ids[j];
       ids[j] = ids_tmp;
 
