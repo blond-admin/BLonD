@@ -108,7 +108,8 @@ extern "C" void wake_from_pole_residue(
     int i_update = 0;
     int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
-    real_t decay_re = 0, decay_im = 0;
+    real_t decay_re = 0;
+    real_t decay_im = 0;
     real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
     for (int bin_i = 0; bin_i < n_bins; bin_i++) {
@@ -123,10 +124,12 @@ extern "C" void wake_from_pole_residue(
         }
 
         // state *= exp(pole * t_jump)
-        real_t e_re, e_im;
+        real_t e_re;
+        real_t e_im;
         fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
 
-        real_t new_re, new_im;
+        real_t new_re;
+        real_t new_im;
         cmul(state_re, state_im, e_re, e_im, new_re, new_im);
         state_re = new_re;
         state_im = new_im;
@@ -141,7 +144,8 @@ extern "C" void wake_from_pole_residue(
         }
       } else {
         // state *= decay
-        real_t new_re, new_im;
+        real_t new_re;
+        real_t new_im;
         cmul(state_re, state_im, decay_re, decay_im, new_re, new_im);
         state_re = new_re;
         state_im = new_im;
