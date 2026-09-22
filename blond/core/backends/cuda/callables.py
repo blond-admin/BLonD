@@ -765,13 +765,13 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         # TODO write a kernel that works with gpu kernels
         #  to have a smaller memory footprint.
-        flag = np.int32(flag)
+        flag_int32 = np.int32(flag)
         assert flags.dtype == np.int32
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
         assert ids.dtype == INDEX_DTYPE
 
-        select = flags == flag
+        select = flags == flag_int32
         order = cp.argsort(select)
 
         flags[:] = flags[order]
