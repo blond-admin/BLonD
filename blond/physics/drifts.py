@@ -533,7 +533,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         self.higher_order_alpha = higher_order_alpha
 
     @staticmethod
-    def headless(
+    def headless(  # ty: ignore[invalid-method-override]  # FIXME: parameter order differs from `DriftSimple.headless`
         orbit_length: float,
         section_index: int = 0,
         momentum_compaction_factor: float | None = None,
