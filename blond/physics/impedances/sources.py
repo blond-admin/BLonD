@@ -749,13 +749,19 @@ class Resonators(
             else self._shunt_impedances
         )
         for i in range(n_centers):
-            impedance[1:] += shunt_impedance[i] / (
-                1
-                + (
-                    (1j * self._quality_factors[i])
-                    * (
-                        freq_x[1:] / self._center_frequencies[i]
-                        - self._center_frequencies[i] / freq_x[1:]
+            # FIXME: `counter_rotation=True` without counter-rotating shunt
+            #  impedances subscripts `None` (no guard as in
+            #  `get_wake_counter_rotation`).
+            impedance[1:] += (
+                shunt_impedance[i]  # ty: ignore[not-subscriptable]
+                / (
+                    1
+                    + (
+                        (1j * self._quality_factors[i])
+                        * (
+                            freq_x[1:] / self._center_frequencies[i]
+                            - self._center_frequencies[i] / freq_x[1:]
+                        )
                     )
                 )
             )
