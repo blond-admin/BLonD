@@ -46,7 +46,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
     for (index_t i = 0; i < n_macroparticles; i += STEP) {
 
       const index_t loop_count =
-          n_macroparticles - i > STEP ? STEP : (index_t)(n_macroparticles - i);
+          n_macroparticles - i > STEP ? STEP : (n_macroparticles - i);
 
       // First calculate the index to update
       for (index_t j = 0; j < loop_count; j++) {
@@ -111,8 +111,8 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
         continue;
       }
       const real_t fbin = (a - cut_left) * inv_bin_width;
-      const int ffbin = (int)(fbin);
-      const real_t distToCenter = fbin - (real_t)(ffbin);
+      const int ffbin = (int)fbin;
+      const real_t distToCenter = fbin - (real_t)ffbin;
       if (distToCenter > 0.5) {
         fffbin = (int)(fbin + 1.0);
       } else {

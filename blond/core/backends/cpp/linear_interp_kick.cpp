@@ -53,7 +53,7 @@ extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
     for (index_t i = 0; i < n_macroparticles; i += STEP) {
 
       const index_t loop_count =
-          n_macroparticles - i > STEP ? STEP : (index_t)(n_macroparticles - i);
+          n_macroparticles - i > STEP ? STEP : (n_macroparticles - i);
 
       for (index_t j = 0; j < loop_count; j++) {
         fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
