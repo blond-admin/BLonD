@@ -29,6 +29,35 @@ from blond.physics.profiles import (
 from blond.testing.backend_testing import BLonDTestCase
 
 
+class _CountingReads:
+    """Wraps an array and counts element reads through ``[]``."""
+
+    def __init__(self, array):
+        self.array = array
+        self.n_reads = 0
+
+    def __getitem__(self, key):
+        self.n_reads += 1
+        return self.array[key]
+
+    def __len__(self):
+        return len(self.array)
+
+
+def _beam_with_dt(dt: np.ndarray) -> Beam:
+    beam = Beam(
+        intensity=1,
+        particle_type=uranium_29,
+    )
+    beam.setup_beam(
+        dt=dt,
+        dE=np.zeros_like(dt),
+        reference_time=0,
+        reference_total_energy=450e9,
+    )
+    return beam
+
+
 class TestProfileBaseClass(BLonDTestCase):
     def setUp(self):
         self.profile_base_class = ProfileBaseClass()
@@ -252,6 +281,49 @@ class TestStaticProfile(BLonDTestCase):
             np.linspace(-5, 5, 11),
         )
 
+    def test_track_does_not_read_hist_x(self):
+        """``hist_x`` of a static profile never changes, so ``_track`` must
+        not re-derive the geometry from it.
+
+        Every scalar read of ``hist_x`` is a device->host sync on GPU, so
+        the reads are counted here as a CPU-side proxy for those syncs.
+        """
+        profile = self.static_profile
+        beam = Beam(
+            intensity=1,
+            particle_type=uranium_29,
+        )
+        beam.setup_beam(
+            dt=np.linspace(-4, 4, 10),
+            dE=np.zeros(10),
+            reference_time=0,
+            reference_total_energy=450e9,
+        )
+        geometry = ("cut_left", "cut_right", "hist_step", "n_bins")
+        expected = {name: getattr(profile, name) for name in geometry}
+        expected_bin_edges = copy_to_cpu(profile.bin_edges)
+        hist_x_reads = _CountingReads(profile._hist_x)
+        profile._hist_x = hist_x_reads
+
+        for _ in range(2):
+            profile.track(beam=beam)
+
+        self.assertEqual(0, hist_x_reads.n_reads)
+        for name in geometry:
+            self.assertEqual(expected[name], getattr(profile, name), msg=name)
+        np.testing.assert_array_equal(
+            expected_bin_edges, copy_to_cpu(profile.bin_edges)
+        )
+        # hist_y changed, so its gradient must not be stale
+        np.testing.assert_allclose(
+            np.gradient(
+                copy_to_cpu(profile.hist_y),
+                expected["hist_step"],
+                edge_order=2,
+            ),
+            copy_to_cpu(profile.gradient_hist_y),
+        )
+
 
 class TestDynamicProfileConstCutoff(BLonDTestCase):
     def setUp(self):
@@ -286,6 +358,17 @@ class TestDynamicProfileConstCutoff(BLonDTestCase):
             copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
         )
 
+    def test_update_attributes_n_bins_exact_multiple_of_timestep(self):
+        """A window of exactly 10 timesteps needs 10 bins, not 11 from
+        float rounding in ``ceil(width / timestep)``."""
+        for dt_start in (0.0, 5e-9, -3e-9, 1e-6):
+            beam = _beam_with_dt(np.linspace(dt_start, dt_start + 1e-9, 10))
+            self.dynamic_profile_const_cutoff.update_attributes(beam=beam)
+            with self.subTest(dt_start=dt_start):
+                self.assertEqual(
+                    10, len(self.dynamic_profile_const_cutoff.hist_x)
+                )
+
 
 class TestDynamicProfileConstNBins(BLonDTestCase):
     def setUp(self):
@@ -319,6 +402,60 @@ class TestDynamicProfileConstNBins(BLonDTestCase):
             np.zeros(10),
             copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
         )
+
+
+class TestDynamicProfile(BLonDTestCase):
+    @staticmethod
+    def _make_profiles():
+        return (
+            DynamicProfileConstCutoff(timestep=0.1e-9),
+            DynamicProfileConstNBins(n_bins=10),
+        )
+
+    def test_track_after_reading_geometry_uses_new_window(self):
+        """Reading the geometry between two turns (as e.g. a wake solver
+        does) must not make the next histogram use the previous turn's
+        window or bin count."""
+        # second turn is shifted and wider, so window and n_bins change
+        turns_dt = (
+            np.linspace(0.0, 1e-9, 10),
+            np.linspace(5e-9, 7e-9, 10),
+        )
+        for profile in self._make_profiles():
+            for turn_i, dt in enumerate(turns_dt):
+                profile.track(beam=_beam_with_dt(dt))
+                with self.subTest(profile=type(profile).__name__, turn=turn_i):
+                    hist_x = copy_to_cpu(profile.hist_x)
+                    hist_step = float(hist_x[1] - hist_x[0])
+                    expected, _ = np.histogram(
+                        dt,
+                        bins=len(hist_x),
+                        range=(
+                            float(hist_x[0] - hist_step / 2.0),
+                            float(hist_x[-1] + hist_step / 2.0),
+                        ),
+                    )
+                    np.testing.assert_array_equal(
+                        expected, copy_to_cpu(profile.hist_y)
+                    )
+                # fill the cache, as a consumer of the profile would
+                _ = profile.cut_left, profile.cut_right, profile.hist_step
+                _ = profile.n_bins, profile.bin_edges
+
+    def test_track_counts_edge_particles(self):
+        """The window spans ``beam.dt_min`` to ``beam.dt_max``, so the
+        particles sitting exactly on the edges must be counted."""
+        n_particles = 10
+        for profile in self._make_profiles():
+            for dt_start in (0.0, 5e-9, -3e-9, 1e-6):
+                dt = np.linspace(dt_start, dt_start + 1e-9, n_particles)
+                profile.track(beam=_beam_with_dt(dt))
+                with self.subTest(
+                    profile=type(profile).__name__, dt_start=dt_start
+                ):
+                    self.assertEqual(
+                        n_particles, float(copy_to_cpu(profile.hist_y).sum())
+                    )
 
 
 if __name__ == "__main__":
