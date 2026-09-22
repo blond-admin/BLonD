@@ -167,6 +167,34 @@ class TestBeamObservationInRingElement(BLonDTestCase):
         )
         self.assertEqual(len(observation._flags.get_valid_entries()), 0)
 
+    def test_each_turn_i_with_repeated_element(self):
+        """The same element placed 5 times in the ring, observed on turns
+        0 and 2 of 3 with ``each_turn_i=2``; all ten recordings must
+        fit."""
+        observation = BeamObservationInRingElement(
+            each_turn_i=2,
+            section_index=0,
+            n_turns=3,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        local_simulation = _simulation_with([observation] * 5)
+        local_simulation.ring.elements.get_elements.return_value = [
+            observation
+        ] * 5
+        observation.on_run_simulation(
+            simulation=local_simulation,
+            beam=beam,
+            n_turns=3,
+        )
+
+        for turn_i in range(3):
+            if not observation.is_active_this_turn(turn_i=turn_i):
+                continue
+            for _ in range(5):
+                observation.track(beam)
+
+        self.assertEqual(len(observation.dEs), 10)
+
 
 class TestBunchObservationMetaParams(BLonDTestCase):
     def test_ignores_probe_beam(self):
