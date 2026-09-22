@@ -15,6 +15,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include <memory>
+
 #include "blond_common.h"
 
 extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
@@ -29,8 +31,8 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
 
-  real_t *voltageKick = (real_t *)malloc((n_slices - 1) * sizeof(real_t));
-  real_t *factor = (real_t *)malloc((n_slices - 1) * sizeof(real_t));
+  const std::unique_ptr<real_t[]> voltageKick(new real_t[n_slices - 1]);
+  const std::unique_ptr<real_t[]> factor(new real_t[n_slices - 1]);
 
 #pragma omp parallel
   {
@@ -71,8 +73,6 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
       }
     }
   }
-  free(voltageKick);
-  free(factor);
 }
 
 // Sparse variant of linear_interp_kick: bin_centers/voltage are a
@@ -100,8 +100,8 @@ extern "C" void linear_interp_kick_sparse(
   const real_t bin_width = cut_width / real_t(bins_per_profile);
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
 
-  real_t *voltageKick = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
-  real_t *factor = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
+  const std::unique_ptr<real_t[]> voltageKick(new real_t[n_slices_total - 1]);
+  const std::unique_ptr<real_t[]> factor(new real_t[n_slices_total - 1]);
 
 #pragma omp parallel
   {
@@ -150,8 +150,6 @@ extern "C" void linear_interp_kick_sparse(
       beam_dE[i] += dt * voltageKick[bin] + factor[bin];
     }
   }
-  free(voltageKick);
-  free(factor);
 }
 
 // Optimised C++ routine that interpolates the induced voltage

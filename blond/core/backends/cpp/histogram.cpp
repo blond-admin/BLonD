@@ -13,6 +13,8 @@
 #include <stdlib.h> // mmalloc()
 #include <string.h> // memset()
 
+#include <memory>
+
 #include "blond_common.h"
 #include "openmp.h"
 
@@ -24,20 +26,18 @@ extern "C" void histogram(const real_t *__restrict__ input,
   const int STEP = 16;
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
 
-  // allocate memory for the thread_private histogram; index_t counters, so a
-  // single bin can collect more than 2^31 - 1 particles
-  index_t **histo =
-      (index_t **)malloc(omp_get_max_threads() * sizeof(index_t *));
-  histo[0] = (index_t *)malloc((size_t)omp_get_max_threads() * n_slices *
-                               sizeof(index_t));
-  for (int i = 0; i < omp_get_max_threads(); i++)
-    histo[i] = (*histo + (size_t)n_slices * i);
+  // allocate memory for the thread_private histograms, one row of n_slices
+  // per thread; index_t counters, so a single bin can collect more than
+  // 2^31 - 1 particles
+  const std::unique_ptr<index_t[]> histo(
+      new index_t[(size_t)omp_get_max_threads() * n_slices]);
 
 #pragma omp parallel
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
-    memset(histo[id], 0, n_slices * sizeof(index_t));
+    index_t *__restrict__ thread_histo = &histo[(size_t)id * n_slices];
+    memset(thread_histo, 0, n_slices * sizeof(index_t));
     // Keep the bin index in double until it is range-checked: a float
     // cannot represent indices above 2^24 exactly, and converting an
     // out-of-range double to int is undefined behaviour (on x86 it
@@ -64,7 +64,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
       for (index_t j = 0; j < loop_count; j++) {
         if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices)
           continue;
-        histo[id][(int)fbin[j]] += 1;
+        thread_histo[(int)fbin[j]] += 1;
       }
     }
 
@@ -73,13 +73,9 @@ extern "C" void histogram(const real_t *__restrict__ input,
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
       for (int t = 0; t < threads; t++)
-        output[i] += histo[t][i];
+        output[i] += histo[(size_t)t * n_slices + i];
     }
   }
-
-  // free memory
-  free(histo[0]);
-  free(histo);
 }
 
 extern "C" void smooth_histogram(const real_t *__restrict__ input,
@@ -93,18 +89,16 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
   const real_t const1 = (cut_left + bin_width * 0.5);
   const real_t const2 = (cut_right - bin_width * 0.5);
 
-  // memory alloc for per thread histo
-  real_t **histo = (real_t **)malloc(omp_get_max_threads() * sizeof(real_t *));
-  histo[0] = (real_t *)malloc((size_t)omp_get_max_threads() * n_slices *
-                              sizeof(real_t));
-  for (int i = 0; i < omp_get_max_threads(); i++)
-    histo[i] = (*histo + (size_t)n_slices * i);
+  // memory alloc for per thread histo, one row of n_slices per thread
+  const std::unique_ptr<real_t[]> histo(
+      new real_t[(size_t)omp_get_max_threads() * n_slices]);
 
 #pragma omp parallel
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
-    memset(histo[id], 0, n_slices * sizeof(real_t));
+    real_t *__restrict__ thread_histo = &histo[(size_t)id * n_slices];
+    memset(thread_histo, 0, n_slices * sizeof(real_t));
 
 // main caclulation
 #pragma omp for
@@ -123,9 +117,9 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
 
       // Bounds check to prevent buffer overrun
       if (ffbin >= 0 && ffbin < n_slices)
-        histo[id][ffbin] += 0.5 - distToCenter;
+        thread_histo[ffbin] += 0.5 - distToCenter;
       if (fffbin >= 0 && fffbin < n_slices)
-        histo[id][fffbin] += 0.5 + distToCenter;
+        thread_histo[fffbin] += 0.5 + distToCenter;
     }
 
 // Reduce to a single histogram
@@ -133,12 +127,9 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
       for (int t = 0; t < threads; t++)
-        output[i] += histo[t][i];
+        output[i] += histo[(size_t)t * n_slices + i];
     }
   }
-  // free memory
-  free(histo[0]);
-  free(histo);
 }
 
 /***** serial histogram

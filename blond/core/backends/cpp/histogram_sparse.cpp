@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vector>
+
 #include "blond_common.h"
 #include "openmp.h"
 
@@ -39,13 +41,11 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   // OpenMP parallelism is internal); it is not re-entrant.
   const int nthreads = omp_get_max_threads();
   const size_t need = (size_t)nthreads * (size_t)n_out;
-  static real_t *histo = nullptr;
-  static size_t histo_cap = 0;
-  if (need > histo_cap) {
-    free(histo);
-    histo = (real_t *)malloc(need * sizeof(real_t));
-    histo_cap = need;
+  static std::vector<real_t> histo_buffer;
+  if (need > histo_buffer.size()) {
+    histo_buffer.resize(need);
   }
+  real_t *const histo = histo_buffer.data();
 
 #pragma omp parallel
   {
