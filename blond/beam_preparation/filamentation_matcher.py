@@ -239,7 +239,8 @@ class FilamentationMatcher(MatchingRoutine):
 
             # Beam (updated each frame)
 
-            scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
+            # FIXME: `plot_scatter` exists on `Beam`, not `BeamBaseClass`
+            scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")  # ty: ignore[unresolved-attribute]
 
             # Bounding box
             rect = Rectangle(
@@ -284,7 +285,8 @@ class FilamentationMatcher(MatchingRoutine):
 
             if self.animate and (i % step == 0 or i == self.n_iter - 1):
                 scat.remove()
-                scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
+                # FIXME: `plot_scatter` exists on `Beam`, not `BeamBaseClass`
+                scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")  # ty: ignore[unresolved-attribute]
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
                 plt.pause(0.1)
