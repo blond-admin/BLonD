@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 from numpy import float32, float64
 from scipy.constants import (  # type: ignore[import-untyped]
@@ -25,9 +23,6 @@ from scipy.constants import (  # type: ignore[import-untyped]
 )
 
 import blond.generals.formatting_ as format
-
-if TYPE_CHECKING:
-    from typing_extensions import Self
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -82,7 +77,7 @@ class ParticleType:
         )
         return string
 
-    def __eq__(self, other: Self) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Equality comparison of the particle.
 
