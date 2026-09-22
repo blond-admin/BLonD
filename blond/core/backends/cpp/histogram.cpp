@@ -61,8 +61,9 @@ extern "C" void histogram(const real_t *__restrict__ input,
       }
       // Then update the corresponding bins
       for (index_t j = 0; j < loop_count; j++) {
-        if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices)
+        if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices) {
           continue;
+        }
         thread_histo[(int)fbin[j]] += 1;
       }
     }
@@ -71,8 +72,9 @@ extern "C" void histogram(const real_t *__restrict__ input,
 #pragma omp for
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
-      for (int t = 0; t < threads; t++)
+      for (int t = 0; t < threads; t++) {
         output[i] += histo[(size_t)t * n_slices + i];
+      }
     }
   }
 }
@@ -105,29 +107,34 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
     for (index_t i = 0; i < n_macroparticles; i++) {
       int fffbin = 0;
       const real_t a = input[i];
-      if ((a < const1) || (a > const2))
+      if ((a < const1) || (a > const2)) {
         continue;
+      }
       const real_t fbin = (a - cut_left) * inv_bin_width;
       const int ffbin = (int)(fbin);
       const real_t distToCenter = fbin - (real_t)(ffbin);
-      if (distToCenter > 0.5)
+      if (distToCenter > 0.5) {
         fffbin = (int)(fbin + 1.0);
-      else
+      } else {
         fffbin = (int)(fbin - 1.0);
+      }
 
       // Bounds check to prevent buffer overrun
-      if (ffbin >= 0 && ffbin < n_slices)
+      if (ffbin >= 0 && ffbin < n_slices) {
         thread_histo[ffbin] += 0.5 - distToCenter;
-      if (fffbin >= 0 && fffbin < n_slices)
+      }
+      if (fffbin >= 0 && fffbin < n_slices) {
         thread_histo[fffbin] += 0.5 + distToCenter;
+      }
     }
 
 // Reduce to a single histogram
 #pragma omp for
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
-      for (int t = 0; t < threads; t++)
+      for (int t = 0; t < threads; t++) {
         output[i] += histo[(size_t)t * n_slices + i];
+      }
     }
   }
 }

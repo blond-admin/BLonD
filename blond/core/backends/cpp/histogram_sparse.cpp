@@ -54,8 +54,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
       // converting an out-of-range value to `int` is undefined
       // behaviour.
       const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
-      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
+      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets)) {
         continue;
+      }
       const int bucket_i = (int)bucket_real;
       if (!filling_pattern[bucket_i]) {
         continue;
@@ -68,8 +69,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
         h[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1] += 1;
         continue;
       }
-      if (dt < cut_left || dt >= cut_right)
+      if (dt < cut_left || dt >= cut_right) {
         continue;
+      }
 
       // Calculate the bin index
       const int bin = (int)((dt - cut_left) * inv_bin_width);
@@ -84,8 +86,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
 #pragma omp for schedule(static)
     for (int k = 0; k < n_out; ++k) {
       real_t s = 0;
-      for (int t = 0; t < threads; ++t)
+      for (int t = 0; t < threads; ++t) {
         s += histo[(size_t)t * n_out + k];
+      }
       output[k] = s;
     }
   }
