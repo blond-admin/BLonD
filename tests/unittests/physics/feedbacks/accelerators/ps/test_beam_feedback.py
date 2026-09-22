@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock, patch
 
 import numpy as np
 
@@ -266,3 +267,40 @@ class TestPSBeamFeedback(BLonDTestCase):
 
         with self.assertRaises(ValueError):
             self.beam_control.update_main_rf_stations(new_main_harmonic=7)
+
+
+class TestPSBeamControlUnit(BLonDTestCase):
+    def _control(self, turn_i: int, **kwargs) -> PSBeamControl:
+        control = PSBeamControl(profile=Mock(), **kwargs)
+        control._simulation = Mock()
+        control._simulation.turn_counter.value = turn_i
+        return control
+
+    def test_steady_state_initialised_on_first_turn(self):
+        """With a steady-state start, the first turn (0) gives no kick.
+
+        ``BeamFeedbackBase._track`` asserts the first turn is 0, so the
+        steady-state initialisation of ``_prev_in_phase`` must happen
+        there, not on turn 1.
+        """
+        control = self._control(
+            turn_i=0, pl_gain=1.0, initialize_steady_state=True
+        )
+        control.dphi = 0.3
+        control.drho = 0.0
+
+        control.update_frequency_correction(beam=None)
+
+        self.assertEqual(control.domega_dphi, 0.0)
+
+    def test_phase_noise_is_added_to_phase_error(self):
+        """``phase_noise`` given to the constructor enters ``dphi``."""
+        phase_noise = Mock()
+        phase_noise.dphi = np.array([0.1, 0.2])
+        control = self._control(turn_i=1, phase_noise=phase_noise)
+        control.phi_beam = 0.5
+
+        with patch.object(control, "radial_difference"):
+            control.calculate_offsets(beam=Mock())
+
+        self.assertAlmostEqual(control.dphi, 0.5 + 0.2)
