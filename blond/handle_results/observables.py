@@ -114,12 +114,15 @@ class ObservablesBaseClass(MainLoopRelevant):
     folder
         Target folder to save the data at.
         Use `rename` to change the destination.
+        ``None`` or ``""`` means the current working directory.
     **kwargs
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str = "", **kwargs):
+    def __init__(self, folder: str | None = "", **kwargs):
         super().__init__(**kwargs)
+        if folder is None:
+            folder = ""
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"

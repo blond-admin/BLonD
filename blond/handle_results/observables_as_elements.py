@@ -48,8 +48,9 @@ class BeamObservationInRingElement(
     n_turns : int, optional
         Number of turns to record. Defaults to 1.
     folder : str or None, optional
-        Directory path where observation data will be stored. If ``None``,
-        data is kept in memory. Defaults to ``None``.
+        Directory that `to_disk` writes the observation data to. Data is
+        always recorded in memory. ``None`` or ``""`` means the current
+        working directory. Defaults to ``""``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
     beam : BeamBaseClass or None, optional
@@ -61,7 +62,7 @@ class BeamObservationInRingElement(
         each_turn_i: int = 1,
         section_index: int = 0,
         n_turns: int = 1,
-        folder: str = "",
+        folder: str | None = "",
         name: str | None = None,
         beam: BeamBaseClass | None = None,
     ) -> None:
