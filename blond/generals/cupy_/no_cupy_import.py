@@ -17,7 +17,7 @@ import numpy as np
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeGuard
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
 

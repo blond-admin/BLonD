@@ -40,7 +40,7 @@ if TYPE_CHECKING:  # pragma: no cover
         "cuda",
     ]
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
     from blond.generals.typing_ import AnyArray
@@ -1192,7 +1192,7 @@ class CupyBackend(BackendBaseClass):
             specials_mode="cuda",  # no other backend implemented at the moment
             is_gpu=True,
         )
-        import cupy as cp  # type: ignore # import only if needed, which is not always the case
+        import cupy as cp  # import only if needed, which is not always the case
 
         with warnings.catch_warnings():
             warnings.filterwarnings(

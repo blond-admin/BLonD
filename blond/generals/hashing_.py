@@ -21,7 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from pathlib import Path
     from typing import Any
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
 

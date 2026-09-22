@@ -27,7 +27,7 @@ from blond.generals.cupy_.no_cupy_import import is_cupy_array
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass

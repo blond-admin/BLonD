@@ -33,7 +33,7 @@ from blond.generals.distributed.helpers import (
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from matplotlib.axes import Axes
     from matplotlib.collections import PathCollection, QuadMesh
     from numpy.typing import NDArray as NumpyArray

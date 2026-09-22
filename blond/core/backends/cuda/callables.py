@@ -16,7 +16,7 @@ import time
 import weakref
 from typing import TYPE_CHECKING
 
-import cupy as cp  # type: ignore
+import cupy as cp
 import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
@@ -25,7 +25,7 @@ from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability

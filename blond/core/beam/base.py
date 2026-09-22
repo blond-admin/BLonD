@@ -27,7 +27,7 @@ from blond.generals.distributed import helpers as dist_help
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
 
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from cupy.typing import NDArray as CupyArray
     from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
 

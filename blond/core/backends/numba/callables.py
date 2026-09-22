@@ -28,7 +28,7 @@ import logging
 from functools import wraps
 from typing import TYPE_CHECKING
 
-import numba  # type: ignore
+import numba
 import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
