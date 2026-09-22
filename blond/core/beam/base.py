@@ -148,12 +148,12 @@ class BeamBaseClass(Preparable, ABC):
                 f"{self.particle_type=}, {other.particle_type=}"
             )
 
-        new_ids = other._ids.array_local + int(self._ids.max()) + 1
+        new_ids = other.ids.array_local + int(self.ids.max()) + 1
 
         self._add_coordinates(
-            other._dt,
-            other._dE,
-            other._flags,
+            other.dt,
+            other.dE,
+            other.flags,
             distributed_array.DistributedArray(new_ids),
         )
 
@@ -192,8 +192,8 @@ class BeamBaseClass(Preparable, ABC):
             INDEX_DTYPE,  # prevent cyclic import
         )
 
-        id_max = INDEX_DTYPE(self._ids.max())
-        local_size = self._dt.local_size
+        id_max = INDEX_DTYPE(self.ids.max())
+        local_size = self.dt.local_size
 
         new_ids = dist_help.distributed_arange(local_size, INDEX_DTYPE)
         new_ids.array_local += id_max + 1
@@ -226,10 +226,10 @@ class BeamBaseClass(Preparable, ABC):
         """
         ratio = self.ratio
 
-        self._dt = distributed_array.concatenate(self._dt, new_dt)
-        self._dE = distributed_array.concatenate(self._dE, new_dE)
-        self._flags = distributed_array.concatenate(self._flags, new_flags)
-        self._ids = distributed_array.concatenate(self._ids, new_ids)
+        self._dt = distributed_array.concatenate(self.dt, new_dt)
+        self._dE = distributed_array.concatenate(self.dE, new_dE)
+        self._flags = distributed_array.concatenate(self.flags, new_flags)
+        self._ids = distributed_array.concatenate(self.ids, new_ids)
 
         self.intensity = ratio * self.common_array_size
 
@@ -736,14 +736,16 @@ class BeamBaseClass(Preparable, ABC):
                 "per-node sort does not order the global beam."
             )
 
+        dt, dE, ids, flags = self.dt, self.dE, self.ids, self.flags
+
         order = (
-            self._dt.array_local.argsort()
+            dt.array_local.argsort()
         )  # ndarray method works for NumPy and CuPy
 
-        self._dt.array_local[:] = self._dt.array_local[order]
-        self._dE.array_local[:] = self._dE.array_local[order]
-        self._ids.array_local[:] = self._ids.array_local[order]
-        self._flags.array_local[:] = self._flags.array_local[order]
+        dt.array_local[:] = dt.array_local[order]
+        dE.array_local[:] = dE.array_local[order]
+        ids.array_local[:] = ids.array_local[order]
+        flags.array_local[:] = flags.array_local[order]
 
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
@@ -760,28 +762,26 @@ class BeamBaseClass(Preparable, ABC):
         )
         from blond.generals.distributed.helpers import mpi_barrier
 
-        n_before_truncation_global = self._dt.global_size
+        dt, dE, ids, flags = self.dt, self.dE, self.ids, self.flags
+
+        n_before_truncation_global = dt.global_size
 
         n_after_truncation_local = (
             backend.specials.move_flagged_elements_to_end(
                 flag=flag,
-                flags=self._flags.array_local,
-                dt=self._dt.array_local,
-                dE=self._dE.array_local,
-                ids=self._ids.array_local,
+                flags=flags.array_local,
+                dt=dt.array_local,
+                dE=dE.array_local,
+                ids=ids.array_local,
             )
         )
-        self._flags.array_local = self._flags.array_local[
-            :n_after_truncation_local
-        ]
-        self._dt.array_local = self._dt.array_local[:n_after_truncation_local]
-        self._dE.array_local = self._dE.array_local[:n_after_truncation_local]
-        self._ids.array_local = self._ids.array_local[
-            :n_after_truncation_local
-        ]
+        flags.array_local = flags.array_local[:n_after_truncation_local]
+        dt.array_local = dt.array_local[:n_after_truncation_local]
+        dE.array_local = dE.array_local[:n_after_truncation_local]
+        ids.array_local = ids.array_local[:n_after_truncation_local]
 
         mpi_barrier()
-        n_after_truncation_global = self._dt.global_size
+        n_after_truncation_global = dt.global_size
 
         self.intensity *= (
             n_after_truncation_global / n_before_truncation_global
