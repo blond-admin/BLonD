@@ -116,20 +116,17 @@ extern "C" void wake_from_pole_residue(
 
       if (bin_i == update_on_bin_i) {
         // Compute t_jump (real scalar)
-        real_t t_jump;
-        if (bin_i == 0) {
-          t_jump = profile_dts[0] - t_start;
-        } else {
-          t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1];
-        }
+        const real_t t_jump = (bin_i == 0)
+                                  ? profile_dts[0] - t_start
+                                  : profile_dts[bin_i] - profile_dts[bin_i - 1];
 
         // state *= exp(pole * t_jump)
-        real_t e_re;
-        real_t e_im;
+        real_t e_re = 0;
+        real_t e_im = 0;
         fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
 
-        real_t new_re;
-        real_t new_im;
+        real_t new_re = 0;
+        real_t new_im = 0;
         cmul(state_re, state_im, e_re, e_im, new_re, new_im);
         state_re = new_re;
         state_im = new_im;
@@ -144,8 +141,8 @@ extern "C" void wake_from_pole_residue(
         }
       } else {
         // state *= decay
-        real_t new_re;
-        real_t new_im;
+        real_t new_re = 0;
+        real_t new_im = 0;
         cmul(state_re, state_im, decay_re, decay_im, new_re, new_im);
         state_re = new_re;
         state_im = new_im;

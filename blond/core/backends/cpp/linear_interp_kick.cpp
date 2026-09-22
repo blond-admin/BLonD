@@ -172,8 +172,7 @@ extern "C" void linear_interp_time_translation(real_t *__restrict__ xp,
 
 #pragma omp parallel for
   for (int i = 0; i < diff - 1; i++) {
-    int ffbin;
-    ffbin = ffbin0 + i;
+    const int ffbin = ffbin0 + i;
     y[i] = yp[ffbin] +
            (x[i] - xp[ffbin]) * (yp[ffbin + 1] - yp[ffbin]) * inv_bin_width;
   }

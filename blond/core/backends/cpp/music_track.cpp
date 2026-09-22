@@ -27,8 +27,9 @@ music_track(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
             const real_t coeff2, const real_t coeff3, const real_t coeff4,
             const real_t time_since_last_track, const bool multiturn) {
   // Parameters: see Specials.music_track in backend.py.
-  real_t product_first_component;
-  real_t product_second_component;
+  // Turn 1 (not multiturn): no previous-turn wake to bridge.
+  real_t product_first_component = 0;
+  real_t product_second_component = 0;
   if (multiturn) {
     // Bridge the wake coming from the previous turn.
     const real_t time_difference_0 =
@@ -42,10 +43,6 @@ music_track(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     product_second_component =
         exp_term * (coeff3 * sin_term * parameter_array[0] +
                     (cos_term + coeff4 * sin_term) * parameter_array[1]);
-  } else {
-    // Turn 1: no previous-turn wake to bridge.
-    product_first_component = 0;
-    product_second_component = 0;
   }
 
   induced_voltage[0] = cnst * (0.5 + product_first_component);
