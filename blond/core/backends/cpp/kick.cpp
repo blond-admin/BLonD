@@ -17,7 +17,9 @@ extern "C" void kick_multi_harmonic(
     const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
     const index_t n_macroparticles, const real_t acc_kick) {
 
-  // Unroll loop for up to 4 RF harmonics for speedup
+  // Unroll loop for up to 4 RF harmonics for speedup. The branches differ;
+  // clang-tidy only sees identical OpenMP-captured bodies.
+  // NOLINTNEXTLINE(bugprone-branch-clone)
   if (n_rf == 1) {
 #pragma omp parallel for
     for (index_t i = 0; i < n_macroparticles; i++) {
