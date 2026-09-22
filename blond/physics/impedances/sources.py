@@ -320,11 +320,14 @@ class Resonators(
     ):
         super().__init__(is_dynamic=False)
 
-        if isinstance(shunt_impedances, numbers.Number):
+        # `int | float` is redundant at runtime (both are registered as
+        # `numbers.Number`), but static type checkers do not know the
+        # numeric tower and need it to narrow the scalar case away.
+        if isinstance(shunt_impedances, numbers.Number | int | float):
             shunt_impedances = [shunt_impedances]
-        if isinstance(center_frequencies, numbers.Number):
+        if isinstance(center_frequencies, numbers.Number | int | float):
             center_frequencies = [center_frequencies]
-        if isinstance(quality_factors, numbers.Number):
+        if isinstance(quality_factors, numbers.Number | int | float):
             quality_factors = [quality_factors]
 
         assert (
