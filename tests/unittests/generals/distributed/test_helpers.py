@@ -134,3 +134,15 @@ class TestCallablesNoMPI(BLonDTestCase):
         ):
             result = mpi_is_distributed()
         self.assertFalse(result)
+
+    def test_mpi_is_distributed_size_one_returns_bool(self):
+        """With MPI size 1 the result is `False`, not an implicit `None`."""
+        from unittest.mock import MagicMock
+
+        mock_comm = MagicMock()
+        mock_comm.Get_size.return_value = 1
+        with patch(
+            "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
+        ):
+            result = mpi_is_distributed()
+        self.assertIs(result, False)
