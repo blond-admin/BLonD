@@ -1433,12 +1433,12 @@ class SingleHarmonicRFStation(
         gap_voltage
             Gap voltage in [V] within the length of the profile.
         """
+        feedback = self.cavity_feedback_list[0]
+        assert feedback is not None, "No cavity feedback attached."
         gap_voltage = self._get_gap_voltage_per_harmonic(
-            ts=self.cavity_feedback_list[0].profile.hist_x,
-            phase_offsets=self.cavity_feedback_list[0].phase_correction,
-            voltage_correction_factors=self.cavity_feedback_list[
-                0
-            ].relative_voltage_correction,
+            ts=feedback.profile.hist_x,
+            phase_offsets=feedback.phase_correction,  # ty: ignore[invalid-argument-type, unresolved-attribute]  # FIXME: `None` until the feedback tracked once; attribute missing on the experimental `LocalFeedback`
+            voltage_correction_factors=feedback.relative_voltage_correction,  # ty: ignore[invalid-argument-type, unresolved-attribute]  # FIXME: `None` until the feedback tracked once; attribute missing on the experimental `LocalFeedback`
         )
 
         return gap_voltage
@@ -1899,8 +1899,8 @@ class MultiHarmonicRFStation(
                 gap_voltage += self._get_gap_voltage_per_harmonic(
                     ts=self.cavity_feedback_list[0].profile.hist_x,
                     harmonic_index=ind,
-                    voltage_correction_factors=feedback.relative_voltage_correction,
-                    phase_offsets=feedback.phase_correction,
+                    voltage_correction_factors=feedback.relative_voltage_correction,  # ty: ignore[invalid-argument-type, unresolved-attribute]  # FIXME: `None` until the feedback tracked once; attribute missing on the experimental `LocalFeedback`
+                    phase_offsets=feedback.phase_correction,  # ty: ignore[invalid-argument-type, unresolved-attribute]  # FIXME: `None` until the feedback tracked once; attribute missing on the experimental `LocalFeedback`
                 )
             else:
                 gap_voltage += self._get_gap_voltage_per_harmonic(
