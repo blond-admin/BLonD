@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -315,3 +316,20 @@ class TestPSBBeamFeedback(BLonDTestCase):
         self.assertAlmostEqual(
             self.beam_control.delta_omega_rf, -27238.527265660152, places=2
         )
+
+
+class TestPSBBeamControlUnit(BLonDTestCase):
+    def test_phase_noise_is_added_to_phase_error(self):
+        """``phase_noise`` given to the constructor enters ``dphi``."""
+        phase_noise = Mock()
+        phase_noise.dphi = np.array([0.1, 0.2])
+        control = PSBBeamControl(profile=Mock(), phase_noise=phase_noise)
+        control._simulation = Mock()
+        control._simulation.turn_counter.value = 1
+        # loops only act on turn 5, so turn 1 only updates the phase error
+        control._on_time = np.array([5])
+        control.phi_beam = 0.5
+
+        control.update_frequency_correction(beam=Mock())
+
+        self.assertAlmostEqual(control.dphi, 0.5 + 0.2)
