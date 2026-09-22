@@ -192,7 +192,7 @@ class GlobalFeedback(FeedbackBaseClass):
             **kwargs,
         )
 
-    def configure(
+    def configure(  # ty: ignore[invalid-method-override]  # FIXME: MRO configure chain adds a required keyword
         self,
         *,
         cavities: list[RFStationBaseClass],

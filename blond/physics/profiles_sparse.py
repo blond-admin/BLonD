@@ -361,7 +361,7 @@ class EquidistantMultiProfile(MultiProfile):
             **kwargs,
         )
 
-    def configure(self, *, t_rev: float, **kwargs) -> None:
+    def configure(self, *, t_rev: float, **kwargs) -> None:  # ty: ignore[invalid-method-override]  # FIXME: MRO configure chain adds a required keyword
         """
         Build profile time axes from the revolution period.
 

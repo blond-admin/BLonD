@@ -92,7 +92,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
 
-    def configure(
+    def configure(  # ty: ignore[invalid-method-override]  # FIXME: MRO configure chain adds a required keyword
         self,
         *,
         turn_counter: DynamicParameter,

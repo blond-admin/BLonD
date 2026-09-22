@@ -119,7 +119,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             **kwargs,
         )
 
-    def configure(
+    def configure(  # ty: ignore[invalid-method-override]  # FIXME: MRO configure chain adds a required keyword
         self,
         *,
         turn_counter: DynamicParameter | None = None,
