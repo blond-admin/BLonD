@@ -21,7 +21,7 @@ from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
-from blond.generals.cupy_.no_cupy_import import is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
     distributed_arange,
@@ -434,9 +434,9 @@ class Beam(BeamBaseClass):
 
         if is_cupy_array(dE):  # assume `dE` is the same like `dt`
             if axis == 0:
-                dt = dt.get()
+                dt = copy_to_cpu(dt)
             elif axis == 1:
-                dE = dE.get()
+                dE = copy_to_cpu(dE)
             else:
                 raise ValueError(f"{axis=}")
 
