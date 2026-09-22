@@ -12,9 +12,9 @@
 // particles
 
 #include <cmath>
-#include <memory>
 
 #include "blond_common.h"
+#include "scratch_buffer.h"
 
 extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
                                    real_t *__restrict__ beam_dE,
@@ -28,8 +28,10 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
 
-  const std::unique_ptr<real_t[]> voltageKick(new real_t[n_slices - 1]);
-  const std::unique_ptr<real_t[]> factor(new real_t[n_slices - 1]);
+  static std::vector<real_t> voltageKick_buffer;
+  static std::vector<real_t> factor_buffer;
+  real_t *const voltageKick = reuse_scratch(voltageKick_buffer, n_slices - 1);
+  real_t *const factor = reuse_scratch(factor_buffer, n_slices - 1);
 
 #pragma omp parallel
   {
@@ -97,8 +99,11 @@ extern "C" void linear_interp_kick_sparse(
   const real_t bin_width = cut_width / real_t(bins_per_profile);
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
 
-  const std::unique_ptr<real_t[]> voltageKick(new real_t[n_slices_total - 1]);
-  const std::unique_ptr<real_t[]> factor(new real_t[n_slices_total - 1]);
+  static std::vector<real_t> voltageKick_buffer;
+  static std::vector<real_t> factor_buffer;
+  real_t *const voltageKick =
+      reuse_scratch(voltageKick_buffer, n_slices_total - 1);
+  real_t *const factor = reuse_scratch(factor_buffer, n_slices_total - 1);
 
 #pragma omp parallel
   {

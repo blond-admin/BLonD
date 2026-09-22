@@ -7,10 +7,10 @@
 // Project website: http://blond.web.cern.ch/
 
 #include <cstring>
-#include <vector>
 
 #include "blond_common.h"
 #include "openmp.h"
+#include "scratch_buffer.h"
 
 extern "C" void
 histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
@@ -30,18 +30,11 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   // even when uncontended, and dominated this kernel: ~6x slower than the
   // dense `histogram`, which already uses this pattern).
   //
-  // The scratch buffer is re-used across calls (the profile size is constant
-  // turn after turn), reallocating only when a larger one is needed -- this
-  // removes a malloc+free every call, which matters for large histograms.
-  // Safe because BLonD drives the kernels from a single Python thread (the
-  // OpenMP parallelism is internal); it is not re-entrant.
+  // The scratch buffer persists across calls, see scratch_buffer.h.
   const int nthreads = omp_get_max_threads();
   const size_t need = (size_t)nthreads * (size_t)n_out;
   static std::vector<real_t> histo_buffer;
-  if (need > histo_buffer.size()) {
-    histo_buffer.resize(need);
-  }
-  real_t *const histo = histo_buffer.data();
+  real_t *const histo = reuse_scratch(histo_buffer, need);
 
 #pragma omp parallel
   {

@@ -11,10 +11,10 @@
 
 #include <cmath>
 #include <cstring>
-#include <memory>
 
 #include "blond_common.h"
 #include "openmp.h"
+#include "scratch_buffer.h"
 
 extern "C" void histogram(const real_t *__restrict__ input,
                           real_t *__restrict__ output, const real_t cut_left,
@@ -27,8 +27,9 @@ extern "C" void histogram(const real_t *__restrict__ input,
   // allocate memory for the thread_private histograms, one row of n_slices
   // per thread; index_t counters, so a single bin can collect more than
   // 2^31 - 1 particles
-  const std::unique_ptr<index_t[]> histo(
-      new index_t[(size_t)omp_get_max_threads() * n_slices]);
+  static std::vector<index_t> histo_buffer;
+  index_t *const histo =
+      reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
 
 #pragma omp parallel
   {
@@ -88,8 +89,9 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
   const real_t const2 = (cut_right - bin_width * 0.5);
 
   // memory alloc for per thread histo, one row of n_slices per thread
-  const std::unique_ptr<real_t[]> histo(
-      new real_t[(size_t)omp_get_max_threads() * n_slices]);
+  static std::vector<real_t> histo_buffer;
+  real_t *const histo =
+      reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
 
 #pragma omp parallel
   {
