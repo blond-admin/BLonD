@@ -1524,7 +1524,7 @@ class SingleHarmonicRFStation(
         single_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
+            ring=SimpleNamespace(  # ty: ignore[invalid-argument-type]  # FIXME: duck-typed stand-in lacks most of the `Ring` API used by this class
                 circumference=circumference,
                 section_lengths=np.array([circumference]),
             ),
@@ -2092,7 +2092,7 @@ class MultiHarmonicRFStation(
         multi_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
+            ring=SimpleNamespace(  # ty: ignore[invalid-argument-type]  # FIXME: duck-typed stand-in lacks most of the `Ring` API used by this class
                 circumference=circumference,
                 section_lengths=np.array([circumference]),
             ),
