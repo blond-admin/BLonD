@@ -17,6 +17,7 @@ from blond import (
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, electron
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.core.scheduling import ScheduledArray
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
@@ -790,3 +791,99 @@ class TestSynchrotronRadiationMaster(BLonDTestCase):
                     1 / (k + 1) * radiation_integrals / number_of_sections,
                     decimal=self.decimal,
                 )
+
+    def test_get_share_of_radiation_integrals_drifts_mixed_first_none(self):
+        """Mixed drifts [None, I, I] raise like [I, None] does."""
+        ring = Ring(
+            90.65874532 * 1e3,
+            radiation_integrals=self.synchrotron_radiation_integrals,
+        )
+        drifts = [
+            DriftSimple(
+                orbit_length=ring.circumference / 3,
+                momentum_compaction_factor=1e-4,
+                section_index=0,
+            )
+            for _ in range(3)
+        ]
+        drifts[1]._radiation_integrals = self.synchrotron_radiation_integrals
+        drifts[2]._radiation_integrals = self.synchrotron_radiation_integrals
+        SRM = SynchrotronRadiationMaster()
+        with self.assertRaisesRegex(
+            expected_exception=ValueError,
+            expected_regex="Either all drifts should have defined radiation ",
+        ):
+            SRM._get_share_of_radiation_integrals_drifts(
+                ring=ring, drift_list=drifts
+            )
+
+    def _four_drift_ring(self, radiation_integrals=None):
+        circumference = 90.65874532 * 1e3
+        ring = Ring(
+            circumference=circumference,
+            radiation_integrals=radiation_integrals,
+        )
+        for i in range(4):
+            ring.add_element(
+                DriftSimple(
+                    name=f"drift{i + 1}",
+                    orbit_length=circumference / 4,
+                    momentum_compaction_factor=1e-4,
+                    section_index=i,
+                ),
+                section_index=i,
+            )
+        return ring
+
+    def test_normalized_share_finite_for_isomagnetic_ring(self):
+        """Isomagnetic ring (I5 = 0) gives a finite normalized share."""
+        ring = self._four_drift_ring()
+        SRM = SynchrotronRadiationMaster()
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(
+            ring=ring, bending_radius=10e3
+        )
+        self.assertTrue(
+            np.all(np.isfinite(SRM.normalized_share_of_synchrotron_integrals))
+        )
+
+    def test_schedule_tuple_scales_values_not_times(self):
+        """A (times, values) schedule keeps the time axis unscaled."""
+        ring = self._four_drift_ring(self.synchrotron_radiation_integrals)
+        SRM = SynchrotronRadiationMaster()
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
+        times = np.array([0.0, 1.0])
+        # shape (n_integrals, n_times), as accepted by `interp1d`
+        values = np.stack(
+            [self.synchrotron_radiation_integrals] * 2, axis=1
+        ) * np.array([1.0, 3.0])
+        SRM.schedule(
+            attribute="share_of_radiation_integrals",
+            value=(times, values),
+        )
+        for child in SRM.generated_children:
+            child.apply_schedules(turn_i=0, reference_time=0.5)
+            np.testing.assert_allclose(
+                child.share_of_radiation_integrals,
+                2.0 * self.synchrotron_radiation_integrals / 4,
+                rtol=1e-12,
+            )
+
+    def test_schedule_scheduled_array(self):
+        """An explicit ScheduledArray is scaled and propagated."""
+        ring = self._four_drift_ring(self.synchrotron_radiation_integrals)
+        SRM = SynchrotronRadiationMaster()
+        SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
+        values = np.array(
+            [self.synchrotron_radiation_integrals / (k + 1) for k in range(3)]
+        )
+        SRM.schedule(
+            attribute="share_of_radiation_integrals",
+            value=ScheduledArray(values=values),
+        )
+        for child in SRM.generated_children:
+            child.apply_schedules(turn_i=2, reference_time=0.0)
+            np.testing.assert_allclose(
+                child.share_of_radiation_integrals,
+                self.synchrotron_radiation_integrals / 3 / 4,
+                rtol=1e-12,
+            )
