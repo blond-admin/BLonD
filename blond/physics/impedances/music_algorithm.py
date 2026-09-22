@@ -264,8 +264,12 @@ class Music(BeamPhysicsRelevant):
         # samples differ by exactly one revolution.
         reference_time = float(beam.reference.time)
         multiturn = not self._first_turn
+        # `_prev_reference_time` is always set once `_first_turn` is False,
+        # which a static type checker cannot correlate.
         time_since_last_track = (
-            reference_time - self._prev_reference_time if multiturn else 0.0
+            reference_time - self._prev_reference_time  # ty: ignore[unsupported-operator]
+            if multiturn
+            else 0.0
         )
         backend.specials.music_track(
             dt,

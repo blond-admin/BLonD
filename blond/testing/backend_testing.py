@@ -340,7 +340,8 @@ class BLonDTestCase(unittest.TestCase):
 
     def _callTestMethod(self, method: Callable) -> None:
         try:
-            super()._callTestMethod(method)
+            # private `unittest` hook, not part of the typeshed stubs
+            super()._callTestMethod(method)  # ty: ignore[unresolved-attribute]
         except unittest.SkipTest:
             raise
         except Exception as exc:

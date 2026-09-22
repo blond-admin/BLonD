@@ -137,7 +137,7 @@ class MainloopSingleBeam(ExecutionModel):
                 ):
                     observable.update()
             for callback in callbacks:
-                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
+                if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing  # ty: ignore[unresolved-attribute]
                     callback(simulation, beam)
 
         # make possible to run two main-loops after each other

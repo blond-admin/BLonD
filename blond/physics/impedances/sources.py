@@ -1075,11 +1075,13 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         a_factor: float | AnyArray,
     ):
         if hasattr(R_S, "__len__"):
-            assert len(R_S) == len(frequency_R), (
-                f"{len(R_S)=}, but {len(frequency_R)=}."
+            # The three arguments are either all scalars or all sequences,
+            # which a static type checker cannot follow.
+            assert len(R_S) == len(frequency_R), (  # ty: ignore[invalid-argument-type]
+                f"{len(R_S)=}, but {len(frequency_R)=}."  # ty: ignore[invalid-argument-type]
             )
-            assert len(R_S) == len(a_factor), (
-                f"{len(R_S)=}, but {len(a_factor)=}."
+            assert len(R_S) == len(a_factor), (  # ty: ignore[invalid-argument-type]
+                f"{len(R_S)=}, but {len(a_factor)=}."  # ty: ignore[invalid-argument-type]
             )
         else:
             R_S = float(R_S)

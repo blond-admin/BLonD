@@ -66,7 +66,8 @@ def _as_tuple(
     beams
         Tuple of at least one beam.
     """
+    # EAFP duck-typing: `T` and `Iterable[T]` are only told apart at runtime
     try:
-        return tuple(s for s in maybe_sequence)
+        return tuple(s for s in maybe_sequence)  # ty: ignore[not-iterable]
     except TypeError:
-        return (maybe_sequence,)
+        return (maybe_sequence,)  # ty: ignore[invalid-return-type]

@@ -895,7 +895,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
-                ct.c_int32(np.int32(flag)),
+                # ctypes accepts any `__index__`, the stubs only `int`
+                ct.c_int32(np.int32(flag)),  # ty: ignore[invalid-argument-type]
                 _get_pointer(flags),
                 _get_pointer(dt),
                 _get_pointer(dE),

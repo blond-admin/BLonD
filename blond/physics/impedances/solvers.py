@@ -352,7 +352,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
             if isinstance(source, FreqDomain):
                 freq_y = source.get_impedance(
                     freq_x=self._freq_x,
-                    simulation=self._simulation,
+                    # Only `None` for a solver that was set up by hand
+                    # instead of `on_wakefield_init_simulation`.
+                    simulation=self._simulation,  # ty: ignore[invalid-argument-type]
                     beam=beam,  # FIXME
                     hist_step=self._parent_wakefield.profile.hist_step,
                 )
@@ -567,7 +569,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 # but store already fft(wake) for convolution later
                 impedance_from_wake_y_tmp = source.get_impedance_from_wake(
                     time=_wake_x,
-                    simulation=self._simulation,
+                    # Only `None` for a solver that was set up by hand
+                    # instead of `on_wakefield_init_simulation`.
+                    simulation=self._simulation,  # ty: ignore[invalid-argument-type]
                     beam=beam,
                     n_fft=n_fft,
                 )
@@ -971,6 +975,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             around the 0 timestamp.
         """
         assert self._parent_wakefield is not None, _MSG_NOT_INITIALIZED
+        # Validated to be `Resonators` in `on_wakefield_init_simulation`.
+        # Plain annotation instead of `cast`, as this runs every turn.
+        resonators: tuple[Resonators, ...] = self._parent_wakefield.sources  # ty: ignore[invalid-assignment]
         for prof_ind in range(len(self._past_profiles)):
             if (
                 prof_ind == 0
@@ -1012,7 +1019,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     self._wake_function_vals[prof_ind]
                 )
             # now that everything is initialized, same operation for all arrays
-            for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+            for source in resonators:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
                 self._wake_function_vals[prof_ind] += (
                     source.get_wake_counter_rotation(
                         self._wake_function_time[prof_ind]

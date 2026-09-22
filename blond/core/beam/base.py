@@ -373,7 +373,9 @@ class BeamBaseClass(Preparable, ABC):
             **kwargs,
         )
 
-    def configure_run(
+    # The `configure*` chain peels its own keyword arguments off `**kwargs`
+    # on the way down the MRO, so the signatures differ by design.
+    def configure_run(  # ty: ignore[invalid-method-override]
         self,
         *,
         beam: BeamBaseClass,

@@ -528,7 +528,7 @@ class SynchrotronRadiationMaster(Schedulable):
             shares_of_radiation_integrals = (
                 self._get_share_of_radiation_integrals_drifts(
                     ring=ring,
-                    drift_list=element_list,
+                    drift_list=element_list,  # ty: ignore[invalid-argument-type]  # all drifts, see isinstance check above
                 )
             )
             self._insert_radiation_trackers(
@@ -541,7 +541,7 @@ class SynchrotronRadiationMaster(Schedulable):
             shares_of_radiation_integrals = (
                 self._get_share_of_radiation_integrals_cavities(
                     ring=ring,
-                    cavity_list=element_list,
+                    cavity_list=element_list,  # ty: ignore[invalid-argument-type]  # all rf stations, see isinstance check above
                 )
             )
             self._insert_radiation_trackers(

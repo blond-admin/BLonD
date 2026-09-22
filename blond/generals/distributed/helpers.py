@@ -110,7 +110,9 @@ def mpi_aware_random_generator_cpu(
     random_generator_cpu = np.random.default_rng(seed)
 
     # Consider the fact that the other ranks also produce particles.
-    random_generator_cpu.bit_generator.advance(MPI_RANK * n_forward_per_rank)
+    # `advance` exists on PCG64 (the default_rng bit generator), but not on
+    # the BitGenerator base class declared by the NumPy stubs.
+    random_generator_cpu.bit_generator.advance(MPI_RANK * n_forward_per_rank)  # ty: ignore[unresolved-attribute]
 
     # Cupy doesn't implement the `advance` function (2025)
     # When Cupy provides for the same random generators & `advance`,

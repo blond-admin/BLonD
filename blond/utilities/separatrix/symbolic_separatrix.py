@@ -385,10 +385,11 @@ class SymbolicSeparatrixHelper:
             ].real
             non_neg = real_parts[real_parts >= -cls._ROOT_NEG_TOLERANCE]
             non_pos = real_parts[real_parts <= cls._ROOT_NEG_TOLERANCE]
+            # numpy stubs lose the dtype of `np.roots(...).real`
             if non_neg.size:
-                dE_upper[i] = max(0.0, float(non_neg.min()))
+                dE_upper[i] = max(0.0, float(non_neg.min()))  # ty: ignore[invalid-argument-type]
             if non_pos.size:
-                dE_lower[i] = min(0.0, float(non_pos.max()))
+                dE_lower[i] = min(0.0, float(non_pos.max()))  # ty: ignore[invalid-argument-type]
         return dE_upper, dE_lower
 
     def _H_sep_per_dt(

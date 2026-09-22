@@ -85,8 +85,9 @@ def requires(dependencies: list[str]) -> Callable:
             # No additional behavior—simply pass through to the wrapped function.
             return func(*args, **kwargs)
 
-        # Attach the dependency metadata
-        wrapper.requires = dependencies  # type: ignore[attr-defined]
+        # Attach the dependency metadata (function objects accept arbitrary
+        # attributes at runtime, which the checker cannot model)
+        wrapper.requires = dependencies  # ty: ignore[unresolved-attribute]
         return wrapper
 
     return decorator

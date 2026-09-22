@@ -368,7 +368,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         -----
         `omega_rf` can not be set, use `omega_rf_design` instead
         """
-        return self.omega_rf_design + self.delta_omega_rf
+        return self.omega_rf_design + self.delta_omega_rf  # ty: ignore[unsupported-operator]  # `None` only before `configure_run`; no guard in per-turn property
 
     @omega_rf.setter
     def omega_rf(self, _) -> None:
@@ -392,7 +392,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         -----
         `phi_rf` can not be set, use `phi_rf_design` instead!
         """
-        return self.phi_rf_design + self.delta_phi_rf
+        return self.phi_rf_design + self.delta_phi_rf  # ty: ignore[unsupported-operator]  # `None` only while unset; no guard in per-turn property
 
     @phi_rf.setter
     def phi_rf(self, _) -> None:
@@ -1009,7 +1009,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             section_i=(
                 self.section_index
                 if not is_counter_rotating
-                else len(self._ring.section_lengths) - self.section_index - 1
+                else len(self._ring.section_lengths) - self.section_index - 1  # ty: ignore[unresolved-attribute]  # `_ring` is asserted in `_update_reference_based_attributes` above
             ),
             reference_time=reference.time,
             particle_type=reference.particle_type,
@@ -1260,7 +1260,7 @@ class SingleHarmonicRFStation(
         _main_harmonic_omega_rf
             The omega_rf of the main harmonic, in [rad/s].
         """
-        return self.calc_omega_rf_design(
+        return self.calc_omega_rf_design(  # ty: ignore[invalid-return-type]  # scalar, as `harmonic` is a float for a single harmonic
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )
@@ -1288,7 +1288,7 @@ class SingleHarmonicRFStation(
         main_harmonic_omega_rf_design
             The omega_rf_design of the main harmonic, in [rad/s].
         """
-        return self.omega_rf_design
+        return self.omega_rf_design  # ty: ignore[invalid-return-type]  # declared `NumpyArray | float | None` on the base class; scalar for a single harmonic
 
     def get_main_harmonic_cavity_feedback(
         self,
@@ -1531,7 +1531,7 @@ class SingleHarmonicRFStation(
         )
 
         single_harmonic_rf_station.configure_run(
-            beam=SimpleNamespace(
+            beam=SimpleNamespace(  # ty: ignore[invalid-argument-type]  # duck-typed stand-in, only `beam.reference.beta` is read
                 reference=SimpleNamespace(beta=beam_reference_beta)
             ),
             n_turns=1,
@@ -1835,7 +1835,7 @@ class MultiHarmonicRFStation(
         main_harmonic_omega_rf_design
             The omega_rf_design of the main harmonic, in [rad/s].
         """
-        return self.omega_rf_design[self.main_harmonic_idx]
+        return self.omega_rf_design[self.main_harmonic_idx]  # ty: ignore[not-subscriptable]  # declared `NumpyArray | float | None` on the base class; array for multi harmonic
 
     def get_main_harmonic_cavity_feedback(
         self,
@@ -2098,7 +2098,7 @@ class MultiHarmonicRFStation(
             ),
         )
         multi_harmonic_rf_station.configure_run(
-            beam=SimpleNamespace(
+            beam=SimpleNamespace(  # ty: ignore[invalid-argument-type]  # duck-typed stand-in, only `beam.reference.beta` is read
                 reference=SimpleNamespace(beta=beam_reference_beta)
             ),
             n_turns=1,
@@ -2155,7 +2155,7 @@ class MultiHarmonicRFStation(
                 assert self.phi_rf_design is not None
 
                 V_j = float(self.voltage[rf_idx])
-                omega_j = float(self.omega_rf_design[rf_idx])
+                omega_j = float(self.omega_rf_design[rf_idx])  # ty: ignore[not-subscriptable]  # declared `NumpyArray | float | None` on the base class; array for multi harmonic
                 phi_j = float(self.phi_rf_design[rf_idx])
             else:
                 V_j = sympy.Symbol(f"V_{rf_idx}")

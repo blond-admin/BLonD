@@ -221,7 +221,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        fist_hist_x = self._hist_x[0]
+        fist_hist_x = self._hist_x[0]  # ty: ignore[not-subscriptable]
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
         return float(fist_hist_x - self.hist_step / 2.0)
@@ -239,7 +239,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        last_hist_x = self._hist_x[-1]
+        last_hist_x = self._hist_x[-1]  # ty: ignore[not-subscriptable]
         if backend.is_gpu:
             last_hist_x = last_hist_x.get()
         return float(last_hist_x + self.hist_step / 2.0)
@@ -260,8 +260,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.linspace(
             self.cut_left,
             self.cut_right,
-            len(self._hist_x) + 1,
-            backend.float,  # type: ignore
+            len(self._hist_x) + 1,  # ty: ignore[invalid-argument-type]
+            backend.float,
         )
 
     def weighted_avg_dt(self) -> float:
@@ -317,8 +317,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         _hist_y = self._hist_y
 
         if is_cupy_array(self._hist_x):
-            _hist_x = _hist_x.get()
-            _hist_y = _hist_y.get()
+            _hist_x = _hist_x.get()  # ty: ignore[unresolved-attribute]  # CuPy array, see guard above
+            _hist_y = _hist_y.get()  # ty: ignore[unresolved-attribute]  # CuPy array, see guard above
 
         return gauss_fit(_hist_x, _hist_y)
 
@@ -347,8 +347,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         _hist_y = self._hist_y
 
         if is_cupy_array(self._hist_x):
-            _hist_x = _hist_x.get()
-            _hist_y = _hist_y.get()
+            _hist_x = _hist_x.get()  # ty: ignore[unresolved-attribute]  # CuPy array, see guard above
+            _hist_y = _hist_y.get()  # ty: ignore[unresolved-attribute]  # CuPy array, see guard above
 
         return multi_gauss_fit(_hist_x, _hist_y, n_bunches)
 
@@ -369,10 +369,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                 "Implement histogram on distributed array"
             )
         elif beam.common_array_size > 0:
-            # `_hist_x`, `_hist_y` could be None, which is not handled and
-            # causes a MyPy type error,
+            # `beam._dt` could be None, which is not handled and
+            # causes a type error,
             # This is intentionally ignored, we want to get an exception.
-            beam._dt.histogram(  # MPI aware histogram calculation
+            beam._dt.histogram(  # ty: ignore[unresolved-attribute]  # MPI aware histogram calculation
                 len(self._hist_y),
                 range=(
                     self.cut_left,

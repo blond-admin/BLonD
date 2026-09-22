@@ -1442,9 +1442,11 @@ class Simulation(Preparable):
             try:
                 # Test if `each_turn_i` exists as an attribute,
                 # property, or whatever
-                callback.each_turn_i  # NOQA duck-typing
+                # `each_turn_i` is set dynamically on the callback function
+                callback.each_turn_i  # NOQA duck-typing  # ty: ignore[unresolved-attribute]
             except AttributeError:
-                callback.each_turn_i = 1  # each turn by default
+                # each turn by default
+                callback.each_turn_i = 1  # ty: ignore[invalid-assignment]
             sanitised_callbacks.append(callback)
         return sanitised_callbacks
 

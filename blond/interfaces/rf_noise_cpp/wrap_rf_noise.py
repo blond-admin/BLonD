@@ -117,7 +117,8 @@ def _get_rf_noise_dir() -> pathlib.Path:
     if "RF_NOISE_DIR" in os.environ:
         path = pathlib.Path(os.environ["RF_NOISE_DIR"]).resolve()
     else:
-        path = files("blond").parent.parent / "rf-noise-cpp"
+        # `files` yields a `pathlib.Path` for a package installed on disk
+        path = files("blond").parent.parent / "rf-noise-cpp"  # ty: ignore[unresolved-attribute]
     if not path.is_dir():
         raise FileNotFoundError(
             f"{str(path)} is not a directory.\n" + _install_hint()

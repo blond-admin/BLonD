@@ -577,7 +577,11 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             **kwargs,
         )
 
-    def configure(self, *, n_rf_stations: int, **kwargs) -> None:
+    # The `configure` chain peels its own keyword arguments off `**kwargs`
+    # on the way down the MRO, so the signatures differ by design.
+    def configure(  # ty: ignore[invalid-method-override]
+        self, *, n_rf_stations: int, **kwargs
+    ) -> None:
         """
         Build the per-RF-station magnetic rigidity array.
 
@@ -834,7 +838,11 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             **kwargs,
         )
 
-    def configure(self, *, n_rf_stations: int, **kwargs) -> None:
+    # The `configure` chain peels its own keyword arguments off `**kwargs`
+    # on the way down the MRO, so the signatures differ by design.
+    def configure(  # ty: ignore[invalid-method-override]
+        self, *, n_rf_stations: int, **kwargs
+    ) -> None:
         """
         Build the per-RF-station-per-turn magnetic rigidity array.
 

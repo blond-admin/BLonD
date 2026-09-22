@@ -349,7 +349,11 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
             profile = self._profile
         super().on_init_simulation(simulation, profile=profile, **kwargs)
 
-    def configure(self, *, profile: ProfileBaseClass, **kwargs) -> None:
+    # The `configure` chain deliberately adds one required keyword per MRO
+    # level, which is not substitutable for `Preparable.configure(**kwargs)`.
+    def configure(  # ty: ignore[invalid-method-override]
+        self, *, profile: ProfileBaseClass, **kwargs
+    ) -> None:
         """
         Store the profile used for induced-voltage calculations.
 

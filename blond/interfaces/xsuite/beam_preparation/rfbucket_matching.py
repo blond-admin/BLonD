@@ -19,7 +19,9 @@ from scipy.constants import c, e
 # scipy >= 1.12 removed cumtrapz (renamed to cumulative_trapezoid).
 # Patch it back so xpart (which still uses the old name) can import it.
 if not hasattr(scipy.integrate, "cumtrapz"):
-    scipy.integrate.cumtrapz = scipy.integrate.cumulative_trapezoid
+    scipy.integrate.cumtrapz = (  # ty: ignore[unresolved-attribute]
+        scipy.integrate.cumulative_trapezoid
+    )
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning

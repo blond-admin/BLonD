@@ -161,14 +161,16 @@ class AllowPlotting:
 
     def __enter__(self) -> None:
         """Override numpy conversion functions to handle .get() for Cupy arrays."""
+        # Deliberate monkeypatching of NumPy: the overrides do not match the
+        # overloaded stub signatures, hence the invalid-assignment ignores.
         self.asarray_org = np.asarray
-        np.asarray = self.asarray_override_manager.asarray_override
+        np.asarray = self.asarray_override_manager.asarray_override  # ty: ignore[invalid-assignment]
 
         self.array_org = np.array
-        np.array = self.asarray_override_manager.array_override
+        np.array = self.asarray_override_manager.array_override  # ty: ignore[invalid-assignment]
 
         self.asanyarray_org = np.asanyarray
-        np.asanyarray = self.asarray_override_manager.asanyarray_override
+        np.asanyarray = self.asarray_override_manager.asanyarray_override  # ty: ignore[invalid-assignment]
 
     def __exit__(
         self,
@@ -188,6 +190,6 @@ class AllowPlotting:
         exc_tb
             Exception traceback if an exception occurred.
         """
-        np.asarray = self.asarray_org
-        np.array = self.array_org
-        np.asanyarray = self.asanyarray_org
+        np.asarray = self.asarray_org  # ty: ignore[invalid-assignment]
+        np.array = self.array_org  # ty: ignore[invalid-assignment]
+        np.asanyarray = self.asanyarray_org  # ty: ignore[invalid-assignment]
