@@ -21,7 +21,7 @@ from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import AllowPlotting
 from blond.generals.distributed.distributed_array import DistributedArray
 from blond.generals.distributed.helpers import (
     distributed_arange,
@@ -343,14 +343,7 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
-            counts, xedges, yedges, image = plt.hist2d(
-                dt.get(), dE.get(), **kwargs
-            )
-        else:
+        with AllowPlotting():  # handles Cupy arrays gracefully
             counts, xedges, yedges, image = plt.hist2d(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
@@ -383,12 +376,7 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
-            scat = axes_or_pyplot.scatter(dt.get(), dE.get(), **kwargs)
-        else:
+        with AllowPlotting():  # handles Cupy arrays gracefully
             scat = axes_or_pyplot.scatter(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
@@ -428,24 +416,15 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        dE = self._dE.array_local
-        dt = self._dt.array_local
-
-        if is_cupy_array(dE):  # assume `dE` is the same like `dt`
-            if axis == 0:
-                dt = copy_to_cpu(dt)
-            elif axis == 1:
-                dE = copy_to_cpu(dE)
-            else:
-                raise ValueError(f"{axis=}")
-
         if axis == 0:
-            xs = dt
+            xs = self._dt.array_local
         elif axis == 1:
-            xs = dE
+            xs = self._dE.array_local
         else:
             raise ValueError(f"{axis=}")
-        plt.hist(xs, **kwargs)
+
+        with AllowPlotting():  # handles Cupy arrays gracefully
+            plt.hist(xs, **kwargs)
 
     @staticmethod
     def simple_gaussian(
