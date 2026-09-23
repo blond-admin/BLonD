@@ -18,6 +18,7 @@ Helga Timko
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -34,6 +35,12 @@ from blond.physics.feedbacks.accelerators.lhc.helpers import (
     fir_filter_lhc_otfb_coeff,
     ideal_switch_and_limit,
     klystron_saturation_curve,
+)
+from blond.physics.feedbacks.accelerators.lhc.track_kernel import (
+    N_SIGNALS,
+    SIGNAL_NAMES,
+    Settings,
+    track_one_turn_kernel,
 )
 from blond.physics.feedbacks.buffers import (
     OneTurnBufferBase,
@@ -123,28 +130,26 @@ class LHCCavityFeedbackCoarseBuffers(TwoTurnBufferBase):
     tuner_in: TwoTurnArray = field(init=False)
     tuner_integrated: TwoTurnArray = field(init=False)
 
+    #: Block backing every buffer; one row per signal, in the order of
+    #: `SIGNAL_NAMES`. The kernel takes this block as a single argument.
+    signals: NumpyArray = field(init=False)
+
     def __post_init__(self):
-        """Initialize the buffers."""
-        super().__post_init__()
-        self.v_excitation = self._make_array(dtype=complex)
+        """Initialize the buffers as rows of one shared block."""
+        self.signals = np.zeros(
+            (N_SIGNALS, 2 * self.samples_per_turn), dtype=complex
+        )
+        for row, name in enumerate(SIGNAL_NAMES):
+            setattr(self, name, TwoTurnArray.from_block_row(self.signals, row))
 
-        self.v_feedback_in = self._make_array(dtype=complex)
-        self.v_analog_in = self._make_array(dtype=complex)
-        self.i_analog_out = self._make_array(dtype=complex)
-        self.i_digital_out = self._make_array(dtype=complex)
-        self.i_feedback_out = self._make_array(dtype=complex)
-
-        self.v_otfb_ac_in = self._make_array(dtype=complex)
-        self.v_otfb_comb = self._make_array(dtype=complex)
-        self.v_otfb_fir_out = self._make_array(dtype=complex)
-        self.v_otfb_out = self._make_array(dtype=complex)
-
-        self.i_swap_out = self._make_array(dtype=complex)
-        self.i_gen_test = self._make_array(dtype=complex)
-        self.i_gen_predrive = self._make_array(dtype=complex)
-
-        self.tuner_in = self._make_array(dtype=complex)
-        self.tuner_integrated = self._make_array(dtype=complex)
+        missing = [
+            f.name
+            for f in dataclasses.fields(self)
+            if f.name not in SIGNAL_NAMES
+            and f.name not in ("samples_per_turn", "signals")
+        ]
+        # Every buffer must have a row, or the kernel would not see it.
+        assert not missing, f"signals without a row in the block: {missing}"
 
 
 class LHCCavityFeedbackCommissioning:
@@ -496,7 +501,12 @@ class LHCCavityFeedback(
 
         # Initialise FIR filter for OTFB
         self.fir_n_taps = 63
-        self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
+        # `fir_filter_lhc_otfb_coeff` returns a Python list; the compiled
+        # kernel would have to unbox it into a (deprecated) numba reflected
+        # list on every call, so keep the coefficients as an array.
+        self.fir_coeff = np.ascontiguousarray(
+            fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps), dtype=float
+        )
         self.logger.debug(
             f"Sum of FIR coefficients {np.sum(self.fir_coeff):.4e}"
         )
@@ -843,8 +853,54 @@ class LHCCavityFeedback(
             - self.buffers_coarse.tuner_integrated[self.ind - 2]
         )
 
-    def track_one_turn(self):
-        """Single-turn tracking, index by index."""
+    def kernel_settings(self) -> Settings:
+        """
+        Collect the scalar settings the compiled kernel needs this turn.
+
+        Returns
+        -------
+        settings
+            Scalar settings of the loop for the current turn.
+        """
+        commissioning = self.commissioning
+        return Settings(
+            n_coarse=self.n_coarse,
+            n_delay=self.n_delay,
+            n_otfb=self.n_otfb,
+            t_s=self.T_s,
+            samples=self.samples,
+            r_over_q=self.r_over_q,
+            q_l=self.q_l,
+            detuning=self.detuning,
+            alpha=self.alpha,
+            gain_analog=self.G_a,
+            gain_digital=self.G_d,
+            gain_otfb=self.G_o,
+            gain_generator=self.G_gen,
+            d_phi_ad=self.d_phi_ad,
+            tau_a=self.tau_a,
+            tau_d=self.tau_d,
+            tau_o=self.tau_o,
+            i_gen_offset=float(self.I_gen_offset),
+            i_swap_threshold=float(self.i_swap_threshold),
+            open_drive=float(commissioning.open_drive),
+            open_drive_inv=float(commissioning.open_drive_inv),
+            open_loop=float(commissioning.open_loop),
+            open_otfb=float(commissioning.open_otfb),
+            open_rffb=float(commissioning.open_rffb),
+            excitation_otfb=float(bool(self.excitation_otfb)),
+            clamping=bool(commissioning.clamping),
+            saturation=bool(commissioning.saturation),
+            enable_klystron=bool(commissioning.enable_klystron),
+        )
+
+    def track_one_turn_reference(self):
+        """
+        Single-turn tracking, index by index.
+
+        Readable reference implementation of :meth:`track_one_turn`, kept
+        as the oracle the compiled kernel is validated against.
+        """
         for i in range(self.n_coarse):
             T_s = self.T_s
             self.ind = i
@@ -853,6 +909,39 @@ class LHCCavityFeedback(
             self.swap()
             self.generator_current()
             self.tuner_input()
+
+    def track_one_turn(self):
+        """Single-turn tracking through the compiled kernel."""
+        signals = self.buffers_coarse.signals
+
+        # The kernel indexes each row as one flat two-turn array, so any
+        # reach-back beyond one turn would silently wrap around instead of
+        # raising as `TwoTurnArray.__getitem__` does. The CIC filter of the
+        # tuner reaches back 16 samples.
+        cic_reach_back = 16
+        assert self.n_coarse >= self.n_delay
+        assert self.n_coarse >= self.fir_n_taps
+        assert self.n_coarse >= len(self.klystron_fir)
+        assert self.n_coarse >= cic_reach_back
+        # The saturation curve spans from its onset (80 % of the
+        # threshold) to the threshold, so a non-positive threshold leaves
+        # it undefined -- `_resolve_span` raises in that case.
+        assert not self.commissioning.saturation or self.i_swap_threshold > 0
+        assert signals.shape == (N_SIGNALS, 2 * self.n_coarse)
+        assert signals.dtype == np.complex128
+        assert signals.flags.c_contiguous
+        assert self.fir_coeff.dtype == np.float64
+        assert self.klystron_fir.dtype == np.float64
+
+        track_one_turn_kernel(
+            signals,
+            self.kernel_settings(),
+            self.fir_coeff,
+            self.klystron_fir,
+        )
+
+        # The reference implementation leaves `ind` on the last sample.
+        self.ind = self.n_coarse - 1
 
     def update_fb_variables(self):
         """Update counter and frequency-dependent variables in a given turn."""

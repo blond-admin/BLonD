@@ -51,6 +51,33 @@ class TwoTurnArray:
     def __init__(self, n_samples: int, dtype=np.float64):
         self._data = np.zeros((2, n_samples), dtype=dtype)
 
+    @classmethod
+    def from_block_row(cls, block: NumpyArray, row: int) -> TwoTurnArray:
+        """
+        Wrap one row of a shared block instead of owning an array.
+
+        The row must hold the previous turn followed by the current turn,
+        so a block of shape ``(n_signals, 2 * n_samples)`` gives one
+        buffer per row. The buffer is a *view*: writes through it and
+        writes through the block are the same writes, which is what lets a
+        compiled kernel take the whole block as a single argument.
+
+        Parameters
+        ----------
+        block
+            Contiguous array of shape ``(n_signals, 2 * n_samples)``.
+        row
+            Index of the row to wrap.
+
+        Returns
+        -------
+        buffer
+            Buffer backed by ``block[row]``.
+        """
+        buffer = cls.__new__(cls)
+        buffer._data = block[row].reshape(2, -1)
+        return buffer
+
     @property
     def n_samples(self) -> int:
         """
@@ -114,6 +141,24 @@ class TwoTurnArray:
     def shift(self) -> None:
         """Shift the current turn into the previous."""
         self._data[0] = self._data[1]
+
+    @property
+    def two_turn_view(self) -> NumpyArray:
+        """
+        Flat view spanning the previous and current turn.
+
+        Unlike :attr:`full`, this is a view and not a copy, so writes
+        through it reach the buffer. Index ``n_samples + i`` addresses
+        sample ``i`` of the current turn, which makes the reach-back
+        semantics of :meth:`__getitem__` plain arithmetic: a negative
+        offset walks into the previous turn.
+
+        Returns
+        -------
+        two_turn_view
+            View of length ``2 * n_samples`` over previous and current turn.
+        """
+        return self._data.reshape(-1)
 
     @property
     def full(self) -> NumpyArray:
