@@ -125,24 +125,27 @@ class TestCallablesNoMPI(BLonDTestCase):
             np.testing.assert_allclose(da.copy_as_numpy(), np.arange(0, 12))
 
     def test_mpi_is_distributed_size_one(self):
-        from unittest.mock import MagicMock
-
-        mock_comm = MagicMock()
-        mock_comm.Get_size.return_value = 1
-        with patch(
-            "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
-        ):
+        with patch("blond.generals.distributed.helpers.MPI_SIZE", 1):
             result = mpi_is_distributed()
         self.assertFalse(result)
 
     def test_mpi_is_distributed_size_one_returns_bool(self):
         """With MPI size 1 the result is `False`, not an implicit `None`."""
-        from unittest.mock import MagicMock
-
-        mock_comm = MagicMock()
-        mock_comm.Get_size.return_value = 1
-        with patch(
-            "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
-        ):
+        with patch("blond.generals.distributed.helpers.MPI_SIZE", 1):
             result = mpi_is_distributed()
+        self.assertIs(result, False)
+
+    def test_mpi_is_distributed_size_two(self):
+        with patch("blond.generals.distributed.helpers.MPI_SIZE", 2):
+            result = mpi_is_distributed()
+        self.assertIs(result, True)
+
+    def test_mpi_is_root_on_rank_zero(self):
+        with patch("blond.generals.distributed.helpers.MPI_RANK", 0):
+            result = mpi_is_root()
+        self.assertIs(result, True)
+
+    def test_mpi_is_root_on_non_root_rank(self):
+        with patch("blond.generals.distributed.helpers.MPI_RANK", 1):
+            result = mpi_is_root()
         self.assertIs(result, False)

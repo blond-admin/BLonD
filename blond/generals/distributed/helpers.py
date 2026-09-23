@@ -192,7 +192,7 @@ def distributed_zeros(
     return DistributedArray(local_ids)
 
 
-def mpi_is_distributed():
+def mpi_is_distributed() -> bool:
     """
     Whether the software runs with a MPI size > 1 or not.
 
@@ -201,12 +201,10 @@ def mpi_is_distributed():
     is_distributed
         Whether the software runs with a MPI size > 1 or not.
     """
-    if MPI_COMM_WORLD is None:
-        return False
-    return MPI_COMM_WORLD.Get_size() > 1
+    return MPI_SIZE > 1
 
 
-def mpi_barrier():
+def mpi_barrier() -> None:
     """
     Synchronize all processes.
 
@@ -230,7 +228,4 @@ def mpi_is_root() -> bool:
     bool
         Whether the current worker is the root worker.
     """
-    if MPI_COMM_WORLD is None:
-        return True
-    else:
-        return MPI_COMM_WORLD.Get_rank() == 0
+    return MPI_RANK == 0
