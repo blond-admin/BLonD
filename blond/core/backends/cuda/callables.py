@@ -22,17 +22,16 @@ from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
-from blond.generals.cupy_ import import_cupy_with_error_hint
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
 
 # Importing this module *is* the request for the GPU, so CuPy is
-# imported here rather than lazily. `import_cupy_with_error_hint` raises
-# a ModuleNotFoundError naming the GPU extra to install when CuPy is
-# missing, instead of the bare "No module named 'cupy'" that a plain
+# imported here rather than lazily. Importing it via `blond.generals.cupy_`
+# raises a ModuleNotFoundError naming the GPU extra to install when CuPy
+# is missing, instead of the bare "No module named 'cupy'" that a plain
 # import would raise from four frames deep in the backend machinery.
-cp = import_cupy_with_error_hint()
+from blond.generals.cupy_ import cupy as cp  # noqa: E402
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability

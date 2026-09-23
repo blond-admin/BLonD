@@ -98,10 +98,8 @@ def compile_cuda_library(  # NOQA: PLR0915
     cuda_libname = os.path.join(target, "kernels")
 
     # CuPy must be installed for the CUDA backend to be compiled; the
-    # helper turns its absence into an error that names the GPU extra.
-    from blond.generals.cupy_ import import_cupy_with_error_hint
-
-    cp = import_cupy_with_error_hint()
+    # import raises an error naming the GPU extra if it is missing.
+    from blond.generals.cupy_ import cupy as cp
 
     print("\nCompiling the CUDA library")
     if compute_capability == "discover":
