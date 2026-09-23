@@ -295,8 +295,8 @@ class TestBeamBaseClass(BLonDTestCase):
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
         ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
-        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
-        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        dt_2 = backend.linspace(1e-6, 2e-6, 3, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 3, dtype=backend.float)
         flags_2 = (
             backend.zeros_like(dE_2, dtype=np.int32) + BeamFlags.ACTIVE.value
         )
@@ -336,43 +336,13 @@ class TestBeamBaseClass(BLonDTestCase):
             copy_to_cpu(np.concatenate((ids_1, ids_2))),
         )
 
-        self.assertEqual(beam_1.intensity, 2e12)
+        self.assertEqual(beam_1.intensity, 1.3e12)
 
         dist_dt = DistributedArray(dt_2[1:])
         dist_dE = DistributedArray(dE_2)
 
         with self.assertRaisesRegex(ValueError, "The dt and dE array sizes"):
             beam_1.add_particles(dist_dt, dist_dE)
-
-    def test_add_particles_sizes_ids_and_flags_from_added_particles(self):
-        """Adding 3 particles to 10 gives 13 ids and flags, not 20."""
-        dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
-        dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
-        beam = BeamBaseClassTester(
-            intensity=1e12,
-            particle_type=proton,
-            is_counter_rotating=False,
-            is_distributed=False,
-        )
-        beam._dt = DistributedArray(dt_1)
-        beam._dE = DistributedArray(dE_1)
-        beam._flags = DistributedArray(
-            backend.zeros_like(dE_1, dtype=np.int32)
-        )
-        beam._ids = DistributedArray(
-            backend.arange(len(dE_1), dtype=INDEX_DTYPE)
-        )
-
-        dt_2 = backend.linspace(1e-6, 2e-6, 3, dtype=backend.float)
-        dE_2 = backend.linspace(0, 1e6, 3, dtype=backend.float)
-        beam.add_particles(DistributedArray(dt_2), DistributedArray(dE_2))
-
-        self.assertEqual(beam._dt.local_size, 13)
-        self.assertEqual(beam._ids.local_size, 13)
-        self.assertEqual(beam._flags.local_size, 13)
-        np.testing.assert_array_equal(
-            copy_to_cpu(beam._ids.array_local)[10:], [10, 11, 12]
-        )
 
     def test_add_beam_valid(self):
         dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
