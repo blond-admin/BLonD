@@ -207,6 +207,48 @@ class TestImportCupy(BLonDTestCase):
         self.assertIsInstance(ctx.exception.__cause__, ModuleNotFoundError)
 
 
+class TestCupyAttribute(BLonDTestCase):
+    """`blond.generals.cupy_.cupy` supports `hasattr` and `from` imports."""
+
+    def setUp(self):
+        import blond.generals.cupy_ as cupy_package
+
+        self.package = cupy_package
+        # Undo any `cupy` attribute or submodule a test leaves behind.
+        package_patch = patch.dict(cupy_package.__dict__)
+        modules_patch = patch.dict(sys.modules)
+        package_patch.start()
+        modules_patch.start()
+        self.addCleanup(package_patch.stop)
+        self.addCleanup(modules_patch.stop)
+        cupy_package.__dict__.pop("cupy", None)
+        sys.modules.pop("blond.generals.cupy_.cupy", None)
+
+    def test_hasattr_is_false_when_cupy_is_missing(self):
+        sys.modules["cupy"] = None
+        self.assertFalse(hasattr(self.package, "cupy"))
+
+    def test_from_import_raises_hint_when_cupy_is_missing(self):
+        sys.modules["cupy"] = None
+        with self.assertRaises(ImportError) as ctx:
+            from blond.generals.cupy_ import cupy  # noqa: F401
+
+        self.assertIsInstance(ctx.exception, ModuleNotFoundError)
+        self.assertIn("gpu_cuda12", str(ctx.exception))
+
+    def test_unknown_attribute_raises_attribute_error(self):
+        with self.assertRaises(AttributeError):
+            self.package.not_an_attribute  # noqa: B018
+
+    def test_from_import_returns_cupy_when_installed(self):
+        cupy = pytest.importorskip("cupy")
+
+        from blond.generals.cupy_ import cupy as imported
+
+        self.assertIs(imported, cupy)
+        self.assertTrue(hasattr(self.package, "cupy"))
+
+
 class TestCudaBackendWithoutCupy(BLonDTestCase):
     """Requesting the GPU without CuPy fails with a readable error."""
 

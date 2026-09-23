@@ -51,3 +51,33 @@ def import_cupy_with_error_hint() -> Any:
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(CUPY_MISSING_MESSAGE) from exc
     return cupy
+
+
+def __getattr__(name: str) -> Any:
+    """
+    Provide ``cupy`` as a module attribute when it is installed.
+
+    Parameters
+    ----------
+    name
+        The attribute being looked up.
+
+    Returns
+    -------
+    cupy
+        The imported ``cupy`` module.
+
+    Raises
+    ------
+    AttributeError
+        If ``name`` is not ``"cupy"`` or CuPy is not installed, so
+        ``hasattr`` returns ``False``. ``from blond.generals.cupy_ import
+        cupy`` then falls back to the ``cupy`` submodule, which raises
+        the ``ModuleNotFoundError`` with the install hint.
+    """
+    if name != "cupy":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    try:
+        return import_cupy_with_error_hint()
+    except ModuleNotFoundError as exc:
+        raise AttributeError(str(exc)) from exc
