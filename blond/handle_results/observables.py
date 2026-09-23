@@ -114,19 +114,33 @@ class ObservablesBaseClass(MainLoopRelevant):
     folder
         Target folder to save the data at.
         Use `rename` to change the destination.
-        ``None`` or ``""`` means the current working directory.
+        An empty string means the current working directory.
     **kwargs
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str | None = "", **kwargs):
+    def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
-        if folder is None:
-            folder = ""
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"
         logger.info("Will save %s to %s_,,,", self, self.common_filepath)
+
+    def _calc_n_entries(self, n_turns: int) -> int:
+        """
+        Calculate the number of entries considering `each_turn_i`.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns that the simulation is foreseen to run.
+
+        Returns
+        -------
+        n_entries
+            The number of observations during the simulation.
+        """
+        return int(math.ceil(n_turns / self.each_turn_i))
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         """
@@ -237,22 +251,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._last_section_i_observed = -1
 
         self._simulation: Simulation | None = None
-
-    def _calc_n_entries(self, n_turns: int) -> int:
-        """
-        Calculate the number of entries considering `each_turn_i`.
-
-        Parameters
-        ----------
-        n_turns
-            Number of turns that the simulation is foreseen to run.
-
-        Returns
-        -------
-        n_entries
-            The number of observations during the simulation.
-        """
-        return int(math.ceil(n_turns / self.each_turn_i))
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
@@ -1416,7 +1414,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        n_turns_observation = len(self._turns_array)
+        n_turns_observation = self._calc_n_entries(n_turns)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(

@@ -14,7 +14,6 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 from blond.core.base import BeamObservationElement, DynamicParameter
@@ -47,9 +46,9 @@ class BeamObservationInRingElement(
         Defaults to 0.
     n_turns : int, optional
         Number of turns to record. Defaults to 1.
-    folder : str or None, optional
+    folder : str, optional
         Directory that `to_disk` writes the observation data to. Data is
-        always recorded in memory. ``None`` or ``""`` means the current
+        always recorded in memory. An empty string means the current
         working directory. Defaults to ``""``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
@@ -62,7 +61,7 @@ class BeamObservationInRingElement(
         each_turn_i: int = 1,
         section_index: int = 0,
         n_turns: int = 1,
-        folder: str | None = "",
+        folder: str = "",
         name: str | None = None,
         beam: BeamBaseClass | None = None,
     ) -> None:
@@ -105,8 +104,9 @@ class BeamObservationInRingElement(
         num_elements_of_own_instance_in_pipeline = sum(
             [1 if el is self else 0 for el in own_class_in_simulation_elements]
         )
-        n_entries = num_elements_of_own_instance_in_pipeline * math.ceil(
-            n_turns / self.each_turn_i
+        n_entries = (
+            num_elements_of_own_instance_in_pipeline
+            * self._calc_n_entries(n_turns)
         )
 
         self._dEs = DenseArrayRecorder(
@@ -276,7 +276,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
         count = sum([el == self for el in simulation.ring.elements.elements])
 
-        n_entries = count * math.ceil(n_turns / self.each_turn_i)
+        n_entries = count * self._calc_n_entries(n_turns)
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
@@ -467,7 +467,7 @@ class InducedVoltageObservationCR(
 
         ind_volt_len = len(self._wake_field._profile.hist_x)
 
-        n_entries = count * math.ceil(n_turns / self.each_turn_i)
+        n_entries = count * self._calc_n_entries(n_turns)
         shape = (n_entries, ind_volt_len)
 
         self._induced_voltage = DenseArrayRecorder(
