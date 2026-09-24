@@ -785,16 +785,16 @@ class LHCCavityFeedback(
     def update_set_point(self):
         """Update the set point for the next turn based on the design RF voltage."""
         new_setpoint = self.get_next_setpoint()
-        coeff = np.polyfit(
-            [0, self.n_coarse + 1],
-            [
-                self.buffers_coarse.v_setpoint.prev[-1],
-                new_setpoint[0],
-            ],
-            1,
+
+        # Straight line from the last set point of the previous turn to
+        # the new one, reached one sample past the end of the turn. The
+        # closed form replaces a two-point `np.polyfit`, which solves a
+        # least-squares problem for the same line.
+        start = self.buffers_coarse.v_setpoint.prev[-1]
+        slope = (new_setpoint[0] - start) / (self.n_coarse + 1)
+        v_set_prev = start + slope * np.linspace(
+            0, self.n_coarse, self.n_coarse
         )
-        poly = np.poly1d(coeff)
-        v_set_prev = poly(np.linspace(0, self.n_coarse, self.n_coarse))
 
         self.buffers_coarse.v_setpoint.prev = v_set_prev
 

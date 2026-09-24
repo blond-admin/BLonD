@@ -19,6 +19,7 @@ Helga Timko
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -28,6 +29,7 @@ from scipy.constants import e
 
 from blond.core.beam.base import BeamBaseClass
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.hashing_ import hash_linspace
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +97,205 @@ def low_pass_filter(
     return scipy.signal.filtfilt(b, a, signal)
 
 
+@dataclass
+class CoarseGridSegments:
+    """
+    Mapping of the fine profile grid onto the coarse grid.
+
+    Coarse sample ``targets[k]`` collects the fine bins
+    ``starts[k]`` up to ``starts[k + 1]``, the last one ending at
+    :attr:`end`.
+
+    Attributes
+    ----------
+    starts
+        First fine bin of each coarse sample.
+    end
+        One past the last fine bin that contributes to any coarse sample.
+    targets
+        Coarse-grid index each segment is accumulated into.
+    """
+
+    starts: NumpyArray
+    end: int
+    targets: NumpyArray
+
+
+def demodulation_vector(prof_time: NumpyArray, omega_c: float) -> NumpyArray:
+    r"""
+    Demodulation of the beam charge at the carrier frequency.
+
+    Multiplying the charge per fine bin with this vector gives the
+    complex RF beam charge, :math:`2 Q_i e^{-i \omega_c t_i}`, i.e. the
+    factor two of the demodulation is included. The external reference
+    rotation is *not*, so that the vector depends only on the profile
+    grid and the carrier frequency and can be reused between turns.
+
+    Parameters
+    ----------
+    prof_time
+        Time coordinates [s] of the profile bins.
+    omega_c
+        Carrier frequency [1/s] to demodulate at.
+
+    Returns
+    -------
+    demodulation
+        Complex demodulation factor per fine bin.
+    """
+    angle = omega_c * prof_time
+    return 2.0 * np.cos(angle) - 2.0j * np.sin(angle)
+
+
+def coarse_grid_segments(
+    prof_time: NumpyArray,
+    omega_c: float,
+    sampling_time: float,
+    dT: float,
+) -> CoarseGridSegments:
+    """
+    Find which fine bins belong to which coarse sample.
+
+    Parameters
+    ----------
+    prof_time
+        Time coordinates [s] of the profile bins.
+    omega_c
+        Carrier frequency [1/s] the coarse grid is centred on.
+    sampling_time
+        Sampling time [s] of the coarse grid.
+    dT
+        Shift [s] in time due to shifting reference frames.
+
+    Returns
+    -------
+    segments
+        The fine-to-coarse mapping.
+    """
+    ind_fine = np.round(
+        (prof_time + dT - np.pi / omega_c) / sampling_time
+    ).astype(int)
+    # A coarse sample ends wherever the coarse index steps by one.
+    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+    starts = np.empty(len(indices), dtype=int)
+    starts[0] = 0
+    starts[1:] = indices[:-1]
+
+    return CoarseGridSegments(
+        starts=starts,
+        end=int(indices[-1]),
+        targets=ind_fine[0] + np.arange(len(indices)),
+    )
+
+
+def downsample_rf_beam_charge(
+    charges_fine: NumpyArray,
+    segments: CoarseGridSegments,
+    n_points: int,
+) -> NumpyArray:
+    """
+    Sum the RF beam charge of each coarse sample.
+
+    Parameters
+    ----------
+    charges_fine
+        RF beam charge [C] per fine bin.
+    segments
+        Fine-to-coarse mapping from :func:`coarse_grid_segments`.
+    n_points
+        Number of points of the coarse grid.
+
+    Returns
+    -------
+    charges_coarse
+        RF beam charge [C] per coarse sample.
+    """
+    charges_coarse = np.zeros(n_points, dtype=complex)
+    charges_coarse[segments.targets] = np.add.reduceat(
+        charges_fine[: segments.end], segments.starts
+    )
+    return charges_coarse
+
+
+class RFBeamCurrentCache:
+    """
+    Grid-dependent quantities of :func:`rf_beam_current`, kept between turns.
+
+    The demodulation vector and the fine-to-coarse mapping depend on the
+    profile grid, the carrier frequency and the coarse sampling, but not
+    on the beam. Recomputing them costs more than the rest of the beam
+    current, so they are recomputed only when one of those changes.
+
+    The grid is compared with :func:`~blond.generals.hashing_.hash_linspace`,
+    which samples a few elements rather than the whole array.
+    """
+
+    def __init__(self):
+        self._demodulation_key: int | None = None
+        self._demodulation: NumpyArray | None = None
+        self._segments_key: int | None = None
+        self._segments: CoarseGridSegments | None = None
+
+    def demodulation(
+        self, prof_time: NumpyArray, omega_c: float
+    ) -> NumpyArray:
+        """
+        Return the demodulation vector for this grid and carrier.
+
+        Parameters
+        ----------
+        prof_time
+            Time coordinates [s] of the profile bins.
+        omega_c
+            Carrier frequency [1/s] to demodulate at.
+
+        Returns
+        -------
+        demodulation
+            Complex demodulation factor per fine bin.
+        """
+        key = hash_linspace(prof_time, salt=omega_c)
+        if key != self._demodulation_key:
+            self._demodulation = demodulation_vector(prof_time, omega_c)
+            self._demodulation_key = key
+        return self._demodulation
+
+    def segments(
+        self,
+        prof_time: NumpyArray,
+        omega_c: float,
+        sampling_time: float,
+        dT: float,
+    ) -> CoarseGridSegments:
+        """
+        Return the fine-to-coarse mapping for this grid.
+
+        Parameters
+        ----------
+        prof_time
+            Time coordinates [s] of the profile bins.
+        omega_c
+            Carrier frequency [1/s] the coarse grid is centred on.
+        sampling_time
+            Sampling time [s] of the coarse grid.
+        dT
+            Shift [s] in time due to shifting reference frames.
+
+        Returns
+        -------
+        segments
+            The fine-to-coarse mapping.
+        """
+        key = hash_linspace(prof_time, salt=(omega_c, sampling_time, dT))
+        if key != self._segments_key:
+            self._segments = coarse_grid_segments(
+                prof_time, omega_c, sampling_time, dT
+            )
+            self._segments_key = key
+        return self._segments
+
+
 def rf_beam_current(
     beam: BeamBaseClass,
     profile: StaticProfile,
@@ -103,6 +304,7 @@ def rf_beam_current(
     downsample: dict | None = None,
     external_reference: bool = True,
     dT: float = 0,
+    cache: RFBeamCurrentCache | None = None,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""
     Calculate the beam charge at the (RF) frequency slice by slice.
@@ -157,6 +359,9 @@ def rf_beam_current(
         Option to include the changing external reference of the time-grid.
     dT
         The shift in time due to shifting reference frames.
+    cache
+        Grid-dependent quantities reused between turns. Without one, they
+        are recomputed on every call.
 
     Returns
     -------
@@ -178,26 +383,35 @@ def rf_beam_current(
         * e
         * prof_density
     )
-    logger.debug(
-        "Sum of particles: %d, total charge: %.4e C",
-        np.sum(profile.hist_y),
-        np.sum(charges),
-    )
-    logger.debug("DC current is %.4e A/s", np.sum(charges))
+    # The sums are over the whole fine grid, so they are worth skipping
+    # when debug logging is off.
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "Sum of particles: %d, total charge: %.4e C",
+            np.sum(profile.hist_y),
+            np.sum(charges),
+        )
+        logger.debug("DC current is %.4e A/s", np.sum(charges))
+
+    if cache is None:
+        cache = RFBeamCurrentCache()
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.0 * charges * np.cos(omega_c * prof_time)
-    Q_f = -2.0 * charges * np.sin(omega_c * prof_time)
+    charges_fine = charges * cache.demodulation(prof_time, omega_c)
 
     # Pass through a low-pass filter
     if use_lowpass_filter is True:
         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
         cutoff = 20.0e6 * 2.0 * profile.hist_step
-        I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
-        Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
-    logger.debug("RF total current is %.4e A/s", np.fabs(np.sum(I_f)))
+        charges_fine = low_pass_filter(
+            charges_fine.real, cutoff_frequency=cutoff
+        ) + 1j * low_pass_filter(charges_fine.imag, cutoff_frequency=cutoff)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "RF total current is %.4e A/s",
+            np.fabs(np.sum(charges_fine.real)),
+        )
 
-    charges_fine = I_f + 1j * Q_f
     if external_reference:
         # slippage in phase due to a non-integer harmonic number
         dphi = dT * omega_c
@@ -214,20 +428,10 @@ def rf_beam_current(
         T_s = float(downsample["Ts"])
         n_points = int(downsample["points"])
 
-        # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((prof_time + dT - np.pi / omega_c) / T_s)
-        ind_fine = ind_fine.astype(int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-        # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(
-            charges_fine[np.arange(indices[0])]
+        segments = cache.segments(prof_time, omega_c, T_s, dT)
+        charges_coarse = downsample_rf_beam_charge(
+            charges_fine, segments, n_points
         )
-        for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(
-                charges_fine[np.arange(indices[i - 1], indices[i])]
-            )
 
         return charges_fine, charges_coarse
 

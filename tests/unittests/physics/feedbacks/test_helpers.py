@@ -18,7 +18,11 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.feedbacks.helpers import (
+    RFBeamCurrentCache,
     cartesian_to_polar,
+    coarse_grid_segments,
+    demodulation_vector,
+    downsample_rf_beam_charge,
     low_pass_filter,
     polar_to_cartesian,
     rf_beam_current,
@@ -900,3 +904,156 @@ class TestIQ(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def reference_downsample(
+    charges_fine: np.ndarray,
+    prof_time: np.ndarray,
+    omega_c: float,
+    sampling_time: float,
+    dT: float,
+    n_points: int,
+) -> np.ndarray:
+    """Segmented sum as `rf_beam_current` computed it before vectorising."""
+    ind_fine = np.round(
+        (prof_time + dT - np.pi / omega_c) / sampling_time
+    ).astype(int)
+    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+    charges_coarse = np.zeros(n_points, dtype=complex)
+    charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
+    for i in range(1, len(indices)):
+        charges_coarse[i + ind_fine[0]] = np.sum(
+            charges_fine[np.arange(indices[i - 1], indices[i])]
+        )
+    return charges_coarse
+
+
+class CoarseGridMixin:
+    """A fine grid spanning a handful of coarse samples."""
+
+    omega_c = 2 * np.pi * 400.789e6
+    n_periods_coarse = 10
+    bins_per_period = 32
+    n_periods = 100
+
+    def setUp(self):
+        t_rf = 2 * np.pi / self.omega_c
+        self.sampling_time = self.n_periods_coarse * t_rf
+        self.n_fine = self.n_periods * self.bins_per_period
+        self.prof_time = np.linspace(
+            0.0, self.n_periods * t_rf, self.n_fine, endpoint=False
+        )
+        self.n_points = 4 * self.n_periods // self.n_periods_coarse
+        self.charges = np.random.default_rng(1234).random(self.n_fine) * 1e-12
+
+
+class TestDemodulationVector(CoarseGridMixin, unittest.TestCase):
+    def test_matches_explicit_cosine_and_sine(self):
+        demodulation = demodulation_vector(self.prof_time, self.omega_c)
+
+        expected_real = (
+            2.0 * self.charges * np.cos(self.omega_c * self.prof_time)
+        )
+        expected_imag = (
+            -2.0 * self.charges * np.sin(self.omega_c * self.prof_time)
+        )
+        charges_fine = self.charges * demodulation
+
+        np.testing.assert_array_equal(charges_fine.real, expected_real)
+        np.testing.assert_array_equal(charges_fine.imag, expected_imag)
+
+    def test_carries_no_external_reference(self):
+        # The `dT` rotation is applied by the caller, after the low-pass
+        # filter, so the vector may be cached across a change of `dT`.
+        demodulation = demodulation_vector(self.prof_time, self.omega_c)
+        self.assertAlmostEqual(float(np.abs(demodulation[0])), 2.0, places=12)
+
+
+class TestCoarseGridSegments(CoarseGridMixin, unittest.TestCase):
+    def test_downsample_matches_reference_loop(self):
+        charges_fine = self.charges * demodulation_vector(
+            self.prof_time, self.omega_c
+        )
+        segments = coarse_grid_segments(
+            self.prof_time, self.omega_c, self.sampling_time, dT=0.0
+        )
+
+        result = downsample_rf_beam_charge(
+            charges_fine, segments, self.n_points
+        )
+        expected = reference_downsample(
+            charges_fine,
+            self.prof_time,
+            self.omega_c,
+            self.sampling_time,
+            0.0,
+            self.n_points,
+        )
+        np.testing.assert_allclose(result, expected, rtol=1e-14, atol=0.0)
+
+    def test_segments_are_contiguous_and_non_empty(self):
+        segments = coarse_grid_segments(
+            self.prof_time, self.omega_c, self.sampling_time, dT=0.0
+        )
+
+        self.assertEqual(len(segments.starts), len(segments.targets))
+        self.assertTrue(np.all(np.diff(segments.starts) > 0))
+        self.assertEqual(int(segments.starts[0]), 0)
+        self.assertGreater(segments.end, int(segments.starts[-1]))
+
+
+class TestRFBeamCurrentCache(CoarseGridMixin, unittest.TestCase):
+    def test_reuses_the_demodulation_vector(self):
+        cache = RFBeamCurrentCache()
+
+        first = cache.demodulation(self.prof_time, self.omega_c)
+        second = cache.demodulation(self.prof_time, self.omega_c)
+
+        self.assertIs(first, second)
+
+    def test_recomputes_when_the_carrier_changes(self):
+        cache = RFBeamCurrentCache()
+
+        first = cache.demodulation(self.prof_time, self.omega_c)
+        second = cache.demodulation(self.prof_time, 1.01 * self.omega_c)
+
+        self.assertIsNot(first, second)
+        np.testing.assert_allclose(
+            second,
+            demodulation_vector(self.prof_time, 1.01 * self.omega_c),
+            rtol=0.0,
+            atol=0.0,
+        )
+
+    def test_recomputes_when_the_grid_changes(self):
+        cache = RFBeamCurrentCache()
+
+        first = cache.demodulation(self.prof_time, self.omega_c)
+        second = cache.demodulation(2 * self.prof_time, self.omega_c)
+
+        self.assertIsNot(first, second)
+
+    def test_reuses_the_segments(self):
+        cache = RFBeamCurrentCache()
+
+        first = cache.segments(
+            self.prof_time, self.omega_c, self.sampling_time, 0.0
+        )
+        second = cache.segments(
+            self.prof_time, self.omega_c, self.sampling_time, 0.0
+        )
+
+        self.assertIs(first, second)
+
+    def test_recomputes_the_segments_when_the_time_shift_changes(self):
+        cache = RFBeamCurrentCache()
+
+        first = cache.segments(
+            self.prof_time, self.omega_c, self.sampling_time, 0.0
+        )
+        second = cache.segments(
+            self.prof_time, self.omega_c, self.sampling_time, 1e-9
+        )
+
+        self.assertIsNot(first, second)

@@ -34,6 +34,7 @@ from blond.physics.feedbacks.buffers import (
     TwoTurnBufferBase,
 )
 from blond.physics.feedbacks.helpers import (
+    RFBeamCurrentCache,
     cartesian_to_polar,
     polar_to_cartesian,
     rf_beam_current,
@@ -165,6 +166,10 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         self.gap_voltage_phase: NumpyArray | None = None
 
         self.dT: float | None = None
+
+        # Grid-dependent parts of the RF beam current, reused between
+        # turns while the profile grid and the RF frequency are unchanged.
+        self._beam_current_cache = RFBeamCurrentCache()
 
     @requires(["RFStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
@@ -498,6 +503,7 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
             downsample={"Ts": self.T_s, "points": self.n_coarse},
             external_reference=True,
             dT=self.dT,
+            cache=self._beam_current_cache,
         )
 
         # Convert RF beam currents to be in units of Amperes

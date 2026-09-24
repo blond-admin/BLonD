@@ -810,3 +810,73 @@ class TestLHCCavityFeedbackTransferFunction(unittest.TestCase):
         h_closed = lambda s: h_open(s) / (1 + h_open(s))
 
         h_actual = h_closed(1j * 2 * np.pi * f_est)
+
+
+class TestSetPointUpdate(unittest.TestCase):
+    """The set point ramps linearly into the new turn.
+
+    ``update_set_point`` rewrites the previous turn with a straight line
+    reaching the new set point one sample past the end of the turn.
+    """
+
+    def setUp(self):
+        from tests.unittests.physics.feedbacks.accelerators.lhc.test_track_kernel import (  # noqa: E501
+            make_cavity_feedback,
+        )
+
+        self.cavity_feedback = make_cavity_feedback(
+            LHCCavityFeedbackCommissioning()
+        )
+        self.buffers = self.cavity_feedback.buffers_coarse
+        # The feedback is built stand-alone, without a parent RF station.
+        self.voltage = 5e6
+        self.cavity_feedback.get_voltage_from_parent_rf_station = lambda: (
+            self.voltage
+        )
+        self.cavity_feedback.get_next_setpoint = (
+            self.cavity_feedback.set_point_from_rfstation
+        )
+
+    def test_set_point_is_constant_over_the_turn(self):
+        set_point = self.cavity_feedback.set_point_from_rfstation()
+
+        self.assertEqual(len(set_point), self.cavity_feedback.n_coarse)
+        self.assertEqual(set_point.dtype, np.dtype(complex))
+        np.testing.assert_array_equal(set_point, set_point[0])
+
+    def test_previous_turn_is_the_line_to_the_new_set_point(self):
+        n_coarse = self.cavity_feedback.n_coarse
+        self.buffers.v_setpoint.prev[:] = 1.0 + 2.0j
+        start = self.buffers.v_setpoint.prev[-1]
+
+        self.cavity_feedback.update_set_point()
+
+        new_set_point = self.buffers.v_setpoint.curr[0]
+        expected = start + (new_set_point - start) / (n_coarse + 1) * (
+            np.linspace(0, n_coarse, n_coarse)
+        )
+        np.testing.assert_allclose(
+            self.buffers.v_setpoint.prev,
+            expected,
+            rtol=1e-12,
+            atol=0.0,
+        )
+
+    def test_matches_the_two_point_polynomial_fit(self):
+        n_coarse = self.cavity_feedback.n_coarse
+        self.buffers.v_setpoint.prev[:] = 3.0 - 1.0j
+        start = self.buffers.v_setpoint.prev[-1]
+        new_set_point = self.cavity_feedback.set_point_from_rfstation()
+
+        self.cavity_feedback.update_set_point()
+
+        coefficients = np.polyfit(
+            [0, n_coarse + 1], [start, new_set_point[0]], 1
+        )
+        reference = np.poly1d(coefficients)(np.linspace(0, n_coarse, n_coarse))
+        np.testing.assert_allclose(
+            self.buffers.v_setpoint.prev,
+            reference,
+            rtol=1e-10,
+            atol=0.0,
+        )
