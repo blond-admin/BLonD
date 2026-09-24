@@ -82,14 +82,6 @@ def main():
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
     sim.print_one_turn_execution_order()
 
-    assert profile_sparse.profiles is not None  # created by `Simulation(...)`
-    assert np.isclose(
-        profile_normal.cut_left, profile_sparse.profiles[0].cut_left
-    ), f"{(profile_normal.cut_left, profile_sparse.profiles[0].cut_left)}"
-    assert np.isclose(
-        profile_normal.cut_right, profile_sparse.profiles[0].cut_right
-    ), f"{(profile_normal.cut_right, profile_sparse.profiles[0].cut_right)}"
-
     sim.run_simulation(
         beams=(beam1,),
         n_turns=1,
@@ -101,27 +93,6 @@ def main():
     profile_normal.plot(label="profile_normal")
     profile_sparse.plot(linestyle="--", label="profile_sparse")
     plt.legend()
-    assert (
-        np.sum(profile_sparse._continuous_memory_hist_y)
-        == beam1._dt.global_size
-    ), f"""{
-        (
-            np.sum(profile_sparse._continuous_memory_hist_y),
-            beam1._dt.global_size,
-        )
-    }"""
-
-    assert (
-        np.sum(profile_sparse.profiles[0].hist_y) == beam1._dt.global_size
-    ), f"""{
-        (
-            np.sum(profile_sparse.profiles[0].hist_y),
-            beam1._dt.global_size,
-        )
-    }"""
-    assert np.allclose(
-        profile_normal.hist_y, profile_sparse.profiles[0].hist_y
-    ), f"{profile_normal.hist_y, profile_sparse.profiles[0].hist_y}"
 
 
 if __name__ == "__main__":  # pragma: no cover

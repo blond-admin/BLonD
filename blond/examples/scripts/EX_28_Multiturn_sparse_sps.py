@@ -70,7 +70,11 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
     """
 
     def __init__(self, poles, residues):
-        assert len(poles) == len(residues), f"{len(poles)=}  {len(residues)=}"
+        if len(poles) != len(residues):
+            raise ValueError(
+                "`poles` and `residues` must have the same length, but got "
+                f"{len(poles)=} and {len(residues)=}"
+            )
         self.poles = poles
         self.residues = residues
         self._shunt_impedances_counter_rotating = None
@@ -250,7 +254,6 @@ def main():
     )
 
     cmap = matplotlib.colormaps["plasma"]
-    assert profile.profiles is not None  # created by `Simulation(...)`
     lims = [
         [profile.profiles[-1].cut_left, profile.profiles[-1].cut_right],
         [2 * _bunch._dE.min(), 2 * _bunch._dE.max()],
