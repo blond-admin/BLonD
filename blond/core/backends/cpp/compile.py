@@ -157,8 +157,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         (AVX/SSE/FMA). The resulting library may not run on other CPUs.
         This is independent of the compiler optimization level (`-O3`),
         which is always used.
-    libname : str
+    libname : str, optional
         Path and name of the output library (without file extension).
+        If None (default), the library is built into the hashed
+        ``compiled/<hash>/`` directory that the loader reads from.
     limit_cachesize : bool
         If True, evict least-recently-used sibling builds after compiling so
         the ``compiled/`` tree stays bounded (intended for CI). If False
@@ -191,7 +193,17 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
     #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
-    libname, compiled_dir, folder = _get_libname(libname, build_options)
+    # Directory of this module: the compiled/ tree and the saved build
+    # options live here, and the loader (callables.py) reads them from the
+    # same place.
+    folder = os.path.dirname(os.path.abspath(__file__))
+
+    build_in_managed_dir = libname is None
+    compiled_dir = cpp_compiled_dir(folder, **build_options)
+
+    if libname is None:
+        os.makedirs(compiled_dir, exist_ok=True)
+        libname = os.path.join(compiled_dir, default_libname)
 
     source_cflags = [
         "-O3",
@@ -328,35 +340,16 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
                 print(exception)
                 compiled_ok = False
 
-    # Record use of this build's directory. Skipped when a custom libname
-    # bypassed the hashed directory layout. Eviction of least-recently-used
-    # sibling builds is opt-in (--limit-cachesize, e.g. in CI); by default
-    # every build is kept.
-    if compiled_dir is not None:
+    # Record use of this build's directory, so the loader knows which
+    # options produced it. Eviction of least-recently-used sibling builds
+    # is opt-in (--limit-cachesize, e.g. in CI); by default every build is
+    # kept.
+    if build_in_managed_dir:
         mark_used(compiled_dir)
         if limit_cachesize:
             prune_siblings(compiled_dir)  # evict old siblings; keep this one
         if compiled_ok:
-            assert folder is not None  # set together with `compiled_dir`
             save_build_options(folder, **build_options)
-
-
-def _get_libname(
-    libname: str | None, build_options: dict[str, bool | str | None]
-) -> tuple[str, str | None, str | None]:
-
-    compiled_dir = None
-    folder = None
-    if libname is None:
-        folder = os.path.dirname(os.path.abspath(__file__))
-
-        # Toolchain/CPU/flags-aware directory, computed identically by the
-        # loader (callables.py) so it finds exactly what we build here.
-        compiled_dir = cpp_compiled_dir(folder, **build_options)
-        os.makedirs(compiled_dir, exist_ok=True)
-        libname = os.path.join(compiled_dir, default_libname)
-
-    return libname, compiled_dir, folder
 
 
 def _prepare_cflags(

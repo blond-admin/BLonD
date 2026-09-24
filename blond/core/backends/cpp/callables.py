@@ -143,43 +143,40 @@ def _resolve_cpp_basepath(folder: str) -> str:
     # automatically recompile or raise an exception.
     build_options = load_build_options(folder)
 
-    valid = False
-    if build_options is not None:
-        # Use kwargs of cpp_compiled_dir (minus "folder") to check
-        # cache validity
-        expected_keys = [
-            name
-            for name in inspect.signature(cpp_compiled_dir).parameters
-            if name != "folder"
-        ]
-        valid = build_options_valid(build_options, expected_keys)
+    if build_options is None:
+        return cpp_compiled_dir(folder)
 
-    if valid:
-        assert build_options is not None  # implied by `valid`
-        # The last compile's options are still usable on this machine:
-        # rendezvous with the directory built for them.
-        basepath = cpp_compiled_dir(folder, **build_options)
+    # Use kwargs of cpp_compiled_dir (minus "folder") to check
+    # cache validity
+    expected_keys = [
+        name
+        for name in inspect.signature(cpp_compiled_dir).parameters
+        if name != "folder"
+    ]
 
-        if not os.path.isdir(basepath):
-            warnings.warn(
-                "The directory for the previously compiled C++ backend "
-                f"(built with options: {build_options}) is missing; "
-                "falling back to the default build options.",
-                UserWarning,
-                stacklevel=2,
-            )
-            basepath = cpp_compiled_dir(folder)
+    if not build_options_valid(build_options, expected_keys):
+        warnings.warn(
+            "Saved C++ build options are missing expected fields, or "
+            "reference a compiler/library path that is no longer "
+            "available on this machine; falling back to the default "
+            "build options.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return cpp_compiled_dir(folder)
 
-    else:
-        if build_options is not None:
-            warnings.warn(
-                "Saved C++ build options are missing expected fields, or "
-                "reference a compiler/library path that is no longer "
-                "available on this machine; falling back to the default "
-                "build options.",
-                UserWarning,
-                stacklevel=2,
-            )
+    # The last compile's options are still usable on this machine:
+    # rendezvous with the directory built for them.
+    basepath = cpp_compiled_dir(folder, **build_options)
+
+    if not os.path.isdir(basepath):
+        warnings.warn(
+            "The directory for the previously compiled C++ backend "
+            f"(built with options: {build_options}) is missing; "
+            "falling back to the default build options.",
+            UserWarning,
+            stacklevel=2,
+        )
         basepath = cpp_compiled_dir(folder)
 
     return basepath
