@@ -33,7 +33,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   // The scratch buffer persists across calls, see scratch_buffer.h.
   const int nthreads = omp_get_max_threads();
   const size_t need = (size_t)nthreads * (size_t)n_out;
-  static std::vector<real_t> histo_buffer;
+  static thread_local std::vector<real_t> histo_buffer;
   real_t *const histo = reuse_scratch(histo_buffer, need);
 
 #pragma omp parallel

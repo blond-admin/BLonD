@@ -28,8 +28,8 @@ extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
 
-  static std::vector<real_t> voltageKick_buffer;
-  static std::vector<real_t> factor_buffer;
+  static thread_local std::vector<real_t> voltageKick_buffer;
+  static thread_local std::vector<real_t> factor_buffer;
   real_t *const voltageKick = reuse_scratch(voltageKick_buffer, n_slices - 1);
   real_t *const factor = reuse_scratch(factor_buffer, n_slices - 1);
 
@@ -95,15 +95,17 @@ extern "C" void linear_interp_kick_sparse(
     const bool *__restrict__ filling_pattern,
     const int *__restrict__ bucket_index_to_memory_index) {
 
-  const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
-  const real_t bin_width = cut_width / real_t(bins_per_profile);
-  const real_t inv_hist_dist = real_t(1) / left_cut_distance;
-
-  static std::vector<real_t> voltageKick_buffer;
-  static std::vector<real_t> factor_buffer;
+  // Fetched first: the thread_local lookup is a call that would otherwise
+  // force the constants below onto the stack in the single-core build.
+  static thread_local std::vector<real_t> voltageKick_buffer;
+  static thread_local std::vector<real_t> factor_buffer;
   real_t *const voltageKick =
       reuse_scratch(voltageKick_buffer, n_slices_total - 1);
   real_t *const factor = reuse_scratch(factor_buffer, n_slices_total - 1);
+
+  const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
+  const real_t bin_width = cut_width / real_t(bins_per_profile);
+  const real_t inv_hist_dist = real_t(1) / left_cut_distance;
 
 #pragma omp parallel
   {

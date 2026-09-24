@@ -27,7 +27,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
   // allocate memory for the thread_private histograms, one row of n_slices
   // per thread; index_t counters, so a single bin can collect more than
   // 2^31 - 1 particles
-  static std::vector<index_t> histo_buffer;
+  static thread_local std::vector<index_t> histo_buffer;
   index_t *const histo =
       reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
 
@@ -85,16 +85,18 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
                                  const real_t cut_left, const real_t cut_right,
                                  const int n_slices,
                                  const index_t n_macroparticles) {
+  // memory alloc for per thread histo, one row of n_slices per thread.
+  // Fetched first: the thread_local lookup is a call that would otherwise
+  // force the constants below onto the stack in the single-core build.
+  static thread_local std::vector<real_t> histo_buffer;
+  real_t *const histo =
+      reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
+
   // Constants init
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
   const real_t bin_width = (cut_right - cut_left) / n_slices;
   const real_t const1 = (cut_left + bin_width * 0.5);
   const real_t const2 = (cut_right - bin_width * 0.5);
-
-  // memory alloc for per thread histo, one row of n_slices per thread
-  static std::vector<real_t> histo_buffer;
-  real_t *const histo =
-      reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
 
 #pragma omp parallel
   {
