@@ -21,15 +21,19 @@ from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
+    from mpi4py import MPI  # see the runtime import below
     from numpy.typing import NDArray as NumpyArray
-
-try:
-    from mpi4py import MPI
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
-    MPI = None
-
-_NO_MPI = "A distributed array requires a working `mpi4py`."
+else:
+    # `mpi4py` is optional at runtime, but every use of `MPI` below sits
+    # behind a communicator check that can only pass if this import
+    # succeeded. The type checker cannot see that invariant, so `MPI` is
+    # imported unconditionally above instead of making each use carry a
+    # narrowing `assert` that can never fire.
+    try:
+        from mpi4py import MPI
+    except Exception as exc:
+        warnings.warn(str(exc), ImportWarning, stacklevel=1)
+        MPI = None
 
 
 class DistributedArray:
@@ -48,18 +52,23 @@ class DistributedArray:
     def __init__(self, array: NumpyArray | CupyArray):
         self.array_local = array
         if MPI is None:
-            self._comm = None
+            comm = None
             # Determine rank and size
             self._rank = 0
             self._size = 1
-            self._is_distributed = False
         else:
-            self._comm = MPI.COMM_WORLD
+            comm = MPI.COMM_WORLD
 
             # Determine rank and size
-            self._rank = self._comm.Get_rank()
-            self._size = self._comm.Get_size()
-            self._is_distributed = self._size > 1
+            self._rank = comm.Get_rank()
+            self._size = comm.Get_size()
+
+        # The communicator is only kept when the run is actually
+        # distributed. Every use of it below is a collective, which is a
+        # no-op on a single rank, so `self._comm is not None` *is* the
+        # runtime test for "distributed" -- and it narrows the optional
+        # communicator away for the type checker at the same time.
+        self._comm = comm if self._size > 1 else None
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
 
@@ -100,7 +109,7 @@ class DistributedArray:
         is_distributed
             Whether the software runs with a MPI size > 1 or not.
         """
-        return self._is_distributed
+        return self._comm is not None
 
     def mpi_scatter(self) -> None:
         """
@@ -110,10 +119,9 @@ class DistributedArray:
         Rank 0 owns the global array before scatter.
         After scatter, each rank owns its local chunk.
         """
-        if not self._is_distributed:
+        if self._comm is None:
             return
 
-        assert self._comm is not None, _NO_MPI
         size = self._comm.Get_size()
         rank = self._comm.Get_rank()
 
@@ -158,8 +166,7 @@ class DistributedArray:
             The gathered global array from all processes if ``rank==0``
             else None.
         """
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             gathered = self._comm.gather(self.array_local, root=0)
 
             if self._rank != 0:  # pragma: no cover
@@ -195,8 +202,7 @@ class DistributedArray:
         """
         local_size = self.array_local.size
 
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             total_size = self._comm.allreduce(local_size, op=MPI.SUM)
         else:
             total_size = local_size
@@ -214,8 +220,7 @@ class DistributedArray:
         """
         local_min = float(backend.min(self.array_local))
 
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             global_min = self._comm.allreduce(local_min, op=MPI.MIN)
         else:
             global_min = local_min
@@ -233,8 +238,7 @@ class DistributedArray:
         """
         local_max = float(backend.max(self.array_local))
 
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             global_max = self._comm.allreduce(local_max, op=MPI.MAX)
         else:
             global_max = local_max
@@ -253,8 +257,7 @@ class DistributedArray:
         local_sum = float(backend.sum(self.array_local))
         local_count = self.array_local.size
 
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
             global_count = self._comm.allreduce(local_count, op=MPI.SUM)
         else:
@@ -278,8 +281,7 @@ class DistributedArray:
         local_sum_sq = float(backend.dot(self.array_local, self.array_local))
         local_count = self.array_local.size
 
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             # Gather global statistics
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
             global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
@@ -306,8 +308,7 @@ class DistributedArray:
         """
         local_sum = float(backend.sum(self.array_local))
 
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
         else:
             global_sum = local_sum
@@ -360,8 +361,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
 
             return array_write_local
@@ -428,8 +428,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            assert self._comm is not None and MPI is not None, _NO_MPI
+        if self._comm is not None:
             self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
 
             return array_write_local

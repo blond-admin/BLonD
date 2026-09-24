@@ -42,11 +42,11 @@ class TestDistributedArray(BLonDTestCase):
             self.assertEqual(
                 self.distributed_array.local_size, 64
             )  # assumes `mpirun -n 2`
-            self.assertTrue(self.distributed_array._is_distributed)
+            self.assertTrue(self.distributed_array.is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
         else:
             self.assertEqual(self.distributed_array.local_size, 128)
-            self.assertFalse(self.distributed_array._is_distributed)
+            self.assertFalse(self.distributed_array.is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
 
     def test_copy_as_numpy(self):
@@ -256,7 +256,7 @@ class TestDistributedArrayNoMPI(BLonDTestCase):
             rng = np.random.default_rng(0)
             self.array = rng.normal(loc=0, scale=1.0, size=128)
             distributed_array = DistributedArray(self.array.copy())
-            self.assertFalse(distributed_array._is_distributed)
+            self.assertFalse(distributed_array.is_distributed)
             self.assertEqual(distributed_array._rank, 0)
             self.assertEqual(distributed_array._size, 1)
 
