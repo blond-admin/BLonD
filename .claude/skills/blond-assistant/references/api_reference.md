@@ -292,7 +292,6 @@ routine = FilamentationMatcher(
     animate=False,
     purge_limit_time=(t_min, t_max), # time window for purging lost particles [s]
     purge_limit_energy=(e_min, e_max),
-    purge=True,
 )
 ```
 

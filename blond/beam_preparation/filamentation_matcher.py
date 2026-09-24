@@ -54,16 +54,15 @@ class FilamentationMatcher(MatchingRoutine):
         A snapshot of the beam is
         produced every ``n_iter / every_iter_to_plot`` iterations.
         Default is ``10``.
-    purge
-        If ``True``, macroparticles outside user-defined phase-space limits
-        are removed during the matching process. Default is ``False``.
     purge_limit_time
-        Lower and upper bounds in time, in [s]. Used to purge particles when
-        ``purge=True``. If ``None``, no time-based purging is applied.
+        Lower and upper bounds in time, in [s], outside of which
+        macroparticles are purged. A bound given as ``None`` is unbounded,
+        i.e. no purging on that side. Default is ``(None, None)``.
     purge_limit_energy
-        Lower and upper bounds in energy deviation, in [eV]. Used to purge
-        particles when ``purge=True``. If ``None``, no energy-based purging
-        is applied.
+        Lower and upper bounds in energy deviation, in [eV], outside of
+        which macroparticles are purged. A bound given as ``None`` is
+        unbounded, i.e. no purging on that side.
+        Default is ``(None, None)``.
 
     Warnings
     --------
@@ -73,8 +72,9 @@ class FilamentationMatcher(MatchingRoutine):
     single-particle dynamics and **may** not remain matched once intensity
     effects are enabled in the simulation. Use with caution!
 
-    When ``purge=True``, macroparticles outside the specified phase-space
-    limits are permanently removed. This reduces the number of macroparticles.
+    As soon as any bound of ``purge_limit_time`` / ``purge_limit_energy``
+    is given, macroparticles outside the specified phase-space limits are
+    permanently removed. This reduces the number of macroparticles.
 
     Examples
     --------
@@ -160,7 +160,6 @@ class FilamentationMatcher(MatchingRoutine):
     ...         animate=True,
     ...         purge_limit_time=[0.1e-9, 4e-9],
     ...         purge_limit_energy=[-4e8, 4e8],
-    ...         purge=True,
     ...     ),
     ...     beam=beam,
     ... )
@@ -183,9 +182,11 @@ class FilamentationMatcher(MatchingRoutine):
         animate: bool = True,
         animate_pause_time: float = 0.1,
         every_iter_to_plot: int = 10,
-        purge: bool = False,
-        purge_limit_time: tuple[float, float] | None = None,
-        purge_limit_energy: tuple[float, float] | None = None,
+        purge_limit_time: tuple[float | None, float | None] = (None, None),
+        purge_limit_energy: tuple[float | None, float | None] = (
+            None,
+            None,
+        ),
     ) -> None:
         super().__init__()
         self.time_limit = time_limit
@@ -195,7 +196,6 @@ class FilamentationMatcher(MatchingRoutine):
         self.animate = animate
         self.animate_pause_time = animate_pause_time
         self.every_iter_to_plot = every_iter_to_plot
-        self.purge = purge
         self.purge_limit_time = purge_limit_time
         self.purge_limit_energy = purge_limit_energy
 
@@ -291,13 +291,8 @@ class FilamentationMatcher(MatchingRoutine):
 
         if self.animate:
             plt.ioff()
-        if self.purge:
-            assert self.purge_limit_time is not None, (
-                "`purge_limit_time` is required when `purge=True`"
-            )
-            assert self.purge_limit_energy is not None, (
-                "`purge_limit_energy` is required when `purge=True`"
-            )
+        purge_limits = (*self.purge_limit_time, *self.purge_limit_energy)
+        if any(limit is not None for limit in purge_limits):
             intensity_before = beam.intensity
             BoxLosses(
                 t_min=self.purge_limit_time[0],

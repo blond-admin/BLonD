@@ -103,7 +103,6 @@ def main():
             animate=animate,
             purge_limit_time=(0.1e-9, 4e-9),  #
             purge_limit_energy=(-4e8, 4e8),
-            purge=True,
         ),
         beam=beam,
     )

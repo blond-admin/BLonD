@@ -68,7 +68,6 @@ class TestFilamentationMatcher(BLonDTestCase):
             n_macroparticles=100,
             n_iter=2,
             animate=False,
-            purge=True,
             purge_limit_time=(0.2e-9, 0.8e-9),  # smaller than original
             purge_limit_energy=(-5e5, 5e5),
         )
@@ -84,6 +83,36 @@ class TestFilamentationMatcher(BLonDTestCase):
         self.assertTrue(np.all(dE >= -5e5))
         self.assertTrue(np.all(dE <= 5e5))
 
+    def test_no_purge_limit_keeps_all_particles(self):
+        # no purge bound given at all -> no purging
+        matcher = FilamentationMatcher(
+            time_limit=self.time_limit,
+            energy_limit=self.energy_limit,
+            n_macroparticles=100,
+            n_iter=1,
+            animate=False,
+        )
+
+        matcher.prepare_beam(simulation=self.sim, beam=self.beam)
+
+        self.assertEqual(len(self.beam.read_partial_dt()), 100)
+
+    def test_purge_with_single_limit(self):
+        # a single bound enables purging; the others stay unbounded
+        matcher = FilamentationMatcher(
+            time_limit=self.time_limit,
+            energy_limit=self.energy_limit,
+            n_macroparticles=100,
+            n_iter=2,
+            animate=False,
+            purge_limit_time=(None, 0.8e-9),
+        )
+
+        matcher.prepare_beam(simulation=self.sim, beam=self.beam)
+
+        dt = self.beam.read_partial_dt()
+        self.assertTrue(np.all(dt <= 0.8e-9))
+
     def test_intensity_preserved_after_purge(self):
         matcher = FilamentationMatcher(
             time_limit=self.time_limit,
@@ -91,7 +120,6 @@ class TestFilamentationMatcher(BLonDTestCase):
             n_macroparticles=100,
             n_iter=1,
             animate=False,
-            purge=True,
             purge_limit_time=self.time_limit,
             purge_limit_energy=self.energy_limit,
         )
@@ -114,7 +142,6 @@ class TestFilamentationMatcher(BLonDTestCase):
             n_macroparticles=1000,
             n_iter=5,
             animate=False,  # can be set to True if you want to check params
-            purge=True,
             purge_limit_time=self.time_limit,
             purge_limit_energy=self.energy_limit,
         )
@@ -126,7 +153,6 @@ class TestFilamentationMatcher(BLonDTestCase):
             n_macroparticles=1000,
             n_iter=300,
             animate=False,
-            purge=True,
             purge_limit_time=self.time_limit,
             purge_limit_energy=self.energy_limit,
         )
