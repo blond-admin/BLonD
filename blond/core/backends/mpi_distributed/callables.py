@@ -61,6 +61,10 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     local_count = dt.local_size
 
     if mpi_is_distributed():
+        # Unreachable at runtime: `mpi_is_distributed()` is True only
+        # if mpi4py imported successfully. Kept to narrow `MPI` from
+        # `MPI | None` for the type checker, which cannot see that
+        # cross-module invariant.
         assert MPI is not None, "A distributed run requires `mpi4py`."
         comm = MPI.COMM_WORLD
         dt_dt_sum = comm.allreduce(local_dt_dt_sum, op=MPI.SUM)

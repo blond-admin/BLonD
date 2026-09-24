@@ -219,6 +219,9 @@ def mpi_barrier():
     In non-distributed mode (single process), this is a no-op.
     """
     if mpi_is_distributed():
+        # Unreachable at runtime: `mpi_is_distributed()` already
+        # returned False if `MPI_COMM_WORLD` was None. Kept purely to
+        # narrow the type for the type checker.
         assert MPI_COMM_WORLD is not None, "Distributed run without MPI."
         MPI_COMM_WORLD.Barrier()
 
