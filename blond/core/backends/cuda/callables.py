@@ -363,7 +363,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 eta_0,  # eta_zero
                 beta,  # beta
                 energy,  # energy
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
