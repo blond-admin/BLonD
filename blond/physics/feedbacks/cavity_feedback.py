@@ -529,4 +529,4 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
             0,
         )
 
-        return V_set * np.ones(self.n_coarse)
+        return np.full(self.n_coarse, V_set, dtype=complex)
