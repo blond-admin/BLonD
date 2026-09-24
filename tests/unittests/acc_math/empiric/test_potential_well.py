@@ -321,67 +321,100 @@ class TestPotentialWellHelper(BLonDTestCase):
             plt.show()
         np.testing.assert_allclose(pwh.bucket_list, pinned)
 
-    def test_analyze_bug2(self):
+    def assert_buckets_sound(
+        self,
+        time_axis: np.ndarray,
+        potential_well: np.ndarray,
+        bucket_list: np.ndarray,
+    ) -> None:
+        """Assert that every bucket is a potential well by definition.
+
+        Both borders sit at the same level (unless the lower one is an
+        array edge), nothing inside rises above that level, and a
+        minimum lies strictly inside. The level tolerance is the
+        helper's own 0.1 % epsilon plus the largest sample-to-sample
+        step at either border, since a border can only be found to
+        within one sample.
+        """
+        epsilon = 0.1 / 100 * np.ptp(potential_well)
+        last = len(potential_well) - 1
+
+        def local_step(index: int) -> float:
+            neighbours = potential_well[max(index - 1, 0) : index + 2]
+            return float(np.max(np.abs(np.diff(neighbours))))
+
+        for t_start, t_stop in bucket_list:
+            start = int(np.argmin(np.abs(time_axis - t_start)))
+            stop = int(np.argmin(np.abs(time_axis - t_stop)))
+            msg = f"bucket [{start}, {stop}]"
+            u_start = potential_well[start]
+            u_stop = potential_well[stop]
+            level = min(u_start, u_stop)
+            tolerance = epsilon + max(local_step(start), local_step(stop))
+            lower_is_edge = (u_start < u_stop and start == 0) or (
+                u_stop < u_start and stop == last
+            )
+            if not lower_is_edge:
+                self.assertLessEqual(
+                    abs(u_start - u_stop), tolerance, msg=f"{msg} not level"
+                )
+            interior = potential_well[start + 1 : stop]
+            self.assertGreater(len(interior), 0, msg=f"{msg} is empty")
+            self.assertLessEqual(
+                np.max(interior), level + tolerance, msg=f"{msg} barrier"
+            )
+            self.assertLess(np.min(interior), level, msg=f"{msg} no minimum")
+
+    def test_multi_rf_potential_wells(self):
+        """Multi-harmonic PS potential wells, checked against solfege.
+
+        The fixtures are solfege's multi-RF scenarios
+        (``solfege/tests/test_potential_complex.py``, commit 9ff2ca1):
+        h21 single RF, h21/h28 batch compression and h28/h169
+        rebucketting of a 129 u, 39+ ion. ``potential_well`` is
+        solfege's ``make_potential_well`` of the stored
+        ``voltage_array``; ``solfege_well_borders`` are the borders of
+        the wells solfege's ``get_all_potential_wells`` cuts from it.
+        """
         DEV_PLOT = False
 
-        for i in range(3):
-            data = np.load(
-                callers_relative_path(
-                    f"resources/test_potential_complex_case{i}.npz",
-                    stacklevel=1,
-                )
-            )
-            xs = data["time_array"]
-            ys = data["voltage_array"]
-
-            pwh = PotentialWellHelper(xs, ys)
-            if DEV_PLOT:
-                pwh.plot()
-                plt.show()
-            # np.testing.assert_allclose(pwh.bucket_list, pinned)
-
-            if backend.float == np.float32:
-                raise TypeError("32 bit backends have been removed.")
-
-            if i == 0:
-                pwh_bucket_list_pinned = np.loadtxt(
+        for case in range(3):
+            with self.subTest(case=case):
+                data = np.load(
                     callers_relative_path(
-                        "resources/expected_potential_complex_case0.csv",
+                        f"resources/test_potential_complex_case{case}.npz",
                         stacklevel=1,
                     )
                 )
+                time_axis = data["time_array"]
+                potential_well = data["potential_well"]
 
-                np.testing.assert_allclose(
-                    pwh.bucket_list,
-                    pwh_bucket_list_pinned,
-                    rtol=1e-12,
+                pwh = PotentialWellHelper(time_axis, potential_well)
+                if DEV_PLOT:
+                    pwh.plot()
+                    plt.show()
+
+                self.assert_buckets_sound(
+                    time_axis, potential_well, pwh.bucket_list
                 )
-            elif i == 1:
+                # every well solfege finds lies inside a bucket
+                in_bucket = pwh.get_in_bucket_mask()
+                for t_start, t_stop in data["solfege_well_borders"]:
+                    in_well = (time_axis >= t_start) & (time_axis <= t_stop)
+                    self.assertTrue(
+                        np.all(in_bucket[in_well]),
+                        msg=f"solfege well [{t_start}, {t_stop}] missed",
+                    )
+
                 pwh_bucket_list_pinned = np.loadtxt(
                     callers_relative_path(
-                        "resources/expected_potential_complex_case1.csv",
+                        f"resources/expected_potential_complex_case{case}.csv",
                         stacklevel=1,
                     )
                 )
                 np.testing.assert_allclose(
-                    pwh.bucket_list,
-                    pwh_bucket_list_pinned,
-                    rtol=1e-12,
+                    pwh.bucket_list, pwh_bucket_list_pinned, rtol=1e-12
                 )
-            elif i == 2:
-                pwh_bucket_list_pinned = np.loadtxt(
-                    callers_relative_path(
-                        "resources/expected_potential_complex_case2.csv",
-                        stacklevel=1,
-                    )
-                )
-                np.testing.assert_allclose(
-                    pwh.bucket_list,
-                    pwh_bucket_list_pinned,
-                    rtol=1e-12,
-                )
-            else:
-                raise Exception
 
     def test_plot_executes(self):
         xs = np.linspace(-10, 20, 1000)
