@@ -169,7 +169,7 @@ class FilamentationMatcher(MatchingRoutine):
     >>>
     >>> sim.run_simulation(
     ...     n_turns=20,
-    ...     beams=(beam,),
+    ...     beams=beam,
     ... )
     ...
     """
@@ -279,7 +279,7 @@ class FilamentationMatcher(MatchingRoutine):
             sim_copy = deepcopy(simulation)
             sim_copy.turn_i.value = 0
             sim_copy.run_simulation(
-                beams=(beam,), n_turns=1, show_progressbar=False
+                beams=beam, n_turns=1, show_progressbar=False
             )
 
             if self.animate and (i % step == 0 or i == self.n_iter - 1):
