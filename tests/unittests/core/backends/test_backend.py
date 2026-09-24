@@ -1,3 +1,4 @@
+import ctypes as ct
 import os
 import subprocess
 import sys
@@ -18,7 +19,7 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond.core.backends.cpp.callables import check_index_abi
+from blond.core.backends.cpp.callables import _get_len, check_index_abi
 from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
@@ -4528,6 +4529,35 @@ class TestCppIndexAbi(unittest.TestCase):
         with self.assertRaises(RuntimeError) as caught:
             check_index_abi(object())
         self.assertIn("blond-compile-cpp", str(caught.exception))
+
+
+class TestCppGetLen(BLonDTestCase):
+    """``_get_len`` must not wrap a length that overflows a C ``int``.
+
+    ``ct.c_int`` does no overflow checking, so ``ct.c_int(2**31)`` silently
+    becomes ``-2**31`` and the kernel would loop over a negative count.
+    """
+
+    C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
+
+    @staticmethod
+    def _array_of_length(length: int) -> np.ndarray:
+        """Zero-stride view: any length without allocating its memory."""
+        return np.broadcast_to(np.int8(0), (length,))
+
+    def test_returns_the_length_as_c_int(self) -> None:
+        length = _get_len(np.zeros(7))
+        self.assertIsInstance(length, ct.c_int)
+        self.assertEqual(length.value, 7)
+
+    def test_accepts_the_largest_c_int(self) -> None:
+        length = _get_len(self._array_of_length(self.C_INT_MAX))
+        self.assertEqual(length.value, self.C_INT_MAX)
+
+    def test_rejects_a_length_that_overflows_c_int(self) -> None:
+        with self.assertRaises(AssertionError) as caught:
+            _get_len(self._array_of_length(self.C_INT_MAX + 1))
+        self.assertIn("_get_beam_len", str(caught.exception))
 
 
 if __name__ == "__main__":
