@@ -52,3 +52,28 @@ class TestReferenceCoordinates(BLonDTestCase):
         np.testing.assert_allclose(
             0.6 * c0, self.reference_coorinates.velocity
         )
+
+
+class TestReferenceCoordinatesUnsetEnergy(BLonDTestCase):
+    def setUp(self):
+        self.reference_coordinates = ReferenceCoordinates(
+            time=1.2,
+            total_energy=None,
+            particle_type=uranium_29,
+        )
+
+    def test_total_energy_raises(self):
+        with self.assertRaises(ValueError):
+            self.reference_coordinates.total_energy
+
+    def test_gamma_raises(self):
+        with self.assertRaises(ValueError):
+            self.reference_coordinates.gamma
+
+    def test_beta_raises(self):
+        with self.assertRaises(ValueError):
+            self.reference_coordinates.beta
+
+    def test_velocity_raises(self):
+        with self.assertRaises(ValueError):
+            self.reference_coordinates.velocity

@@ -75,11 +75,14 @@ class ReferenceCoordinates:
         -------
         total_energy
             Total beam energy [eV].
+
+        Raises
+        ------
+        ValueError
+            If the total energy has not been set yet.
         """
         if self._total_energy is None:
-            raise ValueError(
-                "Beam is not properly set up, please set `total_energy` first!"
-            )
+            raise ValueError(_TOTAL_ENERGY_NOT_SET)
         return self._total_energy
 
     @total_energy.setter
@@ -103,12 +106,15 @@ class ReferenceCoordinates:
         -------
         gamma
             Beam reference gamma a.k.a. Lorentz factor [].
+
+        Raises
+        ------
+        ValueError
+            If the total energy has not been set yet.
         """
         # total_energy in eV and mass_inv in [c²/eV]
         if self._total_energy is None:
-            raise ValueError(
-                "Beam is not properly set up, please set `total_energy` first!"
-            )
+            raise ValueError(_TOTAL_ENERGY_NOT_SET)
         return gamma_nb(self._total_energy, self._particle_type.mass_inv)
 
     @property
@@ -120,8 +126,14 @@ class ReferenceCoordinates:
         -------
         beta
             Beam reference fraction of speed of light (v/c0) [].
+
+        Raises
+        ------
+        ValueError
+            If the total energy has not been set yet.
         """
-        assert self._total_energy is not None, _TOTAL_ENERGY_NOT_SET
+        if self._total_energy is None:
+            raise ValueError(_TOTAL_ENERGY_NOT_SET)
         beta = beta_nb(self._total_energy, self._particle_type.mass_inv)
         assert not np.isnan(beta), f"{beta=}"
         return beta
@@ -135,6 +147,12 @@ class ReferenceCoordinates:
         -------
         velocity
             Beam reference speed [m/s].
+
+        Raises
+        ------
+        ValueError
+            If the total energy has not been set yet.
         """
-        assert self._total_energy is not None, _TOTAL_ENERGY_NOT_SET
+        if self._total_energy is None:
+            raise ValueError(_TOTAL_ENERGY_NOT_SET)
         return velocity_nb(self._total_energy, self._particle_type.mass_inv)
