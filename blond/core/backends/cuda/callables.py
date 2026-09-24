@@ -453,10 +453,6 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         if first_left_cut is None:
             n_slices = bin_centers.size
-            assert n_slices >= 2, (  # noqa: PLR2004
-                "kick_interpolated needs at least 2 bins to interpolate "
-                f"across, got {n_slices}"
-            )
             if n_slices >= 2 and not _is_uniformly_spaced(  # noqa: PLR2004
                 bin_centers
             ):
@@ -772,7 +768,9 @@ class CudaSpecials(Specials):  # NOQA: D101
         dE[:] = dE[order]
         ids[:] = ids[order]
 
-        n_new = len(ids) - cp.sum(select)
+        # Host `int` like the other backends. The device sync is
+        # unavoidable: the caller slices the arrays with `n_new`.
+        n_new = len(ids) - int(cp.sum(select))
         return n_new
 
     @staticmethod
