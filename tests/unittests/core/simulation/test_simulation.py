@@ -113,7 +113,7 @@ class TestSimulation(BLonDTestCase):
 
         CR_beam = deepcopy(self.beam)
         CR_beam._is_counter_rotating = True
-        self.simulation.execution_model = MainloopCounterRotatingBeams()
+        self.simulation._execution_model = MainloopCounterRotatingBeams()
         with self.assertWarnsRegex(Warning, "n_turns is ignored since "):
             self.simulation.run_simulation(
                 beams=(self.beam, CR_beam),

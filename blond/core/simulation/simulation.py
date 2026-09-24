@@ -163,7 +163,7 @@ class Simulation(Preparable):
         self._current_t_rev = None
         self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
-        self.execution_model: ExecutionModel | None = None
+        self._execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
         self._exec_track_reference()
 
@@ -1047,10 +1047,10 @@ class Simulation(Preparable):
         if callbacks is not None:
             callbacks = _as_tuple(callbacks)
 
-        assert self.execution_model is not None, (
-            "No execution model selected, run `Simulation.finalize` first"
+        assert self._execution_model is not None, (
+            "No execution model selected, run `Simulation.finalize(...)` first"
         )
-        self.execution_model.mainloop(
+        self._execution_model.mainloop(
             simulation=self,
             beams=beams,
             n_turns=n_turns,
@@ -1325,7 +1325,7 @@ class Simulation(Preparable):
         """
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
-        if self.execution_model is None:
+        if self._execution_model is None:
             self._autoselect_execution_model(beams)
 
         if self.check_circumference == "raise":
@@ -1406,13 +1406,13 @@ class Simulation(Preparable):
                 MainloopSingleBeam,
             )
 
-            self.execution_model = MainloopSingleBeam()
+            self._execution_model = MainloopSingleBeam()
         elif len(beams) == 2:  # NOQA: PLR2004
             from blond.core.simulation.execution_models.conterrotating_beams import (
                 MainloopCounterRotatingBeams,
             )
 
-            self.execution_model = MainloopCounterRotatingBeams()
+            self._execution_model = MainloopCounterRotatingBeams()
         else:
             raise NotImplementedError(
                 f"Up to two beam supported, but got {len(beams)}"
