@@ -376,8 +376,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             self._hist_y[:] = 0
             self.hist_y_to_density_factor = 0.0
 
-        # only `hist_y` changed; the geometry cached from `hist_x` is valid
-        self._invalidate_cache(props=("gradient_hist_y",))
+        self.invalidate_cache()
 
     @staticmethod
     def get_arrays(
@@ -678,7 +677,6 @@ class DynamicProfile(ProfileBaseClass):
             Beam class to interact with this element.
         """
         self.update_attributes(beam=beam)
-        self.invalidate_cache()  # `hist_x` was rebuilt
         super()._track(beam=beam)
 
 
