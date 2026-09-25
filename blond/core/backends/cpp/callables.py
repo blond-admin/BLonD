@@ -97,6 +97,40 @@ def check_index_abi(library: CDLL) -> None:
     )
 
 
+# Largest length a C ``int`` can hold; see `_get_len`.
+_C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
+
+
+def _get_len(x: NumpyArray) -> ct.c_int:
+    """
+    Return the length of ``x`` as a ``c_int``.
+
+    Only for short arrays (bins, harmonics, poles); arrays that scale
+    with the number of macroparticles use ``_get_beam_len``.
+
+    ctypes does no overflow checking, so a too long array would silently
+    wrap to a negative count. Uses ``assert`` on purpose so ``python -O``
+    strips the check.
+
+    Parameters
+    ----------
+    x
+        Array whose length is passed to the C++ kernel.
+
+    Returns
+    -------
+    ct.c_int
+        ``len(x)`` wrapped as a ctypes ``c_int``.
+    """
+    len_ = len(x)
+    assert len_ <= _C_INT_MAX, (
+        f"Array length {len_} overflows the C int (max {_C_INT_MAX}) this"
+        " kernel argument is declared as. Particle counts must be passed"
+        " with `_get_beam_len` (index_t) instead."
+    )
+    return ct.c_int(len_)
+
+
 def c_real(
     scalar: float, floattype: type[np.float64]
 ) -> ct.c_float | ct.c_double:
@@ -394,25 +428,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _pointer_cache.clear()
             _pointer_cache[_id] = (weakref.ref(x), pointer)
         return pointer
-
-    def _get_len(x: NumpyArray) -> ct.c_int:
-        """
-        Return the length of ``x`` as a ``c_int``.
-
-        Only for short arrays (bins, harmonics, poles); arrays that scale
-        with the number of macroparticles use `_get_beam_len`.
-
-        Parameters
-        ----------
-        x
-            Array whose length is passed to the C++ kernel.
-
-        Returns
-        -------
-        ct.c_int
-            ``len(x)`` wrapped as a ctypes ``c_int``.
-        """
-        return ct.c_int(len(x))
 
     def _get_beam_len(x: NumpyArray) -> ct.c_int64:
         """
@@ -795,7 +810,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _get_len(dt),
+                _get_beam_len(dt),
             )
 
         @staticmethod

@@ -770,7 +770,9 @@ class CudaSpecials(Specials):  # NOQA: D101
         dE[:] = dE[order]
         ids[:] = ids[order]
 
-        n_new = len(ids) - cp.sum(select)
+        # Host `int` like the other backends. The device sync is
+        # unavoidable: the caller slices the arrays with `n_new`.
+        n_new = len(ids) - int(cp.sum(select))
         return n_new
 
     @staticmethod
