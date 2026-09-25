@@ -2485,9 +2485,22 @@ coarse-to-fine handoff against analytic decay, detuning, constant drive and
 a generator pulse entirely before the profile. It also checks the
 zero-exponent limit, actuator limiting and frame rotation, one-time cavity
 scaling, overlapping empty windows, localized charge's half-bin self-kick,
-and that later beam-loaded coarse voltages cannot contaminate the seed.
-The integration case exercises the handoff after ``circuit_track`` has
-computed the coarse response. Both fine solver orders are exercised.
+that the coarse voltages of the span being resolved never enter the fine
+solve, and that the carried seed is composed in the forward passage's
+generator frame -- the one factor no other test in the tree keeps
+alongside a non-zero seed. The integration case exercises the handoff after
+``circuit_track`` has computed the coarse response. Both fine solver orders
+are exercised.
+
+Two time origins are in play, and the module pins them apart. The seed is
+the *carried* state, timestamped at the centre that would precede the
+forward span -- one coarse step ahead of its first centre, which is what
+lets the first cell carry its own charge -- so free evolution is referenced
+there. The generator drive keeps the first centre as its origin, because
+the command held over the step into that cell is the carried one. A single
+fixture constant, ``seed_time``, states the first of the two; a test that
+starts to fail by exactly one coarse step of decay is reporting a change of
+seeding, not a numerical tolerance.
 
 The modules below live one directory *above* the accelerator packages::
 

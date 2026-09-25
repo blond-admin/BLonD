@@ -38,6 +38,7 @@ Modules
    :caption: Feedback systems
 
    feedbacks/mucol_cavity_feedback
+   feedbacks/mucol_feedback_history
 
 .. toctree::
    :maxdepth: 1
