@@ -101,7 +101,6 @@ block_size = (threads, 1, 1)
 # 64-bit counter would halve the number of bins that fit in shared memory
 # for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
 _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
-
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 # Cache of uniformity verdicts for `bin_centers` arrays passed to the
@@ -628,7 +627,10 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert hist_y.dtype == FLOAT
         assert hist_x.flags.c_contiguous
         assert hist_y.flags.c_contiguous
-        assert len(hist_x) >= 2, "The trapezoidal rule needs two bins."  # NOQA PLR2004
+        assert len(hist_x) >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule, "
+            f"got {len(hist_x)}"
+        )
 
         # Cast Python floats to backend floattype
         alpha = FLOAT(alpha)

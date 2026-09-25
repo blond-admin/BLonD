@@ -433,7 +433,9 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         bin_size: float,
     ) -> float:
         n = len(hist_x)
-        assert n >= 2, "The trapezoidal rule requires at least two bins."  # NOQA PLR2004
+        assert n >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule"
+        )
 
         f_sin = np.zeros_like(hist_x)
         f_cos = np.zeros_like(hist_x)

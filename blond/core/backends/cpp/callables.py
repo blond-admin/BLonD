@@ -515,10 +515,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bin_size: float,
         ) -> float:
             assert _is_valid((hist_x, floattype), (hist_y, floattype))
-            MIN_SIZE = 2
-            assert len(hist_x) >= MIN_SIZE, (
-                "The trapezoidal rule requires at least two bins."
-            )  # NOQA PLR2004
+            assert len(hist_x) >= 2, (  # noqa: PLR2004
+                "beam_phase requires at least two bins for the trapezoidal "
+                f"rule, got {len(hist_x)}"
+            )
 
             # Relies on `_LIBBLOND.beam_phase.restype` set above; without it
             # the C double is read as an int. The cast only matches the
