@@ -14,6 +14,7 @@
 
 #include "blond_common.h"
 #include "openmp.h"
+#include "particle_ops.h"
 #include "scratch_buffer.h"
 
 // Particles `histogram` handles per tile. Counting cannot be
@@ -113,11 +114,39 @@ static inline void bin_indices_of_tile(const real_t *__restrict__ coordinates,
   }
 }
 
+void Histogram::count(const Args &a, index_t *__restrict__ counts,
+                      const real_t *__restrict__ input, const index_t begin,
+                      const index_t end) {
+  const double cut_left = a.cut_left;
+  const double cut_right = a.cut_right;
+  const int n_slices = a.n_slices;
+  const double inv_bin_width = n_slices / (cut_right - cut_left);
+  // Scratch, fully written before it is read: a C array, as in the
+  // original kernel, so it is not zeroed on every call.
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+  alignas(64) int bin_indices[HISTOGRAM_TILE];
+
+  index_t i = begin;
+  for (; end - i >= HISTOGRAM_TILE; i += HISTOGRAM_TILE) {
+    bin_indices_of_tile(input + i, cut_left, cut_right, inv_bin_width, n_slices,
+                        static_cast<int *>(bin_indices));
+    // NOLINTNEXTLINE(modernize-loop-convert)
+    for (int j = 0; j < HISTOGRAM_TILE; j++) {
+      counts[bin_indices[j]] += 1;
+    }
+  }
+  // Last, partial tile: not worth a masked vector pass.
+  for (; i < end; i++) {
+    counts[bin_index_of(input[i], cut_left, cut_right, inv_bin_width,
+                        n_slices)] += 1;
+  }
+}
+
 extern "C" void histogram(const real_t *__restrict__ input,
                           real_t *__restrict__ output, const real_t cut_left,
                           const real_t cut_right, const int n_slices,
                           const index_t n_macroparticles, const int n_threads) {
-  const double inv_bin_width = n_slices / ((double)cut_right - cut_left);
+  const Histogram::Args args = {cut_left, cut_right, n_slices, false, output};
 
   // One private histogram per thread, plus the trash bin each of them
   // needs. index_t counters, so one bin can hold more than 2^31 - 1
@@ -130,7 +159,7 @@ extern "C" void histogram(const real_t *__restrict__ input,
   // few particles or many bins costs more than the counting it takes
   // over. The counters are integers, so the result does not depend on
   // it.
-  const size_t bins_per_thread = (size_t)n_slices + 1;
+  const size_t bins_per_thread = Histogram::row_size(n_slices);
   static thread_local std::vector<index_t> histo_buffer;
   index_t *const histo =
       reuse_scratch(histo_buffer, (size_t)n_threads * bins_per_thread);
@@ -142,35 +171,16 @@ extern "C" void histogram(const real_t *__restrict__ input,
     index_t *__restrict__ h = histo + (size_t)id * bins_per_thread;
     std::memset(h, 0, bins_per_thread * sizeof(index_t));
 
-    alignas(64) int bin_indices[HISTOGRAM_TILE];
+    index_t begin = 0;
+    index_t end = 0;
+    this_thread_range(n_macroparticles, begin, end);
+    Histogram::count(args, h, input, begin, end);
+#pragma omp barrier
 
-#pragma omp for
-    for (index_t i = 0; i < n_macroparticles; i += HISTOGRAM_TILE) {
-      if (n_macroparticles - i < HISTOGRAM_TILE) {
-        // Last, partial tile: not worth a masked vector pass.
-        for (index_t j = i; j < n_macroparticles; j++) {
-          h[bin_index_of(input[j], cut_left, cut_right, inv_bin_width,
-                         n_slices)] += 1;
-        }
-        continue;
-      }
-      bin_indices_of_tile(input + i, cut_left, cut_right, inv_bin_width,
-                          n_slices, bin_indices);
-      for (int j = 0; j < HISTOGRAM_TILE; j++) {
-        h[bin_indices[j]] += 1;
-      }
-    }
-
-// Reduce to a single histogram. The trash bin past the last slice is
-// left out, which is what drops the out-of-range particles.
+// Reduce to a single histogram.
 #pragma omp for
     for (int i = 0; i < n_slices; i++) {
-      index_t total = 0;
-      for (int t = 0; t < threads; t++) {
-        total += histo[(size_t)t * bins_per_thread + i];
-      }
-      // exact while a bin holds fewer than 2^53 particles
-      output[i] = static_cast<real_t>(total);
+      Histogram::reduce(args, histo, threads, i, i + 1);
     }
   }
 }

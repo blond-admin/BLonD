@@ -14,6 +14,7 @@
 #include <cmath>
 
 #include "blond_common.h"
+#include "particle_ops.h"
 #include "scratch_buffer.h"
 
 extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
@@ -23,54 +24,34 @@ extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
                                    const real_t charge, const int n_slices,
                                    const index_t n_macroparticles,
                                    const real_t acc_kick) {
-
-  const int STEP = 64;
-  const real_t inv_bin_width =
-      (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
-
   static thread_local std::vector<real_t> voltageKick_buffer;
   static thread_local std::vector<real_t> factor_buffer;
-  real_t *const voltageKick = reuse_scratch(voltageKick_buffer, n_slices - 1);
-  real_t *const factor = reuse_scratch(factor_buffer, n_slices - 1);
+  const LinearInterpKick::Args args = {
+      voltage_array,
+      bin_centers,
+      charge,
+      n_slices,
+      acc_kick,
+      reuse_scratch(voltageKick_buffer, n_slices),
+      reuse_scratch(factor_buffer, n_slices)};
+  const real_t inv_bin_width = LinearInterpKick::inv_bin_width(args);
+  LinearInterpKick::fill_trash_entry(args);
 
 #pragma omp parallel
   {
-    // Keep the bin index in double until it is range-checked: converting
-    // an out-of-range double to an integer type is undefined behaviour
-    // (a huge positive index can wrap back into the valid bin range).
-    double fbin[STEP];
-
-#pragma omp for
-    for (int i = 0; i < n_slices - 1; i++) {
-      voltageKick[i] =
-          charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
-      factor[i] =
-          (charge * voltage_array[i] - bin_centers[i] * voltageKick[i]) +
-          acc_kick;
-    }
-
-#pragma omp for
-    for (index_t i = 0; i < n_macroparticles; i += STEP) {
-
-      const index_t loop_count =
-          n_macroparticles - i > STEP ? STEP : (n_macroparticles - i);
-
-      for (index_t j = 0; j < loop_count; j++) {
-        fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
-      }
-
-      for (index_t j = 0; j < loop_count; j++) {
-        if (fbin[j] >= 0.0 && fbin[j] < (double)(n_slices - 1)) {
-          const int bin = (int)fbin[j];
-          beam_dE[i + j] += beam_dt[i + j] * voltageKick[bin] + factor[bin];
-        } else {
-          // Out of range only the interpolated voltage is undefined.
-          // acc_kick carries the reference energy change, which applies
-          // to the whole beam (factor[] already folds it in above).
-          beam_dE[i + j] += acc_kick;
-        }
-      }
-    }
+    // this thread's share of the table, spread over every thread: the
+    // table is short, so whole granules would leave threads idle
+    index_t bin_begin = 0;
+    index_t bin_end = 0;
+    this_thread_range(n_slices - 1, bin_begin, bin_end, 1);
+    LinearInterpKick::fill_table(args, inv_bin_width,
+                                 static_cast<int>(bin_begin),
+                                 static_cast<int>(bin_end));
+#pragma omp barrier
+    index_t begin = 0;
+    index_t end = 0;
+    this_thread_range(n_macroparticles, begin, end);
+    LinearInterpKick::apply(args, beam_dt, beam_dE, begin, end);
   }
 }
 

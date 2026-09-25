@@ -10,78 +10,27 @@
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
 
 #include "blond_common.h"
+#include "particle_ops.h"
 
-extern "C" BLOND_PREFER_VECTOR_WIDTH_512 void kick_multi_harmonic(
+extern "C" void kick_multi_harmonic(
     const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const int n_rf, const real_t charge, const real_t *__restrict__ voltage,
     const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
     const index_t n_macroparticles, const real_t acc_kick) {
-
-  // Unroll loop for up to 4 RF harmonics for speedup. The branches differ;
-  // clang-tidy only sees identical OpenMP-captured bodies.
-  // NOLINTNEXTLINE(bugprone-branch-clone)
-  if (n_rf == 1) {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-
-  } else if (n_rf == 2) {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-  } else if (n_rf == 3) {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-          voltage[2] * FAST_SIN(omega_RF[2] * beam_dt[i] + phi_RF[2]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-  } else if (n_rf == 4) {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-          voltage[2] * FAST_SIN(omega_RF[2] * beam_dt[i] + phi_RF[2]) +
-          voltage[3] * FAST_SIN(omega_RF[3] * beam_dt[i] + phi_RF[3]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-
-  } else {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      real_t dE_sum = 0.0;
-      // fallback to loop for n_rf > 4
-      for (int j = 0; j < n_rf; j++) {
-        dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * beam_dt[i] + phi_RF[j]);
-      }
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-  }
+  const KickMultiHarmonic::Args args = {n_rf,     charge, voltage,
+                                        omega_RF, phi_RF, acc_kick};
+  run_parallel<KickMultiHarmonic>(args, beam_dt, beam_dE, n_macroparticles);
 }
 
-extern "C" BLOND_PREFER_VECTOR_WIDTH_512 void
-kick_single_harmonic(const real_t *__restrict__ beam_dt,
-                     real_t *__restrict__ beam_dE, const real_t charge,
-                     const real_t voltage, const real_t omega_RF,
-                     const real_t phi_RF, const index_t n_macroparticles,
-                     const real_t acc_kick) {
-
-// KICK
-#pragma omp parallel for
-  for (index_t i = 0; i < n_macroparticles; i++) {
-    beam_dE[i] +=
-        charge * voltage * FAST_SIN(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
-  }
+extern "C" void kick_single_harmonic(const real_t *__restrict__ beam_dt,
+                                     real_t *__restrict__ beam_dE,
+                                     const real_t charge, const real_t voltage,
+                                     const real_t omega_RF, const real_t phi_RF,
+                                     const index_t n_macroparticles,
+                                     const real_t acc_kick) {
+  const KickSingleHarmonic::Args args = {charge, voltage, omega_RF, phi_RF,
+                                         acc_kick};
+  run_parallel<KickSingleHarmonic>(args, beam_dt, beam_dE, n_macroparticles);
 }
 
 extern "C" void rf_volt_comp(const real_t *__restrict__ voltage,

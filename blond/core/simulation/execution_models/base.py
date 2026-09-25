@@ -23,6 +23,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
+from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -32,6 +33,37 @@ if TYPE_CHECKING:  # pragma: no cover
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
 
 logger = logging.getLogger(__name__)
+
+
+def flush_before_readout(
+    observe: tuple[ObservablesOncePerTurnBase, ...],
+    callbacks: Sequence[CallbackTypeHint],
+    turn_i: int,
+) -> None:
+    """
+    Flush queued kernels if an observable or callback reads the beam.
+
+    With the ``cpp_deferred`` specials the kernels of a turn may still be
+    queued at its end; they are only run here if something is about to
+    read the beam, so that the queue can span turns otherwise.
+
+    Parameters
+    ----------
+    observe
+        Observables of the main loop.
+    callbacks
+        Sanitized callbacks of the main loop.
+    turn_i
+        Index of the turn just tracked.
+    """
+    reads_beam = any(
+        observable.is_active_this_turn(turn_i=turn_i) for observable in observe
+    ) or any(
+        (turn_i % callback.each_turn_i) == 0  # NOQA duck-typing
+        for callback in callbacks
+    )
+    if reads_beam:
+        backend.specials.flush()
 
 
 class ExecutionModel(ABC):  # pragma: no cover

@@ -95,6 +95,16 @@ class Specials(ABC):
     """
 
     @staticmethod
+    def flush() -> None:
+        """
+        Run any kernels a deferring backend has queued.
+
+        A no-op for the eager backends, so callers can flush
+        unconditionally, e.g. before reading the particle coordinates.
+        """
+        return None  # deliberately not abstract
+
+    @staticmethod
     @abstractmethod  # pragma: no cover
     def get_max_threads() -> int:
         """
@@ -779,6 +789,8 @@ class BackendBaseClass(ABC):
             return
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
+        # kernels queued by `cpp_deferred` must not be lost
+        self.specials.flush()
         _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
         _new_backend.verbose = self.verbose
@@ -1118,6 +1130,7 @@ class NumpyBackend(BackendBaseClass):
             "python",
             "cpp",
             "cpp_single_core",
+            "cpp_deferred",
             "numba",
         ],
     ) -> None:
@@ -1130,6 +1143,9 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes.
         """
         onchange = self.specials_mode != mode
+        if self.specials is not None:
+            # kernels queued by `cpp_deferred` must not be lost
+            self.specials.flush()
 
         if mode == "python":
             from blond.core.backends.python.callables import PythonSpecials
@@ -1145,6 +1161,13 @@ class NumpyBackend(BackendBaseClass):
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
             self.specials = reload_cpp_backend(self.float, parallel=False)
+            self.specials_mode = mode
+        elif mode == "cpp_deferred":
+            from blond.core.backends.cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(
+                self.float, parallel=True, deferred=True
+            )
             self.specials_mode = mode
         elif mode == "numba":
             from blond.core.backends.numba.callables import (

@@ -300,7 +300,7 @@ def _get_libblond(libblond_path: str) -> CDLL:
 
 
 def reload_cpp_backend(  # NOQA: PLR0915
-    floattype: type[np.float64], parallel: bool = True
+    floattype: type[np.float64], parallel: bool = True, deferred: bool = False
 ) -> type[Specials]:
     """
     Load and link the according C++ backend.
@@ -312,6 +312,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
         32 or 64 bit.
     parallel
         If True, loads the parallel OMP computing backend.
+    deferred
+        If True, returns the `DeferredCppSpecials`, which queue the
+        per-particle kernels and run them chunk by chunk (see
+        `blond.core.backends.cpp.deferred`).
 
     Returns
     -------
@@ -1086,6 +1090,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_bool(multiturn),
             )
 
+    if deferred:
+        from blond.core.backends.cpp.deferred import make_deferred_specials
+
+        return make_deferred_specials(
+            CppSpecials, _LIBBLOND, _get_pointer, floattype
+        )
     return CppSpecials
 
 
