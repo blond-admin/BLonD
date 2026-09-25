@@ -193,7 +193,7 @@ class BeamBaseClass(Preparable, ABC):
         )
 
         id_max = INDEX_DTYPE(self._ids.max())
-        local_size = self._dt.local_size
+        local_size = dt.local_size
 
         new_ids = dist_help.distributed_arange(local_size, INDEX_DTYPE)
         new_ids.array_local += id_max + 1

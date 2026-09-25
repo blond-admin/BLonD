@@ -295,8 +295,8 @@ class TestBeamBaseClass(BLonDTestCase):
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
         ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
-        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
-        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        dt_2 = backend.linspace(1e-6, 2e-6, 3, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 3, dtype=backend.float)
         flags_2 = (
             backend.zeros_like(dE_2, dtype=np.int32) + BeamFlags.ACTIVE.value
         )
@@ -336,7 +336,7 @@ class TestBeamBaseClass(BLonDTestCase):
             copy_to_cpu(np.concatenate((ids_1, ids_2))),
         )
 
-        self.assertEqual(beam_1.intensity, 2e12)
+        self.assertEqual(beam_1.intensity, 1.3e12)
 
         dist_dt = DistributedArray(dt_2[1:])
         dist_dE = DistributedArray(dE_2)

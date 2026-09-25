@@ -28,6 +28,7 @@ BIN_SIGMA_CALC = 3.0  # 99% of stencil will be drawn
     void(float64[:], float64[:, :], float64[:], int32, float64[:]),
     parallel=True,
     fastmath=True,
+    cache=True,
 )
 def _gen_hist_numba(
     potential_change,
@@ -114,6 +115,7 @@ def _gen_hist_numba(
     void(float64[:], float64[:, :], float64[:, :], int32, float64[:]),
     parallel=True,
     fastmath=True,
+    cache=True,
 )
 def _gen_density_numba(
     potential_change: NumpyArray,
