@@ -546,6 +546,7 @@ class TestPotentialWellHelper(BLonDTestCase):
         ``idx // 2`` only merges index pairs ``(2k, 2k+1)``; the pair
         ``(3, 4)`` must be merged as well.
         """
+        # skip __init__ (it runs the full analysis); purge only needs time_axis
         pwh = PotentialWellHelper.__new__(PotentialWellHelper)
         pwh.time_axis = np.arange(10.0)
         bucket_list = [(3.0, 6.0), (4.0, 6.0)]
