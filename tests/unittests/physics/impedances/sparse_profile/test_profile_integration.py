@@ -175,9 +175,8 @@ class TestSparseProfileIntegration(BLonDTestCase):
         # one with a genuine internal gap (fill/fill/empty/empty, repeated,
         # not merely a shorter contiguous run followed by trailing zeros),
         # attach a real resonator impedance, then run
-        # `WakeField._track()` and confirm it completes without the
-        # `ValueError` raised by `kick_interpolated`'s uniform-spacing
-        # guard, and that a non-zero kick was actually applied.
+        # `WakeField._track()` and confirm it completes and that a
+        # non-zero kick was actually applied.
         backend.change_backend(Numpy64Bit)
 
         ring = Ring(

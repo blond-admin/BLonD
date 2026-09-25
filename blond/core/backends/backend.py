@@ -267,9 +267,9 @@ class Specials(ABC):
         Interpolated kick method.
 
         With the sparse-metadata arguments omitted, `bin_centers` must be
-        uniformly spaced; implementations raise `ValueError` otherwise
-        (e.g. when handed a gapped, multi-island array such as
-        `EquidistantMultiProfile.hist_x` without its metadata). With the
+        uniformly spaced; this is not checked, and a gapped, multi-island
+        array such as `EquidistantMultiProfile.hist_x` without its metadata
+        silently gives wrong kicks. With the
         sparse-metadata arguments given (all six together, typically via
         `EquidistantMultiProfile.sparse_kick_metadata`), particles are
         resolved to their own bucket before interpolation, matching
