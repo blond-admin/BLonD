@@ -668,7 +668,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 mass=particle_type.mass,
                 momentum=self._momentum_cached[key],
             )
-        return self._total_energy_cached[key][section_i, int(turn_i)]
+        # Python float: scalar math on `np.float64` is slow per turn
+        return float(self._total_energy_cached[key][section_i, int(turn_i)])
 
     @staticmethod
     def headless(
