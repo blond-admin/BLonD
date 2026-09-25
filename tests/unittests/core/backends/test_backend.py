@@ -1829,6 +1829,50 @@ class TestSpecials(BLonDTestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_histogram_drops_values_just_below_start(self) -> None:
+        """Values less than one bin width below ``start`` are dropped.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would count them in the first bin.
+        """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_drops_values_below_start(n_bins)
+
+    def _assert_histogram_drops_values_below_start(self, n_bins: int) -> None:
+        dtype = np.float64
+        start, stop = -12.0, 8.0
+        bin_width = (stop - start) / n_bins
+        values_np = np.array(
+            [
+                np.nextafter(start, -np.inf),
+                start - 0.5 * bin_width,
+                start - 0.999 * bin_width,
+                start + 0.5 * bin_width,  # counted, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[0] = 1
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(start),
+                stop=backend.float(stop),
+            )
+            np.testing.assert_array_equal(
+                copy_to_cpu(array_write),
+                expected,
+                err_msg=f"{special=} {dtype=} {n_bins=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_bug(self) -> None:
         kwargs = {
             "dt": [
