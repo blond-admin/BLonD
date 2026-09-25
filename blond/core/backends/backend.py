@@ -189,6 +189,35 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def phase_space_sums(
+        dt: NumpyArray | CupyArray, dE: NumpyArray | CupyArray
+    ) -> tuple[float, float, float, float, float]:
+        """
+        Return the five phase-space sums of a beam, in one pass.
+
+        Every first- and second-order statistic of the (``dt``, ``dE``)
+        distribution -- means, RMS sizes, RMS emittance -- is a function of
+        these sums, so one fused pass over the particles serves them all.
+
+        Parameters
+        ----------
+        dt
+            Particle time coordinates [s].
+        dE
+            Particle energy coordinates [eV], same length as ``dt``.
+
+        Returns
+        -------
+        phase_space_sums
+            ``(sum(dt), sum(dE), sum(dt**2), sum(dE**2), sum(dt * dE))``
+            as Python floats; all ``0.0`` for empty arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `phase_space_sums` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def drift_simple(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,

@@ -2874,6 +2874,62 @@ class TestSpecials(unittest.TestCase):
             self.assertTrue(backend_result.dtype == dtype)
 
     @pytest.mark.backend_mutation
+    def test_phase_space_sums(self) -> None:
+        """The five phase-space sums, in one pass, on every backend."""
+        dtype = np.float64
+        rng = np.random.default_rng(2026)
+        dt = rng.normal(2.0e-9, 3.0e-11, 10_000).astype(dtype)
+        dE = (
+            1.0e16 * (dt - 2.0e-9) + rng.normal(1.0e5, 2.0e6, 10_000)
+        ).astype(dtype)
+        reference = (
+            np.sum(dt),
+            np.sum(dE),
+            np.dot(dt, dt),
+            np.dot(dE, dE),
+            np.dot(dt, dE),
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            sums = backend.specials.phase_space_sums(
+                backend.array(dt), backend.array(dE)
+            )
+            self.assertEqual(len(sums), 5, msg=f"{special=}")
+            for name, value, expected in zip(
+                ("dt", "dE", "dt*dt", "dE*dE", "dt*dE"),
+                sums,
+                reference,
+                strict=True,
+            ):
+                self.assertIsInstance(value, float, msg=f"{special=} {name}")
+                np.testing.assert_allclose(
+                    value,
+                    expected,
+                    rtol=self.rtol,
+                    err_msg=f"{special=} sum of {name}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_phase_space_sums_zero_macroparticles(self) -> None:
+        """An empty beam sums to exactly zero on every backend."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty = backend.zeros(0, dtype=backend.float)
+            sums = backend.specials.phase_space_sums(empty, empty)
+            self.assertEqual(
+                tuple(sums), (0.0,) * 5, msg=f"Failed test `{special}`"
+            )
+
+    @pytest.mark.backend_mutation
     def test_drift_exact_zero_macroparticles(self) -> None:
         """`drift_exact` must be a no-op (no errors) on empty dt/dE arrays."""
         dtype = np.float64

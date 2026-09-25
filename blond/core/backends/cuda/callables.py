@@ -78,6 +78,7 @@ _gm_linear_interp_kick_sparse_comp = gpu_module.get_function(
 _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
+_phase_space_sums = gpu_module.get_function("phase_space_sums")
 _apply_sr_without_quantum_excitation = gpu_module.get_function(
     "apply_sr_without_quantum_excitation"
 )
@@ -292,6 +293,24 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         """Return the sum of dot product of two 1d arrays."""
         return cp.dot(array_1, array_2)
+
+    @staticmethod
+    def phase_space_sums(dt: CupyArray, dE: CupyArray):  # NOQA: D102
+        assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
+        assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
+        assert dt.dtype == FLOAT
+        assert dE.dtype == FLOAT
+        assert len(dt) == len(dE)
+
+        sums = cp.zeros(5, dtype=FLOAT)
+        if len(dt) > 0:
+            _phase_space_sums(
+                args=(dt, dE, np.int64(len(dt)), sums),
+                block=block_size,
+                grid=grid_size,
+                shared_mem=5 * block_size[0] * np.dtype(FLOAT).itemsize,
+            )
+        return tuple(float(value) for value in sums.get())
 
     @staticmethod
     def drift_simple(  # NOQA: D102

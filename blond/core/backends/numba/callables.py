@@ -126,6 +126,42 @@ sig_sum_1d_array = nb_f(nb_f[:])
 
 sig_dot_product_1d_array = nb_f(nb_f[:], nb_f[:])
 
+sig_phase_space_sums = numba.types.UniTuple(nb_f, 5)(nb_f[:], nb_f[:])
+
+
+@njit(sig_phase_space_sums, parallel=True, cache=False, fastmath=True)
+def _phase_space_sums(dt, dE):  # pragma: no cover - compiled
+    """
+    Accumulate the five phase-space sums in one parallel pass.
+
+    Parameters
+    ----------
+    dt
+        Particle time coordinates [s].
+    dE
+        Particle energy coordinates [eV].
+
+    Returns
+    -------
+    tuple of float
+        ``(sum(dt), sum(dE), sum(dt**2), sum(dE**2), sum(dt * dE))``.
+    """
+    dt_sum = 0.0
+    dE_sum = 0.0
+    dt_dt_sum = 0.0
+    dE_dE_sum = 0.0
+    dt_dE_sum = 0.0
+    for idx in prange(dt.shape[0]):
+        dt_i = dt[idx]
+        dE_i = dE[idx]
+        dt_sum += dt_i
+        dE_sum += dE_i
+        dt_dt_sum += dt_i * dt_i
+        dE_dE_sum += dE_i * dE_i
+        dt_dE_sum += dt_i * dE_i
+    return dt_sum, dE_sum, dt_dt_sum, dE_dE_sum, dt_dE_sum
+
+
 sig_drift_simple = void(
     sig_dt,
     sig_dE,
@@ -576,6 +612,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         for idx in prange(array_1.shape[0]):
             acc += array_1[idx] * array_2[idx]
         return acc
+
+    @staticmethod
+    def phase_space_sums(dt: NumpyArray, dE: NumpyArray):  # NOQA: D102
+        assert len(dt) == len(dE)
+        return tuple(float(value) for value in _phase_space_sums(dt, dE))
 
     @staticmethod
     @enforce_precision(FLOAT)

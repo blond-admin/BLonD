@@ -287,6 +287,36 @@ class PythonSpecials(Specials):
         return np.dot(array_1, array_2)
 
     @staticmethod
+    def phase_space_sums(
+        dt: NumpyArray, dE: NumpyArray
+    ) -> tuple[float, float, float, float, float]:
+        """
+        Return the five phase-space sums of a beam.
+
+        The readable reference: five NumPy reductions. The compiled
+        backends fuse them into one pass.
+
+        Parameters
+        ----------
+        dt
+            Particle time coordinates [s].
+        dE
+            Particle energy coordinates [eV].
+
+        Returns
+        -------
+        phase_space_sums
+            ``(sum(dt), sum(dE), sum(dt**2), sum(dE**2), sum(dt * dE))``.
+        """
+        return (
+            float(np.sum(dt)),
+            float(np.sum(dE)),
+            float(np.dot(dt, dt)),
+            float(np.dot(dE, dE)),
+            float(np.dot(dt, dE)),
+        )
+
+    @staticmethod
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,

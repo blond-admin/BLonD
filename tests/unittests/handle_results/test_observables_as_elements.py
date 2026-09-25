@@ -10,6 +10,9 @@ from blond import (
     StaticProfile,
     WakeField,
 )
+from blond.core.backends.mpi_distributed.callables import (
+    phase_space_moments,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -17,6 +20,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
 )
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -195,6 +199,57 @@ class TestBunchObservationMetaParams(unittest.TestCase):
         self.assertEqual(len(observation.rms_emittance), 0)
 
 
+class TestBunchObservationMetaParamsStatistics(unittest.TestCase):
+    """
+    One passage's statistics come from one set of phase-space sums.
+
+    Means, RMS sizes and emittance are recorded from a single
+    :func:`~blond.core.backends.mpi_distributed.callables.phase_space_moments`
+    per passage, not from a separate pass over the particles per value.
+    """
+
+    def test_records_the_moments_of_one_set_of_sums(self):
+        observation = BunchObservationMetaParams(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        observation.common_filepath = "test"
+        simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+        simulation.ring.elements.elements = [observation]
+        observation.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=1
+        )
+
+        rng = np.random.default_rng(5)
+        passing = Mock(BeamBaseClass)
+        passing.reference = Mock(ReferenceCoordinates)
+        passing.reference.total_energy = 11.0
+        passing.intensity = 2.0e12
+        passing._dt = DistributedArray(
+            rng.normal(2.0e-9, 3.0e-11, 1000).astype(float)
+        )
+        passing._dE = DistributedArray(rng.normal(0.0, 2.0e6, 1000))
+        # Any separate per-statistic pass is refused.
+        for array in (passing._dt, passing._dE):
+            array.mean = Mock(side_effect=AssertionError("separate mean"))
+            array.std = Mock(side_effect=AssertionError("separate std"))
+
+        observation.track(passing)
+
+        # A second, separate evaluation: a threaded backend may combine its
+        # partial sums in another order, so equal to rounding, not bits.
+        # (``sigma_dt`` carries the <dt^2> - <dt>^2 cancellation.)
+        moments = phase_space_moments(dt=passing._dt, dE=passing._dE)
+        for recorded, expected in (
+            (observation.mean_dt[0], moments.mean_dt),
+            (observation.mean_dE[0], moments.mean_dE),
+            (observation.sigma_dt[0], moments.sigma_dt),
+            (observation.sigma_dE[0], moments.sigma_dE),
+            (observation.rms_emittance[0], moments.rms_emittance),
+        ):
+            np.testing.assert_allclose(recorded, expected, rtol=1e-9)
+
+
 class TestBunchObservationMetaParamsPlacement(unittest.TestCase):
     """Turn, energy and intensity records plus the placement bookkeeping."""
 
@@ -218,9 +273,9 @@ class TestBunchObservationMetaParamsPlacement(unittest.TestCase):
         real.reference.time = 0.0
         real.reference.total_energy = 63.0e9
         real.intensity = 2.7e12
-        real._dt = np.array([0.0, 1.0, 2.0, 3.0]) * 1e-12
-        real._dE = np.array([-1.0, 0.0, 1.0, 2.0]) * 1e6
-        real.rms_emittance = 1.0e-6
+        # Distributed arrays, as a real beam holds its coordinates.
+        real._dt = DistributedArray(np.array([0.0, 1.0, 2.0, 3.0]) * 1e-12)
+        real._dE = DistributedArray(np.array([-1.0, 0.0, 1.0, 2.0]) * 1e6)
         return real
 
     def test_records_turn_energy_and_intensity(self):

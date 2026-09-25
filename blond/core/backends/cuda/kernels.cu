@@ -176,6 +176,62 @@ __global__ void beam_phase(const real_t* __restrict__ hist_x,
 
 
 
+// The five phase-space sums of a beam in ONE pass over dt and dE:
+// sums = {sum(dt), sum(dE), sum(dt^2), sum(dE^2), sum(dt * dE)}, which
+// must be zeroed by the caller. A grid-stride loop accumulates per thread,
+// each block reduces its threads in shared memory (5 * blockDim.x reals,
+// blockDim.x a power of two) and adds its five partials atomically.
+extern "C"
+__global__ void phase_space_sums(const real_t* __restrict__ dt,
+                                 const real_t* __restrict__ dE,
+                                 const index_t n,
+                                 real_t* sums)
+{
+    extern __shared__ real_t shared[];
+
+    real_t dt_sum = 0.0;
+    real_t dE_sum = 0.0;
+    real_t dt_dt_sum = 0.0;
+    real_t dE_dE_sum = 0.0;
+    real_t dt_dE_sum = 0.0;
+
+    for (index_t i = (index_t)blockIdx.x * blockDim.x + threadIdx.x; i < n;
+         i += (index_t)blockDim.x * gridDim.x) {
+        const real_t dt_i = dt[i];
+        const real_t dE_i = dE[i];
+        dt_sum += dt_i;
+        dE_sum += dE_i;
+        dt_dt_sum += dt_i * dt_i;
+        dE_dE_sum += dE_i * dE_i;
+        dt_dE_sum += dt_i * dE_i;
+    }
+
+    real_t* partial = shared;
+    const unsigned int stride = blockDim.x;
+    partial[threadIdx.x] = dt_sum;
+    partial[threadIdx.x + stride] = dE_sum;
+    partial[threadIdx.x + 2 * stride] = dt_dt_sum;
+    partial[threadIdx.x + 3 * stride] = dE_dE_sum;
+    partial[threadIdx.x + 4 * stride] = dt_dE_sum;
+    __syncthreads();
+
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (threadIdx.x < s) {
+            for (int k = 0; k < 5; ++k) {
+                partial[threadIdx.x + k * stride] +=
+                    partial[threadIdx.x + s + k * stride];
+            }
+        }
+        __syncthreads();
+    }
+
+    if (threadIdx.x == 0) {
+        for (int k = 0; k < 5; ++k) {
+            atomicAdd(&sums[k], partial[k * stride]);
+        }
+    }
+}
+
 extern "C"
 __global__ void hybrid_histogram(
                                  const real_t * __restrict__  input,

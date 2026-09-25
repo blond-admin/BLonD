@@ -21,6 +21,7 @@ from numpy.typing import NDArray as NumpyArray
 
 from blond import copy_to_cpu
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.callables import phase_space_moments
 from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -368,13 +369,14 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             )
             self._total_energy.write(float(beam.reference.total_energy))
             self._intensity.write(float(beam.intensity))
-            self._sigma_dt.write(beam._dt.std())
-            self._sigma_dE.write(beam._dE.std())
-            self._mean_dt.write(beam._dt.mean())
-            self._mean_dE.write(beam._dE.mean())
-            self._rms_emittance.write(  # attribute acess on cached property
-                beam.rms_emittance
-            )
+            # One set of sums serves every statistic: five passes over the
+            # particles instead of one or more per value.
+            moments = phase_space_moments(dt=beam._dt, dE=beam._dE)
+            self._sigma_dt.write(moments.sigma_dt)
+            self._sigma_dE.write(moments.sigma_dE)
+            self._mean_dt.write(moments.mean_dt)
+            self._mean_dE.write(moments.mean_dE)
+            self._rms_emittance.write(moments.rms_emittance)
 
     @property  # as readonly attributes
     def turns(self):

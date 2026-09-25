@@ -678,6 +678,23 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
+        def phase_space_sums(
+            dt: NumpyArray,
+            dE: NumpyArray,
+        ) -> tuple[float, float, float, float, float]:
+            assert _is_valid((dt, floattype), (dE, floattype))
+            assert len(dt) == len(dE)
+
+            sums = np.empty(5, dtype=floattype)
+            _LIBBLOND.phase_space_sums(
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_index_len(dt),
+                _get_pointer(sums),
+            )
+            return tuple(float(value) for value in sums)
+
+        @staticmethod
         def drift_simple(
             dt: NumpyArray,
             dE: NumpyArray,
