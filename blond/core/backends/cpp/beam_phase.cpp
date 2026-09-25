@@ -26,10 +26,11 @@ real_t trapz_const_delta(const real_t *__restrict__ f, const real_t deltaX,
   return deltaX * psum;
 }
 
-extern "C" BLOND_PREFER_VECTOR_WIDTH_512 real_t beam_phase(
-    const real_t *__restrict__ bin_centers, const real_t *__restrict__ profile,
-    const real_t alpha, const real_t omega_rf, const real_t phi_rf,
-    const real_t bin_size, const int n_bins) {
+extern "C" real_t beam_phase(const real_t *__restrict__ bin_centers,
+                             const real_t *__restrict__ profile,
+                             const real_t alpha, const real_t omega_rf,
+                             const real_t phi_rf, const real_t bin_size,
+                             const int n_bins) {
   real_t *base = new real_t[n_bins];
   real_t *array1 = new real_t[n_bins];
   real_t *array2 = new real_t[n_bins];
@@ -56,10 +57,10 @@ extern "C" BLOND_PREFER_VECTOR_WIDTH_512 real_t beam_phase(
   return scoeff / ccoeff;
 }
 
-extern "C" BLOND_PREFER_VECTOR_WIDTH_512 real_t
-beam_phase_fast(const real_t *__restrict__ bin_centers,
-                const real_t *__restrict__ profile, const real_t omega_rf,
-                const real_t phi_rf, const real_t bin_size, const int n_bins) {
+extern "C" real_t beam_phase_fast(const real_t *__restrict__ bin_centers,
+                                  const real_t *__restrict__ profile,
+                                  const real_t omega_rf, const real_t phi_rf,
+                                  const real_t bin_size, const int n_bins) {
   real_t *array1 = new real_t[n_bins];
   real_t *array2 = new real_t[n_bins];
 

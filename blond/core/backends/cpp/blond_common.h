@@ -52,21 +52,28 @@ typedef double real_t;
 // table for compute-bound per-particle kernels. Marking an individual
 // kernel with this macro raises just that kernel to 512-bit, so the wider
 // vectors -- and the core downclocking they cause -- stay out of the loops
-// that gain nothing from them.
+// that gain nothing from them. AMD is different: GCC >= 14 already tunes
+// Zen 4 / Zen 5 to 512-bit for every kernel, so there this macro changes
+// nothing.
 //
 // Measured on an i5-11500 (single core, min ns/particle, 1e5 / 1e6
-// particles): kick_single_harmonic and kick_multi_harmonic ~1.44-1.49x,
-// beam_phase ~1.46x. histogram and loss_box are not vectorized to 512
-// bits by GCC at all, so they cannot benefit. drift_exact is vectorized
-// (since its alpha loop was given a compile-time trip count), but gains
-// nothing from the wider registers: measured 0.98-1.02x, and llvm-mca
-// puts 512-bit slightly behind 256-bit at 5.14 vs 5.03 cycles per
-// particle. It therefore stays at 256 bits on purpose.
+// particles): kick_single_harmonic and kick_multi_harmonic ~1.44-1.49x.
+// histogram and loss_box are not vectorized to 512 bits by GCC at all, so
+// they cannot benefit. drift_exact is vectorized (since its alpha loop was
+// given a compile-time trip count), but gains nothing from the wider
+// registers: measured 0.98-1.02x, and llvm-mca puts 512-bit slightly
+// behind 256-bit at 5.14 vs 5.03 cycles per particle. It therefore stays
+// at 256 bits on purpose.
 //
-// Those are single-core numbers. Threaded on a large beam the kick is
-// DRAM-bound instead: at 12 threads and 1e7 particles a single-harmonic
-// kick gains nothing measurable (1.01-1.03x, inside run-to-run noise),
-// while n_rf=4 still gains 1.28x. Costs ~1.5% all-core frequency.
+// Those are single-core numbers. Threaded (6 and 12 threads), n_rf=4
+// keeps ~1.3x at every beam size. The single-harmonic kick still gains
+// ~1.3x at 1e5 particles, but at 1e7 it is DRAM-bound and gains nothing
+// measurable (1.02x). Costs ~3% all-core frequency.
+//
+// beam_phase is deliberately left at 256 bits. It gains 1.1-1.2x on one
+// core, but threaded at realistic bin counts (1e3) its OpenMP loops are
+// overhead-bound, so the wider registers buy nothing and the downclock
+// makes it 2-9% slower.
 //
 // Placement matters: the attribute must follow `extern "C"`, not precede
 // it. In front of `extern "C"` GCC rejects it with a mere warning and
