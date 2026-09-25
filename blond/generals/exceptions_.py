@@ -50,3 +50,9 @@ class UnknownBackendMode(BLonDException, ValueError):
     """
 
     pass
+
+
+class InvalidParticleAttributeError(BLonDException, ValueError):
+    """Exception raised when attempting to create unphysical particle."""
+
+    pass
