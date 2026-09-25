@@ -537,7 +537,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         assert induced_voltage.dtype == backend.float, (
             f"{induced_voltage.dtype}"
         )
-        voltage = induced_voltage.astype(backend.float)
+        voltage = induced_voltage.astype(backend.float, copy=False)
         bin_centers = self.profile.hist_x  # base for induced voltage
         sparse_metadata = (
             self.profile.sparse_kick_metadata
