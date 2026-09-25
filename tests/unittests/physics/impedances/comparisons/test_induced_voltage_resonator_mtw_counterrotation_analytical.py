@@ -142,7 +142,7 @@ class TestInducedVoltageResonatorPhysics(BLonDTestCase):
         shc_list = []
         cav_obs_list = []
         profile_list = []
-        prof._hist_y[:] = gauss(
+        prof.hist_y[:] = gauss(
             prof.hist_x, self.sigma_bunch, self.bunch_offset
         )
 

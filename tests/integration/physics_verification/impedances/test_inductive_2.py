@@ -44,7 +44,7 @@ class _FakeProfile(StaticProfile):
         super().__init__(
             cut_left=cut_left, cut_right=cut_right, n_bins=len(profile_y)
         )
-        self._hist_y[:] = backend.array(profile_y, dtype=backend.float)
+        self.hist_y[:] = backend.array(profile_y, dtype=backend.float)
         self.hist_y_to_density_factor = 1.0
 
 

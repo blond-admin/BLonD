@@ -6,6 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+import dataclasses
 import unittest
 
 import numpy as np
@@ -24,6 +25,7 @@ from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     ProfileBaseClass,
+    ProfileGeometry,
     StaticProfile,
 )
 from blond.testing.backend_testing import BLonDTestCase
@@ -42,6 +44,9 @@ class _CountingReads:
 
     def __len__(self):
         return len(self.array)
+
+    def __getattr__(self, name):  # e.g. shape, dtype
+        return getattr(self.array, name)
 
 
 def _beam_with_dt(dt: np.ndarray) -> Beam:
@@ -64,7 +69,7 @@ class TestProfileBaseClass(BLonDTestCase):
         self.profile_base_class._set_window(
             cut_left=-5.5, cut_right=5.5, n_bins=11
         )
-        self.profile_base_class._hist_y[:] = 5
+        self.profile_base_class.hist_y[:] = 5
 
     def test___init__(self):
         pass
@@ -78,21 +83,61 @@ class TestProfileBaseClass(BLonDTestCase):
         with self.assertRaises(AttributeError):
             self.profile_base_class.bin_edges = backend.zeros(12)
 
-    def test_geometry_storage_only_via_set_window(self):
-        """Assigning the stored geometry directly would bypass
-        `_set_window` and let edges and `hist_x` disagree."""
+    def test_geometry_fields_are_frozen(self):
+        """Writing one geometry field could not update the others
+        consistently, so the geometry is only replaced as a whole."""
+        geometry = self.profile_base_class._geometry
         for name, value in (
-            ("_hist_x", backend.linspace(-5, 5, 11)),
-            ("_hist_y", backend.zeros(11)),
-            ("_cut_left", -4.0),
-            ("_cut_right", 4.0),
+            ("hist_x", backend.linspace(-5, 5, 11)),
+            ("hist_y", backend.zeros(11)),
+            ("cut_left", -4.0),
+            ("cut_right", 4.0),
         ):
-            with self.subTest(name=name), self.assertRaises(AttributeError):
-                setattr(self.profile_base_class, name, value)
+            with (
+                self.subTest(name=name),
+                self.assertRaises(dataclasses.FrozenInstanceError),
+            ):
+                setattr(geometry, name, value)
+
+    def test_geometry_rejects_arrays_of_different_length(self):
+        with self.assertRaises(AssertionError):
+            ProfileGeometry(
+                cut_left=-1.0,
+                cut_right=1.0,
+                hist_x=backend.zeros(3),
+                hist_y=backend.zeros(4),
+            )
+
+    def test_geometry_rejects_hist_x_off_the_edges(self):
+        """`hist_x` must be the bin centers of the window."""
+        with self.assertRaises(AssertionError):
+            ProfileGeometry(
+                cut_left=-1.0,
+                cut_right=1.0,
+                hist_x=backend.linspace(-1.0, 1.0, 4),  # edges, not centers
+                hist_y=backend.zeros(4),
+            )
+
+    def test_geometry_accepts_bin_centers(self):
+        ProfileGeometry(
+            cut_left=-1.0,
+            cut_right=1.0,
+            hist_x=backend.array([-0.75, -0.25, 0.25, 0.75]),
+            hist_y=backend.zeros(4),
+        )
+
+    def test_geometry_rejects_inverted_window(self):
+        with self.assertRaises(AssertionError):
+            ProfileGeometry(
+                cut_left=1.0,
+                cut_right=-1.0,
+                hist_x=backend.zeros(3),
+                hist_y=backend.zeros(3),
+            )
 
     def test_hist_y_writable_in_place(self):
-        self.profile_base_class._hist_y[:] = 1.0
-        self.profile_base_class._hist_y *= 2.0  # rebinds the same object
+        self.profile_base_class.hist_y[:] = 1.0
+        self.profile_base_class.hist_y[:] *= 2.0
         np.testing.assert_array_equal(
             np.full(11, 2.0), copy_to_cpu(self.profile_base_class.hist_y)
         )
@@ -170,11 +215,11 @@ class TestProfileBaseClass(BLonDTestCase):
         beam.is_distributed = False
         beam.common_array_size = 0
 
-        self.profile_base_class._hist_y[:] = 1.0
+        self.profile_base_class.hist_y[:] = 1.0
         self.profile_base_class.track(beam=beam)
 
         np.testing.assert_array_equal(
-            copy_to_cpu(self.profile_base_class._hist_y),
+            copy_to_cpu(self.profile_base_class.hist_y),
             np.zeros(self.profile_base_class.n_bins),
         )
         self.assertEqual(self.profile_base_class.hist_y_to_density_factor, 0.0)
@@ -261,7 +306,7 @@ class TestProfileBaseClass(BLonDTestCase):
         backend.change_backend(Cupy64Bit)
         profile_base_class = ProfileBaseClass()
         profile_base_class._set_window(cut_left=-5.5, cut_right=5.5, n_bins=11)
-        profile_base_class._hist_y[:] = 5
+        profile_base_class.hist_y[:] = 5
         result = profile_base_class.singlebunch_gauss_fit()
         with AllowPlotting():
             expected = gauss_fit(
@@ -280,7 +325,7 @@ class TestProfileBaseClass(BLonDTestCase):
         backend.change_backend(Cupy64Bit)
         profile_base_class = ProfileBaseClass()
         profile_base_class._set_window(cut_left=-5.5, cut_right=5.5, n_bins=11)
-        profile_base_class._hist_y[:] = 5
+        profile_base_class.hist_y[:] = 5
         result = profile_base_class.multibunch_gauss_fit(n_bunches=1)
         with AllowPlotting():
             expected = multi_gauss_fit(
@@ -345,9 +390,12 @@ class TestStaticProfile(BLonDTestCase):
         geometry = ("cut_left", "cut_right", "hist_step", "n_bins")
         expected = {name: getattr(profile, name) for name in geometry}
         expected_bin_edges = copy_to_cpu(profile.bin_edges)
-        hist_x_reads = _CountingReads(profile._hist_x)
-        # spy on reads, deliberately bypassing the geometry guard
-        object.__setattr__(profile, "_hist_x", hist_x_reads)
+        hist_x_reads = _CountingReads(profile.hist_x)
+        # spy on reads, deliberately bypassing `_set_window`
+        profile._geometry = dataclasses.replace(
+            profile._geometry, hist_x=hist_x_reads
+        )
+        hist_x_reads.n_reads = 0  # `__post_init__` checks the ends
 
         for _ in range(2):
             profile.track(beam=beam)
@@ -428,9 +476,11 @@ class TestDynamicProfileConstNBins(BLonDTestCase):
     def test_n_bins_fixed_after_init(self):
         """``n_bins`` sizes every window, so changing it would make
         ``n_bins`` and the current arrays disagree."""
-        for name in ("n_bins", "_n_bins"):
-            with self.subTest(name=name), self.assertRaises(AttributeError):
-                setattr(self.dynamic_profile_const_cutoff, name, 5)
+        profile = self.dynamic_profile_const_cutoff
+        n_bins = profile.n_bins
+        with self.assertRaises(AttributeError):
+            profile.n_bins = 5
+        self.assertEqual(n_bins, profile.n_bins)
 
     def test_update_attributes(self):
         beam = Beam(

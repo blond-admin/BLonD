@@ -79,7 +79,7 @@ class TestResonatorImpedances(BLonDTestCase):
             )
             beam.setup_beam(dt=distr[:, 0] + 5, dE=distr[:, 1])
             profile.track(beam)
-            profile._hist_y[3000:] = 0
+            profile.hist_y[3000:] = 0
             if DEV_PLOT:
                 plt.figure(0)
                 plt.subplot(2, 1, 1)

@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from abc import abstractmethod
 from functools import cached_property
@@ -34,6 +35,114 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
+class ProfileGeometry:
+    """
+    Histogram window of a profile and the arrays sized by it.
+
+    Frozen, so the fields can't disagree: a profile changes its geometry
+    only by replacing it as a whole, via `ProfileBaseClass._set_window`
+    (new window) or `ProfileBaseClass._bind_arrays` (same window, other
+    memory). Don't construct it elsewhere, `_set_window` builds `hist_x`
+    from the edges. The edges are stored, not re-derived from `hist_x`,
+    which would round them and drop the edge particles.
+
+    The values of `hist_y` change every turn, in place.
+
+    Attributes
+    ----------
+    cut_left
+        Left outer edge of the histogram, in [s].
+    cut_right
+        Right outer edge of the histogram, in [s].
+    hist_x
+        X-axis of histogram, in [s], i.e. `bin_centers`.
+    hist_y
+        Y-axis of histogram.
+    """
+
+    cut_left: float
+    cut_right: float
+    hist_x: NumpyArray | CupyArray
+    hist_y: NumpyArray | CupyArray
+
+    def __post_init__(self) -> None:
+        """Validate the geometry, stripped by `python -O`."""
+        assert self.cut_left < self.cut_right, (
+            f"{self.cut_left=} must be left of {self.cut_right=}"
+        )
+        assert len(self.hist_x.shape) == 1
+        assert self.hist_x.shape == self.hist_y.shape
+        # reads two values of `hist_x`, i.e. two device->host syncs on GPU
+        assert self._hist_x_matches_edges(), (
+            "`hist_x` must be the bin centers between the edges"
+        )
+
+    def _hist_x_matches_edges(self) -> bool:
+        """
+        Check that the outer entries of `hist_x` are the outer centers.
+
+        Returns
+        -------
+        matches
+            Whether `hist_x` starts and ends half a bin inside the edges.
+        """
+        hist_step = self.hist_step
+        tolerance = 1e-6 * hist_step  # of a bin, independent of the offset
+        return math.isclose(
+            float(self.hist_x[0]),
+            self.cut_left + hist_step / 2,
+            rel_tol=0.0,
+            abs_tol=tolerance,
+        ) and math.isclose(
+            float(self.hist_x[-1]),
+            self.cut_right - hist_step / 2,
+            rel_tol=0.0,
+            abs_tol=tolerance,
+        )
+
+    @property
+    def n_bins(self) -> int:
+        """
+        Number of bins in the histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins in the histogram.
+        """
+        return len(self.hist_y)
+
+    @property
+    def hist_step(self) -> float:
+        """
+        Size of a single histogram bin, in [s].
+
+        Returns
+        -------
+        hist_step
+            Size of a single histogram bin, in [s].
+        """
+        return (self.cut_right - self.cut_left) / self.n_bins
+
+    @property
+    def bin_edges(self) -> NumpyArray | CupyArray:
+        """
+        Get the edges from `cut_left` to `cut_right`, in [s].
+
+        Returns
+        -------
+        bin_edges
+            Edges from `cut_left` to `cut_right` of the histogram, in [s].
+        """
+        return backend.linspace(
+            self.cut_left,
+            self.cut_right,
+            self.n_bins + 1,
+            dtype=backend.float,
+        )
+
+
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     """
     Base class to implement calculation of beam profiles.
@@ -53,17 +162,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
 
-    # The geometry (edges and the arrays sized by it) is only written by
-    # `_set_window` and `_bind_arrays`, so it can never disagree.
-    # `hist_y` changes every turn, but in place. See `__setattr__`.
-    _GEOMETRY_FIELDS = frozenset(
-        ("_cut_left", "_cut_right", "_hist_x", "_hist_y")
-    )
-    _cut_left: float | None = None
-    _cut_right: float | None = None
-    _hist_x: NumpyArray | CupyArray | None = None
-    _hist_y: NumpyArray | CupyArray | None = None
-
     def __init__(
         self, section_index: int = 0, name: str | None = None
     ) -> None:
@@ -75,15 +173,14 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
+        # Set by `_set_window`, see `ProfileGeometry`.
+        self._geometry: ProfileGeometry | None = None
+
     def _set_window(
         self, cut_left: float, cut_right: float, n_bins: int
     ) -> None:
         """
         Set the histogram window and allocate the according arrays.
-
-        This is the only place the geometry changes, so `cut_left`,
-        `cut_right` and `hist_step` are stored instead of re-derived from
-        `hist_x`, which would round the edges and cost device->host syncs.
 
         Parameters
         ----------
@@ -94,15 +191,18 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         n_bins
             Number of bins in the histogram.
         """
+        cut_left = float(cut_left)
+        cut_right = float(cut_right)
         hist_x, hist_y = ProfileBaseClass.get_arrays(
-            cut_left=float(cut_left),
-            cut_right=float(cut_right),
-            n_bins=int(n_bins),
+            cut_left=cut_left, cut_right=cut_right, n_bins=int(n_bins)
         )
-        object.__setattr__(self, "_cut_left", float(cut_left))
-        object.__setattr__(self, "_cut_right", float(cut_right))
-        object.__setattr__(self, "_hist_x", hist_x)
-        object.__setattr__(self, "_hist_y", hist_y)
+
+        self._geometry = ProfileGeometry(  # frozen to not misalign via updates
+            cut_left=cut_left,
+            cut_right=cut_right,
+            hist_x=hist_x,
+            hist_y=hist_y,
+        )
         self.invalidate_cache()
 
     def _bind_arrays(
@@ -123,40 +223,15 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         hist_y
             Y-axis of histogram.
         """
-        assert len(hist_x) == len(hist_y) == self.n_bins
-        assert hist_y.dtype == self._hist_y.dtype
-        assert np.allclose(copy_to_cpu(hist_x), copy_to_cpu(self._hist_x)), (
-            "`hist_x` must keep the geometry, use `_set_window` to change it"
+        geometry = self._geometry
+        assert hist_y.dtype == geometry.hist_y.dtype
+        assert np.allclose(
+            copy_to_cpu(hist_x), copy_to_cpu(geometry.hist_x)
+        ), "`hist_x` must keep the geometry, use `_set_window` to change it"
+        self._geometry = dataclasses.replace(
+            geometry, hist_x=hist_x, hist_y=hist_y
         )
-        object.__setattr__(self, "_hist_x", hist_x)
-        object.__setattr__(self, "_hist_y", hist_y)
         self.invalidate_cache()
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """
-        Refuse direct writes to the geometry.
-
-        Parameters
-        ----------
-        name
-            Name of the attribute.
-        value
-            Value of the attribute.
-
-        Raises
-        ------
-        AttributeError
-            If `name` is part of the geometry.
-        """
-        # rebinding the same object, e.g. by `hist_y *= 2`, changes nothing
-        if name in self._GEOMETRY_FIELDS and value is not getattr(
-            self, name, None
-        ):
-            raise AttributeError(
-                f"`{name}` is part of the profile geometry, set it via"
-                " `_set_window` (or `_bind_arrays` for the same geometry)."
-            )
-        super().__setattr__(name, value)
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -203,8 +278,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Simulation-extracted values; passed to the next MRO level.
         """
         super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
-        assert self._hist_x is not None
-        assert self._hist_y is not None
+        assert self._geometry is not None
         self.invalidate_cache()
 
     def plot(self, **kwargs_plot: dict[str, Any]) -> list[Any]:
@@ -237,7 +311,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         hist_x
             X-axis of histogram, in [s], i.e. `bin_centers`.
         """
-        return self._hist_x
+        return self._geometry.hist_x  # type: ignore
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray | CupyArray:
@@ -249,7 +323,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         hist_y
             Y-axis of histogram.
         """
-        return self._hist_y
+        return self._geometry.hist_y  # type: ignore
 
     @property  # as readonly attributes
     def n_bins(self) -> int:
@@ -261,10 +335,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         n_bins
             Number of bins in the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        return len(self._hist_x)  # type: ignore
+        return self._geometry.n_bins  # type: ignore
 
     @cached_property
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
@@ -276,7 +347,12 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         gradient_hist_y
             Derivative of the histogram.
         """
-        return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
+        geometry = self._geometry
+        return backend.gradient(
+            geometry.hist_y,  # type: ignore
+            geometry.hist_step,  # type: ignore
+            edge_order=2,
+        )
 
     @property  # as readonly attributes
     def hist_step(self) -> float:
@@ -288,10 +364,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         hist_step
             Size of a single histogram bin.
         """
-        # `_cut_left`, `_cut_right` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        return (self._cut_right - self._cut_left) / self.n_bins  # type: ignore
+        return self._geometry.hist_step  # type: ignore
 
     @property  # as readonly attributes
     def cut_left(self) -> float:
@@ -303,7 +376,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cut_left
             Left outer edge of the histogram.
         """
-        return self._cut_left  # type: ignore
+        return self._geometry.cut_left  # type: ignore
 
     @property  # as readonly attributes
     def cut_right(self) -> float:
@@ -315,7 +388,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cut_right
             Right outer edge of the histogram.
         """
-        return self._cut_right  # type: ignore
+        return self._geometry.cut_right  # type: ignore
 
     @property  # as readonly attributes
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -327,15 +400,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         bin_edges
             Edges from cut_left to cut_right of the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        return backend.linspace(
-            self.cut_left,
-            self.cut_right,
-            len(self._hist_x) + 1,
-            backend.float,  # type: ignore
-        )
+        return self._geometry.bin_edges  # type: ignore
 
     def weighted_avg_dt(self) -> float:
         """
@@ -350,7 +415,11 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         weighted_avg_dt
             Bunch center of weight, in [s].
         """
-        return backend.average(self._hist_x, weights=self._hist_y)
+        geometry = self._geometry
+        return backend.average(
+            geometry.hist_x,  # type: ignore
+            weights=geometry.hist_y,  # type: ignore
+        )
 
     def sigma_weighted_avg_dt(self) -> float:
         r"""
@@ -365,9 +434,11 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         sigma_weighted_avg_dt
             Bunch length (:math:`1 \sigma`), in [s].
         """
-        average = backend.average(self._hist_x, weights=self._hist_y)
+        hist_x = self._geometry.hist_x  # type: ignore
+        hist_y = self._geometry.hist_y  # type: ignore
+        average = backend.average(hist_x, weights=hist_y)
         variance = backend.average(
-            backend.square(self._hist_x - average), weights=self._hist_y
+            backend.square(hist_x - average), weights=hist_y
         )
         return backend.sqrt(variance)
 
@@ -383,10 +454,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         params
             Amplitude, mean and standard deviation the bunch.
         """
-        _hist_x = self._hist_x
-        _hist_y = self._hist_y
+        _hist_x = self._geometry.hist_x  # type: ignore
+        _hist_y = self._geometry.hist_y  # type: ignore
 
-        if is_cupy_array(self._hist_x):
+        if is_cupy_array(_hist_x):
             _hist_x = _hist_x.get()
             _hist_y = _hist_y.get()
 
@@ -410,10 +481,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Amplitude, mean and standard deviation for each bunch.
             Shape (n_bunches, 3).
         """
-        _hist_x = self._hist_x
-        _hist_y = self._hist_y
+        _hist_x = self._geometry.hist_x  # type: ignore
+        _hist_y = self._geometry.hist_y  # type: ignore
 
-        if is_cupy_array(self._hist_x):
+        if is_cupy_array(_hist_x):
             _hist_x = _hist_x.get()
             _hist_y = _hist_y.get()
 
@@ -432,23 +503,21 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             raise NotImplementedError(
                 "Implement histogram on distributed array"
             )
-        elif beam.common_array_size > 0:
-            # `_hist_x`, `_hist_y` could be None, which is not handled and
-            # causes a MyPy type error,
-            # This is intentionally ignored, we want to get an exception.
+        geometry = self._geometry
+        if beam.common_array_size > 0:
             beam._dt.histogram(  # MPI aware histogram calculation
-                len(self._hist_y),
+                geometry.n_bins,  # type: ignore
                 range=(
-                    self.cut_left,
-                    self.cut_right,
+                    geometry.cut_left,  # type: ignore
+                    geometry.cut_right,  # type: ignore
                 ),
-                out=self._hist_y,
+                out=geometry.hist_y,  # type: ignore
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
             self.hist_y_to_density_factor = 1.0 / beam.common_array_size
         else:
-            self._hist_y[:] = 0
+            geometry.hist_y[:] = 0  # type: ignore
             self.hist_y_to_density_factor = 0.0
 
         self.invalidate_cache()
@@ -494,7 +563,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cutoff_frequency
             Cutoff frequency if the profile is fourier transformed, in [Hz].
         """
-        return 1 / (2 * self.hist_step)
+        return 1 / (2 * self._geometry.hist_step)  # type: ignore
 
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray | CupyArray:
         """
@@ -510,14 +579,11 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         spectrum
             Fourier transform of the profile.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-
+        hist_y = self._geometry.hist_y  # type: ignore
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
-                self._hist_y,  # type: ignore
+                hist_y,
                 n_fft,
             )
         # recycle array, but overwrite data (preventing new array allocation)
@@ -525,12 +591,12 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             # At the time of writing (2025), out is not a keyword argument
             # of cp.fft.rfft, but might be in future.
             self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
-                self._hist_y,
+                hist_y,
                 n_fft,
             )
         else:
             backend.fft.rfft(
-                self._hist_y,
+                hist_y,
                 n_fft,
                 out=self._beam_spectrum_buffer[n_fft],  # type: ignore
             )
@@ -573,7 +639,6 @@ class StaticProfile(ProfileBaseClass):
             name=name,
         )
         self._set_window(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
-        assert len(self._hist_x.shape) == 1
 
     @staticmethod
     def from_cutoff(
@@ -803,8 +868,6 @@ class DynamicProfileConstNBins(DynamicProfile):
         User given name of the element.
     """
 
-    _GEOMETRY_FIELDS = DynamicProfile._GEOMETRY_FIELDS | {"_n_bins"}
-
     def __init__(
         self, n_bins: int, section_index: int = 0, name: str | None = None
     ) -> None:
@@ -812,10 +875,9 @@ class DynamicProfileConstNBins(DynamicProfile):
             section_index=section_index,
             name=name,
         )
-        object.__setattr__(  # fixed, it sizes every window
-            self,
-            "_n_bins",
-            int_from_float_with_warning(n_bins, warning_stacklevel=2),
+        # fixed, it sizes every window
+        self._n_bins = int_from_float_with_warning(
+            n_bins, warning_stacklevel=2
         )
 
     @property  # as readonly attributes
