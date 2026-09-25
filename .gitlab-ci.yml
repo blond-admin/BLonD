@@ -423,7 +423,13 @@ clang-tidy:
     - *uv_setup
     - uv venv ./.venv
     - source ./.venv/bin/activate
-    - uv pip install clang-tidy==22.1.8
+    # Install only the clang-tidy pin from the `dev` extra, not the rest
+    # of it, so this job stays light but cannot drift from pyproject.toml.
+    - >-
+      uv pip install "$(python -c 'import tomllib;
+      deps = tomllib.load(open("pyproject.toml", "rb"))["project"][
+      "optional-dependencies"]["dev"];
+      print(next(d for d in deps if d.startswith("clang-tidy")))')"
   script:
     - python dev_tools/run_clang_tidy.py --diff "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
   rules:
@@ -432,6 +438,7 @@ clang-tidy:
         - blond/core/backends/cpp/**/*
         - .clang-tidy
         - dev_tools/run_clang_tidy.py
+        - pyproject.toml
   cache:
     - key: "uv-${CI_JOB_NAME}"
       paths:

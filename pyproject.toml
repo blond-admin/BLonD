@@ -54,6 +54,7 @@ dev = [
   "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
   "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
   "nbconvert>=6",        # notebook execution in tests
+  "clang-tidy==22.1.8",  # C++ backend lint; exact pin, findings vary by version
 ]
 doc = [
   "sphinx>=6",                   # documentation generator

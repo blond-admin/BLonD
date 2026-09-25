@@ -2,7 +2,8 @@
 
 Lints exactly the sources `blond/core/backends/cpp/compile.py` compiles,
 with the parallel (OpenMP) code paths enabled. Needs `g++` for the
-standard headers and `pip install clang-tidy==22.1.8`.
+standard headers and clang-tidy, pinned in the `dev` extra
+(`pip install -e ".[dev]"`).
 
 Usage::
 
