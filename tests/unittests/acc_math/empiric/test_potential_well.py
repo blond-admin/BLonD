@@ -1,3 +1,4 @@
+import itertools
 import unittest
 from unittest.mock import patch
 
@@ -22,6 +23,103 @@ def _plot_original_and_mirrored(
     plt.title("mirrored")
     pwh_mirrored.plot()
     plt.show()
+
+
+# Single-RF sweep ported from solfege's potential well test cases
+# (``solfege/tests/potential_well_test_case.py``, commit 9ff2ca1):
+# h=21, 80 kV, 3 keV per turn, a window of a fraction of one turn with
+# its start shifted by a fraction of an RF period. With the RF phase
+# ``phase = h * omega_rev * t`` the potential well is, up to a positive
+# factor, ``sign * (cos(phase) + tilt * phase)``: ``sign`` is the sign
+# of charge times eta (both charges, both sides of transition) and
+# ``tilt`` is the energy gain per turn over charge times voltage.
+HARMONIC_NUMBER = 21
+TILTS = (3e3 / 80e3, 0.0, -3e3 / 80e3)
+SIGNS = (1, -1)
+TURN_FRACTIONS = (1.0, 0.7, 0.4, 0.2)
+START_PHASES = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.625, 0.7, 0.8)
+
+
+def _single_rf_potential_well(
+    turn_fraction: float,
+    start_phase: float,
+    tilt: float,
+    sign: int,
+    n_points: int = 800,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the RF phase and the tilted single-RF potential well.
+
+    Parameters
+    ----------
+    turn_fraction
+        Window length as a fraction of one turn.
+    start_phase
+        Window start as a fraction of one RF period.
+    tilt
+        Energy gain per turn over charge times voltage.
+    sign
+        Sign of charge times eta.
+    n_points
+        Number of samples.
+
+    Returns
+    -------
+    phase
+        RF phase in radians.
+    potential_well
+        Potential well, in units of charge times voltage.
+    """
+    phase_start = 2 * np.pi * start_phase
+    phase_stop = phase_start + 2 * np.pi * HARMONIC_NUMBER * turn_fraction
+    phase = np.linspace(phase_start, phase_stop, n_points)
+    return phase, sign * (np.cos(phase) + tilt * phase)
+
+
+def _n_minima_inside(phase: np.ndarray, sign: int) -> int:
+    """Count the minima of the untilted potential well inside `phase`.
+
+    ``sign * cos(phase)`` has its minima at ``pi`` (``sign = 1``) or
+    ``0`` (``sign = -1``) modulo ``2 pi``; a minimum on the first or
+    last sample is not inside.
+    """
+    offset = np.pi if sign == 1 else 0.0
+    half_step = (phase[1] - phase[0]) / 2
+    first = np.ceil((phase[0] + half_step - offset) / (2 * np.pi))
+    last = np.floor((phase[-1] - half_step - offset) / (2 * np.pi))
+    return int(last - first + 1)
+
+
+def _without_edge_slivers(
+    time_axis: np.ndarray, bucket_list: np.ndarray
+) -> np.ndarray:
+    """Drop buckets at the resolution limit on an array edge.
+
+    When an edge lies within about one sample of a well bottom, the
+    helper reports a bucket of two or three samples on that edge. It
+    appears or vanishes with sub-sample shifts of the potential, so it
+    is noise rather than a well. Known and ignored for now; see
+    ``test_no_edge_sliver_bucket``.
+
+    Parameters
+    ----------
+    time_axis
+        Time axis the buckets were found on.
+    bucket_list
+        Array of shape (N, 2) with ``(start_time, stop_time)``.
+
+    Returns
+    -------
+    bucket_list
+        `bucket_list` without buckets that touch the first or last
+        sample and span at most three samples.
+    """
+    bucket_list = np.asarray(bucket_list).reshape(-1, 2)
+    start = np.searchsorted(time_axis, bucket_list[:, 0])
+    stop = np.searchsorted(time_axis, bucket_list[:, 1])
+    on_edge = (start == 0) | (stop == len(time_axis) - 1)
+    max_sliver_samples = 3
+    is_sliver = on_edge & (stop - start + 1 <= max_sliver_samples)
+    return bucket_list[~is_sliver]
 
 
 class TestPotentialWellHelper(BLonDTestCase):
@@ -559,6 +657,88 @@ class TestPotentialWellHelper(BLonDTestCase):
             sorted(buckets_mirrored.tolist()),
             sorted((-buckets[:, ::-1]).tolist()),
         )
+
+    def test_single_rf_sweep_buckets_sound(self):
+        """Every bucket is a well, whatever the charge, tilt or window."""
+        for sign, tilt, turn_fraction, start_phase in itertools.product(
+            SIGNS, TILTS, TURN_FRACTIONS, START_PHASES
+        ):
+            with self.subTest(
+                sign=sign,
+                tilt=tilt,
+                turn_fraction=turn_fraction,
+                start_phase=start_phase,
+            ):
+                phase, potential_well = _single_rf_potential_well(
+                    turn_fraction, start_phase, tilt, sign
+                )
+                pwh = PotentialWellHelper(phase, potential_well)
+                self.assert_buckets_sound(
+                    phase,
+                    potential_well,
+                    _without_edge_slivers(phase, pwh.bucket_list),
+                )
+
+    def test_single_rf_sweep_count_without_tilt(self):
+        """Without tilt, each minimum inside the window has one bucket."""
+        for sign, turn_fraction, start_phase in itertools.product(
+            SIGNS, TURN_FRACTIONS, START_PHASES
+        ):
+            with self.subTest(
+                sign=sign, turn_fraction=turn_fraction, start_phase=start_phase
+            ):
+                phase, potential_well = _single_rf_potential_well(
+                    turn_fraction, start_phase, 0.0, sign
+                )
+                pwh = PotentialWellHelper(phase, potential_well)
+                self.assertEqual(
+                    len(pwh.bucket_list), _n_minima_inside(phase, sign)
+                )
+
+    def test_single_rf_sweep_count_independent_of_tilt(self):
+        """Accelerating or decelerating keeps the count of the coast."""
+        for sign, turn_fraction, start_phase in itertools.product(
+            SIGNS, TURN_FRACTIONS, START_PHASES
+        ):
+            with self.subTest(
+                sign=sign, turn_fraction=turn_fraction, start_phase=start_phase
+            ):
+                n_buckets = []
+                for tilt in TILTS:
+                    phase, potential_well = _single_rf_potential_well(
+                        turn_fraction, start_phase, tilt, sign
+                    )
+                    pwh = PotentialWellHelper(phase, potential_well)
+                    n_buckets.append(
+                        len(_without_edge_slivers(phase, pwh.bucket_list))
+                    )
+                self.assertEqual(
+                    n_buckets, [n_buckets[1]] * len(TILTS), msg="tilt +, 0, -"
+                )
+
+    @unittest.expectedFailure
+    def test_no_edge_sliver_bucket(self):
+        """Known issue: a sub-sample well at the edge becomes a bucket.
+
+        The window starts on a well bottom; the tilt moves the bottom
+        between the first two samples, and the helper reports the
+        bucket ``[0, 1]`` with no sample inside. Such buckets at the
+        resolution limit are noise and are ignored by the sweeps above
+        (see `_without_edge_slivers`); this test records the behaviour
+        until it is changed.
+        """
+        phase, potential_well = _single_rf_potential_well(
+            0.4, 0.0, TILTS[0], -1
+        )
+        pwh = PotentialWellHelper(phase, potential_well)
+        np.testing.assert_array_equal(
+            _without_edge_slivers(phase, pwh.bucket_list), pwh.bucket_list
+        )
+
+    def test_monotonic_potential_has_no_bucket(self):
+        time_axis = np.linspace(0, 1e-6, 50)
+        pwh = PotentialWellHelper(time_axis, 5.0 * time_axis)
+        self.assertEqual(len(pwh.bucket_list), 0)
 
 
 if __name__ == "__main__":
