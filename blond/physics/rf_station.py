@@ -912,13 +912,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-        delta_omega_rf = self.delta_omega_rf
-        # plain `!=` for the usual scalar; `np.any` costs ~2 us per turn
-        if (
-            delta_omega_rf != 0
-            if isinstance(delta_omega_rf, float)
-            else np.any(delta_omega_rf != 0)
-        ):
+        if np.any(self.delta_omega_rf != 0):
             self._update_delta_phi_rf_from_beam_feedback()
 
     def _track_interp(
