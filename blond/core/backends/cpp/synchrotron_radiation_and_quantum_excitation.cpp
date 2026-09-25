@@ -30,6 +30,21 @@
 #include <omp.h>
 #endif
 
+namespace {
+
+// Seed for the calling thread's generator: `std::random_device` XORed with
+// the OpenMP thread id, so every run and every thread gets its own stream.
+std::mt19937_64::result_type thread_seed() {
+  unsigned int thread_id = 0;
+#ifdef _OPENMP
+  thread_id = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+  std::random_device entropy_source;
+  return entropy_source() ^ thread_id;
+}
+
+} // namespace
+
 extern "C" void apply_synchrotron_radiation_no_excitation(
     real_t *__restrict__ beam_dE, const real_t damping_factor,
     const real_t energy_lost, const index_t n_macroparticles) {
@@ -47,19 +62,9 @@ extern "C" void apply_synchrotron_radiation_and_quantum_excitation(
   {
     // One standard-library generator and Gaussian distribution per
     // thread, seeded once on first use with a thread-distinct value.
-    static thread_local std::mt19937_64 generator;
+    static thread_local std::mt19937_64 generator(thread_seed());
     static thread_local std::normal_distribution<real_t> standard_normal(
         real_t(0.0), real_t(1.0));
-    static thread_local bool seeded = false;
-    if (!seeded) {
-      unsigned int thread_id = 0;
-#ifdef _OPENMP
-      thread_id = static_cast<unsigned int>(omp_get_thread_num());
-#endif
-      std::random_device entropy_source;
-      generator.seed(entropy_source() ^ thread_id);
-      seeded = true;
-    }
 
 #pragma omp for
     for (index_t i = 0; i < n_macroparticles; i++) {

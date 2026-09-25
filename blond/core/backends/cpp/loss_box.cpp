@@ -9,9 +9,6 @@
 // C++ routine that calculates loss_box.
 // Author: Simon Lauber
 
-#include <math.h>
-#include <string.h>
-
 #include "blond_common.h"
 
 // `flag_lost` is `BeamFlags.LOST` (blond/core/beam/flags.py), passed in by

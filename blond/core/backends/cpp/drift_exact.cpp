@@ -10,7 +10,7 @@
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen, Elleanor Lamb
 
 #include "blond_common.h"
-#include <math.h>
+#include <cmath>
 
 // The number of higher-order momentum compaction factors is a compile-time
 // parameter, and `drift_exact` below dispatches to the instantiation that
@@ -90,9 +90,10 @@ static void drift_exact_generic(real_t *__restrict__ beam_dt,
 
     const real_t dE = beam_dE[i];
 
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
+    const real_t delta =
+        std::sqrt(1.0 + inv_beta_sq *
+                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
+        1.0;
 
     real_t poly = 1.0 + alpha_zero * delta;
     real_t delta_power = delta * delta; // starts at δ²

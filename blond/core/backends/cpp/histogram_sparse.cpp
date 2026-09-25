@@ -6,13 +6,11 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-#include <cstdio>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "blond_common.h"
 #include "openmp.h"
+#include "scratch_buffer.h"
 
 extern "C" void
 histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
@@ -32,27 +30,18 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   // even when uncontended, and dominated this kernel: ~6x slower than the
   // dense `histogram`, which already uses this pattern).
   //
-  // The scratch buffer is re-used across calls (the profile size is constant
-  // turn after turn), reallocating only when a larger one is needed -- this
-  // removes a malloc+free every call, which matters for large histograms.
-  // Safe because BLonD drives the kernels from a single Python thread (the
-  // OpenMP parallelism is internal); it is not re-entrant.
+  // The scratch buffer persists across calls, see scratch_buffer.h.
   const int nthreads = omp_get_max_threads();
   const size_t need = (size_t)nthreads * (size_t)n_out;
-  static real_t *histo = nullptr;
-  static size_t histo_cap = 0;
-  if (need > histo_cap) {
-    free(histo);
-    histo = (real_t *)malloc(need * sizeof(real_t));
-    histo_cap = need;
-  }
+  static thread_local std::vector<real_t> histo_buffer;
+  real_t *const histo = reuse_scratch(histo_buffer, need);
 
 #pragma omp parallel
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
     real_t *__restrict__ h = histo + (size_t)id * n_out;
-    memset(h, 0, n_out * sizeof(real_t));
+    std::memset(h, 0, n_out * sizeof(real_t));
 
 // ---------------------------------
 // Particle loop (into the private histogram, no atomics)
@@ -65,8 +54,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
       // converting an out-of-range value to `int` is undefined
       // behaviour.
       const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
-      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
+      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets)) {
         continue;
+      }
       const int bucket_i = (int)bucket_real;
       if (!filling_pattern[bucket_i]) {
         continue;
@@ -79,8 +69,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
         h[bucket_index_to_memory_index[bucket_i] + bins_per_profile - 1] += 1;
         continue;
       }
-      if (dt < cut_left || dt >= cut_right)
+      if (dt < cut_left || dt >= cut_right) {
         continue;
+      }
 
       // Calculate the bin index
       const int bin = (int)((dt - cut_left) * inv_bin_width);
@@ -95,8 +86,9 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
 #pragma omp for schedule(static)
     for (int k = 0; k < n_out; ++k) {
       real_t s = 0;
-      for (int t = 0; t < threads; ++t)
+      for (int t = 0; t < threads; ++t) {
         s += histo[(size_t)t * n_out + k];
+      }
       output[k] = s;
     }
   }
