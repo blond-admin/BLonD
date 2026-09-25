@@ -1146,6 +1146,59 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_just_below_first_bin_center(self) -> None:
+        """Particles less than one bin width below ``bin_centers[0]``
+        receive only ``acceleration_kick``.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would give them the interpolated voltage of
+        the first interval.
+        """
+        dtype = np.float64
+        charge, acceleration_kick = 10.0, 0.5
+        bin_centers_np = np.linspace(-4, 4, 20, dtype=dtype)
+        voltage_np = bin_centers_np**2
+        bin_width = bin_centers_np[1] - bin_centers_np[0]
+        dt_np = np.array(
+            [
+                np.nextafter(bin_centers_np[0], -np.inf),
+                bin_centers_np[0] - 0.5 * bin_width,
+                bin_centers_np[0] - 0.999 * bin_width,
+                bin_centers_np[0] + 0.5 * bin_width,  # kicked, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.full_like(dt_np, acceleration_kick)
+        expected[-1] += charge * 0.5 * (voltage_np[0] + voltage_np[1])
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dE = backend.zeros(len(dt_np), dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=backend.array(dt_np, dtype=backend.float),
+                dE=dE,
+                voltage=backend.array(voltage_np, dtype=backend.float),
+                bin_centers=backend.array(bin_centers_np, dtype=backend.float),
+                charge=backend.float(charge),
+                acceleration_kick=backend.float(acceleration_kick),
+            )
+            result = copy_to_cpu(dE)
+            np.testing.assert_array_equal(
+                result[:-1],
+                expected[:-1],
+                err_msg=f"{special=} {dtype=}",
+            )
+            np.testing.assert_allclose(
+                result[-1],
+                expected[-1],
+                rtol=self.rtol,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_rejects_non_uniform_bin_centers(self) -> None:
         """Non-uniform bin_centers (e.g. a sparse multi-island hist_x from
         EquidistantMultiProfile) must raise, not silently compute the wrong

@@ -13,7 +13,7 @@
 // loop. Note that the guards protecting a C++ conversion of a bin index
 // to `int` are written as `index < lo || index >= hi`: a NaN index
 // compares false against both bounds, passes the guard and reaches the
-// conversion, which is undefined behaviour (`histogram_bin` avoids the
+// conversion, which is undefined behaviour (`floor_to_int` avoids the
 // C++ conversion and instead files a NaN in bin 0). The caller must not
 // produce non-finite coordinates. See `Specials` in
 // blond/core/backends/backend.py.
@@ -177,24 +177,27 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
   }
 }
 
+// floor(x) as an `int`, in one saturating instruction (cvt.rmi): an
+// out-of-range result clamps to INT_MIN/INT_MAX instead of being
+// undefined behaviour, so callers range-check the integer afterwards.
+// That spares a floor and the FP64 range compares per particle, which is
+// what bounds the per-particle binning kernels on GPUs with low FP64
+// throughput (1/32 rate on consumer cards). A NaN converts to 0.
+__device__ __forceinline__ int floor_to_int(const real_t x) {
+#ifdef USEFLOAT
+  return __float2int_rd(x);
+#else
+  return __double2int_rd(x);
+#endif
+}
+
 // Bin index of `value` in a histogram of `n_slices` bins over
 // [cut_left, cut_right]; any index outside [0, n_slices) means the value
-// lies outside the cut.
-//
-// Floor and conversion are a single saturating instruction (cvt.rmi):
-// an out-of-range index clamps to INT_MIN/INT_MAX instead of being
-// undefined behaviour, so the range check is done on the integer
-// afterwards. That spares a floor and four FP64 compares per particle,
-// which is what bounds these kernels on GPUs with low FP64 throughput
-// (1/32 rate on consumer cards). A NaN converts to 0, i.e. bin 0.
+// lies outside the cut (a NaN lands in bin 0, see `floor_to_int`).
 __device__ __forceinline__ int
 histogram_bin(const real_t value, const real_t cut_left, const real_t cut_right,
               const real_t inv_bin_width, const int n_slices) {
-#ifdef USEFLOAT
-  int bin = __float2int_rd((value - cut_left) * inv_bin_width);
-#else
-  int bin = __double2int_rd((value - cut_left) * inv_bin_width);
-#endif
+  int bin = floor_to_int((value - cut_left) * inv_bin_width);
   // Scaling is not exact: a value at or just below cut_right can land
   // on n_slices. Fold it back into the last bin, as np.histogram does,
   // instead of dropping the particle.
@@ -287,13 +290,11 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
   const real_t bin0 = bin_centers[0];
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    // Range-check in floating point before the conversion to `int`:
-    // converting an out-of-range value is undefined behaviour.
-    const real_t fbin_real = floor((beam_dt[i] - bin0) * inv_bin_width);
-    if (fbin_real >= real_t(0) && fbin_real < real_t(n_slices - 1)) {
-      const int fbin = (int)fbin_real;
-      beam_dE[i] += beam_dt[i] * glob_vkick_factor[2 * fbin] +
-                    glob_vkick_factor[2 * fbin + 1];
+    const real_t dt = beam_dt[i];
+    const int fbin = floor_to_int((dt - bin0) * inv_bin_width);
+    if ((unsigned int)fbin < (unsigned int)(n_slices - 1)) {
+      beam_dE[i] +=
+          dt * glob_vkick_factor[2 * fbin] + glob_vkick_factor[2 * fbin + 1];
     } else {
       // Out of range only the interpolated voltage is undefined; acc_kick
       // carries the reference energy change and applies to the whole beam
