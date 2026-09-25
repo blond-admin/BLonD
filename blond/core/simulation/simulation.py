@@ -46,6 +46,7 @@ from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
+from blond.generals.late_init import LateInit, NotInitialisedError
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
@@ -139,6 +140,12 @@ class Simulation(Preparable):
     >>> sim = Simulation.from_locals(locals())
     """
 
+    execution_model: LateInit[ExecutionModel] = LateInit(
+        "`Simulation.finalize(...)` (auto-selected from the number of"
+        " beams), or by assigning `simulation.execution_model`",
+        doc="Strategy that drives the main loop.",
+    )
+
     def __init__(
         self,
         ring: Ring,
@@ -163,7 +170,6 @@ class Simulation(Preparable):
         self._current_t_rev = None
         self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
-        self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
         self._exec_track_reference()
 
@@ -1312,7 +1318,9 @@ class Simulation(Preparable):
         """
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
-        if self.execution_model is None:
+        try:
+            self.execution_model  # NOQA: B018
+        except NotInitialisedError:
             self._autoselect_execution_model(beams)
 
         if self.check_circumference == "raise":

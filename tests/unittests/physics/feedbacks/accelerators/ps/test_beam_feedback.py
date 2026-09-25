@@ -1,5 +1,3 @@
-import unittest
-
 import numpy as np
 
 from blond import (
@@ -14,6 +12,7 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.feedbacks.accelerators.ps import (
     PSBeamControl,
 )
@@ -36,6 +35,23 @@ voltage = 50.0e3
 
 PL_gain = 0.01924
 RL_gain = 155.05
+
+
+class TestPSBeamFeedbackLateInit(BLonDTestCase):
+    def test_attributes_before_simulation(self):
+        beam_control = PSBeamControl(
+            profile=StaticProfile(cut_left=0, cut_right=1, n_bins=4),
+            pl_gain=1.0,
+            rl_gain=1.0,
+            below_transition=np.ones(1, dtype=bool),
+        )
+        with self.assertRaisesRegex(NotInitialisedError, "configure"):
+            beam_control.cavities  # NOQA
+        for name in ("_simulation", "_main_cavities"):
+            with self.assertRaisesRegex(
+                NotInitialisedError, "on_run_simulation"
+            ):
+                getattr(beam_control, name)
 
 
 class TestPSBeamFeedback(BLonDTestCase):

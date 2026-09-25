@@ -34,6 +34,7 @@ from blond.core.base import (
 )
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.late_init import BY_RUN_SIMULATION, LateInit
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
@@ -89,6 +90,14 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         The harmonic number of the main RF system. The type is int | None.
     """
 
+    _main_cavities: LateInit[list[RFStationBaseClass]] = LateInit(
+        BY_RUN_SIMULATION,
+        doc="RF stations on the main harmonic.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_RUN_SIMULATION, doc="Simulation the feedback belongs to."
+    )
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -113,8 +122,6 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             None  # type is int | None, documented in class docstring
         )
 
-        self._main_cavities: list[RFStationBaseClass] | None = None
-        self._simulation: Simulation | None = None
         self._turn_counter: DynamicParameter | None = None
 
         self._first_turn_value_checked = False

@@ -8,6 +8,7 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import proton
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import cycle_const_mock, simulation_mock
@@ -24,6 +25,13 @@ class TestEnergyReferenceKick(BLonDTestCase):
         self.energy_kick._magnetic_cycle = self.simulation.magnetic_cycle
         self.energy_kick._turn_counter = self.simulation.turn_counter
         self.energy_kick._ring = self.simulation.ring
+
+    def test_late_init_attributes_raise_before_simulation(self):
+        kick = ReferenceEnergyChange(section_index=0)
+        with self.assertRaisesRegex(NotInitialisedError, "Simulation"):
+            kick._turn_counter  # NOQA
+        with self.assertRaisesRegex(NotInitialisedError, "Simulation"):
+            kick._magnetic_cycle  # NOQA
 
     def test_init_raises_typeerror(self):
         """Test that using an invalid magnetic cycle raises a TypeError when required."""

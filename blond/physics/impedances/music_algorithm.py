@@ -22,6 +22,11 @@ from scipy.constants import elementary_charge as e
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.generals.distributed.helpers import mpi_is_distributed
+from blond.generals.late_init import (
+    LateInit,
+    NotInitialisedError,
+    reset_late_init,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -57,12 +62,6 @@ class Music(BeamPhysicsRelevant):
     name
         Optional human-readable name for the element.
 
-    Attributes
-    ----------
-    induced_voltage
-        Induced voltage of the most recent turn [V] (one entry per
-        macro-particle, in the sorted order).
-
     See Also
     --------
     blond.physics.impedances.base.WakeField : Profile-based induced voltage.
@@ -96,6 +95,31 @@ class Music(BeamPhysicsRelevant):
     """
 
     # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+
+    # MuSiC prefactor [V]; depends on the beam.
+    _const: LateInit[float] = LateInit(
+        "`Music.configure_run()`", doc="MuSiC prefactor, in [V]."
+    )
+    # The difference to the current reference time is the exact elapsed
+    # time between two passages (used to bridge the inter-turn gap).
+    _prev_reference_time: LateInit[float] = LateInit(
+        "`Music.track()`",
+        doc="Reference clock time of the previous track, in [s].",
+    )
+    # Layout [input_first, input_second, last_dt]:
+    #   - input_first/second: 2-component oscillator state of the
+    #     recurrence after the last processed particle,
+    #   - last_dt: dt of the last (largest-dt) particle of the previous
+    #     turn, used to span the gap to this turn's first particle.
+    _parameter_array: LateInit[NumpyArray] = LateInit(
+        "`Music.configure_run()`",
+        doc="Running recurrence state carried across turns.",
+    )
+    induced_voltage: LateInit[NumpyArray] = LateInit(
+        "`Music.track()`",
+        doc="Induced voltage of the most recent turn, in [V] (one entry"
+        " per macro-particle, in the sorted order).",
+    )
 
     def __init__(
         self,
@@ -136,24 +160,8 @@ class Music(BeamPhysicsRelevant):
         self._coeff3 = self._omega_R * self._Q / (self._R_S * self._omega_bar)
         self._coeff4 = self._alpha / self._omega_bar
 
-        # MuSiC prefactor [V]; depends on the beam, so computed in
-        # `configure_run` once the beam is known.
-        self._const: float | None = None
         # Turn 1 starts the recurrence fresh; later turns bridge the wake.
         self._first_turn = True
-        # Reference clock time [s] at the previous track; the difference to
-        # the current reference time is the exact elapsed time between the
-        # two passages (used to bridge the inter-turn gap).
-        self._prev_reference_time: float | None = None
-        # Running state carried across turns, layout
-        # [input_first, input_second, last_dt]:
-        #   - input_first/second: 2-component oscillator state of the
-        #     recurrence after the last processed particle,
-        #   - last_dt: dt of the last (largest-dt) particle of the previous
-        #     turn, used to span the gap to this turn's first particle.
-        self._parameter_array: NumpyArray | None = None
-        # Induced voltage [V] of the most recent turn (one entry/particle).
-        self.induced_voltage: NumpyArray | None = None
 
     def _check_supported(self) -> None:
         """
@@ -223,11 +231,10 @@ class Music(BeamPhysicsRelevant):
             / (n_macroparticles * self._Q)
         )
         self._first_turn = True
-        self._prev_reference_time = None
+        reset_late_init(self, "_prev_reference_time", "induced_voltage")
         self._parameter_array = backend.array(
             [1.0, 0.0, 0.0], dtype=backend.float
         )
-        self.induced_voltage = None
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -249,10 +256,14 @@ class Music(BeamPhysicsRelevant):
         dE = beam.write_partial_dE()
 
         n = len(dt)
-        if self.induced_voltage is None or len(self.induced_voltage) != n:
-            self.induced_voltage = backend.zeros(n, dtype=backend.float)
-        else:
+        try:
+            can_reuse_induced_voltage = len(self.induced_voltage) == n
+        except NotInitialisedError:
+            can_reuse_induced_voltage = False
+        if can_reuse_induced_voltage:
             self.induced_voltage[:] = 0.0
+        else:
+            self.induced_voltage = backend.zeros(n, dtype=backend.float)
 
         # On turn 1 there is no previous-turn wake to bridge; afterwards the
         # bridge needs the exact time elapsed since the previous track, read

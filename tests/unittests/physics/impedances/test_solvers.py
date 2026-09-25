@@ -28,6 +28,7 @@ from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.late_init import NotInitialisedError
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -67,6 +68,7 @@ class TestTimeDomainFftSolver(BLonDTestCase):
         )
 
         self.time_domain_fft_solver._parent_wakefield = Mock(WakeField)
+        self.time_domain_fft_solver._simulation = Mock(Simulation)
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -386,6 +388,7 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         self.periodic_freq_solver = PeriodicFreqSolver(t_periodicity=10)
 
         self.periodic_freq_solver._parent_wakefield = Mock(WakeField)
+        self.periodic_freq_solver._simulation = Mock(Simulation)
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -750,6 +753,7 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
 
         td_fft_solver = TimeDomainFftSolver()
         td_fft_solver._parent_wakefield = Mock(WakeField)
+        td_fft_solver._simulation = Mock(Simulation)
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
@@ -1057,6 +1061,7 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
         analy._parent_wakefield = Mock(WakeField)
+        analy._simulation = Mock(Simulation)
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -1175,6 +1180,7 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         )
 
         self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
+        self.multi_pass_resonator_solver._simulation = Mock(Simulation)
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
@@ -1240,8 +1246,10 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             / single_resonator._alpha[0],
         )
 
-        with self.assertRaises(RuntimeError):
-            local_solv._parent_wakefield = None
+        with self.assertRaisesRegex(
+            NotInitialisedError, "on_wakefield_init_simulation"
+        ):
+            del local_solv._parent_wakefield
             local_solv._determine_storage_time()
 
     def test_determine_storage_time_multi_res(self):
@@ -2090,6 +2098,7 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
         local_res._parent_wakefield = Mock(WakeField)
+        local_res._simulation = Mock(Simulation)
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
@@ -2195,6 +2204,7 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             )
 
             local_res._parent_wakefield = Mock(WakeField)
+            local_res._simulation = Mock(Simulation)
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
@@ -2218,6 +2228,7 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
             local_res_analy._parent_wakefield = Mock(WakeField)
+            local_res_analy._simulation = Mock(Simulation)
             local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
@@ -3641,3 +3652,74 @@ class TestPeriodicFreqSolverBranches(BLonDTestCase):
 
         perf_warnings = [x for x in w if "Because" in str(x.message)]
         self.assertEqual(len(perf_warnings), 0)
+
+
+class TestSolversLateInit(BLonDTestCase):
+    """Late-initialised solver attributes raise before they are filled."""
+
+    def _assert_not_initialised(self, solver, name, set_by):
+        with self.assertRaisesRegex(NotInitialisedError, set_by):
+            getattr(solver, name)
+
+    def test_inductive_impedance_solver(self):
+        solver = InductiveImpedanceSolver()
+        for name in ("_Z_over_n", "_parent_wakefield", "_simulation"):
+            self._assert_not_initialised(
+                solver, name, "on_wakefield_init_simulation"
+            )
+
+    def test_periodic_freq_solver(self):
+        solver = PeriodicFreqSolver()
+        for name in ("_parent_wakefield", "_simulation", "_n_time"):
+            self._assert_not_initialised(
+                solver, name, "on_wakefield_init_simulation"
+            )
+        self._assert_not_initialised(solver, "_freq_y", "calc_induced_voltage")
+
+    def test_time_domain_fft_solver(self):
+        solver = TimeDomainFftSolver()
+        self._assert_not_initialised(
+            solver, "_parent_wakefield", "on_wakefield_init_simulation"
+        )
+        self._assert_not_initialised(
+            solver, "_impedance_from_wake_y", "calc_induced_voltage"
+        )
+
+    def test_single_turn_resonator_convolution_solver(self):
+        solver = SingleTurnResonatorConvolutionSolver()
+        self._assert_not_initialised(
+            solver, "_parent_wakefield", "on_wakefield_init_simulation"
+        )
+        self._assert_not_initialised(
+            solver, "_wake_function_vals", "calc_induced_voltage"
+        )
+
+    def test_multi_pass_resonator_solver(self):
+        solver = MultiPassResonatorSolver()
+        for name in (
+            "_parent_wakefield",
+            "_maximum_storage_time",
+            "_last_reference_time",
+        ):
+            self._assert_not_initialised(
+                solver, name, "on_wakefield_init_simulation"
+            )
+
+    def test_continuous_multi_turn_time_domain_solver(self):
+        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=2)
+        self._assert_not_initialised(
+            solver, "_parent_wakefield", "on_wakefield_init_simulation"
+        )
+        self._assert_not_initialised(
+            solver, "_wake_kernel", "calc_induced_voltage"
+        )
+
+    def test_multi_pole_sparse_solve(self):
+        from blond.physics.impedances.solvers import MultiPoleSparseSolve
+
+        solver = MultiPoleSparseSolve()
+        self._assert_not_initialised(
+            solver, "_profile", "on_wakefield_init_simulation"
+        )
+        for name in ("_poles", "_voltage", "last_reference_time"):
+            self._assert_not_initialised(solver, name, "calc_induced_voltage")

@@ -40,6 +40,7 @@ from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.late_init import BY_INIT_SIMULATION, LateInit, unfilled
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -63,6 +64,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 TWOPI_C0 = 2.0 * np.pi * c0
 
+_SET_BY_USER = (
+    "the `{attribute}` argument, assigning `.{attribute}`, or"
+    " `.schedule(attribute='{attribute}', ...)`"
+)
+
 
 class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
@@ -83,6 +89,11 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         resolution order of inheriting elements.
     """
 
+    _ring: LateInit[Ring] = LateInit(
+        BY_INIT_SIMULATION,
+        doc="Ring the element is part of.",
+    )
+
     def __init__(
         self,
         section_index: int,
@@ -94,11 +105,10 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        self._ring: Ring | None = None
+        # ``None`` when created without energy program or turn counter,
+        # e.g. via ``headless(...)``
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._turn_counter: DynamicParameter | None = None
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -249,6 +259,25 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         resolution order of inheriting elements.
     """
 
+    voltage: LateInit[NumpyArray | float] = LateInit(
+        _SET_BY_USER.format(attribute="voltage"), doc="Voltage/s, in [V]."
+    )
+    phi_rf_design: LateInit[NumpyArray | float] = LateInit(
+        _SET_BY_USER.format(attribute="phi_rf_design"),
+        doc="Design angular phase, in [rad].",
+    )
+    harmonic: LateInit[NumpyArray | float] = LateInit(
+        _SET_BY_USER.format(attribute="harmonic"),
+        doc="Harmonic number, relating the rf frequency/ies to the"
+        " revolution frequency.",
+    )
+    omega_rf_design: LateInit[NumpyArray | float] = LateInit(
+        "`Simulation.run_simulation(...)` via `configure_run()`,"
+        " or `track_reference()`",
+        doc="Design angular frequency relating to the harmonic numbers,"
+        " in [rad/s].",
+    )
+
     def __init__(
         self,
         n_rf: int,
@@ -299,17 +328,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         self._local_wakefield = local_wakefield
 
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
-
-        self.omega_rf_design: NumpyArray | float | None = None
-        """Design angular frequency relating to the harmonic numbers, in [rad/s]."""
-
         self.delta_omega_rf: NumpyArray | float | None = None
         """Correction term to omega_rf_design, used by feedbacks, in [rad/s]."""
-
-        self.phi_rf_design: NumpyArray | float | None = None
-        """Design angular phase, in [rad]."""
 
         self.delta_phi_rf: NumpyArray | float | None = None
         """Correction term for phi_rf_design, used by feedbacks, in [rad]."""
@@ -319,11 +339,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         # last turn to this turn before beam and
         # cavity feedbacks get updated.
         self._dphi_rf_next: NumpyArray | float | None = None
-
-        self.voltage: NumpyArray | float | None = None
-        """Voltage/s, in [V]."""
-        self.harmonic: NumpyArray | float | None = None
-        """Harmonic number, relating the rf frequency/ies to the revolution frequency."""
 
         self._delayed_kick = delayed_kick
         if self._delayed_kick is not None and not self.any_feedback_not_none:
@@ -410,23 +425,16 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         super().on_init_simulation(simulation=simulation, **kwargs)
 
-        if (self.voltage is None) and "voltage" not in self.schedules:
-            raise ValueError(
-                f"You need to define `voltage` for '{self.name}' via "
-                f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
-            )
-        if (
-            self.phi_rf_design is None
-        ) and "phi_rf_design" not in self.schedules:
-            raise ValueError(
-                f"You need to define `phi_rf_design` for '{self.name}' via "
-                f"`.phi_rf_design=...` or `.schedule(attribute='phi_rf_design', value=...)`"
-            )
-        if (self.harmonic is None) and "harmonic" not in self.schedules:
-            raise ValueError(
-                f"You need to define `harmonic` for '{self.name}' via "
-                f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
-            )
+        for attribute in unfilled(self):
+            if (
+                attribute in ("voltage", "phi_rf_design", "harmonic")
+                and attribute not in self.schedules
+            ):
+                raise ValueError(
+                    f"You need to define `{attribute}` for '{self.name}' "
+                    f"via `.{attribute}=...` or "
+                    f"`.schedule(attribute='{attribute}', value=...)`"
+                )
 
     @requires(["BeamBaseClass"])
     def on_run_simulation(
@@ -884,9 +892,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference
             Reference to update the attributes from.
         """
-        assert self._ring is not None, (
-            "Not available before instancing ``Simulation(...)``"
-        )
         self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=reference.beta,
             ring_circumference=self._ring.circumference,
@@ -1158,9 +1163,13 @@ class SingleHarmonicRFStation(
             **kwargs,  # for MRO of fused elements
         )
 
-        self.voltage: float | None = voltage
-        self.phi_rf_design: float | None = phi_rf
-        self.harmonic: float | None = harmonic
+        # Left unfilled when not given, e.g. to be scheduled instead
+        if voltage is not None:
+            self.voltage = voltage
+        if phi_rf is not None:
+            self.phi_rf_design = phi_rf
+        if harmonic is not None:
+            self.harmonic = harmonic
 
         self.delta_phi_rf: float = 0.0
         self.delta_omega_rf: float = 0.0
@@ -1371,7 +1380,6 @@ class SingleHarmonicRFStation(
         reference_energy_change
             Update of the reference coordinate system, in [eV].
         """
-        assert self.voltage is not None
         assert self.phi_rf is not None
         assert self.omega_rf is not None
 
@@ -1543,10 +1551,6 @@ class SingleHarmonicRFStation(
         dt = sympy.Symbol("dt", real=True)
         q = sympy.Symbol("q", real=True)
         if replace_symbols:
-            assert self.voltage is not None
-            assert self.omega_rf_design is not None
-            assert self.phi_rf_design is not None
-
             V = float(self.voltage)
             omega = float(self.omega_rf_design)
             phi = float(self.phi_rf_design)
@@ -1679,15 +1683,13 @@ class MultiHarmonicRFStation(
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage: NumpyArray | None = (
-            np.array(voltage) if (voltage is not None) else None
-        )
-        self.phi_rf_design: NumpyArray | None = (
-            np.array(phi_rf) if (phi_rf is not None) else None
-        )
-        self.harmonic: NumpyArray | None = (
-            np.array(harmonic) if (harmonic is not None) else None
-        )
+        # Left unfilled when not given, e.g. to be scheduled instead
+        if voltage is not None:
+            self.voltage = np.array(voltage)
+        if phi_rf is not None:
+            self.phi_rf_design = np.array(phi_rf)
+        if harmonic is not None:
+            self.harmonic = np.array(harmonic)
 
         for array_name, input_array in (
             ("voltage", voltage),
@@ -1948,7 +1950,6 @@ class MultiHarmonicRFStation(
         reference_energy_change
             Update of the reference coordinate system, in [eV].
         """
-        assert self.voltage is not None
         assert self.phi_rf is not None
         assert self.omega_rf is not None
 
@@ -2112,10 +2113,6 @@ class MultiHarmonicRFStation(
         expr = sympy.Integer(0)
         for rf_idx in range(self.n_rf):
             if replace_symbols:
-                assert self.voltage is not None
-                assert self.omega_rf_design is not None
-                assert self.phi_rf_design is not None
-
                 V_j = float(self.voltage[rf_idx])
                 omega_j = float(self.omega_rf_design[rf_idx])
                 phi_j = float(self.phi_rf_design[rf_idx])

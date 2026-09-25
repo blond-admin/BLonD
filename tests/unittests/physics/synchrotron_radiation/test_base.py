@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import unittest
 from functools import cached_property
 from unittest.mock import Mock
 
@@ -8,7 +7,6 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import (
-    Numpy64Bit,
     Simulation,
     copy_to_cpu,
     electron,
@@ -21,6 +19,7 @@ from blond.core.base import DynamicParameter, SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
@@ -28,6 +27,18 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )
 from blond.testing.backend_testing import BLonDTestCase
+
+
+def _assert_kick_parameters_not_initialised(
+    test_case: BLonDTestCase, synchrotron_radiation
+) -> None:
+    for name in (
+        "_energy_lost_due_to_synchrotron_radiation",
+        "_damping_time",
+        "_natural_energy_spread",
+    ):
+        with test_case.assertRaisesRegex(NotInitialisedError, "_apply_kick"):
+            getattr(synchrotron_radiation, name)
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -194,27 +205,21 @@ class TestSynchrotronRadiationBaseClass(BLonDTestCase):
             self.SRB.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
-        self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRB._damping_time)
-        self.assertIsNone(self.SRB._natural_energy_spread)
+        _assert_kick_parameters_not_initialised(self, self.SRB)
 
     def test_inputs_SynchrotronRadiationDrift(self):
         np.testing.assert_array_equal(
             self.SRD.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
-        self.assertIsNone(self.SRD._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRD._damping_time)
-        self.assertIsNone(self.SRD._natural_energy_spread)
+        _assert_kick_parameters_not_initialised(self, self.SRD)
 
     def test_inputs_SynchrotronRadiationSection(self):
         np.testing.assert_array_equal(
             self.SRS.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
-        self.assertIsNone(self.SRS._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRS._damping_time)
-        self.assertIsNone(self.SRS._natural_energy_spread)
+        _assert_kick_parameters_not_initialised(self, self.SRS)
 
     def test_calculate_kick_SynchrotronRadiationBaseClass(self):
         np.random.seed(seed=self.seed)
@@ -420,9 +425,7 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
                 1 / (k + 1) * self.radiation_integrals,
                 decimal=self.decimal,
             )
-        self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRB._damping_time)
-        self.assertIsNone(self.SRB._natural_energy_spread)
+        _assert_kick_parameters_not_initialised(self, self.SRB)
 
     def test_calculate_kick_SynchrotronRadiationBaseClass(self):
         for k in range(self.number_of_turns):

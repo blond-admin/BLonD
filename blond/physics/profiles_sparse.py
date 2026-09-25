@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 from abc import ABC
 from typing import TYPE_CHECKING
@@ -19,13 +20,19 @@ import numpy as np
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
+from blond.generals.late_init import LateInit, NotInitialisedError
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+
+_SET_BY_CONFIGURE = (
+    "`configure()`, called by `Simulation(...)` or `headless()`"
+)
 
 
 class MultiProfile(BeamPhysicsRelevant, ABC):
@@ -115,6 +122,27 @@ class EquidistantMultiProfile(MultiProfile):
         Additional keyword arguments passed to the parent.
     """
 
+    _left_cut_distance: LateInit[float] = LateInit(
+        _SET_BY_CONFIGURE,
+        doc="Distance between the left cuts of neighbouring slots, in [s].",
+    )
+    _first_left_cut: LateInit[float] = LateInit(
+        _SET_BY_CONFIGURE, doc="Left cut of the first slot, in [s]."
+    )
+    profiles: LateInit[tuple[StaticProfile, ...]] = LateInit(
+        _SET_BY_CONFIGURE, doc="The active single profiles."
+    )
+    _continuous_memory_hist_x: LateInit[NumpyArray | CupyArray] = LateInit(
+        _SET_BY_CONFIGURE, doc="All ``profiles`` bin centers, fused."
+    )
+    _continuous_memory_hist_y: LateInit[NumpyArray | CupyArray] = LateInit(
+        _SET_BY_CONFIGURE, doc="All ``profiles`` histograms, fused."
+    )
+    hist_y_to_density_factor: LateInit[float] = LateInit(
+        "the first `track()` of the profile",
+        doc="Factor to convert `hist_y` to a density.",
+    )
+
     def __init__(
         self,
         filling_pattern: NumpyArray,
@@ -143,15 +171,6 @@ class EquidistantMultiProfile(MultiProfile):
         )
 
         self._offset = offset
-
-        self._left_cut_distance: float | None = None
-        self._first_left_cut: float | None = None
-        self.profiles: tuple[StaticProfile, ...] | None = None
-
-        self._continuous_memory_hist_x = None
-        self._continuous_memory_hist_y = None
-
-        self.hist_y_to_density_factor: float | None = None
 
     @staticmethod
     def init_from_padded_filling_pattern(
@@ -517,8 +536,9 @@ class EquidistantMultiProfile(MultiProfile):
         for k, v in self.__dict__.items():
             setattr(result, k, copy.deepcopy(v, memo))
 
-        # re-attach all profile memories to the
-        # continuous memory
-        result._bind_profiles()
+        # re-attach all profile memories to the continuous memory,
+        # unless not configured yet
+        with contextlib.suppress(NotInitialisedError):
+            result._bind_profiles()
 
         return result

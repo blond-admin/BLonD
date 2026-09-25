@@ -29,6 +29,7 @@ from blond.generals.distributed.helpers import (
     mpi_is_distributed,
     mpi_local_size,
 )
+from blond.generals.late_init import unfilled
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -86,14 +87,7 @@ class Beam(BeamBaseClass):
         is_set_up
             ``True`` of all required arrays are initialized.
         """
-        return all(
-            (
-                self._dE is not None,
-                self._dt is not None,
-                self._flags is not None,
-                self._ids is not None,
-            )
-        )
+        return not unfilled(self)
 
     def setup_beam(
         self,
@@ -164,17 +158,11 @@ class Beam(BeamBaseClass):
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
-        self._dE: DistributedArray = DistributedArray(
-            backend.array(dE, dtype=backend.float)
-        )
-        self._dt: DistributedArray = DistributedArray(
-            backend.array(dt, dtype=backend.float)
-        )
+        self._dE = DistributedArray(backend.array(dE, dtype=backend.float))
+        self._dt = DistributedArray(backend.array(dt, dtype=backend.float))
 
         # intentionally 32 bit, this should be enough for all thinkable flags
-        self._flags: DistributedArray = DistributedArray(
-            backend.array(flags, dtype=np.int32)
-        )
+        self._flags = DistributedArray(backend.array(flags, dtype=np.int32))
 
         if reference_time:
             self.reference.time = reference_time
@@ -186,15 +174,13 @@ class Beam(BeamBaseClass):
             self._dt.mpi_scatter()
             self._flags.mpi_scatter()
             # IDs need special treatment
-            self._ids: DistributedArray = DistributedArray(
+            self._ids = DistributedArray(
                 backend.arange(len(dt), dtype=INDEX_DTYPE)
             )
             self._ids.mpi_scatter()
         elif mpi_mode == "all-ranks":
             # IDs need special treatment
-            self._ids: DistributedArray = distributed_arange(
-                len(dt), dtype=INDEX_DTYPE
-            )
+            self._ids = distributed_arange(len(dt), dtype=INDEX_DTYPE)
         else:
             raise NameError(f"Unknown {mpi_mode=}")
 
@@ -329,10 +315,6 @@ class Beam(BeamBaseClass):
         -----
         The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
-        if self._dt is None or self._dE is None:
-            raise ValueError(
-                "Beam `dt` and `dE` coordinates are not initialized!"
-            )
         if "cmap" not in kwargs:
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
@@ -374,10 +356,6 @@ class Beam(BeamBaseClass):
         """
         if ax is None:
             ax = plt
-        if self._dt is None or self._dE is None:
-            raise ValueError(
-                "Beam `dt` and `dE` coordinates are not initialized!"
-            )
         if mpi_is_distributed():
             warnings.warn(
                 "Plotting MPI single node distribution only.",
@@ -417,10 +395,6 @@ class Beam(BeamBaseClass):
             - range: data range (min, max)
             - density: if True, normalize to form a probability density
         """
-        if self._dt is None or self._dE is None:
-            raise ValueError(
-                "Beam `dt` and `dE` coordinates are not initialized!"
-            )
         if "bins" not in kwargs:
             kwargs["bins"] = 256
         if mpi_is_distributed():

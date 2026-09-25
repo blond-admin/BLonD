@@ -25,6 +25,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.late_init import NotInitialisedError
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -105,6 +106,62 @@ class TestObservablesBaseClass(BLonDTestCase):
         """The default ``folder=""`` must not crash the constructor."""
         observables = ObservablesBaseHelper()
         self.assertTrue(observables.common_filepath.endswith("last"))
+
+
+class TestLateInitBeforeRunSimulation(BLonDTestCase):
+    """Recorders only exist once ``on_run_simulation`` has run."""
+
+    def _unrun_observables(self):
+        """(Late-initialised attribute, observable) before a run."""
+        profile = Mock(StaticProfile)
+        profile.n_bins = 4
+        profile.section_index = 0
+        return [
+            ("_turns_array", ObservablesHelper(each_turn_i=1)),
+            ("_hist2d", BeamHist2dOncePerTurn(each_turn_i=1)),
+            ("_dts", BeamObservationOncePerTurn(each_turn_i=1, warn=False)),
+            ("_bunch_length", BeamStatisticsOncePerTurn(each_turn_i=1)),
+            (
+                "_phases",
+                RFStationPhaseObservation(each_turn_i=1, rf_station=Mock()),
+            ),
+            (
+                "_hist_y",
+                StaticProfileObservation(each_turn_i=1, profile=profile),
+            ),
+            (
+                "_hist_y",
+                StaticMultiProfileObservation(
+                    each_turn_i=1, profiles=[profile]
+                ),
+            ),
+            (
+                "_induced_voltage",
+                WakeFieldObservation(each_turn_i=1, wakefield=Mock()),
+            ),
+            (
+                "_hist_x",
+                DynamicProfileConstNBinsObservation(
+                    each_turn_i=1, profile=Mock()
+                ),
+            ),
+            ("_t_revs", SimulationObservation(each_turn_i=1)),
+            ("_eta_0s", DriftObservation(each_turn_i=1, drift=Mock())),
+        ]
+
+    def test_read_before_run_raises(self) -> None:
+        for name, observable in self._unrun_observables():
+            with self.subTest(type(observable).__name__):
+                with self.assertRaisesRegex(
+                    NotInitialisedError, "on_run_simulation"
+                ):
+                    getattr(observable, name)
+
+    def test_get_recorders_before_run_raises(self) -> None:
+        for _name, observable in self._unrun_observables():
+            with self.subTest(type(observable).__name__):
+                with self.assertRaises(NotInitialisedError):
+                    observable.get_recorders()
 
 
 class TestDenseArrayRecorder(BLonDTestCase):
@@ -223,12 +280,19 @@ class TestObservables(BLonDTestCase):
     def test_assert_lateinit_fail(self) -> None:
         obs_helper = ObservablesHelper(each_turn_i=0)
 
-        obs_helper.dummy_value = None
-
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(NotInitialisedError):
             obs_helper.get_recorders()
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(NotInitialisedError):
             obs_helper.assert_lateinit()
+
+    def test_assert_lateinit_ignores_none_parameters(self) -> None:
+        """A user parameter left at ``None`` is not "uninitialised"."""
+        observation = SimulationObservation(each_turn_i=1, separatrix_lim=None)
+        observation.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=4
+        )
+        observation.assert_lateinit()
+        self.assertEqual(len(observation.get_recorders()), 2)
 
 
 class TestBeamObservation(BLonDTestCase):

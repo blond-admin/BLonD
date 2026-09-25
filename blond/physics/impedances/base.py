@@ -21,6 +21,7 @@ from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.late_init import LateInit, NotInitialisedError
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -271,6 +272,11 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         Additional keyword arguments.
     """
 
+    _profile: LateInit[ProfileBaseClass] = LateInit(
+        "the `profile` argument or `on_init_simulation()`",
+        doc="The reference profile that is causing the wake.",
+    )
+
     def __init__(
         self,
         section_index: int = 0,
@@ -278,7 +284,8 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         **kwargs,
     ):
         super().__init__(section_index=section_index, **kwargs)
-        self._profile = profile
+        if profile is not None:
+            self._profile = profile
 
     @property  # as readonly attributes
     def profile(self) -> ProfileBaseClass:
@@ -331,7 +338,9 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
             ProfileBaseClass,  # prevent cyclic import
         )
 
-        if self._profile is None:
+        try:
+            profile = self._profile
+        except NotInitialisedError:
             profiles = simulation.ring.elements.get_elements(
                 ProfileBaseClass, section_i=self.section_index, recursive=False
             )
@@ -342,8 +351,6 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
                 f"profile from this group."
             )
             profile = profiles[0]
-        else:
-            profile = self._profile
         super().on_init_simulation(simulation, profile=profile, **kwargs)
 
     def configure(self, *, profile: ProfileBaseClass, **kwargs) -> None:
@@ -412,6 +419,11 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
     ... )
     """
 
+    _induced_voltage: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`WakeField.calc_induced_voltage()`",
+        doc="Induced voltage along the profile, in [V].",
+    )
+
     def __init__(
         self,
         sources: tuple[WakeFieldSource, ...],
@@ -429,7 +441,6 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         self.solver = solver
         self.sources = sources
         self.update_induced_voltage = True
-        self._induced_voltage = None
         self.track_profile = True
 
     def info_string(self, prefix="") -> str:
@@ -465,8 +476,6 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         NumpyArray | CupyArray
             Induced voltage array.
         """
-        if self._induced_voltage is None:
-            raise AttributeError("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
     @requires(["MagneticCycleBase"])

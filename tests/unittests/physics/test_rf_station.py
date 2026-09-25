@@ -45,6 +45,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
@@ -891,7 +892,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.voltage = None
+            del self.multi_harmonic_cavity.voltage
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -939,7 +940,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.phi_rf_design = None
+            del self.multi_harmonic_cavity.phi_rf_design
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -948,7 +949,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.harmonic = None
+            del self.multi_harmonic_cavity.harmonic
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -1227,6 +1228,19 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
+    def test_late_init_attributes_raise_before_simulation(self):
+        station = SingleHarmonicRFStation()
+        with self.assertRaisesRegex(NotInitialisedError, "Simulation"):
+            station._ring  # NOQA
+        with self.assertRaisesRegex(NotInitialisedError, "Simulation"):
+            station.omega_rf_design  # NOQA
+
+    def test_rf_parameters_unfilled_when_not_given(self):
+        station = SingleHarmonicRFStation()
+        for attribute in ("voltage", "phi_rf_design", "harmonic"):
+            with self.assertRaisesRegex(NotInitialisedError, "schedule"):
+                getattr(station, attribute)
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -1373,7 +1387,7 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.voltage = None
+            del self.single_harmonic_cavity.voltage
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -1382,7 +1396,7 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.phi_rf_design = None
+            del self.single_harmonic_cavity.phi_rf_design
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -1391,7 +1405,7 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.harmonic = None
+            del self.single_harmonic_cavity.harmonic
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )

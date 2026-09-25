@@ -8,6 +8,7 @@ import numpy as np
 from blond import EmptyBeam, uranium_29
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -37,6 +38,29 @@ class TestEquidistantMultiProfile(BLonDTestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_attributes_before_configure(self):
+        profile = EquidistantMultiProfile(
+            filling_pattern=np.ones(5, bool), bins_per_profile=4
+        )
+        for name in (
+            "profiles",
+            "_first_left_cut",
+            "_left_cut_distance",
+            "hist_x",
+            "hist_y",
+        ):
+            with self.assertRaisesRegex(NotInitialisedError, "configure"):
+                getattr(profile, name)
+        with self.assertRaisesRegex(NotInitialisedError, "track"):
+            profile.hist_y_to_density_factor  # NOQA
+
+    def test_deepcopy_before_configure(self):
+        profile = EquidistantMultiProfile(
+            filling_pattern=np.ones(5, bool), bins_per_profile=4
+        )
+        profile_copy = deepcopy(profile)
+        self.assertFalse(hasattr(profile_copy, "profiles"))
 
     def test_init_from_padded_filling_pattern(self):
         sparse_profile = (

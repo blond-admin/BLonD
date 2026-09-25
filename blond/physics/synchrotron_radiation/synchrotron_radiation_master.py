@@ -695,7 +695,7 @@ class _SynchrotronRadiationTracker(SynchrotronRadiationBaseClass):
         )
 
     @property
-    def energy_lost_due_to_synchrotron_radiation_tracker(self) -> float | None:
+    def energy_lost_due_to_synchrotron_radiation_tracker(self) -> float:
         """
         Energy lost by passing through the arc covered by the tracker.
 

@@ -20,6 +20,7 @@ from blond import (
 )
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -217,6 +218,21 @@ class TestProfileBaseClass(BLonDTestCase):
                 n_bunches=1,
             )
         np.testing.assert_allclose(result[0, :], expected[0, :])
+
+
+class TestProfileLateInit(BLonDTestCase):
+    def test_hist_arrays_before_update_attributes(self):
+        profile = DynamicProfileConstNBins(n_bins=10)
+        for name in ("_hist_x", "_hist_y"):
+            with self.assertRaisesRegex(
+                NotInitialisedError, "update_attributes"
+            ):
+                getattr(profile, name)
+
+    def test_density_factor_before_first_track(self):
+        profile = StaticProfile(cut_left=0, cut_right=1, n_bins=4)
+        with self.assertRaisesRegex(NotInitialisedError, "track"):
+            profile.hist_y_to_density_factor  # NOQA
 
 
 class TestStaticProfile(BLonDTestCase):

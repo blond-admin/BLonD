@@ -21,6 +21,7 @@ from blond.core.base import (
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
+from blond.generals.late_init import BY_INIT_SIMULATION, LateInit
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -55,6 +56,15 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
     >>> # Add to element map before simulation
     """
 
+    _turn_counter: LateInit[DynamicParameter] = LateInit(
+        BY_INIT_SIMULATION,
+        doc="Current simulation turn number.",
+    )
+    _magnetic_cycle: LateInit[MagneticCycleBase] = LateInit(
+        BY_INIT_SIMULATION,
+        doc="The simulation's magnetic cycle.",
+    )
+
     def __init__(
         self,
         section_index: int = 0,
@@ -66,9 +76,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
             name=name,
             **kwargs,
         )
-
-        self._turn_counter: DynamicParameter | None = None
-        self._magnetic_cycle: MagneticCycleBase | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """

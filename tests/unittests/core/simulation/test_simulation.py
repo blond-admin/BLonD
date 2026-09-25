@@ -33,6 +33,7 @@ from blond.core.simulation.execution_models.conterrotating_beams import (
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import NotInitialisedError
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -86,6 +87,10 @@ class TestSimulation(BLonDTestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_execution_model_raises_before_finalize(self):
+        with self.assertRaisesRegex(NotInitialisedError, "finalize"):
+            self.simulation.execution_model  # NOQA
 
     def test__exec_on_init_simulation(self):
         self.simulation._exec_on_init_simulation()

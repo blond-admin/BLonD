@@ -23,6 +23,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 from blond.generals.distributed import distributed_array
 from blond.generals.distributed import helpers as dist_help
+from blond.generals.late_init import LateInit, check_filled
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
@@ -33,6 +34,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
     from blond.generals.distributed.distributed_array import DistributedArray
+
+_SET_BY = "`Beam.setup_beam(...)` or the beam preparation methods"
 
 
 class BeamBaseClass(Preparable, ABC):
@@ -52,6 +55,19 @@ class BeamBaseClass(Preparable, ABC):
         Developer option to allow distributed computing.
     """
 
+    _dE: LateInit[DistributedArray] = LateInit(
+        _SET_BY, doc="Macro-particle energy coordinates, in [eV]."
+    )
+    _dt: LateInit[DistributedArray] = LateInit(
+        _SET_BY, doc="Macro-particle time coordinates, in [s]."
+    )
+    _flags: LateInit[DistributedArray] = LateInit(
+        _SET_BY, doc="Macro-particle flags."
+    )
+    _ids: LateInit[DistributedArray] = LateInit(
+        _SET_BY, doc="Macro-particle ids."
+    )
+
     def __init__(
         self,
         intensity: int | float,
@@ -66,12 +82,6 @@ class BeamBaseClass(Preparable, ABC):
         )
         self._is_distributed = is_distributed
         self._is_counter_rotating = is_counter_rotating
-
-        # should be initialized later using `setup_beam`
-        self._dE: DistributedArray | None = None
-        self._dt: DistributedArray | None = None
-        self._flags: DistributedArray | None = None
-        self._ids: DistributedArray | None = None
 
         self.reference = ReferenceCoordinates(
             time=0, total_energy=None, particle_type=particle_type
@@ -272,11 +282,6 @@ class BeamBaseClass(Preparable, ABC):
         dE
             Beam macro-particle energy coordinates, in [eV].
         """
-        if self._dE is None:
-            raise AttributeError(
-                "Beam is not properly initialized. "
-                "You can use `setup_beam` or the beam preparation methods.."
-            )
         return self._dE
 
     @property
@@ -289,11 +294,6 @@ class BeamBaseClass(Preparable, ABC):
         dt
             Beam macro-particle time coordinates, in [s].
         """
-        if self._dt is None:
-            raise AttributeError(
-                "Beam is not properly initialized. "
-                "You can use `setup_beam` or the beam preparation methods.."
-            )
         return self._dt
 
     @property
@@ -310,11 +310,6 @@ class BeamBaseClass(Preparable, ABC):
         --------
         blond.core.beam.flags.BeamFlags: The available flags.
         """
-        if self._flags is None:
-            raise AttributeError(
-                "Beam is not properly initialized. "
-                "You can use `setup_beam` or the beam preparation methods.."
-            )
         return self._flags
 
     @property
@@ -327,11 +322,6 @@ class BeamBaseClass(Preparable, ABC):
         ids
             The macro-particle ids.
         """
-        if self._ids is None:
-            raise AttributeError(
-                "Beam is not properly initialized. "
-                "You can use `setup_beam` or the beam preparation methods.."
-            )
         return self._ids
 
     @requires(["MagneticCycleBase"])
@@ -389,15 +379,8 @@ class BeamBaseClass(Preparable, ABC):
             Passed to the next level in the MRO chain.
         """
         super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
-        msg = (
-            "Beam was not initialized. This is possible using"
-            " `simulation.prepare_beam(...)` or"
-            " `beam.setup_beam(...)`."
-        )
-        assert self._dt is not None, msg
-        assert self._dE is not None, msg
-        assert self._flags is not None, msg
-        assert self._ids is not None, msg
+        # Fail early, before the run starts, if the beam is not set up
+        check_filled(self)
 
         # Display a warning when the reference energy is overwritten,
         # but not when None is overwritten.
@@ -569,13 +552,7 @@ class BeamBaseClass(Preparable, ABC):
         If distributed, returns only the particles
         visible to the current node.
         """
-        if self._dE is not None:
-            return self._dE.local_size
-        else:
-            raise AttributeError(
-                f"{self._dE=}. You can use `setup_beam("
-                f"...)` for initialisation."
-            )
+        return self._dE.local_size
 
     def read_partial_ids(self) -> NumpyArray | CupyArray:
         """

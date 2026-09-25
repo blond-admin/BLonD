@@ -17,6 +17,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
 )
+from blond.generals.late_init import NotInitialisedError
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -56,6 +57,25 @@ def _simulation_with(elements: list) -> Mock:
     local_simulation.ring.elements.elements = elements
     local_simulation.turn_counter = DynamicParameter(0)
     return local_simulation
+
+
+class TestLateInitBeforeRunSimulation(BLonDTestCase):
+    """Recorders only exist once ``on_run_simulation`` has run."""
+
+    def test_read_before_run_raises(self) -> None:
+        observables = {
+            "_dts": BeamObservationInRingElement(),
+            "_sigma_dt": BunchObservationMetaParams(each_turn_i=1),
+            "turn_counter": InducedVoltageObservationCR(
+                each_turn_i=1, wake_field=Mock(WakeField)
+            ),
+        }
+        for name, observable in observables.items():
+            with self.subTest(type(observable).__name__):
+                with self.assertRaisesRegex(
+                    NotInitialisedError, "on_run_simulation"
+                ):
+                    getattr(observable, name)
 
 
 class TestBeamObservationInRingElement(BLonDTestCase):

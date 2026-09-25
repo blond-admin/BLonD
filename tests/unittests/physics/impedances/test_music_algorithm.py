@@ -29,9 +29,11 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.beam.particle_types import uranium_29
+from blond.generals.late_init import NotInitialisedError
 from blond.legacy.blond2.impedances.music import Music as LegacyMusic
 from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 
 @pytest.fixture(autouse=True)
@@ -305,3 +307,13 @@ def test_matches_analytical_gaussian_resonator():
     peak = np.max(np.abs(analytical))
     rel = np.abs(binned - analytical) / peak
     assert rel.max() < 1e-2, f"max rel err {rel.max():.4f}"
+
+
+class TestMusicLateInit(BLonDTestCase):
+    def test_attributes_before_configure_run_raise(self):
+        music = Music(source=_resonator())
+        for name in ("_const", "_parameter_array"):
+            with self.assertRaisesRegex(NotInitialisedError, "configure_run"):
+                getattr(music, name)
+        with self.assertRaisesRegex(NotInitialisedError, "track"):
+            _ = music.induced_voltage

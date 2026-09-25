@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import numpy as np
 
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
+from blond.generals.late_init import LateInit
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -244,6 +245,12 @@ class Schedulable:
         for name in names:
             self.intended_for_scheduling.add(str(name))
 
+    def _assert_attribute_exists(self, attribute: str) -> None:
+        # An unfilled `LateInit` attribute is declared, but not readable yet
+        assert hasattr(self, attribute) or isinstance(
+            getattr(type(self), attribute, None), LateInit
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
+
     def schedule(
         self,
         attribute: str,
@@ -296,9 +303,7 @@ class Schedulable:
                 UserWarning,
                 stacklevel=2,
             )
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        self._assert_attribute_exists(attribute)
         if isinstance(value, ScheduledBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
@@ -331,9 +336,7 @@ class Schedulable:
         -----
         Can be constant, per turn or interpolated in time.
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        self._assert_attribute_exists(attribute)
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values)
         self.schedule_active = True

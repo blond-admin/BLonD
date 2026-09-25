@@ -40,6 +40,7 @@ from blond.core.beam.particle_types import ParticleType
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 from blond.cycles.base import ProgrammedCycle
+from blond.generals.late_init import LateInit
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, TypeVar
@@ -521,6 +522,11 @@ class MagneticCyclePerTurn(MagneticCycleBase):
     Assumes each RF station has the same increment of beam energy.
     """
 
+    _magnetic_rigidity: LateInit[NumpyArray] = LateInit(
+        "`Simulation(...)` via `on_init_simulation()`, or `headless(...)`",
+        doc="Magnetic rigidity per RF station and turn, in [T m].",
+    )
+
     def __init__(
         self,
         reference_particle: ParticleType,
@@ -552,7 +558,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity: NumpyArray | None = None
         self._momentum_cached: dict[int, NumpyArray] = {}
         self._total_energy_cached: dict[int, NumpyArray] = {}
 
@@ -776,6 +781,13 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         To 'bending field' associated bending radius, in [m].
     """
 
+    _magnetic_rigidity_after_rf_station_per_turn: LateInit[NumpyArray] = (
+        LateInit(
+            "`Simulation(...)` via `on_init_simulation()`, or `headless(...)`",
+            doc="Magnetic rigidity after each RF station per turn, in [T m].",
+        )
+    )
+
     def __init__(
         self,
         reference_particle: ParticleType,
@@ -805,9 +817,6 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity_after_rf_station_per_turn: (
-            NumpyArray | None
-        ) = None
         self._momentum_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(

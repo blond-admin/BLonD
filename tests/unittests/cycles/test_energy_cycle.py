@@ -34,6 +34,7 @@ from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
 )
+from blond.generals.late_init import NotInitialisedError
 from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import (
     ExampleSimulation01,
@@ -459,6 +460,10 @@ class TestEnergyCyclePerTurn(BLonDTestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_magnetic_rigidity_raises_before_simulation(self):
+        with self.assertRaisesRegex(NotInitialisedError, "Simulation"):
+            self.magnetic_cycle_per_turn._magnetic_rigidity  # NOQA
+
     def test_init_from_linspace(self):
         MagneticCyclePerTurn.init_from_linspace(
             values=np.linspace(450e9, 450e9, 3 + 1),
@@ -513,6 +518,11 @@ class TestEnergyCyclePerTurnAllCavities(BLonDTestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_magnetic_rigidity_raises_before_simulation(self):
+        cycle = self.magnetic_cycle_per_turn_all_cavities
+        with self.assertRaisesRegex(NotInitialisedError, "Simulation"):
+            cycle._magnetic_rigidity_after_rf_station_per_turn  # NOQA
 
     def test_wrong_cavity_count(self):
         # simulation has only one cavity, but give program for 10 cavities

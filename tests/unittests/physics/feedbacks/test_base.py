@@ -1,4 +1,3 @@
-import unittest
 from unittest.mock import Mock
 
 import numpy as np
@@ -13,6 +12,7 @@ from blond import (
     proton,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.generals.late_init import NotInitialisedError
 from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -48,6 +48,12 @@ class TestLocalFeedbackBase(BLonDTestCase):
         fdbk.set_parent_rf_station(rf_station)
         assert fdbk._parent_rf_station is rf_station
         assert fdbk._parent_rf_station.section_index == 0
+
+    def test_corrections_before_track(self):
+        fdbk = LocFdbkHelper(profile=Mock(spec=StaticProfile))
+        for name in ("relative_voltage_correction", "phase_correction"):
+            with self.assertRaisesRegex(NotInitialisedError, "_track"):
+                getattr(fdbk, name)
 
 
 class TestGlobalFeedbackBase(BLonDTestCase):

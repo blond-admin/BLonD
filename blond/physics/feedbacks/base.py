@@ -27,6 +27,7 @@ import numpy as np
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
+from blond.generals.late_init import LateInit
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -80,6 +81,17 @@ class LocalFeedback(FeedbackBaseClass):
         Name of the feedback.
     """
 
+    relative_voltage_correction: LateInit[NumpyArray] = LateInit(
+        "the `_track()` of the `LocalFeedback` subclass",
+        doc="Relative correction to the setpoint voltage stemming from the "
+        "feedback, has to be defined on the profile time grid.",
+    )
+    phase_correction: LateInit[NumpyArray] = LateInit(
+        "the `_track()` of the `LocalFeedback` subclass",
+        doc="Correction to the rf phase, has to be defined on the profile "
+        "time grid.",
+    )
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -91,11 +103,6 @@ class LocalFeedback(FeedbackBaseClass):
         self._parent_rf_station: (
             SingleHarmonicRFStation | MultiHarmonicRFStation | None
         ) = None
-
-        self.relative_voltage_correction: NumpyArray | None = None
-        """Relative correction to the setpoint voltage stemming from the feedback, has to be defined on the profile time grid."""
-        self.phase_correction: NumpyArray | None = None
-        """Correction to the rf phase, has to be defined on the profile time grid."""
 
         self.profile = profile
 
@@ -155,6 +162,11 @@ class GlobalFeedback(FeedbackBaseClass):
         Name of the feedback.
     """
 
+    cavities: LateInit[list[RFStationBaseClass]] = LateInit(
+        "`configure()`, called by `Simulation(...)`",
+        doc="RF stations the feedback acts on.",
+    )
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -166,7 +178,6 @@ class GlobalFeedback(FeedbackBaseClass):
             name=name,
         )
         self.profile = profile
-        self.cavities: list[RFStationBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements

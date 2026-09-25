@@ -22,6 +22,7 @@ from blond.core.beam.beams import ProbeBeam
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import BY_RUN_SIMULATION, LateInit
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
 from blond.physics.impedances.base import WakeField
@@ -55,6 +56,22 @@ class BeamObservationInRingElement(
     beam : BeamBaseClass or None, optional
         Beam to be observed by this element.
     """
+
+    _dts: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Macro-particle time coordinates, in [s]."
+    )
+    _dEs: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Macro-particle energy coordinates, in [eV]."
+    )
+    _flags: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Macro-particle flags."
+    )
+    _reference_time: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference time, in [s]."
+    )
+    _reference_total_energy: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference total energy, in [eV]."
+    )
 
     def __init__(
         self,
@@ -225,6 +242,22 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         saving or loading files.
     """
 
+    _sigma_dt: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Standard deviation of ``dt``, in [s]."
+    )
+    _sigma_dE: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Standard deviation of ``dE``, in [eV]."
+    )
+    _mean_dt: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Mean of ``dt``, in [s]."
+    )
+    _mean_dE: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Mean of ``dE``, in [eV]."
+    )
+    _rms_emittance: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="RMS emittance, in [eVs]."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -240,12 +273,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         self._beam_id_filter: int | None = (
             id(beam) if beam is not None else None
         )
-
-        self._sigma_dt: DenseArrayRecorder | None = None
-        self._sigma_dE: DenseArrayRecorder | None = None
-        self._mean_dt: DenseArrayRecorder | None = None
-        self._mean_dE: DenseArrayRecorder | None = None
-        self._rms_emittance: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -414,6 +441,19 @@ class InducedVoltageObservationCR(
         saving or loading files.
     """
 
+    _induced_voltage: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Induced voltage, in [V]."
+    )
+    _beam_reference_time: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Beam reference time, in [s]."
+    )
+    _beam_profile: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Beam profile amplitudes."
+    )
+    turn_counter: LateInit[DynamicParameter] = LateInit(
+        BY_RUN_SIMULATION, doc="Turn counter of the simulation."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -425,14 +465,10 @@ class InducedVoltageObservationCR(
 
         self.each_turn_i = each_turn_i
 
-        self._induced_voltage: DenseArrayRecorder | None = None
-        self._beam_reference_time: DenseArrayRecorder | None = None
-        self._beam_profile: DenseArrayRecorder | None = None
         self._wake_field = wake_field
 
         self.beam_state: bool | None = None
         self.last_turn: int | None = None
-        self.turn_counter: DynamicParameter | None = None
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(

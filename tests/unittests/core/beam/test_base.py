@@ -169,7 +169,7 @@ class TestBeamBaseClass(BLonDTestCase):
         self.beam_base_class.on_init_simulation(simulation=simulation)
 
     def test_missing_init_of_simulation(self):
-        self.beam_base_class._dE = None
+        del self.beam_base_class._dE
         with self.assertRaises(AttributeError):
             self.beam_base_class.n_macroparticles_partial()
 

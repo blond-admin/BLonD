@@ -35,6 +35,11 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.late_init import (
+    BY_WAKEFIELD_INIT_SIMULATION,
+    LateInit,
+    NotInitialisedError,
+)
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -59,13 +64,25 @@ if TYPE_CHECKING:  # pragma: no cover
 class InductiveImpedanceSolver(WakeFieldSolver):
     """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
 
+    _Z_over_n: LateInit[float] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Summed inductive impedance Z/n of all sources, in [Ohm].",
+    )
+    _turn_counter: LateInit[DynamicParameter] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Turn counter of the simulation.",
+    )
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Simulation context manager.",
+    )
+
     def __init__(self):
         super().__init__()
-        self._beam: BeamBaseClass | None = None
-        self._Z_over_n: float | None = None
-        self._turn_counter: DynamicParameter | None = None
-        self._parent_wakefield: WakeField | None = None
-        self._simulation: Simulation | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -156,6 +173,31 @@ class PeriodicFreqSolver(WakeFieldSolver):
     around the synchrotron takes ( long profiles).
     """
 
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Simulation context manager.",
+    )
+    _n_time: LateInit[int] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Number of FFT time samples.",
+    )
+    _n_freq: LateInit[int] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Number of FFT frequency samples.",
+    )
+    _freq_x: LateInit[NumpyArray] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="FFT frequency axis, in [Hz].",
+    )
+    _freq_y: LateInit[NumpyArray] = LateInit(
+        "`PeriodicFreqSolver.calc_induced_voltage()`",
+        doc="Total impedance on `_freq_x`, in [Ohm].",
+    )
+
     def __init__(
         self,
         t_periodicity: float | None = None,
@@ -169,13 +211,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self.expect_impedance_change = False
 
         self._t_periodicity = t_periodicity
-        self._parent_wakefield: WakeField | None = None
-        self._n_time: int | None = None
-        self._n_freq: int | None = None
-        self._freq_x: NumpyArray | None = None
-        self._freq_y: NumpyArray | None = None
-
-        self._simulation: Simulation | None = None
 
         self._freq_y_needs_update = True  # at least one update
 
@@ -265,7 +300,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def _update_internal_data(self):
         """Rebuild internal data model."""
-        assert self._parent_wakefield.profile is not None
         self._n_time = int(
             round(
                 self._t_periodicity / self._parent_wakefield.profile.hist_step,
@@ -318,14 +352,16 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if not self._freq_y_needs_update:
             return
 
-        if (self._freq_y is None) or (
-            self._freq_x.shape != self._freq_y.shape
-        ):
+        try:
+            can_reuse_freq_y = self._freq_x.shape == self._freq_y.shape
+        except NotInitialisedError:
+            can_reuse_freq_y = False
+        if can_reuse_freq_y:
+            self._freq_y[:] = 0 + 0j
+        else:
             self._freq_y = backend.zeros_like(
                 self._freq_x, dtype=backend.complex
             )
-        else:
-            self._freq_y[:] = 0 + 0j
         for source in (
             self._parent_wakefield.sources
         ):  # todo update only dynamic sources
@@ -442,6 +478,19 @@ class TimeDomainFftSolver(WakeFieldSolver):
     the synchrotron revolution time (short profiles).
     """
 
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Simulation context manager.",
+    )
+    _impedance_from_wake_y: LateInit[NumpyArray] = LateInit(
+        "`TimeDomainFftSolver.calc_induced_voltage()`",
+        doc="FFT of the summed wake functions of all sources.",
+    )
+
     def __init__(
         self,
         allow_next_fast_len: bool = True,
@@ -449,10 +498,6 @@ class TimeDomainFftSolver(WakeFieldSolver):
         super().__init__()
         self.expect_impedance_change = False
         self._allow_next_fast_len = allow_next_fast_len
-
-        self._parent_wakefield: WakeField | None = None
-        self._impedance_from_wake_y: NumpyArray | None = None
-        self._simulation: Simulation | None = None
 
         self._impedance_from_wake_y_needs_update = True  # update at least once
 
@@ -530,14 +575,18 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         n_t = (n_fft // 2) + 1
 
-        if (self._impedance_from_wake_y is None) or (
-            (n_t,) != self._impedance_from_wake_y.shape  # tuple vs shape-tuple
-        ):
+        try:
+            can_reuse_impedance = (
+                (n_t,) == self._impedance_from_wake_y.shape  # tuple vs shape
+            )
+        except NotInitialisedError:
+            can_reuse_impedance = False
+        if can_reuse_impedance:
+            self._impedance_from_wake_y[:] = 0 + 0j
+        else:
             self._impedance_from_wake_y = backend.zeros(
                 n_t, dtype=backend.complex
             )
-        else:
-            self._impedance_from_wake_y[:] = 0 + 0j
 
         for source in self._parent_wakefield.sources:
             if isinstance(source, TimeDomain):
@@ -619,14 +668,26 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     :class:`~blond.physics.impedances.sources.Resonators` sources.
     """
 
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Simulation context manager.",
+    )
+    _wake_function_vals: LateInit[NumpyArray] = LateInit(
+        "`SingleTurnResonatorConvolutionSolver.calc_induced_voltage()`",
+        doc="Summed wake function of all sources, in [V/C].",
+    )
+    _wake_function_time: LateInit[NumpyArray] = LateInit(
+        "`SingleTurnResonatorConvolutionSolver.calc_induced_voltage()`",
+        doc="Time axis of `_wake_function_vals`, in [s].",
+    )
+
     def __init__(self):
         super().__init__()
-        self._wake_function_vals: NumpyArray | None = None
-        self._wake_function_time: NumpyArray | None = None
         self._wake_function_vals_needs_update = True  # initialization
-
-        self._simulation: Simulation | None = None
-        self._parent_wakefield: WakeField | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -771,6 +832,23 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         time axes corresponding to _past_profiles.
     """
 
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Simulation context manager.",
+    )
+    _last_reference_time: LateInit[float] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Reference time of the previous pass, in [s].",
+    )
+    _maximum_storage_time: LateInit[float] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Time after which past profiles are dropped, in [s].",
+    )
+
     def __init__(
         self,
         decay_fraction_threshold: float = 0.001,
@@ -782,13 +860,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         super().__init__()
 
-        self._last_reference_time: float | None = None
-
-        self._maximum_storage_time: float | None = None
         self._decay_fraction_threshold = decay_fraction_threshold
-
-        self._simulation: Simulation | None = None
-        self._parent_wakefield: WakeField | None = None
 
         # define wake function values and corresponding time axis
         self._past_profiles: deque[NumpyArray] = deque()
@@ -808,10 +880,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Sum up the contributions of all resonators and
         determine how long they should be stored in time.
         """
-        if self._parent_wakefield is None:
-            raise RuntimeError(
-                "Parent wakefield must be present before this function can be called."
-            )
         for source in self._parent_wakefield.sources:
             # Guarding against non-resonator sources is done in on_wakefield_init_simulation
             storage_time = source.get_decay_time(
@@ -1102,16 +1170,25 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     representation of the last turn.
     """
 
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Simulation context manager.",
+    )
+    _wake_kernel: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`ContinuousMultiTurnTimeDomainSolver.calc_induced_voltage()`",
+        doc="Summed multi-turn wake function of all sources, in [V/C].",
+    )
+
     def __init__(self, n_turns: int) -> None:
         # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
         from collections import deque
 
         self._n_wakes_full_turn = n_turns
-
-        self._parent_wakefield: WakeField | None = None
-        self._wake_kernel: NumpyArray | CupyArray | None = None
-        self._simulation: Simulation | None = None
 
         self._previous_wakes = deque(maxlen=n_turns)
 
@@ -1218,8 +1295,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
-        if self._wake_kernel is None:
+        try:
+            wake_kernel = self._wake_kernel
+        except NotInitialisedError:
             self._update_wake_kernel()
+            wake_kernel = self._wake_kernel
 
         _factor = self._hist_y_to_intensity_factor(
             beam=beam, profile=self._parent_wakefield.profile
@@ -1231,7 +1311,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         induced_voltage_this_turn = _factor * backend.fftconvolve(
             self._parent_wakefield.profile.hist_y,
-            self._wake_kernel,
+            wake_kernel,
             mode="full",
         )
         self._previous_wakes.appendleft(induced_voltage_this_turn)
@@ -1261,20 +1341,50 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self._poles: NumpyArray | CupyArray | None = None
-        self._residues: NumpyArray | CupyArray | None = None
-        self._profile: EquidistantMultiProfile | StaticProfile | None = None
-        self._parent_wakefield: WakeField | None = None
-        self._voltage: NumpyArray | CupyArray | None = None
-        self.last_reference_time: float | None = None
-
-        self._charge_per_macroparticle: float | None = None  # in Coulomb
-
-        # counter rotation feature for muon collider
-        self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+    _parent_wakefield: LateInit[WakeField] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Wakefield this solver is affiliated to.",
+    )
+    _profile: LateInit[EquidistantMultiProfile | StaticProfile] = LateInit(
+        BY_WAKEFIELD_INIT_SIMULATION,
+        doc="Profile of the parent wakefield.",
+    )
+    _poles: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Poles of the vector-fitted model.",
+    )
+    _residues: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Residues of the vector-fitted model.",
+    )
+    _counterrotating_pole_signs: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Pole sign flips for counter-rotating beams (muon collider).",
+    )
+    _voltage: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Induced voltage along the profile, in [V].",
+    )
+    _voltage_threaded: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Per-thread induced voltage buffer, in [V].",
+    )
+    _states: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Pole states; the last entry is the running reference time.",
+    )
+    _update_on_bin: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Memory indices of the bins starting a new bucket.",
+    )
+    _charge_per_macroparticle: LateInit[float] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Charge per macro-particle, in [C].",
+    )
+    last_reference_time: LateInit[float] = LateInit(
+        "`MultiPoleSparseSolve.calc_induced_voltage()`",
+        doc="Reference time of the previous call, in [s].",
+    )
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1308,7 +1418,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         poles = []
         residues = []
         counter_rotation_pole_flip = []
-        assert self._parent_wakefield is not None
         for source in self._parent_wakefield.sources:
             vector_source: SupportsVectorFittedModel = source
 
@@ -1381,7 +1490,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             else self._profile.hist_x
         )
 
-        if self._poles is None:
+        try:
+            last_reference_time = self.last_reference_time
+        except NotInitialisedError:
             self._finalize_solver(beam=beam)
             assert self._update_on_bin[0] == 0, "First bin must always update."
             assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
@@ -1393,7 +1504,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             # reference time of the convolution (real part only). Each turn it
             # is shifted back by the time elapsed since the previous call, so
             # the pole decays are computed relative to the current profile.
-            passed_time = beam.reference.time - self.last_reference_time
+            passed_time = beam.reference.time - last_reference_time
             self._states[-1] -= complex(passed_time)
             assert self._states[-1].real <= profile_dts[0]
 

@@ -27,6 +27,7 @@ from numpy.typing import NDArray as NumpyArray
 from blond.core.backends.backend import backend
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import BY_RUN_SIMULATION, LateInit, check_filled
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
@@ -211,10 +212,15 @@ class ObservablesBaseClass(MainLoopRelevant):
             )
 
     def assert_lateinit(self):
-        """Check that DenseArrays are already initialized."""
-        for parameter, value in self.__dict__.items():
-            if value is None:  # uninitialized
-                assert value is not None, f"`{parameter}` was not initialized."
+        """
+        Check that all late-initialised attributes are filled.
+
+        Raises
+        ------
+        NotInitialisedError
+            If a `LateInit` attribute has not been filled yet.
+        """
+        check_filled(self)
 
 
 class ObservablesOncePerTurnBase(ObservablesBaseClass):
@@ -233,6 +239,16 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         Additional keyword arguments.
     """
 
+    _n_turns: LateInit[int] = LateInit(
+        BY_RUN_SIMULATION, doc="Number of turns of the current run."
+    )
+    _turns_array: LateInit[NumpyArray] = LateInit(
+        BY_RUN_SIMULATION, doc="Turn numbers of the observations."
+    )
+    _simulation: LateInit[Simulation] = LateInit(
+        BY_RUN_SIMULATION, doc="Simulation that is run."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -242,18 +258,13 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
 
-        self._n_turns: int | None = None
-        self._turns_array: NumpyArray | None = None
-
         self._last_turn_i_observed = (
             -1
         )  # to avoid double recordings with multiple drifts in one section
         self._last_section_i_observed = -1
 
-        self._simulation: Simulation | None = None
-
     @property  # as readonly attributes
-    def turns_array(self) -> NumpyArray | None:
+    def turns_array(self) -> NumpyArray:
         """
         Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
@@ -358,6 +369,31 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     >>> beam_observation.plot_fancy(result_idx=-1)
     """
 
+    _beam: LateInit[BeamBaseClass] = LateInit(
+        BY_RUN_SIMULATION, doc="Observed beam."
+    )
+    _hist2d: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="2D histograms of the beam."
+    )
+    _xedges: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Histogram edges in time, in [s]."
+    )
+    _yedges: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Histogram edges in energy, in [eV]."
+    )
+    _reference_time: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference time, in [s]."
+    )
+    _intensity: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Beam intensity."
+    )
+    _reference_total_energy: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference total energy, in [eV]."
+    )
+    _consider_intensity: LateInit[bool] = LateInit(
+        BY_RUN_SIMULATION, doc="Whether to scale plots by the intensity."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -369,16 +405,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam: BeamBaseClass | None = None
-        self._hist2d: DenseArrayRecorder | None = None
-        self._xedges: DenseArrayRecorder | None = None
-        self._yedges: DenseArrayRecorder | None = None
-        self._reference_time: DenseArrayRecorder | None = None
-        self._intensity: DenseArrayRecorder | None = None
-        self._reference_total_energy: DenseArrayRecorder | None = None
-
-        self._consider_intensity: bool | None = None
-
         if isinstance(bins, int):
             self._bins = (bins, bins)
         else:
@@ -463,15 +489,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
-        assert self._hist2d is not None
-        assert self._xedges is not None
-        assert self._intensity is not None
-        assert self._yedges is not None
-        assert self._beam is not None
-        assert self._beam._dt is not None
-        assert self._reference_time is not None
-        assert self._reference_total_energy is not None
-
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
         self._intensity.write(self._beam.intensity)
@@ -507,10 +524,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         if kwargs_imshow is None:
             kwargs_imshow = {}
 
-        assert self._intensity is not None
-        assert self._hist2d is not None
-        assert self._xedges is not None
-        assert self._yedges is not None
         assert result_idx < self._intensity._write_idx
         if result_idx < 0:
             result_idx = self._intensity._write_idx + result_idx
@@ -578,10 +591,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         if kwargs_bar is None:
             kwargs_bar = {}
 
-        assert self._intensity is not None
-        assert self._hist2d is not None
-        assert self._xedges is not None
-        assert self._yedges is not None
         assert result_idx < self._intensity._write_idx
         if result_idx < 0:
             result_idx = self._intensity._write_idx + result_idx
@@ -707,6 +716,25 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _beam: LateInit[BeamBaseClass] = LateInit(
+        BY_RUN_SIMULATION, doc="Observed beam."
+    )
+    _dts: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Macro-particle time coordinates, in [s]."
+    )
+    _dEs: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Macro-particle energy coordinates, in [eV]."
+    )
+    _flags: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Macro-particle flags."
+    )
+    _reference_time: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference time, in [s]."
+    )
+    _reference_total_energy: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference total energy, in [eV]."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -726,12 +754,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam: BeamBaseClass | None = None
-        self._dts: DenseArrayRecorder | None = None
-        self._dEs: DenseArrayRecorder | None = None
-        self._flags: DenseArrayRecorder | None = None
-        self._reference_time: DenseArrayRecorder | None = None
-        self._reference_total_energy: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -907,6 +929,25 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _beam: LateInit[BeamBaseClass] = LateInit(
+        BY_RUN_SIMULATION, doc="Observed beam."
+    )
+    _bunch_position: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Mean of ``dt``, in [s]."
+    )
+    _energy_spread: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Standard deviation of ``dE``, in [eV]."
+    )
+    _bunch_length: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Standard deviation of ``dt``, in [s]."
+    )
+    _reference_time: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference time, in [s]."
+    )
+    _reference_total_energy: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Reference total energy, in [eV]."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -916,12 +957,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam: BeamBaseClass | None = None
-        self._bunch_position: DenseArrayRecorder | None = None
-        self._energy_spread: DenseArrayRecorder | None = None
-        self._bunch_length: DenseArrayRecorder | None = None
-        self._reference_time: DenseArrayRecorder | None = None
-        self._reference_total_energy: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1082,6 +1117,16 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     ... )
     """
 
+    _phases: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="RF phases, in [rad]."
+    )
+    _omegas: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="RF angular frequencies, in [rad/s]."
+    )
+    _voltages: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="RF voltages, in [V]."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1090,9 +1135,6 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._rf_station = rf_station
-        self._phases: DenseArrayRecorder | None = None
-        self._omegas: DenseArrayRecorder | None = None
-        self._voltages: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1214,6 +1256,10 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _hist_y: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Profile amplitudes."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1225,7 +1271,6 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             folder=folder,
         )
         self._profile = profile
-        self._hist_y: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1371,6 +1416,10 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     >>> )
     """
 
+    _hist_y: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Profile amplitudes of all profiles."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1487,6 +1536,10 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
     ...     plt.plot(wake_obs.induced_voltage[index, :])
     """
 
+    _induced_voltage: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Induced voltage, in [V]."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1498,7 +1551,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             folder=folder,
         )
         self._wakefield = wakefield
-        self._induced_voltage: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1592,6 +1644,13 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _hist_x: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Profile bin centers, in [s]."
+    )
+    _hist_y: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Profile amplitudes."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1600,7 +1659,6 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
-        self._hist_y: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1723,6 +1781,16 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         ``beam.dt_min`` and ``beam.dt_max``.
     """
 
+    _beam: LateInit[BeamBaseClass] = LateInit(
+        BY_RUN_SIMULATION, doc="Observed beam."
+    )
+    _t_revs: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Revolution times, in [s]."
+    )
+    _separatrices: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Separatrices."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1731,13 +1799,8 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         separatrix_lim: tuple[float, float] | None = None,
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
-        self._simulation: Simulation | None = None
-
-        self._t_revs: DenseArrayRecorder | None = None
-        self._separatrices: DenseArrayRecorder | None = None
         self._separatrix_points = separatrix_points
         self._separatrix_lim = separatrix_lim
-        self._beam = None
 
     def on_run_simulation(
         self,
@@ -1783,11 +1846,6 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         self,
     ) -> None:
         """Update memory with new values."""
-        assert self._beam is not None
-        assert self._simulation is not None
-        assert self._t_revs is not None
-        assert self._separatrices is not None
-
         self._t_revs.write(self._simulation.current_t_rev)
 
         # Separatrix
@@ -1829,6 +1887,10 @@ class DriftObservation(ObservablesOncePerTurnBase):
         saving or loading files.
     """
 
+    _eta_0s: LateInit[DenseArrayRecorder] = LateInit(
+        BY_RUN_SIMULATION, doc="Drift parameter ``eta_0``."
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1837,8 +1899,6 @@ class DriftObservation(ObservablesOncePerTurnBase):
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._drift: DriftSimple = drift
-
-        self._eta_0s: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,

@@ -23,6 +23,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import is_cupy_array
+from blond.generals.late_init import LateInit
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -44,14 +45,24 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Section index to group elements into sections.
     name
         User given name of the element.
-
-    Attributes
-    ----------
-    hist_y_to_density_factor
-        This factor is used to reproduce the behaviour
-        of np.hist(..., density=True).
-        Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
+
+    _hist_x: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`__init__` (static profiles) or `update_attributes()` "
+        "(dynamic profiles)",
+        doc="Bin centers of the histogram, in [s].",
+    )
+    _hist_y: LateInit[NumpyArray | CupyArray] = LateInit(
+        "`__init__` (static profiles) or `update_attributes()` "
+        "(dynamic profiles)",
+        doc="Histogram counts.",
+    )
+    hist_y_to_density_factor: LateInit[float] = LateInit(
+        "the first `track()` of the profile",
+        doc="Factor to reproduce the behaviour of"
+        " ``np.histogram(..., density=True)``; intended use:"
+        " ``density = hist_y * hist_y_to_density_factor``.",
+    )
 
     def __init__(
         self, section_index: int = 0, name: str | None = None
@@ -60,10 +71,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             section_index=section_index,
             name=name,
         )
-        self._hist_x: NumpyArray | CupyArray | None = None
-        self._hist_y: NumpyArray | CupyArray | None = None
-        self.hist_y_to_density_factor: float | None = None
-
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
@@ -111,8 +118,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Simulation-extracted values; passed to the next MRO level.
         """
         super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
-        assert self._hist_x is not None
-        assert self._hist_y is not None
+        # Raises `NotInitialisedError` if the arrays were never filled
+        _ = self._hist_x, self._hist_y
         self.invalidate_cache()
 
     def plot(self, **kwargs_plot: dict[str, Any]) -> list[Any]:
@@ -169,10 +176,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         n_bins
             Number of bins in the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        return len(self._hist_x)  # type: ignore
+        return len(self._hist_x)
 
     @cached_property
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
@@ -196,11 +200,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         hist_step
             Size of a single histogram bin.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-        first_hist_x = self._hist_x[0]  # type: ignore
-        second_hist_x = self._hist_x[1]  # type: ignore
+        first_hist_x = self._hist_x[0]
+        second_hist_x = self._hist_x[1]
         if backend.is_gpu:
             first_hist_x = first_hist_x.get()
             second_hist_x = second_hist_x.get()
@@ -216,9 +217,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cut_left
             Left outer edge of the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
         fist_hist_x = self._hist_x[0]
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
@@ -234,9 +232,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         cut_right
             Right outer edge of the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
         last_hist_x = self._hist_x[-1]
         if backend.is_gpu:
             last_hist_x = last_hist_x.get()
@@ -252,9 +247,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         bin_edges
             Edges from cut_left to cut_right of the histogram.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
         return backend.linspace(
             self.cut_left,
             self.cut_right,
@@ -358,9 +350,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                 "Implement histogram on distributed array"
             )
         elif beam.common_array_size > 0:
-            # `_hist_x`, `_hist_y` could be None, which is not handled and
-            # causes a MyPy type error,
-            # This is intentionally ignored, we want to get an exception.
             beam._dt.histogram(  # MPI aware histogram calculation
                 len(self._hist_y),
                 range=(
@@ -435,10 +424,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         spectrum
             Fourier transform of the profile.
         """
-        # `_hist_x`, `_hist_x` could be None, which is not handled and
-        # causes a MyPy type error,
-        # This is intentionally ignored, we want to get an exception.
-
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
