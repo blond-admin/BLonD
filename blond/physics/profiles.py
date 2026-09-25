@@ -13,7 +13,6 @@ from __future__ import annotations
 import dataclasses
 import math
 from abc import abstractmethod
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -21,7 +20,7 @@ import numpy as np
 
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond.core.base import BeamPhysicsRelevant
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 
@@ -35,115 +34,31 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-@dataclasses.dataclass(frozen=True, eq=False)
-class ProfileGeometry:
+def _n_bins_covering(width: float, hist_step: float) -> int:
     """
-    Histogram window of a profile and the arrays sized by it.
+    Count the bins of `hist_step` needed to cover `width`.
 
-    Frozen, so the fields can't disagree: a profile changes its geometry
-    only by replacing it as a whole, via `ProfileBaseClass._set_window`
-    (new window) or `ProfileBaseClass._bind_arrays` (same window, other
-    memory). Don't construct it elsewhere, `_set_window` builds `hist_x`
-    from the edges. The edges are stored, not re-derived from `hist_x`,
-    which would round them and drop the edge particles.
+    A whole number of steps must not get an extra bin from float rounding.
 
-    The values of `hist_y` change every turn, in place.
-
-    Attributes
+    Parameters
     ----------
-    cut_left
-        Left outer edge of the histogram, in [s].
-    cut_right
-        Right outer edge of the histogram, in [s].
-    hist_x
-        X-axis of histogram, in [s], i.e. `bin_centers`.
-    hist_y
-        Y-axis of histogram.
-    """
-
-    cut_left: float
-    cut_right: float
-    hist_x: NumpyArray | CupyArray
-    hist_y: NumpyArray | CupyArray
-
-    def __post_init__(self) -> None:
-        """Validate the geometry, stripped by `python -O`."""
-        assert self.cut_left < self.cut_right, (
-            f"{self.cut_left=} must be left of {self.cut_right=}"
-        )
-        assert len(self.hist_x.shape) == 1
-        assert self.hist_x.shape == self.hist_y.shape
-        # reads two values of `hist_x`, i.e. two device->host syncs on GPU
-        assert self._hist_x_matches_edges(), (
-            "`hist_x` must be the bin centers between the edges"
-        )
-
-    def _hist_x_matches_edges(self) -> bool:
-        """
-        Check that the outer entries of `hist_x` are the outer centers.
-
-        Returns
-        -------
-        matches
-            Whether `hist_x` starts and ends half a bin inside the edges.
-        """
-        hist_step = self.hist_step
-        tolerance = 1e-6 * hist_step  # of a bin, independent of the offset
-        return math.isclose(
-            float(self.hist_x[0]),
-            self.cut_left + hist_step / 2,
-            rel_tol=0.0,
-            abs_tol=tolerance,
-        ) and math.isclose(
-            float(self.hist_x[-1]),
-            self.cut_right - hist_step / 2,
-            rel_tol=0.0,
-            abs_tol=tolerance,
-        )
-
-    @property
-    def n_bins(self) -> int:
-        """
-        Number of bins in the histogram.
-
-        Returns
-        -------
-        n_bins
-            Number of bins in the histogram.
-        """
-        return len(self.hist_y)
-
-    @property
-    def hist_step(self) -> float:
-        """
+    width
+        Width to cover, in [s].
+    hist_step
         Size of a single histogram bin, in [s].
 
-        Returns
-        -------
-        hist_step
-            Size of a single histogram bin, in [s].
-        """
-        return (self.cut_right - self.cut_left) / self.n_bins
-
-    @property
-    def bin_edges(self) -> NumpyArray | CupyArray:
-        """
-        Get the edges from `cut_left` to `cut_right`, in [s].
-
-        Returns
-        -------
-        bin_edges
-            Edges from `cut_left` to `cut_right` of the histogram, in [s].
-        """
-        return backend.linspace(
-            self.cut_left,
-            self.cut_right,
-            self.n_bins + 1,
-            dtype=backend.float,
-        )
+    Returns
+    -------
+    n_bins
+        Number of bins in the histogram.
+    """
+    n_steps = width / hist_step
+    if math.isclose(n_steps, round(n_steps)):
+        return round(n_steps)
+    return math.ceil(n_steps)
 
 
-class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
+class ProfileBaseClass(BeamPhysicsRelevant):
     """
     Base class to implement calculation of beam profiles.
 
@@ -203,7 +118,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             hist_x=hist_x,
             hist_y=hist_y,
         )
-        self.invalidate_cache()
 
     def _bind_arrays(
         self,
@@ -226,12 +140,14 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         geometry = self._geometry
         assert hist_y.dtype == geometry.hist_y.dtype
         assert np.allclose(
-            copy_to_cpu(hist_x), copy_to_cpu(geometry.hist_x)
+            copy_to_cpu(hist_x),
+            copy_to_cpu(geometry.hist_x),
+            rtol=0.0,
+            atol=1e-6 * geometry.hist_step,  # in [s], default atol is 1e-8
         ), "`hist_x` must keep the geometry, use `_set_window` to change it"
         self._geometry = dataclasses.replace(
             geometry, hist_x=hist_x, hist_y=hist_y
         )
-        self.invalidate_cache()
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -246,18 +162,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """
         super().on_init_simulation(simulation=simulation, **kwargs)
 
-    def configure(self, **kwargs) -> None:
-        """
-        Invalidate the geometry cache whenever configure is called.
-
-        Parameters
-        ----------
-        **kwargs
-            Passed to the next level in the MRO chain.
-        """
-        super().configure(**kwargs)
-        self.invalidate_cache()
-
     def configure_run(
         self,
         *,
@@ -266,7 +170,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Validate histogram arrays and invalidate cache at run start.
+        Validate histogram arrays at run start.
 
         Parameters
         ----------
@@ -279,7 +183,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """
         super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
         assert self._geometry is not None
-        self.invalidate_cache()
 
     def plot(self, **kwargs_plot: dict[str, Any]) -> list[Any]:
         """
@@ -337,7 +240,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """
         return self._geometry.n_bins  # type: ignore
 
-    @cached_property
+    @property  # not cached, `hist_y` is written in place from outside
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
         """
         Derivative of the histogram.
@@ -520,8 +423,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             geometry.hist_y[:] = 0  # type: ignore
             self.hist_y_to_density_factor = 0.0
 
-        self.invalidate_cache()
-
     @staticmethod
     def get_arrays(
         cut_left: float, cut_right: float, n_bins: int
@@ -603,10 +504,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
         return self._beam_spectrum_buffer[n_fft]
 
-    def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property."""
-        self._invalidate_cache(props=("gradient_hist_y",))
-
 
 class StaticProfile(ProfileBaseClass):
     """
@@ -667,7 +564,7 @@ class StaticProfile(ProfileBaseClass):
             Profile that doesn't change its parameters.
         """
         dt = 1 / (2 * cutoff_frequency)
-        n_bins = int(math.ceil((cut_right - cut_left) / dt))
+        n_bins = _n_bins_covering(cut_right - cut_left, dt)
         return StaticProfile(
             cut_left=cut_left,
             cut_right=cut_right,
@@ -844,13 +741,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
-        timesteps = (cut_right - cut_left) / self.timestep
-        # a whole number of timesteps must not get an extra bin
-        # from float rounding
-        if math.isclose(timesteps, round(timesteps)):
-            n_bins = round(timesteps)
-        else:
-            n_bins = math.ceil(timesteps)
+        n_bins = _n_bins_covering(cut_right - cut_left, self.timestep)
         self._set_window(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
 
 
@@ -905,4 +796,107 @@ class DynamicProfileConstNBins(DynamicProfile):
         cut_right = beam.dt_max  # TODO caching of attribute access
         self._set_window(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
+        )
+
+
+# Defined last: Sphinx documents `hist_y_to_density_factor` twice when a
+# class with annotated fields precedes `ProfileBaseClass`.
+@dataclasses.dataclass(frozen=True, eq=False)
+class ProfileGeometry:
+    """
+    Histogram window of a profile and the arrays sized by it.
+
+    Frozen, so the fields can't disagree: a profile changes its geometry
+    only by replacing it as a whole, via `ProfileBaseClass._set_window`
+    (new window) or `ProfileBaseClass._bind_arrays` (same window, other
+    memory). Don't construct it elsewhere, `_set_window` builds `hist_x`
+    from the edges. The edges are stored, not re-derived from `hist_x`,
+    which would round them and drop the edge particles.
+
+    The values of `hist_y` change every turn, in place.
+    """
+
+    #: Left outer edge of the histogram, in [s].
+    cut_left: float
+    #: Right outer edge of the histogram, in [s].
+    cut_right: float
+    #: X-axis of histogram, in [s], i.e. `bin_centers`.
+    hist_x: NumpyArray | CupyArray
+    #: Y-axis of histogram.
+    hist_y: NumpyArray | CupyArray
+
+    def __post_init__(self) -> None:
+        """Validate the geometry, stripped by `python -O`."""
+        assert self.cut_left < self.cut_right, (
+            f"{self.cut_left=} must be left of {self.cut_right=}"
+        )
+        assert len(self.hist_x.shape) == 1
+        assert self.hist_x.shape == self.hist_y.shape
+        # reads two values of `hist_x`, i.e. two device->host syncs on GPU
+        assert self._hist_x_matches_edges(), (
+            "`hist_x` must be the bin centers between the edges"
+        )
+
+    def _hist_x_matches_edges(self) -> bool:
+        """
+        Check that the outer entries of `hist_x` are the outer centers.
+
+        Returns
+        -------
+        matches
+            Whether `hist_x` starts and ends half a bin inside the edges.
+        """
+        hist_step = self.hist_step
+        tolerance = 1e-6 * hist_step  # of a bin, independent of the offset
+        return math.isclose(
+            float(self.hist_x[0]),
+            self.cut_left + hist_step / 2,
+            rel_tol=0.0,
+            abs_tol=tolerance,
+        ) and math.isclose(
+            float(self.hist_x[-1]),
+            self.cut_right - hist_step / 2,
+            rel_tol=0.0,
+            abs_tol=tolerance,
+        )
+
+    @property
+    def n_bins(self) -> int:
+        """
+        Number of bins in the histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins in the histogram.
+        """
+        return len(self.hist_y)
+
+    @property
+    def hist_step(self) -> float:
+        """
+        Size of a single histogram bin, in [s].
+
+        Returns
+        -------
+        hist_step
+            Size of a single histogram bin, in [s].
+        """
+        return (self.cut_right - self.cut_left) / self.n_bins
+
+    @property
+    def bin_edges(self) -> NumpyArray | CupyArray:
+        """
+        Get the edges from `cut_left` to `cut_right`, in [s].
+
+        Returns
+        -------
+        bin_edges
+            Edges from `cut_left` to `cut_right` of the histogram, in [s].
+        """
+        return backend.linspace(
+            self.cut_left,
+            self.cut_right,
+            self.n_bins + 1,
+            dtype=backend.float,
         )

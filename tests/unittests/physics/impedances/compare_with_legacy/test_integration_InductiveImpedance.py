@@ -133,7 +133,6 @@ class Blond3:
             ),
         )
         profile.track(beam)
-        profile.invalidate_cache()
 
         self.induced_voltage = wake.calc_induced_voltage(beam)
         if DEV_PLOT:

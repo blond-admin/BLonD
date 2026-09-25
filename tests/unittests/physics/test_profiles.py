@@ -155,6 +155,17 @@ class TestProfileBaseClass(BLonDTestCase):
                 hist_x=backend.linspace(-4, 4, 11), hist_y=backend.zeros(11)
             )
 
+    def test_bind_arrays_rejects_hist_x_off_by_a_fraction_of_a_bin(self):
+        """In [s], a default `atol` of 1e-8 would hide whole bins."""
+        profile = StaticProfile(cut_left=0.0, cut_right=1e-9, n_bins=10)
+        hist_x = copy_to_cpu(profile.hist_x)
+        hist_x[5] += profile.hist_step / 2  # ends untouched
+        with self.assertRaises(AssertionError):
+            profile._bind_arrays(
+                hist_x=backend.array(hist_x, dtype=backend.float),
+                hist_y=backend.zeros(10, dtype=backend.float),
+            )
+
     def test_on_init_simulation(self):
         from blond.testing.mocks import simulation_mock
 
@@ -183,6 +194,17 @@ class TestProfileBaseClass(BLonDTestCase):
 
     def test_diff_hist_y(self):
         self.assertEqual(11, len(self.profile_base_class.gradient_hist_y))
+
+    def test_gradient_hist_y_follows_in_place_writes(self):
+        """`hist_y` is written in place from outside, e.g. by
+        `EquidistantMultiProfile`, so a cached gradient would go stale."""
+        profile = self.profile_base_class
+        _ = profile.gradient_hist_y
+        profile.hist_y[:] = backend.arange(11, dtype=backend.float) ** 2
+        np.testing.assert_allclose(
+            np.gradient(np.arange(11.0) ** 2, 1.0, edge_order=2),
+            copy_to_cpu(profile.gradient_hist_y),
+        )
 
     def test_hist_step(self):
         self.assertEqual(1, self.profile_base_class.hist_step)
@@ -252,9 +274,6 @@ class TestProfileBaseClass(BLonDTestCase):
                 copy_to_cpu(beam_spectrum),
                 np.fft.rfft(copy_to_cpu(self.profile_base_class.hist_y)),
             )
-
-    def test_invalidate_cache(self):
-        self.profile_base_class.invalidate_cache()
 
     def test_weighted_avg_dt(self):
         result = self.profile_base_class.weighted_avg_dt()
@@ -356,6 +375,15 @@ class TestStaticProfile(BLonDTestCase):
             cutoff_frequency=1.0 / 2.0,
         )
         self.assertEqual(11, len(profile.hist_x))
+
+    def test_from_cutoff_whole_number_of_steps(self):
+        """3.3 ns / 1.1 ns is 3.0000000000000004, which must stay 3 bins."""
+        profile = StaticProfile.from_cutoff(
+            cut_left=0.0,
+            cut_right=3.3e-9,
+            cutoff_frequency=1 / (2 * 1.1e-9),
+        )
+        self.assertEqual(3, profile.n_bins)
 
     def test_from_rad(self):
         profile = StaticProfile.from_rad(
