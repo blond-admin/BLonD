@@ -16,12 +16,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from blond import copy_to_cpu
 from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
 from blond.physics.impedances.base import WakeField
@@ -46,9 +46,10 @@ class BeamObservationInRingElement(
         Defaults to 0.
     n_turns : int, optional
         Number of turns to record. Defaults to 1.
-    folder : str or None, optional
-        Directory path where observation data will be stored. If ``None``,
-        data is kept in memory. Defaults to ``None``.
+    folder : str, optional
+        Directory that `to_disk` writes the observation data to. Data is
+        always recorded in memory. An empty string means the current
+        working directory. Defaults to ``""``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
     beam : BeamBaseClass or None, optional
@@ -104,8 +105,9 @@ class BeamObservationInRingElement(
             [1 if el is self else 0 for el in own_class_in_simulation_elements]
         )
         n_entries = (
-            n_turns * num_elements_of_own_instance_in_pipeline
-        ) // self.each_turn_i + 2
+            num_elements_of_own_instance_in_pipeline
+            * self._calc_n_entries(n_turns)
+        )
 
         self._dEs = DenseArrayRecorder(
             self.common_filepath + "_dEs", (n_entries, beam.common_array_size)
@@ -274,7 +276,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
         count = sum([el == self for el in simulation.ring.elements.elements])
 
-        n_entries = int(n_turns * count // self.each_turn_i)
+        n_entries = count * self._calc_n_entries(n_turns)
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
@@ -465,7 +467,7 @@ class InducedVoltageObservationCR(
 
         ind_volt_len = len(self._wake_field._profile.hist_x)
 
-        n_entries = int(n_turns * count // self.each_turn_i)
+        n_entries = count * self._calc_n_entries(n_turns)
         shape = (n_entries, ind_volt_len)
 
         self._induced_voltage = DenseArrayRecorder(

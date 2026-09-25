@@ -29,6 +29,8 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
@@ -38,7 +40,6 @@ dependencies = [
   "matplotlib>=3.9",      # plotting and visualization
   "numba>=0.61",          # simple computing backend that compiles everywhere out of the box
   "tqdm>4",               # nice loading bar
-  "mpi4py>=4",            # distributed computing
   "mpmath>=1",            # for numba fastmath replacement
   "sympy>=1.9",           # symbolic math for separatrix calculations, etc.
   "scikit-rf>1",          # pole fitting of impedances
@@ -69,7 +70,10 @@ doc = [
   "sphinx-copybutton",           # for the copy button of code on the website
 ]
 mpi = [
-  "mpi4py>=4", # MPI bindings for distributed computing
+  # Distributed computing. Optional: the wheel needs an MPI runtime
+  # (libmpi) on the system to import, which not every machine has, and
+  # BLonD degrades to a single rank without it.
+  "mpi4py>=4",
 ]
 gpu_cuda12 = [
   "cupy-cuda12x!=14.0.0,!=14.2.0", # GPU array computing (CUDA 12)
