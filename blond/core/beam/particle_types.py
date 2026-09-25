@@ -25,6 +25,7 @@ from scipy.constants import (  # type: ignore[import-untyped]
 )
 
 import blond.generals.formatting_ as format
+from blond.generals.exceptions_ import InvalidParticleAttributeError
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -50,6 +51,21 @@ class ParticleType:
     def __init__(
         self, mass: float, charge: float, user_decay_rate: float = 0.0
     ):
+
+        if mass <= 0:
+            raise InvalidParticleAttributeError(
+                f"Particle mass must be greater than 0, got {mass}"
+            )
+        if charge == 0:
+            raise InvalidParticleAttributeError(
+                f"Particle charge must not be 0, got {charge}"
+            )
+        if user_decay_rate < 0:
+            raise InvalidParticleAttributeError(
+                "Particle decay rate must not be negative, got "
+                f"{user_decay_rate}"
+            )
+
         self._mass = float(mass)
         self._charge = float(charge)
         self._user_decay_rate = float(user_decay_rate)
