@@ -104,7 +104,10 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         this check *replays the exact interleave* over the one-turn
         element list and rejects any layout in which some consumer reads
         the wrong beam's line density. Frozen profiles (``active=False``)
-        are deliberately static and are exempt.
+        are deliberately static and are exempt, and so is the profile of a
+        feedback that declares ``histograms_own_profile``: it re-histograms
+        the passing beam before every read, so no interleave can hand it
+        the other beam's line density.
 
         Parameters
         ----------
@@ -154,12 +157,13 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                         "write its own profile once per beam, but that "
                         "write is invisible to this element-list check, so "
                         "a single shared live profile still cannot be "
-                        "confirmed safe here -- and for a feedback it also "
-                        "entangles cross-turn state. Add the profile as a "
-                        "ring element in a placement this check can "
-                        "verify, give each beam its own profile instance, "
-                        "or freeze it with ``profile.active = False`` for "
-                        "a static line density."
+                        "confirmed safe here -- unless the consumer is a "
+                        "feedback declaring ``histograms_own_profile``, "
+                        "which is exempt. Add the profile as a ring "
+                        "element in a placement this check can verify, "
+                        "give each beam its own profile instance, or "
+                        "freeze it with ``profile.active = False`` for a "
+                        "static line density."
                     )
 
         MainloopCounterRotatingBeams._reject_clobbering_layout(
@@ -175,7 +179,12 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         wakefield's ``profile``, and those of any attached cavity
         feedbacks. Frozen profiles (``active=False``) are excluded: their
         histogram is static, so both beams read the same line density and
-        there is nothing to validate.
+        there is nothing to validate. So is the profile of a feedback that
+        declares ``histograms_own_profile``, as far as THAT feedback's
+        reads go: it histograms the passing beam itself right before
+        reading it. The same profile is still collected when the element
+        or its wakefield reads it too, since those reads are only as safe
+        as the ring placement.
 
         Parameters
         ----------
@@ -192,6 +201,8 @@ class MainloopCounterRotatingBeams(ExecutionModel):
         if local_wakefield is not None:
             candidates.append(getattr(local_wakefield, "profile", None))
         for feedback in getattr(element, "cavity_feedback_list", []):
+            if getattr(feedback, "histograms_own_profile", False):
+                continue  # re-histograms the passing beam before reading
             candidates.append(getattr(feedback, "profile", None))
         profiles: list = []
         for candidate in candidates:

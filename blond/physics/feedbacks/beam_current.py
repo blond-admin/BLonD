@@ -348,8 +348,8 @@ def rf_beam_current(
     #     phase_correction add back on top of ``angle(V_ant)``;
     #   * the readout itself is POLAR and referenced to the station
     #     setpoint (``cartesian_to_polar`` -> ``phase_correction =
-    #     alpha_sum - mean(angle(station_voltage_coarse_grid)) +
-    #     carrier_slip_gap``), applied as ``sin(omega_rf t + phi_rf +
+    #     alpha_sum - angle(station voltage) + carrier_slip_gap``),
+    #     applied as ``sin(omega_rf t + phi_rf +
     #     phase_offsets)``.
     # Do NOT re-derive the sign from a lab-frame identity such as
     # ``V_lab = -Im[V_ant e^{i omega_c t}]``: that form is used nowhere

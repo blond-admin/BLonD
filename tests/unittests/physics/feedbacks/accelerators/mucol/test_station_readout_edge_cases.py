@@ -289,3 +289,48 @@ class TestTotalVoltageGridResolution(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReadoutPhaseReference(unittest.TestCase):
+    """
+    The readout phase is taken against ``angle(V_station)``, exactly.
+
+    ``phase_correction`` is referenced to the phase of the parent station's
+    voltage, a single number: ``0`` for a positive voltage, ``pi`` for a
+    negative one. It must be that number, not an average over a grid of
+    copies of it, which drifts from ``pi`` by the rounding of the sum.
+    """
+
+    def _phase_of_the_fine_grid(self, feedback):
+        """Per-bin phase of the fine-grid envelope [rad]."""
+        return np.angle(copy_to_cpu(feedback.antenna_voltage_fine_grid))
+
+    def test_a_negative_voltage_is_referenced_to_exactly_pi(self):
+        feedback, _, _ = _tracked()
+        feedback.get_voltage_from_parent_rf_station = lambda: -V_DESIGN
+        fine_grid_phase = self._phase_of_the_fine_grid(feedback)
+
+        # The reference must not depend on the coarse grid's length: an
+        # average of n copies of pi is pi only for some n (it is not for
+        # the ~1.5e5 cells of a 16-section RCS4 turn).
+        for n_coarse_cells in (2590, 150_000):
+            with self.subTest(n_coarse_cells=n_coarse_cells):
+                feedback.antenna_voltage_coarse_grid = np.zeros(
+                    n_coarse_cells, dtype=np.complex128
+                )
+                feedback._write_station_readout(0.0)
+
+                np.testing.assert_array_equal(
+                    copy_to_cpu(np.asarray(feedback.phase_correction)),
+                    fine_grid_phase - np.pi,
+                )
+
+    def test_a_positive_voltage_is_referenced_to_zero(self):
+        feedback, _, _ = _tracked()
+
+        feedback._write_station_readout(0.0)
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(np.asarray(feedback.phase_correction)),
+            self._phase_of_the_fine_grid(feedback) - 0.0,
+        )

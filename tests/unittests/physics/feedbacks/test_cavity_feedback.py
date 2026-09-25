@@ -611,18 +611,23 @@ class TestCoarseCellStepSizing:
         assert feedback.antenna_voltage_coarse_grid[1] != 0
 
     def test_coincident_centers_warn_and_duplicate_previous(self) -> None:
-        # A duplicated rf_centers value carries zero elapsed time, so the
-        # correct antenna voltage at that cell is exactly the previous
-        # cell's: V(t + 0) = V(t). The cell must therefore be duplicated,
-        # not left at the zeros prefill (which would restart the envelope
-        # from V = 0 and destroy the coherent cavity voltage).
+        # A centre coinciding with the previous one carries zero elapsed
+        # time, so the correct antenna voltage there is exactly the
+        # previous state: V(t + 0) = V(t). It can only occur at a segment
+        # boundary (a segment's own centres are equally spaced), i.e. on the
+        # first cell, whose predecessor is the state carried over the turn
+        # boundary. The cell must duplicate it, not restart the envelope
+        # from V = 0 and destroy the coherent cavity voltage.
         r_over_q = 518.0
         bias = 0.01
         feedback = _make_bare_feedback(
             R_over_Q=r_over_q, generator_current_bias=bias
         )
-        _prepare_hand_built_grid(feedback, [0.25, 0.25, 0.5])
+        _prepare_hand_built_grid(feedback, [0.0, 0.25, 0.5])
         feedback._last_rf_centers_entry = 123.0  # not the first turn
+        feedback._residual_time_last_rf_centers_calculation = 0.0
+        carried_voltage = feedback._last_val_ant_voltage
+        carried_current = feedback._last_val_generator_current
 
         with pytest.warns(
             UserWarning, match="double taking of rf_centers value"
@@ -631,51 +636,47 @@ class TestCoarseCellStepSizing:
                 self.omega_input, no_beam=True, start_index=0, end_index=3
             )
 
+        # The coincident cell holds the carried state...
+        assert feedback.antenna_voltage_coarse_grid[0] == carried_voltage
         assert feedback.antenna_voltage_coarse_grid[0] != 0
-        # The coincident cell holds the previous cell's state...
-        assert (
-            feedback.antenna_voltage_coarse_grid[1]
-            == feedback.antenna_voltage_coarse_grid[0]
-        )
-        assert (
-            feedback.generator_current_coarse_grid[1]
-            == feedback.generator_current_coarse_grid[0]
-        )
+        assert feedback.generator_current_coarse_grid[0] == carried_current
         # ...so the following cell advances from the CARRIED voltage.
         omega_times_dt = self.omega_input * 0.25
         expected = feedback._advance_coarse_voltage(
             v_prev=feedback.antenna_voltage_coarse_grid[0],
-            generator_current=feedback.generator_current_coarse_grid[1],
+            generator_current=feedback.generator_current_coarse_grid[0],
             beam_current=0,
             omega_times_dt=omega_times_dt,
             relative_detuning=0.0,
         )
-        assert feedback.antenna_voltage_coarse_grid[2] == expected
+        assert feedback.antenna_voltage_coarse_grid[1] == expected
         # Non-vacuous: this is NOT the pure drive term the old
         # propagate-from-zero behaviour produced.
-        assert feedback.antenna_voltage_coarse_grid[2] != (
+        assert feedback.antenna_voltage_coarse_grid[1] != (
             r_over_q * omega_times_dt * bias
         )
 
     def test_coincident_last_cell_does_not_poison_the_next_turn(self) -> None:
         # reset_arrays carries antenna_voltage_coarse_grid[-1] into the
         # next turn. A coincident LAST cell must therefore hold the real
-        # voltage, not the zeros prefill, or the whole next turn starts
-        # from a dead cavity.
+        # voltage, not whatever the freshly sized grid held, or the whole
+        # next turn starts from a dead cavity. A coincidence is a boundary
+        # step, so the last cell is coincident in a one-cell segment.
         feedback = _make_bare_feedback(
             R_over_Q=518.0, generator_current_bias=0.01
         )
-        _prepare_hand_built_grid(feedback, [0.25, 0.5, 0.5])
+        _prepare_hand_built_grid(feedback, [0.0])
         feedback._last_rf_centers_entry = 123.0  # not the first turn
+        feedback._residual_time_last_rf_centers_calculation = 0.0
 
         with pytest.warns(
             UserWarning, match="double taking of rf_centers value"
         ):
             feedback._circuit_track_cells_python(
-                self.omega_input, no_beam=True, start_index=0, end_index=3
+                self.omega_input, no_beam=True, start_index=0, end_index=1
             )
-        last_voltage = feedback.antenna_voltage_coarse_grid[1]
-        last_current = feedback.generator_current_coarse_grid[1]
+        last_voltage = feedback.antenna_voltage_coarse_grid[0]
+        last_current = feedback.generator_current_coarse_grid[0]
         feedback.reset_arrays()
 
         assert feedback._last_val_ant_voltage == last_voltage
@@ -747,8 +748,9 @@ class TestCoarseCellStepSizing:
             feedback = _make_bare_feedback(
                 R_over_Q=518.0, generator_current_bias=0.01
             )
-            _prepare_hand_built_grid(feedback, [0.25, 0.25, 0.5])
+            _prepare_hand_built_grid(feedback, [0.0, 0.25, 0.5])
             feedback._last_rf_centers_entry = 123.0
+            feedback._residual_time_last_rf_centers_calculation = 0.0
             return feedback
 
         kernel = _degenerate_feedback()
@@ -782,13 +784,16 @@ class TestCoarseCellStepSizing:
         # into a zero-length step array -- and leave the grids untouched.
         feedback = _make_bare_feedback()
         _prepare_hand_built_grid(feedback, [0.5, 1.5, 2.5])
+        # reset_arrays sizes the grid without initialising it, so compare
+        # against what it held before rather than against zeros.
+        voltage_before = feedback.antenna_voltage_coarse_grid.copy()
 
         feedback._circuit_track_cells_kernel(
             self.omega_input, no_beam=True, start_index=2, end_index=2
         )
 
         np.testing.assert_array_equal(
-            feedback.antenna_voltage_coarse_grid, np.zeros(3)
+            feedback.antenna_voltage_coarse_grid, voltage_before
         )
 
 
@@ -1036,3 +1041,42 @@ class TestRegistrationPhaseRunningTotalStaysDeleted(unittest.TestCase):
         for name in self.REMOVED_NAMES:
             with self.subTest(name=name):
                 self.assertNotIn(name, source)
+
+
+class TestFeedbackHistogramsItsOwnProfile(unittest.TestCase):
+    """
+    The coarse-grid feedback histograms its own profile before reading it.
+
+    That is what lets the two-beam placement check exempt its profile
+    (``histograms_own_profile``): the declaration must stay true of the
+    code, so both are pinned here.
+    """
+
+    class _StopAfterHistogram(Exception):
+        """Raised in place of the frame check, right after the histogram."""
+
+    def test_the_feedback_declares_it(self) -> None:
+        self.assertTrue(_make_bare_feedback().histograms_own_profile)
+
+    def test_the_demodulation_histograms_the_passing_beam_first(self) -> None:
+        feedback = _make_bare_feedback()
+        feedback.profile.active = True
+        feedback._forward_segment_omega_design = 2.0 * np.pi
+        beam = Mock()
+        calls = []
+        feedback.profile.track.side_effect = lambda beam: calls.append(beam)
+
+        def stop(delta_t):
+            raise self._StopAfterHistogram
+
+        # The frame check is the first thing after the histogram; stopping
+        # there needs no parent station for the demodulation phase.
+        feedback._assert_demodulation_frame_aligned = stop
+        with self.assertRaises(self._StopAfterHistogram):
+            feedback.calculate_rf_beam_current_partial(
+                beam=beam,
+                n_points=1,
+                remaining_delta_t_from_backfill=0.5,
+            )
+
+        self.assertEqual(calls, [beam])

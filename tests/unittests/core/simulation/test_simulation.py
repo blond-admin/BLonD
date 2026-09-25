@@ -1026,6 +1026,46 @@ class TestTwoBeamProfilePlacementCheck(unittest.TestCase):
         # verified-safe padded live layout: accepted
         self._check([profile, station, profile, self._drift(), self._drift()])
 
+    def test_self_histogramming_feedback_profile_needs_no_placement(self):
+        """
+        A feedback that histograms its own profile needs no ring placement.
+
+        Such a feedback re-histograms the passing beam immediately before
+        every read of the line density, inside its own track, so no
+        interleave of the two beams can hand it the other beam's
+        histogram -- the profile needs no occurrence in the ring at all.
+        """
+        from types import SimpleNamespace
+
+        profile = self._profile(active=True)
+        station = SimpleNamespace(
+            profile=None,
+            cavity_feedback_list=[
+                SimpleNamespace(profile=profile, histograms_own_profile=True)
+            ],
+        )
+        self._check([self._drift(), station, self._drift()])
+
+    def test_self_histogramming_exemption_covers_only_the_feedback(self):
+        """
+        The exemption does not extend to another reader of that profile.
+
+        When the station itself (or its wakefield) reads the same live
+        profile, that read is still only as safe as the ring placement, so
+        the layout is validated -- and rejected here -- as before.
+        """
+        from types import SimpleNamespace
+
+        profile = self._profile(active=True)
+        station = SimpleNamespace(
+            profile=profile,
+            cavity_feedback_list=[
+                SimpleNamespace(profile=profile, histograms_own_profile=True)
+            ],
+        )
+        with self.assertRaises(ValueError):
+            self._check([self._drift(), station, self._drift()])
+
     def test_clobbering_layout_is_rejected(self):
         """
         ``[profile, consumer, profile, drift]`` corrupts and is rejected.

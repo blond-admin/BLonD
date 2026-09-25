@@ -32,8 +32,10 @@ of it, in three layers kept apart on purpose:
 
 The two scans share their first positional arguments -- the cavity and the
 sampler -- and differ only in the law state that follows, so the feedback
-passes a controller's :meth:`envelope_scan_state` straight through and hands
-whatever the scan returns back to :meth:`absorb_envelope_scan_state`
+passes a controller's
+:meth:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController.envelope_scan_state`
+straight through and hands whatever the scan returns back to
+:meth:`~blond.physics.feedbacks.generator_current_controller.GeneratorCurrentController.absorb_envelope_scan_state`
 without looking inside either. Each scan reproduces its controller's
 ``update_generator_current`` byte-for-byte on complex128 while the clamp is
 idle; once it fires, numba's complex ``abs`` may differ from numpy's by an

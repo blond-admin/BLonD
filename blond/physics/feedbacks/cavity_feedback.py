@@ -41,10 +41,7 @@ from blond.physics.feedbacks.cavity_solvers import (
     pretrack_fill_voltage,
     propagate_beam_free_voltage,
 )
-from blond.physics.feedbacks.envelope_inputs_kernel import (
-    step_multipliers,
-    unit_phasors,
-)
+from blond.physics.feedbacks.envelope_inputs_kernel import unit_phasors
 from blond.physics.feedbacks.envelope_kernel import envelope_open_loop_scan
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
@@ -56,6 +53,10 @@ from blond.physics.feedbacks.rf_center_segment import (
     RFCenterSegment,
 )
 from blond.physics.profiles import StaticProfile
+
+#: Relative tolerance to which a coarse-grid segment's centres must be
+#: equally spaced. ``np.arange`` centres deviate by rounding only (~1e-16).
+SEGMENT_UNIFORMITY_RTOL = 1.0e-9
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -326,7 +327,7 @@ class IQCavityFeedbackBase(LocalFeedback):
         the voltage the loop *can* hold into this table makes the
         reference ``pi_setpoint + table``, so its authority is spent on
         what is left. UNITS: volts, in the IQ frame of
-        :attr:`pi_setpoint`.
+        :attr:`~blond.physics.feedbacks.generator_regulation.GeneratorRegulationMixin.pi_setpoint`.
 
         The caller owns the prediction; this class only applies it, and
         learns nothing. It does NOT flatten the ripple the beam sees,
@@ -638,8 +639,10 @@ class IQCavityFeedbackBase(LocalFeedback):
         Parent rf station voltage replicated over the coarse grid [V].
 
         The *total* station voltage (all cavities of this station), one value
-        per coarse sample, at phase 0 by construction. This is the frame the
-        readout ``phase_correction`` is referenced to.
+        per coarse sample, at phase 0 by construction. Its phase is the
+        frame the readout ``phase_correction`` is referenced to; the readout
+        takes that phase from the scalar station voltage and does not build
+        this array.
 
         This is not the controller setpoint. The PI regulates to
         ``pi_setpoint``, which is the explicit per-cavity ``voltage_setpoint``
@@ -908,6 +911,13 @@ class IQCavityFeedbackCoarseGrid(
     # (coincident) coarse steps; klystron-limit saturation is handled inside
     # the kernel. Set ``False`` on an instance to force the reference path.
     use_numba_envelope_kernel: bool = True
+
+    # Every passage re-histograms the passing beam into ``profile``
+    # (``calculate_rf_beam_current_partial``) before anything here reads
+    # its line density, so the counter-rotating placement check needs no
+    # ring occurrence of this profile to know each beam reads its own
+    # histogram (``MainloopCounterRotatingBeams._live_consumed_profiles``).
+    histograms_own_profile: bool = True
 
     def __init__(
         self,
@@ -1563,54 +1573,16 @@ class IQCavityFeedbackCoarseGrid(
         """
         # The step into this segment's first cell crosses a segment (or turn)
         # boundary, so it is the local time of that cell plus the PRECEDING
-        # segment's unfilled tail -- a per-segment quantity, not the live
-        # host scalar (see _preceding_segment_residual).
-        preceding_residual = self._preceding_segment_residual(start_index)
+        # segment's unfilled tail; every later cell steps by the segment's
+        # one bulk step (see _segment_steps, which also clamps a few-ULP
+        # negative first step to a coincident point).
+        first_step, bulk_step = self._segment_steps(
+            omega_input, start_index, end_index
+        )
         for rf_centers_idx in range(start_index, end_index):
-            if rf_centers_idx == 0:
-                if self._last_rf_centers_entry is None:
-                    # First centre ever tracked: there is no previous centre to
-                    # step from, so use the spacing to the next centre as the
-                    # step proxy. That next centre must live in *this* segment,
-                    # though. With fine sectioning the first (backfill)
-                    # segment
-                    # can hold a single centre, in which case rf_centers[idx+1]
-                    # belongs to the next segment -- which under acceleration
-                    # runs at a different frequency -- so the cross-boundary
-                    # diff is meaningless and can even go negative (tripping the
-                    # ordering assertion below). Fall back to this segment's own
-                    # coarse step (n * t_rf at omega_input) in that case.
-                    if rf_centers_idx + 1 < end_index:
-                        delta_t = (
-                            self._rf_centers[rf_centers_idx + 1]
-                            - self._rf_centers[rf_centers_idx]
-                        )
-                    else:
-                        delta_t = (
-                            self.n_rf_periods_per_coarse_grid
-                            * 2
-                            * np.pi
-                            / omega_input
-                        )
-                else:
-                    delta_t = self._rf_centers[0] + preceding_residual
-            elif rf_centers_idx == start_index:
-                delta_t = self._rf_centers[rf_centers_idx] + preceding_residual
-            else:
-                delta_t = (
-                    self._rf_centers[rf_centers_idx]
-                    - self._rf_centers[rf_centers_idx - 1]
-                )
-            # delta_t can come out marginally negative (a few ULPs) when a
-            # coarse-grid point lands almost exactly on a turn/segment
-            # boundary -- e.g. for sub-stepping ratios (n < 1) that divide the
-            # turn evenly, where the carry-over residual is numerically zero.
-            # That floating-point noise is not a real ordering violation, so
-            # clamp it to zero (handled as a coincident point below) rather
-            # than tripping the hard assertion.
-            rf_period = 2 * np.pi / omega_input
-            if -1e-9 * rf_period < delta_t < 0:
-                delta_t = 0.0
+            delta_t = (
+                first_step if rf_centers_idx == start_index else bulk_step
+            )
             assert delta_t >= 0, f"{delta_t}"
             if delta_t == 0:
                 # A coincident coarse point carries ZERO elapsed time, so the
@@ -1730,8 +1702,13 @@ class IQCavityFeedbackCoarseGrid(
 
         omega_times_dt = omega_input * delta_t
         relative_detuning = self.delta_omega / omega_input
-        voltage_multiplier, drive_weight = self._kernel_step_multipliers(
-            omega_times_dt, relative_detuning
+        # ``delta_t`` is the boundary step, then one bulk step: the
+        # propagator is evaluated for those two, not per cell.
+        voltage_multiplier, drive_weight = self._segment_step_multipliers(
+            float(omega_times_dt[0]),
+            float(omega_times_dt[-1]),
+            n_cells,
+            relative_detuning,
         )
         beam_current = self._kernel_beam_current(
             no_beam, start_index, end_index, n_cells
@@ -1887,6 +1864,69 @@ class IQCavityFeedbackCoarseGrid(
             + self._preceding_segment_residual(start_index)
         )
 
+    def _segment_steps(
+        self,
+        omega_input: float,
+        start_index: int,
+        end_index: int,
+    ) -> tuple[float, float]:
+        """
+        The two coarse steps of a segment: into its first cell, and the bulk.
+
+        A segment's centres are ``np.arange`` samples at one design
+        frequency, so every step after the first is the same physical step;
+        ``np.diff`` of the centres differs from it only by rounding. The
+        segment therefore steps by ONE bulk step, its first spacing, and the
+        propagator is evaluated once for it (and once for the first cell)
+        rather than once per cell. The first cell's step crosses the segment
+        (or turn) boundary and is its own (:meth:`_step_into_first_cell`);
+        a few-ULP negative one is clamped to zero, a coincident point.
+
+        Parameters
+        ----------
+        omega_input
+            Angular frequency of this segment.
+        start_index
+            First ``rf_centers`` index of the segment.
+        end_index
+            One past the last ``rf_centers`` index of the segment.
+
+        Returns
+        -------
+        first_step
+            Step into the first cell [s]; zero for a coincident point, and
+            negative only for a grid out of order.
+        bulk_step
+            Step between the later cells [s]; ``first_step`` for a
+            single-cell segment, which has no later cell.
+        """
+        first_step = float(
+            self._step_into_first_cell(omega_input, start_index, end_index)
+        )
+        # A few ULPs below zero when a centre lands almost exactly on a
+        # turn/segment boundary -- e.g. for sub-stepping ratios (n < 1) that
+        # divide the turn evenly, where the carried residual is numerically
+        # zero. Floating-point noise, not an ordering violation: a
+        # coincident point.
+        rf_period = 2 * np.pi / omega_input
+        if -1e-9 * rf_period < first_step < 0:
+            first_step = 0.0
+        n_cells = end_index - start_index
+        min_cells_for_bulk_step = 2
+        if n_cells < min_cells_for_bulk_step:
+            return first_step, first_step
+        segment_centers = self._rf_centers[start_index:end_index]
+        bulk_step = float(segment_centers[1] - segment_centers[0])
+        assert bulk_step > 0 and np.all(
+            np.abs(np.diff(segment_centers) - bulk_step)
+            <= SEGMENT_UNIFORMITY_RTOL * bulk_step
+        ), (
+            f"coarse-grid segment [{start_index}, {end_index}) is not "
+            "uniform: its centres must be equally spaced (a zero or "
+            "negative step can only occur at a segment boundary)"
+        )
+        return first_step, bulk_step
+
     def _coarse_step_sizes(
         self,
         omega_input: float,
@@ -1894,11 +1934,11 @@ class IQCavityFeedbackCoarseGrid(
         end_index: int,
     ) -> NumpyArray | None:
         """
-        Vectorised per-cell coarse step sizes for a segment.
+        Per-cell coarse step sizes for a segment, for the kernel.
 
-        Reproduces, bit-for-bit, the per-cell ``delta_t`` of
-        :meth:`_circuit_track_cells_python` -- the first-cell special cases and
-        the few-ULP negative clamp included.
+        The two steps of :meth:`_segment_steps` spread over the segment's
+        cells: the boundary step, then the bulk step on every later cell --
+        exactly the steps :meth:`_circuit_track_cells_python` takes.
 
         Parameters
         ----------
@@ -1912,32 +1952,18 @@ class IQCavityFeedbackCoarseGrid(
         Returns
         -------
         delta_t
-            Per-cell step sizes [s], or ``None`` when the segment contains a
-            zero (coincident) step, which only the reference path handles.
+            Per-cell step sizes [s], or ``None`` when the first step is not
+            positive (a coincident point, or a grid out of order), which only
+            the reference path handles: it warns and duplicates the previous
+            cell on a zero step and asserts on a negative one.
         """
-        n_cells = end_index - start_index
-        delta_t = np.empty(n_cells, dtype=np.float64)
-        if n_cells > 1:
-            # Bulk cells: consecutive rf_centers differences (== the reference
-            # ``else`` branch), bit-identical to the scalar subtraction.
-            delta_t[1:] = np.diff(self._rf_centers[start_index:end_index])
-        # Same per-segment boundary residual the reference loop uses; the two
-        # paths MUST take it from the same source or the kernel-vs-python
-        # byte-identity pin breaks.
-        delta_t[0] = self._step_into_first_cell(
+        first_step, bulk_step = self._segment_steps(
             omega_input, start_index, end_index
         )
-        rf_period = 2 * np.pi / omega_input
-        tiny_negative = (delta_t > -1e-9 * rf_period) & (delta_t < 0)
-        delta_t[tiny_negative] = 0.0
-        # Any non-positive step is degenerate/invalid: a coincident (zero) step,
-        # or a genuinely-negative one that violates ordering. Defer the whole
-        # segment to the reference loop, which -- processing cells in order --
-        # warns and duplicates the previous cell on a zero step and asserts on
-        # a negative one, so its warnings and assertion message are reproduced
-        # exactly rather than pre-empted by a vectorised assert here.
-        if not (delta_t > 0).all():
+        if not first_step > 0:
             return None
+        delta_t = np.full(end_index - start_index, bulk_step)
+        delta_t[0] = first_step
         return delta_t
 
     def _advance_coarse_voltage(
@@ -1960,7 +1986,7 @@ class IQCavityFeedbackCoarseGrid(
 
         The step exponent and the propagator weights come from
         :mod:`~blond.physics.feedbacks.cavity_solvers`, so this per-cell
-        path and the vectorised :meth:`_kernel_step_multipliers` spell the
+        path and the per-segment :meth:`_segment_step_multipliers` spell the
         recursion once.
 
         Parameters
@@ -2052,9 +2078,10 @@ class IQCavityFeedbackCoarseGrid(
         accelerating) the two steps gave beam-induced voltages differing by
         7.1e-7 and 8.5e-7 relative on the second and third turn (measured
         2026-09-11). The exact step costs the same: ``B`` and ``W`` depend
-        only on the step length and the cavity parameters, so the kernel
-        path precomputes them per cell (:meth:`_kernel_step_multipliers`)
-        and the recursion is the same multiply-and-add either way.
+        only on the step length and the cavity parameters, and a segment
+        has two step lengths, so the kernel path evaluates them per segment
+        (:meth:`_segment_step_multipliers`) and the recursion is the same
+        multiply-and-add either way.
         """
         drive = (
             self.R_over_Q
@@ -2072,33 +2099,36 @@ class IQCavityFeedbackCoarseGrid(
         drive_weight = exponential_drive_weight(step_exponent)
         return v_prev * growth + drive * drive_weight
 
-    def _kernel_step_multipliers(
+    def _segment_step_multipliers(
         self,
-        omega_times_dt: NumpyArray,
+        omega_times_dt_first: float,
+        omega_times_dt_bulk: float,
+        n_cells: int,
         relative_detuning: float,
     ) -> tuple[NumpyArray, NumpyArray]:
         """
-        Per-cell voltage multiplier and drive weight for the kernel.
+        Voltage multiplier and drive weight of a segment, spread per cell.
 
-        Both depend only on the step size and detuning (not the recursion
-        state), so they are precomputed here on the host: ``B = e^L`` and
-        ``W = (e^L - 1) / L`` of the exact exponential propagator, with ``L``
-        the per-cell growth exponent (derivation, and the forward-Euler
-        ``B = 1 + L``, ``W = 1`` it replaced: Notes of
-        :meth:`_advance_coarse_voltage`). The arithmetic is compiled
-        (:func:`~blond.physics.feedbacks.envelope_inputs_kernel.step_multipliers`)
-        but byte-for-byte the shared NumPy one of
-        :mod:`~blond.physics.feedbacks.cavity_solvers`
-        (:func:`~blond.physics.feedbacks.cavity_solvers.coarse_step_exponent`
-        and the propagator weights) that the per-cell
-        :meth:`_advance_coarse_voltage` uses; the kernel's tests pin that, so
-        the two paths cannot drift apart silently.
+        ``B = e^L`` and ``W = (e^L - 1) / L`` of the exact exponential
+        propagator depend only on the step and the detuning (derivation, and
+        the forward-Euler ``B = 1 + L``, ``W = 1`` it replaced: Notes of
+        :meth:`_advance_coarse_voltage`). A segment takes two steps -- into
+        its first cell, then one bulk step (:meth:`_segment_steps`) -- so
+        they are evaluated twice per segment, with the very scalar
+        arithmetic of :mod:`~blond.physics.feedbacks.cavity_solvers` the
+        per-cell :meth:`_advance_coarse_voltage` uses, and the two paths
+        agree bit-for-bit.
 
         Parameters
         ----------
-        omega_times_dt
-            Per-cell ``omega * dt`` (strictly positive; zero steps have already
-            fallen back to the reference path).
+        omega_times_dt_first
+            ``omega * dt`` of the step into the first cell (strictly
+            positive; a zero step has already fallen back to the reference
+            path).
+        omega_times_dt_bulk
+            ``omega * dt`` of every later step.
+        n_cells
+            Cells of the segment.
         relative_detuning
             Detuning normalised to the segment frequency
             (``delta_omega / omega``).
@@ -2110,12 +2140,25 @@ class IQCavityFeedbackCoarseGrid(
         drive_weight
             Per-cell drive weight ``W`` (complex128).
         """
-        # One compiled, threaded pass, byte-for-byte the NumPy expression
-        # ``exponential_voltage_multiplier`` / ``exponential_drive_weight``
-        # of ``coarse_step_exponent`` (pinned in
-        # ``test_envelope_inputs_kernel.py``). omega_times_dt > 0, so the
-        # exponent is never zero and (e^L - 1) / L is well defined.
-        return step_multipliers(omega_times_dt, self.Q_L, relative_detuning)
+        bulk_exponent = coarse_step_exponent(
+            omega_times_dt_bulk, self.Q_L, relative_detuning
+        )
+        voltage_multiplier = np.full(
+            n_cells,
+            exponential_voltage_multiplier(bulk_exponent),
+            dtype=np.complex128,
+        )
+        drive_weight = np.full(
+            n_cells,
+            exponential_drive_weight(bulk_exponent),
+            dtype=np.complex128,
+        )
+        first_exponent = coarse_step_exponent(
+            omega_times_dt_first, self.Q_L, relative_detuning
+        )
+        voltage_multiplier[0] = exponential_voltage_multiplier(first_exponent)
+        drive_weight[0] = exponential_drive_weight(first_exponent)
+        return voltage_multiplier, drive_weight
 
     def _compose_coarse_sum(self, coarse_grid_index: int) -> complex:
         """
@@ -2699,13 +2742,16 @@ class IQCavityFeedbackCoarseGrid(
             self._last_val_ant_voltage_beam = (
                 self.antenna_voltage_beam_coarse_grid[-1]
             )
-        self.antenna_voltage_coarse_grid = np.zeros(
+        # Sized, not initialised: the backfill replay and the forward span
+        # write every cell of the three antenna grids before anything
+        # reads them (pinned in ``test_coarse_grid_coverage.py``).
+        self.antenna_voltage_coarse_grid = np.empty(
             len(self._rf_centers), dtype=np.complex128
         )
-        self.antenna_voltage_gen_coarse_grid = np.zeros(
+        self.antenna_voltage_gen_coarse_grid = np.empty(
             len(self._rf_centers), dtype=np.complex128
         )
-        self.antenna_voltage_beam_coarse_grid = np.zeros(
+        self.antenna_voltage_beam_coarse_grid = np.empty(
             len(self._rf_centers), dtype=np.complex128
         )
         if self.generator_current_coarse_grid is None:
@@ -2715,9 +2761,11 @@ class IQCavityFeedbackCoarseGrid(
                 self.generator_current_coarse_grid[-1]
             )
 
-        self.generator_current_coarse_grid = (
-            np.ones(len(self._rf_centers), dtype=np.complex128)
-            * self._generator_current_bias
+        # Initialised: the open-loop scan reads this grid as its drive.
+        self.generator_current_coarse_grid = np.full(
+            len(self._rf_centers),
+            self._generator_current_bias,
+            dtype=np.complex128,
         )
         if n_backfill_cells > 0:
             self.generator_current_coarse_grid[:n_backfill_cells] = (
@@ -3465,10 +3513,14 @@ class IQCavityFeedbackCoarseGrid(
         # same total the demodulation subtracted (see
         # calculate_rf_beam_current_partial). Exactly +0.0 without an
         # RF-frequency offset.
+        #
+        # The reference is the phase of the station voltage, one number
+        # (0 or pi), not the mean over ``station_voltage_coarse_grid`` --
+        # a whole-grid array of copies of it, whose mean is pi only up to
+        # the rounding of the sum, and which cost a grid-sized pass per
+        # passage.
         self.phase_correction = (
-            alpha_sum
-            - np.mean(np.angle(self.station_voltage_coarse_grid))
-            + carrier_slip_gap
+            alpha_sum - float(np.angle(parent_voltage)) + carrier_slip_gap
         )
 
     def _state_before_forward_span(

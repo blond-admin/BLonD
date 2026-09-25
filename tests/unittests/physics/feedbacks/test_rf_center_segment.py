@@ -1093,3 +1093,92 @@ class TestBackfillSpanWalksSegments(unittest.TestCase):
         # anything (a stale frequency list used to re-run the whole grid).
         fdbk = self._passage_feedback()
         self.assertEqual(self._recorded_replay(fdbk, 0), [])
+
+
+class TestGridIsConcatenatedOncePerGeneration(unittest.TestCase):
+    """
+    The flat grid is rebuilt once per batch of segments, not per segment.
+
+    ``_rf_centers`` is the concatenation of every segment's centres, so
+    rebuilding it after each appended segment copies ``k**2 / 2``
+    segments' worth for a passage of ``k`` -- up to 15 on a 16-section
+    ring. A batch is appended in one step and concatenated once.
+    """
+
+    @staticmethod
+    def _bare_feedback():
+        profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)
+        return IQCavityFeedbackCoarseGrid(
+            profile=profile,
+            n_rf_periods_per_coarse_grid=1,
+            R_over_Q=0,
+            Q_L=1e6,
+            generator_current_bias=0,
+            n_cavities=1,
+        )
+
+    @staticmethod
+    def _segments():
+        return [
+            RFCenterSegment(
+                omega=2.0 + index,
+                duration=1.0,
+                residual=0.2,
+                centers=np.array([0.3, 0.8]) + index,
+            )
+            for index in range(3)
+        ]
+
+    @staticmethod
+    def _count_rebuilds(feedback):
+        calls = []
+        rebuild = feedback._rebuild_grid_arrays
+
+        def counted():
+            calls.append(None)
+            rebuild()
+
+        feedback._rebuild_grid_arrays = counted
+        return calls
+
+    def test_a_batch_is_concatenated_once_and_equals_single_appends(self):
+        one_by_one = self._bare_feedback()
+        for segment in self._segments():
+            one_by_one._append_segment(segment)
+
+        batched = self._bare_feedback()
+        rebuilds = self._count_rebuilds(batched)
+        batched._append_segments(self._segments())
+
+        self.assertEqual(len(rebuilds), 1)
+        np.testing.assert_array_equal(
+            batched._rf_centers, one_by_one._rf_centers
+        )
+        np.testing.assert_array_equal(
+            batched._rf_centers_lengths, one_by_one._rf_centers_lengths
+        )
+        batched._validate_grid()
+
+    def test_the_backfill_generation_concatenates_once(self):
+        feedback = self._bare_feedback()
+        omegas = np.array([2.0e9, 2.1e9, 2.2e9])
+        feedback._own_index_in_reference_list = 1
+        feedback._reference_state_until_tracked = type(
+            "Reference", (), {"time": 0.0}
+        )()
+        beam = type(
+            "Beam", (), {"reference": type("R", (), {"time": 1.0})()}
+        )()
+
+        def backfill_spans(beam):
+            feedback._backfill_time_array = 40.0 * 2.0 * np.pi / omegas
+            feedback._backfill_segment_omega_design_list = omegas
+
+        feedback.get_time_omega_array_backfill = backfill_spans
+        rebuilds = self._count_rebuilds(feedback)
+
+        feedback.calculate_rf_centers_for_backfill(beam=beam)
+
+        self.assertEqual(len(feedback._segments), 3)
+        self.assertEqual(len(rebuilds), 1)
+        feedback._validate_grid()

@@ -523,7 +523,24 @@ class RFCenterGridMixin:
         segment : RFCenterSegment
             The generated segment to add to the per-turn grid.
         """
-        self._segments.append(segment)
+        self._append_segments([segment])
+
+    def _append_segments(
+        self: IQCavityFeedbackCoarseGrid, segments: list[RFCenterSegment]
+    ) -> None:
+        """
+        Append several coarse-grid segments and refresh the flat arrays once.
+
+        The flat arrays are the concatenation of every segment, so
+        refreshing them after each of ``k`` segments would copy ``k**2 / 2``
+        segments' worth; a batch is concatenated once.
+
+        Parameters
+        ----------
+        segments : list of RFCenterSegment
+            The generated segments to add to the per-turn grid, in order.
+        """
+        self._segments.extend(segments)
         self._rebuild_grid_arrays()
 
     def _clear_segments(self: IQCavityFeedbackCoarseGrid) -> None:
@@ -1122,6 +1139,10 @@ class RFCenterGridMixin:
         self.get_time_omega_array_backfill(beam=beam)
         backfill_phases = self._backfill_accumulated_phases()
 
+        # Generated in order (each segment continues the previous one's
+        # residual) but appended as one batch, so the flat grid is
+        # concatenated once for the whole backfill span.
+        segments = []
         for time_ind, time in enumerate(self._backfill_time_array):
             # if time == 0:  # cavities may cause this in debug mode
             #     continue
@@ -1133,7 +1154,7 @@ class RFCenterGridMixin:
                 omega_design=segment_omega_design,
                 until_time=time,
             )
-            self._append_segment(
+            segments.append(
                 RFCenterSegment(
                     omega=segment_omega_design,
                     duration=time,
@@ -1142,3 +1163,4 @@ class RFCenterGridMixin:
                     accumulated_phase=float(backfill_phases[time_ind]),
                 )
             )
+        self._append_segments(segments)

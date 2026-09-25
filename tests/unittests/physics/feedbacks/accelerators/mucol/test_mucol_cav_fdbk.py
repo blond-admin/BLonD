@@ -939,7 +939,7 @@ class TestSharedCoarseStepArithmetic(unittest.TestCase):
     The per-cell and vectorised coarse steps share one spelling.
 
     The coarse recursion exists twice -- ``_advance_coarse_voltage`` (per cell,
-    the reference) and ``_kernel_step_multipliers`` (vectorised, feeding the
+    the reference) and ``_segment_step_multipliers`` (per segment, feeding the
     numba kernel). Both must be built from the same module-level arithmetic in
     ``blond.physics.feedbacks.cavity_solvers``; two independent spellings are
     exactly how the two paths drifted apart before (the vectorised one lacked
@@ -991,22 +991,26 @@ class TestSharedCoarseStepArithmetic(unittest.TestCase):
         ) + drive * exponential_drive_weight(step)
         self.assertEqual(got, expected)
 
-    def test_kernel_multipliers_match_the_per_cell_step(self):
+    def test_segment_multipliers_match_the_per_cell_step(self):
         """
-        Per-cell and vectorised multipliers agree bit-for-bit.
+        Per-cell and per-segment multipliers agree bit-for-bit.
 
         This is the invariant the numba-vs-python bit-identity pin rests on:
         for the same step, whichever path computes the propagator, the same
-        bits come out.
+        bits come out. The kernel's are per segment -- the boundary step of
+        the first cell and one bulk step for the rest -- spread over the
+        segment's cells.
         """
-        omega_times_dt = np.array([2.0 * np.pi, 0.5 * np.pi, 1e-6])
+        first, bulk, n_cells = 0.5 * np.pi, 2.0 * np.pi, 4
         rel_det = -1e-4
         cav = self._feedback()
-        multiplier, weight = cav._kernel_step_multipliers(
-            omega_times_dt, rel_det
+        multiplier, weight = cav._segment_step_multipliers(
+            first, bulk, n_cells, rel_det
         )
-        for cell, step_size in enumerate(omega_times_dt):
+        self.assertEqual(multiplier.shape, (n_cells,))
+        for cell in range(n_cells):
             with self.subTest(cell=cell):
+                step_size = first if cell == 0 else bulk
                 step = coarse_step_exponent(step_size, self.Q_L, rel_det)
                 self.assertEqual(
                     multiplier[cell], exponential_voltage_multiplier(step)

@@ -1027,6 +1027,109 @@ class TestControllerUpdateInterval(unittest.TestCase):
         np.testing.assert_array_equal(changed, np.array([4, 8]))
 
 
+class TestPerSegmentCoarseStep(unittest.TestCase):
+    """
+    A segment steps by one bulk step, so ``B`` and ``W`` are per segment.
+
+    The centres of a segment are ``np.arange`` samples of one design
+    frequency, so every step after the first is the same physical step; the
+    handful of values ``np.diff`` returns differ only by rounding. Both paths
+    take the step into the first cell (the segment or turn boundary) and one
+    bulk step for every later cell, and a segment whose centres are not
+    uniform is refused rather than re-stepped cell by cell.
+    """
+
+    V_INIT = 3.0e7 + 1.0e6j
+    N_CELLS = 64
+    #: The live residual the boundary step of a hand-built grid adds.
+    RESIDUAL = 0.2 * T_RF
+
+    def _jittered_feedback(self, use_kernel):
+        """
+        Feedback on a grid uniform to 1e-13 of an RF period.
+
+        The interior centres are moved off the uniform grid by up to
+        ``1e-13 * T_RF``: far below anything physical and inside the
+        uniformity tolerance, but -- unlike rounding jitter, which the
+        propagator does not resolve -- large enough that stepping by the
+        cell-by-cell differences would change the voltage.
+
+        Parameters
+        ----------
+        use_kernel
+            Value for ``use_numba_envelope_kernel``.
+
+        Returns
+        -------
+        feedback
+            The seeded feedback (no beam, not the first turn).
+        """
+        feedback = _make_feedback(use_kernel)
+        _seed_single_segment(
+            feedback,
+            self.N_CELLS,
+            v_init=self.V_INIT,
+            i_init=BIAS,
+            beam=None,
+        )
+        offsets = np.random.default_rng(3).uniform(-1.0, 1.0, self.N_CELLS)
+        offsets[:2] = 0.0  # the first spacing is the segment's step
+        feedback._rf_centers = (
+            0.37 * T_RF
+            + np.arange(self.N_CELLS) * (T_RF / 1.3)
+            + offsets * 1.0e-13 * T_RF
+        )
+        feedback._residual_time_last_rf_centers_calculation = self.RESIDUAL
+        feedback._last_rf_centers_entry = 0.0  # not the first turn
+        return feedback
+
+    def test_the_grid_really_jitters(self):
+        """Precondition: the cell-by-cell differences are not one value."""
+        centers = self._jittered_feedback(False)._rf_centers
+        self.assertGreater(len(np.unique(np.diff(centers))), 1)
+
+    def test_every_cell_after_the_first_steps_by_the_bulk_step(self):
+        expected = self._jittered_feedback(False)
+        centers = expected._rf_centers
+        first_step = float(centers[0] + self.RESIDUAL)
+        bulk_step = float(centers[1] - centers[0])
+        for index in range(self.N_CELLS):
+            step = first_step if index == 0 else bulk_step
+            expected.cavity_response(
+                OMEGA_RF * step,
+                coarse_grid_index_to_update=index,
+                relative_detuning=0.0,
+                no_beam=True,
+            )
+
+        for use_kernel in (False, True):
+            with self.subTest(use_kernel=use_kernel):
+                feedback = self._jittered_feedback(use_kernel)
+                feedback._circuit_track_cells(
+                    omega_input=OMEGA_RF,
+                    no_beam=True,
+                    start_index=0,
+                    end_index=self.N_CELLS,
+                )
+                _assert_bit_identical(
+                    self, _snapshot(feedback), _snapshot(expected)
+                )
+
+    def test_a_non_uniform_segment_is_refused(self):
+        for use_kernel in (False, True):
+            with self.subTest(use_kernel=use_kernel):
+                feedback = self._jittered_feedback(use_kernel)
+                feedback._rf_centers = feedback._rf_centers.copy()
+                feedback._rf_centers[self.N_CELLS // 2] += 0.3 * T_RF
+                with self.assertRaisesRegex(AssertionError, "not uniform"):
+                    feedback._circuit_track_cells(
+                        omega_input=OMEGA_RF,
+                        no_beam=True,
+                        start_index=0,
+                        end_index=self.N_CELLS,
+                    )
+
+
 class TestDegenerateCoarseSteps(unittest.TestCase):
     """
     First-cell seeding, coincident points and empty segments.
@@ -1035,36 +1138,43 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
     vectorised twin (``_coarse_step_sizes``) share the first-cell special
     cases; degenerate (coincident / zero-step) grids must defer the kernel
     path to the reference loop, the only one that duplicates the previous
-    cell into the coincident one.
+    cell into the coincident one. A segment's centres are equally spaced,
+    so a coincidence is a zero step across the segment boundary, into the
+    first cell, whose predecessor is the state carried into the grid.
     """
 
     V_INIT = 3.0e7 + 1.0e6j
 
     def _coincident_grid_feedback(self, use_kernel, step_offset=0.0):
         """
-        Feedback seeded with a grid whose third centre repeats the second.
+        Feedback whose first centre coincides with the carried state.
+
+        The first centre sits at local time zero and the preceding tail is
+        ``step_offset``, so the step across the boundary into it is zero.
 
         Parameters
         ----------
         use_kernel
             Value for ``use_numba_envelope_kernel``.
         step_offset
-            Offset [s] added to the repeated centre; a tiny negative value
-            makes the degenerate step a few-ULP negative one instead of an
-            exact zero.
+            The preceding segment's tail [s]; a tiny negative value makes
+            the degenerate step a few-ULP negative one instead of an exact
+            zero.
 
         Returns
         -------
         feedback
-            The seeded feedback (4 cells, no beam).
+            The seeded feedback (4 cells, no beam, not the first turn).
         """
         feedback = _make_feedback(use_kernel)
         _seed_single_segment(
             feedback, 4, v_init=self.V_INIT, i_init=BIAS, beam=None
         )
         feedback._rf_centers = np.array(
-            [1.0 * T_RF, 2.0 * T_RF, 2.0 * T_RF + step_offset, 3.0 * T_RF]
+            [0.0 * T_RF, 1.0 * T_RF, 2.0 * T_RF, 3.0 * T_RF]
         )
+        feedback._residual_time_last_rf_centers_calculation = step_offset
+        feedback._last_rf_centers_entry = 0.0  # not the first turn
         return feedback
 
     def test_first_turn_single_cell_segment_uses_own_period_step(self):
@@ -1120,12 +1230,13 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
 
     def test_coincident_points_warn_and_duplicate_the_cell(self):
         """
-        Two identical consecutive centres warn and duplicate the cell.
+        A centre coinciding with its predecessor warns and duplicates it.
 
         A coincident centre carries zero elapsed time, so the correct
-        antenna voltage there is the previous cell's, ``V(t + 0) = V(t)``.
-        The cell must hold that value (not the zeros prefill), so the
-        following cell advances from the real carried voltage.
+        antenna voltage there is the previous state, ``V(t + 0) = V(t)`` --
+        for the first cell the state carried into the grid. The cell must
+        hold that value, so the following cell advances from the real
+        carried voltage.
         """
         feedback = self._coincident_grid_feedback(False)
         with self.assertWarnsRegex(
@@ -1134,22 +1245,15 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
             feedback._circuit_track_cells_python(
                 OMEGA_RF, no_beam=True, start_index=0, end_index=4
             )
-        # The coincident cell holds the previous cell's state...
-        self.assertEqual(
-            feedback.antenna_voltage_coarse_grid[2],
-            feedback.antenna_voltage_coarse_grid[1],
-        )
-        self.assertNotEqual(feedback.antenna_voltage_coarse_grid[2], 0.0)
-        self.assertEqual(
-            feedback.generator_current_coarse_grid[2],
-            feedback.generator_current_coarse_grid[1],
-        )
+        # The coincident cell holds the carried state...
+        self.assertEqual(feedback.antenna_voltage_coarse_grid[0], self.V_INIT)
+        self.assertEqual(feedback.generator_current_coarse_grid[0], BIAS)
         # ...and the next cell advances from it, not from zero.
         self.assertEqual(
-            feedback.antenna_voltage_coarse_grid[3],
+            feedback.antenna_voltage_coarse_grid[1],
             feedback._advance_coarse_voltage(
-                v_prev=feedback.antenna_voltage_coarse_grid[1],
-                generator_current=feedback.generator_current_coarse_grid[2],
+                v_prev=feedback.antenna_voltage_coarse_grid[0],
+                generator_current=feedback.generator_current_coarse_grid[0],
                 beam_current=0,
                 omega_times_dt=OMEGA_RF * T_RF,
                 relative_detuning=0.0,
@@ -1177,10 +1281,7 @@ class TestDegenerateCoarseSteps(unittest.TestCase):
             feedback._circuit_track_cells_python(
                 OMEGA_RF, no_beam=True, start_index=0, end_index=4
             )
-        self.assertEqual(
-            feedback.antenna_voltage_coarse_grid[2],
-            feedback.antenna_voltage_coarse_grid[1],
-        )
+        self.assertEqual(feedback.antenna_voltage_coarse_grid[0], self.V_INIT)
         self.assertNotEqual(feedback.antenna_voltage_coarse_grid[3], 0.0)
 
     def test_degenerate_segment_defers_the_kernel_to_the_reference(self):
