@@ -26,6 +26,7 @@ from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability
@@ -101,6 +102,18 @@ block_size = (threads, 1, 1)
 # 64-bit counter would halve the number of bins that fit in shared memory
 # for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
 _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
+# Per-harmonic RF parameters are passed to `kick_multi_harmonic` by value,
+# as a struct in the kernel's parameter space (`RFHarmonics` in
+# kernels.cu): no host-to-device copy per turn. Both must match their
+# counterparts in kernels.cu.
+MAX_RF_HARMONICS_PER_LAUNCH = 32
+_RF_HARMONICS_DTYPE = np.dtype(
+    [
+        ("voltage", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+        ("omega_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+        ("phi_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+    ]
+)
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 # Cache of uniformity verdicts for `bin_centers` arrays passed to the
@@ -226,52 +239,53 @@ class CudaSpecials(Specials):  # NOQA: D101
     def kick_multi_harmonic(  # NOQA: D102
         dt: CupyArray,
         dE: CupyArray,
-        voltage: CupyArray,
-        omega_rf: CupyArray,
-        phi_rf: CupyArray,
+        voltage: NumpyArray,
+        omega_rf: NumpyArray,
+        phi_rf: NumpyArray,
         charge: float,
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
-        assert phi_rf.device != "cpu", (
-            f"Requires Cupy array, but got {type(phi_rf)}."
-        )
-        assert voltage.device != "cpu", (
-            f"Requires Cupy array, but got {type(voltage)}."
-        )
-        assert omega_rf.device != "cpu", (
-            f"Requires Cupy array, but got {type(omega_rf)}."
-        )
+        # The per-harmonic parameters stay on the host: they are passed to
+        # the kernel by value, see `_RF_HARMONICS_DTYPE`.
+        assert isinstance(voltage, np.ndarray), type(voltage)
+        assert isinstance(omega_rf, np.ndarray), type(omega_rf)
+        assert isinstance(phi_rf, np.ndarray), type(phi_rf)
 
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
-        assert phi_rf.dtype == FLOAT
-        assert voltage.dtype == FLOAT
-        assert omega_rf.dtype == FLOAT
 
         assert dt.flags.c_contiguous
         assert dE.flags.c_contiguous
-        assert voltage.flags.c_contiguous
-        assert omega_rf.flags.c_contiguous
-        assert phi_rf.flags.c_contiguous
 
-        _kick_multi_harmonic(
-            args=(
-                dt,  # beam_dt
-                dE,  # beam_dE
-                np.int32(len(voltage)),  # n_rf
-                FLOAT(charge),  # charge
-                voltage,  # voltage
-                omega_rf,  # omega_RF
-                phi_rf,  # phi_RF
-                INDEX_DTYPE(len(dE)),  # n_macroparticles
-                FLOAT(acceleration_kick),  # acc_kick
-            ),
-            block=block_size,
-            grid=grid_size,
-        )
+        assert len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
+
+        # One launch per `MAX_RF_HARMONICS_PER_LAUNCH` harmonics, and at
+        # least one so that `acceleration_kick` is applied for n_rf == 0.
+        # Each launch adds its harmonics to `dE`; only the last one adds
+        # `acceleration_kick`.
+        for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_LAUNCH):
+            last = min(first + MAX_RF_HARMONICS_PER_LAUNCH, n_rf)
+            harmonics = np.zeros((), dtype=_RF_HARMONICS_DTYPE)
+            harmonics["voltage"][: last - first] = voltage[first:last]
+            harmonics["omega_rf"][: last - first] = omega_rf[first:last]
+            harmonics["phi_rf"][: last - first] = phi_rf[first:last]
+            is_last_launch = last == n_rf
+            _kick_multi_harmonic(
+                args=(
+                    dt,  # beam_dt
+                    dE,  # beam_dE
+                    harmonics,  # harmonics
+                    np.int32(last - first),  # n_rf
+                    FLOAT(charge),  # charge
+                    INDEX_DTYPE(len(dE)),  # n_macroparticles
+                    FLOAT(acceleration_kick if is_last_launch else 0.0),
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     @staticmethod
     def sum_1d_array(array: CupyArray) -> float:

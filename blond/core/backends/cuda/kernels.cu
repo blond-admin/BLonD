@@ -69,56 +69,35 @@ kick_single_harmonic(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   }
 }
 
-extern "C" __global__ void kick_multi_harmonic(
-    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE, const int n_rf,
-    const real_t charge, const real_t *__restrict__ voltage,
-    const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
-    const index_t n_macroparticles, const real_t acc_kick) {
+// Per-harmonic RF parameters, passed to `kick_multi_harmonic` by value.
+// They arrive in the kernel's parameter space with the launch itself, so
+// the per-turn kick needs no host-to-device copy of three tiny arrays --
+// those copies used to cost more than the kick itself for small beams.
+// Must match `MAX_RF_HARMONICS_PER_LAUNCH` and `_RF_HARMONICS_DTYPE` in
+// blond/core/backends/cuda/callables.py, which splits more harmonics
+// over several launches.
+#define MAX_RF_HARMONICS_PER_LAUNCH 32
+struct RFHarmonics {
+  real_t voltage[MAX_RF_HARMONICS_PER_LAUNCH];
+  real_t omega_rf[MAX_RF_HARMONICS_PER_LAUNCH];
+  real_t phi_rf[MAX_RF_HARMONICS_PER_LAUNCH];
+};
+
+extern "C" __global__ void
+kick_multi_harmonic(const real_t *__restrict__ beam_dt,
+                    real_t *__restrict__ beam_dE, const RFHarmonics harmonics,
+                    const int n_rf, const real_t charge,
+                    const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  real_t my_beam_dt;
-  real_t my_beam_dE;
-
-  if (n_rf == 1) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x)
-      beam_dE[i] +=
-          charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          acc_kick;
-
-  } else if (n_rf == 2) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      const real_t dE_sum =
-          (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-           charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]));
-      beam_dE[i] += dE_sum + acc_kick;
-    }
-
-  } else if (n_rf == 3) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      const real_t dE_sum =
-          (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-           charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-           charge * voltage[2] * sin(omega_RF[2] * beam_dt[i] + phi_RF[2]));
-      beam_dE[i] += dE_sum + acc_kick;
-    }
-  } else if (n_rf == 4) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      const real_t dE_sum =
-          (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-           charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-           charge * voltage[2] * sin(omega_RF[2] * beam_dt[i] + phi_RF[2]) +
-           charge * voltage[3] * sin(omega_RF[3] * beam_dt[i] + phi_RF[3]));
-      beam_dE[i] += dE_sum + acc_kick;
-    }
-  } else {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      my_beam_dt = beam_dt[i];
-      my_beam_dE = beam_dE[i];
-      for (int j = 0; j < n_rf; j++) {
-        my_beam_dE +=
-            charge * voltage[j] * sin(omega_RF[j] * my_beam_dt + phi_RF[j]);
-      }
-      beam_dE[i] = my_beam_dE + acc_kick;
-    }
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+    const real_t dt = beam_dt[i];
+    // Starting from acc_kick rather than zero saves an FP64 add per
+    // particle, measurable on GPUs with low FP64 throughput.
+    real_t dE_sum = acc_kick;
+    for (int j = 0; j < n_rf; j++)
+      dE_sum += charge * harmonics.voltage[j] *
+                sin(harmonics.omega_rf[j] * dt + harmonics.phi_rf[j]);
+    beam_dE[i] += dE_sum;
   }
 }
 

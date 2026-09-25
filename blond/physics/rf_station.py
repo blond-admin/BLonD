@@ -1955,9 +1955,11 @@ class MultiHarmonicRFStation(
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=backend.array(self.voltage, dtype=backend.float),
-            phi_rf=backend.array(self.phi_rf, dtype=backend.float),
-            omega_rf=backend.array(self.omega_rf, dtype=backend.float),
+            # Host arrays on every backend: a GPU kernel receives them by
+            # value, so moving them to the device would only add copies.
+            voltage=np.asarray(self.voltage, dtype=backend.float),
+            phi_rf=np.asarray(self.phi_rf, dtype=backend.float),
+            omega_rf=np.asarray(self.omega_rf, dtype=backend.float),
             charge=beam.signed_charge_with_direction(),
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!

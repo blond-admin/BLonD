@@ -444,13 +444,15 @@ class TestSpecials(BLonDTestCase):
         self.omega_rf_single_harmonic = backend.float(2 * np.pi * 400e3)
         self.phi_rf_single_harmonic = backend.float(0.3)
 
-        self.voltages = backend.linspace(
+        # Per-harmonic RF parameters are host (NumPy) arrays on every
+        # backend, as `Specials.kick_multi_harmonic` specifies.
+        self.voltages = np.linspace(
             1e6, 5e6, self.n_voltages, dtype=backend.float
         )
-        self.omegas = backend.linspace(
+        self.omegas = np.linspace(
             200e6, 400e6, self.n_voltages, dtype=backend.float
         )
-        self.phis = backend.linspace(
+        self.phis = np.linspace(
             0, 2 * np.pi, self.n_voltages, dtype=backend.float
         )
 
@@ -678,7 +680,8 @@ class TestSpecials(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
         dtype = np.float64
-        for n_voltages in (1, 2, 3, 4, 5):
+        # 32, 33 and 70 cross the CUDA backend's per-launch harmonic limit.
+        for n_voltages in (1, 2, 3, 4, 5, 32, 33, 70):
             for i, special in enumerate(self.special_modes):
                 self.n_voltages = n_voltages
                 try:
@@ -3736,9 +3739,9 @@ class TestSpecials(BLonDTestCase):
                 continue
             dt = backend.linspace(1e-9, 10e-9, 10, dtype=backend.float)
             dE = backend.zeros(10, dtype=backend.float)
-            empty_voltage = backend.zeros(0, dtype=backend.float)
-            empty_omega = backend.zeros(0, dtype=backend.float)
-            empty_phi = backend.zeros(0, dtype=backend.float)
+            empty_voltage = np.zeros(0, dtype=backend.float)
+            empty_omega = np.zeros(0, dtype=backend.float)
+            empty_phi = np.zeros(0, dtype=backend.float)
             backend.specials.kick_multi_harmonic(
                 dt=dt,
                 dE=dE,
