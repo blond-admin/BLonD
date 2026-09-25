@@ -41,6 +41,10 @@ from blond.physics.feedbacks.cavity_solvers import (
     pretrack_fill_voltage,
     propagate_beam_free_voltage,
 )
+from blond.physics.feedbacks.envelope_inputs_kernel import (
+    step_multipliers,
+    unit_phasors,
+)
 from blond.physics.feedbacks.envelope_kernel import envelope_open_loop_scan
 from blond.physics.feedbacks.generator_regulation import (
     GeneratorRegulationMixin,
@@ -2081,12 +2085,14 @@ class IQCavityFeedbackCoarseGrid(
         ``W = (e^L - 1) / L`` of the exact exponential propagator, with ``L``
         the per-cell growth exponent (derivation, and the forward-Euler
         ``B = 1 + L``, ``W = 1`` it replaced: Notes of
-        :meth:`_advance_coarse_voltage`). The arithmetic itself is the shared
-        one of
+        :meth:`_advance_coarse_voltage`). The arithmetic is compiled
+        (:func:`~blond.physics.feedbacks.envelope_inputs_kernel.step_multipliers`)
+        but byte-for-byte the shared NumPy one of
         :mod:`~blond.physics.feedbacks.cavity_solvers`
         (:func:`~blond.physics.feedbacks.cavity_solvers.coarse_step_exponent`
-        and the propagator weights), so this vectorised path and the per-cell
-        :meth:`_advance_coarse_voltage` cannot drift apart.
+        and the propagator weights) that the per-cell
+        :meth:`_advance_coarse_voltage` uses; the kernel's tests pin that, so
+        the two paths cannot drift apart silently.
 
         Parameters
         ----------
@@ -2104,14 +2110,12 @@ class IQCavityFeedbackCoarseGrid(
         drive_weight
             Per-cell drive weight ``W`` (complex128).
         """
-        step_exponent = coarse_step_exponent(
-            omega_times_dt, self.Q_L, relative_detuning
-        )
-        voltage_multiplier = exponential_voltage_multiplier(step_exponent)
-        # omega_times_dt > 0, so step_exponent != 0 and (e^L - 1) / L is
-        # well defined -- the weight's zero guard is never reached here.
-        drive_weight = exponential_drive_weight(step_exponent)
-        return voltage_multiplier, drive_weight
+        # One compiled, threaded pass, byte-for-byte the NumPy expression
+        # ``exponential_voltage_multiplier`` / ``exponential_drive_weight``
+        # of ``coarse_step_exponent`` (pinned in
+        # ``test_envelope_inputs_kernel.py``). omega_times_dt > 0, so the
+        # exponent is never zero and (e^L - 1) / L is well defined.
+        return step_multipliers(omega_times_dt, self.Q_L, relative_detuning)
 
     def _compose_coarse_sum(self, coarse_grid_index: int) -> complex:
         """
@@ -2461,6 +2465,10 @@ class IQCavityFeedbackCoarseGrid(
         n_cells = end_index - start_index
 
         def span_of(per_cell: NumpyArray, default: complex) -> NumpyArray:
+            if end_index <= len(per_cell):
+                # Read-only in every scan, and rebound (never written in
+                # place) by the next passage, so a view is safe.
+                return per_cell[start_index:end_index]
             values = np.full(n_cells, default, dtype=np.complex128)
             known_end = min(end_index, len(per_cell))
             if start_index < known_end:
@@ -3167,23 +3175,17 @@ class IQCavityFeedbackCoarseGrid(
         generator = np.full(
             n_cells, self._generator_frame_rotation, dtype=np.complex128
         )
-        generator[:n_backfill_cells] = np.where(
-            backfill_generator_slips == 0.0,
-            1.0 + 0.0j,
-            np.exp(-1j * backfill_generator_slips),
+        # ``unit_phasors`` is ``np.where(phase == 0, 1, exp(+-1j phase))``
+        # to the bit, compiled and without the ``exp`` of a zero phase.
+        generator[:n_backfill_cells] = unit_phasors(
+            backfill_generator_slips, -1.0
         )
         kick = np.full(n_cells, self._kick_frame_rotation, dtype=np.complex128)
-        kick[:n_backfill_cells] = np.where(
-            backfill_carrier_slip_gaps == 0.0,
-            1.0 + 0.0j,
-            np.exp(1j * backfill_carrier_slip_gaps),
-        )
+        kick[:n_backfill_cells] = unit_phasors(backfill_carrier_slip_gaps, 1.0)
         pi_error = np.full(
             n_cells, self._pi_error_frame_rotation, dtype=np.complex128
         )
-        pi_error[:n_backfill_cells] = np.where(
-            backfill_clocks == 0.0, 1.0 + 0.0j, np.exp(1j * backfill_clocks)
-        )
+        pi_error[:n_backfill_cells] = unit_phasors(backfill_clocks, 1.0)
         # A clocked loop may step the offset inside the forward span too
         # (in the empty tail of a profile window). Forward cells at the
         # bunch cell's offset keep the scalars, to the bit; the others get
@@ -3217,7 +3219,7 @@ class IQCavityFeedbackCoarseGrid(
         # beam-sourced envelope -- which stays put in the cavity -- is
         # counter-rotated into the new frame. Exactly unity elsewhere.
         steps = np.diff(offsets, prepend=self._phi_rf_loop_seen)
-        beam_step = np.where(steps == 0.0, 1.0 + 0.0j, np.exp(-1j * steps))
+        beam_step = unit_phasors(steps, -1.0)
         self._cell_generator_frame_rotations = generator
         self._cell_kick_frame_rotations = kick
         self._cell_pi_error_frame_rotations = pi_error
