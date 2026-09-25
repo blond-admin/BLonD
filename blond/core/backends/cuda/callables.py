@@ -106,6 +106,11 @@ _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
 # as a struct in the kernel's parameter space (`RFParamsBatch` in
 # kernels.cu): no host-to-device copy per turn. Both must match their
 # counterparts in kernels.cu.
+# The 32 is unrelated to the warp size: every thread loops over all
+# harmonics of the batch. It is bounded by the kernel parameter limit
+# (4 KiB before CUDA 12.1 / Volta), which would fit ~160 harmonics at
+# 64 bit; 32 keeps the struct small (768 B) while still covering any
+# realistic RF system in a single launch.
 MAX_RF_HARMONICS_PER_LAUNCH = 32
 _RF_PARAMS_BATCH_DTYPE = np.dtype(
     [

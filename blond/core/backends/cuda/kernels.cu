@@ -75,7 +75,8 @@ kick_single_harmonic(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
 // those copies used to cost more than the kick itself for small beams.
 // Must match `MAX_RF_HARMONICS_PER_LAUNCH` and `_RF_PARAMS_BATCH_DTYPE` in
 // blond/core/backends/cuda/callables.py, which splits more harmonics
-// over several launches.
+// over several launches. The 32 is not the warp size -- see callables.py
+// for why it was chosen.
 #define MAX_RF_HARMONICS_PER_LAUNCH 32
 struct RFParamsBatch {
   real_t voltage[MAX_RF_HARMONICS_PER_LAUNCH];
