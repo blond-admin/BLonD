@@ -495,20 +495,6 @@ class PythonSpecials(Specials):
         if sparse:
             inv_bin_width = bins_per_profile / cut_width
         else:
-            if n_slices >= 2:  # noqa: PLR2004
-                diffs = np.diff(bin_centers)
-                if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
-                    raise ValueError(
-                        "bin_centers is not uniformly spaced (looks like "
-                        "a sparse/multi-island "
-                        "EquidistantMultiProfile.hist_x). Either pass "
-                        "this profile's sparse metadata (first_left_cut, "
-                        "left_cut_distance, cut_width, bins_per_profile, "
-                        "filling_pattern, bucket_index_to_memory_index), "
-                        "e.g. via `profile.sparse_kick_metadata`, or use "
-                        "EquidistantMultiProfile.profiles[i].hist_x for "
-                        "a single bucket."
-                    )
             inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
