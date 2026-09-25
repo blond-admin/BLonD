@@ -73,11 +73,11 @@ kick_single_harmonic(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
 // They arrive in the kernel's parameter space with the launch itself, so
 // the per-turn kick needs no host-to-device copy of three tiny arrays --
 // those copies used to cost more than the kick itself for small beams.
-// Must match `MAX_RF_HARMONICS_PER_LAUNCH` and `_RF_HARMONICS_DTYPE` in
+// Must match `MAX_RF_HARMONICS_PER_LAUNCH` and `_RF_PARAMS_BATCH_DTYPE` in
 // blond/core/backends/cuda/callables.py, which splits more harmonics
 // over several launches.
 #define MAX_RF_HARMONICS_PER_LAUNCH 32
-struct RFHarmonics {
+struct RFParamsBatch {
   real_t voltage[MAX_RF_HARMONICS_PER_LAUNCH];
   real_t omega_rf[MAX_RF_HARMONICS_PER_LAUNCH];
   real_t phi_rf[MAX_RF_HARMONICS_PER_LAUNCH];
@@ -85,8 +85,9 @@ struct RFHarmonics {
 
 extern "C" __global__ void
 kick_multi_harmonic(const real_t *__restrict__ beam_dt,
-                    real_t *__restrict__ beam_dE, const RFHarmonics harmonics,
-                    const int n_rf, const real_t charge,
+                    real_t *__restrict__ beam_dE,
+                    const RFParamsBatch rf_params_batch,
+                    const int n_rf_in_batch, const real_t charge,
                     const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
@@ -94,9 +95,10 @@ kick_multi_harmonic(const real_t *__restrict__ beam_dt,
     // Starting from acc_kick rather than zero saves an FP64 add per
     // particle, measurable on GPUs with low FP64 throughput.
     real_t dE_sum = acc_kick;
-    for (int j = 0; j < n_rf; j++)
-      dE_sum += charge * harmonics.voltage[j] *
-                sin(harmonics.omega_rf[j] * dt + harmonics.phi_rf[j]);
+    for (int j = 0; j < n_rf_in_batch; j++)
+      dE_sum +=
+          charge * rf_params_batch.voltage[j] *
+          sin(rf_params_batch.omega_rf[j] * dt + rf_params_batch.phi_rf[j]);
     beam_dE[i] += dE_sum;
   }
 }

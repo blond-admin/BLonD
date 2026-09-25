@@ -103,11 +103,11 @@ block_size = (threads, 1, 1)
 # for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
 _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
 # Per-harmonic RF parameters are passed to `kick_multi_harmonic` by value,
-# as a struct in the kernel's parameter space (`RFHarmonics` in
+# as a struct in the kernel's parameter space (`RFParamsBatch` in
 # kernels.cu): no host-to-device copy per turn. Both must match their
 # counterparts in kernels.cu.
 MAX_RF_HARMONICS_PER_LAUNCH = 32
-_RF_HARMONICS_DTYPE = np.dtype(
+_RF_PARAMS_BATCH_DTYPE = np.dtype(
     [
         ("voltage", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
         ("omega_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
@@ -249,7 +249,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
         # The per-harmonic parameters stay on the host: they are passed to
-        # the kernel by value, see `_RF_HARMONICS_DTYPE`.
+        # the kernel by value, see `_RF_PARAMS_BATCH_DTYPE`.
         assert isinstance(voltage, np.ndarray), type(voltage)
         assert isinstance(omega_rf, np.ndarray), type(omega_rf)
         assert isinstance(phi_rf, np.ndarray), type(phi_rf)
@@ -268,17 +268,17 @@ class CudaSpecials(Specials):  # NOQA: D101
         # `acceleration_kick`.
         for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_LAUNCH):
             last = min(first + MAX_RF_HARMONICS_PER_LAUNCH, n_rf)
-            harmonics = np.zeros((), dtype=_RF_HARMONICS_DTYPE)
-            harmonics["voltage"][: last - first] = voltage[first:last]
-            harmonics["omega_rf"][: last - first] = omega_rf[first:last]
-            harmonics["phi_rf"][: last - first] = phi_rf[first:last]
+            rf_params_batch = np.zeros((), dtype=_RF_PARAMS_BATCH_DTYPE)
+            rf_params_batch["voltage"][: last - first] = voltage[first:last]
+            rf_params_batch["omega_rf"][: last - first] = omega_rf[first:last]
+            rf_params_batch["phi_rf"][: last - first] = phi_rf[first:last]
             is_last_launch = last == n_rf
             _kick_multi_harmonic(
                 args=(
                     dt,  # beam_dt
                     dE,  # beam_dE
-                    harmonics,  # harmonics
-                    np.int32(last - first),  # n_rf
+                    rf_params_batch,  # rf_params_batch
+                    np.int32(last - first),  # n_rf_in_batch
                     FLOAT(charge),  # charge
                     INDEX_DTYPE(len(dE)),  # n_macroparticles
                     FLOAT(acceleration_kick if is_last_launch else 0.0),
