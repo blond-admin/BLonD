@@ -129,19 +129,14 @@ class ParticleType:
         hash
             The computed hash value.
         """
-        # cached: looked up per turn, and the hashed fields are read-only
-        try:
-            return self._hash
-        except AttributeError:
-            self._hash = hash(
-                (
-                    self._mass,
-                    self._charge,
-                    self._user_decay_rate,
-                    self._classical_particle_radius,
-                )
+        return hash(
+            (
+                self._mass,
+                self._charge,
+                self._user_decay_rate,
+                self._classical_particle_radius,
             )
-            return self._hash
+        )
 
     @property
     def mass(self) -> float:
