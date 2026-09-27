@@ -2164,6 +2164,72 @@ passed, 8 skipped. In tracking (outer repo) the offset in force at every
 kick equals the programme entry to 1e-12, and record-only loops leave the
 beam bit-identical to no loops.
 
+### 2.35 Fine-grid seed follows the clocked steps up to the bunch cell (2026-09-27)
+
+**What.** `_state_before_forward_span` counter-rotated the seed's carried
+beam-sourced envelope by the phase-loop step INTO the first forward cell
+only (`_beam_step_rotation_of_cell(forward_start)`), while the fine solve
+runs in the frame of the bunch's own cell -- the generator component is
+composed with the bunch cell's scalar `_generator_frame_rotation`, the beam
+current is demodulated at `-(phi_rf + gap)` with the bunch cell's
+`phi_rf_loop` -- and is not source-split, so it applies no further
+beam-step rotations. A clocked step (the loop's own output, a `GainSchedule`
+step or an `offset_programme` entry) landing at a controller sample strictly
+after the first forward cell and at or before the bunch cell therefore left
+the carried beam field in the pre-step frame while `phi_rf` carried the
+post-step offset: the kick the bunch received moved by
+`|V_beam|/|V| * step * cos(theta)` in phase and `|V_beam|/|V| * step *
+sin(theta)` in amplitude AT THE WRITE, with no generator current involved --
+a frame bookkeeping error, not physics (the coarse grid at the same cell was
+right all along). Now `_clock_phase_loop` records the cell whose frame the
+readout runs in (`_readout_frame_cell`: the bunch cell with a loop, the first
+forward cell without), and `_beam_step_rotation_into_readout_frame(
+forward_start)` hands the seed the product of the per-cell beam-step
+rotations from the first forward cell up to and including it. It returns
+exactly the previous single factor whenever the readout cell IS the first
+forward cell (no loop, or a window narrower than a coarse cell), so every
+shipped run is bit-identical.
+
+**Reach.** Unreachable in the outer repo's default runs: the profile window
+is 8.5 sigma_dt each side = 0.68 / 0.49 / 0.39 / 0.31 coarse cells on
+RCS1-RCS4, so the bunch always sits in the first forward cell (bunch offset
+0 on all 192 station-0 passages of a 6-turn RCS1 run at gain 0.2).
+Reachable with the legacy explicit window (`RunConfig.n_rf_periods_window`
+> 1 with the bunch a cell or more in) and in any other use with a wide
+profile window and a clocked loop. Measured there before the fix (RCS1,
+idealised LLRF, window 20 RF periods, `cut_left` 2 t_rf, bunch 10 cells in,
+a 0.5 / 2.0 deg programme step 7 cells after the first forward cell and 3
+before the bunch cell): kick phase -0.0255 / -0.106 deg and amplitude
+-8.9e-4 / -3.5e-3 at the write (predicted -0.0261 deg / -8.7e-4 from
+`|V_beam|/|V| = 0.112` at +117.7 deg from V), the coarse lab-frame phase at
+the same cell unchanged to 1e-15. After: +9.3e-14 deg / -8.1e-15, the same
+as a control step in the backfill of the same passage.
+
+**Tests.** RED first: `TestClockedPhaseStepInsideTheWindowKeepsTheFieldInPlace`
+in `test_pi_feedback_full_tracking.py` -- the undriven cavity of
+`TestPhaseStepKeepsTheBeamInducedFieldInPlace` (no bias, no initial voltage,
+no controller: the readout is the beam-induced field alone), one section at
+constant energy, a window of 3.25 RF periods with the bunch two periods in
+so its cell is one after the first forward cell, and a gain-0 loop carrying
+a `FeedforwardTable` programme that steps 0.3 rad at exactly that cell on
+turn 2. The charge-weighted kick phase `phi_rf + phase_correction` of the
+step turn moved 0.239 rad against the unstepped run (1e-9 gate) while the
+coarse lab-frame phase at the bunch cell held: 1 failed, 2 passed (the
+non-vacuity test pins the geometry, the coarse control passes before and
+after); after the fix 3 passed. The harness gained `profile_window_rad`,
+`bunch_shift_t_rf`, a `phase_loop["offset_programme"]` entry and
+`rec["grid_first_cell"]`, all default-neutral.
+
+**Left as is.** A station WITHOUT a cavity feedback kicks with `phi_rf`
+including `phi_rf_loop` and has no readout to cancel it
+(`cavities.py` `_track_no_interp`), so a hand-set offset there would still
+shift the design kick at the write; `StationPhaseLoop` cannot attach to such
+a station and nothing writes `phi_rf_loop` by hand. The fine grid's
+generator current keeps the bunch cell's scalar rotation over the whole
+window, which is exact in that frame on every window cell (the generator
+component is design-anchored), so a step landing AFTER the bunch cell
+inside the window needs nothing.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam
@@ -2688,6 +2754,21 @@ above.
 
 ## 5. Verification status
 
+- **2026-09-27, fine-grid seed follows the clocked steps (§2.35)**,
+  `.venv_312`, numba, no GPU. `tests/unittests/physics/feedbacks`: **728
+  passed / 8 skipped / 430 subtests / 0 failed**, 117 s (725 passed before,
+  +3 new; every pin unchanged). Outer repo: a 3-turn RCS1
+  `run_two_beam_simulation` with a clocked loop (gain 0.2, 2 deg launch,
+  default window) is bit-identical with the pre-fix seed rotation
+  monkeypatched back -- both beams' coordinates, all 96 recorded
+  corrections and every station's last coarse voltage -- and the readout
+  cell is the first forward cell on every station;
+  `feedback_studies/tests/test_rcs_phase_loop.py` 61 passed / 7 failed, the
+  7 failing with the same assertion values under the pre-fix rotation
+  (slew 0.0, rate ratio inf): they are the working tree's uncommitted
+  `LLRF_POWER_HEADROOM = 1.0` in the outer `simulation.py`, not this
+  change. Pre-commit on both files passes except `check copyright` (bare
+  `python`, §0); the venv copyright check exits 0.
 - **2026-09-12, per-cell station clock + clocked phase loop (§2.28)**,
   `.venv_312`, numba, no GPU. `tests/unittests/physics/feedbacks` +
   `physics/test_cavities.py` + `core/simulation/test_simulation.py`:

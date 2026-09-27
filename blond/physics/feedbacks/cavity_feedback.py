@@ -1251,6 +1251,13 @@ class IQCavityFeedbackCoarseGrid(
         # passage: the first cell of the next grid steps from it (see
         # ``_update_frame_rotations``).
         self._phi_rf_loop_seen: float = 0.0
+        # Grid-local index of the cell whose phase-loop offset the fine
+        # grid, the readout and the kick of the current passage run in:
+        # the bunch's own cell with a clocked loop, the first forward cell
+        # otherwise (set by ``_clock_phase_loop``). The fine solve's seed
+        # is counter-rotated by every step up to it
+        # (``_beam_step_rotation_into_readout_frame``).
+        self._readout_frame_cell: int = 0
         # Per-cell rotations of the current passage's grid, backfill cells
         # first, then the forward span (see ``_update_frame_rotations``):
         # the generator and kick frame rotations, the PI-error rotation
@@ -2447,6 +2454,51 @@ class IQCavityFeedbackCoarseGrid(
             return self._cell_beam_step_rotations[coarse_grid_index]
         return 1.0 + 0.0j
 
+    def _beam_step_rotation_into_readout_frame(
+        self, forward_start: int
+    ) -> complex:
+        """
+        Counter-rotation of the fine solve's seed into the readout frame.
+
+        The seed is the carried beam-sourced envelope at the centre before
+        the forward span, in the frame of the phase-loop offset in force
+        there. The fine solve runs in the frame of the readout cell
+        (``_readout_frame_cell``: the bunch's own cell with a clocked
+        loop), and the coarse recursion reaches that frame through one
+        counter-rotation per cell where the offset steps
+        (:meth:`_beam_step_rotation_of_cell`). The seed therefore takes
+        the product of those steps from the first forward cell up to and
+        including the readout cell. A clocked loop can step inside the
+        forward span before the bunch's cell -- a controller sample inside
+        a profile window wider than one coarse cell -- and with only the
+        step into the first forward cell the fine grid carried the field
+        turned by the later steps into the kick.
+
+        Parameters
+        ----------
+        forward_start
+            Whole-turn coarse index of the first forward cell.
+
+        Returns
+        -------
+        beam_step_rotation
+            ``exp(-i (offset at the readout cell - offset before the
+            span))``, composed from the per-cell rotations: exactly
+            ``1 + 0j`` when no step lands in between, and exactly the one
+            per-cell rotation when a single step does -- every passage
+            whose readout cell is the first forward cell, i.e. every
+            passage without a clocked loop and every one whose window is
+            narrower than a coarse cell.
+        """
+        rotation = 1.0 + 0.0j
+        last_cell = max(self._readout_frame_cell, forward_start)
+        for cell in range(forward_start, last_cell + 1):
+            step = self._beam_step_rotation_of_cell(cell)
+            if step == 1.0:
+                continue
+            rotation = step if rotation == 1.0 else rotation * step
+        return rotation
+
     def _frame_rotations_of_cells(
         self, start_index: int, end_index: int
     ) -> tuple[NumpyArray, NumpyArray]:
@@ -3140,7 +3192,9 @@ class IQCavityFeedbackCoarseGrid(
         offset steps from one cell to the next the carried beam-sourced
         envelope is counter-rotated into the new frame by a per-cell beam
         step rotation -- the field stays put in the cavity while the RF
-        reference moves.
+        reference moves. The fine solve, seeded before the forward span
+        and run in the readout cell's frame, takes the product of the
+        steps up to that cell (:meth:`_beam_step_rotation_into_readout_frame`).
 
         The first two are exactly ``1 + 0j`` without an RF-frequency
         offset, without a phase-loop offset and without multi-section
@@ -3324,7 +3378,9 @@ class IQCavityFeedbackCoarseGrid(
         passage's kick. A write can therefore land anywhere between
         passages, also inside the empty tail of a profile window; the
         readout and the demodulation of this passage's deposit run in the
-        frame of the bunch's own cell.
+        frame of the bunch's own cell, which is recorded as
+        ``_readout_frame_cell`` so the fine solve's seed can be brought
+        into that frame (:meth:`_beam_step_rotation_into_readout_frame`).
 
         Parameters
         ----------
@@ -3344,6 +3400,9 @@ class IQCavityFeedbackCoarseGrid(
         loop = self.phase_loop
         if loop is None:
             self._clocked_phase_loop_offsets = None
+            # Without a loop a written offset is a step at the first
+            # forward cell, whose frame the readout then runs in.
+            self._readout_frame_cell = span.n_backfill_centers
             return
         # The bunch's own cell of the forward span: the window it sits in
         # starts at ``profile.hist_x[0]``, and a coarse cell is
@@ -3363,6 +3422,7 @@ class IQCavityFeedbackCoarseGrid(
                     in_window // coarse_step, 0, span.n_forward_centers - 1
                 )
             )
+        self._readout_frame_cell = bunch_cell
         passage_cell = self._cells_tracked + bunch_cell
         if measured:
             error = loop.measure(
@@ -3539,8 +3599,10 @@ class IQCavityFeedbackCoarseGrid(
         passage's generator rotation -- the frame the fine grid, and the
         forward span it continues, run in -- rather than with the rotation
         of the backfill cell the state is taken from; the beam-sourced one
-        is first counter-rotated by the phase-loop step into the first
-        forward cell, as the forward recursion itself does.
+        is first counter-rotated by every phase-loop step from the first
+        forward cell up to the readout cell
+        (:meth:`_beam_step_rotation_into_readout_frame`), which is where
+        the forward recursion itself has taken it by the bunch's cell.
 
         Parameters
         ----------
@@ -3569,7 +3631,9 @@ class IQCavityFeedbackCoarseGrid(
             voltage_beam = self._last_val_ant_voltage_beam
             voltage_gen = self._last_val_ant_voltage_gen
             held_generator_current = self._last_val_generator_current
-        beam_step_rotation = self._beam_step_rotation_of_cell(forward_start)
+        beam_step_rotation = self._beam_step_rotation_into_readout_frame(
+            forward_start
+        )
         if beam_step_rotation != 1.0:
             voltage_beam = voltage_beam * beam_step_rotation
         return (
@@ -3722,10 +3786,13 @@ class IQCavityFeedbackCoarseGrid(
         # measured as a no-op (changes of ~1e-17 A on a 0.05 A current, with
         # 98 % of the coarse cells at the limit).
 
-        # The fine solve runs in the DEMODULATION frame: its seed (the
-        # state propagated from the first forward coarse cell) carries the
-        # generator component rotated by the generator frame rotation,
-        # and its beam current was demodulated in that frame. The raw
+        # The fine solve runs in the DEMODULATION frame of the readout
+        # cell: its seed (the state propagated from before the forward
+        # span) carries the generator component rotated by the generator
+        # frame rotation and the beam-sourced component counter-rotated
+        # by the phase-loop steps up to that cell
+        # (``_state_before_forward_span``), and its beam current was
+        # demodulated in that frame. The raw
         # (design-frame) generator current is rotated the same way into
         # LOCAL inputs -- the solve is linear, so this reproduces the
         # superposition of the two per-component fine solutions exactly.

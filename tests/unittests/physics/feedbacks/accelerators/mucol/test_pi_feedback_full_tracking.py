@@ -39,6 +39,7 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRFStations
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
+from blond.physics.feedbacks.feedforward_table import FeedforwardTable
 from blond.physics.feedbacks.generator_current_controller import (
     GeneratorCurrentController,
     GeneratorCurrentPIController,
@@ -87,6 +88,8 @@ def _run_config(
     per_turn_hook: Callable[[list, list], None] | None = None,
     dt_offset: float = 0.0,
     phase_loop: dict | None = None,
+    profile_window_rad: tuple[float, float] = (np.pi * 1.5, np.pi * 4.5),
+    bunch_shift_t_rf: float = 1.0,
 ) -> dict:
     """
     Track a matched bunch with PI-regulated feedbacks on every station.
@@ -143,7 +146,17 @@ def _run_config(
         to every station, regulating to the bunch's launch phase (before
         ``dt_offset``) with a latency of ``n`` controller samples (one
         coarse cell each here); the record shared by all of them lands in
-        ``rec["phase_loop"]``.
+        ``rec["phase_loop"]``. An optional ``"offset_programme"`` entry
+        (a :class:`~blond.physics.feedbacks.feedforward_table.FeedforwardTable`
+        or ``None``) is handed to every loop as its phase programme.
+    profile_window_rad
+        Bounds of every station's profile window in RF radians, i.e. the
+        arguments of ``StaticProfile.from_rad``. The default window spans
+        three RF periods from ``0.75 t_rf``.
+    bunch_shift_t_rf
+        Where the matched bunch (created around ``dt ~ 0``) is placed, in
+        RF periods; ``1.0`` (the default) puts it one RF period into the
+        default window, and is where the loops' reference phase is read.
 
     Returns
     -------
@@ -185,8 +198,8 @@ def _run_config(
     elements = []
     for section_index in range(n_sections):
         profile = StaticProfile.from_rad(
-            np.pi * 1.5,
-            np.pi * 4.5,
+            profile_window_rad[0],
+            profile_window_rad[1],
             N_SLICES,
             t_rf,
             section_index=section_index,
@@ -257,6 +270,7 @@ def _run_config(
                     reference_phase=0.0,
                     gain=phase_loop["gain"],
                     n_delay=phase_loop["n_delay"],
+                    offset_programme=phase_loop.get("offset_programme"),
                     record=loop_record,
                 )
             )
@@ -298,9 +312,10 @@ def _run_config(
                 reinsertion=True,
             ),
         )
-        # Shift the bunch one RF period into the profile window (the window
-        # starts at 0.75 t_rf; the matched bunch is created around dt ~ 0).
-        beam._dt.array_local += t_rf
+        # Shift the bunch into the profile window (by default one RF
+        # period; the default window starts at 0.75 t_rf and the matched
+        # bunch is created around dt ~ 0).
+        beam._dt.array_local += bunch_shift_t_rf * t_rf
         launch_phase = omega_rf * float(np.mean(beam._dt.array_local))
         for element in loop_elements:
             element.reference_phase = launch_phase
@@ -322,6 +337,7 @@ def _run_config(
         "sigma_dt": [],
         "n_forward": [],
         "n_total": [],
+        "grid_first_cell": [],
         "i_backfill_ptp": [],
     }
 
@@ -330,6 +346,11 @@ def _run_config(
             [int(f._rf_centers_lengths[-1]) for f in feedbacks]
         )
         rec["n_total"].append([int(len(f._rf_centers)) for f in feedbacks])
+        # Cell-clock value of the first cell of this turn's grid, so a test
+        # can address a coarse cell of a passage on the feedback's clock.
+        rec["grid_first_cell"].append(
+            [int(f._grid_first_cell) for f in feedbacks]
+        )
         # Peak-to-peak generator-current magnitude over the BACKFILL span
         # (everything before the forward segment). A controller that only
         # steps on the forward segment leaves a zero-order hold here, so
@@ -2095,6 +2116,193 @@ class TestPhaseStepWalksTheGeneratorFieldOff(unittest.TestCase):
         np.testing.assert_allclose(phi_corr[:2], 0.0, atol=self.TOLERANCE)
         np.testing.assert_allclose(
             phi_corr[2:], -self.STEP, atol=self.TOLERANCE
+        )
+
+
+class TestClockedPhaseStepInsideTheWindowKeepsTheFieldInPlace(
+    unittest.TestCase
+):
+    r"""
+    A clocked step inside the profile window must not move the wake either.
+
+    ``TestPhaseStepKeepsTheBeamInducedFieldInPlace`` steps ``phi_rf_loop``
+    at a passage boundary, so the step lands on the first forward cell,
+    where the fine solve's seed is counter-rotated with it. A CLOCKED loop
+    (or its phase programme) can also step at a controller sample strictly
+    after the first forward cell and at or before the bunch's own cell --
+    inside a profile window wider than one coarse cell. The coarse
+    recursion counter-rotates the carried beam-sourced envelope at that
+    cell; the fine solve runs in the bunch cell's frame from a seed taken
+    before the span, so it must be handed every step up to the bunch cell
+    or the carried field appears turned by the step in the readout the
+    bunch is kicked with.
+
+    Fixture: the undriven cavity of the sibling test (no bias, no initial
+    voltage, no controller, so the readout is the beam-induced field
+    alone), a window of 3.25 RF periods with the bunch placed two RF
+    periods in, so its cell is one coarse cell after the first forward
+    cell, and a gain-0 loop carrying a programme that steps exactly at the
+    bunch's cell of turn ``STEP_TURN``. Nothing can move the field before
+    the bunch of that passage is kicked, so the absolute kick phase the
+    bunch sees must equal the unstepped run's to float noise. The coarse
+    grid at the bunch cell is the control: its lab-frame phase never moved.
+    """
+
+    ENERGY = 63.0e9
+    N_TURNS = 4
+    STEP_TURN = 2
+    STEP = 0.3
+    TOLERANCE = 1.0e-9
+    PROFILE_WINDOW_RAD = (np.pi * 1.5, np.pi * 6.5)
+    BUNCH_SHIFT_T_RF = 2.0
+
+    @classmethod
+    def _track(cls, step_cell: int | None) -> dict:
+        """
+        Track the undriven cavity with a gain-0 loop, stepping at a cell.
+
+        Parameters
+        ----------
+        step_cell
+            Cell-clock value from which the loop's programme holds
+            ``STEP``; ``None`` for the reference run (no programme, which
+            is bit-neutral).
+
+        Returns
+        -------
+        dict
+            The harness record, plus per turn the absolute kick phase the
+            bunch sees (``kick_phase``, charge-weighted over the window),
+            the lab-frame coarse phase at the bunch cell
+            (``coarse_lab_phase``) and the bunch cell's offset from the
+            first forward cell (``bunch_offset``).
+        """
+        programme = None
+        if step_cell is not None:
+            programme = FeedforwardTable(
+                values=np.full(
+                    (cls.N_TURNS - cls.STEP_TURN + 1) * HARMONIC, cls.STEP
+                ),
+                cells_per_entry=1,
+                first_cell=step_cell,
+            )
+        kick_phases: list[float] = []
+        coarse_lab_phases: list[float] = []
+        bunch_offsets: list[int] = []
+
+        def hook(feedbacks, stations):
+            (feedback,) = feedbacks
+            (station,) = stations
+            hist_y = np.asarray(copy_to_cpu(feedback.profile.hist_y), float)
+            weights = hist_y / hist_y.sum()
+            kick_phases.append(
+                float(
+                    np.sum(
+                        weights
+                        * (float(station.phi_rf) + feedback.phase_correction)
+                    )
+                )
+            )
+            n_backfill = len(feedback._rf_centers) - int(
+                feedback._rf_centers_lengths[-1]
+            )
+            bunch_cell = feedback.phase_loop.record.cells[-1] - int(
+                feedback._grid_first_cell
+            )
+            bunch_offsets.append(bunch_cell - n_backfill)
+            coarse_lab_phases.append(
+                float(
+                    np.angle(
+                        feedback.antenna_voltage_coarse_grid[bunch_cell]
+                        * feedback._cell_kick_frame_rotations[bunch_cell]
+                    )
+                    + feedback._cell_phase_loop_offsets[bunch_cell]
+                )
+            )
+
+        rec = _run_config(
+            1,
+            cls.ENERGY,
+            0.0,
+            cls.N_TURNS,
+            use_controller=False,
+            generator_current_bias=0.0 + 0.0j,
+            initial_voltage=0.0,
+            per_turn_hook=hook,
+            phase_loop={
+                "gain": 0.0,
+                "n_delay": 1,
+                "offset_programme": programme,
+            },
+            profile_window_rad=cls.PROFILE_WINDOW_RAD,
+            bunch_shift_t_rf=cls.BUNCH_SHIFT_T_RF,
+        )
+        rec["kick_phase"] = np.array(kick_phases)
+        rec["coarse_lab_phase"] = np.array(coarse_lab_phases)
+        rec["bunch_offset"] = np.array(bunch_offsets)
+        return rec
+
+    @classmethod
+    def setUpClass(cls):
+        cls.reference = cls._track(step_cell=None)
+        turn = cls.STEP_TURN
+        n_backfill = int(
+            cls.reference["n_total"][turn, 0]
+            - cls.reference["n_forward"][turn, 0]
+        )
+        cls.first_forward_cell = (
+            int(cls.reference["grid_first_cell"][turn, 0]) + n_backfill
+        )
+        cls.bunch_cell = int(cls.reference["phase_loop"].cells[turn])
+        # Strictly after the first forward cell, at or before the bunch's.
+        cls.step_cell = cls.first_forward_cell + 1
+        cls.stepped = cls._track(step_cell=cls.step_cell)
+
+    def test_the_step_lands_inside_the_window_before_the_bunch(self):
+        """Non-vacuity: the geometry puts a sample between the two cells."""
+        self.assertEqual(
+            int(self.reference["bunch_offset"][self.STEP_TURN]), 1
+        )
+        self.assertGreater(self.step_cell, self.first_forward_cell)
+        self.assertLessEqual(self.step_cell, self.bunch_cell)
+        # Identical before the step turn, and the step is in force at the
+        # bunch of the step turn.
+        np.testing.assert_array_equal(
+            self.stepped["kick_phase"][: self.STEP_TURN],
+            self.reference["kick_phase"][: self.STEP_TURN],
+        )
+        self.assertAlmostEqual(
+            float(
+                self.stepped["phi_rf"][self.STEP_TURN, 0]
+                - self.reference["phi_rf"][self.STEP_TURN, 0]
+            ),
+            self.STEP,
+        )
+
+    def test_coarse_grid_at_the_bunch_cell_never_moved(self):
+        """Control: the coarse lab-frame phase at the bunch cell holds."""
+        self.assertLess(
+            abs(
+                float(
+                    self.stepped["coarse_lab_phase"][self.STEP_TURN]
+                    - self.reference["coarse_lab_phase"][self.STEP_TURN]
+                )
+            ),
+            self.TOLERANCE,
+        )
+
+    def test_kick_phase_is_continuous_across_the_clocked_step(self):
+        """The bunch is kicked at the unstepped phase on the step turn."""
+        self.assertLess(
+            abs(
+                float(
+                    self.stepped["kick_phase"][self.STEP_TURN]
+                    - self.reference["kick_phase"][self.STEP_TURN]
+                )
+            ),
+            self.TOLERANCE,
+            "the carried beam-induced field followed the clocked step in "
+            "the fine-grid readout",
         )
 
 
