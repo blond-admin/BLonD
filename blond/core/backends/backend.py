@@ -15,7 +15,7 @@ import logging
 import os
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from numpy.exceptions import ComplexWarning
@@ -26,19 +26,16 @@ from blond.generals.warnings_ import PrecisionWarning
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
-    from typing import TYPE_CHECKING, Literal, TypeVar
+    from typing import TYPE_CHECKING, Literal, NoReturn, TypeVar
 
     BackendType = TypeVar("BackendType", bound="type[Numpy64Bit | Cupy64Bit]")
+    # The modes each backend family implements.
+    NumpySpecialsMode = Literal["python", "cpp", "cpp_single_core", "numba"]
+    CupySpecialsMode = Literal["cuda"]
     # Every mode of every backend family: `change_backend` swaps the
     # family of the global `backend` in place, so which modes are valid
     # is only known at runtime (`UnknownBackendMode` otherwise).
-    SpecialsMode = Literal[
-        "python",
-        "cpp",
-        "cpp_single_core",
-        "numba",
-        "cuda",
-    ]
+    SpecialsMode = NumpySpecialsMode | CupySpecialsMode
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -620,6 +617,7 @@ class _ModeSwitchHelper:
         self.backend.set_specials(mode=self.mode_tmp)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        assert self.mode_org is not None  # set by `__enter__`
         self.backend.set_specials(mode=self.mode_org)
 
 
@@ -644,6 +642,7 @@ class BackendBaseClass(ABC):
     # type annotations for MyPy
     float: type[np.float64]
     complex: type[np.complex128]
+    specials_mode: SpecialsMode
 
     def __init__(  # NOQA: PLR0915
         self,
@@ -852,13 +851,7 @@ class BackendBaseClass(ABC):
             "cuda",
         )
         if _backend_mode_raw in _allowed_backend_modes:
-            _backend_mode: Literal[
-                "python",
-                "cpp",
-                "cpp_single_core",
-                "numba",
-                "cuda",
-            ] = _backend_mode_raw  # type: ignore
+            _backend_mode: SpecialsMode = _backend_mode_raw  # type: ignore
         else:
             raise ValueError(
                 f"The environment variable `BLOND_BACKEND_MODE` "
@@ -886,7 +879,7 @@ class BackendBaseClass(ABC):
             # Anyways its beter to write if, elif, else explicitly
             raise ValueError(_backend_bits)  # pragma: no cover
         self.change_backend(backend_class_for_mode(_backend_mode))
-        self.set_specials(mode=_backend_mode)  # type: ignore
+        self.set_specials(mode=_backend_mode)
 
     def temporary_specials_mode(self, mode: SpecialsMode):
         """
@@ -1115,6 +1108,10 @@ class NumpyBackend(BackendBaseClass):
 
         self._finalize()
 
+    @overload
+    def set_specials(self, mode: NumpySpecialsMode) -> None: ...
+    @overload
+    def set_specials(self, mode: CupySpecialsMode) -> NoReturn: ...
     def set_specials(self, mode: SpecialsMode) -> None:
         """
         Set the special compiled functions.
@@ -1123,6 +1120,11 @@ class NumpyBackend(BackendBaseClass):
         ----------
         mode
             One of the available backend modes.
+
+        Raises
+        ------
+        UnknownBackendMode
+            If `mode` is not implemented by a NumPy backend.
         """
         onchange = self.specials_mode != mode
 
@@ -1260,6 +1262,10 @@ class CupyBackend(BackendBaseClass):
 
         self._finalize()
 
+    @overload
+    def set_specials(self, mode: CupySpecialsMode) -> None: ...
+    @overload
+    def set_specials(self, mode: NumpySpecialsMode) -> NoReturn: ...
     def set_specials(self, mode: SpecialsMode) -> None:
         """
         Set the special compiled functions.
@@ -1268,6 +1274,11 @@ class CupyBackend(BackendBaseClass):
         ----------
         mode
             One of the available backend modes.
+
+        Raises
+        ------
+        UnknownBackendMode
+            If `mode` is not implemented by a CuPy backend.
         """
         if mode == "cuda":
             from blond.core.backends.cuda.callables import CudaSpecials

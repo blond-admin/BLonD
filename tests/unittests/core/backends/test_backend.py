@@ -335,7 +335,7 @@ class TestCupyBackend(BLonDTestCase):
             float_=np.float64, complex_=np.complex128
         )
         with self.assertRaises(ValueError):
-            self.cupy_backend.set_specials("doesnt exist")
+            self.cupy_backend.set_specials("doesnt exist")  # ty: ignore[no-matching-overload]
 
 
 class TestNumpy64Bit(BLonDTestCase):
@@ -383,7 +383,7 @@ class TestNumpyBackend(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
-            self.numpy_backend.set_specials("doesnt exist")
+            self.numpy_backend.set_specials("doesnt exist")  # ty: ignore[no-matching-overload]
 
 
 class TestSpecials(BLonDTestCase):
