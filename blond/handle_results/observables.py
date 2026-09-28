@@ -266,6 +266,17 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         turns_array
             Array with turn numbers for observations.
         """
+        if self._turns_array is None:
+            self._turns_array = np.arange(
+                0, self._n_turns, self.each_turn_i, dtype=int
+            )
+
+            assert self._n_turns is not None
+            assert self._turns_array is not None
+
+            assert len(self._turns_array) == self._calc_n_entries(
+                n_turns=self._n_turns
+            )
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -306,9 +317,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             Additional keyword arguments.
         """
         self._n_turns = int(n_turns)
-
-        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
-        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
 
         self._simulation = simulation
 
