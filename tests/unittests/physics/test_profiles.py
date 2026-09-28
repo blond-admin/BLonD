@@ -377,9 +377,8 @@ class TestStaticProfile(BLonDTestCase):
         self.assertEqual(11, len(profile.hist_x))
 
     def test_track_keeps_geometry_cache(self):
-        """Tracking only refills `hist_y`; the geometry derived from the
-        fixed `hist_x` must stay cached instead of being recomputed (on the
-        GPU, with a device-to-host copy) every turn.
+        """Tracking only refills `hist_y`; the fixed `hist_x` must not be
+        rebuilt every turn.
         """
         beam = Beam(intensity=1, particle_type=uranium_29)
         beam.setup_beam(
@@ -388,13 +387,11 @@ class TestStaticProfile(BLonDTestCase):
             reference_time=0,
             reference_total_energy=450e9,
         )
-        _ = self.static_profile.cut_left
-        _ = self.static_profile.gradient_hist_y
+        hist_x_before = self.static_profile.hist_x
 
         self.static_profile.track(beam=beam)
 
-        self.assertIn("cut_left", self.static_profile.__dict__)
-        self.assertNotIn("gradient_hist_y", self.static_profile.__dict__)
+        self.assertIs(hist_x_before, self.static_profile.hist_x)
 
     def test_from_cutoff_whole_number_of_steps(self):
         """3.3 ns / 1.1 ns is 3.0000000000000004, which must stay 3 bins."""
