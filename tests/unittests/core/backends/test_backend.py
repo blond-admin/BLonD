@@ -1148,7 +1148,7 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
-    def test_kick_interpolated_single_bin_applies_only_acceleration_kick(
+    def test_kick_interpolated_raises_on_single_bin(
         self,
     ) -> None:
         """A single-bin `bin_centers` has no bin width to interpolate
