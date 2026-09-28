@@ -63,7 +63,7 @@ class TestSparseProfileIntegration(BLonDTestCase):
         if DEV_DRAW:
             plt.figure("compare")
             ax1 = plt.subplot(3, 1, 1)
-            plt.plot(profile_wanted._hist_x, profile_wanted._hist_y, "x")
+            plt.plot(profile_wanted.hist_x, profile_wanted.hist_y, "x")
             plt.xlim(4e-8, 6e-8)
             plt.axvline(4.9940e-8)
             plt.show()
@@ -71,8 +71,8 @@ class TestSparseProfileIntegration(BLonDTestCase):
 
     def _test_both_results_equal(self, profile, profile_wanted):
         # from plot, see `axvline`
-        start_idx = np.argmax(profile_wanted._hist_x > 4.9940e-8)
-        second_peak_wanted = profile_wanted._hist_y[
+        start_idx = np.argmax(profile_wanted.hist_x > 4.9940e-8)
+        second_peak_wanted = profile_wanted.hist_y[
             start_idx : start_idx + 2**8
         ]
         second_peak_actual = profile.profiles[1].hist_y
