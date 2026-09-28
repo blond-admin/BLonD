@@ -426,6 +426,49 @@ class TestEnvelopeKernelBitIdentity(unittest.TestCase):
             },
         )
 
+    def test_forward_pi_saturating_directional(self):
+        """The directional anti-windup agrees on both paths, clamp firing.
+
+        To a tolerance, as for the conditional scheme: the one-ULP
+        difference of the clamp now also reaches the integral, through the
+        direction the kept increment is projected on.
+        """
+        self._compare_close(
+            no_beam=False,
+            controller_kw={
+                "gain_proportional": 1e-6,
+                "gain_integral": 1e-1,
+                "generator_current_bias": BIAS,
+                "n_delay": 1,
+                "max_output": 0.05,
+                "anti_windup": "directional",
+            },
+        )
+
+    def test_the_saturating_case_tells_the_schemes_apart(self):
+        """The compiled scan really runs the scheme it was handed.
+
+        The agreement above would also hold if both paths ignored the
+        argument, so the same case must differ from the conditional one.
+        """
+        tuning = {
+            "gain_proportional": 1e-6,
+            "gain_integral": 1e-1,
+            "generator_current_bias": BIAS,
+            "n_delay": 1,
+            "max_output": 0.05,
+        }
+        conditional = self._run_single_segment(
+            True, no_beam=False, controller_kw=tuning
+        )
+        directional = self._run_single_segment(
+            True,
+            no_beam=False,
+            controller_kw={**tuning, "anti_windup": "directional"},
+        )
+        self.assertNotEqual(directional["integral"], conditional["integral"])
+        self.assertFalse(np.array_equal(directional["I"], conditional["I"]))
+
     def test_saturating_segment_is_not_deferred_to_python(self):
         """A saturated segment must be committed from the compiled scan.
 

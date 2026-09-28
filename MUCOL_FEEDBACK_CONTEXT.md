@@ -2280,6 +2280,59 @@ residual 0.008 -> 0.005 deg, against the rigid model's -1.164 -> +0.057;
 two periods cost some damping in tracking (0.030) that the model does not
 show (0.004).
 
+### 2.37 Directional anti-windup for the PI, opt-in (2026-09-28)
+
+**Why.** The klystron clamp limits the magnitude of the command and leaves
+its phase free, but the conditional anti-windup freezes the whole complex
+integral on every clamped sample -- the tangential part the actuator can
+still follow included. On RCS1 the drive is on the rail ~99 % of the
+time, so the PI runs as P plus a frozen offset. The outer repo's
+rigid-bunch model had shown that keeping the tangential integral removes
+the anti-damping of a weak loop; maintainer request: make it available
+here, since it helps RCS1 and harms only in specific cases.
+
+**What.** `GeneratorCurrentPIController(..., anti_windup="conditional")`,
+choices in the module constant `ANTI_WINDUP_SCHEMES`, whose order is the
+integer code the compiled scan takes (`control_law_kernels.
+DIRECTIONAL_ANTI_WINDUP = 1`). Read-only after construction, like
+`n_delay`. On a clamped sample `"directional"` keeps the increment
+`e_d dt` except its outward part: with `u` the command's unit vector and
+`r = Re(e_d dt u*)` it drops `r u` when `K_i r > 0` -- judged by the
+integral term's effect, so a negative `K_i` reads the direction right --
+and keeps the increment whole otherwise. Unclamped it is the conditional
+law bit for bit. `pi_law_step` takes the code; `envelope_pi_scan` has a
+trailing `anti_windup=0`, so positional callers are unchanged;
+`envelope_scan_state` appends the code after `max_output`. The default is
+the freeze: every existing run is bit-identical. The P law has no
+integrator and is untouched.
+
+**Verified.** RED first (`TypeError` on the keyword). Seven new tests in
+`test_generator_current_controller.py` (`TestDirectionalAntiWindup`):
+the default, an unknown scheme refused, a tangential increment kept, an
+inward one kept whole, an outward one dropped, outward judged by the sign
+of `K_i`, and bit identity with the freeze below the limit. Two in
+`test_envelope_kernel.py`: kernel against the Python path to
+`SATURATED_RTOL` with the clamp firing (the one-ULP difference of the
+clamp's `abs` now also reaches the integral, through the direction the
+increment is projected on), and the same case telling the two schemes
+apart, so the code demonstrably reaches the kernel. `tests/unittests/
+physics/feedbacks` + `test_observables.py`, random order: 810 passed /
+8 skipped. Pre-commit clean on every touched file except `check
+copyright` (bare `python`, §0; `WinError 3` here, on untouched files
+too).
+
+**Tracked in the outer repo** (1.1x klystron, 16 sections, 20 000
+macroparticles, no phase loop, 0 deg launch, residual dipole, tracked /
+rigid model): RCS1 margin 2 freeze 0.596 / 0.468, margin 8 freeze
+1.631 / 1.351, **margin 8 directional 0.264 / 0.189**; RCS2 hurt at either
+margin (0.041 -> 0.096 at margin 2); RCS3 a little better (0.048 ->
+0.035); RCS4 neutral. A per-ring choice, not a default (outer audit
+§8.2). Outer repo, same change: `RunConfig.llrf_anti_windup`
+(`--llrf-anti-windup`), refused with the P law, keyed into learnt
+feedforward programmes only when not the default; along the chain
+`ChainConfig.llrf_anti_windup` and `ChainConfig.llrf_stability_margin`,
+per machine.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam

@@ -16,10 +16,10 @@ testable with plain numbers and stubs, and lets a cavity feedback delegate
 the error-to-current conversion instead of implementing it inline.
 
 Two control laws implement the interface, and they share nothing but it:
-:class:`GeneratorCurrentPIController` (proportional-integral, with
-conditional anti-windup) and :class:`GeneratorCurrentPController`
-(proportional only). Each carries its own tuning and state and names its
-own compiled closed-loop scan in
+:class:`GeneratorCurrentPIController` (proportional-integral, with a
+choice of anti-windup, see :data:`ANTI_WINDUP_SCHEMES`) and
+:class:`GeneratorCurrentPController` (proportional only). Each carries its
+own tuning and state and names its own compiled closed-loop scan in
 :mod:`~blond.physics.feedbacks.control_law_kernels`; the cavity model in
 :mod:`~blond.physics.feedbacks.envelope_kernel` knows neither.
 """
@@ -39,6 +39,17 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
 
     from numpy.typing import NDArray as NumpyArray
+
+#: Anti-windup schemes of :class:`GeneratorCurrentPIController`, in the
+#: order of the integer code its compiled scan takes.
+#:
+#: ``"conditional"`` (the default) freezes the whole complex integral on
+#: every sample the klystron clamp fires. ``"directional"`` drops only the
+#: part of the sample's integral increment that would push the command
+#: further out and keeps the rest: the clamp limits the magnitude of the
+#: command and leaves its phase free, so outward is the only direction the
+#: integrator can wind up in.
+ANTI_WINDUP_SCHEMES: tuple[str, ...] = ("conditional", "directional")
 
 
 def current_limit_from_power(
@@ -277,9 +288,16 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
 
     where :math:`e_\mathsf{d}` is the error delayed by ``n_delay`` samples
     and :math:`I_0` is the generator-current bias. The clamp enforces the
-    klystron current limit. The integrator uses conditional, anti-windup
-    integration: it is frozen while the output is saturated (clamped at the
-    limit), so a persistent error cannot keep inflating the stored integral.
+    klystron current limit. By default the integrator uses conditional,
+    anti-windup integration: it is frozen while the output is saturated
+    (clamped at the limit), so a persistent error cannot keep inflating the
+    stored integral. The clamp limits only the magnitude of the command,
+    though, and leaves its phase free, so ``anti_windup="directional"``
+    freezes only the outward part of each clamped sample's increment,
+    :math:`e_\mathsf{d}\,\Delta t`, and keeps integrating the rest: with
+    :math:`u` the unit vector of the command and :math:`r =
+    \mathrm{Re}(e_\mathsf{d}\,\Delta t\,u^*)`, the increment loses
+    :math:`r\,u` when :math:`K_i\,r > 0` and is kept whole otherwise.
     All state lives on the controller -- the delay line (the buffer of
     recent errors) and the running integral -- so it can be driven and
     inspected in isolation.
@@ -306,6 +324,17 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
     max_output
         Maximum generator-current magnitude [A] (klystron limit). If None,
         the output is not limited and the integrator never saturates.
+    anti_windup
+        What the integrator does on a clamped sample, one of
+        :data:`ANTI_WINDUP_SCHEMES`: ``"conditional"`` (default) freezes
+        it, ``"directional"`` keeps all but the outward part of the
+        increment. The two are the same law while the clamp is idle.
+        Fixed at construction, like ``n_delay``.
+
+    Raises
+    ------
+    ValueError
+        If ``anti_windup`` is not one of :data:`ANTI_WINDUP_SCHEMES`.
     """
 
     def __init__(
@@ -315,13 +344,20 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         generator_current_bias: complex,
         n_delay: int = 0,
         max_output: float | None = None,
+        anti_windup: str = "conditional",
     ):
         assert n_delay >= 0, f"{n_delay=}, but must be >= 0."
+        if anti_windup not in ANTI_WINDUP_SCHEMES:
+            raise ValueError(
+                f"anti_windup={anti_windup!r} is not one of "
+                f"{ANTI_WINDUP_SCHEMES}"
+            )
         self.gain_proportional = gain_proportional
         self.gain_integral = gain_integral
         self.generator_current_bias = generator_current_bias
         self._n_delay = int(n_delay)
         self.max_output = max_output
+        self._anti_windup = anti_windup
 
         self._integral: complex = 0.0 + 0.0j
         # Zero-prefilled so the first n_delay updates act on a null error.
@@ -382,6 +418,18 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         return self._n_delay
 
     @property
+    def anti_windup(self) -> str:
+        """
+        Anti-windup scheme, fixed at construction.
+
+        Returns
+        -------
+        anti_windup
+            One of :data:`ANTI_WINDUP_SCHEMES`.
+        """
+        return self._anti_windup
+
+    @property
     def integral(self) -> complex:
         """
         Committed error integral.
@@ -429,7 +477,8 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         -------
         state
             ``(gain_proportional, gain_integral, generator_current_bias,
-            delay_buffer, delay_head, integral, max_output)``.
+            delay_buffer, delay_head, integral, max_output, anti_windup)``,
+            the last as its index in :data:`ANTI_WINDUP_SCHEMES`.
         """
         return (
             float(self.gain_proportional),
@@ -439,6 +488,7 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             self._delay_head,
             complex(self._integral),
             np.inf if self.max_output is None else float(self.max_output),
+            ANTI_WINDUP_SCHEMES.index(self._anti_windup),
         )
 
     def absorb_envelope_scan_state(self, state: tuple) -> None:
@@ -487,6 +537,8 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         -------
         generator_current
             The (clamped) generator-current command for this sample [A].
+            While clamped, the integral takes what :attr:`anti_windup`
+            keeps of this sample's increment.
         """
         # Write at the head, advance, then read the new head: the slot that
         # falls under it is the error from n_delay updates ago. Identical to
@@ -495,7 +547,8 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         self._delay_head = (self._delay_head + 1) % self._delay_buffer.size
         delayed_error = complex(self._delay_buffer[self._delay_head])
 
-        candidate_integral = self._integral + delayed_error * delta_t
+        increment = delayed_error * delta_t
+        candidate_integral = self._integral + increment
         # Bias and feedforward are summed first, as in the compiled scan,
         # so the two stay byte-identical.
         output = (
@@ -504,13 +557,21 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             + self.gain_integral * candidate_integral
         )
 
-        # Conditional anti-windup: only commit the integral while the output
-        # is not saturated by the klystron current limit.
+        # Anti-windup: commit the whole increment only while the output is
+        # not saturated by the klystron current limit.
         saturated = (
             self.max_output is not None and np.abs(output) > self.max_output
         )
         if not saturated:
             self._integral = candidate_integral
+        elif self._anti_windup == "directional":
+            # The clamp leaves the phase free: drop only the part of the
+            # increment that would push the command further out.
+            unit = output / np.abs(output)
+            radial = (increment * np.conj(unit)).real
+            if self.gain_integral * radial > 0.0:
+                increment = increment - radial * unit
+            self._integral = self._integral + increment
 
         return clamp_magnitude(output, self.max_output)
 

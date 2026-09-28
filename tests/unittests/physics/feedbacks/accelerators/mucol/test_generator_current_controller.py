@@ -568,5 +568,125 @@ class TestDelayLineStateHandoff(unittest.TestCase):
         )
 
 
+class TestDirectionalAntiWindup(unittest.TestCase):
+    """
+    The opt-in anti-windup made for a magnitude-only clamp.
+
+    The klystron clamp limits the magnitude of the command and leaves its
+    phase free, so the only direction the integrator can wind up in is
+    outward. ``anti_windup="directional"`` drops, on a clamped sample,
+    only the part of the integral increment that would push the command
+    further out and keeps the rest; ``"conditional"``, the default,
+    freezes the whole increment.
+    """
+
+    @staticmethod
+    def _saturated(anti_windup, gain_integral=1.0e-3):
+        """
+        A controller whose bias alone is twice its current limit.
+
+        Parameters
+        ----------
+        anti_windup
+            Anti-windup scheme of the controller.
+        gain_integral
+            Integral gain [A/(V s)]; small, so the command stays near the
+            real axis and on the rail whatever the error.
+
+        Returns
+        -------
+        controller
+            A pure integral controller, saturated from the first sample.
+        """
+        return GeneratorCurrentPIController(
+            gain_proportional=0.0,
+            gain_integral=gain_integral,
+            generator_current_bias=2.0 + 0.0j,
+            max_output=1.0,
+            anti_windup=anti_windup,
+        )
+
+    def test_the_default_is_the_conditional_freeze(self):
+        """Without the argument the controller keeps its old behaviour."""
+        controller = GeneratorCurrentPIController(
+            gain_proportional=0.0,
+            gain_integral=0.0,
+            generator_current_bias=0.0 + 0.0j,
+        )
+        self.assertEqual(controller.anti_windup, "conditional")
+
+    def test_an_unknown_scheme_is_refused(self):
+        """A misspelt scheme must fail, not fall back silently."""
+        with self.assertRaisesRegex(ValueError, "anti_windup"):
+            GeneratorCurrentPIController(
+                gain_proportional=0.0,
+                gain_integral=0.0,
+                generator_current_bias=0.0 + 0.0j,
+                anti_windup="freeze",
+            )
+
+    def test_a_tangential_increment_is_kept(self):
+        """Across the command the actuator still acts, so it integrates."""
+        error = 1.0j
+        directional = self._saturated("directional")
+        conditional = self._saturated("conditional")
+        command = directional.update_generator_current(error, delta_t=1.0)
+        conditional.update_generator_current(error, delta_t=1.0)
+        unit = command / np.abs(command)
+        expected = error - (error * np.conj(unit)).real * unit
+        self.assertAlmostEqual(directional.integral, expected, places=15)
+        # Nothing of what was kept points outward, and nearly all of the
+        # (almost purely tangential) increment was kept.
+        self.assertAlmostEqual(
+            (directional.integral * np.conj(unit)).real, 0.0, places=15
+        )
+        self.assertAlmostEqual(directional.integral.imag, 1.0, places=6)
+        self.assertEqual(conditional.integral, 0.0)
+
+    def test_an_inward_increment_is_kept_whole(self):
+        """An increment pulling the command back inside is not windup."""
+        directional = self._saturated("directional")
+        directional.update_generator_current(-0.5 + 0.0j, delta_t=1.0)
+        self.assertEqual(directional.integral, -0.5 + 0.0j)
+
+    def test_an_outward_increment_is_dropped(self):
+        """Outward is the one direction the integrator can wind up in."""
+        directional = self._saturated("directional")
+        for _ in range(10):
+            directional.update_generator_current(10.0 + 0.0j, delta_t=1.0)
+        self.assertAlmostEqual(directional.integral, 0.0, places=12)
+
+    def test_outward_is_judged_by_the_integral_term(self):
+        """With a negative integral gain the same increment pulls inward."""
+        directional = self._saturated("directional", gain_integral=-1.0e-3)
+        directional.update_generator_current(0.5 + 0.0j, delta_t=1.0)
+        self.assertEqual(directional.integral, 0.5 + 0.0j)
+
+    def test_below_the_limit_it_is_the_conditional_law(self):
+        """Unsaturated, the two schemes are one controller, bit for bit."""
+        rng = np.random.default_rng(3)
+        tuning = {
+            "gain_proportional": 1.7,
+            "gain_integral": 3.1e5,
+            "generator_current_bias": 0.2 + 0.05j,
+            "n_delay": 3,
+        }
+        for max_output in (None, 1.0e3):
+            with self.subTest(max_output=max_output):
+                conditional = GeneratorCurrentPIController(
+                    **tuning, max_output=max_output
+                )
+                directional = GeneratorCurrentPIController(
+                    **tuning, max_output=max_output, anti_windup="directional"
+                )
+                for _ in range(200):
+                    error = 1e-3 * complex(rng.normal(), rng.normal())
+                    self.assertEqual(
+                        directional.update_generator_current(error, 3e-10),
+                        conditional.update_generator_current(error, 3e-10),
+                    )
+                self.assertEqual(directional.integral, conditional.integral)
+
+
 if __name__ == "__main__":
     unittest.main()

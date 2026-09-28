@@ -17,9 +17,9 @@ of it, in three layers kept apart on purpose:
   error in the kick frame and rotates it into the actuator frame, and
   :func:`delay_line_push` delays it by the loop latency;
 - the **laws**, one compiled function each and nothing shared between
-  them: :func:`pi_law_step` (proportional-integral, conditional
-  anti-windup, magnitude clamp) and :func:`p_law_step` (proportional,
-  magnitude clamp, no state);
+  them: :func:`pi_law_step` (proportional-integral, conditional or
+  directional anti-windup, magnitude clamp) and :func:`p_law_step`
+  (proportional, magnitude clamp, no state);
 - the **feedforward**, law-independent and computed elsewhere: a per-cell
   addition to the setpoint, which enters the measurement, and a per-cell
   addition to the bias, which a scan hands its law *as* the bias of that
@@ -125,6 +125,11 @@ def delay_line_push(delay_buffer, delay_head, error):
     return delay_buffer[delay_head], delay_head
 
 
+#: Integer code of the directional anti-windup: its index in
+#: :data:`~blond.physics.feedbacks.generator_current_controller.ANTI_WINDUP_SCHEMES`.
+DIRECTIONAL_ANTI_WINDUP = 1
+
+
 @nb.njit(cache=True)  # pragma: no cover
 def pi_law_step(
     delayed_error,
@@ -134,13 +139,16 @@ def pi_law_step(
     gain_integral,
     generator_current_bias,
     max_output,
+    anti_windup,
 ):
     """
     One sample of the saturating PI law.
 
-    ``I = clamp(I_0 + K_p e + K_i (integral + e dt))``, with conditional
-    anti-windup: the integral is committed only while the output is not
-    clamped. The compiled twin of
+    ``I = clamp(I_0 + K_p e + K_i (integral + e dt))``. The whole
+    increment ``e dt`` is committed only while the output is not clamped;
+    on a clamped sample the conditional anti-windup (code 0) commits none
+    of it, the directional one (:data:`DIRECTIONAL_ANTI_WINDUP`) all but
+    its outward part. The compiled twin of
     ``GeneratorCurrentPIController.update_generator_current``.
 
     Parameters
@@ -159,13 +167,16 @@ def pi_law_step(
         Generator current bias ``I_0`` [A].
     max_output
         Klystron current-magnitude limit, or ``inf`` for none.
+    anti_windup
+        Anti-windup code, the scheme's index in ``ANTI_WINDUP_SCHEMES``.
 
     Returns
     -------
     generator_current, integral
         The (clamped) command and the committed integral after it.
     """
-    candidate_integral = integral + delayed_error * delta_t
+    increment = delayed_error * delta_t
+    candidate_integral = integral + increment
     output = (
         generator_current_bias
         + gain_proportional * delayed_error
@@ -173,6 +184,14 @@ def pi_law_step(
     )
     magnitude = np.abs(output)
     if magnitude > max_output:
+        if anti_windup == DIRECTIONAL_ANTI_WINDUP:
+            # The clamp leaves the phase free: drop only the part of the
+            # increment that would push the command further out.
+            unit = output / magnitude
+            radial = (increment * np.conj(unit)).real
+            if gain_integral * radial > 0.0:
+                increment = increment - radial * unit
+            return output * (max_output / magnitude), integral + increment
         # Saturated: freeze the integral (anti-windup) and clamp.
         return output * (max_output / magnitude), integral
     return output, candidate_integral
@@ -243,6 +262,7 @@ def envelope_pi_scan(
     delay_head,
     integral,
     max_output,
+    anti_windup=0,
 ):
     """
     The cavity model closed through the PI law, over one span.
@@ -289,6 +309,9 @@ def envelope_pi_scan(
         Committed error integral entering the span.
     max_output
         Klystron current-magnitude limit, or ``inf``.
+    anti_windup
+        Anti-windup code (see :func:`pi_law_step`); 0, the conditional
+        freeze, if omitted.
 
     Returns
     -------
@@ -347,6 +370,7 @@ def envelope_pi_scan(
             gain_integral,
             generator_current_bias + generator_current_feedforward[cell],
             max_output,
+            anti_windup,
         )
     return delay_buffer, delay_head, integral
 
