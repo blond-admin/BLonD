@@ -17,7 +17,7 @@ import numpy as np
 if TYPE_CHECKING:  # pragma: no cover
     pass
 
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class AnyInterpolator(Protocol):
@@ -52,5 +52,33 @@ class AnyInterpolator(Protocol):
         -------
         y
             Interpolated values at the given points.
+        """
+        ...
+
+
+class ScheduleFunction(Protocol):
+    """
+    A callable that computes a scheduled value per turn.
+
+    Used by `ScheduledFunctional`, which calls it with the keyword
+    arguments `turn_i` and `reference_time`, so the parameters must
+    carry exactly these names.
+    """
+
+    def __call__(self, *, turn_i: int, reference_time: float) -> Any:
+        """
+        Compute the scheduled value.
+
+        Parameters
+        ----------
+        turn_i
+            Current turn index.
+        reference_time
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The scheduled value for this turn/time.
         """
         ...

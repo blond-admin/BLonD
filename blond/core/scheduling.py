@@ -18,7 +18,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
@@ -27,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
         PchipInterpolator,
     )
 
-    from blond.generals.protocols import AnyInterpolator
+    from blond.generals.protocols import AnyInterpolator, ScheduleFunction
 
 
 class ScheduledBaseClass(ABC):
@@ -219,7 +218,7 @@ class ScheduledFunctional(ScheduledBaseClass):
 
     def __init__(
         self,
-        function: Callable[..., Any],
+        function: ScheduleFunction,
     ) -> None:
         super().__init__()
         self.function = function
@@ -248,7 +247,7 @@ class ScheduledFunctional(ScheduledBaseClass):
 
 
 def get_scheduler(
-    value: NumpyArray | tuple[NumpyArray, NumpyArray] | Callable[..., Any],
+    value: NumpyArray | tuple[NumpyArray, NumpyArray] | ScheduleFunction,
 ) -> ScheduledBaseClass:
     """
     Auto-select the correct class of the schedulers.
@@ -258,7 +257,7 @@ def get_scheduler(
     value
         Array - per turn
         (Array, Array) - time vs value, to be interpolated.
-        Callable - evaluated per turn via `ScheduledFunctional`.
+        `ScheduleFunction` - evaluated per turn via `ScheduledFunctional`.
 
     Returns
     -------

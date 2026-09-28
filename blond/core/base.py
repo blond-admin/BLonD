@@ -30,6 +30,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.protocols import ScheduleFunction
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     T = TypeVar("T")
@@ -245,7 +246,7 @@ class Schedulable:
         value: ScheduledBaseClass
         | NumpyArray
         | tuple[NumpyArray, NumpyArray]
-        | Callable[..., Any],
+        | ScheduleFunction,
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -270,7 +271,8 @@ class Schedulable:
                  :class:`~blond.core.scheduling.ScheduledArray`.
                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to
                  :class:`~blond.core.scheduling.ScheduledInterpolation`.
-               - `Callable`: Automatically cast to
+               - :class:`~blond.generals.protocols.ScheduleFunction`:
+                 Automatically cast to
                  :class:`~blond.core.scheduling.ScheduledFunctional`.
 
             2. **Explicit scheduling objects**, i.e. any
