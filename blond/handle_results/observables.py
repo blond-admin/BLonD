@@ -267,11 +267,11 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             Array with turn numbers for observations.
         """
         if self._turns_array is None:
+            assert self._n_turns is not None
             self._turns_array = np.arange(
                 0, self._n_turns, self.each_turn_i, dtype=int
             )
 
-            assert self._n_turns is not None
             assert self._turns_array is not None
 
             assert len(self._turns_array) == self._calc_n_entries(
