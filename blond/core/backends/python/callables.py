@@ -495,6 +495,10 @@ class PythonSpecials(Specials):
         if sparse:
             inv_bin_width = bins_per_profile / cut_width
         else:
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
             inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width

@@ -435,6 +435,12 @@ class CudaSpecials(Specials):  # NOQA: D101
         acceleration_kick = FLOAT(acceleration_kick)
 
         if first_left_cut is None:
+            n_slices = bin_centers.size
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
+
             glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
             _gm_linear_interp_kick_help(
                 args=(

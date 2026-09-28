@@ -579,6 +579,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick = floattype(acceleration_kick)
 
             if first_left_cut is None:
+                n_slices = len(bin_centers)
+                assert n_slices >= 2, (  # noqa: PLR2004
+                    "kick_interpolated needs at least 2 bins to "
+                    f"interpolate across, got {n_slices}"
+                )
                 _LIBBLOND.linear_interp_kick(
                     _get_pointer(dt),
                     _get_pointer(dE),

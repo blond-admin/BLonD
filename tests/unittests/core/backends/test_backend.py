@@ -240,7 +240,9 @@ class TestBackendBaseClass(BLonDTestCase):
         self.assertEqual(backend.specials_mode, "cpp_single_core")
 
 
-def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
+def _run_python(
+    code: str, *interpreter_flags: str
+) -> "subprocess.CompletedProcess[str]":
     """Run a code snippet in a fresh interpreter without BLOND env vars."""
     env = os.environ.copy()
     # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
@@ -252,7 +254,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     ):
         env.pop(key, None)
     return subprocess.run(
-        [sys.executable, "-c", code],
+        [sys.executable, *interpreter_flags, "-c", code],
         check=False,
         capture_output=True,
         text=True,
@@ -1190,7 +1192,7 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
-    def test_kick_interpolated_single_bin_applies_only_acceleration_kick(
+    def test_kick_interpolated_raises_on_single_bin(
         self,
     ) -> None:
         """A single-bin `bin_centers` has no bin width to interpolate
@@ -1209,26 +1211,17 @@ class TestSpecials(BLonDTestCase):
             voltage = backend.array([1.0], dtype=backend.float)
             charge = backend.float(10)
             acceleration_kick = backend.float(0.5)
-            backend.specials.kick_interpolated(
-                dt=dt,
-                dE=dE,
-                voltage=voltage,
-                bin_centers=bin_centers,
-                charge=charge,
-                acceleration_kick=acceleration_kick,
-            )
-            result = dE
-            if special == "cuda":
-                result = result.get()
-            np.testing.assert_array_equal(
-                np.asarray(result),
-                0.5,
-                err_msg=(
-                    "a single-bin profile has no width to interpolate "
-                    "across, so no particle receives an interpolated "
-                    f"voltage -- only `acceleration_kick`, {special=}"
-                ),
-            )
+            with self.assertRaisesRegex(
+                AssertionError, "kick_interpolated needs at least 2 bins"
+            ):
+                backend.specials.kick_interpolated(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_applies_acceleration_kick_everywhere(
