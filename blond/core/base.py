@@ -29,11 +29,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-    from blond.core.scheduling import (
-        ScheduledArray,
-        ScheduledFunctional,
-        ScheduledInterpolation,
-    )
     from blond.core.simulation.simulation import Simulation
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
@@ -248,9 +243,6 @@ class Schedulable:
         self,
         attribute: str,
         value: ScheduledBaseClass
-        | ScheduledArray
-        | ScheduledInterpolation
-        | ScheduledFunctional
         | NumpyArray
         | tuple[NumpyArray, NumpyArray]
         | Callable[..., Any],
@@ -273,12 +265,23 @@ class Schedulable:
             Can be provided in one of several forms:
 
             1. **Convenient input options**:
-                - `NumpyArray`: Automatically cast to `ScheduledArray`.
-                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
 
-            2. **Explicit scheduling objects**:
-                - `ScheduledArray`: Full control over array-based scheduling.
-                - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
+               - `NumpyArray`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledArray`.
+               - `tuple[NumpyArray, NumpyArray]`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledInterpolation`.
+               - `Callable`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledFunctional`.
+
+            2. **Explicit scheduling objects**, i.e. any
+               :class:`~blond.core.scheduling.ScheduledBaseClass`, e.g.:
+
+               - :class:`~blond.core.scheduling.ScheduledArray`:
+                 Full control over array-based scheduling.
+               - :class:`~blond.core.scheduling.ScheduledInterpolation`:
+                 Full control over interpolation-based scheduling.
+               - :class:`~blond.core.scheduling.ScheduledFunctional`:
+                 Full control over function-based scheduling.
 
         Raises
         ------
