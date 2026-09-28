@@ -114,6 +114,7 @@ class Preparable(ABC):
 
     def configure_run(
         self,
+        *,
         beam: BeamBaseClass,
         n_turns: int,
         **kwargs: Any,
