@@ -120,6 +120,8 @@ class ObservablesBaseClass(MainLoopRelevant):
         Additional keyword arguments.
     """
 
+    _NOT_A_RECORDER: set[str] = set()
+
     def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
@@ -214,6 +216,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     def assert_lateinit(self):
         """Check that DenseArrays are already initialized."""
         for parameter, value in self.__dict__.items():
+            if parameter in self._NOT_A_RECORDER:
+                continue
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
 
@@ -233,6 +237,12 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
     **kwargs
         Additional keyword arguments.
     """
+
+    _NOT_A_RECORDER = ObservablesBaseClass._NOT_A_RECORDER | {
+        "_turns_array",
+        "_n_turns",
+        "each_turn_i",
+    }
 
     def __init__(
         self,
