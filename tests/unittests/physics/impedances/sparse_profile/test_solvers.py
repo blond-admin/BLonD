@@ -425,25 +425,43 @@ class TestMultiPoleSparseFinalize(BLonDTestCase):
         return solver
 
 
-class TestMultiPoleSparseInitValidation(BLonDTestCase):
-    def test_rejects_source_without_vectorfit(self):
-        """Sources lacking `SupportsVectorFittedModel` fail at init.
+class TestMultiPoleSparseInit(BLonDTestCase):
+    """Unit tests for `MultiPoleSparseSolve.on_wakefield_init_simulation`."""
 
-        Like the Resonator solvers, the check belongs in
-        `on_wakefield_init_simulation`, not deep in `_finalize_solver`.
-        """
+    def _init_with_profile(self, profile):
         from unittest.mock import Mock
 
-        from blond import InductiveImpedance, Simulation, WakeField
+        from blond import Simulation, WakeField
 
         solver = MultiPoleSparseSolve()
         parent = Mock(WakeField)
-        parent.sources = (InductiveImpedance(Z_over_n=1.0),)
-        parent.profile = Mock(EquidistantMultiProfile)
-        with self.assertRaises(RuntimeError):
-            solver.on_wakefield_init_simulation(
-                simulation=Mock(Simulation), parent_wakefield=parent
-            )
+        parent.profile = profile
+        solver.on_wakefield_init_simulation(
+            simulation=Mock(Simulation), parent_wakefield=parent
+        )
+        return solver
+
+    def test_accepts_static_profile(self):
+        from unittest.mock import Mock
+
+        profile = Mock(spec=StaticProfile)
+        solver = self._init_with_profile(profile)
+        self.assertIs(solver._profile, profile)
+
+    def test_accepts_equidistant_multi_profile(self):
+        from unittest.mock import Mock
+
+        profile = Mock(spec=EquidistantMultiProfile)
+        solver = self._init_with_profile(profile)
+        self.assertIs(solver._profile, profile)
+
+    def test_rejects_other_profiles(self):
+        from unittest.mock import Mock
+
+        from blond import DynamicProfileConstNBins
+
+        with self.assertRaises(TypeError):
+            self._init_with_profile(Mock(spec=DynamicProfileConstNBins))
 
 
 if __name__ == "__main__":

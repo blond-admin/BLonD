@@ -25,22 +25,6 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
                                    const index_t n_macroparticles,
                                    const real_t acc_kick) {
 
-  // A single bin (or none) has no width to interpolate across. Bail out
-  // before the division below, which would be 0/0: the resulting `nan`
-  // used to be caught by the range check further down, but the library is
-  // built with -ffast-math, so the compiler may assume `nan` never occurs
-  // and take the in-range branch anyway -- indexing the zero-length
-  // helper arrays and writing heap garbage into beam_dE (seen on
-  // aarch64). `acc_kick` is not an interpolated quantity: it carries the
-  // reference energy change and still applies to the whole beam.
-  if (n_slices < 2) {
-#pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-      beam_dE[i] += acc_kick;
-    }
-    return;
-  }
-
   const int STEP = 64;
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);

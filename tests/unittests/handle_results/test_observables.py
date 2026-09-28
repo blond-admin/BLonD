@@ -102,7 +102,7 @@ class ObservablesBaseHelper(ObservablesBaseClass):
 
 class TestObservablesBaseClass(BLonDTestCase):
     def test___init___default_folder(self) -> None:
-        """The default ``folder=None`` must not crash the constructor."""
+        """The default ``folder=""`` must not crash the constructor."""
         observables = ObservablesBaseHelper()
         self.assertTrue(observables.common_filepath.endswith("last"))
 
@@ -1039,7 +1039,7 @@ class TestDriftObservation(BLonDTestCase):
             n_turns=1,
         )
         obs._update()
-        self.assertTrue(np.isfinite(obs.eta_0s[0]))
+        self.assertEqual(obs.eta_0s[0], drift._last_eta_0)
 
 
 if __name__ == "__main__":
