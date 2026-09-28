@@ -48,6 +48,16 @@ beam.read_partial_flags.return_value = np.ones(4, dtype=int)
 beam._is_counter_rotating = True
 
 
+def _simulation_with(elements: list) -> Mock:
+    """Local simulation mock, so turn counter state does not leak."""
+    local_simulation = Mock(Simulation)
+    local_simulation.ring = Mock(Ring)
+    local_simulation.ring.elements = Mock(BeamPhysicsRelevantElements)
+    local_simulation.ring.elements.elements = elements
+    local_simulation.turn_counter = DynamicParameter(0)
+    return local_simulation
+
+
 class TestBeamObservationInRingElement(BLonDTestCase):
     def setUp(self) -> None:
         self.observation = BeamObservationInRingElement(
@@ -79,7 +89,7 @@ class TestBeamObservationInRingElement(BLonDTestCase):
         ]:
             self.assertTrue(hasattr(self.observation, rec_name))
             rec = getattr(self.observation, rec_name)
-            self.assertEqual(rec._memory.shape[0], 5)
+            self.assertEqual(rec._memory.shape[0], 3)
 
     def test_track_and_retrieve_data(self):
         """Ensure that calling track() stores data and public properties return it."""
@@ -157,6 +167,34 @@ class TestBeamObservationInRingElement(BLonDTestCase):
         )
         self.assertEqual(len(observation._flags.get_valid_entries()), 0)
 
+    def test_each_turn_i_with_repeated_element(self):
+        """The same element placed 5 times in the ring, observed on turns
+        0 and 2 of 3 with ``each_turn_i=2``; all ten recordings must
+        fit."""
+        observation = BeamObservationInRingElement(
+            each_turn_i=2,
+            section_index=0,
+            n_turns=3,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        local_simulation = _simulation_with([observation] * 5)
+        local_simulation.ring.elements.get_elements.return_value = [
+            observation
+        ] * 5
+        observation.on_run_simulation(
+            simulation=local_simulation,
+            beam=beam,
+            n_turns=3,
+        )
+
+        for turn_i in range(3):
+            if not observation.is_active_this_turn(turn_i=turn_i):
+                continue
+            for _ in range(5):
+                observation.track(beam)
+
+        self.assertEqual(len(observation.dEs), 10)
+
 
 class TestBunchObservationMetaParams(BLonDTestCase):
     def test_ignores_probe_beam(self):
@@ -194,6 +232,29 @@ class TestBunchObservationMetaParams(BLonDTestCase):
         self.assertEqual(len(observation.mean_dt), 0)
         self.assertEqual(len(observation.mean_dE), 0)
         self.assertEqual(len(observation.rms_emittance), 0)
+
+    def test_each_turn_i_not_dividing_n_turns(self):
+        """Turns 0, 2, 4 of 5 are observed with ``each_turn_i=2``; all
+        three observations must fit into the recorders."""
+        observation = BunchObservationMetaParams(
+            each_turn_i=2,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        observation.on_run_simulation(
+            simulation=_simulation_with([observation]),
+            beam=beam,
+            n_turns=5,
+        )
+        observed_beam = Mock(BeamBaseClass)
+        observed_beam._dt = np.arange(4, dtype=float)
+        observed_beam._dE = np.arange(4, dtype=float)
+        observed_beam.rms_emittance = 1.0
+
+        for turn_i in range(5):
+            if observation.is_active_this_turn(turn_i=turn_i):
+                observation.track(observed_beam)
+
+        self.assertEqual(len(observation.mean_dt), 3)
 
 
 class TestInducedVoltageObservationCR(BLonDTestCase):
@@ -248,6 +309,43 @@ class TestInducedVoltageObservationCR(BLonDTestCase):
             len(observation._beam_reference_time.get_valid_entries()), 0
         )
         self.assertEqual(len(observation._beam_profile.get_valid_entries()), 0)
+
+    def test_each_turn_i_not_dividing_n_turns(self):
+        """Turns 0, 2, 4 of 5 are observed with ``each_turn_i=2``, each
+        recording both beams; all six observations must fit."""
+        wake_field = Mock(WakeField)
+        wake_field._profile = Mock(StaticProfile)
+        wake_field._profile.hist_x = np.arange(3)
+        wake_field.profile = wake_field._profile
+        wake_field.profile.hist_y = np.ones(3)
+        wake_field.induced_voltage = np.ones(3)
+
+        observation = InducedVoltageObservationCR(
+            each_turn_i=2,
+            folder=callers_relative_path("results/", stacklevel=1),
+            wake_field=wake_field,
+        )
+        local_simulation = _simulation_with([observation])
+        observation.on_run_simulation(
+            simulation=local_simulation,
+            beam=beam,
+            n_turns=5,
+        )
+        observed_beam = Mock(BeamBaseClass)
+        observed_beam.reference = Mock(ReferenceCoordinates)
+        observed_beam.reference.time = 0.8
+
+        for turn_i in range(5):
+            local_simulation.turn_counter.value = turn_i
+            if not observation.is_active_this_turn(turn_i=turn_i):
+                continue
+            # OBS CAV OBS per beam: only the second passage records
+            for is_counter_rotating in (False, True):
+                observed_beam._is_counter_rotating = is_counter_rotating
+                observation.track(observed_beam)
+                observation.track(observed_beam)
+
+        self.assertEqual(len(observation.beam_reference_time), 6)
 
 
 if __name__ == "__main__":

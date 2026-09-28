@@ -13,7 +13,6 @@ from __future__ import annotations
 import itertools
 import os
 import time
-import weakref
 from typing import TYPE_CHECKING
 
 import cupy as cp  # type: ignore
@@ -26,6 +25,7 @@ from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability
@@ -101,42 +101,24 @@ block_size = (threads, 1, 1)
 # 64-bit counter would halve the number of bins that fit in shared memory
 # for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
 _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
+# Per-harmonic RF parameters are passed to `kick_multi_harmonic` by value,
+# as a struct in the kernel's parameter space (`RFParamsBatch` in
+# kernels.cu): no host-to-device copy per turn. Both must match their
+# counterparts in kernels.cu.
+# The 32 is unrelated to the warp size: every thread loops over all
+# harmonics of the batch. It is bounded by the kernel parameter limit
+# (4 KiB before CUDA 12.1 / Volta), which would fit ~160 harmonics at
+# 64 bit; 32 keeps the struct small (768 B) while still covering any
+# realistic RF system in a single launch.
+MAX_RF_HARMONICS_PER_LAUNCH = 32
+_RF_PARAMS_BATCH_DTYPE = np.dtype(
+    [
+        ("voltage", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+        ("omega_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+        ("phi_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+    ]
+)
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
-
-# Cache of uniformity verdicts for `bin_centers` arrays passed to the
-# dense path of `kick_interpolated`. `bin_centers` is rebuilt only on
-# profile reconfiguration (not every turn), so checking it once per
-# distinct array avoids a host<->device sync (`cp.allclose(...).__bool__`)
-# on every call, which would otherwise happen once per RF turn.
-# Keyed by `id()`, which CPython/CuPy may reuse for an unrelated array
-# once the original is garbage collected. That reuse window is closed
-# by `weakref.finalize`: it purges the entry at the exact moment the
-# original array is deallocated, so a stale verdict can never be read
-# for a different array that later gets the same id.
-_MAX_UNIFORMITY_CACHE_SIZE = 64
-_bin_centers_uniformity_cache: dict[int, bool] = {}
-
-
-def _is_uniformly_spaced(bin_centers: CupyArray) -> bool:
-    """Check (and cache) whether `bin_centers` is uniformly spaced.
-
-    The check is memoized per distinct array identity so that the
-    `cp.allclose` host<->device sync only occurs once per distinct
-    `bin_centers` array rather than on every `kick_interpolated` call.
-    """
-    key = id(bin_centers)
-    cached = _bin_centers_uniformity_cache.get(key)
-    if cached is not None:
-        return cached
-
-    diffs = cp.diff(bin_centers)
-    is_uniform = bool(cp.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0))
-
-    if len(_bin_centers_uniformity_cache) >= _MAX_UNIFORMITY_CACHE_SIZE:
-        _bin_centers_uniformity_cache.clear()
-    _bin_centers_uniformity_cache[key] = is_uniform
-    weakref.finalize(bin_centers, _bin_centers_uniformity_cache.pop, key, None)
-    return is_uniform
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -226,52 +208,53 @@ class CudaSpecials(Specials):  # NOQA: D101
     def kick_multi_harmonic(  # NOQA: D102
         dt: CupyArray,
         dE: CupyArray,
-        voltage: CupyArray,
-        omega_rf: CupyArray,
-        phi_rf: CupyArray,
+        voltage: NumpyArray,
+        omega_rf: NumpyArray,
+        phi_rf: NumpyArray,
         charge: float,
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
-        assert phi_rf.device != "cpu", (
-            f"Requires Cupy array, but got {type(phi_rf)}."
-        )
-        assert voltage.device != "cpu", (
-            f"Requires Cupy array, but got {type(voltage)}."
-        )
-        assert omega_rf.device != "cpu", (
-            f"Requires Cupy array, but got {type(omega_rf)}."
-        )
+        # The per-harmonic parameters stay on the host: they are passed to
+        # the kernel by value, see `_RF_PARAMS_BATCH_DTYPE`.
+        assert isinstance(voltage, np.ndarray), type(voltage)
+        assert isinstance(omega_rf, np.ndarray), type(omega_rf)
+        assert isinstance(phi_rf, np.ndarray), type(phi_rf)
 
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
-        assert phi_rf.dtype == FLOAT
-        assert voltage.dtype == FLOAT
-        assert omega_rf.dtype == FLOAT
 
         assert dt.flags.c_contiguous
         assert dE.flags.c_contiguous
-        assert voltage.flags.c_contiguous
-        assert omega_rf.flags.c_contiguous
-        assert phi_rf.flags.c_contiguous
 
-        _kick_multi_harmonic(
-            args=(
-                dt,  # beam_dt
-                dE,  # beam_dE
-                np.int32(len(voltage)),  # n_rf
-                FLOAT(charge),  # charge
-                voltage,  # voltage
-                omega_rf,  # omega_RF
-                phi_rf,  # phi_RF
-                INDEX_DTYPE(len(dE)),  # n_macroparticles
-                FLOAT(acceleration_kick),  # acc_kick
-            ),
-            block=block_size,
-            grid=grid_size,
-        )
+        assert len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
+
+        # One launch per `MAX_RF_HARMONICS_PER_LAUNCH` harmonics, and at
+        # least one so that `acceleration_kick` is applied for n_rf == 0.
+        # Each launch adds its harmonics to `dE`; only the last one adds
+        # `acceleration_kick`.
+        for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_LAUNCH):
+            last = min(first + MAX_RF_HARMONICS_PER_LAUNCH, n_rf)
+            rf_params_batch = np.zeros((), dtype=_RF_PARAMS_BATCH_DTYPE)
+            rf_params_batch["voltage"][: last - first] = voltage[first:last]
+            rf_params_batch["omega_rf"][: last - first] = omega_rf[first:last]
+            rf_params_batch["phi_rf"][: last - first] = phi_rf[first:last]
+            is_last_launch = last == n_rf
+            _kick_multi_harmonic(
+                args=(
+                    dt,  # beam_dt
+                    dE,  # beam_dE
+                    rf_params_batch,  # rf_params_batch
+                    np.int32(last - first),  # n_rf_in_batch
+                    FLOAT(charge),  # charge
+                    INDEX_DTYPE(len(dE)),  # n_macroparticles
+                    FLOAT(acceleration_kick if is_last_launch else 0.0),
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     @staticmethod
     def sum_1d_array(array: CupyArray) -> float:
@@ -363,7 +346,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 eta_0,  # eta_zero
                 beta,  # beta
                 energy,  # energy
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -453,20 +436,10 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         if first_left_cut is None:
             n_slices = bin_centers.size
-            if n_slices >= 2 and not _is_uniformly_spaced(  # noqa: PLR2004
-                bin_centers
-            ):
-                raise ValueError(
-                    "bin_centers is not uniformly spaced (looks like "
-                    "a sparse/multi-island "
-                    "EquidistantMultiProfile.hist_x). Either pass "
-                    "this profile's sparse metadata (first_left_cut, "
-                    "left_cut_distance, cut_width, bins_per_profile, "
-                    "filling_pattern, bucket_index_to_memory_index), "
-                    "e.g. via `profile.sparse_kick_metadata`, or use "
-                    "EquidistantMultiProfile.profiles[i].hist_x for "
-                    "a single bucket."
-                )
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
 
             glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
             _gm_linear_interp_kick_help(

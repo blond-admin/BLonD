@@ -270,17 +270,14 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
 ) -> None:
     if len(bin_centers) < 2:  # noqa: PLR2004
         # A single-bin (or empty) `bin_centers` has no width to
-        # interpolate across -- nothing can be kicked. Bail out before the
-        # `len(bin_centers) - 1` division below, which would otherwise
-        # raise `ZeroDivisionError` (unlike the float division the
-        # python/cpp backends perform, which quietly yields `nan` and
-        # skips every particle via the range check).
-        # `acceleration_kick` is not an interpolated quantity -- it carries
-        # the reference energy change and applies to the whole beam, so it
-        # is still delivered to every particle here.
-        for i in prange(len(dE)):
-            dE[i] += acceleration_kick
-        return
+        # interpolate across. The wrapper asserts this, so it is reached
+        # only under `python -O`; refuse outright rather than apply
+        # `acceleration_kick` alone, which would be only part of the kick
+        # (and rather than the bare `ZeroDivisionError` of the
+        # `len(bin_centers) - 1` division below).
+        raise ValueError(
+            "kick_interpolated needs at least 2 bins to interpolate across"
+        )
     dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
     inv_dx = 1 / dx
     x_min = bin_centers[0]
@@ -716,20 +713,10 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     ) -> None:
         if first_left_cut is None:
             n_slices = len(bin_centers)
-            if n_slices >= 2:  # noqa: PLR2004
-                diffs = np.diff(bin_centers)
-                if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
-                    raise ValueError(
-                        "bin_centers is not uniformly spaced (looks like "
-                        "a sparse/multi-island "
-                        "EquidistantMultiProfile.hist_x). Either pass "
-                        "this profile's sparse metadata (first_left_cut, "
-                        "left_cut_distance, cut_width, bins_per_profile, "
-                        "filling_pattern, bucket_index_to_memory_index), "
-                        "e.g. via `profile.sparse_kick_metadata`, or use "
-                        "EquidistantMultiProfile.profiles[i].hist_x for "
-                        "a single bucket."
-                    )
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
             _kick_interpolated_dense_nb(
                 dt, dE, voltage, bin_centers, charge, acceleration_kick
             )

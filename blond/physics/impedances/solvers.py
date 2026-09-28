@@ -245,14 +245,15 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 break
 
     @property
-    def t_periodicity(self) -> float:
+    def t_periodicity(self) -> float | None:
         """
         Periodicity that is assumed for fast fourier transform in  [s].
 
         Returns
         -------
         t_periodicity
-            Periodicity for FFT, in [s].
+            Periodicity for FFT, in [s]. ``None`` if it was not given on
+            construction and the solver is not initialized yet.
         """
         return self._t_periodicity
 
@@ -1265,7 +1266,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     ) -> None:
         self._poles: NumpyArray | CupyArray | None = None
         self._residues: NumpyArray | CupyArray | None = None
-        self._profile: EquidistantMultiProfile | None = None
+        self._profile: EquidistantMultiProfile | StaticProfile | None = None
         self._parent_wakefield: WakeField | None = None
         self._voltage: NumpyArray | CupyArray | None = None
         self.last_reference_time: float | None = None
@@ -1287,10 +1288,21 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             `Simulation` context manager.
         parent_wakefield
             `WakeField` that this solver affiliated to.
-        """
-        self._parent_wakefield = parent_wakefield
 
-        self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
+        Raises
+        ------
+        TypeError
+            If the profile is neither an `EquidistantMultiProfile` nor a
+            `StaticProfile`.
+        """
+        profile = parent_wakefield.profile
+        if not isinstance(profile, (EquidistantMultiProfile, StaticProfile)):
+            raise TypeError(
+                "Expected `EquidistantMultiProfile` or `StaticProfile`,"
+                f" but got {type(profile)=}."
+            )
+        self._parent_wakefield = parent_wakefield
+        self._profile = profile
 
     def _finalize_solver(self, beam):
         poles = []
