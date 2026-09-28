@@ -678,6 +678,8 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         # Advance reference
         dt = self.track_reference(beam.reference)
+        # Linear slip factor, recorded for observations only
+        self._last_eta_0 = self.eta_0(beam.reference.gamma)
 
         higher_alpha = backend.array(
             self.higher_order_alpha

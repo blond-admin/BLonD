@@ -43,11 +43,11 @@ extern "C" __global__ void
 drift_like_line_segment(real_t *__restrict__ beam_dt,
                         real_t *__restrict__ beam_dE, const real_t T,
                         const real_t eta_zero, const real_t beta,
-                        const real_t energy, const int n_macroparticles) {
+                        const real_t energy, const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
-  for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
     const real_t dE = beam_dE[i];
     const real_t delta =
         sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
@@ -61,9 +61,9 @@ extern "C" __global__ void
 kick_single_harmonic(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                      const real_t charge, const real_t voltage,
                      const real_t omega_RF, const real_t phi_RF,
-                     const int n_macroparticles, const real_t acc_kick) {
+                     const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     beam_dE[i] +=
         charge * voltage * sin(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
   }
