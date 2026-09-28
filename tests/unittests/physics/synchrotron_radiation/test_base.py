@@ -17,10 +17,12 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.core.backends.backend import INDEX_DTYPE, backend
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import DynamicParameter, SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
