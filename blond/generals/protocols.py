@@ -12,10 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:  # pragma: no cover
-    pass
+    from numpy.typing import NDArray as NumpyArray
 
 from typing import Any, Protocol
 
@@ -37,9 +35,9 @@ class AnyInterpolator(Protocol):
         Additional keyword arguments.
     """
 
-    def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None: ...
+    def __init__(self, x: NumpyArray, y: NumpyArray, **kwargs) -> None: ...
 
-    def __call__(self, x: float | np.ndarray) -> np.ndarray:
+    def __call__(self, x: float | NumpyArray) -> NumpyArray:
         """
         Interpolate at new points x.
 
