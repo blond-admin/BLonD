@@ -46,18 +46,28 @@ namespace {
 // One queued op with its arguments and any state it needs across chunks.
 class QueuedOp {
 public:
+  // Subclasses bring their own args and state.
   QueuedOp() = default;
+  // Not copyable: an op owns per-flush buffers (tables, histogram rows).
   QueuedOp(const QueuedOp &) = delete;
   QueuedOp &operator=(const QueuedOp &) = delete;
+  // Not movable: a queued op stays in place, held by pointer.
   QueuedOp(QueuedOp &&) = delete;
   QueuedOp &operator=(QueuedOp &&) = delete;
+  // Virtual, so deleting through a QueuedOp* destroys the derived op.
   virtual ~QueuedOp() = default;
   // Once, before the first chunk, outside the parallel region.
+  // Optional setup, e.g. build the interpolation table or zero the
+  // per-thread histogram rows; no-op by default.
   virtual void prepare(int /*n_threads*/) {}
   // Per chunk, on the thread `thread_id`.
+  // Required: run the op on particles [begin, end); `thread_id` selects
+  // the thread-private scratch, if any.
   virtual void apply(real_t *beam_dt, real_t *beam_dE, index_t begin,
                      index_t end, int thread_id) = 0;
   // Once, after the last chunk, outside the parallel region.
+  // Optional teardown, e.g. sum the per-thread histogram rows into the
+  // output; no-op by default.
   virtual void finalize(int /*n_threads*/) {}
 };
 
