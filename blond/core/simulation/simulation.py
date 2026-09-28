@@ -797,9 +797,9 @@ class Simulation(Preparable):
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
 
-        beams = filter_elements(locals_list, BeamBaseClass)  # type: ignore
+        beams = filter_elements(locals_list, BeamBaseClass)
 
-        _magnetic_cycle = filter_elements(locals_list, MagneticCycleBase)  # type: ignore
+        _magnetic_cycle = filter_elements(locals_list, MagneticCycleBase)
         assert len(_magnetic_cycle) == 1, (
             f"Found {len(_magnetic_cycle)} energy cycles"
         )

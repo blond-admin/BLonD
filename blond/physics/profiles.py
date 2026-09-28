@@ -206,7 +206,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         if backend.is_gpu:
             first_hist_x = first_hist_x.get()
             second_hist_x = second_hist_x.get()
-        return float(second_hist_x - first_hist_x)  # type: ignore
+        return float(second_hist_x - first_hist_x)
 
     @cached_property
     def cut_left(self) -> float:
@@ -224,7 +224,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         fist_hist_x = self._hist_x[0]
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
-        return float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
+        return float(fist_hist_x - self.hist_step / 2.0)
 
     @cached_property
     def cut_right(self) -> float:
@@ -242,7 +242,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         last_hist_x = self._hist_x[-1]
         if backend.is_gpu:
             last_hist_x = last_hist_x.get()
-        return float(last_hist_x + self.hist_step / 2.0)  # type: ignore
+        return float(last_hist_x + self.hist_step / 2.0)
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -444,7 +444,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
-                self._hist_y,  # type: ignore
+                self._hist_y,
                 n_fft,
             )
         # recycle array, but overwrite data (preventing new array allocation)
@@ -459,7 +459,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             backend.fft.rfft(
                 self._hist_y,
                 n_fft,
-                out=self._beam_spectrum_buffer[n_fft],  # type: ignore
+                out=self._beam_spectrum_buffer[n_fft],
             )
 
         return self._beam_spectrum_buffer[n_fft]

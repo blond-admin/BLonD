@@ -238,7 +238,7 @@ class DenseArrayRecorder(ArrayRecorder):
             All elements that are not marked by the mask are set to `NaN`.
         """
         if is_cupy_array(newdata):
-            newdata = newdata.get()  # type: ignore
+            newdata = newdata.get()
         if mask is None:
             self._memory[self._write_idx] = newdata
         else:

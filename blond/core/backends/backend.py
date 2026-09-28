@@ -721,7 +721,7 @@ class BackendBaseClass(ABC):
         self.copy: Callable = None  # type: ignore
         self.ones_like: Callable = None  # type: ignore
         self.add: Callable = None  # type: ignore
-        self.default_rng: object = None  # type: ignore
+        self.default_rng: object = None
         self.concatenate: Callable = None  # type: ignore
         self.unique: Callable = None  # type: ignore
         self.repeat: Callable = None  # type: ignore
@@ -858,7 +858,7 @@ class BackendBaseClass(ABC):
                 "cpp_single_core",
                 "numba",
                 "cuda",
-            ] = _backend_mode_raw  # type: ignore
+            ] = _backend_mode_raw
         else:
             raise ValueError(
                 f"The environment variable `BLOND_BACKEND_MODE` "
@@ -872,7 +872,7 @@ class BackendBaseClass(ABC):
         )
         _allowed_backend_bits_flag = ("64",)
         if _backend_bits_raw in _allowed_backend_bits_flag:
-            _backend_bits: Literal["64",] = _backend_bits_raw  # type: ignore
+            _backend_bits: Literal["64",] = _backend_bits_raw
         else:
             raise ValueError(
                 f"The environment variable `BLOND_BACKEND_BITS` "
@@ -886,7 +886,7 @@ class BackendBaseClass(ABC):
             # Anyways its beter to write if, elif, else explicitly
             raise ValueError(_backend_bits)  # pragma: no cover
         self.change_backend(backend_class_for_mode(_backend_mode))
-        self.set_specials(mode=_backend_mode)  # type: ignore
+        self.set_specials(mode=_backend_mode)
 
     def temporary_specials_mode(self, mode: SpecialsMode):
         """
