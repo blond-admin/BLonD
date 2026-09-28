@@ -16,12 +16,13 @@ turn, which dominates the run time. This module runs the same recursion
 compiled.
 
 Each block of the loop is one function here, mirroring the method of the
-same name on :class:`LHCCavityFeedback`, so that the kernel can be read
-next to the Python reference implementation it must reproduce
-(``LHCCavityFeedback.track_one_turn_reference``). The blocks are declared
-``inline="always"``, so the compiler sees one flat loop regardless of the
-split: measured against a single monolithic function, the modular form
-costs nothing.
+same name on
+:class:`~blond.physics.feedbacks.accelerators.lhc.cavity_feedback.LHCCavityFeedback`,
+so that the kernel can be read next to the Python reference implementation
+it must reproduce (``LHCCavityFeedback.track_one_turn_reference``). The
+blocks are declared ``inline="always"``, so the compiler sees one flat loop
+regardless of the split: measured against a single monolithic function,
+the modular form costs nothing.
 
 All signals travel as **one** array, ``signals``, of shape
 ``(N_SIGNALS, 2 * n_coarse)``: row ``V_ANT`` holds the antenna voltage,
@@ -36,9 +37,10 @@ one argument per buffer it costs nothing, whereas holding the arrays in a
 tuple instead is about three times slower and cannot be cached.
 
 :data:`SIGNAL_NAMES` is the single definition of the row order:
-:class:`LHCCavityFeedbackCoarseBuffers` allocates the block and hands out
-its rows in that order, so adding or renaming a signal is one edit here
-plus its dataclass field, and no signature changes.
+:class:`~blond.physics.feedbacks.accelerators.lhc.cavity_feedback.LHCCavityFeedbackCoarseBuffers`
+allocates the block and hands out its rows in that order, so adding or
+renaming a signal is one edit here plus its dataclass field, and no
+signature changes.
 
 This kernel is CPU-only (NumPy arrays, Numba ``njit``), matching the
 feedback buffers, which are allocated as NumPy arrays and never live on a
@@ -56,7 +58,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 #: Row order of the ``signals`` block, and therefore the order in which
-#: :class:`LHCCavityFeedbackCoarseBuffers` hands out its rows.
+#: :class:`~blond.physics.feedbacks.accelerators.lhc.cavity_feedback.LHCCavityFeedbackCoarseBuffers`
+#: hands out its rows.
 SIGNAL_NAMES = (
     "v_setpoint",
     "v_ant",
