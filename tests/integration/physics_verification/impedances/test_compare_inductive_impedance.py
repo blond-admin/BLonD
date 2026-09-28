@@ -15,9 +15,18 @@ import pytest
 
 from blond import copy_to_cpu, setup_backend
 from blond.examples import scripts
+from blond.testing.helpers import save_golden_file
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(scripts.__path__[0]) / "resources"
+
+# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
+REWRITE_GOLDEN_FILE = False
+_GOLDEN_PATH = (
+    Path(__file__).parent
+    / "resources"
+    / "compare_inductive_impedance_blond2.npz"
+)
 
 ind_volt_freq_active = False
 steps_active = True
@@ -118,11 +127,22 @@ class _CompareBlond23:
             [self.phi_offset],
             self.n_rf_systems,
         )
-        my_beam = Beam(ring, self.n_macroparticles, self.n_particles)
+        full_beam = Beam(ring, self.n_macroparticles, self.n_particles)
+        bigaussian(ring, RF_sct_par, full_beam, self.sigma_dt, seed=1)
+        # Keeps the golden file small (0.8 MB instead of 8 MB): only every
+        # 10th bigaussian particle is kept. BLonD 2 tracks this thinned
+        # beam, and BLonD 3 loads the same particles from the golden file,
+        # so both still see identical input.
+        dt_init = full_beam.dt[::10].copy()
+        dE_init = full_beam.dE[::10].copy()
+        my_beam = Beam(
+            ring,
+            len(dt_init),
+            self.n_particles,
+            dt=dt_init.copy(),
+            dE=dE_init.copy(),
+        )
         ring_RF_section = RingAndRFTracker(RF_sct_par, my_beam)
-        bigaussian(ring, RF_sct_par, my_beam, self.sigma_dt, seed=1)
-        dt_init = my_beam.dt.copy()
-        dE_init = my_beam.dE.copy()
         slice_beam = Profile(
             my_beam,
             CutOptions(
@@ -278,9 +298,20 @@ class _CompareBlond23:
         return copy_to_cpu(total_voltage), copy_to_cpu(profile.hist_y)
 
     def execute(self):
-        induced_voltage_blond2, hist_y_blond2, dt_init, dE_init = (
-            self._exec_blond2()
-        )
+        if REWRITE_GOLDEN_FILE:
+            induced_voltage, hist_y, dt_init, dE_init = self._exec_blond2()
+            save_golden_file(
+                _GOLDEN_PATH,
+                induced_voltage=induced_voltage,
+                hist_y=hist_y,
+                dt_init=dt_init,
+                dE_init=dE_init,
+            )
+        with np.load(_GOLDEN_PATH) as golden:
+            induced_voltage_blond2 = golden["induced_voltage"]
+            hist_y_blond2 = golden["hist_y"]
+            dt_init = golden["dt_init"]
+            dE_init = golden["dE_init"]
         induced_voltage_blond3, hist_y_blond3 = self._exec_blond3(
             dt_init, dE_init
         )

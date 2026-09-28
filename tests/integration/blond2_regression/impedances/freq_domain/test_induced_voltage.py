@@ -11,8 +11,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from blond.testing.helpers import save_golden_file
+
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(__file__).parent / "resources"
+
+# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
+REWRITE_GOLDEN_FILE = False
 
 
 @pytest.mark.integration
@@ -145,62 +150,79 @@ def test_induced_voltage():
         callbacks=_blond3_callback,
     )
 
-    # ── BLonD 2 ──────────────────────────────────────────────────────────────
-    from blond.legacy.blond2.beam.beam import Beam, Proton
-    from blond.legacy.blond2.beam.profile import CutOptions, Profile
-    from blond.legacy.blond2.impedances.impedance import (
-        InducedVoltageFreq,
-        TotalInducedVoltage,
-    )
-    from blond.legacy.blond2.impedances.impedance_sources import Resonators
-    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
-    from blond.legacy.blond2.input_parameters.ring import Ring
-    from blond.legacy.blond2.trackers.tracker import (
-        FullRingAndRF,
-        RingAndRFTracker,
-    )
-
-    ring = Ring(
-        CIRCUMFERENCE,
-        1 / transition_gamma.copy() ** 2,
-        momentum.copy(),
-        Proton(),
-        n_turns=N_TURNS,
-    )
-    beam2 = Beam(
-        ring, N_MACROS, INTENSITY, dt=INITIAL_T.copy(), dE=INITIAL_E.copy()
-    )
-    rf = RFStation(ring, HARMONIC, VOLTAGE, phi_rf.copy())
-    resonator = Resonators(R_SH, F_RES, Q)
-    cut_options = CutOptions(0, PROFILE_LENGTH, N_BINS)
-    profile2 = Profile(beam2, cut_options)
-    induced_voltage = InducedVoltageFreq(beam2, profile2, [resonator])
-    total_induced_voltage = TotalInducedVoltage(
-        beam2, profile2, [induced_voltage]
-    )
-    full_tracker = FullRingAndRF(
-        [RingAndRFTracker(rf, beam2, solver="simple")]
-    )
-
-    time_history_blond2 = np.empty(SIM_TURNS + 1)
-    energy_history_blond2 = np.empty(SIM_TURNS + 1)
-    profile_history_blond2 = np.empty((N_BINS, SIM_TURNS + 1))
-    induced_history_blond2 = np.empty((N_BINS, SIM_TURNS + 1))
-    profile_history_blond2[:, 0] = profile2.n_macroparticles
-    induced_history_blond2[:, 0] = total_induced_voltage.induced_voltage
-    time_history_blond2[0] = beam2.dt[0]
-    energy_history_blond2[0] = beam2.dE[0]
-
-    for turn in range(SIM_TURNS):
-        full_tracker.track()
-        profile2.track()
-        total_induced_voltage.track()
-        time_history_blond2[turn + 1] = beam2.dt[0]
-        energy_history_blond2[turn + 1] = beam2.dE[0]
-        profile_history_blond2[:, turn + 1] = profile2.n_macroparticles
-        induced_history_blond2[:, turn + 1] = (
-            total_induced_voltage.induced_voltage
+    # ── BLonD 2 (golden file) ────────────────────────────────────────────
+    golden_path = _RESOURCES / "induced_voltage_blond2.npz"
+    if REWRITE_GOLDEN_FILE:
+        from blond.legacy.blond2.beam.beam import Beam, Proton
+        from blond.legacy.blond2.beam.profile import CutOptions, Profile
+        from blond.legacy.blond2.impedances.impedance import (
+            InducedVoltageFreq,
+            TotalInducedVoltage,
         )
+        from blond.legacy.blond2.impedances.impedance_sources import Resonators
+        from blond.legacy.blond2.input_parameters.rf_parameters import (
+            RFStation,
+        )
+        from blond.legacy.blond2.input_parameters.ring import Ring
+        from blond.legacy.blond2.trackers.tracker import (
+            FullRingAndRF,
+            RingAndRFTracker,
+        )
+
+        ring = Ring(
+            CIRCUMFERENCE,
+            1 / transition_gamma.copy() ** 2,
+            momentum.copy(),
+            Proton(),
+            n_turns=N_TURNS,
+        )
+        beam2 = Beam(
+            ring, N_MACROS, INTENSITY, dt=INITIAL_T.copy(), dE=INITIAL_E.copy()
+        )
+        rf = RFStation(ring, HARMONIC, VOLTAGE, phi_rf.copy())
+        resonator = Resonators(R_SH, F_RES, Q)
+        cut_options = CutOptions(0, PROFILE_LENGTH, N_BINS)
+        profile2 = Profile(beam2, cut_options)
+        induced_voltage = InducedVoltageFreq(beam2, profile2, [resonator])
+        total_induced_voltage = TotalInducedVoltage(
+            beam2, profile2, [induced_voltage]
+        )
+        full_tracker = FullRingAndRF(
+            [RingAndRFTracker(rf, beam2, solver="simple")]
+        )
+
+        time_history_blond2 = np.empty(SIM_TURNS + 1)
+        energy_history_blond2 = np.empty(SIM_TURNS + 1)
+        profile_history_blond2 = np.empty((N_BINS, SIM_TURNS + 1))
+        induced_history_blond2 = np.empty((N_BINS, SIM_TURNS + 1))
+        profile_history_blond2[:, 0] = profile2.n_macroparticles
+        induced_history_blond2[:, 0] = total_induced_voltage.induced_voltage
+        time_history_blond2[0] = beam2.dt[0]
+        energy_history_blond2[0] = beam2.dE[0]
+
+        for turn in range(SIM_TURNS):
+            full_tracker.track()
+            profile2.track()
+            total_induced_voltage.track()
+            time_history_blond2[turn + 1] = beam2.dt[0]
+            energy_history_blond2[turn + 1] = beam2.dE[0]
+            profile_history_blond2[:, turn + 1] = profile2.n_macroparticles
+            induced_history_blond2[:, turn + 1] = (
+                total_induced_voltage.induced_voltage
+            )
+
+        save_golden_file(
+            golden_path,
+            time_history=time_history_blond2,
+            energy_history=energy_history_blond2,
+            profile_history=profile_history_blond2,
+            induced_history=induced_history_blond2,
+        )
+    with np.load(golden_path) as golden:
+        time_history_blond2 = golden["time_history"]
+        energy_history_blond2 = golden["energy_history"]
+        profile_history_blond2 = golden["profile_history"]
+        induced_history_blond2 = golden["induced_history"]
 
     if _DEV_DRAW:
         plt.figure()

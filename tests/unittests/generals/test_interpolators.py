@@ -4,7 +4,12 @@ import numpy as np
 from scipy.integrate import cumulative_trapezoid
 
 from blond import DerivativeInterpolator
+from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_golden_file
+
+# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
+REWRITE_GOLDEN_FILE = False
 
 
 def _knot_aligned_grid(time, n_sub=51):
@@ -273,25 +278,44 @@ class TestDerivativeInterpolatorInMagneticCycle(BLonDTestCase):
         )
 
 
+def _run_blond2_ring_options(circumference, time, momentum):
+    from blond import proton
+    from blond.legacy.blond2.input_parameters.ring_options import (
+        RingOptions,
+    )
+
+    time_blond2, momentum_blond2 = RingOptions(
+        interpolation="derivative"
+    ).preprocess(
+        mass=proton.mass,
+        circumference=circumference,
+        time=time,
+        momentum=momentum,
+    )
+    return {
+        "time": np.asarray(time_blond2),
+        "momentum": np.asarray(momentum_blond2),
+    }
+
+
 class TestAgreementWithBlond2(BLonDTestCase):
     def test_reproduces_the_blond2_derivative_preprocessing(self):
-        from blond import proton
-        from blond.legacy.blond2.input_parameters.ring_options import (
-            RingOptions,
-        )
-
         circumference = 2 * np.pi * 100.0
         time = np.linspace(0.0, 0.5, 51)
         momentum = 2e9 + 24e9 * (0.5 - 0.5 * np.cos(np.pi * time / 0.5))
 
-        time_blond2, momentum_blond2 = RingOptions(
-            interpolation="derivative"
-        ).preprocess(
-            mass=proton.mass,
-            circumference=circumference,
-            time=time,
-            momentum=momentum,
+        golden_path = callers_relative_path(
+            "resources/ring_options_derivative_preprocessing_blond2.npz",
+            stacklevel=1,
         )
+        if REWRITE_GOLDEN_FILE:
+            save_golden_file(
+                golden_path,
+                **_run_blond2_ring_options(circumference, time, momentum),
+            )
+        with np.load(golden_path) as golden:
+            time_blond2 = golden["time"]
+            momentum_blond2 = golden["momentum"]
         n_common = min(len(time_blond2), len(momentum_blond2))
         time_blond2 = np.asarray(time_blond2[:n_common])
         momentum_blond2 = np.asarray(momentum_blond2[:n_common])

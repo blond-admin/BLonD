@@ -18,9 +18,13 @@ from blond.core.backends.backend import (
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_golden_file
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(__file__).parent / "resources"
+
+# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
+REWRITE_GOLDEN_FILE = False
 
 
 @pytest.mark.integration
@@ -151,57 +155,72 @@ class TestKickDrift(BLonDTestCase):
         time_history_blond3 = copy_to_cpu(bunch_observation.dts)[:, 0]
         energy_history_blond3 = copy_to_cpu(bunch_observation.dEs)[:, 0]
 
-        # ── BLonD 2 ──────────────────────────────────────────────────────
-        from blond.legacy.blond2.beam.beam import Beam, Proton
-        from blond.legacy.blond2.input_parameters.rf_parameters import (
-            RFStation,
-        )
-        from blond.legacy.blond2.input_parameters.ring import Ring
-        from blond.legacy.blond2.trackers.tracker import (
-            FullRingAndRF,
-            RingAndRFTracker,
-        )
-        from blond.legacy.blond2.utils import bmath
+        # ── BLonD 2 (golden file) ────────────────────────────────────────
+        golden_path = _RESOURCES / "kickdrift_blond2.npz"
+        if REWRITE_GOLDEN_FILE:
+            from blond.legacy.blond2.beam.beam import Beam, Proton
+            from blond.legacy.blond2.input_parameters.rf_parameters import (
+                RFStation,
+            )
+            from blond.legacy.blond2.input_parameters.ring import Ring
+            from blond.legacy.blond2.trackers.tracker import (
+                FullRingAndRF,
+                RingAndRFTracker,
+            )
+            from blond.legacy.blond2.utils import bmath
 
-        # Force BLonD 2 onto its fastest available CPU backend (cpp > numba >
-        # python). The legacy ``bm`` singleton is a mutable global; without
-        # this the per-turn reference loop could inherit the pure-python
-        # backend left active by an earlier test and run ~50x slower.
-        bmath.use_cpu()
+            # Force BLonD 2 onto its fastest available CPU backend (cpp > numba >
+            # python). The legacy ``bm`` singleton is a mutable global; without
+            # this the per-turn reference loop could inherit the pure-python
+            # backend left active by an earlier test and run ~50x slower.
+            bmath.use_cpu()
 
-        ring = Ring(
-            CIRCUMFERENCE,
-            1 / transition_gamma.copy() ** 2,
-            momentum.copy(),
-            Proton(),
-            n_turns=N_TURNS,
-        )
-        beam2 = Beam(
-            ring, N_MACROS, INTENSITY, dt=INITIAL_T.copy(), dE=INITIAL_E.copy()
-        )
-        rf = RFStation(ring, HARMONIC, VOLTAGE, phi_rf.copy())
+            ring = Ring(
+                CIRCUMFERENCE,
+                1 / transition_gamma.copy() ** 2,
+                momentum.copy(),
+                Proton(),
+                n_turns=N_TURNS,
+            )
+            beam2 = Beam(
+                ring,
+                N_MACROS,
+                INTENSITY,
+                dt=INITIAL_T.copy(),
+                dE=INITIAL_E.copy(),
+            )
+            rf = RFStation(ring, HARMONIC, VOLTAGE, phi_rf.copy())
 
-        full_tracker = FullRingAndRF(
-            [RingAndRFTracker(rf, beam2, solver="simple")]
-        )
+            full_tracker = FullRingAndRF(
+                [RingAndRFTracker(rf, beam2, solver="simple")]
+            )
 
-        time_history_blond2 = np.empty(N_TURNS + 1)
-        energy_history_blond2 = np.empty(N_TURNS + 1)
-        time_history_blond2[0] = beam2.dt[0]
-        energy_history_blond2[0] = beam2.dE[0]
+            time_history_blond2 = np.empty(N_TURNS + 1)
+            energy_history_blond2 = np.empty(N_TURNS + 1)
+            time_history_blond2[0] = beam2.dt[0]
+            energy_history_blond2[0] = beam2.dE[0]
 
-        for turn in range(N_TURNS):
-            full_tracker.track()
-            time_history_blond2[turn + 1] = beam2.dt[0]
-            energy_history_blond2[turn + 1] = beam2.dE[0]
+            for turn in range(N_TURNS):
+                full_tracker.track()
+                time_history_blond2[turn + 1] = beam2.dt[0]
+                energy_history_blond2[turn + 1] = beam2.dE[0]
 
-            if _DEV_DRAW:
-                plt.figure(11)
-                plt.scatter(beam2.dt[-100:], beam2.dE[-100:], c="C0")
-                plt.scatter(beam2.dt[:100], beam2.dE[:100], c="C0")
-                plt.draw()
-                plt.pause(0.1)
-                plt.cla()
+                if _DEV_DRAW:
+                    plt.figure(11)
+                    plt.scatter(beam2.dt[-100:], beam2.dE[-100:], c="C0")
+                    plt.scatter(beam2.dt[:100], beam2.dE[:100], c="C0")
+                    plt.draw()
+                    plt.pause(0.1)
+                    plt.cla()
+
+            save_golden_file(
+                golden_path,
+                time_history=time_history_blond2,
+                energy_history=energy_history_blond2,
+            )
+        with np.load(golden_path) as golden:
+            time_history_blond2 = golden["time_history"]
+            energy_history_blond2 = golden["energy_history"]
 
         if _DEV_DRAW:
             plt.figure()

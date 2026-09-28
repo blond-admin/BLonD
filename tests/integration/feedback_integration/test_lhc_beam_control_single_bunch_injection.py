@@ -1,10 +1,20 @@
 import unittest
+from pathlib import Path
 
 import numpy as np
 
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_golden_file
 
 DEBUG_PLOTTING = False
+
+# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
+REWRITE_GOLDEN_FILE = False
+_GOLDEN_PATH = (
+    Path(__file__).parent
+    / "resources"
+    / "lhc_beam_control_single_bunch_injection_blond2.npz"
+)
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -28,9 +38,20 @@ class TestSingleBunchInjectionWithPhaseLoop(BLonDTestCase):
         """
         Initialize the simulations for the integration tests.
         """
-        cls.pl_error_b2, cls.sl_error_b2, cls.omega_rf_b2, cls.phi_rf_b2 = (
-            cls.setup_blond2()
-        )
+        if REWRITE_GOLDEN_FILE:
+            pl_error, sl_error, omega_rf, phi_rf = cls.setup_blond2()
+            save_golden_file(
+                _GOLDEN_PATH,
+                pl_error=pl_error,
+                sl_error=sl_error,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+            )
+        with np.load(_GOLDEN_PATH) as golden:
+            cls.pl_error_b2 = golden["pl_error"]
+            cls.sl_error_b2 = golden["sl_error"]
+            cls.omega_rf_b2 = golden["omega_rf"]
+            cls.phi_rf_b2 = golden["phi_rf"]
         cls.pl_error_b3, cls.sl_error_b3, cls.omega_rf_b3, cls.phi_rf_b3 = (
             cls.setup_blond3()
         )

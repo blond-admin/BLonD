@@ -118,3 +118,99 @@ def enforce_64_bit_backend():
     """Enforce 64-bit backend, GPU is taken into account."""
     if backend.float == np.float32:
         raise TypeError("32-bit float and 64-bit complex have been removed.")
+
+
+_GOLDEN_ENVIRONMENT_KEY = "golden_environment"
+
+
+def _git_commit(directory: str) -> str:
+    """
+    Identify the git commit that `directory` is checked out at.
+
+    Parameters
+    ----------
+    directory
+        Any directory inside the git work tree.
+
+    Returns
+    -------
+    commit
+        The commit hash, suffixed with ``-dirty`` if the tree has
+        uncommitted changes, or ``unknown`` outside of a git work tree.
+    """
+    import subprocess
+
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return f"{commit}-dirty" if status else commit
+
+
+def save_golden_file(path: str, **arrays: NumpyArray) -> None:
+    """
+    Save reference arrays together with the environment that produced them.
+
+    Golden files freeze the output of code that should no longer run in the
+    test suite (e.g. BLonD 2 in the legacy regression tests). Next to the
+    arrays, the ``golden_environment`` entry stores a JSON string with the
+    installed packages (``pip_list``), the Python version, the platform,
+    the git commit and the creation time, so a later mismatch can be traced
+    back to a version drift.
+
+    Parameters
+    ----------
+    path
+        Target ``.npz`` file.
+    **arrays
+        The arrays to store, as for `numpy.savez`.
+
+    Raises
+    ------
+    ValueError
+        If one of the arrays uses the reserved name ``golden_environment``.
+
+    Examples
+    --------
+    >>> save_golden_file("resources/golden.npz", dt=beam.dt, dE=beam.dE)
+    >>> with np.load("resources/golden.npz") as golden:
+    ...     dt = golden["dt"]
+    """
+    import datetime
+    import json
+    import platform
+    import sys
+    from importlib import metadata
+
+    if _GOLDEN_ENVIRONMENT_KEY in arrays:
+        raise ValueError(f"'{_GOLDEN_ENVIRONMENT_KEY}' is a reserved name.")
+
+    pip_list = sorted(
+        f"{distribution.metadata['Name']}=={distribution.version}"
+        for distribution in metadata.distributions()
+    )
+    environment = {
+        "pip_list": pip_list,
+        "python": sys.version,
+        "platform": platform.platform(),
+        "git_commit": _git_commit(os.path.dirname(os.path.abspath(path))),
+        "created": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    np.savez(
+        path,
+        **{_GOLDEN_ENVIRONMENT_KEY: json.dumps(environment, indent=1)},
+        **arrays,
+    )

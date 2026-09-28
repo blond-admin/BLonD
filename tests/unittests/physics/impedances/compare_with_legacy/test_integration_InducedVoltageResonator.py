@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,11 +18,13 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_golden_file
 
 from .test_integration_InducedVoltageFreq import (
     Q_factor,
@@ -31,93 +34,136 @@ from .test_integration_InducedVoltageFreq import (
 
 DEV_PLOT = False
 
+# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
+REWRITE_GOLDEN_FILE = False
 
-class Blond2:
-    def __init__(
-        self, n_macroparticles=int(1e6), n_slices=256, bunch_length=1e-9 / 4
+
+def _run_blond2(n_macroparticles, n_slices, bunch_length):
+    """Run BLonD 2 and return the arrays stored in the golden file."""
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.distributions import bigaussian
+    from blond.legacy.blond2.beam.profile import CutOptions, Profile
+    from blond.legacy.blond2.impedances.impedance import (
+        InducedVoltageFreq,
+        InducedVoltageResonator,
+        InducedVoltageTime,
+        TotalInducedVoltage,
+    )
+    from blond.legacy.blond2.impedances.impedance_sources import Resonators
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+
+    induced_voltage = []
+
+    for solver in (
+        InducedVoltageTime,
+        InducedVoltageResonator,
+        # InducedVoltageFreq,
     ):
-        from blond.legacy.blond2.beam.beam import Beam, Proton
-        from blond.legacy.blond2.beam.distributions import bigaussian
-        from blond.legacy.blond2.beam.profile import CutOptions, Profile
-        from blond.legacy.blond2.impedances.impedance import (
-            InducedVoltageFreq,
-            InducedVoltageResonator,
-            InducedVoltageTime,
-            TotalInducedVoltage,
+        ring = Ring(6911.56, 0.00192, 25.92e9, Proton(), 10)
+        rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
+        full_beam = Beam(ring, n_macroparticles, 1e10)
+        bigaussian(ring, rf_station, full_beam, bunch_length, seed=1)
+        # Keeps the golden file small: beams above 1e5 particles are thinned
+        # to about 1e5 (every 10th particle for the 1e6 case: 1.6 MB instead
+        # of 16 MB). BLonD 2 computes the induced voltage from this thinned
+        # beam, and BLonD 3 loads the same particles from the golden file,
+        # so both still see identical input.
+        stride = max(1, n_macroparticles // 100_000)
+        beam = Beam(
+            ring,
+            len(full_beam.dt[::stride]),
+            1e10,
+            dt=full_beam.dt[::stride].copy(),
+            dE=full_beam.dE[::stride].copy(),
         )
-        from blond.legacy.blond2.impedances.impedance_sources import Resonators
-        from blond.legacy.blond2.input_parameters.rf_parameters import (
-            RFStation,
+
+        cut_options = CutOptions(
+            cut_left=0,
+            cut_right=2 * np.pi,
+            n_slices=n_slices,
+            rf_station=rf_station,
+            cuts_unit="rad",
         )
-        from blond.legacy.blond2.input_parameters.ring import Ring
+        profile = Profile(beam, cut_options)
 
-        self.induced_voltage = []
+        profile.track()
+        # R_shunt, f_res, Q_factor = 5e5, 1e9, 10e10
+        resonator = Resonators(R_shunt, f_res, Q_factor)
 
-        for solver in (
-            InducedVoltageTime,
-            InducedVoltageResonator,
-            # InducedVoltageFreq,
-        ):
-            ring = Ring(6911.56, 0.00192, 25.92e9, Proton(), 10)
-            rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
-            beam = Beam(ring, n_macroparticles, 1e10)
-            bigaussian(ring, rf_station, beam, bunch_length, seed=1)
-            self.dt = beam.dt
-            self.dE = beam.dE
-
-            cut_options = CutOptions(
-                cut_left=0,
-                cut_right=2 * np.pi,
-                n_slices=n_slices,
-                rf_station=rf_station,
-                cuts_unit="rad",
+        if solver == InducedVoltageTime:
+            ind_volt = InducedVoltageTime(
+                beam,
+                profile,
+                [resonator],
             )
-            profile = Profile(beam, cut_options)
-            self.profile = profile
+        elif solver == InducedVoltageFreq:
+            ind_volt = InducedVoltageFreq(beam, profile, [resonator], 1e5)
+        elif solver == InducedVoltageResonator:
+            ind_volt = InducedVoltageResonator(
+                beam,
+                profile,
+                resonator,
+            )
+        else:
+            raise Exception
+        tot_vol = TotalInducedVoltage(beam, profile, [ind_volt])
 
-            profile.track()
-            # R_shunt, f_res, Q_factor = 5e5, 1e9, 10e10
-            resonator = Resonators(R_shunt, f_res, Q_factor)
-            self.resonator = resonator
+        tot_vol.induced_voltage_sum()
+        induced_voltage.append(tot_vol.induced_voltage)
 
-            if solver == InducedVoltageTime:
-                ind_volt = InducedVoltageTime(
-                    beam,
-                    profile,
-                    [resonator],
-                )
-            elif solver == InducedVoltageFreq:
-                ind_volt = InducedVoltageFreq(beam, profile, [resonator], 1e5)
-            elif solver == InducedVoltageResonator:
-                ind_volt = InducedVoltageResonator(
-                    beam,
-                    profile,
-                    resonator,
-                )
-            else:
-                raise Exception
-            tot_vol = TotalInducedVoltage(beam, profile, [ind_volt])
+        if DEV_PLOT:
+            plt.figure(1)
+            plt.plot(tot_vol.induced_voltage)
+            if not solver == InducedVoltageResonator:
+                pass
+            try:
+                plt.figure(2)
+                plt.plot(ind_volt.total_impedance)
+            except ValueError:
+                pass
+    return dict(
+        dt=beam.dt,
+        dE=beam.dE,
+        cut_left=np.asarray(profile.cut_left),
+        cut_right=np.asarray(profile.cut_right),
+        n_slices=np.asarray(profile.n_slices),
+        induced_voltage=np.asarray(induced_voltage),
+    )
 
-            tot_vol.induced_voltage_sum()
-            self.induced_voltage.append(tot_vol.induced_voltage)
 
-            if DEV_PLOT:
-                plt.figure(1)
-                plt.plot(tot_vol.induced_voltage)
-                if not solver == InducedVoltageResonator:
-                    pass
-                try:
-                    plt.figure(2)
-                    plt.plot(ind_volt.total_impedance)
-                except ValueError:
-                    pass
+def load_blond2(n_macroparticles, n_slices, bunch_length):
+    """BLonD 2 results, loaded from the golden file."""
+    golden_path = callers_relative_path(
+        "resources/induced_voltage_resonator"
+        f"_{n_macroparticles}_{n_slices}_{bunch_length:.3e}_blond2.npz",
+        stacklevel=1,
+    )
+    if REWRITE_GOLDEN_FILE:
+        save_golden_file(
+            golden_path,
+            **_run_blond2(n_macroparticles, n_slices, bunch_length),
+        )
+    with np.load(golden_path) as golden:
+        return SimpleNamespace(
+            dt=golden["dt"],
+            dE=golden["dE"],
+            profile=SimpleNamespace(
+                cut_left=golden["cut_left"].item(),
+                cut_right=golden["cut_right"].item(),
+                n_slices=golden["n_slices"].item(),
+            ),
+            induced_voltage=golden["induced_voltage"],
+        )
 
 
 class Blond3:
     def __init__(
         self, n_macroparticles=int(1e6), n_slices=256, bunch_length=1e-9 / 4
     ):
-        blond2 = Blond2(
+        blond2 = load_blond2(
             n_macroparticles=n_macroparticles,
             n_slices=n_slices,
             bunch_length=bunch_length,
@@ -177,7 +223,6 @@ class Blond3:
 class TestBothBlonds(BLonDTestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
-        self.blond3 = Blond3()
 
     def close_in_norm(self, arr_a, arr_b, rtol=1e-12, atol=1e-8):
         norm = np.inf
