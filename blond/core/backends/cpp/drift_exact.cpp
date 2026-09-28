@@ -59,9 +59,10 @@ inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
 
     const real_t dE = beam_dE[i];
 
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
+    const real_t delta =
+        std::sqrt(1.0 + inv_beta_sq *
+                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
+        1.0;
 
     real_t poly = 1.0 + alpha_zero * delta;
     real_t delta_power = delta * delta; // starts at δ²
