@@ -150,7 +150,7 @@ class TwoTurnArray:
         Unlike :attr:`full`, this is a view and not a copy, so writes
         through it reach the buffer. Index ``n_samples + i`` addresses
         sample ``i`` of the current turn, which makes the reach-back
-        semantics of :meth:`__getitem__` plain arithmetic: a negative
+        semantics of indexing (``buffer[i]``) plain arithmetic: a negative
         offset walks into the previous turn.
 
         Returns
