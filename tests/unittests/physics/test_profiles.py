@@ -376,6 +376,26 @@ class TestStaticProfile(BLonDTestCase):
         )
         self.assertEqual(11, len(profile.hist_x))
 
+    def test_track_keeps_geometry_cache(self):
+        """Tracking only refills `hist_y`; the geometry derived from the
+        fixed `hist_x` must stay cached instead of being recomputed (on the
+        GPU, with a device-to-host copy) every turn.
+        """
+        beam = Beam(intensity=1, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.linspace(-4, 4, 100),
+            dE=np.zeros(100),
+            reference_time=0,
+            reference_total_energy=450e9,
+        )
+        _ = self.static_profile.cut_left
+        _ = self.static_profile.gradient_hist_y
+
+        self.static_profile.track(beam=beam)
+
+        self.assertIn("cut_left", self.static_profile.__dict__)
+        self.assertNotIn("gradient_hist_y", self.static_profile.__dict__)
+
     def test_from_cutoff_whole_number_of_steps(self):
         """3.3 ns / 1.1 ns is 3.0000000000000004, which must stay 3 bins."""
         profile = StaticProfile.from_cutoff(
@@ -530,6 +550,28 @@ class TestDynamicProfileConstNBins(BLonDTestCase):
         np.testing.assert_almost_equal(
             np.zeros(10),
             copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
+        )
+
+    def test_track_follows_moving_beam(self):
+        """The cuts follow the beam each turn, so the cached geometry of
+        the previous turn must not survive a track.
+        """
+        profile = self.dynamic_profile_const_cutoff
+        beam = Beam(intensity=1, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=np.linspace(0, 1e-9, 10),
+            dE=np.linspace(0, 1e9, 10),
+            reference_time=0,
+            reference_total_energy=450e9,
+        )
+        profile.track(beam=beam)
+        cut_left_before = profile.cut_left
+
+        beam.write_partial_dt()[:] += 1e-9
+        profile.track(beam=beam)
+
+        self.assertAlmostEqual(
+            profile.cut_left - cut_left_before, 1e-9, delta=1e-15
         )
 
 

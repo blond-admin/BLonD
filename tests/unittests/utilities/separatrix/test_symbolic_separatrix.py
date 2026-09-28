@@ -561,7 +561,7 @@ class TestGetSeparatrixDegenerateWindow(BLonDTestCase):
     """
 
     @staticmethod
-    def _build_simulation(voltage: float):
+    def _build_simulation(voltage: float, match_beam: bool = True):
         from blond import (
             Beam,
             BiGaussian,
@@ -591,16 +591,25 @@ class TestGetSeparatrixDegenerateWindow(BLonDTestCase):
         ring.add_elements((drift, rf_station))
         sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
         beam = Beam(intensity=1e9, particle_type=proton)
-        sim.prepare_beam(
-            beam=beam,
-            preparation_routine=BiGaussian(
-                sigma_dt=1e-10,
-                sigma_dE=1e8,
-                reinsertion=False,
-                seed=1,
-                n_macroparticles=10,
-            ),
-        )
+        if match_beam:
+            sim.prepare_beam(
+                beam=beam,
+                preparation_routine=BiGaussian(
+                    sigma_dt=1e-10,
+                    sigma_dE=1e8,
+                    reinsertion=False,
+                    seed=1,
+                    n_macroparticles=10,
+                ),
+            )
+        else:  # no bucket to match to, e.g. without RF voltage
+            beam.setup_beam(
+                dt=np.zeros(10),
+                dE=np.zeros(10),
+                reference_total_energy=energy_cycle.get_total_energy_init(
+                    particle_type=proton
+                ),
+            )
         return sim, beam, rf_station
 
     def test_voltage_zero_returns_all_nan(self):
@@ -613,7 +622,9 @@ class TestGetSeparatrixDegenerateWindow(BLonDTestCase):
         branches must come back ``NaN`` rather than crash or report a
         spurious finite bucket.
         """
-        sim, beam, rf_station = self._build_simulation(voltage=0.0)
+        sim, beam, rf_station = self._build_simulation(
+            voltage=0.0, match_beam=False
+        )
         helper = SymbolicSeparatrixHelper.from_simulation(simulation=sim)
 
         t_rf = 2.0 * np.pi / float(rf_station.omega_rf_design)
