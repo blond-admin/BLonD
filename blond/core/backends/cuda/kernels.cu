@@ -359,7 +359,7 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
   }
 }
 
-// `flag_lost` is `BeamFlags.LOST` (blond/core/beam/flags.py), passed in by
+// `flag_lost` is `BeamFlags.LOST` (blond/core/backends/flags.py), passed in by
 // the Python wrapper so the enum stays the single source of truth.
 extern "C" __global__ void loss_box(const real_t e_max, const real_t e_min,
                                     const real_t t_min, const real_t t_max,

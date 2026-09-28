@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.flags import BeamFlags
 from blond.core.base import Preparable
-from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
@@ -308,7 +308,7 @@ class BeamBaseClass(Preparable, ABC):
 
         See Also
         --------
-        blond.core.beam.flags.BeamFlags: The available flags.
+        blond.core.backends.flags.BeamFlags: The available flags.
         """
         if self._flags is None:
             raise AttributeError(
