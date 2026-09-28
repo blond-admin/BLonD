@@ -18,6 +18,7 @@ with the coarse-grid cell of the passage and the bunch's reference time.
 On every controller sample the loop's output is::
 
     phi_rf_loop = -gain * error(newest entry >= n_delay samples old)
+                  + integral(after that same entry)
 
 held between samples, and the feedback carries it cell by cell over its
 whole grid, the empty tail of a profile window included: the RF reference
@@ -45,6 +46,14 @@ bunch's command in between. On a ring symmetric for the two bunches both
 carry the same dipole, so a beam-blind loop acts on one oscillation sampled
 at every passage. The linear model of that (the muon-collider example's
 ``phase_loop_analysis``) says which gain and latency damp on which ring.
+
+The same sign that damps the oscillation is positive feedback on a static
+error: a static RF phase offset moves the bunch's fixed point by minus
+itself, so the proportional loop alone holds the bunch ``1 / (1 - gain)``
+times as far off its reference. The optional integral term (``0`` by
+default) sums the measured errors and enters with the opposite sign,
+which drives the static error to zero; see
+:attr:`StationPhaseLoop.integral`.
 
 A station without a cavity feedback never clocks its loop.
 """
@@ -218,6 +227,11 @@ class StationPhaseLoopRecord:
     """Centroid phase error at each passage [rad]."""
     corrections: list[float] = field(default_factory=list)
     """RF phase offset in force at each passage's kick [rad]."""
+    integrals: list[float] = field(default_factory=list)
+    """Integral term after each passage [rad]: the running sum, in the order
+    the passages were measured, of each error times the integral gain in
+    force at its cell. A record shared by several loops sums over all of
+    them, which pools their integral."""
 
     def as_arrays(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -294,6 +308,17 @@ class StationPhaseLoop:
         clock, added to the loop's own output on every controller sample
         and held with it; see :attr:`offset_programme`. ``None`` (the
         default) is none, and changes nothing.
+    integral_gain
+        RF phase offset added to the loop's integral per radian of error
+        per measured passage [1]; ``0`` (the default) has no integral
+        term and changes nothing. See :attr:`integral`. Not what acts
+        where ``integral_gain_schedule`` is given.
+    integral_gain_schedule
+        A :class:`GainSchedule` to read the integral gain off the cell
+        clock instead, at each passage's cell -- e.g. to hold its time
+        constant at a fixed number of synchrotron periods while the tune
+        moves along a ramp. ``None`` (the default) holds
+        ``integral_gain``.
     record
         Record to append to; a fresh one of its own if ``None``.
     name
@@ -315,6 +340,8 @@ class StationPhaseLoop:
         gain_schedule: GainSchedule | None = None,
         n_delay: int = 1,
         offset_programme: FeedforwardTable | None = None,
+        integral_gain: float = 0.0,
+        integral_gain_schedule: GainSchedule | None = None,
         record: StationPhaseLoopRecord | None = None,
         name: str | None = None,
     ) -> None:
@@ -329,6 +356,8 @@ class StationPhaseLoop:
         self.reference_phase = float(reference_phase)
         self._gain = float(gain)
         self._gain_schedule = gain_schedule
+        self._integral_gain = float(integral_gain)
+        self._integral_gain_schedule = integral_gain_schedule
         self._n_delay = int(n_delay)
         self._record = StationPhaseLoopRecord() if record is None else record
         self.name = name
@@ -404,6 +433,80 @@ class StationPhaseLoop:
         if self._gain_schedule is None:
             return self._gain
         return self._gain_schedule.gain_at(cell)
+
+    @property
+    def integral_gain(self) -> float:
+        """
+        Integral added per radian of error per measured passage [1].
+
+        Returns
+        -------
+        integral_gain
+            The constant integral gain; ``0`` is no integral term. With an
+            :attr:`integral_gain_schedule` this is not what acts --
+            :meth:`integral_gain_at` is.
+        """
+        return self._integral_gain
+
+    @property
+    def integral_gain_schedule(self) -> GainSchedule | None:
+        """
+        The integral gain table this loop reads, if it has one.
+
+        Returns
+        -------
+        schedule
+            The schedule, or ``None`` for a constant integral gain.
+        """
+        return self._integral_gain_schedule
+
+    def integral_gain_at(self, cell: int) -> float:
+        """
+        The integral gain in force at a cell [1].
+
+        Parameters
+        ----------
+        cell
+            Cell clock value of the feedback that clocks this loop.
+
+        Returns
+        -------
+        integral_gain
+            The schedule's entry for that cell, or the constant
+            :attr:`integral_gain` without a schedule.
+        """
+        if self._integral_gain_schedule is None:
+            return self._integral_gain
+        return self._integral_gain_schedule.gain_at(cell)
+
+    @property
+    def integral(self) -> float:
+        """
+        The loop's integral term after the newest passage [rad].
+
+        The proportional output ``-gain * error`` damps the synchrotron
+        oscillation because its kick lands about a quarter period late,
+        but on a *static* error it is positive feedback: a static RF phase
+        offset moves the bunch's fixed point by minus itself, so the loop
+        holds the bunch ``1 / (1 - gain)`` times as far off its reference.
+        The integral -- each passage's error times the integral gain in
+        force at its cell, summed -- enters the output with the opposite
+        sign, ``+integral``, and drives that static error to zero.  It
+        sums every passage alike, whichever bunch it was and however long
+        the gap before it, so a slow enough integral averages the
+        synchrotron oscillation away; faster than about a synchrotron
+        period it fights the oscillation instead.  Like the proportional
+        term it acts through the entry at least :attr:`n_delay` samples
+        old.
+
+        Returns
+        -------
+        integral
+            The newest entry of the record's
+            :attr:`StationPhaseLoopRecord.integrals`, ``0`` before any.
+        """
+        integrals = self._record.integrals
+        return integrals[-1] if integrals else 0.0
 
     @property
     def offset_programme(self) -> FeedforwardTable | None:
@@ -491,10 +594,14 @@ class StationPhaseLoop:
             The wrapped centroid phase error [rad].
         """
         error = wrap_phase(phase - self.reference_phase)
-        self._record.times.append(float(time))
-        self._record.cells.append(int(cell))
-        self._record.errors.append(error)
-        self._record.corrections.append(float(applied))
+        record = self._record
+        record.times.append(float(time))
+        record.cells.append(int(cell))
+        record.errors.append(error)
+        record.corrections.append(float(applied))
+        record.integrals.append(
+            self.integral + self.integral_gain_at(cell) * error
+        )
         return error
 
     def offsets_for_n_coarse_cells(
@@ -527,11 +634,12 @@ class StationPhaseLoop:
             One offset per cell [rad]: on a sample cell
             ``-gain_at(cell)`` times the error of the newest measurement
             at least ``n_delay`` samples old (``0`` if there is none),
-            plus the :attr:`offset_programme` at that cell, otherwise the
-            previous cell's.  The gain is read per sample
-            and not once per call, so a run spanning a step of the
-            schedule -- a backfill span reconstructed after the step fell
-            due included -- carries the entry each cell is covered by.
+            plus the :attr:`integral` after that same measurement for a
+            loop with an integral term, plus the :attr:`offset_programme`
+            at that cell, otherwise the previous cell's.  The gain is read
+            per sample and not once per call, so a run spanning a step of
+            the schedule -- a backfill span reconstructed after the step
+            fell due included -- carries the entry each cell is covered by.
         """
         offsets = np.empty(n_cells)
         value = float(carried)
@@ -539,6 +647,10 @@ class StationPhaseLoop:
         schedule = self._gain_schedule
         programme = self._offset_programme
         gain = self._gain
+        integrating = (
+            self._integral_gain != 0.0
+            or self._integral_gain_schedule is not None
+        )
         delay_cells = self._n_delay * controller_update_interval
         for local in range(n_cells):
             cell = first_cell + local
@@ -548,6 +660,8 @@ class StationPhaseLoop:
                 if schedule is not None:
                     gain = schedule.gain_at(cell)
                 value = -gain * used
+                if integrating and index is not None:
+                    value += record.integrals[index]
                 if programme is not None:
                     value += programme.value_at(cell).real
             offsets[local] = value

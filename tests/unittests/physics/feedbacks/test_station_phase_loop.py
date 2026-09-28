@@ -390,5 +390,117 @@ class TestOffsetProgramme(unittest.TestCase):
             )
 
 
+class TestIntegral(unittest.TestCase):
+    """The loop's integral term: the DC error the proportional one drags.
+
+    A static RF phase offset moves the bunch's fixed point by minus itself,
+    so a proportional loop ``-gain * error`` -- whose sign damps the
+    oscillation, the kick landing a quarter period late -- is positive
+    feedback on a static error: it holds the bunch ``1 / (1 - gain)``
+    times as far off its reference.  The integral term adds the running
+    sum of the measured errors with the opposite sign, which drives that
+    static error to zero.
+    """
+
+    REFERENCE = 0.5
+    INTERVAL = 4
+
+    def _loop(self, *, gain=0.0, n_delay=0, **integral):
+        return StationPhaseLoop(
+            feedback=Mock(phase_loop=None, parent_rf_station=None),
+            reference_phase=self.REFERENCE,
+            gain=gain,
+            n_delay=n_delay,
+            **integral,
+        )
+
+    def _offsets(self, loop, first_cell, n_cells, carried=0.0):
+        return loop.offsets_for_n_coarse_cells(
+            first_cell,
+            n_cells,
+            controller_update_interval=self.INTERVAL,
+            carried=carried,
+        )
+
+    def test_it_is_off_by_default(self):
+        loop = self._loop(gain=0.5)
+        self.assertEqual(loop.integral_gain, 0.0)
+        self.assertIsNone(loop.integral_gain_schedule)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=0, applied=0.0)
+        self.assertEqual(loop.integral, 0.0)
+        np.testing.assert_allclose(self._offsets(loop, 0, 8), [-0.1] * 8)
+
+    def test_each_passage_adds_its_error_times_the_integral_gain(self):
+        loop = self._loop(integral_gain=0.25)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=0, applied=0.0)
+        loop.measure(self.REFERENCE - 0.1, time=1.0, cell=2, applied=0.0)
+        np.testing.assert_allclose(loop.record.integrals, [0.05, 0.025])
+        self.assertAlmostEqual(loop.integral, 0.025, places=15)
+
+    def test_it_enters_with_the_opposite_sign_to_the_proportional_term(self):
+        loop = self._loop(gain=0.5, integral_gain=0.25)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=2, applied=0.0)
+        # From sample 4: -0.5 * 0.2 + 0.25 * 0.2.
+        np.testing.assert_allclose(
+            self._offsets(loop, 0, 8), [0.0] * 4 + [-0.05] * 4, atol=1e-15
+        )
+
+    def test_it_obeys_the_latency(self):
+        """The sum in force is the one after the measurement that acts."""
+        loop = self._loop(integral_gain=1.0, n_delay=2)
+        loop.measure(self.REFERENCE + 0.1, time=0.0, cell=0, applied=0.0)
+        loop.measure(self.REFERENCE + 0.3, time=1.0, cell=6, applied=0.0)
+        offsets = self._offsets(loop, 0, 20)
+        np.testing.assert_allclose(offsets[:8], 0.0)
+        np.testing.assert_allclose(offsets[8:16], 0.1)
+        np.testing.assert_allclose(offsets[16:], 0.4)
+
+    def test_a_schedule_is_read_at_the_passage(self):
+        schedule = GainSchedule(gains=(0.5, 1.0), cells_per_entry=8)
+        loop = self._loop(integral_gain=0.1, integral_gain_schedule=schedule)
+        loop.measure(self.REFERENCE + 0.2, time=0.0, cell=3, applied=0.0)
+        loop.measure(self.REFERENCE + 0.2, time=1.0, cell=9, applied=0.0)
+        np.testing.assert_allclose(loop.record.integrals, [0.1, 0.3])
+        self.assertEqual(loop.integral_gain_at(3), 0.5)
+        self.assertEqual(loop.integral_gain_at(9), 1.0)
+
+    def test_every_passage_leaves_its_sum_in_the_record(self):
+        loop = self._loop(gain=0.3)
+        for cell in range(3):
+            loop.measure(
+                self.REFERENCE, time=float(cell), cell=cell, applied=0
+            )
+        self.assertEqual(len(loop.record.integrals), len(loop.record.errors))
+
+    def _settle(self, loop, static_error, n_passages=400):
+        """Close the loop on a bunch that follows the RF phase.
+
+        A static RF phase offset ``phi`` moves the fixed point by ``-phi``,
+        so the bunch sits at ``reference + static_error - phi``.
+        """
+        applied = 0.0
+        error = static_error
+        for passage in range(n_passages):
+            cell = passage * self.INTERVAL
+            applied = self._offsets(loop, cell, 1, carried=applied)[0]
+            error = loop.measure(
+                self.REFERENCE + static_error - applied,
+                time=float(passage),
+                cell=cell,
+                applied=applied,
+            )
+        return error
+
+    def test_the_proportional_term_alone_drags_a_static_error(self):
+        error = self._settle(self._loop(gain=0.3), static_error=0.1)
+        self.assertAlmostEqual(error, 0.1 / (1.0 - 0.3), places=9)
+
+    def test_the_integral_term_removes_the_static_error(self):
+        loop = self._loop(gain=0.3, integral_gain=0.05)
+        error = self._settle(loop, static_error=0.1)
+        self.assertAlmostEqual(error, 0.0, places=6)
+        self.assertAlmostEqual(loop.integral, 0.1, places=6)
+
+
 if __name__ == "__main__":
     unittest.main()

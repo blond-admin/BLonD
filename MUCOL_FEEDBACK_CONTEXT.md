@@ -2230,6 +2230,56 @@ window, which is exact in that frame on every window cell (the generator
 component is design-anchored), so a step landing AFTER the bunch cell
 inside the window needs nothing.
 
+### 2.36 The phase loop has an integral term (2026-09-28)
+
+**Why.** The loop's `-gain * error` damps the synchrotron oscillation
+because its kick lands about a quarter period late -- and the same sign is
+positive feedback on a *static* error: a static RF phase offset moves the
+bunch's fixed point by minus itself, so the loop holds the bunch
+`1 / (1 - gain)` times as far off its reference. The outer repo measured
+the drag in tracking on RCS4 (+1.0 deg walk under the chain loops) and
+RCS3 (gain 0.5: -0.42 deg with no loop, -1.19 deg with it, 2 deg launch,
+1.1x klystron budget), and its rigid-bunch model showed that an integral
+of the DC error removes it.
+
+**What.** `StationPhaseLoop(integral_gain=0.0, integral_gain_schedule=None)`.
+Each `measure()` appends the running sum -- the previous entry plus the
+passage's error times the integral gain at its cell
+(`integral_gain_at(cell)`, a `GainSchedule` read like `gain_schedule`) --
+to the new `StationPhaseLoopRecord.integrals`; `integral` is the newest.
+On a controller sample the output is
+`-gain * error(entry) + integrals[entry]` for the same entry the
+proportional term uses, so the integral obeys the latency and a backfill
+span reconstructs it like everything else. **Opposite sign to the
+proportional term, per measured passage rather than per second**: both
+bunches count alike however uneven the gaps between them at a station
+(1.25 / 18.7 us at RCS1's station 0), and a slow integral averages the
+oscillation away. `0` (the default) is bit-neutral: nothing is added. A
+record shared by several loops sums over all of them, i.e. pools their
+integral. Beam-blind and per station like the rest of the loop; the
+rigid-bunch model's integrator (outer repo) instead pools the stations and
+integrates the fitted DC of each bunch -- same rate, other filter.
+
+**The outer repo sets it as a time constant in synchrotron periods**
+(`RunConfig.phase_loop_integral_periods`): a schedule per ramp segment of
+`(Q_s / 2) / periods` per measurement, `Q_s` the local unfolded tune,
+because the bunch follows a phase step only within about a period and a
+time constant in turns is safe on one ring and runs away on another.
+
+**Verified.** RED first (`TypeError` on the keyword, `AttributeError` on
+`integrals`). Eight new tests in `test_station_phase_loop.py`
+(`TestIntegral`): off by default, each passage adds its error times the
+gain, opposite sign to the proportional term, obeys the latency, a
+schedule read at the passage, one sum per record entry, and a closed-loop
+toy on a bunch that follows the RF (`error = e0 - phi_rf_loop`): the
+proportional term alone settles at `e0 / (1 - gain)`, with the integral at
+`0`. `test_station_phase_loop.py`, `test_pi_feedback_full_tracking.py`,
+`test_feedforward_table.py`: 114 passed. In tracking (outer repo, RCS3/4,
+gain 0.5, 2 deg, 1.1x) four periods take -1.188 to +0.056 deg with the
+residual 0.008 -> 0.005 deg, against the rigid model's -1.164 -> +0.057;
+two periods cost some damping in tracking (0.030) that the model does not
+show (0.004).
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam
