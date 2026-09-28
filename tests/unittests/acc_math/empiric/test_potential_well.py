@@ -1,6 +1,6 @@
 import itertools
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -546,11 +546,13 @@ class TestPotentialWellHelper(BLonDTestCase):
         ``idx // 2`` only merges index pairs ``(2k, 2k+1)``; the pair
         ``(3, 4)`` must be merged as well.
         """
-        # skip __init__ (it runs the full analysis); purge only needs time_axis
-        pwh = PotentialWellHelper.__new__(PotentialWellHelper)
+        pwh = MagicMock()
         pwh.time_axis = np.arange(10.0)
         bucket_list = [(3.0, 6.0), (4.0, 6.0)]
-        self.assertEqual(len(pwh._purge_duplicates_off_by_one(bucket_list)), 1)
+        purged = PotentialWellHelper._purge_duplicates_off_by_one(
+            pwh, bucket_list
+        )
+        self.assertEqual(len(purged), 1)
 
     def test_no_off_by_one_duplicate_buckets(self):
         """Detected buckets never differ only by one grid step."""
