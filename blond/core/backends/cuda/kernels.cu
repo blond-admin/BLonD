@@ -251,11 +251,6 @@ lik_only_gm_copy(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                  const int n_slices, const index_t n_macroparticles,
                  const real_t acc_kick,
                  real_t *__restrict__ glob_vkick_factor) {
-  // Nothing to precompute for a single bin -- and the division below
-  // would be 0/0 (see lik_only_gm_comp).
-  if (n_slices < 2) {
-    return;
-  }
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   real_t const inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
@@ -277,16 +272,6 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                  const real_t acc_kick,
                  real_t *__restrict__ glob_vkick_factor) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  // A single bin has no width to interpolate across: the division below
-  // would be 0/0, and `glob_vkick_factor` is empty, so relying on the
-  // resulting `nan` to fail the range check would index out of bounds.
-  // The host wrapper refuses n_slices < 2 before launching (a device
-  // kernel cannot raise), so this only guards a direct launch: do
-  // nothing rather than apply `acc_kick` alone, which would be only part
-  // of the kick.
-  if (n_slices < 2) {
-    return;
-  }
   real_t const inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
   const real_t bin0 = bin_centers[0];
