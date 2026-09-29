@@ -599,11 +599,10 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             section_index=section_index,
             profile=profile,
         )
-        from unittest.mock import Mock
+        # Local import: `blond.testing.mocks` imports this module.
+        from blond.testing.mocks import new_simulation_mock
 
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
+        simulation = new_simulation_mock()
         wf.on_init_simulation(simulation=simulation)
         wf.on_run_simulation(
             simulation=simulation,
