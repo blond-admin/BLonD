@@ -225,7 +225,6 @@ ignore_names = [
   "_beams",       # Simulation: same; tests pin it too
   "profile_time", # solvers.py: `+=` updates the array in the deque in place
   # Required by an interface signature
-  "obs_per_turn", # `on_run_simulation` keyword, accepted but not needed
   # Example scripts: values shown for demonstration
   "smoothness",           # EX_06 and line_density tests
   "recenter",
