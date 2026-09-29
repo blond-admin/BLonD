@@ -366,10 +366,14 @@ Signature: `execute_batch(batch_bytes, n_bytes, dt, dE, n_macroparticles)`.
 - The batch is passed **by value** as a fixed-capacity `KernelCallBatch`
   struct, the same way `RFParamsBatch` is passed today. There is no
   host-to-device copy per flush.
-- Capacity is 4 KB, which every supported GPU accepts.
+- Capacity is `KERNEL_CALL_BATCH_CAPACITY_BYTES` = 4064 B (4096 - 32), so the
+  whole kernel-parameter list still fits the classic 4096 B kernel-parameter
+  limit alongside the batch's other fields; every supported GPU accepts it.
 - A larger batch is split into several launches. The result is still
   correct, only less fused.
 - A multi-harmonic record is about 800 B (3 × `RfParameters` of 32 reals).
+- The fused interpreter kernel tiles 8 particles per thread, to amortise the
+  per-thread cost of decoding the queued record stream over more work.
 
 ### 5.4 Flush points
 
@@ -577,6 +581,49 @@ an element of the ring?
   - CPU: match the spike's deferred numbers. Also record single-core cycles.
   - T400: record both variants.
 
+**MR benchmark table.** Produced by
+`dev_tools/performance_blond3/backends/deferred_psb.py`: EX_23 PSB,
+1e7 macroparticles, 10 000 bins, 30 timed turns after 3 warm-up turns,
+`--one-histogram` (`track_profile=False` on both wakefields, one
+histogram/turn). 3 interleaved runs per mode; checksums of `dE` were
+identical within each device across eager/deferred.
+
+CPU (i5-11500, 12 threads):
+
+| mode | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| cpp | 41.4 ms | 45.2 ms | 38.0 ms |
+| cpp_deferred | 27.0 ms | 20.7 ms | 17.5 ms |
+
+T400 (4 GB):
+
+| mode | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| cuda | 33.7 ms | 33.1 ms | 33.8 ms |
+| cuda_deferred | 34.9 ms | 31.7 ms | 31.4 ms |
+
+Flushes/turn were 1.33 in every configuration (one `StaticProfile`
+histogram most turns, two histograms whenever a wakefield's own periodic
+solver additionally triggers). On the T400, cuda_deferred is within noise
+of cuda -- the fused interpreter kernel amortises launch overhead less
+than on the CPU, where per-call dispatch cost dominates; this matches the
+prediction in the risk table that GPU gains would be smaller.
+
+Single-core cycle counts (`OMP_NUM_THREADS` does not reach the compiled
+backend -- importing `blond` overrides it before user code can set it, so
+threads were pinned through BLonD's own `cpp_single_core`/`--single-core`
+mechanism, i.e. the non-OMP compiled library, not the environment
+variable), 1e6 macroparticles, 10 turns, `--one-histogram`,
+`perf stat -e cycles`:
+
+| mode | ms/turn | process cycles (includes ~3 s import/compile overhead) |
+|---|---|---|
+| cpp | 14.25 | 13.14e9 |
+| cpp_deferred | 8.47 | 12.42e9 |
+
+`dE` checksums matched exactly between `cpp` and `cpp_deferred` in both
+the multi-threaded and single-core runs.
+
 ## 10. Risks and open points
 
 | Risk | Consequence | Mitigation |
@@ -584,5 +631,5 @@ an element of the ring?
 | Direct `_dt`/`_dE` access outside `core/beam/` | Stale reads | Route through the accessors; a grep test fails on any new hit |
 | Extra flushes from avoidable non-deferred calls, such as redundant histograms | Batches break up and the gain shrinks (§9) | Handle as separate issues; count flushes per turn in the benchmark |
 | Register pressure in the fused CUDA kernel | Spills eat the gain | Per-kernel register limit; measure |
-| 4 KB kernel-parameter capacity | Multi-harmonic-heavy batches get split | Correct, only less fused; measure how often it happens |
+| 4064 B kernel-parameter capacity | Multi-harmonic-heavy batches get split | Correct, only less fused; measure how often it happens |
 | Refactoring the eager cpp kernels into `particle_kernels.h` | May regress their AVX-512 code generation | Benchmark the eager kernels before and after |

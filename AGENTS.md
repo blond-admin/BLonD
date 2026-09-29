@@ -148,6 +148,13 @@ comparing each backend to the Python reference.
   locally. A kernel present in only some backends fails under
   `BLOND_FORCE_TEST_ALL_BACKENDS=True`. The `python` backend is the readable reference
   implementation; mirror its behaviour exactly in `numba`/`cpp`/`cuda`.
+- **`cpp_deferred`/`cuda_deferred` queue kernel calls instead of running them eagerly.**
+  `backend.set_specials("cpp_deferred")` / `"cuda_deferred"` fuse queued per-particle
+  kernel calls into one batch, run at the next `flush()` (main loops flush before
+  readouts and at the end of the run). Beam exposes `kernel_call_dt`/`kernel_call_dE`
+  for code that only wants to feed a kernel call without forcing a flush — reading the
+  ordinary `dt`/`dE` accessors (or anything else that needs concrete values) flushes
+  first. Never assume a queued call has run yet; if you need the values now, flush.
 - **Arrays may be NumPy *or* CuPy — handle both.** Backend arrays are *not* guaranteed to
   be NumPy. The conversion rules:
   - **Use `copy_to_cpu(arr)`, never `arr.get()` directly.**
