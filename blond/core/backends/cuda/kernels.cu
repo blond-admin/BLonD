@@ -646,6 +646,72 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
   }
 }
 
+// A batch of kernel call records, passed by value in the kernel's
+// parameter space like `RFParamsBatch`: no host-to-device copy per
+// flush. 8-byte slots keep every record 8-byte aligned. Must match
+// `_KERNEL_CALL_BATCH_DTYPE` in callables.py, which splits larger
+// batches over several launches. With the other arguments the kernel
+// parameters exceed 4 KiB, which needs CUDA >= 12.1 on Volta or newer.
+// NOLINTBEGIN(*-avoid-c-arrays,misc-use-internal-linkage)
+struct KernelCallBatch {
+  unsigned long long slots[KERNEL_CALL_BATCH_CAPACITY_BYTES / 8];
+};
+// NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
+
+// Compiled Args sizes, compared with the numpy dtypes when loading.
+extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
+    KERNEL_CALL_ARGS_SIZES_INITIALIZER;
+
+namespace {
+struct ApplyToParticle {
+  real_t *dt;
+  real_t *dE;
+  template <class Args> __device__ void operator()(const Args &args) const {
+    apply_to_particle(args, *dt, *dE);
+  }
+};
+} // namespace
+
+// Every record of the batch on every particle, dt/dE kept in registers
+// between records. The batch is staged once per block in shared memory:
+// records are addressed through a runtime pointer, and addressing the
+// parameter space that way makes nvcc copy the whole batch to local
+// memory in every thread (a 4 KiB stack frame). All threads of a warp
+// read the same record (a shared-memory broadcast), so the switch in
+// visit_kernel_call does not diverge.
+extern "C" __global__ void __launch_bounds__(256)
+    execute_kernel_call_batch(const KernelCallBatch batch,
+                              const unsigned int n_bytes,
+                              real_t *__restrict__ beam_dt,
+                              real_t *__restrict__ beam_dE,
+                              const index_t n_macroparticles) {
+  __shared__ KernelCallBatch staged;
+  const auto n_slots = static_cast<int>(n_bytes / sizeof(staged.slots[0]));
+  for (int j = static_cast<int>(threadIdx.x); j < n_slots;
+       j = static_cast<int>(j + blockDim.x)) {
+    staged.slots[j] = batch.slots[j];
+  }
+  __syncthreads();
+  // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
+  const auto *bytes = reinterpret_cast<const char *>(staged.slots);
+  const auto *first = reinterpret_cast<const KernelCallHeader *>(bytes);
+  const auto *last =
+      reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
+  // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
+  for (index_t i = particle_loop_start(); i < n_macroparticles;
+       i += particle_loop_stride()) {
+    real_t dt = beam_dt[i];
+    real_t dE = beam_dE[i];
+    const ApplyToParticle apply = {&dt, &dE};
+    for (const KernelCallHeader *record = first; record != last;
+         record = next_record(record)) {
+      visit_kernel_call(record, apply);
+    }
+    beam_dt[i] = dt;
+    beam_dE[i] = dE;
+  }
+}
+
 extern "C" __global__ void
 histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t first_left_cut, const real_t left_cut_distance,

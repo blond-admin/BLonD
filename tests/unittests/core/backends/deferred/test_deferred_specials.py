@@ -4,8 +4,11 @@ import numpy as np
 import pytest
 
 from blond.core.backends.backend import Numpy64Bit, Specials, backend
+from blond.core.backends.deferred.kernel_call_records import (
+    KERNEL_CALL_BATCH_CAPACITY_BYTES,
+)
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import BLonDTestCase, cupy_available
 
 RNG = np.random.default_rng(3)
 
@@ -259,3 +262,72 @@ class TestCppDeferredSpecials(BLonDTestCase):
             patch.setenv("BLOND_DEFERRED_CHUNK_SIZE", "0")
             with self.assertRaises(ValueError):
                 deferred_chunk_size()
+
+
+@pytest.mark.cupy
+@pytest.mark.backend_mutation
+class TestCudaDeferredSpecials(TestCppDeferredSpecials):
+    """Every cpp_deferred test, rerun on the GPU."""
+
+    mode = "cuda_deferred"
+    eager_mode = "cuda"
+
+    def setUp(self) -> None:
+        if not cupy_available:
+            self.skipTest("CuPy is not available")
+        from blond.core.backends.backend import Cupy64Bit
+
+        backend.change_backend(Cupy64Bit)
+        backend.set_specials(self.eager_mode)
+        self.eager = backend.specials
+        backend.set_specials(self.mode)
+        self.deferred = backend.specials
+        self.deferred_class = type(self.deferred)
+
+    def tearDown(self) -> None:
+        self.deferred.flush()
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("python")
+
+    def test_chunk_sizes(self) -> None:
+        self.skipTest("the chunk size exists on the cpp executor only")
+
+    def test_batch_larger_than_capacity_is_split(self) -> None:
+        # 40 harmonics are 2 multi-harmonic records (~1.6 KB) per turn,
+        # so three turns queue more than one launch holds.
+        dt, dE = _beam(1000)
+        dt_e, dE_e = backend.copy(dt), backend.copy(dE)
+        for _ in range(3):
+            _turn(self.deferred, dt, dE, n_rf=40)
+            _turn(self.eager, dt_e, dE_e, n_rf=40)
+        self.assertGreater(
+            self.deferred.kernel_call_queue.n_bytes,
+            KERNEL_CALL_BATCH_CAPACITY_BYTES,
+        )
+        self.deferred.flush()
+        _close(dt, dt_e, rtol=1e-11, atol=0)
+        _close(dE, dE_e, rtol=1e-11, atol=1e-6)
+
+    def test_split_batch_ranges(self) -> None:
+        from blond.core.backends.cuda.callables import _split_batch
+
+        self.assertEqual(
+            _split_batch([1000, 1000, 1000, 2000, 100], 4096),
+            [(0, 3000), (3000, 5100)],
+        )
+
+    def test_split_batch_exact_fit(self) -> None:
+        from blond.core.backends.cuda.callables import _split_batch
+
+        self.assertEqual(
+            _split_batch([2048, 2048, 8], 4096), [(0, 4096), (4096, 4104)]
+        )
+
+    def test_zero_macroparticles(self) -> None:  # Review Focus 4
+        dt, dE = backend.zeros(0), backend.zeros(0)
+        self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
+        self.deferred.flush()
+        self.assertEqual(self.deferred.kernel_call_queue.n_bytes, 0)
+
+    def test_specials_mode_is_tracked(self) -> None:
+        self.assertEqual(backend.specials_mode, self.mode)

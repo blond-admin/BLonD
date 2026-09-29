@@ -69,9 +69,12 @@ def backend_class_for_mode(
     Returns
     -------
     backend_class
-        :class:`Cupy64Bit` for the 'cuda' mode, else :class:`Numpy64Bit`.
+        :class:`Cupy64Bit` for the 'cuda' and 'cuda_deferred' modes, else
+        :class:`Numpy64Bit`.
     """
-    return Cupy64Bit if mode.lower() == "cuda" else Numpy64Bit
+    return (
+        Cupy64Bit if mode.lower() in ("cuda", "cuda_deferred") else Numpy64Bit
+    )
 
 
 class Specials(ABC):
@@ -1289,7 +1292,7 @@ class CupyBackend(BackendBaseClass):
 
         self._finalize()
 
-    def set_specials(self, mode: Literal["cuda"]) -> None:
+    def set_specials(self, mode: Literal["cuda", "cuda_deferred"]) -> None:
         """
         Set the special compiled functions.
 
@@ -1305,6 +1308,14 @@ class CupyBackend(BackendBaseClass):
             from blond.core.backends.cuda.callables import CudaSpecials
 
             self.specials = CudaSpecials()
+            self.specials_mode = mode
+        elif mode == "cuda_deferred":
+            from blond.core.backends.cuda.callables import (
+                CudaDeferredSpecials,
+            )
+
+            self.specials = CudaDeferredSpecials()
+            self.specials_mode = mode
         else:
             raise UnknownBackendMode(
                 f"Unknown specials mode {mode!r} for {type(self).__name__}."

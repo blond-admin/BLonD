@@ -176,7 +176,10 @@ class Music(BeamPhysicsRelevant):
                 "MuSiC does not support the `numba` backend; only `python` "
                 "and `cpp` are available (as in BLonD2)."
             )
-        if backend.specials_mode == "cuda":  # pragma: no cover
+        if backend.specials_mode in (  # pragma: no cover
+            "cuda",
+            "cuda_deferred",
+        ):
             raise NotImplementedError(
                 "MuSiC does not support the `cuda` backend."
             )

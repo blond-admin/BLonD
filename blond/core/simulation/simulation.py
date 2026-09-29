@@ -625,9 +625,7 @@ class Simulation(Preparable):
 
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
-            probe_bunch.read_partial_dE()
-            if backend.specials_mode != "cuda"
-            else probe_bunch.read_partial_dE().get(),
+            copy_to_cpu(probe_bunch.read_partial_dE()),
             initial=0,
         ) / len(dt)
 

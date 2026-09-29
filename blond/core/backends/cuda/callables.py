@@ -20,6 +20,13 @@ import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
+from blond.core.backends.deferred.kernel_call_queue import (
+    make_deferred_specials,
+)
+from blond.core.backends.deferred.kernel_call_records import (
+    KERNEL_CALL_ARGS,
+    KERNEL_CALL_BATCH_CAPACITY_BYTES,
+)
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 from blond.generals.cupy_.no_cupy_import import is_cupy_array
@@ -90,6 +97,9 @@ _apply_sr_without_quantum_excitation = gpu_module.get_function(
 _apply_sr_with_quantum_excitation = gpu_module.get_function(
     "apply_sr_with_quantum_excitation"
 )
+_execute_kernel_call_batch_kernel = gpu_module.get_function(
+    "execute_kernel_call_batch"
+)
 
 default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
 default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -123,6 +133,108 @@ _RF_PARAMS_BATCH_DTYPE = np.dtype(
     ]
 )
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
+# A batch of kernel call records, passed to `execute_kernel_call_batch`
+# by value (`KernelCallBatch` in kernels.cu), like `_RF_PARAMS_BATCH_DTYPE`.
+_KERNEL_CALL_BATCH_DTYPE = np.dtype(
+    [("slots", np.uint64, (KERNEL_CALL_BATCH_CAPACITY_BYTES // 8,))]
+)
+# `execute_kernel_call_batch` is compiled with `__launch_bounds__(256)`.
+_deferred_block_size = (min(threads, 256), 1, 1)
+
+
+def _check_kernel_call_record_abi() -> None:
+    """
+    Assert every compiled kernel call ``Args`` struct matches its dtype.
+
+    A mismatch would make the fused kernel read wrong parameters;
+    comparing once at load time turns that into a loud failure.
+
+    Raises
+    ------
+    AssertionError
+        If a compiled struct size differs from its numpy dtype.
+    """
+    sizes = cp.ndarray(
+        (len(KERNEL_CALL_ARGS),),
+        dtype=np.uint32,
+        memptr=gpu_module.get_global("kernel_call_args_sizes"),
+    ).get()
+    for args_type in KERNEL_CALL_ARGS:
+        compiled = int(sizes[args_type.kernel_id()])
+        expected = args_type.args_dtype().itemsize
+        assert compiled == expected, (
+            f"{args_type.__name__} is {compiled} bytes in the cubin but "
+            f"{expected} in kernel_call_records.py; rebuild the CUDA "
+            "backend with `blond-compile-cuda`."
+        )
+
+
+_check_kernel_call_record_abi()
+
+
+def _split_batch(
+    record_sizes: list[int], capacity: int
+) -> list[tuple[int, int]]:
+    """
+    Split consecutive records into byte ranges of at most `capacity`.
+
+    Parameters
+    ----------
+    record_sizes
+        Size in bytes of each record, in batch order.
+    capacity
+        Largest byte range one launch accepts.
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        ``(start, end)`` byte ranges covering the batch, one per launch.
+    """
+    ranges, start, end = [], 0, 0
+    for size in record_sizes:
+        assert size <= capacity, f"a {size} B record exceeds {capacity} B"
+        if end + size - start > capacity:
+            ranges.append((start, end))
+            start = end
+        end += size
+    ranges.append((start, end))
+    return ranges
+
+
+def _execute_batch(
+    batch: NumpyArray,
+    record_sizes: list[int],
+    dt: CupyArray,
+    dE: CupyArray,
+) -> None:
+    """
+    Apply the queued records to the beam, one fused launch per range.
+
+    Parameters
+    ----------
+    batch
+        Kernel call records packed back to back (``uint8``, on the host).
+    record_sizes
+        Size in bytes of each record of `batch`.
+    dt, dE
+        Beam coordinates the records act on.
+    """
+    for start, end in _split_batch(
+        record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
+    ):
+        parameters = np.zeros((), dtype=_KERNEL_CALL_BATCH_DTYPE)
+        parameters["slots"].view(np.uint8)[: end - start] = batch[start:end]
+        _execute_kernel_call_batch_kernel(
+            args=(
+                parameters,
+                np.uint32(end - start),
+                dt,
+                dE,
+                INDEX_DTYPE(dt.size),
+            ),
+            grid=grid_size,
+            block=_deferred_block_size,
+        )
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -1018,3 +1130,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         ) -> None:
             # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
             raise NotImplementedError
+
+
+# Queues the per-particle kernels and applies them in one fused launch.
+CudaDeferredSpecials = make_deferred_specials(CudaSpecials, _execute_batch)
