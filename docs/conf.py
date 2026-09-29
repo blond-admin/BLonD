@@ -360,6 +360,12 @@ nitpick_ignore_regex = [
     (r"py:.*", r"matplotlib\..*\._.*"),
     # pstats.SortKey (and similar enums) are absent from the stdlib inventory.
     (r"py:.*", r"pstats\..*"),
+    # `threading.local`'s actual base is the C-implemented `_thread._local`;
+    # CPython's docs only cover the public `threading.local` name, so
+    # `_thread._local` has no inventory entry. Shows up via
+    # `show-inheritance`/inheritance diagrams on classes that subclass
+    # `threading.local` (e.g. `KernelCallQueue`).
+    (r"py:.*", r"_thread\._local"),
     # Project-internal type aliases for external array types
     # (NumpyArray = numpy.typing.NDArray, CupyArray = cupy.ndarray). They are
     # spelled as bare names in annotations/docstrings and have no own page.
