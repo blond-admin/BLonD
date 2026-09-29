@@ -292,11 +292,12 @@ def rf_beam_current(
             order = np.argsort(profile.bin_centers)
             profile_bin_centers = profile.bin_centers[order]
             profile_n_macroparticles = profile.n_macroparticles[order]
-            extra_bins = np.arange(
-                profile_bin_centers[-1] + profile.bin_size,
-                profile_bin_centers[-1] + 2 * T_s + dT + np.pi / omega_c,
-                step=profile.bin_size,
-            )
+            # extra_bins = np.arange(
+            #     profile_bin_centers[-1] + profile.bin_size,
+            #     profile_bin_centers[-1] + 2 * T_s + dT + np.pi / omega_c,
+            #     step=profile.bin_size,
+            # )
+            extra_bins = []
             profile_bin_centers_for_coarse = np.concatenate(
                 (profile_bin_centers, extra_bins)
             )
@@ -353,18 +354,17 @@ def charges_from_fine_to_coarse(
     omega_c: float,
     profile_bin_centers: ndarray,
 ) -> ndarray[tuple[int], dtype[Any]]:
-    ind_fine = np.round((profile_bin_centers - dT - np.pi / omega_c) / T_s)
-    ind_fine = np.array(ind_fine, dtype=int)
-    indices = np.where((ind_fine[1:] - ind_fine[:-1]) >= 1)[0]
+    ind_fine = (profile_bin_centers - dT - np.pi / omega_c) / T_s
+    ind_fine = np.round(ind_fine).astype(int)
 
-    # Pick total current within one coarse grid
-    charges_coarse = np.zeros(n_points, dtype=complex)
-    charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
-    for i in range(1, len(indices)):
-        charges_coarse[ind_fine[indices[i]] % n_points] = (
-            np.sum(
-            charges_fine[np.arange(indices[i - 1], indices[i])]
-        ))
+    # Scatter-add per bin, instead of walking contiguous runs: runs
+    # broke on gapped filling patterns, were summed over an off-by-one
+    # window, and dropped the last run. Modulo wraps charge straddling
+    # the end of the turn; `np.bincount` has no complex weights.
+    bucket = ind_fine % n_points
+    charges_coarse = np.bincount(
+        bucket, weights=charges_fine.real, minlength=n_points
+    ) + 1j * np.bincount(bucket, weights=charges_fine.imag, minlength=n_points)
     return charges_coarse
 
 
