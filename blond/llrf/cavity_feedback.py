@@ -1647,10 +1647,10 @@ class LHCCavityLoop(CavityFeedback):
                     self.I_GEN_FINE = np.concatenate(
                         (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
                     )
+                # scalar query: numpy >= 2.4 refuses to store a 1-element
+                # array into a scalar slot
                 self.I_GEN_FINE[0] = np.interp(
-                    np.array(
-                        [self.profile.bin_centers[0] - self.profile.bin_size]
-                    ),
+                    self.profile.bin_centers[0] - self.profile.bin_size,
                     self.rf_centers,
                     self.I_GEN_COARSE[-self.n_coarse :],
                 )
