@@ -423,6 +423,8 @@ test_py_314_no_cupy:
     - .main_no_gpu
     - .cache_test
   dependencies: []
+  tags:
+    - cpu-intensive
 
 test_py_314_main_many_environments:
   image: gitlab-registry.cern.ch/blond/blond/python314
