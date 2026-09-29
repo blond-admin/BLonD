@@ -516,7 +516,8 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
   const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
 
-  // Loop through input particles and update histograms in shared memory
+  // Loop through input particles and update the histograms in global
+  // memory.
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
     const real_t dt = input[i];
@@ -550,7 +551,6 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
       atomicAdd(&output[bucket_index_to_memory_index[bucket_i] + bin], 1);
     }
   }
-  __syncthreads();
 }
 
 // Apply pole-residue (vector fitting) model to a beam profile to generate
