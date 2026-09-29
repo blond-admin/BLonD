@@ -41,7 +41,7 @@ repos:
   # excludes and confidence live in `[tool.vulture]` in pyproject.toml; the
   # upstream hook scans the whole tree (pass_filenames: false), since dead
   # code cannot be judged from the staged files alone. False positives go
-  # into dev_tools/vulture_whitelist.py.
+  # into `ignore_names` there.
   - repo: https://github.com/jendrikseipp/vulture
     rev: v2.16
     hooks:

@@ -194,12 +194,98 @@ exclude_files = [ # don't process filepaths that match these regex
 [tool.vulture]
 # Dead-code check, run by the `vulture` pre-commit hook. Vulture needs the
 # whole tree to see every use, so the hook ignores the staged file list and
-# scans these paths. Tests count as users. The whitelist holds the known
-# false positives and the not yet removed dead code.
-paths = ["blond", "tests", "dev_tools/vulture_whitelist.py"]
+# scans these paths. Tests count as users.
+paths = ["blond", "tests"]
 exclude = [
   "*/blond/legacy/*",           # matched against absolute paths
   "*/blond/experimental/*",     # excluded from pre-commit by convention
   "*/tests/unittests/legacy/*",
 ]
 min_confidence = 60 # unused attributes and methods are reported at 60 %
+# Names vulture must treat as used, grouped by why. Matched by name
+# only (any function, attribute or variable of that name), so keep them
+# specific and drop an entry once the code it excuses is gone.
+ignore_names = [
+  # Called implicitly by Python
+  "__getattr__", # module-level PEP 562 hooks (backend.py, cpp/callables.py)
+  "exc_type",    # `__exit__` protocol arguments
+  "exc_val",
+  "exc_tb",
+  # Public API or developer helpers without an internal caller
+  "twopi",                                            # `backend.twopi`, documented backend constant
+  "energy_lost_due_to_synchrotron_radiation_tracker", # public property
+  "pinned_values_helper",                             # used by hand while writing pinned-value tests
+  # Used only by blond/experimental, which vulture does not scan
+  "populate_beam",
+  "freeze_wakefields",
+  "unfreeze_wakefields",
+  "ExperimentalFeaturesWarning",
+  # Used in ways vulture cannot see
+  "_observe",     # Simulation: pinned so `on_run_simulation` can be found
+  "_beams",       # Simulation: same; tests pin it too
+  "profile_time", # solvers.py: `+=` updates the array in the deque in place
+  # Required by an interface signature
+  "obs_per_turn", # `on_run_simulation` keyword, accepted but not needed
+  # Example scripts: values shown for demonstration
+  "smoothness",           # EX_06 and line_density tests
+  "recenter",
+  "plot_result_blocking",
+  "damping_time",
+  "losses",
+  "wakefield2",
+  "extraction_energy",    # specifics/fccee/generate_rings.py, documents the mode
+  # Tests: mocks, fixtures and objects found by introspection
+  "n_turns_between_two_plots",
+  "cavity_tracker",
+  "OTFB_tracker",
+  "phi_rf_effective",
+  "energy_lost_per_turn",
+  "maxiter",
+  "_animation_pause",
+  "_animation_fignumber",
+  "cupy64_bit",
+  "numpy64_bit",
+  "share_of_circumference",
+  "problem",
+  "some_module",
+  "weird",
+  "programmed_cycle",
+  "_example_densr_arr_rec",
+  "dummy_value",
+  "_time",
+  "_beta",
+  "_section_indices_to_observe",
+  "sigma0",
+  "U0",
+  "common",
+  "not_track",
+  "not_found",
+  "to_be_found",
+  "_make_solver",
+  "get_cake",
+  "_numpy_backend",
+  "simulate_BLonD3",
+  "xpart",                       # import checks that xsuite is installed
+  "tilt",
+  "mock_rf_noise",
+  "test_tuple",
+  "rf_current_fine",
+  "matching",
+  "full_ring_and_rf_tracker",
+  "save_profile_b2",
+  "rf2",
+  "mac_ind",
+  "slic_ind",
+  "b_ind",
+  # Suspected dead code: remove in a follow-up, then drop the entry
+  "gaussian_distribution",       # acc_math/analytic/simple_math.py, no caller
+  "FloatOrArray",                # cycles/magnetic_cycle.py, type alias never used
+  "_value_init",                 # MagneticCycle, written, never read
+  "_base_magnetic_rigidity",     # MagneticCycle, written, never read
+  "_base_values",                # MagneticCycle, "only for debugging"
+  "_last_section_i_observed",    # observables.py, written, never read
+  "_n_freq",                     # impedances/solvers.py, written, never read
+  "_momentum_compaction_factor",
+  "_wake_pot_vals_need_update",
+  "_beam_feedback",              # RFStation, `attach_beam_feedback` stores it, never read
+]
