@@ -1,4 +1,3 @@
-import inspect
 import threading
 
 import numpy as np
@@ -81,6 +80,14 @@ class TestCppDeferredSpecials(BLonDTestCase):
         self.eager = backend.specials
         backend.set_specials(self.mode)
         self.deferred = backend.specials
+        # `backend.specials` is the class itself for cpp/cpp_deferred but
+        # an instance for other modes (e.g. cuda_deferred); resolve the
+        # deferred specials class once so both cases work uniformly.
+        self.deferred_class = (
+            self.deferred
+            if isinstance(self.deferred, type)
+            else type(self.deferred)
+        )
 
     def tearDown(self) -> None:
         self.deferred.flush()
@@ -172,17 +179,17 @@ class TestCppDeferredSpecials(BLonDTestCase):
         dt, dE = _beam(10)
         self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
         queue = self.deferred.kernel_call_queue
-        original = self.deferred._execute_batch
+        original = self.deferred_class._execute_batch
 
         def failing(*args):
             raise RuntimeError("boom")
 
-        self.deferred._execute_batch = staticmethod(failing)
+        self.deferred_class._execute_batch = staticmethod(failing)
         try:
             with self.assertRaises(RuntimeError):
                 self.deferred.flush()
         finally:
-            self.deferred._execute_batch = staticmethod(original)
+            self.deferred_class._execute_batch = staticmethod(original)
         self.assertEqual(queue.n_bytes, 0)
         self.assertEqual(queue.keep_alive, [])
 
@@ -234,7 +241,7 @@ class TestCppDeferredSpecials(BLonDTestCase):
         for name, value in vars(Specials).items():
             if name.startswith("_") or not isinstance(value, staticmethod):
                 continue
-            self.assertIn(name, vars(self.deferred), name)
+            self.assertIn(name, vars(self.deferred_class), name)
 
     def test_switching_specials_flushes(self) -> None:
         dt, dE = _beam(10)
