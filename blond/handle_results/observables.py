@@ -248,7 +248,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._last_turn_i_observed = (
             -1
         )  # to avoid double recordings with multiple drifts in one section
-        self._last_section_i_observed = -1
 
         self._simulation: Simulation | None = None
 

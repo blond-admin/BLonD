@@ -171,7 +171,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._t_periodicity = t_periodicity
         self._parent_wakefield: WakeField | None = None
         self._n_time: int | None = None
-        self._n_freq: int | None = None
         self._freq_x: NumpyArray | None = None
         self._freq_y: NumpyArray | None = None
 
@@ -301,7 +300,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_x = backend.fft.rfftfreq(
             self._n_time, d=self._parent_wakefield.profile.hist_step
         ).astype(backend.float)
-        self._n_freq = len(self._freq_x)
 
         self._freq_y_needs_update = True
 
