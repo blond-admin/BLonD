@@ -314,9 +314,13 @@ class Ring:
             # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
             # where all turns have the same initial energy, the injection energy in column 0
             # Order="F" for column flattening
+            # the flattened differences alternate the sections turn by
+            # turn: reshape as (turn, section) and transpose so that row s
+            # holds the energy step of section s at every turn (a C-order
+            # reshape to (n_sections, n_turns) interleaved sections and turns)
             self.delta_E = np.diff(self.energy.flatten(order="F"))[
                 n_sections - 1 :
-            ].reshape((n_sections, n_turns))
+            ].reshape((n_turns, n_sections)).T
             # skipping of first n_section elements due to the same initial energy in the arrays,
             # one less is required due to the length reduction of diff
 
