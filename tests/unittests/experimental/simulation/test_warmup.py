@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 import blond
 from blond import (
@@ -23,14 +24,23 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.experimental.simulation.warmup import warmup
+from blond.experimental.simulation.warmup import (
+    _restore_beam_shape,
+    _snapshot_beam_shape,
+    warmup,
+)
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedanceSolver,
 )
 from blond.testing.backend_testing import BLonDTestCase
+
+KICK = dict(
+    voltage=8e3, omega_rf=2e7, phi_rf=0.1, charge=1.0, acceleration_kick=12.0
+)
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -313,6 +323,57 @@ class TestWarmupEquilibratesSolverState(BLonDTestCase):
         )
 
         self.assertEqual(len(solver._previous_wakes), self.n_wake_turns)
+
+
+@pytest.mark.backend_mutation
+class TestWarmupSnapshotRestoreFlushesDeferredKernelCalls(BLonDTestCase):
+    """
+    `_snapshot_beam_shape`/`_restore_beam_shape` read and write `_dt`/`_dE`
+    directly; under `cpp_deferred` this must flush queued kernel calls
+    first, or a pending kick either gets snapshotted as un-applied, or (for
+    the in-place restore path) is left bound to the just-restored buffer
+    and would later run on top of it.
+    """
+
+    def setUp(self) -> None:
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp_deferred")
+        self.beam = Beam(intensity=1e11, particle_type=proton)
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-9, 1e-9, 100),
+            dE=np.linspace(-1e6, 1e6, 100),
+        )
+
+    def tearDown(self) -> None:
+        backend.specials.flush()
+        backend.set_specials("python")
+
+    def _queue_kick(self) -> np.ndarray:
+        before = self.beam.kernel_call_dE.copy()
+        backend.specials.kick_single_harmonic(
+            dt=self.beam.kernel_call_dt, dE=self.beam.kernel_call_dE, **KICK
+        )
+        return before
+
+    def test_snapshot_flushes_pending_kernel_calls(self) -> None:
+        before = self._queue_kick()
+
+        snapshot = _snapshot_beam_shape(self.beam)
+
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        self.assertFalse(np.array_equal(snapshot.dE, before))
+
+    def test_restore_flushes_pending_kernel_calls_before_overwrite(
+        self,
+    ) -> None:
+        snapshot = _snapshot_beam_shape(self.beam)  # no pending calls yet
+        self._queue_kick()  # queued *after* the snapshot was taken
+
+        _restore_beam_shape(self.beam, snapshot)
+
+        # The stale kick must not survive to run on top of the restore.
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        np.testing.assert_array_equal(self.beam.kernel_call_dE, snapshot.dE)
 
 
 if __name__ == "__main__":

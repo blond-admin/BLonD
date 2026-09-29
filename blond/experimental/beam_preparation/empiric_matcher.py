@@ -310,6 +310,10 @@ class EmpiricMatcher(MatchingRoutine):
             show_progressbar=False,
             callbacks=None,
         )
+        # `run_simulation` may leave deferred kernel calls (kicks, drifts)
+        # queued; flush before reading `_dE`/`_dt` directly below, or this
+        # would read stale, pre-kick coordinates.
+        beam_gridded._flush_kernel_calls()
         hamilton_2D = calc_hamiltonian(
             deltaE_grid,
             beam_gridded._dE.reshape(shape_2d),
@@ -361,6 +365,9 @@ class EmpiricMatcher(MatchingRoutine):
                 show_progressbar=False,
                 callbacks=None,
             )
+            # See the comment on the equivalent call above: flush before
+            # reading `_dE`/`_dt` directly.
+            beam_gridded._flush_kernel_calls()
             hamilton_2D = calc_hamiltonian(
                 deltaE_grid,
                 beam_gridded._dE.reshape(shape_2d),
@@ -384,6 +391,7 @@ class EmpiricMatcher(MatchingRoutine):
                 plt.figure("EmpiricMatcher")
                 plt.clf()
                 plt.title(f"Iteration {i}")
+                users_beam._flush_kernel_calls()
                 plt.hist2d(
                     users_beam._dt,
                     users_beam._dE,

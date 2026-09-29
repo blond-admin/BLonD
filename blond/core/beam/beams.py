@@ -153,7 +153,15 @@ class Beam(BeamBaseClass):
         **kwargs
             Unused - Keyword arguments to make the non-abstract implementation
             extendable.
+
+        Notes
+        -----
+        Runs queued (deferred) kernel calls first: calling this on an
+        already set-up beam replaces ``dt``/``dE``/``flags``/``ids`` with
+        fresh arrays, so any pending kernel call bound to the old arrays
+        must run (or be discarded) before they are replaced.
         """
+        self._flush_kernel_calls()
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
         if flags is None:

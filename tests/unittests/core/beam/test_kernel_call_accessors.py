@@ -7,6 +7,8 @@ import pytest
 
 from blond import Beam, proton
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.core.beam.flags import BeamFlags
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.testing.backend_testing import BLonDTestCase
 
 KICK = dict(
@@ -60,6 +62,78 @@ class TestKernelCallAccessors(BLonDTestCase):
         np.testing.assert_array_equal(
             copied.array_local, self.beam.kernel_call_dE
         )
+
+    def test_add_particles_flushes_pending_kernel_calls(self) -> None:
+        before = self._queue_kick()
+        new_dt = DistributedArray(np.linspace(2e-9, 3e-9, 10))
+        new_dE = DistributedArray(np.zeros(10))
+
+        self.beam.add_particles(new_dt, new_dE)
+
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        self.assertFalse(
+            np.array_equal(self.beam.kernel_call_dE[:100], before)
+        )
+
+    def test_add_beam_flushes_pending_kernel_calls_on_both_beams(
+        self,
+    ) -> None:
+        before_self = self._queue_kick()
+
+        other = Beam(intensity=1e10, particle_type=proton)
+        other.setup_beam(
+            dt=np.linspace(-1e-9, 1e-9, 10),
+            dE=np.linspace(-1e6, 1e6, 10),
+        )
+        before_other = other.kernel_call_dE.copy()
+        backend.specials.kick_single_harmonic(
+            dt=other.kernel_call_dt, dE=other.kernel_call_dE, **KICK
+        )
+
+        self.beam.add_beam(other)
+
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        self.assertFalse(
+            np.array_equal(self.beam.kernel_call_dE[:100], before_self)
+        )
+        self.assertFalse(
+            np.array_equal(self.beam.kernel_call_dE[100:], before_other)
+        )
+
+    def test_iadd_flushes_pending_kernel_calls(self) -> None:
+        before = self._queue_kick()
+
+        other = Beam(intensity=1e10, particle_type=proton)
+        other.setup_beam(
+            dt=np.linspace(-1e-9, 1e-9, 10),
+            dE=np.linspace(-1e6, 1e6, 10),
+        )
+
+        self.beam += other
+
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        self.assertFalse(
+            np.array_equal(self.beam.kernel_call_dE[:100], before)
+        )
+
+    def test_purge_flagged_entries_flushes_pending_kernel_calls(self) -> None:
+        before = self._queue_kick()
+
+        self.beam.purge_flagged_entries(flag=BeamFlags.LOST.value)
+
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        self.assertFalse(np.array_equal(self.beam.kernel_call_dE, before))
+
+    def test_setup_beam_flushes_pending_kernel_calls(self) -> None:
+        self._queue_kick()
+        self.assertGreater(backend.specials.kernel_call_queue.n_bytes, 0)
+
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-9, 1e-9, 50),
+            dE=np.linspace(-1e6, 1e6, 50),
+        )
+
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
 
 
 class TestNoDirectCoordinateAccess(BLonDTestCase):

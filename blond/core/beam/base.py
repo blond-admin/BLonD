@@ -130,7 +130,13 @@ class BeamBaseClass(Preparable, ABC):
         ValueError
             Raised if the ratio values are not exactly equal.
             Raised if the particle types are not equal.
+
+        Notes
+        -----
+        Runs queued (deferred) kernel calls first, so both this beam's and
+        ``other``'s coordinates are up to date before they are concatenated.
         """
+        self._flush_kernel_calls()
         if self.is_distributed != other.is_distributed:
             raise RuntimeError(
                 "A non-distributed beam cannot be added to a distributed beam."
@@ -179,7 +185,13 @@ class BeamBaseClass(Preparable, ABC):
         ValueError
             Raised if the local or global sizes of the `dt` and `dE`
             arrays do not match.
+
+        Notes
+        -----
+        Runs queued (deferred) kernel calls first, so this beam's existing
+        coordinates are up to date before the new ones are concatenated.
         """
+        self._flush_kernel_calls()
         if (dt.local_size != dE.local_size) or (
             dt.global_size != dE.global_size
         ):
