@@ -21,8 +21,9 @@ extern "C" void kick_multi_harmonic(
   // MAX_RF_HARMONICS_PER_RECORD per pass; `acc_kick` goes into the last
   // pass only, and one pass always runs so that n_rf == 0 still applies it.
   const int per_pass = sizeof(KickMultiHarmonicArgs::voltage) / sizeof(real_t);
-  int first = 0;
-  do {
+  const int n_passes = (n_rf > per_pass) ? (n_rf + per_pass - 1) / per_pass : 1;
+  for (int pass = 0; pass < n_passes; pass++) {
+    const int first = pass * per_pass;
     const int count = (n_rf - first < per_pass) ? n_rf - first : per_pass;
     KickMultiHarmonicArgs args{};
     args.n_rf = count;
@@ -32,10 +33,9 @@ extern "C" void kick_multi_harmonic(
       args.phi_rf[j] = phi_RF[first + j];
     }
     args.charge = charge;
-    first += count;
-    args.acceleration_kick = (first >= n_rf) ? acc_kick : real_t(0);
+    args.acceleration_kick = (pass == n_passes - 1) ? acc_kick : real_t(0);
     run_on_all_particles(args, beam_dt, beam_dE, n_macroparticles);
-  } while (first < n_rf);
+  }
 }
 
 extern "C" void kick_single_harmonic(const real_t *__restrict__ beam_dt,

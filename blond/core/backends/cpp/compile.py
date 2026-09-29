@@ -83,6 +83,7 @@ cpp_files = [
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
     "index_abi.cpp",  # reports the compiled index_t ABI back to Python
+    "deferred.cpp",  # executor of deferred kernel call batches
 ]
 cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 

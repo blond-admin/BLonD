@@ -11,6 +11,7 @@
 // Optimised C++ routine that calculates the kick of a voltage array on
 // particles
 
+#include <array>
 #include <cmath>
 
 #include "blond_common.h"
@@ -31,9 +32,9 @@ extern "C" void linear_interp_kick_table(const real_t *voltage,
 #pragma omp parallel for
   for (int i = 0; i < n_slices - 1; i++) {
     const real_t slope = charge * (voltage[i + 1] - voltage[i]) * inv_bin_width;
-    pairs[2 * i] = slope;
-    pairs[2 * i + 1] =
-        (charge * voltage[i] - bin_centers[i] * slope) + acc_kick;
+    const index_t pair = 2 * static_cast<index_t>(i);
+    pairs[pair] = slope;
+    pairs[pair + 1] = (charge * voltage[i] - bin_centers[i] * slope) + acc_kick;
   }
 }
 
@@ -41,7 +42,7 @@ void apply_to_chunk(const KickInterpolatedArgs &args,
                     const real_t *__restrict__ beam_dt,
                     real_t *__restrict__ beam_dE, const index_t begin,
                     const index_t end) {
-  const int STEP = 64;
+  constexpr int STEP = 64;
   const real_t *const table = args.voltage_kick_table;
   const real_t bin0 = table[0];
   const real_t inv_bin_width = table[1];
@@ -52,7 +53,7 @@ void apply_to_chunk(const KickInterpolatedArgs &args,
   // Keep the bin index in double until it is range-checked: converting
   // an out-of-range double to an integer type is undefined behaviour
   // (a huge positive index can wrap back into the valid bin range).
-  double fbin[STEP];
+  std::array<double, STEP> fbin{};
 
   for (index_t i = begin; i < end; i += STEP) {
 
@@ -63,8 +64,8 @@ void apply_to_chunk(const KickInterpolatedArgs &args,
     }
 
     for (index_t j = 0; j < loop_count; j++) {
-      if (fbin[j] >= 0.0 && fbin[j] < (double)n_bins) {
-        const int pair = 2 * (int)fbin[j];
+      if (fbin[j] >= 0.0 && fbin[j] < static_cast<double>(n_bins)) {
+        const index_t pair = 2 * static_cast<index_t>(fbin[j]);
         beam_dE[i + j] += beam_dt[i + j] * pairs[pair] + pairs[pair + 1];
       } else {
         // Out of range only the interpolated voltage is undefined.
@@ -84,12 +85,13 @@ extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
                                    const index_t n_macroparticles,
                                    const real_t acc_kick) {
   static thread_local std::vector<real_t> table_buffer;
-  real_t *const table = reuse_scratch(table_buffer, 2 * n_slices);
+  real_t *const table =
+      reuse_scratch(table_buffer, 2 * static_cast<std::size_t>(n_slices));
   linear_interp_kick_table(voltage_array, bin_centers, charge, n_slices,
                            acc_kick, table);
   KickInterpolatedArgs args{};
   args.voltage_kick_table = table;
-  args.voltage_kick_table_length = 2 * n_slices;
+  args.voltage_kick_table_length = 2 * static_cast<index_t>(n_slices);
   args.acceleration_kick = acc_kick;
   run_on_all_particles(args, beam_dt, beam_dE, n_macroparticles);
 }

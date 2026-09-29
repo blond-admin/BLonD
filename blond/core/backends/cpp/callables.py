@@ -97,6 +97,38 @@ def check_index_abi(library: CDLL) -> None:
     )
 
 
+def check_kernel_call_record_abi(library: CDLL) -> None:
+    """
+    Assert every compiled kernel call ``Args`` struct matches its dtype.
+
+    A mismatch would make the deferred executor read wrong parameters;
+    comparing once at load time turns that into a loud failure.
+
+    Parameters
+    ----------
+    library
+        The freshly loaded ``libblond``.
+
+    Raises
+    ------
+    AssertionError
+        If a compiled struct size differs from its numpy dtype.
+    """
+    from blond.core.backends.deferred.kernel_call_records import (  # NOQA: PLC0415
+        KERNEL_CALL_ARGS,
+    )
+
+    library.kernel_call_args_size.restype = ct.c_uint32
+    for args_type in KERNEL_CALL_ARGS:
+        compiled = int(library.kernel_call_args_size(args_type.kernel_id()))
+        expected = args_type.args_dtype().itemsize
+        assert compiled == expected, (
+            f"{args_type.__name__} is {compiled} bytes in libblond but "
+            f"{expected} in kernel_call_records.py; rebuild the C++ "
+            "backend with `blond-compile-cpp`."
+        )
+
+
 # Largest length a C ``int`` can hold; see `_get_len`.
 _C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
 
@@ -485,6 +517,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
     # and the only thing standing between a stale .dll and silent memory
     # corruption inside the particle loops.
     check_index_abi(_LIBBLOND)
+    check_kernel_call_record_abi(_LIBBLOND)
+    _LIBBLOND.execute_kernel_call_batch.restype = None
 
     # The array pointers are cached by the shared `_get_pointer` above; like every
     # other callable here we pass already-typed ctypes objects, so no `argtypes`
@@ -494,6 +528,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
     complextype = np.complex64 if floattype == np.float32 else np.complex128
 
     class CppSpecials(Specials):
+        # The loaded libblond, for the deferred executor and its tests.
+        _library = _LIBBLOND
+
         @staticmethod
         def get_max_threads() -> int:
             """

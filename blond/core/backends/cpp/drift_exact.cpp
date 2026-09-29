@@ -117,7 +117,7 @@ void drift_exact_generic(real_t *__restrict__ beam_dt,
 void apply_to_chunk(const DriftExactArgs &args, real_t *beam_dt,
                     const real_t *beam_dE, const index_t begin,
                     const index_t end) {
-  const real_t *higher_alpha = args.higher_alpha;
+  const real_t *higher_alpha = &args.higher_alpha[0];
   switch (args.n_alpha) {
   case 0:
     drift_exact_unrolled<0>(beam_dt, beam_dE, args.T, args.alpha_0,
