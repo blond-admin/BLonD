@@ -547,8 +547,8 @@ class TestXsuiteLHC(unittest.TestCase):
         # Convert the xsuite particle coordinates back to BLonD
         for i in range(N_t):
             dt_array[i], dE_array[i] = xsuite_to_blond_transform(
-                mon.zeta[:, i].T,
-                mon.ptau[:, i].T,
+                mon.zeta[0, i],
+                mon.ptau[0, i],
                 blond_track.rf_params.beta[i],
                 blond_track.rf_params.energy[i],
                 phi_s=blond_track.rf_params.phi_s[i]
@@ -808,8 +808,8 @@ class TestXsuitePSB(unittest.TestCase):
         # Convert the xsuite particle coordinates back to BLonD
         for i in range(N_t):
             dt_array[i], dE_array[i] = xsuite_to_blond_transform(
-                mon.zeta[:, i].T,
-                mon.ptau[:, i].T,
+                mon.zeta[0, i],
+                mon.ptau[0, i],
                 blond_track.rf_params.beta[i],
                 blond_track.rf_params.energy[i],
                 phi_s=blond_track.rf_params.phi_s[i]

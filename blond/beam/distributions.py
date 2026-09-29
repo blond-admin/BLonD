@@ -260,27 +260,20 @@ def matched_from_line_density(
                 "Warning: the profile has several max, the highest one "
                 + "is taken. Be sure the profile is monotonous and not too noisy."
             )
-            max_profile_pos = minmax_positions_profile[1][
-                np.where(
-                    minmax_values_profile[1] == minmax_values_profile[1].max()
-                )
-            ]
-        else:
-            max_profile_pos = minmax_positions_profile[1]
+        # scalar positions: numpy >= 2.4 refuses to cast a 1-element
+        # array to float when shifting the profile cuts
+        max_profile_pos = minmax_positions_profile[1][
+            np.argmax(minmax_values_profile[1])
+        ]
         if n_minima_potential > 1:
             print(
                 "Warning: the potential well has several min, the deepest "
                 + "one is taken. The induced potential is probably splitting "
                 + "the potential well."
             )
-            min_potential_pos = minmax_positions_potential[0][
-                np.where(
-                    minmax_values_potential[0]
-                    == minmax_values_potential[0].min()
-                )
-            ]
-        else:
-            min_potential_pos = minmax_positions_potential[0]
+        min_potential_pos = minmax_positions_potential[0][
+            np.argmin(minmax_values_potential[0])
+        ]
 
         # Moving the bunch (not for the last iteration if intensity effects
         # are present)
@@ -1500,7 +1493,7 @@ def Haissinski(
             return induced_voltage.induced_voltage
 
     tracker = ring_tracker.ring_and_rf_section[0]
-    counter = tracker.counter
+    counter = tracker.counter[0]
 
     rf_station = tracker.rf_params
 
