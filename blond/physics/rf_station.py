@@ -36,12 +36,18 @@ from blond.core.base import (
 from blond.core.beam.beams import ProbeBeam
 from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.experimental.physics.kick_pooling import (
-    PooledInterpolationKick,
-    SupportsPooledInterpolationKickMixIn,
-)
+from blond.generals.warnings_ import ExperimentalFeaturesWarning
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+
+# FIXME: remove the warning filter once the experimental features used here
+#  have been moved out of `blond.experimental`.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", ExperimentalFeaturesWarning)
+    from blond.experimental.physics.kick_pooling import (
+        PooledInterpolationKick,
+        SupportsPooledInterpolationKickMixIn,
+    )
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -689,9 +695,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             This needs to be provided for multiharmonic cavities,
             where a single LocalFeedback is provided.
         """
-        from blond.experimental.physics.feedbacks.base import (
-            LocalFeedback as LocalFeedbackExp,  # warning on BLonD startup; prevent Experimental
-        )
+        # FIXME: remove the warning filter once `LocalFeedback` has been
+        #  moved out of `blond.experimental`.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ExperimentalFeaturesWarning)
+            from blond.experimental.physics.feedbacks.base import (
+                LocalFeedback as LocalFeedbackExp,
+            )
 
         if isinstance(cavity_feedback, LocalFeedback | LocalFeedbackExp):
             if harmonic_index is None:

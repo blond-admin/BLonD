@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -18,10 +19,16 @@ from scipy.constants import elementary_charge as e
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
-from blond.experimental.physics.kick_pooling import (
-    SupportsPooledInterpolationKickMixIn,
-)
+from blond.generals.warnings_ import ExperimentalFeaturesWarning
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+
+# FIXME: remove the warning filter once the experimental features used here
+#  have been moved out of `blond.experimental`.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", ExperimentalFeaturesWarning)
+    from blond.experimental.physics.kick_pooling import (
+        SupportsPooledInterpolationKickMixIn,
+    )
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
