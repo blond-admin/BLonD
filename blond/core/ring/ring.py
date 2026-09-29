@@ -81,7 +81,6 @@ class Ring(Preparable):
         )
         self._circumference = circumference
         self._radiation_integrals = radiation_integrals
-        self._momentum_compaction_factor = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -166,8 +165,7 @@ class Ring(Preparable):
         Notes
         -----
         Currently only considers DriftSimple elements. The weighting is based on
-        the orbit length of each drift section. This value is cached after first
-        calculation.
+        the orbit length of each drift section.
 
         The following derivation is only relevant for a *multi-drift simulation
         setup*.

@@ -278,14 +278,12 @@ ignore_names = [
   "slic_ind",
   "b_ind",
   # Suspected dead code: remove in a follow-up, then drop the entry
-  "gaussian_distribution",       # acc_math/analytic/simple_math.py, no caller
-  "FloatOrArray",                # cycles/magnetic_cycle.py, type alias never used
-  "_value_init",                 # MagneticCycle, written, never read
-  "_base_magnetic_rigidity",     # MagneticCycle, written, never read
-  "_base_values",                # MagneticCycle, "only for debugging"
-  "_last_section_i_observed",    # observables.py, written, never read
-  "_n_freq",                     # impedances/solvers.py, written, never read
-  "_momentum_compaction_factor",
-  "_wake_pot_vals_need_update",
-  "_beam_feedback",              # RFStation, `attach_beam_feedback` stores it, never read
+  "gaussian_distribution",    # acc_math/analytic/simple_math.py, no caller
+  "FloatOrArray",             # cycles/magnetic_cycle.py, type alias never used
+  "_value_init",              # MagneticCycle, written, never read
+  "_base_magnetic_rigidity",  # MagneticCycle, written, never read
+  "_base_values",             # MagneticCycle, "only for debugging"
+  "_last_section_i_observed", # observables.py, written, never read
+  "_n_freq",                  # impedances/solvers.py, written, never read
+  "_beam_feedback",           # RFStation, `attach_beam_feedback` stores it, never read
 ]

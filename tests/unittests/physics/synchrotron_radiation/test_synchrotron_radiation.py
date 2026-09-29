@@ -158,7 +158,6 @@ class TestSynchrotronRadiationMaster(BLonDTestCase):
 
         ring = Ring(circumference=90.65874532 * 1e3)
         ring._radiation_integrals = self.synchrotron_radiation_integrals
-        ring._momentum_compaction_factor = 0
         SRM._set_radiation_integrals(
             ring=ring,
             radiation_integrals=self.synchrotron_radiation_integrals / 10,
