@@ -417,81 +417,16 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                         profile_bin_centers=self.profile_std.bin_centers,
                                                         )
 
-        order = np.argsort(self.profile_sparse.bin_centers)
-        profile_bin_centers = self.profile_sparse.bin_centers[order]
-        profile_n_macroparticles = \
-            self.profile_sparse.n_macroparticles[order]
-
-        ind_fine = np.round(
-            (
-                    profile_bin_centers
-                    - 0
-                    - np.pi / self.omega
-            )
-            / self.T_s
+        # the scatter-add charge counting needs no empty bins past the
+        # last window: the sparse grid gives the standard result as is
+        charges_coarse_sparse = charges_from_fine_to_coarse(
+            T_s=self.T_s,
+            charges_fine=charges_fine_sparse,
+            dT=0,
+            n_points=self.n_points,
+            omega_c=self.omega,
+            profile_bin_centers=self.profile_sparse.bin_centers,
         )
-        ind_fine = np.array(ind_fine, dtype=int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) >= 1)[0]
-        if len(indices) == 0:
-            extra_bins = np.arange(
-                profile_bin_centers[
-                    -1
-                ],
-                profile_bin_centers[-1]
-                + self.T_s
-                + 0
-                + np.pi / self.omega,
-                step=self.profile_sparse.bin_size,
-            )
-            profile_bin_centers_for_coarse = np.concatenate(
-                (self.profile_sparse.bin_centers, extra_bins)
-            )
-            profile_n_macroparticles = np.concatenate(
-                (self.profile_sparse.n_macroparticles, np.zeros(len(extra_bins)))
-            )
-            charges = (
-                    self.profile_sparse.beam.ratio
-                    * self.profile_sparse.beam.particle.charge
-                    * e
-                    * np.copy(profile_n_macroparticles)
-            )
-            I_f = 2.0 * charges * np.cos(
-                self.omega * profile_bin_centers_for_coarse)
-            Q_f = -2.0 * charges * np.sin(
-                self.omega * profile_bin_centers_for_coarse)
-            charges_fine_for_coarse_grid = I_f + 1j * Q_f
-            warnings.warn(
-                "The length of the sparse profile is too "
-                "short to properly convert the charges from the fine to the coarse grid."
-                "Profile has been extented."
-            )
-        else:
-            profile_bin_centers_for_coarse = profile_bin_centers
-            charges_extended = (
-                    self.profile_sparse.beam.ratio
-                    * self.profile_sparse.beam.particle.charge
-                    * e
-                    * np.copy(profile_n_macroparticles)
-            )
-            I_f = (
-                    2.0
-                    * charges_extended
-                    * np.cos(self.omega * profile_bin_centers)
-            )
-            Q_f = (
-                    -2.0
-                    * charges_extended
-                    * np.sin(self.omega * profile_bin_centers)
-            )
-            charges_fine_for_coarse_grid = I_f + 1j * Q_f
-        charges_coarse_sparse = charges_from_fine_to_coarse(T_s = self.T_s,
-                                                            charges_fine =
-                                                            charges_fine_for_coarse_grid,
-                                                            dT = 0,
-                                                            n_points=self.n_points,
-                                                            omega_c=self.omega,
-                                                            profile_bin_centers=profile_bin_centers_for_coarse,
-                                                            )
         np.testing.assert_allclose(charges_coarse_std,
                                    charges_coarse_sparse,
                                    rtol=self.rtol,
@@ -839,46 +774,16 @@ class TestRFBeamCurrent(unittest.TestCase):
                                                              profile_bin_centers=self.profile_std.bin_centers,
                                                              )
 
-            order = np.argsort(self.profile_sparse.bin_centers)
-            profile_bin_centers = self.profile_sparse.bin_centers[order]
-            profile_n_macroparticles = \
-            self.profile_sparse.n_macroparticles[order]
-            extra_bins = np.arange(
-                profile_bin_centers[
-                    -1
-                ],
-                profile_bin_centers[-1]
-                + 2 * self.T_s
-                + 0
-                + np.pi / self.omega,
-                step=self.profile_sparse.bin_size,
+            # the scatter-add charge counting needs no empty bins past the
+            # last window: the sparse grid gives the standard result as is
+            charges_coarse_sparse = charges_from_fine_to_coarse(
+                T_s=self.T_s,
+                charges_fine=charges_fine_sparse,
+                dT=0,
+                n_points=self.n_points,
+                omega_c=self.omega,
+                profile_bin_centers=self.profile_sparse.bin_centers,
             )
-            profile_bin_centers_for_coarse = np.concatenate(
-                (profile_bin_centers, extra_bins)
-            )
-            profile_n_macroparticles_for_coarse = np.concatenate(
-                (profile_n_macroparticles, np.zeros(len(extra_bins)))
-            )
-            charges = (
-                    self.profile_sparse.beam.ratio
-                    * self.profile_sparse.beam.particle.charge
-                    * e
-                    * np.copy(profile_n_macroparticles_for_coarse)
-            )
-            I_f = 2.0 * charges * np.cos(self.omega *
-                                         profile_bin_centers_for_coarse)
-            Q_f = -2.0 * charges * np.sin(
-                self.omega * profile_bin_centers_for_coarse)
-            charges_fine_for_coarse_grid = I_f + 1j * Q_f
-
-            charges_coarse_sparse = charges_from_fine_to_coarse(T_s=self.T_s,
-                                                                charges_fine=
-                                                                charges_fine_for_coarse_grid,
-                                                                dT=0,
-                                                                n_points=self.n_points,
-                                                                omega_c=self.omega,
-                                                                profile_bin_centers=profile_bin_centers_for_coarse,
-                                                                )
 
             for p, profile in enumerate(
                 self.profile_sparse.profiles_list
