@@ -494,6 +494,46 @@ class TestSpecials(BLonDTestCase):
                     result, reference, rtol=1e-12, err_msg=special
                 )
 
+    @skip_if_no_cupy
+    @pytest.mark.backend_mutation
+    def test_drift_exact_noncontiguous_device_coefficients(self) -> None:
+        """A non-contiguous device `higher_alpha` must not be read raw.
+
+        `cp.asarray` does not copy a same-dtype CuPy array even if it is
+        non-contiguous, so passing a strided device array straight to the
+        kernel would silently read the wrong memory layout.
+        """
+        self._setUp(dtype=np.float64, special_mode="cuda")
+        strided = cp.asarray([1e-3, 0.0, 2e-3, 0.0])[::2]
+        self.assertFalse(strided.flags.c_contiguous)
+        backend.specials.drift_exact(
+            dt=self.dt,
+            dE=self.dE,
+            T=self.t_rev,
+            alpha_0=self.alpha_0,
+            higher_alpha=strided,
+            beta=self.beta,
+            energy=self.energy,
+        )
+        result_strided = copy_to_cpu(self.dt)
+
+        self._setUp(dtype=np.float64, special_mode="cuda")
+        contiguous = cp.ascontiguousarray(strided)
+        backend.specials.drift_exact(
+            dt=self.dt,
+            dE=self.dE,
+            T=self.t_rev,
+            alpha_0=self.alpha_0,
+            higher_alpha=contiguous,
+            beta=self.beta,
+            energy=self.energy,
+        )
+        result_contiguous = copy_to_cpu(self.dt)
+
+        np.testing.assert_allclose(
+            result_strided, result_contiguous, rtol=1e-12
+        )
+
     @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
         dtype = np.float64

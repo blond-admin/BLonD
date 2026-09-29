@@ -374,8 +374,13 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert dE.flags.c_contiguous
 
         # host coefficients, as the ABC declares; one tiny copy per call,
-        # as the caller used to do
-        higher_alpha = cp.asarray(higher_alpha, dtype=FLOAT)
+        # as the caller used to do. `ascontiguousarray` also makes a
+        # non-contiguous device array (the still-accepted compatibility
+        # path) contiguous before it reaches the raw kernel, which reads
+        # it as a flat buffer.
+        higher_alpha = cp.ascontiguousarray(
+            cp.asarray(higher_alpha, dtype=FLOAT)
+        )
 
         T = FLOAT(T)
         alpha_0 = FLOAT(alpha_0)
