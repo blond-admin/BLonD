@@ -21,8 +21,8 @@ from blond.core.backends.mpi_distributed import helpers as dist_help
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self

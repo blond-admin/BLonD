@@ -18,7 +18,7 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover

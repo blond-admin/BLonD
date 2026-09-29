@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, TypeVar
 import numpy as np
 
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable

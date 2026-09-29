@@ -33,7 +33,7 @@ from scipy.fft import next_fast_len
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (

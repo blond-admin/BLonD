@@ -17,11 +17,12 @@ import numpy as np
 
 from blond.core.base import Preparable
 from blond.core.helpers import find_instances_by_class
-from blond.core.ring.helpers import filter_elements
+from blond.core.ordering import filter_elements
 from blond.core.simulation.simulation import Simulation
+from blond.generals.formatting_ import pretty_string  # noqa: F401  (re-export)
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, TypeVar
+    from typing import TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -551,23 +552,3 @@ class BeamPhysicsRelevantElements(Preparable):
             content += element.info_string() + "\n"
         content += sep
         return content
-
-
-def pretty_string(v: NumpyArray | Any) -> Any:
-    """
-    Pretty print an array.
-
-    Parameters
-    ----------
-    v
-        Value to format (array or other type).
-
-    Returns
-    -------
-    formatted_string
-        Formatted string representation of the input value.
-    """
-    try:  # handles NumPy and CuPy without import
-        return f"{type(v)}(min={v.min()}, max={v.max()}, shape={v.shape})"
-    except AttributeError:
-        return v

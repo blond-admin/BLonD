@@ -34,8 +34,8 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
