@@ -190,3 +190,16 @@ exclude_files = [ # don't process filepaths that match these regex
   '^blond/experimental/.*',
 
 ]
+
+[tool.vulture]
+# Dead-code check, run by the `vulture` pre-commit hook. Vulture needs the
+# whole tree to see every use, so the hook ignores the staged file list and
+# scans these paths. Tests count as users. The whitelist holds the known
+# false positives and the not yet removed dead code.
+paths = ["blond", "tests", "dev_tools/vulture_whitelist.py"]
+exclude = [
+  "*/blond/legacy/*",           # matched against absolute paths
+  "*/blond/experimental/*",     # excluded from pre-commit by convention
+  "*/tests/unittests/legacy/*",
+]
+min_confidence = 60 # unused attributes and methods are reported at 60 %
