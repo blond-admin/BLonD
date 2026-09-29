@@ -101,7 +101,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         """
         Apply synchrotron radiation and quantum excitation energy kicks.
 
-        Mutates ``beam._dE`` in place via
+        Mutates ``beam.kernel_call_dE`` in place via
         ``backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick``.
 
         Parameters

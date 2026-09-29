@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -233,6 +234,35 @@ class BeamBaseClass(Preparable, ABC):
 
         self.intensity = ratio * self.common_array_size
 
+    def copy_coordinates_from(self, other: Self) -> None:
+        """
+        Replace this beam's particle data with a deep copy of ``other``'s.
+
+        Parameters
+        ----------
+        other
+            Beam to copy the ``dt``, ``dE``, ``flags`` and ``ids`` arrays,
+            and the intensity, from.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if ``other`` is MPI-distributed: copying is only
+            supported between non-distributed beams.
+        """
+        if other._is_distributed:
+            raise RuntimeError(
+                "Copying is not supported with distributed beams."
+            )
+
+        self._dt = deepcopy(other.dt)
+        self._dE = deepcopy(other.dE)
+        self._flags = deepcopy(other._flags)
+        self._ids = deepcopy(other._ids)
+
+        self.intensity = deepcopy(other.intensity)
+        self._is_distributed = False
+
     def signed_charge_with_direction(self):
         """
         Return the charge, corrected with the direction of the beam.
@@ -272,6 +302,7 @@ class BeamBaseClass(Preparable, ABC):
         dE
             Beam macro-particle energy coordinates, in [eV].
         """
+        self._flush_kernel_calls()
         if self._dE is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
@@ -289,6 +320,7 @@ class BeamBaseClass(Preparable, ABC):
         dt
             Beam macro-particle time coordinates, in [s].
         """
+        self._flush_kernel_calls()
         if self._dt is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
@@ -310,6 +342,7 @@ class BeamBaseClass(Preparable, ABC):
         --------
         blond.core.beam.flags.BeamFlags: The available flags.
         """
+        self._flush_kernel_calls()
         if self._flags is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
@@ -577,6 +610,45 @@ class BeamBaseClass(Preparable, ABC):
                 f"...)` for initialisation."
             )
 
+    @property
+    def kernel_call_dt(self) -> NumpyArray | CupyArray:
+        """
+        Local dt-array to pass to a `Specials` kernel call, in [s].
+
+        Unlike `read_partial_dt`, this does not run queued kernel calls
+        first: passing it to a deferred kernel must not flush the queue
+        the call is about to join. Use it only as a kernel argument.
+
+        Returns
+        -------
+        dt
+            Dt-array on the current node, in [s].
+        """
+        return self._dt.array_local
+
+    @property
+    def kernel_call_dE(self) -> NumpyArray | CupyArray:
+        """
+        Local dE-array to pass to a `Specials` kernel call, in [eV].
+
+        Unlike `read_partial_dE`, this does not run queued kernel calls
+        first: passing it to a deferred kernel must not flush the queue
+        the call is about to join. Use it only as a kernel argument.
+
+        Returns
+        -------
+        dE
+            DE-array on the current node, in [eV].
+        """
+        return self._dE.array_local
+
+    @staticmethod
+    def _flush_kernel_calls() -> None:
+        """Run queued kernel calls before Python reads the coordinates."""
+        from blond.core.backends.backend import backend
+
+        backend.specials.flush()
+
     def read_partial_ids(self) -> NumpyArray | CupyArray:
         """
         Return id-array on current node (distributed computing ready).
@@ -594,7 +666,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._ids.array_local
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
@@ -614,7 +690,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
@@ -634,7 +714,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._dt.array_local
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
@@ -654,7 +738,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
@@ -674,7 +762,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._dE.array_local
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
@@ -694,7 +786,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._flags.array_local
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
@@ -714,7 +810,11 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
+
+        Runs queued (deferred) kernel calls first; kernel arguments use
+        `kernel_call_dt` / `kernel_call_dE`.
         """
+        self._flush_kernel_calls()
         return self._flags.array_local
 
     def sort_by_dt(self) -> None:
@@ -730,6 +830,7 @@ class BeamBaseClass(Preparable, ABC):
             If the beam is distributed across MPI ranks: a per-node sort
             cannot order the global beam, so sorting is unsupported there.
         """
+        self._flush_kernel_calls()
         if self.is_distributed:
             raise NotImplementedError(
                 "`sort_by_dt` cannot sort an MPI-distributed beam: a "

@@ -464,7 +464,7 @@ class EquidistantMultiProfile(MultiProfile):
         beam
             Beam class to interact with this element.
         """
-        if len(beam._dt.array_local) == 0:
+        if len(beam.read_partial_dt()) == 0:
             # No particles to track
             self._continuous_memory_hist_y[:] = 0
             self.hist_y_to_density_factor = 0.0
@@ -472,7 +472,7 @@ class EquidistantMultiProfile(MultiProfile):
         assert self._bucket_index_to_memory_index[-1] + self.profiles[
             0
         ].n_bins <= len(self._continuous_memory_hist_y)
-        beam._dt.histogram_sparse(
+        beam.dt.histogram_sparse(
             out=self._continuous_memory_hist_y,
             first_left_cut=self._first_left_cut,
             left_cut_distance=self._left_cut_distance,

@@ -122,12 +122,8 @@ class TestDriftSimple(BLonDTestCase):
         beam.reference.velocity = 0.5
         beam.reference.beta = 0.1
         beam.reference.total_energy = 1.0
-        beam.write_partial_dt.return_value = backend.ones(
-            10, dtype=backend.float
-        )
-        beam.read_partial_dE.return_value = backend.zeros(
-            10, dtype=backend.float
-        )
+        beam.kernel_call_dt = backend.ones(10, dtype=backend.float)
+        beam.kernel_call_dE = backend.zeros(10, dtype=backend.float)
         self.drift_simple.track(beam=beam)
 
     def test_error_throwing_on_unscheduled(self):
@@ -194,8 +190,8 @@ class TestDriftSimple(BLonDTestCase):
         beam.dt = backend.linspace(
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t in s
-        beam.write_partial_dt.return_value = beam.dt
-        beam.read_partial_dE.return_value = beam.dE
+        beam.kernel_call_dt = beam.dt
+        beam.kernel_call_dE = beam.dE
         self.drift_simple.momentum_compaction_factor = (
             momentum_compaction_factor(transition_gamma=20.0)
         )  # highly relativistic
@@ -324,8 +320,8 @@ class TestDriftExact(BLonDTestCase):
         beam.dt = backend.linspace(
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t in s
-        beam.write_partial_dt.return_value = beam.dt
-        beam.read_partial_dE.return_value = beam.dE
+        beam.kernel_call_dt = beam.dt
+        beam.kernel_call_dE = beam.dE
         self.drift_exact._turn_counter = DynamicParameter(1)
 
         self.drift_exact.schedule(
@@ -375,8 +371,8 @@ class TestDriftExact(BLonDTestCase):
 
         beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
         beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
-        beam.write_partial_dt.return_value = beam.dt
-        beam.read_partial_dE.return_value = beam.dE
+        beam.kernel_call_dt = beam.dt
+        beam.kernel_call_dE = beam.dE
         drift_exact._turn_counter = DynamicParameter(1)
 
         drift_exact.track(beam=beam)

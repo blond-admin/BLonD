@@ -73,8 +73,8 @@ def make_multibunch_beam(
         particle_type=beam.particle_type,
         is_counter_rotating=beam.is_counter_rotating,
     )
-    dt_local = beam._dt.array_local
-    dE_local = beam._dE.array_local
+    dt_local = beam.write_partial_dt()
+    dE_local = beam.write_partial_dE()
     n_macroparticles_local = dt_local.size
     # The copies are stored bunch by bunch (and NOT interleaved), so that
     # neighbouring particles in memory also lie close together in ``dt``.

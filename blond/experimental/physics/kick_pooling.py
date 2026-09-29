@@ -212,8 +212,8 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
                 time = self._buffer_time_axis[key]
                 sparse_metadata = self._buffer_sparse_metadata[key]
                 backend.specials.kick_interpolated(
-                    dt=beam.read_partial_dt(),
-                    dE=beam.write_partial_dE(),
+                    dt=beam.kernel_call_dt,
+                    dE=beam.kernel_call_dE,
                     bin_centers=time,
                     voltage=voltage,
                     charge=beam.particle_type.charge,

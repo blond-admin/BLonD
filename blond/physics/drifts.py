@@ -343,8 +343,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         if beam.common_array_size > 0:
             backend.specials.drift_simple(
-                dt=beam.write_partial_dt(),
-                dE=beam.read_partial_dE(),
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
                 T=dt,
                 eta_0=self._last_eta_0,
                 beta=beam.reference.beta,
@@ -691,8 +691,8 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Track macroparticles
         if beam.common_array_size > 0:
             backend.specials.drift_exact(
-                dt=beam.write_partial_dt(),
-                dE=beam.read_partial_dE(),
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
                 T=dt,
                 alpha_0=self.alpha_0,
                 higher_alpha=higher_alpha,
@@ -827,8 +827,8 @@ class _DriftLikeLineSegment(DriftSimple):
 
         if beam.common_array_size > 0:
             backend.specials.drift_like_line_segment(
-                dt=beam.write_partial_dt(),
-                dE=beam.read_partial_dE(),
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
                 T=dt,
                 eta_0=self._last_eta_0,
                 beta=beam.reference.beta,

@@ -408,7 +408,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             )
         geometry = self._geometry
         if beam.common_array_size > 0:
-            beam._dt.histogram(  # MPI aware histogram calculation
+            beam.dt.histogram(  # MPI aware histogram calculation
                 geometry.n_bins,  # type: ignore
                 range=(
                     geometry.cut_left,  # type: ignore

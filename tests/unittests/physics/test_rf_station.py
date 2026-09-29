@@ -88,9 +88,8 @@ class TestRFStationBaseClass(BLonDTestCase):
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t
         # in s
-        self.beam.read_partial_dt.return_value = self.beam.dt
-        self.beam.read_partial_dt.return_value = self.beam.dt
-        self.beam.write_partial_dE.return_value = self.beam.dE
+        self.beam.kernel_call_dt = self.beam.dt
+        self.beam.kernel_call_dE = self.beam.dE
         self.beam.signed_charge_with_direction.return_value = proton._charge
 
         self.beam.common_array_size = len(self.beam.dE)
@@ -697,8 +696,8 @@ class TestMultiHarmonicCavity(BLonDTestCase):
         # delta E  in eV
         beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
         # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
+        beam.kernel_call_dt = beam.dt
+        beam.kernel_call_dE = beam.dE
         beam.signed_charge_with_direction.return_value = proton._charge
 
         self.beam = beam
@@ -1208,8 +1207,8 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
         beam.dt = backend.linspace(
             -1e-6, 1e-6, 10, dtype=backend.float
         )  # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
+        beam.kernel_call_dt = beam.dt
+        beam.kernel_call_dE = beam.dE
         beam.signed_charge_with_direction.return_value = proton._charge
 
         self.beam = beam

@@ -937,8 +937,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             )
         else:
             backend.specials.kick_interpolated(
-                dt=beam.read_partial_dt(),
-                dE=beam.write_partial_dE(),
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
                 voltage=backend.array(voltage, dtype=backend.float),
                 bin_centers=backend.array(time_axis, dtype=backend.float),
                 charge=beam.signed_charge_with_direction(),
@@ -1382,8 +1382,8 @@ class SingleHarmonicRFStation(
         assert self.omega_rf is not None
 
         backend.specials.kick_single_harmonic(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
+            dt=beam.kernel_call_dt,
+            dE=beam.kernel_call_dE,
             voltage=self.voltage,
             phi_rf=self.phi_rf,
             omega_rf=self.omega_rf,
@@ -1959,8 +1959,8 @@ class MultiHarmonicRFStation(
         assert self.omega_rf is not None
 
         backend.specials.kick_multi_harmonic(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
+            dt=beam.kernel_call_dt,
+            dE=beam.kernel_call_dE,
             # Host arrays on every backend: a GPU kernel receives them by
             # value, so moving them to the device would only add copies.
             voltage=np.asarray(self.voltage, dtype=backend.float),

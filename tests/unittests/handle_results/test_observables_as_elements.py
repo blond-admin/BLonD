@@ -246,8 +246,8 @@ class TestBunchObservationMetaParams(BLonDTestCase):
             n_turns=5,
         )
         observed_beam = Mock(BeamBaseClass)
-        observed_beam._dt = np.arange(4, dtype=float)
-        observed_beam._dE = np.arange(4, dtype=float)
+        observed_beam.dt = np.arange(4, dtype=float)
+        observed_beam.dE = np.arange(4, dtype=float)
         observed_beam.rms_emittance = 1.0
 
         for turn_i in range(5):

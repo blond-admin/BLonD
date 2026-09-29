@@ -233,6 +233,7 @@ class Beam(BeamBaseClass):
         dt_min
             Earliest time position in [s], relative to the reference time.
         """
+        self._flush_kernel_calls()
         return self._dt.min()
 
     @property
@@ -245,6 +246,7 @@ class Beam(BeamBaseClass):
         dt_max
             Latest time position in [s], relative to the reference time.
         """
+        self._flush_kernel_calls()
         return self._dt.max()
 
     @property
@@ -257,6 +259,7 @@ class Beam(BeamBaseClass):
         dE_min
             Lowest energy in [eV], relative to the reference energy.
         """
+        self._flush_kernel_calls()
         return self._dE.min()
 
     @property
@@ -269,6 +272,7 @@ class Beam(BeamBaseClass):
         dE_max
             Highest energy in [eV], relative to the reference energy.
         """
+        self._flush_kernel_calls()
         return self._dE.max()
 
     @property
@@ -281,6 +285,7 @@ class Beam(BeamBaseClass):
         rms_emittance
             The Root-Mean-Square emittance in [s eV] of the beam.
         """
+        self._flush_kernel_calls()
         return rms_emittance(dt=self._dt, dE=self._dE)
 
     @property
@@ -329,6 +334,7 @@ class Beam(BeamBaseClass):
         -----
         The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
+        self._flush_kernel_calls()
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -365,6 +371,7 @@ class Beam(BeamBaseClass):
         scatter_path_collection
             The `PathCollection` of the scatter plot.
         """
+        self._flush_kernel_calls()
         if ax is None:
             ax = plt.gca()
         if self._dt is None or self._dE is None:
@@ -405,6 +412,7 @@ class Beam(BeamBaseClass):
             - range: data range (min, max)
             - density: if True, normalize to form a probability density
         """
+        self._flush_kernel_calls()
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"

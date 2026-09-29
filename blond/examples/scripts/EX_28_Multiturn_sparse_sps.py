@@ -252,7 +252,7 @@ def main():
     cmap = matplotlib.colormaps["plasma"]
     lims = [
         [profile.profiles[-1].cut_left, profile.profiles[-1].cut_right],
-        [2 * _bunch._dE.min(), 2 * _bunch._dE.max()],
+        [2 * _bunch.dE.min(), 2 * _bunch.dE.max()],
     ]
 
     def live_animation(simulation: Simulation, beam: Beam) -> None:

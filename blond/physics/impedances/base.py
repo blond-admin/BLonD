@@ -554,8 +554,8 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             )
         else:
             backend.specials.kick_interpolated(
-                dt=beam.read_partial_dt(),
-                dE=beam.write_partial_dE(),
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
                 # TODO improve induced_voltage calculation data type for speedup
                 voltage=voltage,
                 bin_centers=bin_centers,  # base for induced voltage
