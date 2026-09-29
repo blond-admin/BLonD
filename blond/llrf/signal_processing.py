@@ -288,48 +288,8 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
-        if isinstance(profile, SparseProfileBaseClass):
-            order = np.argsort(profile.bin_centers)
-            profile_bin_centers = profile.bin_centers[order]
-            profile_n_macroparticles = profile.n_macroparticles[order]
-            # extra_bins = np.arange(
-            #     profile_bin_centers[-1] + profile.bin_size,
-            #     profile_bin_centers[-1] + 2 * T_s + dT + np.pi / omega_c,
-            #     step=profile.bin_size,
-            # )
-            extra_bins = []
-            profile_bin_centers_for_coarse = np.concatenate(
-                (profile_bin_centers, extra_bins)
-            )
-            profile_n_macroparticles_for_coarse = np.concatenate(
-                (profile_n_macroparticles, np.zeros(len(extra_bins)))
-            )
-            charges = (
-                profile.beam.ratio
-                * profile.beam.particle.charge
-                * e
-                * np.copy(profile_n_macroparticles_for_coarse)
-            )
-            I_f = (
-                2.0
-                * charges
-                * np.cos(omega_c * profile_bin_centers_for_coarse)
-            )
-            Q_f = (
-                -2.0
-                * charges
-                * np.sin(omega_c * profile_bin_centers_for_coarse)
-            )
-            charges_fine_for_coarse_grid = I_f + 1j * Q_f
-            if external_reference:
-                # slippage in phase due to a non-integer harmonic number
-                dphi = dT * omega_c
-                # Total phase correction
-                phase = dphi
-                charges_fine_for_coarse_grid *= np.exp(1j * phase)
-        else:
-            profile_bin_centers_for_coarse = profile.bin_centers
-            charges_fine_for_coarse_grid = charges_fine
+        profile_bin_centers_for_coarse = profile.bin_centers
+        charges_fine_for_coarse_grid = charges_fine
 
         charges_coarse = charges_from_fine_to_coarse(
             T_s,
