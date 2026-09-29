@@ -59,7 +59,25 @@ logging.basicConfig(
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
-def main():
+def build(
+    n_macroparticles: int = 1001, n_bins: int = 10_000
+) -> tuple[Simulation, Beam]:
+    """
+    Assemble the simulation and prepare the beam, without tracking.
+
+    Parameters
+    ----------
+    n_macroparticles
+        Number of macroparticles used to prepare the beam.
+    n_bins
+        Number of bins of the profile.
+
+    Returns
+    -------
+    tuple[Simulation, Beam]
+        The finalized simulation and its beam, ready for
+        ``run_simulation``.
+    """
     E_0 = m_p * c**2 / e  # [eV]
     tot_beam_energy = E_0 + 1.4e9  # [eV]
     sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
@@ -89,7 +107,7 @@ def main():
     profile1 = StaticProfile(
         cut_left=-5.72984173562e-7,
         cut_right=5.72984173562e-7,
-        n_bins=10_000,
+        n_bins=n_bins,
     )
     wakefield1 = WakeField(
         sources=(
@@ -125,10 +143,15 @@ def main():
             sigma_dt=180e-9 / 4,
             reinsertion=False,
             seed=1,
-            n_macroparticles=1001,
+            n_macroparticles=n_macroparticles,
         ),
         beam=beam1,
     )
+    return sim, beam1
+
+
+def main():
+    sim, beam1 = build()
     sim.run_simulation(
         beams=(beam1,),
         n_turns=2,
