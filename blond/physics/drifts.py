@@ -14,6 +14,7 @@ import abc
 from abc import ABC
 from typing import TYPE_CHECKING
 
+import numpy as np
 import sympy
 from scipy.constants import speed_of_light as c0
 
@@ -681,7 +682,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         # Linear slip factor, recorded for observations only
         self._last_eta_0 = self.eta_0(beam.reference.gamma)
 
-        higher_alpha = backend.array(
+        higher_alpha = np.asarray(
             self.higher_order_alpha
             if self.higher_order_alpha is not None
             else (),

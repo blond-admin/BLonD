@@ -22,6 +22,7 @@ from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -364,15 +365,17 @@ class CudaSpecials(Specials):  # NOQA: D101
     ) -> None:
         assert dt.device != "cpu"
         assert dE.device != "cpu"
-        assert higher_alpha.device != "cpu"
+        assert not is_cupy_array(higher_alpha) or higher_alpha.dtype == FLOAT
 
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
-        assert higher_alpha.dtype == FLOAT
 
         assert dt.flags.c_contiguous
         assert dE.flags.c_contiguous
-        assert higher_alpha.flags.c_contiguous
+
+        # host coefficients, as the ABC declares; one tiny copy per call,
+        # as the caller used to do
+        higher_alpha = cp.asarray(higher_alpha, dtype=FLOAT)
 
         T = FLOAT(T)
         alpha_0 = FLOAT(alpha_0)

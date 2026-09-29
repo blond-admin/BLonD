@@ -472,6 +472,29 @@ class TestSpecials(BLonDTestCase):
         pass
 
     @pytest.mark.backend_mutation
+    def test_drift_exact_host_coefficients(self) -> None:
+        reference = None
+        for special in self.special_modes:
+            self._setUp(dtype=np.float64, special_mode=special)
+            higher_alpha = np.array([1e-3, 2e-3])  # host, on every backend
+            backend.specials.drift_exact(
+                dt=self.dt,
+                dE=self.dE,
+                T=self.t_rev,
+                alpha_0=self.alpha_0,
+                higher_alpha=higher_alpha,
+                beta=self.beta,
+                energy=self.energy,
+            )
+            result = copy_to_cpu(self.dt)
+            if reference is None:
+                reference = result
+            else:
+                np.testing.assert_allclose(
+                    result, reference, rtol=1e-12, err_msg=special
+                )
+
+    @pytest.mark.backend_mutation
     def test_drift_exact(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
