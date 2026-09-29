@@ -15,7 +15,14 @@ from typing import Literal
 
 def setup_backend(
     mode: Literal[
-        "auto", "python", "cpp", "cpp_single_core", "numba", "cuda"
+        "auto",
+        "python",
+        "cpp",
+        "cpp_deferred",
+        "cpp_single_core",
+        "numba",
+        "cuda",
+        "cuda_deferred",
     ] = "auto",
 ) -> None:
     """
@@ -36,12 +43,18 @@ def setup_backend(
 
     if mode == "auto":
         backend.autoselect_backend()
-    elif mode == "cuda":
+    elif mode in ("cuda", "cuda_deferred"):
         from blond.core.backends.backend import Cupy64Bit
 
         backend.change_backend(Cupy64Bit)
         backend.set_specials(mode)
-    elif mode in ("python", "cpp", "cpp_single_core", "numba"):
+    elif mode in (
+        "python",
+        "cpp",
+        "cpp_deferred",
+        "cpp_single_core",
+        "numba",
+    ):
         from blond.core.backends.backend import Numpy64Bit
 
         backend.change_backend(Numpy64Bit)

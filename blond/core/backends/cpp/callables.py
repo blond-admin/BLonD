@@ -351,8 +351,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
     Returns
     -------
-    CppSpecials
-        The `CppSpecials` class.
+    CppSpecials | DeferredCppSpecials
+        The `CppSpecials` class, or a `DeferredCppSpecials` subclass
+        (from `make_deferred_specials`) when `deferred=True`.
 
     """
     parallel_suffix = "" if parallel else "_noOMP"

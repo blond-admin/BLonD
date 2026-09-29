@@ -123,12 +123,19 @@ class TestBackendBaseClass(BLonDTestCase):
             self._apply_environment_variables_for_every_mode()
 
     def _apply_environment_variables_for_every_mode(self):
-        backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
+        backend_modes = [
+            "python",
+            "cpp",
+            "cpp_deferred",
+            "cpp_single_core",
+            "numba",
+            "fail",
+        ]
         backend_bits = ["64", "fail"]
         try:
             import cupy
 
-            backend_modes = ["cuda"] + backend_modes
+            backend_modes = ["cuda", "cuda_deferred"] + backend_modes
         except ModuleNotFoundError:
             pass
         print(f"{backend_modes=}")

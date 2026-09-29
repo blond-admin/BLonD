@@ -842,8 +842,8 @@ class BackendBaseClass(ABC):
         -----
         Following environment variables can be set:
 
-        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'cpp_single_core',
-          'numba', 'cuda'
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'cpp_deferred',
+          'cpp_single_core', 'numba', 'cuda', 'cuda_deferred'
         - `BLOND_BACKEND_BITS` can only be '64'
         """
         _backend_mode_env = os.environ.get("BLOND_BACKEND_MODE")
@@ -860,17 +860,21 @@ class BackendBaseClass(ABC):
         _allowed_backend_modes = (
             "python",
             "cpp",
+            "cpp_deferred",
             "cpp_single_core",
             "numba",
             "cuda",
+            "cuda_deferred",
         )
         if _backend_mode_raw in _allowed_backend_modes:
             _backend_mode: Literal[
                 "python",
                 "cpp",
+                "cpp_deferred",
                 "cpp_single_core",
                 "numba",
                 "cuda",
+                "cuda_deferred",
             ] = _backend_mode_raw  # type: ignore
         else:
             raise ValueError(
@@ -1144,7 +1148,10 @@ class NumpyBackend(BackendBaseClass):
         Parameters
         ----------
         mode
-            One of the available backend modes.
+            One of 'python', 'cpp', 'cpp_deferred', 'cpp_single_core',
+            'numba'. The `_deferred` mode queues per-particle kernel
+            calls and fuses them at the next flush, instead of running
+            them eagerly.
         """
         # Queued kernel calls belong to the old specials; run them first.
         if getattr(self, "specials", None) is not None:
@@ -1299,7 +1306,10 @@ class CupyBackend(BackendBaseClass):
         Parameters
         ----------
         mode
-            One of the available backend modes.
+            One of 'cuda', 'cuda_deferred'. The `cuda_deferred` mode
+            queues per-particle kernel calls and fuses them into a
+            single interpreter kernel at the next flush, instead of
+            launching one kernel per call.
         """
         # Queued kernel calls belong to the old specials; run them first.
         if getattr(self, "specials", None) is not None:

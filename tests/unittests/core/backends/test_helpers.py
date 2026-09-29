@@ -26,6 +26,19 @@ class TestCallables(BLonDTestCase):
             self.skipTest("Cupy not available")
         setup_backend("cuda")
 
+    @pytest.mark.backend_mutation
+    def test_setup_backend_cpp_deferred(self):
+        setup_backend("cpp_deferred")
+
+    @pytest.mark.backend_mutation
+    @pytest.mark.cupy
+    def test_setup_backend_cuda_deferred(self):
+        try:
+            import cupy as cp
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        setup_backend("cuda_deferred")
+
     def test_setup_backend_fails(self):
         with self.assertRaisesRegex(ValueError, "Unknown backend "):
             setup_backend("unknows")
