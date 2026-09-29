@@ -1130,6 +1130,7 @@ class NumpyBackend(BackendBaseClass):
         mode: Literal[
             "python",
             "cpp",
+            "cpp_deferred",
             "cpp_single_core",
             "numba",
         ],
@@ -1156,6 +1157,13 @@ class NumpyBackend(BackendBaseClass):
             from blond.core.backends.cpp.callables import reload_cpp_backend
 
             self.specials = reload_cpp_backend(self.float, parallel=True)
+            self.specials_mode = mode
+        elif mode == "cpp_deferred":
+            from blond.core.backends.cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(
+                self.float, parallel=True, deferred=True
+            )
             self.specials_mode = mode
         elif mode == "cpp_single_core":
             from blond.core.backends.cpp.callables import reload_cpp_backend
