@@ -9,41 +9,31 @@
 // Optimised C++ routine that calculates the drift.
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
 
-#include <cmath>
-
 #include "blond_common.h"
+#include "particle_kernels.h"
 
 extern "C" void drift_simple(real_t *__restrict__ beam_dt,
                              const real_t *__restrict__ beam_dE, const real_t T,
                              const real_t eta_zero, const real_t beta,
                              const real_t energy,
                              const index_t n_macroparticles) {
-
-  const real_t coeff = T * eta_zero / (beta * beta * energy);
-#pragma omp parallel for
-  for (index_t i = 0; i < n_macroparticles; i++) {
-    beam_dt[i] += coeff * beam_dE[i];
-  }
+  DriftSimpleArgs args{};
+  args.T = T;
+  args.eta_0 = eta_zero;
+  args.beta = beta;
+  args.energy = energy;
+  run_on_all_particles(args, beam_dt, beam_dE, n_macroparticles);
 }
 
-// Drift with the linear slip factor but the exact relativistic delta;
-// reproduces the longitudinal drift of an xsuite LineSegmentMap.
 extern "C" void drift_like_line_segment(real_t *__restrict__ beam_dt,
                                         const real_t *__restrict__ beam_dE,
                                         const real_t T, const real_t eta_zero,
                                         const real_t beta, const real_t energy,
                                         const index_t n_macroparticles) {
-
-  const real_t inv_beta_sq = 1.0 / (beta * beta);
-  const real_t inv_energy = 1.0 / energy;
-  const real_t inv_energy_sq = inv_energy * inv_energy;
-#pragma omp parallel for
-  for (index_t i = 0; i < n_macroparticles; i++) {
-    const real_t dE = beam_dE[i];
-    const real_t delta =
-        std::sqrt(1.0 + inv_beta_sq *
-                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
-        1.0;
-    beam_dt[i] += T * eta_zero * delta;
-  }
+  DriftLikeLineSegmentArgs args{};
+  args.T = T;
+  args.eta_0 = eta_zero;
+  args.beta = beta;
+  args.energy = energy;
+  run_on_all_particles(args, beam_dt, beam_dE, n_macroparticles);
 }

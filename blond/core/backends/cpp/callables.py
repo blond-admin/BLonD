@@ -469,6 +469,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
         return valid
 
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
+    _LIBBLOND.linear_interp_kick_table.restype = None
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.move_flagged_elements_to_end.restype = c_index_t
@@ -552,6 +553,38 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(len(array_write)),
                 _get_beam_len(array_read),
             )
+
+        @staticmethod
+        def _build_voltage_kick_table(
+            voltage: NumpyArray,
+            bin_centers: NumpyArray,
+            charge: float,
+            acceleration_kick: float,
+        ) -> NumpyArray:
+            """
+            Table read by the deferred dense interpolated kick.
+
+            Layout ``[bin_centers[0], inverse bin width, (slope, offset)
+            per bin]``, with ``charge`` and ``acceleration_kick`` folded
+            into the pairs (``linear_interp_kick_table`` in C++).
+            """
+            assert _is_valid((voltage, floattype), (bin_centers, floattype))
+            n_slices = len(bin_centers)
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to "
+                f"interpolate across, got {n_slices}"
+            )
+            table = np.empty(2 * n_slices, dtype=floattype)
+            # A fresh array each call: not cached by `_get_pointer`.
+            _LIBBLOND.linear_interp_kick_table(
+                _get_pointer(voltage),
+                _get_pointer(bin_centers),
+                c_real(floattype(charge), floattype),
+                ct.c_int(n_slices),
+                c_real(floattype(acceleration_kick), floattype),
+                ct.c_void_p(table.ctypes.data),
+            )
+            return table
 
         @staticmethod
         def kick_interpolated(

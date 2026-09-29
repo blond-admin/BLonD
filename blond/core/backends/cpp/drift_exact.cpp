@@ -10,6 +10,7 @@
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen, Elleanor Lamb
 
 #include "blond_common.h"
+#include "particle_kernels.h"
 #include <array>
 #include <cmath>
 
@@ -42,7 +43,7 @@ inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
                                  const real_t T, const real_t alpha_zero,
                                  const real_t *__restrict__ higher_alpha,
                                  const real_t beta, const real_t energy,
-                                 const index_t n_macroparticles) {
+                                 const index_t begin, const index_t end) {
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
   const real_t inv_energy_sq = inv_energy * inv_energy;
@@ -54,8 +55,7 @@ inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
     alpha[k] = higher_alpha[k];
   }
 
-#pragma omp parallel for
-  for (index_t i = 0; i < n_macroparticles; i++) {
+  for (index_t i = begin; i < end; i++) {
 
     const real_t dE = beam_dE[i];
 
@@ -83,13 +83,13 @@ void drift_exact_generic(real_t *__restrict__ beam_dt,
                          const real_t alpha_zero,
                          const real_t *__restrict__ higher_alpha,
                          const int n_alpha, const real_t beta,
-                         const real_t energy, const index_t n_macroparticles) {
+                         const real_t energy, const index_t begin,
+                         const index_t end) {
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
   const real_t inv_energy_sq = inv_energy * inv_energy;
 
-#pragma omp parallel for
-  for (index_t i = 0; i < n_macroparticles; i++) {
+  for (index_t i = begin; i < end; i++) {
 
     const real_t dE = beam_dE[i];
 
@@ -112,6 +112,40 @@ void drift_exact_generic(real_t *__restrict__ beam_dt,
 
 } // namespace
 
+// Deferred and eager: dispatch on the number of higher-order factors to the
+// unrolled instantiation that matches it (see above).
+void apply_to_chunk(const DriftExactArgs &args, real_t *beam_dt,
+                    const real_t *beam_dE, const index_t begin,
+                    const index_t end) {
+  const real_t *higher_alpha = args.higher_alpha;
+  switch (args.n_alpha) {
+  case 0:
+    drift_exact_unrolled<0>(beam_dt, beam_dE, args.T, args.alpha_0,
+                            higher_alpha, args.beta, args.energy, begin, end);
+    return;
+  case 1:
+    drift_exact_unrolled<1>(beam_dt, beam_dE, args.T, args.alpha_0,
+                            higher_alpha, args.beta, args.energy, begin, end);
+    return;
+  case 2:
+    drift_exact_unrolled<2>(beam_dt, beam_dE, args.T, args.alpha_0,
+                            higher_alpha, args.beta, args.energy, begin, end);
+    return;
+  case 3:
+    drift_exact_unrolled<3>(beam_dt, beam_dE, args.T, args.alpha_0,
+                            higher_alpha, args.beta, args.energy, begin, end);
+    return;
+  case 4:
+    drift_exact_unrolled<4>(beam_dt, beam_dE, args.T, args.alpha_0,
+                            higher_alpha, args.beta, args.energy, begin, end);
+    return;
+  default:
+    drift_exact_generic(beam_dt, beam_dE, args.T, args.alpha_0, higher_alpha,
+                        args.n_alpha, args.beta, args.energy, begin, end);
+    return;
+  }
+}
+
 extern "C" void drift_exact(real_t *__restrict__ beam_dt,
                             const real_t *__restrict__ beam_dE, const real_t T,
                             const real_t alpha_zero,
@@ -121,31 +155,29 @@ extern "C" void drift_exact(real_t *__restrict__ beam_dt,
                             const index_t n_macroparticles) {
   // A null pointer carries no coefficients, whatever `n_alpha` claims.
   const int n_used = (higher_alpha == nullptr) ? 0 : n_alpha;
+  const int capacity = sizeof(DriftExactArgs::higher_alpha) / sizeof(real_t);
 
-  switch (n_used) {
-  case 0:
-    drift_exact_unrolled<0>(beam_dt, beam_dE, T, alpha_zero, higher_alpha, beta,
-                            energy, n_macroparticles);
-    return;
-  case 1:
-    drift_exact_unrolled<1>(beam_dt, beam_dE, T, alpha_zero, higher_alpha, beta,
-                            energy, n_macroparticles);
-    return;
-  case 2:
-    drift_exact_unrolled<2>(beam_dt, beam_dE, T, alpha_zero, higher_alpha, beta,
-                            energy, n_macroparticles);
-    return;
-  case 3:
-    drift_exact_unrolled<3>(beam_dt, beam_dE, T, alpha_zero, higher_alpha, beta,
-                            energy, n_macroparticles);
-    return;
-  case 4:
-    drift_exact_unrolled<4>(beam_dt, beam_dE, T, alpha_zero, higher_alpha, beta,
-                            energy, n_macroparticles);
-    return;
-  default:
-    drift_exact_generic(beam_dt, beam_dE, T, alpha_zero, higher_alpha, n_used,
-                        beta, energy, n_macroparticles);
+  if (n_used > capacity) {
+    // More factors than a kernel call record holds: the generic loop,
+    // straight from the caller's buffer.
+#pragma omp parallel
+    {
+      index_t begin = 0;
+      index_t end = 0;
+      this_thread_range(n_macroparticles, begin, end);
+      drift_exact_generic(beam_dt, beam_dE, T, alpha_zero, higher_alpha, n_used,
+                          beta, energy, begin, end);
+    }
     return;
   }
+  DriftExactArgs args{};
+  args.T = T;
+  args.alpha_0 = alpha_zero;
+  args.beta = beta;
+  args.energy = energy;
+  args.n_alpha = n_used;
+  for (int k = 0; k < n_used; k++) {
+    args.higher_alpha[k] = higher_alpha[k];
+  }
+  run_on_all_particles(args, beam_dt, beam_dE, n_macroparticles);
 }
