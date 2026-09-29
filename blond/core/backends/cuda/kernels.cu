@@ -131,8 +131,9 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
                                       const real_t *__restrict__ hist_y,
                                       real_t *result, real_t alpha,
                                       real_t omega_rf, real_t phi_rf,
-                                      real_t /*bin_size*/, int n_bins) {
-  // `bin_size` is unused: it cancels in the sin/cos ratio the caller takes.
+                                      int n_bins) {
+  // No `bin_size`: the trapezoidal step cancels in the sin/cos ratio the
+  // caller takes.
   extern __shared__ real_t shared[];
 
   real_t *sin_partial = &shared[0];

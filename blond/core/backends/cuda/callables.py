@@ -605,7 +605,8 @@ class CudaSpecials(Specials):  # NOQA: D101
         alpha = FLOAT(alpha)
         omega_rf = FLOAT(omega_rf)
         phi_rf = FLOAT(phi_rf)
-        bin_size = FLOAT(bin_size)
+        # `bin_size` is not passed on: the trapezoidal step cancels in the
+        # sin/cos ratio returned below.
 
         result = cp.zeros(2, dtype=FLOAT)
         # The kernel reduces each block in shared memory instead of
@@ -621,7 +622,6 @@ class CudaSpecials(Specials):  # NOQA: D101
                 alpha,  # alpha
                 omega_rf,  # omega_rf
                 phi_rf,  # phi_rf
-                bin_size,  # bin_size
                 np.int32(len(hist_x)),  # n_bins
             ),
             block=block_size,
