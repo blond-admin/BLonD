@@ -671,14 +671,26 @@ static_assert(sizeof(KernelCallBatch) + 8 + sizeof(real_t *) * 2 +
 extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
 
+// Particles each thread carries through the whole batch at once. Every
+// record is applied to all of them in one `visit_kernel_call`, so the
+// per-record factors (the FP64 divisions of the drifts, which the eager
+// kernels hoist out of their particle loop) are computed once per tile,
+// not once per particle.
+constexpr int PARTICLES_PER_THREAD = 8;
+
 namespace {
-struct ApplyToParticle {
-  real_t *dt;
-  real_t *dE;
+// NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
+struct ApplyToParticleTile {
+  real_t (*dt)[PARTICLES_PER_THREAD];
+  real_t (*dE)[PARTICLES_PER_THREAD];
   template <class Args> __device__ void operator()(const Args &args) const {
-    apply_to_particle(args, *dt, *dE);
+#pragma unroll
+    for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
+      apply_to_particle(args, (*dt)[k], (*dE)[k]);
+    }
   }
 };
+// NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 } // namespace
 
 // Every record of the batch on every particle, dt/dE kept in registers
@@ -687,7 +699,8 @@ struct ApplyToParticle {
 // parameter space that way makes nvcc copy the whole batch to local
 // memory in every thread (a 4 KiB stack frame). All threads of a warp
 // read the same record (a shared-memory broadcast), so the switch in
-// visit_kernel_call does not diverge.
+// visit_kernel_call does not diverge. A thread's tile is strided by the
+// grid size, which keeps the loads and stores coalesced.
 extern "C" __global__ void __launch_bounds__(256)
     execute_kernel_call_batch(const KernelCallBatch batch,
                               const unsigned int n_bytes,
@@ -707,18 +720,35 @@ extern "C" __global__ void __launch_bounds__(256)
   const auto *last =
       reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
-  for (index_t i = particle_loop_start(); i < n_macroparticles;
-       i += particle_loop_stride()) {
-    real_t dt = beam_dt[i];
-    real_t dE = beam_dE[i];
-    const ApplyToParticle apply = {&dt, &dE};
+  const index_t stride = particle_loop_stride();
+  // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
+  for (index_t tile_start = particle_loop_start();
+       tile_start < n_macroparticles;
+       tile_start += stride * PARTICLES_PER_THREAD) {
+    // Past the end of the beam the tile computes on zeros, never stored.
+    real_t dt[PARTICLES_PER_THREAD];
+    real_t dE[PARTICLES_PER_THREAD];
+#pragma unroll
+    for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
+      const index_t i = tile_start + k * stride;
+      dt[k] = i < n_macroparticles ? beam_dt[i] : real_t(0);
+      dE[k] = i < n_macroparticles ? beam_dE[i] : real_t(0);
+    }
+    const ApplyToParticleTile apply = {&dt, &dE};
     for (const KernelCallHeader *record = first; record != last;
          record = next_record(record)) {
       visit_kernel_call(record, apply);
     }
-    beam_dt[i] = dt;
-    beam_dE[i] = dE;
+#pragma unroll
+    for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
+      const index_t i = tile_start + k * stride;
+      if (i < n_macroparticles) {
+        beam_dt[i] = dt[k];
+        beam_dE[i] = dE[k];
+      }
+    }
   }
+  // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
 
 extern "C" __global__ void
