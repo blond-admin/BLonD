@@ -6,6 +6,8 @@
 # - pro-bounds-pointer-arithmetic / pro-bounds-constant-array-index /
 #   easily-swappable-parameters: the kernels are an `extern "C"` ABI called
 #   via ctypes with raw pointers, so these fire on every kernel by design.
+# - pro-bounds-avoid-unchecked-container-access: its remedy, `.at()`, puts
+#   a bounds check into the per-particle loops.
 # - identifier-length: `dt`, `dE`, `t`, `x` are the physics symbols.
 # - magic-numbers: polynomial coefficients and physical constants.
 # - math-missing-parentheses, use-auto, use-trailing-return-type: taste.
@@ -26,6 +28,7 @@ Checks: >
   -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -misc-include-cleaner,
   -modernize-use-auto,
