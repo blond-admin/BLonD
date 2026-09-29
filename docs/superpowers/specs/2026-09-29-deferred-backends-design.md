@@ -66,7 +66,7 @@ reduction steps, and of output parameters. A fused `histogram_sparse` would
 have been the same effort a second time.
 
 **Everything else runs eagerly after a flush.** `make_deferred_specials`
-wraps every `Specials` method that is not in `KERNEL_CALL_RECORDS` as
+wraps every `Specials` method that has no class in `KERNEL_CALL_ARGS` as
 *flush-then-call*. The wrapper first runs the queued batch, then calls the
 eager method unchanged. Results are identical to eager, but nothing fuses
 across that call.
@@ -109,53 +109,83 @@ as today.
 
 ### 4.1 `blond/core/backends/deferred/kernel_call_records.py`
 
-`KERNEL_CALL_RECORDS` declares three things for each deferrable kernel:
-- **name:** the `Specials` method name;
-- **fields:** named after the `Specials` arguments where the value comes
-  straight from a kwarg;
-- **optional `prepare_on_enqueue`:** a Python function that turns the kwargs
-  into field values. `kick_interpolated` is the only kernel that needs it.
+**Each deferrable kernel is a frozen dataclass**, a subclass of
+`KernelCallArgs`. The dataclass *is* the layout definition, in the spirit of
+xobjects' `_xofields` or a ctypes `Structure`:
+
+```python
+@dataclass(frozen=True, eq=False)
+class DriftSimpleArgs(KernelCallArgs):
+    T: Real
+    eta_0: Real
+    beta: Real
+    energy: Real
+```
+
+**Everything is a Python symbol, not a string**, so the IDE autocompletes it
+and a typo fails at import or at construction instead of during a
+simulation:
+- **One name on both sides.** The class name is the name of the generated C
+  struct. The `Specials` method is derived from it
+  (`DriftSimpleArgs` → `drift_simple`). `__init_subclass__` raises
+  `TypeError` if `Specials` has no such method.
+- **Field kinds are typed markers.** A field's kind is an `Annotated` alias:
+  `Real`, `Int32`, `Index`, `InputArray`, `RfParameters`, `HigherAlphas`.
+  Each alias carries a `RecordField` object, and that object knows its C
+  declaration, its numpy dtype and how to pack a value. The generator and the
+  queue ask the marker, so neither needs a chain of `if kind == ...`.
+- **Records are built through one classmethod.** It is
+  `from_specials_call(arguments, eager_specials) -> list[Self] | None`, where
+  `None` means "run eagerly". The default fills every field from the kwarg
+  of the same name. A kernel overrides it when its arguments need
+  transforming, and the override returns typed instances such as
+  `KickMultiHarmonicArgs(n_rf=…, voltage=…)`.
+- **Registry.** `KERNEL_CALL_ARGS` is a tuple of the classes; its order is the
+  order of `KernelId`.
+
+The design needs Python ≥3.11 for `typing.Self`. BLonD drops 3.10 before
+this lands.
 
 The beam's `dt`/`dE` are **not** fields. They are bound once per queue and
 passed once per batch (§5.1).
 
-There are five field kinds:
+**Field markers:**
 
-| Kind | C type in the record | numpy dtype | When queued |
+| Alias (marker) | C member(s) | numpy dtype | When queued |
 |---|---|---|---|
-| `real` | `real_t` | `backend.float` | Captured by value |
-| `int32` | `int32_t` | `np.int32` | Captured by value; a range check raises on overflow |
-| `index` | `index_t` | `INDEX_DTYPE` (`backend.py`) | Captured by value. `index_abi.cpp` already guards the width |
-| `input_array` | `const real_t *` + `index_t <name>_length` | `np.uintp` + `INDEX_DTYPE` | Pointer is a host address on cpp and a device address (`.data.ptr`) on cuda. The array is kept alive until the flush. It is snapshotted into a same-device copy unless the queue created it itself (`prepare_on_enqueue`) |
-| `inline_real_array(max_length)` | `real_t <name>[max_length]` + an `int32_t` count | `(backend.float, max_length)` + `np.int32` | Copied from a **host** array into the record. Unused slots are zero. Several fields can share one count field |
+| `Real` (`RealField`) | `real_t name` | `float64` | Captured by value |
+| `Int32` (`Int32Field`) | `std::int32_t name` | `int32` | Captured by value; overflow raises |
+| `Index` (`IndexField`) | `index_t name` | `INDEX_DTYPE` | Captured by value; `index_abi.cpp` guards the width |
+| `InputArray` (`InputArrayField`) | `const real_t *name` + `index_t name_length` | `uintp` + `INDEX_DTYPE` | Host address on cpp, device address on cuda. Kept alive until the flush. `from_specials_call` must hand over an array that nobody writes before the flush, such as a fresh table |
+| `RfParameters`, `HigherAlphas` (`InlineRealArrayField(32)`, `InlineRealArrayField(8)`) | `real_t name[max_length]` | `(float64, (max_length,))` | Copied from a **host** array. Unused slots are zeroed. The number of used slots is a separate `Int32` field (`n_rf`, `n_alpha`) |
 
 **Rules for every field:**
 - **Order and padding.** Fields keep their declared order. The generator
-  pads each record to a multiple of 8 bytes, and C and numpy get the same
-  explicit `offsets`. No compiler padding is assumed.
-- **Precision.** `real_t` in the record must match `backend.float`. The
-  load-time ABI check (§4.4) catches a library compiled at the other
-  precision.
-- **Arrays** must already have the backend float dtype and be C-contiguous.
-  This is checked by an `assert` in the queue, following the backend-wrapper
-  convention. Nothing is coerced.
-- **`inline_real_array` rejects GPU arrays**, because reading one would force
-  a sync on every call. `RFParamsBatch` makes the same assumption today.
-- **More values than `max_length`.** The call is queued as several
-  consecutive records. `acceleration_kick` is applied only in the last one,
-  as `CudaSpecials.kick_multi_harmonic` does today. At least one record is
-  always queued, so `n_rf == 0` still applies the kick.
+  aligns each member to its element size and pads the struct to 8 bytes with
+  explicit `padding_<k>` members. C and numpy get the same offsets, so no
+  compiler padding is assumed.
+- **Precision.** Reals are 64-bit, as in the only supported backends. The
+  header asserts this with `static_assert`, and the load-time ABI check
+  (§4.4) catches a stale library.
+- **Arrays** must already have the float dtype and be C-contiguous. This is
+  checked by an `assert` in `pack`, following the wrapper convention.
+- **Inline arrays reject GPU arrays**, because reading one would force a sync
+  on every call. `RFParamsBatch` makes the same assumption today.
+- **More harmonics than 32.** `KickMultiHarmonicArgs.from_specials_call`
+  returns several records. `acceleration_kick` is applied only in the last
+  one, as `CudaSpecials.kick_multi_harmonic` does today. At least one record
+  is always returned, so `n_rf == 0` still applies the kick.
 
-**Fields per kernel:**
+**The kernels:**
 
-| Kernel | Fields |
-|---|---|
-| `kick_single_harmonic` | `voltage`, `omega_rf`, `phi_rf`, `charge`, `acceleration_kick`: all `real` |
-| `kick_multi_harmonic` | `voltage`, `omega_rf`, `phi_rf`: `inline_real_array(32)` sharing the count `n_rf`<br>`charge`, `acceleration_kick`: `real` |
-| `drift_simple` | `T`, `eta_0`, `beta`, `energy`: all `real` |
-| `drift_like_line_segment` | `T`, `eta_0`, `beta`, `energy`: all `real` |
-| `drift_exact` | `T`, `alpha_0`, `beta`, `energy`: `real`<br>`higher_alpha`: `inline_real_array(8)` with count `n_alpha` |
-| `kick_interpolated` (dense) | `voltage_kick_table`: `input_array`, built by the queue<br>`first_bin_center`, `inverse_bin_width`: `real` |
+| Class | Fields | `from_specials_call` |
+|---|---|---|
+| `KickSingleHarmonicArgs` | `voltage`, `omega_rf`, `phi_rf`, `charge`, `acceleration_kick`: `Real` | default |
+| `KickMultiHarmonicArgs` | `n_rf`: `Int32`<br>`voltage`, `omega_rf`, `phi_rf`: `RfParameters`<br>`charge`, `acceleration_kick`: `Real` | splits into records of 32 harmonics |
+| `DriftSimpleArgs` | `T`, `eta_0`, `beta`, `energy`: `Real` | default |
+| `DriftLikeLineSegmentArgs` | `T`, `eta_0`, `beta`, `energy`: `Real` | default |
+| `DriftExactArgs` | `T`, `alpha_0`, `beta`, `energy`: `Real`<br>`n_alpha`: `Int32`<br>`higher_alpha`: `HigherAlphas` | inlines the coefficients; more than 8 → `None` (eager) |
+| `KickInterpolatedArgs` | `voltage_kick_table`: `InputArray`<br>`acceleration_kick`: `Real` | builds the table; sparse profiles → `None` (eager) |
 
 **`drift_exact` coefficients are inlined; its caller and CUDA wrapper change.**
 - **The polynomial can't be split.** Unlike RF harmonics, the higher-order
@@ -176,25 +206,27 @@ There are five field kinds:
   `drift_exact_unrolled<N>`, so the unrolled specialisations for 0–4
   coefficients are kept.
 
-**`kick_interpolated` needs no per-batch setup.** Its `prepare_on_enqueue`
-builds the voltage-kick table (slope and offset per bin, with `charge` and
-`acceleration_kick` folded in) when the call is queued. The table is built by
-the backend's own table builder, which the eager path uses as well:
+**`kick_interpolated` needs no per-batch setup.** Its `from_specials_call`
+builds the voltage-kick table when the call is queued. The table touches no
+particles, so building it before the flush is exact.
 
-| Backend | Table builder |
+**Table layout.** Both backends use the same layout:
+`[first_bin_center, inverse_bin_width, (slope, offset) × n_bins]`, with
+`charge` and `acceleration_kick` folded into the pairs. The GPU path can
+therefore read the bin geometry without a sync to the host.
+
+**Table builders.** Each backend's eager specials builds the table through
+`_build_voltage_kick_table`, which calls:
+
+| Backend | Builder |
 |---|---|
-| cuda | The existing `lik_only_gm_copy` kernel |
-| cpp | A new `linear_interp_kick_table` entry point, factored out of `linear_interp_kick.cpp` |
+| cpp | `linear_interp_kick_table`, factored out of `linear_interp_kick.cpp`. The eager kick uses it too |
+| cuda | A new `build_voltage_kick_table` kernel. It shares its pair loop with `lik_only_gm_copy` through a `__device__` helper |
 
-The table touches no particles, so building it before the flush is correct.
-The table's layout differs between backends (CUDA interleaves slope and
-offset), but to the record it is just an opaque pointer. This also removes
-the snapshot copy of `voltage`: the table is a fresh array owned by the
-queue.
+The table is a fresh array owned by the queue, so it needs no snapshot.
 
-The same module:
-- builds the numpy structured dtypes at run time, with `backend.float` as the
-  float width;
+**The same module also:**
+- builds the numpy structured dtypes;
 - writes the header when run as
   `python -m blond.core.backends.deferred.kernel_call_records`.
 
@@ -248,7 +280,7 @@ no offset table is needed.
 ### 4.5 Adding a deferrable kernel
 
 This checklist goes into the module docstring:
-1. Add an entry to `KERNEL_CALL_RECORDS`, and a `prepare_on_enqueue` only if
+1. Add a `<Kernel>Args(KernelCallArgs)` dataclass to `KERNEL_CALL_ARGS`, and override `from_specials_call` only if
    the kernel's arguments need transforming.
 2. Regenerate the header.
 3. Add one overload per backend:
@@ -317,8 +349,8 @@ deadlock on it.
 ### 5.2 `make_deferred_specials(eager_specials_class, execute_batch)`
 
 The factory returns a subclass of the eager specials class:
-- **Generated queuing methods.** One per `KERNEL_CALL_RECORDS` entry, mapping
-  kwargs to fields by name, or through `prepare_on_enqueue`. No method is
+- **Generated queuing methods.** One per `KERNEL_CALL_ARGS` class, built
+  through its `from_specials_call`. No method is
   written by hand for any kernel.
 - **Every other method** becomes flush-then-call (§3).
 - **`flush()` on the `Specials` ABC.** It is added there as a concrete no-op,
@@ -337,7 +369,7 @@ Signature: `execute_batch(batch_bytes, n_bytes, dt, dE, n_macroparticles)`.
 - Capacity is 4 KB, which every supported GPU accepts.
 - A larger batch is split into several launches. The result is still
   correct, only less fused.
-- A multi-harmonic record is about 800 B (`inline_real_array(32)` × 3).
+- A multi-harmonic record is about 800 B (3 × `RfParameters` of 32 reals).
 
 ### 5.4 Flush points
 
