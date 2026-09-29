@@ -187,3 +187,64 @@ def cavity_response_forward(b, B):
     for n in range(1, len(b)):
         V[n] = B * V[n - 1] + b[n]
     return V
+
+
+@njit(cache=True)
+def cavity_response_gap(
+    V_init,
+    I_gen_init,
+    I_beam_init,
+    t_init,
+    bin_size,
+    n_gap,
+    coarse_time,
+    I_gen_coarse,
+    A,
+    B,
+):
+    r"""ACS cavity response through a no-beam gap of n_gap fine bins, the
+    bins being at t_init + bin_size * (1 ... n_gap) and the generator
+    current the linear interpolation of the coarse-grid one (constant
+    outside the coarse grid, as np.interp).
+
+    Same recursion, bin by bin, as
+    :func:`blond.llrf.impulse_response.cavity_response_sparse_matrix` fed
+    with the interpolated generator current and no beam current after the
+    first sample, but without storing the fine-grid arrays of the gap, the
+    size of which is the number of bins of the gap (up to the whole turn).
+
+    Returns the antenna voltage and the generator current at the last bin
+    of the gap.
+    """
+
+    n_coarse = len(coarse_time)
+    t_first = coarse_time[0]
+    t_last = coarse_time[n_coarse - 1]
+    V = B * V_init + A * (2 * I_gen_init - I_beam_init)
+    I_gen = I_gen_init
+    # coarse interval [t_low, t_high) of the current bin, -1 before use
+    j = -1
+    t_low = 0.0
+    t_high = 0.0
+    I_low = I_gen_coarse[0]
+    slope = 0.0j
+    for k in range(1, n_gap + 1):
+        t = t_init + bin_size * k
+        if t <= t_first:
+            I_gen = I_gen_coarse[0]
+        elif t >= t_last:
+            I_gen = I_gen_coarse[n_coarse - 1]
+        else:
+            if j < 0 or t >= t_high:
+                if j < 0:
+                    j = 0
+                while t >= coarse_time[j + 1]:
+                    j += 1
+                t_low = coarse_time[j]
+                t_high = coarse_time[j + 1]
+                I_low = I_gen_coarse[j]
+                slope = (I_gen_coarse[j + 1] - I_low) / (t_high - t_low)
+            I_gen = slope * (t - t_low) + I_low
+        if k < n_gap:
+            V = B * V + A * (2 * I_gen)
+    return V, I_gen
