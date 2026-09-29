@@ -408,9 +408,10 @@ precommit-check:
       paths:
         - .cache/pre-commit
 
-# clang-tidy on the C++ backend (checks in .clang-tidy). The backend still
-# has findings from before this job existed, so only findings on lines the
-# MR changes fail it. `python dev_tools/run_clang_tidy.py` lists them all.
+# clang-tidy on the C++ and CUDA backends (checks in .clang-tidy). The
+# backends still have findings from before this job existed, so only
+# findings on lines the MR changes fail it.
+# `python dev_tools/run_clang_tidy.py` lists them all.
 clang-tidy:
   image: registry.cern.ch/docker.io/library/python:3.14 # ships g++ (std headers, omp.h)
   stage: precommit
@@ -430,12 +431,20 @@ clang-tidy:
       deps = tomllib.load(open("pyproject.toml", "rb"))["project"][
       "optional-dependencies"]["dev"];
       print(next(d for d in deps if d.startswith("clang-tidy")))')"
+    # Headers for clang's CUDA front end; no toolkit or GPU is needed.
+    - >-
+      uv pip install "nvidia-cuda-runtime-cu12==12.9.*"
+      "nvidia-cuda-nvcc-cu12==12.9.*" "nvidia-cuda-cccl-cu12==12.9.*"
+      "nvidia-curand-cu12==10.3.10.*"
   script:
-    - python dev_tools/run_clang_tidy.py --diff "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    - >-
+      python dev_tools/run_clang_tidy.py --require-cuda
+      --diff "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - blond/core/backends/cpp/**/*
+        - blond/core/backends/cuda/**/*
         - .clang-tidy
         - dev_tools/run_clang_tidy.py
         - pyproject.toml
