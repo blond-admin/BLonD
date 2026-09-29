@@ -94,6 +94,17 @@ class Specials(ABC):
     for not producing non-finite coordinates in the first place.
     """
 
+    @staticmethod  # noqa: B027 -- a no-op default on purpose
+    def flush() -> None:
+        """
+        Run all kernel calls that are still queued.
+
+        Eager specials queue nothing, so this is a no-op; deferred
+        specials (``cpp_deferred``, ``cuda_deferred``) override it.
+        Deliberately not abstract: callers flush unconditionally,
+        whatever specials are active.
+        """
+
     @staticmethod
     @abstractmethod  # pragma: no cover
     def get_max_threads() -> int:
@@ -779,6 +790,8 @@ class BackendBaseClass(ABC):
             return
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
+        # Queued kernel calls belong to the old specials; run them first.
+        self.specials.flush()
         _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
         _new_backend.verbose = self.verbose
@@ -1129,6 +1142,9 @@ class NumpyBackend(BackendBaseClass):
         mode
             One of the available backend modes.
         """
+        # Queued kernel calls belong to the old specials; run them first.
+        if getattr(self, "specials", None) is not None:
+            self.specials.flush()
         onchange = self.specials_mode != mode
 
         if mode == "python":
@@ -1274,6 +1290,9 @@ class CupyBackend(BackendBaseClass):
         mode
             One of the available backend modes.
         """
+        # Queued kernel calls belong to the old specials; run them first.
+        if getattr(self, "specials", None) is not None:
+            self.specials.flush()
         if mode == "cuda":
             from blond.core.backends.cuda.callables import CudaSpecials
 
