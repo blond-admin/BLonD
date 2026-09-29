@@ -575,9 +575,12 @@ class TestSpecials(BLonDTestCase):
         falls back to a generic loop beyond the longest one. The lengths
         below cover every instantiation and the fallback, so a dispatch
         arm that computes the wrong power of delta cannot pass unnoticed.
+        8 and 9 straddle the CUDA kernel's inline record limit
+        (`DriftExactArgs.higher_alpha`), above which it reads the
+        coefficients from global memory instead.
         """
         dtype = np.float64
-        for n_alpha in range(6):
+        for n_alpha in (*range(6), 8, 9):
             higher_alpha = [1.0 + 0.5 * k for k in range(n_alpha)]
             result_python = None
             for i, special in enumerate(self.special_modes):

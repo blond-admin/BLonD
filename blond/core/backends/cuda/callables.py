@@ -72,6 +72,9 @@ _sm_histogram = gpu_module.get_function("sm_histogram")
 _hybrid_histogram = gpu_module.get_function("hybrid_histogram")
 _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
 _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
+_build_voltage_kick_table_kernel = gpu_module.get_function(
+    "build_voltage_kick_table"
+)
 _gm_linear_interp_kick_sparse_help = gpu_module.get_function(
     "lik_sparse_gm_copy"
 )
@@ -404,6 +407,51 @@ class CudaSpecials(Specials):  # NOQA: D101
         )
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
+
+    @staticmethod
+    def _build_voltage_kick_table(
+        voltage: CupyArray,
+        bin_centers: CupyArray,
+        charge: float,
+        acceleration_kick: float,
+    ) -> CupyArray:
+        """
+        Table read by the deferred dense interpolated kick.
+
+        Layout ``[bin_centers[0], inverse bin width, (slope, offset)
+        per bin]``, with ``charge`` and ``acceleration_kick`` folded
+        into the pairs; the same table as
+        ``CppSpecials._build_voltage_kick_table``.
+        """
+        assert voltage.device != "cpu", (
+            f"Requires Cupy array, but got {type(voltage)}."
+        )
+        assert bin_centers.device != "cpu", (
+            f"Requires Cupy array, but got {type(bin_centers)}."
+        )
+        assert voltage.dtype == FLOAT
+        assert bin_centers.dtype == FLOAT
+        assert voltage.flags.c_contiguous
+        assert bin_centers.flags.c_contiguous
+        n_slices = bin_centers.size
+        assert n_slices >= 2, (  # noqa: PLR2004
+            "kick_interpolated needs at least 2 bins to interpolate "
+            f"across, got {n_slices}"
+        )
+        table = cp.empty(2 * n_slices, FLOAT)
+        _build_voltage_kick_table_kernel(
+            args=(
+                voltage,
+                bin_centers,
+                FLOAT(charge),
+                np.int32(n_slices),
+                FLOAT(acceleration_kick),
+                table,
+            ),
+            grid=grid_size,
+            block=block_size,
+        )
+        return table
 
     @staticmethod
     def kick_interpolated(  # NOQA: D102

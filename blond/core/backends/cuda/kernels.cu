@@ -26,6 +26,9 @@ using real_t = double;
 // Must match `INDEX_DTYPE` in blond/core/backends/backend.py.
 using index_t = long long;
 
+// Needs `real_t` and `index_t` above.
+#include "kernel_call_records.h"
+
 // Start and stride of a grid-stride loop over the macro-particles. They
 // are computed in 32 bits, which is exact: callables.py launches
 // 2 * n_SM blocks of at most 1024 threads, far below 2^31 threads. Only
@@ -41,35 +44,129 @@ __device__ __forceinline__ index_t particle_loop_stride() {
 }
 } // namespace
 
+// Per-particle kernel bodies, one overload of `apply_to_particle` per
+// kernel call record (kernel_call_records.h). The eager kernels below and
+// the deferred (fused) kernel call the same overload, so each formula
+// exists once on the GPU. The loop-invariant factors are written inside
+// the overloads; nvcc hoists them out of the particle loop on inlining.
+namespace {
+__device__ __forceinline__ void
+apply_to_particle(const KickSingleHarmonicArgs &args, const real_t &dt,
+                  real_t &dE) {
+  dE += args.charge * args.voltage * sin(args.omega_rf * dt + args.phi_rf) +
+        args.acceleration_kick;
+}
+
+__device__ __forceinline__ void
+apply_to_particle(const KickMultiHarmonicArgs &args, const real_t &dt,
+                  real_t &dE) {
+  // Starting from acc_kick rather than zero saves an FP64 add per
+  // particle, measurable on GPUs with low FP64 throughput.
+  real_t dE_sum = args.acceleration_kick;
+  for (int j = 0; j < args.n_rf; j++) {
+    dE_sum += args.charge * args.voltage[j] *
+              sin(args.omega_rf[j] * dt + args.phi_rf[j]);
+  }
+  dE += dE_sum;
+}
+
+__device__ __forceinline__ void
+apply_to_particle(const DriftSimpleArgs &args, real_t &dt, const real_t &dE) {
+  const real_t coeff =
+      args.T * args.eta_0 / (args.beta * args.beta * args.energy);
+  dt += coeff * dE;
+}
+
+// Drift with the linear slip factor but the exact relativistic delta;
+// reproduces the longitudinal drift of an xsuite LineSegmentMap.
+__device__ __forceinline__ void
+apply_to_particle(const DriftLikeLineSegmentArgs &args, real_t &dt,
+                  const real_t &dE) {
+  const real_t inv_beta_sq = 1.0 / (args.beta * args.beta);
+  const real_t inv_energy = 1.0 / args.energy;
+  const real_t delta =
+      sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
+                                2.0 * dE * inv_energy)) -
+      1.0;
+  dt += args.T * args.eta_0 * delta;
+}
+
+// The polynomial in delta, `1 + alpha_0 delta + sum_k higher_alpha[k]
+// delta^(k+2)`; shared by the record overload and the eager kernel's
+// path for more coefficients than a record holds.
+__device__ __forceinline__ void
+drift_exact_particle(const real_t T, const real_t alpha_zero,
+                     const real_t *higher_alpha, const int n_alpha,
+                     const real_t beta, const real_t energy, real_t &dt,
+                     const real_t dE) {
+  const real_t inv_beta_sq = 1.0 / (beta * beta);
+  const real_t inv_energy = 1.0 / energy;
+  const real_t inv_energy_sq = inv_energy * inv_energy;
+
+  const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
+                                                 2.0 * dE * inv_energy)) -
+                       1.0;
+
+  real_t poly = 1.0 + alpha_zero * delta;
+
+  real_t delta_power = delta * delta; // starts at δ²
+  for (int k = 0; k < n_alpha; ++k) {
+    // NOLINTNEXTLINE(*-pointer-arithmetic)
+    poly += higher_alpha[k] * delta_power;
+    delta_power *= delta; // next power
+  }
+
+  dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + delta) - 1.0);
+}
+
+__device__ __forceinline__ void
+apply_to_particle(const DriftExactArgs &args, real_t &dt, const real_t &dE) {
+  drift_exact_particle(args.T, args.alpha_0, &args.higher_alpha[0],
+                       args.n_alpha, args.beta, args.energy, dt, dE);
+}
+
+// Reads the table of `build_voltage_kick_table`.
+__device__ __forceinline__ void
+apply_to_particle(const KickInterpolatedArgs &args, const real_t &dt,
+                  real_t &dE) {
+  const real_t *table = args.voltage_kick_table;
+  const int n_bins = static_cast<int>((args.voltage_kick_table_length - 2) / 2);
+  // Range-check before the conversion to `int` (see `hybrid_histogram`).
+  // NOLINTBEGIN(*-pointer-arithmetic)
+  const real_t fbin_real = floor((dt - table[0]) * table[1]);
+  if (fbin_real >= static_cast<real_t>(0) &&
+      fbin_real < static_cast<real_t>(n_bins)) {
+    const int pair = 2 + 2 * static_cast<int>(fbin_real);
+    dE += dt * table[pair] + table[pair + 1];
+  } else {
+    // Out of range only the interpolated voltage is undefined.
+    dE += args.acceleration_kick;
+  }
+  // NOLINTEND(*-pointer-arithmetic)
+}
+} // namespace
+
 extern "C" __global__ void drift_simple(real_t *__restrict__ beam_dt,
                                         const real_t *__restrict__ beam_dE,
                                         const real_t T, const real_t eta_zero,
                                         const real_t beta, const real_t energy,
                                         const index_t n_macroparticles) {
-  const real_t coeff = T * eta_zero / (beta * beta * energy);
+  const DriftSimpleArgs args = {T, eta_zero, beta, energy};
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    beam_dt[i] += coeff * beam_dE[i];
+    apply_to_particle(args, beam_dt[i], beam_dE[i]);
   }
 }
 
-// Drift with the linear slip factor but the exact relativistic delta;
-// reproduces the longitudinal drift of an xsuite LineSegmentMap.
 extern "C" __global__ void
 drift_like_line_segment(real_t *__restrict__ beam_dt,
                         const real_t *__restrict__ beam_dE, const real_t T,
                         const real_t eta_zero, const real_t beta,
                         const real_t energy, const index_t n_macroparticles) {
-  const real_t inv_beta_sq = 1.0 / (beta * beta);
-  const real_t inv_energy = 1.0 / energy;
+  const DriftLikeLineSegmentArgs args = {T, eta_zero, beta, energy};
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    const real_t dE = beam_dE[i];
-    const real_t delta =
-        sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
-                                  2.0 * dE * inv_energy)) -
-        1.0;
-    beam_dt[i] += T * eta_zero * delta;
+    apply_to_particle(args, beam_dt[i], beam_dE[i]);
   }
 }
 
@@ -79,10 +176,11 @@ kick_single_harmonic(const real_t *__restrict__ beam_dt,
                      const real_t voltage, const real_t omega_RF,
                      const real_t phi_RF, const index_t n_macroparticles,
                      const real_t acc_kick) {
+  const KickSingleHarmonicArgs args = {voltage, omega_RF, phi_RF, charge,
+                                       acc_kick};
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    beam_dE[i] +=
-        charge * voltage * sin(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
+    apply_to_particle(args, beam_dt[i], beam_dE[i]);
   }
 }
 
@@ -106,24 +204,35 @@ struct RFParamsBatch {
 };
 // NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
 
+// Must match `MAX_RF_HARMONICS_PER_LAUNCH` above.
+static_assert(sizeof(KickMultiHarmonicArgs::voltage) ==
+                  MAX_RF_HARMONICS_PER_LAUNCH * sizeof(real_t),
+              "one launch batch must fit one KickMultiHarmonicArgs");
+
 extern "C" __global__ void
 kick_multi_harmonic(const real_t *__restrict__ beam_dt,
                     real_t *__restrict__ beam_dE,
                     const RFParamsBatch rf_params_batch,
                     const int n_rf_in_batch, const real_t charge,
                     const index_t n_macroparticles, const real_t acc_kick) {
+  // One copy of the batch per block, in shared memory: a per-thread copy
+  // of the Args arrays would live in local memory.
+  __shared__ KickMultiHarmonicArgs args;
+  if (threadIdx.x == 0) {
+    args.n_rf = n_rf_in_batch;
+    args.charge = charge;
+    args.acceleration_kick = acc_kick;
+  }
+  for (int j = static_cast<int>(threadIdx.x); j < n_rf_in_batch;
+       j = static_cast<int>(j + blockDim.x)) {
+    args.voltage[j] = rf_params_batch.voltage[j];
+    args.omega_rf[j] = rf_params_batch.omega_rf[j];
+    args.phi_rf[j] = rf_params_batch.phi_rf[j];
+  }
+  __syncthreads();
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    const real_t dt = beam_dt[i];
-    // Starting from acc_kick rather than zero saves an FP64 add per
-    // particle, measurable on GPUs with low FP64 throughput.
-    real_t dE_sum = acc_kick;
-    for (int j = 0; j < n_rf_in_batch; j++) {
-      dE_sum +=
-          charge * rf_params_batch.voltage[j] *
-          sin(rf_params_batch.omega_rf[j] * dt + rf_params_batch.phi_rf[j]);
-    }
-    beam_dE[i] += dE_sum;
+    apply_to_particle(args, beam_dt[i], beam_dE[i]);
   }
 }
 
@@ -264,6 +373,21 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   }
 }
 
+namespace {
+// (slope, offset) of the linear voltage in bin `i`, with `charge` and
+// `acc_kick` folded in.
+__device__ __forceinline__ void
+voltage_kick_pair(const int i, const real_t *__restrict__ voltage_array,
+                  const real_t *__restrict__ bin_centers, const real_t charge,
+                  const real_t inv_bin_width, const real_t acc_kick,
+                  real_t &slope, real_t &offset) {
+  // NOLINTBEGIN(*-pointer-arithmetic)
+  slope = charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
+  offset = (charge * voltage_array[i] - bin_centers[i] * slope) + acc_kick;
+  // NOLINTEND(*-pointer-arithmetic)
+}
+} // namespace
+
 extern "C" __global__ void lik_only_gm_copy(
     real_t *__restrict__ /*beam_dt*/, real_t *__restrict__ /*beam_dE*/,
     const real_t *__restrict__ voltage_array,
@@ -281,14 +405,33 @@ extern "C" __global__ void lik_only_gm_copy(
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
 
   for (int i = tid; i < n_slices - 1; i = static_cast<int>(i + stride)) {
-    // (slope, offset) of the linear voltage in bin `i`.
     const int factor_i = 2 * i;
-    glob_vkick_factor[factor_i] =
-        charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
-    glob_vkick_factor[factor_i + 1] =
-        (charge * voltage_array[i] -
-         bin_centers[i] * glob_vkick_factor[factor_i]) +
-        acc_kick;
+    voltage_kick_pair(i, voltage_array, bin_centers, charge, inv_bin_width,
+                      acc_kick, glob_vkick_factor[factor_i],
+                      glob_vkick_factor[factor_i + 1]);
+  }
+}
+
+// Table read by the deferred interpolated kick: `2 * n_slices` entries,
+// [bin_centers[0], inverse bin width, (slope, offset) per bin], as
+// `linear_interp_kick_table` builds it in C++.
+extern "C" __global__ void
+build_voltage_kick_table(const real_t *__restrict__ voltage_array,
+                         const real_t *__restrict__ bin_centers,
+                         const real_t charge, const int n_slices,
+                         const real_t acc_kick, real_t *__restrict__ table) {
+  // See `lik_only_gm_copy` for the unsigned stride.
+  const int tid = static_cast<int>(threadIdx.x + blockDim.x * blockIdx.x);
+  const unsigned int stride = gridDim.x * blockDim.x;
+  const real_t inv_bin_width =
+      (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
+  if (tid == 0) {
+    table[0] = bin_centers[0];
+    table[1] = inv_bin_width;
+  }
+  for (int i = tid; i < n_slices - 1; i = static_cast<int>(i + stride)) {
+    voltage_kick_pair(i, voltage_array, bin_centers, charge, inv_bin_width,
+                      acc_kick, table[2 + 2 * i], table[3 + 2 * i]);
   }
 }
 
@@ -477,31 +620,29 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
                                        const int n_alpha, const real_t beta,
                                        const real_t energy,
                                        const index_t n_macroparticles) {
-  const real_t inv_beta_sq = 1.0 / (beta * beta);
-  const real_t inv_energy = 1.0 / energy;
-  const real_t inv_energy_sq = inv_energy * inv_energy;
-
+  constexpr int MAX_RECORD_ALPHA{sizeof(DriftExactArgs::higher_alpha) /
+                                 sizeof(real_t)};
+  if (n_alpha <= MAX_RECORD_ALPHA) {
+    DriftExactArgs args = {};
+    args.T = T;
+    args.alpha_0 = alpha_zero;
+    args.beta = beta;
+    args.energy = energy;
+    args.n_alpha = n_alpha;
+    for (int k = 0; k < n_alpha; ++k) {
+      args.higher_alpha[k] = higher_alpha[k];
+    }
+    for (index_t i = particle_loop_start(); i < n_macroparticles;
+         i += particle_loop_stride()) {
+      apply_to_particle(args, beam_dt[i], beam_dE[i]);
+    }
+    return;
+  }
+  // More coefficients than a record holds: read them from global memory.
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-
-    const real_t dE = beam_dE[i];
-
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
-
-    real_t poly = 1.0 + alpha_zero * delta;
-
-    if (n_alpha > 0 && higher_alpha != nullptr) {
-      real_t delta_power = delta * delta; // starts at δ²
-
-      for (int k = 0; k < n_alpha; ++k) {
-        poly += higher_alpha[k] * delta_power;
-        delta_power *= delta; // next power
-      }
-    }
-
-    beam_dt[i] += T * (poly * (1.0 + dE * inv_energy) / (1.0 + delta) - 1.0);
+    drift_exact_particle(T, alpha_zero, higher_alpha, n_alpha, beta, energy,
+                         beam_dt[i], beam_dE[i]);
   }
 }
 

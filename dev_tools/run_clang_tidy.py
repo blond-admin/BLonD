@@ -36,13 +36,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CPP_DIR = ROOT / "blond" / "core" / "backends" / "cpp"
 CUDA_DIR = ROOT / "blond" / "core" / "backends" / "cuda"
+# The generated kernel call records header (deferred specials), included
+# by both the C++ and the CUDA sources.
+RECORDS_INCLUDE = f"-I{ROOT / 'blond' / 'core' / 'backends' / 'deferred'}"
 COMPILER_FLAGS = [
     "-std=c++11",
     "-D_USE_MATH_DEFINES",
     "-fopenmp",
     "-DPARALLEL",
-    # The generated kernel call records header (deferred specials).
-    f"-I{ROOT / 'blond' / 'core' / 'backends' / 'deferred'}",
+    RECORDS_INCLUDE,
 ]
 # Device code only: the kernels have no host side. `-nocudalib` skips
 # libdevice, which only matters for code generation. The architecture is
@@ -53,6 +55,7 @@ CUDA_FLAGS = [
     "--cuda-device-only",
     "--cuda-gpu-arch=sm_75",
     "-nocudalib",
+    RECORDS_INCLUDE,
 ]
 # Header wheels that together provide what `kernels.cu` includes.
 CUDA_HEADER_WHEELS = ("cuda_runtime", "curand", "cuda_nvcc", "cuda_cccl")
