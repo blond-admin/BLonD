@@ -3063,6 +3063,37 @@ class TestSpecials(BLonDTestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_beam_phase_needs_two_bins(self) -> None:
+        """Fewer than two bins must be rejected on every backend.
+
+        The trapezoidal integral needs two bins: C++ read out of bounds
+        for zero bins, CUDA launched an empty grid, and for one bin python
+        returned nan while C++/CUDA returned a finite value.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for n_bins in (0, 1):
+                with (
+                    self.subTest(special=special, n_bins=n_bins),
+                    self.assertRaisesRegex(
+                        AssertionError, "requires at least two bins"
+                    ),
+                ):
+                    backend.specials.beam_phase(
+                        hist_x=backend.zeros(n_bins, dtype=backend.float),
+                        hist_y=backend.ones(n_bins, dtype=backend.float),
+                        alpha=backend.float(0.5),
+                        omega_rf=backend.float(0.8),
+                        phi_rf=backend.float(0.1),
+                        bin_size=backend.float(1.0),
+                    )
+
+    @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
