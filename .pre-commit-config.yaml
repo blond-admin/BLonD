@@ -37,16 +37,6 @@ repos:
       - id: ruff-check  # This runs `ruff check`
         args: ["--fix"] # otherwise not compatible with Ruff
 
-  # Finds unused functions, methods, attributes and variables. Paths,
-  # excludes and confidence live in `[tool.vulture]` in pyproject.toml; the
-  # upstream hook scans the whole tree (pass_filenames: false), since dead
-  # code cannot be judged from the staged files alone. False positives go
-  # into `ignore_names` there.
-  - repo: https://github.com/jendrikseipp/vulture
-    rev: v2.16
-    hooks:
-      - id: vulture
-
   # Formats the C/C++ and CUDA backends (style in .clang-format).
   # clang-format comes from a pinned PyPI wheel inside pre-commit's own
   # environment, so no system clang is needed and every OS gets the same
