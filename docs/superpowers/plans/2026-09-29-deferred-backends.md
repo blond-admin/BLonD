@@ -12,7 +12,7 @@
   - cuda: `apply_to_particle`.
 - Every other `Specials` method is flush-then-call.
 
-**Tech stack.** Python ≥3.10, numpy, ctypes, CuPy `RawModule` (precompiled cubin), C++11 with OpenMP, CUDA via nvcc.
+**Tech stack.** Python ≥3.11, numpy, ctypes, CuPy `RawModule` (precompiled cubin), C++11 with OpenMP, CUDA via nvcc.
 
 **Spec.** `docs/superpowers/specs/2026-09-29-deferred-backends-design.md`, committed in `a50b13dbb`. Read it before starting a task.
 
@@ -50,6 +50,9 @@
 - CUDA batch capacity is 4096 bytes, passed by value.
 - Default chunk size is 4096 particles, overridable with `BLOND_DEFERRED_CHUNK_SIZE`.
 
+**Python version**
+- The new code targets Python ≥3.11 (`typing.Self`). BLonD drops 3.10 before this MR lands, so rebase onto that change first. `pyproject.toml` `requires-python` and ruff `target-version` then say 3.11.
+
 **Environment**
 - The venv is `.venv` at the repo root: `/home/slauber/PycharmProjects/deleteme/BLonD_uv/.venv/bin/python`.
 
@@ -70,7 +73,7 @@ These are the input classes most likely to bite a user that the per-task tests w
 | File | Status | Responsibility |
 |---|---|---|
 | `blond/core/backends/deferred/__init__.py` | new | Package marker with a docstring |
-| `blond/core/backends/deferred/kernel_call_records.py` | new | Record definitions, `prepare_on_enqueue` hooks, dtypes, header generator, header digest |
+| `blond/core/backends/deferred/kernel_call_records.py` | new | `KernelCallArgs` dataclasses (one per kernel, with their `from_specials_call`), typed field markers, dtypes, header generator, header digest |
 | `blond/core/backends/deferred/kernel_call_records.h` | new, generated | Structs, `KernelId`, `visit_kernel_call`, `next_record`, sizes |
 | `blond/core/backends/deferred/kernel_call_queue.py` | new | `KernelCallQueue`, `make_deferred_specials`, `deferred_chunk_size` |
 | `blond/core/backends/cpp/particle_kernels.h` | new | `apply_to_chunk` overloads, `thread_range`, `run_on_all_particles`, `linear_interp_kick_table` declaration |
@@ -213,35 +216,45 @@ git commit -m "Added Specials.flush and flush the old specials on every change" 
 - Test: `tests/unittests/core/backends/deferred/test_kernel_call_records.py`
 
 **Interfaces:**
-- Produces, in `kernel_call_records.py`:
-  - `RecordField(name: str, kind: str, max_length: int = 0, count_field: str = "")`
-  - `KernelCallRecord(name: str, fields: tuple[RecordField, ...], prepare_on_enqueue: Callable | None = None)`, with properties `.kernel_id_name -> str` (CamelCase) and `.kernel_id -> int`
-  - `KERNEL_CALL_RECORDS: tuple[KernelCallRecord, ...]`
-  - `RECORDS_BY_NAME: dict[str, KernelCallRecord]`
-  - `HEADER_DTYPE: np.dtype`, with fields `kernel_id` (u4) and `record_size_bytes` (u4)
-  - `args_dtype(record) -> np.dtype`, `record_dtype(record) -> np.dtype`
-  - `generate_header() -> str`, `HEADER_PATH: str`, `header_digest() -> str`
-  - `KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096`
-  - `MAX_RF_HARMONICS_PER_RECORD = 32`, `MAX_HIGHER_ALPHA = 8`
+- Produces, in `kernel_call_records.py`. Every name is a Python symbol, so IDEs autocomplete it and typos fail at import or construction time:
+  - **Field markers:** the abstract `RecordField`, with the concrete `RealField`, `Int32Field`, `IndexField`, `InputArrayField` and `InlineRealArrayField(max_length)`. Each implements `members(name) -> list[tuple[str, str, np.dtype]]` and `pack(packed, name, value, keep_alive) -> None`.
+  - **Annotation aliases:** `Real`, `Int32`, `Index`, `InputArray`, `RfParameters` (32 inline reals) and `HigherAlphas` (8 inline reals).
+  - **`KernelCallArgs`**, the frozen-dataclass base. Its classmethods are:
+    - `specials_method() -> str`, derived from the class name (`DriftSimpleArgs` → `"drift_simple"` and so on);
+    - `kernel_id() -> int` and `kernel_id_name() -> str`;
+    - `record_fields() -> tuple[tuple[str, RecordField], ...]`;
+    - `args_dtype() -> np.dtype` and `record_dtype() -> np.dtype`;
+    - `from_specials_call(arguments: Mapping[str, Any], eager_specials) -> list[Self] | None`, where `None` means "run eagerly".
+  - **The six subclasses:** `KickSingleHarmonicArgs`, `KickMultiHarmonicArgs`, `DriftSimpleArgs`, `DriftLikeLineSegmentArgs`, `DriftExactArgs` and `KickInterpolatedArgs`.
+  - **Registries:** `KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...]`, in `KernelId` order, and `ARGS_BY_SPECIALS_METHOD: dict[str, type[KernelCallArgs]]`.
+  - **Other names:**
+    - `HEADER_DTYPE: np.dtype`, with fields `kernel_id` (u4) and `record_size_bytes` (u4);
+    - `address_of(array) -> int`;
+    - `generate_header() -> str`, `HEADER_PATH: str` and `header_digest() -> str`;
+    - `KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096`, `MAX_RF_HARMONICS_PER_RECORD = 32` and `MAX_HIGHER_ALPHA = 8`.
 - Produces, in the header:
-  - `enum class KernelId : std::uint32_t`
-  - `struct KernelCallHeader`
-  - `<Kernel>Args` structs
-  - `KERNEL_COUNT`, `KERNEL_CALL_BATCH_CAPACITY_BYTES`, `KERNEL_CALL_ARGS_SIZES[]`, `KERNEL_CALL_ARGS_SIZES_INITIALIZER`
-  - `record_args<Args>(record)`, `next_record(record)`, `visit_kernel_call(record, visitor)`
-  - `BLOND_HOST_DEVICE`
-- The `prepare_on_enqueue` hooks are defined in this task **as data only**. Tasks 5 and 10 exercise their behaviour. Every hook has the signature `hook(arguments: dict[str, Any], eager_specials) -> list[dict[str, Any]] | None`, where `None` means "run eagerly".
+  - `enum class KernelId : std::uint32_t` and `struct KernelCallHeader`;
+  - the structs, **named exactly like the Python classes** (`DriftSimpleArgs`, …);
+  - `KERNEL_COUNT`, `KERNEL_CALL_BATCH_CAPACITY_BYTES`, `KERNEL_CALL_ARGS_SIZES_INITIALIZER` and `KERNEL_CALL_ARGS_SIZES[]`;
+  - `record_args<Args>(record)`, `next_record(record)` and `visit_kernel_call(record, visitor)`;
+  - `BLOND_HOST_DEVICE`.
+- This task only *defines* the `from_specials_call` overrides. Tasks 5 and 10 exercise them.
+- Requires **Python ≥3.11**, for `typing.Self`. BLonD drops 3.10 before this MR lands.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
 # tests/unittests/core/backends/deferred/test_kernel_call_records.py
+import dataclasses
 import inspect
-
-import numpy as np
 
 from blond.core.backends.backend import Specials
 from blond.core.backends.deferred import kernel_call_records as records
+from blond.core.backends.deferred.kernel_call_records import (
+    DriftLikeLineSegmentArgs,
+    KernelCallArgs,
+    KickMultiHarmonicArgs,
+)
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -256,41 +269,68 @@ class TestKernelCallRecords(BLonDTestCase):
             "blond.core.backends.deferred.kernel_call_records`",
         )
 
-    def test_record_names_are_specials_methods(self) -> None:
-        for record in records.KERNEL_CALL_RECORDS:
-            self.assertTrue(hasattr(Specials, record.name), record.name)
+    def test_specials_method_from_class_name(self) -> None:
+        self.assertEqual(
+            DriftLikeLineSegmentArgs.specials_method(),
+            "drift_like_line_segment",
+        )
+        for args_type in records.KERNEL_CALL_ARGS:
+            self.assertTrue(
+                hasattr(Specials, args_type.specials_method()),
+                args_type.__name__,
+            )
 
-    def test_direct_fields_are_specials_arguments(self) -> None:
-        # Fields without a prepare hook are filled from the kwargs by name.
-        for record in records.KERNEL_CALL_RECORDS:
-            if record.prepare_on_enqueue is not None:
+    def test_unknown_kernel_is_rejected_at_definition(self) -> None:
+        with self.assertRaises(TypeError):
+
+            class NoSuchKernelArgs(KernelCallArgs):  # noqa: F841
+                pass
+
+    def test_default_fields_are_specials_arguments(self) -> None:
+        # Kernels without their own from_specials_call are filled from
+        # the kwargs by field name.
+        default = KernelCallArgs.from_specials_call.__func__
+        for args_type in records.KERNEL_CALL_ARGS:
+            if args_type.from_specials_call.__func__ is not default:
                 continue
             parameters = inspect.signature(
-                getattr(Specials, record.name)
+                getattr(Specials, args_type.specials_method())
             ).parameters
-            for field in record.fields:
-                self.assertIn(field.name, parameters, record.name)
+            for field in dataclasses.fields(args_type):
+                self.assertIn(field.name, parameters, args_type.__name__)
+
+    def test_every_field_has_a_record_field_marker(self) -> None:
+        for args_type in records.KERNEL_CALL_ARGS:
+            names = [name for name, _ in args_type.record_fields()]
+            self.assertEqual(
+                names, [f.name for f in dataclasses.fields(args_type)]
+            )
 
     def test_dtypes_are_8_byte_padded(self) -> None:
-        for record in records.KERNEL_CALL_RECORDS:
-            self.assertEqual(records.record_dtype(record).itemsize % 8, 0)
+        for args_type in records.KERNEL_CALL_ARGS:
+            record = args_type.record_dtype()
+            self.assertEqual(record.itemsize % 8, 0)
             self.assertEqual(
-                records.record_dtype(record).itemsize,
+                record.itemsize,
                 records.HEADER_DTYPE.itemsize
-                + records.args_dtype(record).itemsize,
+                + args_type.args_dtype().itemsize,
             )
 
     def test_kick_multi_harmonic_layout(self) -> None:
-        dtype = records.args_dtype(records.RECORDS_BY_NAME["kick_multi_harmonic"])
+        dtype = KickMultiHarmonicArgs.args_dtype()
         self.assertEqual(dtype.fields["n_rf"][1], 0)
-        self.assertEqual(dtype.fields["voltage"][1], 8)  # 4 bytes of padding
+        self.assertEqual(dtype.fields["voltage"][1], 8)  # 4 bytes padding
         self.assertEqual(dtype.fields["voltage"][0].shape, (32,))
 
     def test_kernel_ids_are_positions(self) -> None:
-        for position, record in enumerate(records.KERNEL_CALL_RECORDS):
-            self.assertEqual(record.kernel_id, position)
+        for position, args_type in enumerate(records.KERNEL_CALL_ARGS):
+            self.assertEqual(args_type.kernel_id(), position)
 
-    def test_digest_changes_with_header(self) -> None:
+    def test_misspelt_field_fails_at_construction(self) -> None:
+        with self.assertRaises(TypeError):
+            records.DriftSimpleArgs(T=1.0, eta0=1.0, beta=1.0, energy=1.0)
+
+    def test_digest_is_sha256(self) -> None:
         self.assertEqual(len(records.header_digest()), 64)
 ```
 
@@ -310,41 +350,54 @@ Layout of deferred kernel call records -- the single source of truth.
 
 A deferred specials (``cpp_deferred``, ``cuda_deferred``) turns every call
 of a deferrable kernel into a *kernel call record*: a `HEADER_DTYPE`
-header followed by the kernel's ``<Kernel>Args`` struct. The records of
-one flush form a *batch*, which the backend's executor applies to the
+header followed by that kernel's ``Args`` struct. The records of one
+flush form a *batch*, which the backend's executor applies to the
 particles in a single fused pass.
 
-This module defines those records. From it, ``kernel_call_records.h``
-(C++/CUDA) is generated and the matching numpy dtypes are built, so the
-layout is written down exactly once.
+Each kernel's ``Args`` is a frozen dataclass below, e.g. `DriftSimpleArgs`.
+Its annotated fields (`Real`, `Int32`, `InputArray`, ...) fix the layout:
+``kernel_call_records.h`` is generated from them, with C structs of the
+same names, and the numpy dtypes the queue packs are derived from them.
 
 Adding a deferrable kernel
 --------------------------
-1. Add a `KernelCallRecord` to `KERNEL_CALL_RECORDS`, with a
-   ``prepare_on_enqueue`` hook only if its arguments need transforming.
+1. Add a ``<Kernel>Args(KernelCallArgs)`` dataclass; its name must be the
+   `Specials` method in CamelCase. Override `from_specials_call` only if
+   the method's arguments need transforming. Append it to
+   `KERNEL_CALL_ARGS`.
 2. Regenerate the header:
    ``python -m blond.core.backends.deferred.kernel_call_records``.
-3. Add one overload per backend: ``apply_to_chunk(const XArgs&, ...)`` in
-   ``cpp/particle_kernels.h`` and ``apply_to_particle(const XArgs&, ...)``
-   in ``cuda/kernels.cu``. A missing overload does not compile.
+3. Add one overload per backend: ``apply_to_chunk(const <Kernel>Args&,
+   ...)`` in ``cpp/particle_kernels.h`` and ``apply_to_particle(const
+   <Kernel>Args&, ...)`` in ``cuda/kernels.cu``. A missing overload does
+   not compile.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import os
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Self,
+    get_args,
+    get_type_hints,
+)
 
 import numpy as np
 
-from blond.core.backends.backend import INDEX_DTYPE
+from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable
+    from collections.abc import Mapping
 
 HEADER_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "kernel_call_records.h"
@@ -353,223 +406,448 @@ KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096
 MAX_RF_HARMONICS_PER_RECORD = 32
 MAX_HIGHER_ALPHA = 8
 
-# Record fields are laid out for 64-bit reals and indices; the generated
-# header static_asserts the same on the C++/CUDA side.
+# Records are laid out for 64-bit reals and indices; the generated header
+# static_asserts the same on the C++/CUDA side.
 _REAL = np.dtype(np.float64)
+_INT32 = np.dtype(np.int32)
 _INDEX = np.dtype(INDEX_DTYPE)
+_POINTER = np.dtype(np.uintp)
 assert _INDEX.itemsize == 8, "records assume a 64-bit index_t"
 
-_C_TYPES = {"real": "real_t", "int32": "std::int32_t", "index": "index_t"}
-_DTYPES = {"real": _REAL, "int32": np.dtype(np.int32), "index": _INDEX}
 
-
-@dataclass(frozen=True)
-class RecordField:
+def address_of(array: Any) -> int:
     """
-    One field of a kernel's ``Args`` struct.
+    Return the data address of a host or device array.
 
     Parameters
     ----------
-    name
-        Field name; the `Specials` argument name when filled from kwargs.
-    kind
-        ``"real"``, ``"int32"``, ``"index"``, ``"input_array"`` (a
-        ``const real_t *`` plus ``index_t <name>_length``) or
-        ``"inline_real_array"`` (``real_t <name>[max_length]``).
-    max_length
-        Capacity of an ``inline_real_array``.
-    count_field
-        Name of the ``int32`` field holding how many values of an
-        ``inline_real_array`` are used.
-    """
+    array
+        NumPy or CuPy array.
 
-    name: str
-    kind: str
-    max_length: int = 0
-    count_field: str = ""
+    Returns
+    -------
+    int
+        Host address for NumPy, device address for CuPy.
+    """
+    return array.data.ptr if is_cupy_array(array) else array.ctypes.data
+
+
+# ---------------------------------------------------------------- fields
+
+
+class RecordField(ABC):
+    """How one field of a `KernelCallArgs` is laid out and packed."""
+
+    @abstractmethod
+    def members(self, name: str) -> list[tuple[str, str, np.dtype]]:
+        """
+        Return the C struct members this field becomes.
+
+        Parameters
+        ----------
+        name
+            The dataclass field name.
+
+        Returns
+        -------
+        list
+            ``(C declaration, numpy field name, numpy dtype)`` per member.
+        """
+
+    def pack(
+        self, packed: Any, name: str, value: Any, keep_alive: list
+    ) -> None:
+        """
+        Write ``value`` into the packed record.
+
+        Parameters
+        ----------
+        packed
+            Structured view of the record's ``Args``.
+        name
+            The dataclass field name.
+        value
+            The field's value.
+        keep_alive
+            Arrays the batch references, to hold until the flush.
+        """
+        packed[name] = value
 
 
 @dataclass(frozen=True)
-class KernelCallRecord:
+class RealField(RecordField):
+    """A ``real_t`` scalar."""
+
+    def members(self, name: str) -> list[tuple[str, str, np.dtype]]:
+        """See `RecordField.members`."""
+        return [(f"real_t {name};", name, _REAL)]
+
+
+@dataclass(frozen=True)
+class Int32Field(RecordField):
+    """A ``std::int32_t`` scalar; overflowing values raise when packed."""
+
+    def members(self, name: str) -> list[tuple[str, str, np.dtype]]:
+        """See `RecordField.members`."""
+        return [(f"std::int32_t {name};", name, _INT32)]
+
+    def pack(
+        self, packed: Any, name: str, value: Any, keep_alive: list
+    ) -> None:
+        """See `RecordField.pack`."""
+        packed[name] = np.int32(value)  # OverflowError instead of wrapping
+
+
+@dataclass(frozen=True)
+class IndexField(RecordField):
+    """An ``index_t`` scalar, e.g. a particle count."""
+
+    def members(self, name: str) -> list[tuple[str, str, np.dtype]]:
+        """See `RecordField.members`."""
+        return [(f"index_t {name};", name, _INDEX)]
+
+
+@dataclass(frozen=True)
+class InputArrayField(RecordField):
     """
-    Definition of one deferrable kernel.
+    A backend array the batch reads: pointer plus ``<name>_length``.
 
-    Parameters
-    ----------
-    name
-        The `Specials` method name.
-    fields
-        The ``Args`` struct fields, in layout order.
-    prepare_on_enqueue
-        Optional ``hook(arguments, eager_specials)`` returning the field
-        values of one or more records, or None to run the call eagerly.
-        Without a hook, each field is taken from the kwarg of its name.
+    The array is kept alive until the flush. `from_specials_call` must
+    hand over an array nobody writes before then (e.g. a fresh table).
     """
 
-    name: str
-    fields: tuple[RecordField, ...]
-    prepare_on_enqueue: Callable | None = None
+    def members(self, name: str) -> list[tuple[str, str, np.dtype]]:
+        """See `RecordField.members`."""
+        return [
+            (f"const real_t *{name};", name, _POINTER),
+            (f"index_t {name}_length;", f"{name}_length", _INDEX),
+        ]
 
-    @property
-    def kernel_id_name(self) -> str:
-        """CamelCase name used for ``KernelId`` and the ``Args`` struct."""
-        return "".join(part.title() for part in self.name.split("_"))
-
-    @property
-    def kernel_id(self) -> int:
-        """Position in `KERNEL_CALL_RECORDS`, the value of ``KernelId``."""
-        return KERNEL_CALL_RECORDS.index(self)
-
-
-def _real(name: str) -> RecordField:
-    return RecordField(name, "real")
+    def pack(
+        self, packed: Any, name: str, value: Any, keep_alive: list
+    ) -> None:
+        """See `RecordField.pack`."""
+        assert value.dtype == _REAL and value.flags.c_contiguous
+        packed[name] = address_of(value)
+        packed[f"{name}_length"] = value.size
+        keep_alive.append(value)
 
 
-def _assert_host(array: Any, name: str) -> None:
-    # A device array would force a device-to-host sync on every call.
-    assert not is_cupy_array(array), f"`{name}` must be a host array"
-
-
-def _split_harmonics(
-    arguments: dict[str, Any], eager_specials: Any
-) -> list[dict[str, Any]]:
+@dataclass(frozen=True)
+class InlineRealArrayField(RecordField):
     """
-    Inline the RF parameters, 32 harmonics per record.
+    Up to ``max_length`` reals copied into the record.
 
-    ``acceleration_kick`` goes into the last record only, and one record
-    is always queued, so ``n_rf == 0`` still applies it -- as
-    ``CudaSpecials.kick_multi_harmonic`` splits its launches.
+    Takes host arrays only: reading a device array would sync on every
+    call. Unused slots are zeroed; how many are used is a separate
+    `Int32` field of the kernel (e.g. ``n_rf``).
     """
-    n_rf = int(arguments["n_rf"])
-    for name in ("voltage", "omega_rf", "phi_rf"):
-        _assert_host(arguments[name], name)
-    values = []
-    for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_RECORD):
-        last = min(first + MAX_RF_HARMONICS_PER_RECORD, n_rf)
-        values.append(
-            {
-                "n_rf": last - first,
-                "voltage": arguments["voltage"][first:last],
-                "omega_rf": arguments["omega_rf"][first:last],
-                "phi_rf": arguments["phi_rf"][first:last],
-                "charge": arguments["charge"],
-                "acceleration_kick": (
-                    arguments["acceleration_kick"] if last == n_rf else 0.0
-                ),
-            }
+
+    max_length: int
+
+    def members(self, name: str) -> list[tuple[str, str, np.dtype]]:
+        """See `RecordField.members`."""
+        return [
+            (
+                f"real_t {name}[{self.max_length}];",
+                name,
+                np.dtype((_REAL, (self.max_length,))),
+            )
+        ]
+
+    def pack(
+        self, packed: Any, name: str, value: Any, keep_alive: list
+    ) -> None:
+        """See `RecordField.pack`."""
+        assert not is_cupy_array(value), f"`{name}` must be a host array"
+        n_values = len(value)
+        assert n_values <= self.max_length
+        packed[name][:n_values] = value
+        packed[name][n_values:] = 0.0
+
+
+Real = Annotated[float, RealField()]
+Int32 = Annotated[int, Int32Field()]
+Index = Annotated[int, IndexField()]
+InputArray = Annotated[Any, InputArrayField()]
+RfParameters = Annotated[Any, InlineRealArrayField(MAX_RF_HARMONICS_PER_RECORD)]
+HigherAlphas = Annotated[Any, InlineRealArrayField(MAX_HIGHER_ALPHA)]
+
+
+# ------------------------------------------------------------ the kernels
+
+
+@dataclass(frozen=True, eq=False)
+class KernelCallArgs:
+    """
+    Parameters of one deferred kernel call; a subclass is one kernel.
+
+    The subclass is named ``<Kernel>Args`` after the `Specials` method in
+    CamelCase, and the generated C struct has the same name. Its fields,
+    annotated with `Real`, `Int32`, ..., are the struct members in order.
+    """
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if not cls.__name__.endswith("Args") or not hasattr(
+            Specials, cls.specials_method()
+        ):
+            raise TypeError(
+                f"{cls.__name__} must be named <Kernel>Args after a "
+                f"Specials method; Specials has no "
+                f"{cls.specials_method()!r}."
+            )
+
+    @classmethod
+    def specials_method(cls) -> str:
+        """Name of the `Specials` method, e.g. ``"drift_simple"``."""
+        return re.sub(r"(?<!^)(?=[A-Z])", "_", cls.kernel_id_name()).lower()
+
+    @classmethod
+    def kernel_id_name(cls) -> str:
+        """Name of the ``KernelId`` enumerator, e.g. ``"DriftSimple"``."""
+        return cls.__name__.removesuffix("Args")
+
+    @classmethod
+    def kernel_id(cls) -> int:
+        """Value of ``KernelId``: the position in `KERNEL_CALL_ARGS`."""
+        return _KERNEL_IDS[cls]
+
+    @classmethod
+    def record_fields(cls) -> tuple[tuple[str, RecordField], ...]:
+        """``(name, RecordField)`` of every field, in layout order."""
+        return _record_fields(cls)
+
+    @classmethod
+    def args_dtype(cls) -> np.dtype:
+        """Numpy dtype with the offsets of the C ``Args`` struct."""
+        return _args_dtype(cls)
+
+    @classmethod
+    def record_dtype(cls) -> np.dtype:
+        """Numpy dtype of a whole record: header, then ``args``."""
+        return _record_dtype(cls)
+
+    @classmethod
+    def from_specials_call(
+        cls, arguments: Mapping[str, Any], eager_specials: Any
+    ) -> list[Self] | None:
+        """
+        Build the records of one `Specials` call.
+
+        Parameters
+        ----------
+        arguments
+            The call's arguments by name, defaults applied.
+        eager_specials
+            The eager specials class, for backend-specific helpers.
+
+        Returns
+        -------
+        list or None
+            The records to queue, or None to run the call eagerly.
+            By default one record, each field from the argument of the
+            same name.
+        """
+        return [
+            cls(**{f.name: arguments[f.name] for f in dataclasses.fields(cls)})
+        ]
+
+
+@dataclass(frozen=True, eq=False)
+class KickSingleHarmonicArgs(KernelCallArgs):
+    """`Specials.kick_single_harmonic`."""
+
+    voltage: Real
+    omega_rf: Real
+    phi_rf: Real
+    charge: Real
+    acceleration_kick: Real
+
+
+@dataclass(frozen=True, eq=False)
+class KickMultiHarmonicArgs(KernelCallArgs):
+    """`Specials.kick_multi_harmonic`, 32 harmonics per record."""
+
+    n_rf: Int32
+    voltage: RfParameters
+    omega_rf: RfParameters
+    phi_rf: RfParameters
+    charge: Real
+    acceleration_kick: Real
+
+    @classmethod
+    def from_specials_call(
+        cls, arguments: Mapping[str, Any], eager_specials: Any
+    ) -> list[Self]:
+        """
+        Split the harmonics over records of `MAX_RF_HARMONICS_PER_RECORD`.
+
+        ``acceleration_kick`` goes into the last record only, and one
+        record is always queued, so ``n_rf == 0`` still applies it -- as
+        ``CudaSpecials.kick_multi_harmonic`` splits its launches.
+
+        Parameters
+        ----------
+        arguments
+            The call's arguments by name.
+        eager_specials
+            Unused.
+
+        Returns
+        -------
+        list
+            One record per 32 harmonics.
+        """
+        n_rf = int(arguments["n_rf"])
+        records = []
+        for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_RECORD):
+            last = min(first + MAX_RF_HARMONICS_PER_RECORD, n_rf)
+            records.append(
+                cls(
+                    n_rf=last - first,
+                    voltage=arguments["voltage"][first:last],
+                    omega_rf=arguments["omega_rf"][first:last],
+                    phi_rf=arguments["phi_rf"][first:last],
+                    charge=arguments["charge"],
+                    acceleration_kick=(
+                        arguments["acceleration_kick"] if last == n_rf else 0.0
+                    ),
+                )
+            )
+        return records
+
+
+@dataclass(frozen=True, eq=False)
+class DriftSimpleArgs(KernelCallArgs):
+    """`Specials.drift_simple`."""
+
+    T: Real
+    eta_0: Real
+    beta: Real
+    energy: Real
+
+
+@dataclass(frozen=True, eq=False)
+class DriftLikeLineSegmentArgs(KernelCallArgs):
+    """`Specials.drift_like_line_segment`."""
+
+    T: Real
+    eta_0: Real
+    beta: Real
+    energy: Real
+
+
+@dataclass(frozen=True, eq=False)
+class DriftExactArgs(KernelCallArgs):
+    """`Specials.drift_exact`, up to `MAX_HIGHER_ALPHA` coefficients."""
+
+    T: Real
+    alpha_0: Real
+    beta: Real
+    energy: Real
+    n_alpha: Int32
+    higher_alpha: HigherAlphas
+
+    @classmethod
+    def from_specials_call(
+        cls, arguments: Mapping[str, Any], eager_specials: Any
+    ) -> list[Self] | None:
+        """
+        Inline the higher-order alphas; more than 8 runs eagerly.
+
+        The polynomial cannot be split over records like harmonics.
+
+        Parameters
+        ----------
+        arguments
+            The call's arguments by name.
+        eager_specials
+            Unused.
+
+        Returns
+        -------
+        list or None
+            One record, or None beyond `MAX_HIGHER_ALPHA` coefficients.
+        """
+        higher_alpha = arguments["higher_alpha"]
+        if len(higher_alpha) > MAX_HIGHER_ALPHA:
+            return None
+        return [
+            cls(
+                T=arguments["T"],
+                alpha_0=arguments["alpha_0"],
+                beta=arguments["beta"],
+                energy=arguments["energy"],
+                n_alpha=len(higher_alpha),
+                higher_alpha=higher_alpha,
+            )
+        ]
+
+
+@dataclass(frozen=True, eq=False)
+class KickInterpolatedArgs(KernelCallArgs):
+    """
+    `Specials.kick_interpolated`, dense profiles only.
+
+    ``voltage_kick_table`` is ``[first_bin_center, inverse_bin_width,
+    (slope, offset) * n_bins]`` with ``charge`` and ``acceleration_kick``
+    folded into the pairs; both backends build it the same way.
+    """
+
+    voltage_kick_table: InputArray
+    acceleration_kick: Real
+
+    @classmethod
+    def from_specials_call(
+        cls, arguments: Mapping[str, Any], eager_specials: Any
+    ) -> list[Self] | None:
+        """
+        Build the voltage-kick table when the call is queued.
+
+        The table touches no particles, so building it before the flush
+        is exact; it is a fresh array owned by the queue.
+
+        Parameters
+        ----------
+        arguments
+            The call's arguments by name.
+        eager_specials
+            Provides ``_build_voltage_kick_table``.
+
+        Returns
+        -------
+        list or None
+            One record, or None for sparse profiles.
+        """
+        if arguments["first_left_cut"] is not None:
+            return None
+        table = eager_specials._build_voltage_kick_table(
+            voltage=arguments["voltage"],
+            bin_centers=arguments["bin_centers"],
+            charge=arguments["charge"],
+            acceleration_kick=arguments["acceleration_kick"],
         )
-    return values
+        return [
+            cls(
+                voltage_kick_table=table,
+                acceleration_kick=arguments["acceleration_kick"],
+            )
+        ]
 
 
-def _inline_higher_alpha(
-    arguments: dict[str, Any], eager_specials: Any
-) -> list[dict[str, Any]] | None:
-    """Inline the higher-order alphas; more than 8 runs eagerly."""
-    higher_alpha = arguments["higher_alpha"]
-    _assert_host(higher_alpha, "higher_alpha")
-    if len(higher_alpha) > MAX_HIGHER_ALPHA:
-        return None
-    return [
-        {
-            "T": arguments["T"],
-            "alpha_0": arguments["alpha_0"],
-            "beta": arguments["beta"],
-            "energy": arguments["energy"],
-            "n_alpha": len(higher_alpha),
-            "higher_alpha": higher_alpha,
-        }
-    ]
-
-
-def _build_voltage_kick_table(
-    arguments: dict[str, Any], eager_specials: Any
-) -> list[dict[str, Any]] | None:
-    """
-    Build the table of the dense interpolated kick when queuing.
-
-    The table touches no particles, so building it before the flush is
-    exact. Its layout, shared by both backends, is
-    ``[first_bin_center, inverse_bin_width, (slope, offset) * n_bins]``
-    with ``charge`` and ``acceleration_kick`` folded into the pairs. It is
-    a fresh array owned by the queue, so it needs no snapshot.
-    """
-    if arguments["first_left_cut"] is not None:
-        return None  # sparse profiles run eagerly
-    table = eager_specials._build_voltage_kick_table(
-        voltage=arguments["voltage"],
-        bin_centers=arguments["bin_centers"],
-        charge=arguments["charge"],
-        acceleration_kick=arguments["acceleration_kick"],
-    )
-    return [
-        {
-            "voltage_kick_table": table,
-            "acceleration_kick": arguments["acceleration_kick"],
-        }
-    ]
-
-
-_DRIFT_FIELDS = (_real("T"), _real("eta_0"), _real("beta"), _real("energy"))
-
-KERNEL_CALL_RECORDS: tuple[KernelCallRecord, ...] = (
-    KernelCallRecord(
-        "kick_single_harmonic",
-        (
-            _real("voltage"),
-            _real("omega_rf"),
-            _real("phi_rf"),
-            _real("charge"),
-            _real("acceleration_kick"),
-        ),
-    ),
-    KernelCallRecord(
-        "kick_multi_harmonic",
-        (
-            RecordField("n_rf", "int32"),
-            RecordField(
-                "voltage", "inline_real_array", MAX_RF_HARMONICS_PER_RECORD,
-                "n_rf",
-            ),
-            RecordField(
-                "omega_rf", "inline_real_array", MAX_RF_HARMONICS_PER_RECORD,
-                "n_rf",
-            ),
-            RecordField(
-                "phi_rf", "inline_real_array", MAX_RF_HARMONICS_PER_RECORD,
-                "n_rf",
-            ),
-            _real("charge"),
-            _real("acceleration_kick"),
-        ),
-        prepare_on_enqueue=_split_harmonics,
-    ),
-    KernelCallRecord("drift_simple", _DRIFT_FIELDS),
-    KernelCallRecord("drift_like_line_segment", _DRIFT_FIELDS),
-    KernelCallRecord(
-        "drift_exact",
-        (
-            _real("T"),
-            _real("alpha_0"),
-            _real("beta"),
-            _real("energy"),
-            RecordField("n_alpha", "int32"),
-            RecordField(
-                "higher_alpha", "inline_real_array", MAX_HIGHER_ALPHA,
-                "n_alpha",
-            ),
-        ),
-        prepare_on_enqueue=_inline_higher_alpha,
-    ),
-    KernelCallRecord(
-        "kick_interpolated",
-        (
-            RecordField("voltage_kick_table", "input_array"),
-            _real("acceleration_kick"),
-        ),
-        prepare_on_enqueue=_build_voltage_kick_table,
-    ),
+KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
+    KickSingleHarmonicArgs,
+    KickMultiHarmonicArgs,
+    DriftSimpleArgs,
+    DriftLikeLineSegmentArgs,
+    DriftExactArgs,
+    KickInterpolatedArgs,
 )
-RECORDS_BY_NAME = {record.name: record for record in KERNEL_CALL_RECORDS}
+ARGS_BY_SPECIALS_METHOD = {
+    args_type.specials_method(): args_type for args_type in KERNEL_CALL_ARGS
+}
+_KERNEL_IDS = {args_type: i for i, args_type in enumerate(KERNEL_CALL_ARGS)}
 
 HEADER_DTYPE = np.dtype(
     {
@@ -581,106 +859,74 @@ HEADER_DTYPE = np.dtype(
 )
 
 
-def _layout(record: KernelCallRecord) -> tuple[list[tuple], int]:
-    """
-    Return ``[(c_declaration, name, dtype, offset)], size`` of the Args.
-
-    Every field is aligned to its own size and the struct is padded to 8
-    bytes with explicit ``std::int32_t padding_<k>`` members, so C and
-    numpy never depend on compiler padding.
-    """
-    entries: list[tuple] = []
-    offset = 0
-    n_padding = 0
-
-    def pad_to_8() -> None:
-        nonlocal offset, n_padding
-        if offset % 8:
-            entries.append(
-                (f"std::int32_t padding_{n_padding};", None, None, offset)
-            )
-            n_padding += 1
-            offset += 4
-
-    for field in record.fields:
-        if field.kind in _C_TYPES:
-            dtype = _DTYPES[field.kind]
-            if dtype.itemsize == 8:
-                pad_to_8()
-            entries.append(
-                (f"{_C_TYPES[field.kind]} {field.name};", field.name, dtype,
-                 offset)
-            )
-            offset += dtype.itemsize
-        elif field.kind == "input_array":
-            pad_to_8()
-            entries.append(
-                (f"const real_t *{field.name};", field.name,
-                 np.dtype(np.uintp), offset)
-            )
-            entries.append(
-                (f"index_t {field.name}_length;", f"{field.name}_length",
-                 _INDEX, offset + 8)
-            )
-            offset += 16
-        elif field.kind == "inline_real_array":
-            pad_to_8()
-            dtype = np.dtype((_REAL, (field.max_length,)))
-            entries.append(
-                (f"real_t {field.name}[{field.max_length}];", field.name,
-                 dtype, offset)
-            )
-            offset += dtype.itemsize
-        else:  # pragma: no cover - a definition error
-            raise ValueError(f"unknown field kind {field.kind!r}")
-    pad_to_8()
-    return entries, offset
+# ---------------------------------------------------------------- layout
 
 
 @cache
-def args_dtype(record: KernelCallRecord) -> np.dtype:
-    """
-    Numpy dtype of the kernel's ``Args`` struct.
+def _record_fields(
+    args_type: type[KernelCallArgs],
+) -> tuple[tuple[str, RecordField], ...]:
+    hints = get_type_hints(args_type, include_extras=True)
+    fields = []
+    for field in dataclasses.fields(args_type):
+        markers = [m for m in get_args(hints[field.name]) if isinstance(m, RecordField)]
+        if len(markers) != 1:
+            raise TypeError(
+                f"{args_type.__name__}.{field.name} needs one field "
+                "annotation such as Real, Int32 or InputArray"
+            )
+        fields.append((field.name, markers[0]))
+    return tuple(fields)
 
-    Parameters
-    ----------
-    record
-        The kernel definition.
 
-    Returns
-    -------
-    np.dtype
-        Structured dtype with the same offsets as the C struct.
+@cache
+def _layout(
+    args_type: type[KernelCallArgs],
+) -> tuple[tuple[tuple[str, str | None, np.dtype | None, int], ...], int]:
     """
-    entries, size = _layout(record)
-    named = [entry for entry in entries if entry[1] is not None]
+    Return ``(members, size)`` of the C struct.
+
+    Every member is aligned to its element size and the struct is padded
+    to 8 bytes with explicit ``std::int32_t padding_<k>`` members, so C
+    and numpy never depend on compiler padding.
+    """
+    members: list[tuple[str, str | None, np.dtype | None, int]] = []
+    offset = 0
+
+    def pad_to(alignment: int) -> None:
+        nonlocal offset
+        if offset % alignment:
+            members.append(
+                (f"std::int32_t padding_{len(members)};", None, None, offset)
+            )
+            offset += 4
+
+    for name, record_field in args_type.record_fields():
+        for declaration, numpy_name, dtype in record_field.members(name):
+            pad_to(dtype.base.itemsize)
+            members.append((declaration, numpy_name, dtype, offset))
+            offset += dtype.itemsize
+    pad_to(8)
+    return tuple(members), offset
+
+
+@cache
+def _args_dtype(args_type: type[KernelCallArgs]) -> np.dtype:
+    members, size = _layout(args_type)
+    named = [m for m in members if m[1] is not None]
     return np.dtype(
         {
-            "names": [entry[1] for entry in named],
-            "formats": [entry[2] for entry in named],
-            "offsets": [entry[3] for entry in named],
+            "names": [m[1] for m in named],
+            "formats": [m[2] for m in named],
+            "offsets": [m[3] for m in named],
             "itemsize": size,
         }
     )
 
 
 @cache
-def record_dtype(record: KernelCallRecord) -> np.dtype:
-    """
-    Numpy dtype of a whole record: header followed by the ``Args``.
-
-    Parameters
-    ----------
-    record
-        The kernel definition.
-
-    Returns
-    -------
-    np.dtype
-        Structured dtype with fields ``kernel_id``, ``record_size_bytes``
-        and ``args``.
-    """
-    args = args_dtype(record)
+def _record_dtype(args_type: type[KernelCallArgs]) -> np.dtype:
+    args = _args_dtype(args_type)
     return np.dtype(
         {
             "names": ["kernel_id", "record_size_bytes", "args"],
@@ -689,6 +935,9 @@ def record_dtype(record: KernelCallRecord) -> np.dtype:
             "itemsize": HEADER_DTYPE.itemsize + args.itemsize,
         }
     )
+
+
+# ---------------------------------------------------------------- header
 
 
 def _copyright_lines() -> list[str]:
@@ -714,7 +963,8 @@ def generate_header() -> str:
         "",
         "// GENERATED by `python -m "
         "blond.core.backends.deferred.kernel_call_records`",
-        "// from kernel_call_records.py next to this file. Do not edit.",
+        "// from the KernelCallArgs dataclasses in kernel_call_records.py.",
+        "// Do not edit.",
         "//",
         "// Include after `real_t` and `index_t` are defined:",
         "// blond_common.h on the C++ side, kernels.cu on the CUDA side.",
@@ -735,11 +985,11 @@ def generate_header() -> str:
         "",
         "enum class KernelId : std::uint32_t {",
         *(
-            f"  {record.kernel_id_name} = {record.kernel_id},"
-            for record in KERNEL_CALL_RECORDS
+            f"  {args_type.kernel_id_name()} = {args_type.kernel_id()},"
+            for args_type in KERNEL_CALL_ARGS
         ),
         "};",
-        f"constexpr int KERNEL_COUNT = {len(KERNEL_CALL_RECORDS)};",
+        f"constexpr int KERNEL_COUNT = {len(KERNEL_CALL_ARGS)};",
         "constexpr std::size_t KERNEL_CALL_BATCH_CAPACITY_BYTES = "
         f"{KERNEL_CALL_BATCH_CAPACITY_BYTES};",
         "",
@@ -751,21 +1001,21 @@ def generate_header() -> str:
         "// Plain C arrays: the layout is fixed by the numpy dtypes.",
         "// NOLINTBEGIN(*-avoid-c-arrays)",
     ]
-    for record in KERNEL_CALL_RECORDS:
-        entries, size = _layout(record)
-        lines.append(f"struct {record.kernel_id_name}Args {{")
-        lines.extend(f"  {entry[0]}" for entry in entries)
+    for args_type in KERNEL_CALL_ARGS:
+        members, size = _layout(args_type)
+        struct = args_type.__name__
+        lines.append(f"struct {struct} {{")
+        lines.extend(f"  {member[0]}" for member in members)
         lines.append("};")
         lines.append(
-            f"static_assert(sizeof({record.kernel_id_name}Args) == {size},"
+            f"static_assert(sizeof({struct}) == {size},"
             ' "regenerate kernel_call_records.h");'
         )
-        for entry in entries:
-            if entry[1] is not None and not entry[1].endswith("_length"):
+        for declaration, numpy_name, _, offset in members:
+            if numpy_name is not None:
                 lines.append(
-                    f"static_assert(offsetof({record.kernel_id_name}Args, "
-                    f"{entry[1]}) == {entry[3]},"
-                    ' "regenerate kernel_call_records.h");'
+                    f"static_assert(offsetof({struct}, {numpy_name}) == "
+                    f'{offset}, "regenerate kernel_call_records.h");'
                 )
         lines.append("")
     lines += [
@@ -773,10 +1023,7 @@ def generate_header() -> str:
         "// from the same list (kernels.cu).",
         "#define KERNEL_CALL_ARGS_SIZES_INITIALIZER \\",
         "  { \\",
-        *(
-            f"    sizeof({record.kernel_id_name}Args), \\"
-            for record in KERNEL_CALL_RECORDS
-        ),
+        *(f"    sizeof({args_type.__name__}), \\" for args_type in KERNEL_CALL_ARGS),
         "  }",
         "constexpr std::uint32_t KERNEL_CALL_ARGS_SIZES[KERNEL_COUNT] ="
         " KERNEL_CALL_ARGS_SIZES_INITIALIZER;",
@@ -812,10 +1059,10 @@ def generate_header() -> str:
         "const Visitor &visitor) {",
         "  switch (record->kernel_id) {",
     ]
-    for record in KERNEL_CALL_RECORDS:
+    for args_type in KERNEL_CALL_ARGS:
         lines += [
-            f"  case KernelId::{record.kernel_id_name}:",
-            f"    visitor(record_args<{record.kernel_id_name}Args>(record));",
+            f"  case KernelId::{args_type.kernel_id_name()}:",
+            f"    visitor(record_args<{args_type.__name__}>(record));",
             "    break;",
         ]
     lines += ["  }", "}", ""]
@@ -842,6 +1089,10 @@ if __name__ == "__main__":  # pragma: no cover
     with open(HEADER_PATH, "w") as file:
         file.write(generate_header())
 ```
+
+**`get_type_hints` and `from __future__ import annotations`.** With postponed annotations, every field annotation is a string. `get_type_hints(..., include_extras=True)` resolves those strings in the module's globals, which is why `Real`, `RfParameters` and the other aliases must stay module-level names.
+
+**Why an explicit `@dataclass(frozen=True, eq=False)` on every subclass.** PyCharm and mypy recognise a literal `@dataclass` for autocompletion and constructor checking. A home-made decorator alias would lose that. `eq=False` avoids comparing numpy arrays element-wise. The `kernel_call_records.py` module is outside `callables.py`, so numpydoc validates it. Every public class and method above therefore has a NumPy-style docstring.
 
 `blond/core/backends/deferred/__init__.py` contains the copyright header plus:
 
@@ -1273,7 +1524,7 @@ git commit -m "Moved the cpp particle kernel bodies into particle_kernels.h" -m 
 - Test: `tests/unittests/core/backends/deferred/test_cpp_executor.py`
 
 **Interfaces:**
-- Consumes: `record_dtype`, `args_dtype`, `KERNEL_CALL_RECORDS` (Task 2); `apply_to_chunk` overloads (Task 3).
+- Consumes: the `KernelCallArgs` classes, their `record_dtype()`/`args_dtype()`/`kernel_id()`, and `KERNEL_CALL_ARGS` (Task 2); the `apply_to_chunk` overloads (Task 3).
 - Produces:
   - `extern "C" void execute_kernel_call_batch(const std::uint8_t *batch, std::size_t n_bytes, real_t *beam_dt, real_t *beam_dE, index_t n_macroparticles, index_t chunk_size)`
   - `extern "C" std::uint32_t kernel_call_args_size(int kernel_id)`, which returns 0 for an unknown id
@@ -1296,14 +1547,15 @@ from blond.core.backends.deferred import kernel_call_records as records
 from blond.testing.backend_testing import BLonDTestCase
 
 
-def _pack(*records_and_values) -> np.ndarray:
+def _pack(*kernel_calls: records.KernelCallArgs) -> np.ndarray:
     parts = []
-    for record, values in records_and_values:
-        item = np.zeros((), dtype=records.record_dtype(record))
-        item["kernel_id"] = record.kernel_id
+    for args in kernel_calls:
+        args_type = type(args)
+        item = np.zeros((), dtype=args_type.record_dtype())
+        item["kernel_id"] = args_type.kernel_id()
         item["record_size_bytes"] = item.dtype.itemsize
-        for name, value in values.items():
-            item["args"][name] = value
+        for name, record_field in args_type.record_fields():
+            record_field.pack(item["args"], name, getattr(args, name), [])
         parts.append(item.tobytes())
     return np.frombuffer(b"".join(parts), dtype=np.uint8).copy()
 
@@ -1343,8 +1595,8 @@ class TestCppExecutor(BLonDTestCase):
                     dt=dt_eager, dE=dE_eager, **kick)
                 self.eager.drift_simple(dt=dt_eager, dE=dE_eager, **drift)
                 batch = _pack(
-                    (records.RECORDS_BY_NAME["kick_single_harmonic"], kick),
-                    (records.RECORDS_BY_NAME["drift_simple"], drift),
+                    records.KickSingleHarmonicArgs(**kick),
+                    records.DriftSimpleArgs(**drift),
                 )
                 self._execute(batch, dt, dE, chunk_size)
                 np.testing.assert_allclose(dE, dE_eager, rtol=1e-12)
@@ -1352,15 +1604,16 @@ class TestCppExecutor(BLonDTestCase):
 
     def test_zero_macroparticles(self) -> None:
         dt, dE = np.empty(0), np.empty(0)
-        batch = _pack((records.RECORDS_BY_NAME["drift_simple"],
-                       dict(T=1.0, eta_0=1.0, beta=1.0, energy=1.0)))
+        batch = _pack(
+            records.DriftSimpleArgs(T=1.0, eta_0=1.0, beta=1.0, energy=1.0)
+        )
         self._execute(batch, dt, dE)  # must not crash
 
     def test_args_sizes_match_dtypes(self) -> None:
-        for record in records.KERNEL_CALL_RECORDS:
+        for args_type in records.KERNEL_CALL_ARGS:
             self.assertEqual(
-                self.library.kernel_call_args_size(record.kernel_id),
-                records.args_dtype(record).itemsize,
+                self.library.kernel_call_args_size(args_type.kernel_id()),
+                args_type.args_dtype().itemsize,
             )
         self.assertEqual(self.library.kernel_call_args_size(999), 0)
 ```
@@ -1459,16 +1712,15 @@ def check_kernel_call_record_abi(library: CDLL) -> None:
         The freshly loaded ``libblond``.
     """
     from blond.core.backends.deferred.kernel_call_records import (
-        KERNEL_CALL_RECORDS,
-        args_dtype,
+        KERNEL_CALL_ARGS,
     )
 
     library.kernel_call_args_size.restype = ct.c_uint32
-    for record in KERNEL_CALL_RECORDS:
-        compiled = int(library.kernel_call_args_size(record.kernel_id))
-        expected = args_dtype(record).itemsize
+    for args_type in KERNEL_CALL_ARGS:
+        compiled = int(library.kernel_call_args_size(args_type.kernel_id()))
+        expected = args_type.args_dtype().itemsize
         assert compiled == expected, (
-            f"{record.kernel_id_name}Args is {compiled} bytes in libblond "
+            f"{args_type.__name__} is {compiled} bytes in libblond "
             f"but {expected} in kernel_call_records.py; rebuild the C++ "
             "backend with `blond-compile-cpp`."
         )
@@ -1515,14 +1767,13 @@ git commit -m "Added the cpp executor for deferred kernel call batches" -m "It w
 
 **Interfaces:**
 - Consumes:
-  - `KERNEL_CALL_RECORDS`, `RECORDS_BY_NAME`, `record_dtype` (Task 2);
+  - `KernelCallArgs` and its `from_specials_call`/`record_dtype`/`record_fields`/`kernel_id`, and `ARGS_BY_SPECIALS_METHOD` (Task 2);
   - `CppSpecials._library`, `CppSpecials._build_voltage_kick_table` (Tasks 3–4);
   - `Specials.flush` (Task 1).
 - Produces:
-  - `KernelCallQueue` (a `threading.local` subclass) with `.bind(dt, dE)`, `.holds(dt, dE) -> bool`, `.append(record, values: dict)`, `.clear()`, and the attributes `.buffer`, `.n_bytes`, `.record_sizes`, `.dt`, `.dE`, `.keep_alive`.
+  - `KernelCallQueue` (a `threading.local` subclass) with `.bind(dt, dE)`, `.holds(dt, dE) -> bool`, `.append(args: KernelCallArgs)`, `.clear()`, and the attributes `.buffer`, `.n_bytes`, `.record_sizes`, `.dt`, `.dE`, `.keep_alive`.
   - `make_deferred_specials(eager_specials: type, execute_batch: Callable[[np.ndarray, list[int], Any, Any], None]) -> type`. The returned class has `flush()` and the class attribute `kernel_call_queue`.
   - `deferred_chunk_size() -> int`, which reads `BLOND_DEFERRED_CHUNK_SIZE` (default 4096) and raises `ValueError` if the value is < 1.
-  - `address_of(array) -> int`, which returns the host or device address.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1771,7 +2022,7 @@ Expected: FAIL with `UnknownBackendMode: Unknown specials mode 'cpp_deferred'`.
 Queue of deferred kernel calls, shared by ``cpp_deferred``/``cuda_deferred``.
 
 `make_deferred_specials` derives deferred specials from eager ones: each
-deferrable kernel (`KERNEL_CALL_RECORDS`) packs a kernel call record into
+deferrable kernel (`KERNEL_CALL_ARGS`) packs a kernel call record into
 a per-thread `KernelCallQueue` instead of running; every other method
 flushes the queue and then runs eagerly. A flush hands the batch to the
 backend's ``execute_batch``, which applies it in one fused pass.
@@ -1789,12 +2040,9 @@ import numpy as np
 
 from blond.core.backends.backend import Specials, backend
 from blond.core.backends.deferred.kernel_call_records import (
-    KERNEL_CALL_RECORDS,
-    RECORDS_BY_NAME,
-    KernelCallRecord,
-    record_dtype,
+    ARGS_BY_SPECIALS_METHOD,
+    KernelCallArgs,
 )
-from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -1825,23 +2073,6 @@ def deferred_chunk_size() -> int:
             f"BLOND_DEFERRED_CHUNK_SIZE must be >= 1, got {chunk_size}"
         )
     return chunk_size
-
-
-def address_of(array: Any) -> int:
-    """
-    Return the data address of a host or device array.
-
-    Parameters
-    ----------
-    array
-        NumPy or CuPy array.
-
-    Returns
-    -------
-    int
-        Host address for NumPy, device address for CuPy.
-    """
-    return array.data.ptr if is_cupy_array(array) else array.ctypes.data
 
 
 class KernelCallQueue(threading.local):
@@ -1891,38 +2122,27 @@ class KernelCallQueue(threading.local):
         assert dt.flags.c_contiguous and dE.flags.c_contiguous
         self.dt, self.dE = dt, dE
 
-    def append(self, record: KernelCallRecord, values: dict[str, Any]) -> None:
+    def append(self, args: KernelCallArgs) -> None:
         """
         Pack one kernel call record at the end of the batch.
 
         Parameters
         ----------
-        record
-            The kernel definition.
-        values
-            Field name -> value, as the record's fields declare.
+        args
+            The kernel call; its class fixes the record layout.
         """
-        dtype = record_dtype(record)
+        args_type = type(args)
+        dtype = args_type.record_dtype()
         size = dtype.itemsize
         self._reserve(size)
         item = self.buffer[self.n_bytes : self.n_bytes + size].view(dtype)[0]
-        item["kernel_id"] = record.kernel_id
+        item["kernel_id"] = args_type.kernel_id()
         item["record_size_bytes"] = size
-        args = item["args"]
-        for field in record.fields:
-            value = values[field.name]
-            if field.kind == "input_array":
-                assert value.dtype == backend.float
-                assert value.flags.c_contiguous
-                args[field.name] = address_of(value)
-                args[f"{field.name}_length"] = value.size
-                self.keep_alive.append(value)
-            elif field.kind == "inline_real_array":
-                n_values = len(value)
-                args[field.name][:n_values] = value
-                args[field.name][n_values:] = 0.0
-            else:
-                args[field.name] = value
+        packed = item["args"]
+        for name, record_field in args_type.record_fields():
+            record_field.pack(
+                packed, name, getattr(args, name), self.keep_alive
+            )
         self.n_bytes += size
         self.record_sizes.append(size)
 
@@ -1939,12 +2159,6 @@ class KernelCallQueue(threading.local):
             grown = np.zeros(max(2 * self.buffer.size, needed), np.uint8)
             grown[: self.n_bytes] = self.buffer[: self.n_bytes]
             self.buffer = grown
-
-
-def _values_from_kwargs(
-    record: KernelCallRecord, arguments: dict[str, Any]
-) -> list[dict[str, Any]]:
-    return [{field.name: arguments[field.name] for field in record.fields}]
 
 
 def make_deferred_specials(
@@ -1991,10 +2205,10 @@ def make_deferred_specials(
         if not isinstance(value, staticmethod):
             continue
         eager_method = getattr(eager_specials, name)
-        if name in RECORDS_BY_NAME:
+        if name in ARGS_BY_SPECIALS_METHOD:
             method = _queuing_method(
-                RECORDS_BY_NAME[name], eager_method, eager_specials, queue,
-                flush,
+                ARGS_BY_SPECIALS_METHOD[name], eager_method, eager_specials,
+                queue, flush,
             )
         else:
             method = _flushing_method(eager_method, flush)
@@ -2016,25 +2230,21 @@ def _flushing_method(eager_method: Callable, flush: Callable) -> Callable:
 
 
 def _queuing_method(
-    record: KernelCallRecord,
+    args_type: type[KernelCallArgs],
     eager_method: Callable,
     eager_specials: type,
     queue: KernelCallQueue,
     flush: Callable,
 ) -> Callable:
     signature = inspect.signature(eager_method)
-    prepare = record.prepare_on_enqueue
 
     @functools.wraps(eager_method)
     def queue_kernel_call(*args: Any, **kwargs: Any) -> None:
         bound = signature.bind(*args, **kwargs)
         bound.apply_defaults()
         arguments = bound.arguments
-        if prepare is None:
-            values = _values_from_kwargs(record, arguments)
-        else:
-            values = prepare(arguments, eager_specials)
-        if values is None:  # this call must run eagerly
+        kernel_calls = args_type.from_specials_call(arguments, eager_specials)
+        if kernel_calls is None:  # this call must run eagerly
             flush()
             eager_method(*args, **kwargs)
             return
@@ -2042,15 +2252,13 @@ def _queuing_method(
         if not queue.holds(dt, dE):
             flush()
             queue.bind(dt, dE)
-        for record_values in values:
-            queue.append(record, record_values)
+        for kernel_call in kernel_calls:
+            queue.append(kernel_call)
 
     return queue_kernel_call
 ```
 
 `deferred_class` is referenced inside `flush` before the class exists. That works because `flush` runs only after `type(...)` has returned; `_execute_batch` is looked up at call time, which is also what lets the Review Focus 3 test patch it. Note this in a one-line comment above `flush`.
-
-`KERNEL_CALL_RECORDS` is imported only for documentation: `vars(Specials)` drives the loop. Drop the unused import if ruff complains.
 
 - [ ] **Step 4: Wire up `cpp_deferred`**
 
@@ -2844,9 +3052,8 @@ In `cuda/callables.py`:
 
 ```python
 from blond.core.backends.deferred.kernel_call_records import (
+    KERNEL_CALL_ARGS,
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
-    KERNEL_CALL_RECORDS,
-    args_dtype,
 )
 from blond.core.backends.deferred.kernel_call_queue import (
     make_deferred_specials,
@@ -2863,12 +3070,12 @@ _deferred_block_size = (min(threads, 256), 1, 1)  # __launch_bounds__(256)
 
 def _check_kernel_call_record_abi() -> None:
     sizes = cp.ndarray(
-        (len(KERNEL_CALL_RECORDS),), dtype=np.uint32,
+        (len(KERNEL_CALL_ARGS),), dtype=np.uint32,
         memptr=gpu_module.get_global("kernel_call_args_sizes"),
     ).get()
-    for record in KERNEL_CALL_RECORDS:
-        assert sizes[record.kernel_id] == args_dtype(record).itemsize, (
-            f"{record.kernel_id_name}Args differs between the cubin and "
+    for args_type in KERNEL_CALL_ARGS:
+        assert sizes[args_type.kernel_id()] == args_type.args_dtype().itemsize, (
+            f"{args_type.__name__} differs between the cubin and "
             "kernel_call_records.py; rebuild with `blond-compile-cuda`."
         )
 
@@ -2997,7 +3204,7 @@ git commit -m "Added the deferred PSB benchmark and documented the deferred spec
 
 ## Self-Review Notes
 
-**Spec coverage.** Each spec section maps to a task:
+**Spec coverage.** Each spec section maps to a task. The record definitions changed from a field-kind table to typed `KernelCallArgs` dataclasses on review, and the spec §4.1 was updated to match:
 
 | Spec section | Task(s) |
 |---|---|
@@ -3017,6 +3224,6 @@ git commit -m "Added the deferred PSB benchmark and documented the deferred spec
 | §10 Risks | 3, 9 (codegen benchmarks), 10 (spills), 6 (grep guard) |
 
 **Deviations from the spec, deliberate.**
-- **No `input_array` snapshot.** The only `input_array`, `voltage_kick_table`, is always a fresh array built by its hook. That is exactly the spec's "unless the queue created it itself" case, so no snapshot code exists.
+- **No `InputArray` snapshot.** The only `InputArray` field, `voltage_kick_table`, is always a fresh array built by `KickInterpolatedArgs.from_specials_call`. That is exactly the spec's "unless the queue created it itself" case, so no snapshot code exists.
 - **Beam binding compares arrays by identity (`is`),** not by address. A view is therefore a different beam (it flushes), which is correct.
 - **The cpp eager `kick_multi_harmonic` now also chunks by 32.** It has to build inline `Args`. Summation order for `n_rf > 32` changes, within `rtol=1e-12`; mention this in the Task 3 commit.
