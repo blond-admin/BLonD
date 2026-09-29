@@ -30,6 +30,25 @@ from blond.generals.hashing_ import hash_build_target
 _EXTENSIONS = (".py", ".cu")
 
 
+def _kernel_call_records_digest() -> str:
+    """
+    Return the digest of the generated deferred-records header.
+
+    The header lives in ``../deferred``, outside the folder whose sources
+    are hashed, so its content is folded into the key explicitly.
+
+    Returns
+    -------
+    str
+        SHA-256 of ``kernel_call_records.h``.
+    """
+    from blond.core.backends.deferred.kernel_call_records import (  # NOQA: PLC0415
+        header_digest,
+    )
+
+    return header_digest()
+
+
 def resolve_nvcc() -> str:
     """
     Return the ``nvcc`` executable, honouring ``CUDA_PATH`` if set.
@@ -75,5 +94,6 @@ def cuda_compiled_dir(folder: str, nvcc: str | None = None) -> str:
         extensions=_EXTENSIONS,
         recursive=False,
         probe_commands=[[nvcc, "--version"]],
+        extra=(f"kernel_call_records={_kernel_call_records_digest()}",),
     )
     return os.path.join(folder, "compiled", hash_)

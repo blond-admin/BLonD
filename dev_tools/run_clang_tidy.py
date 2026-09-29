@@ -41,6 +41,8 @@ COMPILER_FLAGS = [
     "-D_USE_MATH_DEFINES",
     "-fopenmp",
     "-DPARALLEL",
+    # The generated kernel call records header (deferred specials).
+    f"-I{ROOT / 'blond' / 'core' / 'backends' / 'deferred'}",
 ]
 # Device code only: the kernels have no host side. `-nocudalib` skips
 # libdevice, which only matters for code generation. The architecture is

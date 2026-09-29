@@ -154,6 +154,8 @@ def compile_cuda_library(  # NOQA: PLR0915
         [nvcc]
         + nvcc_flags
         + ["-o", libname_double, "-I" + cupyloc]
+        # The generated kernel call records header (deferred specials).
+        + ["-I" + os.path.join(os.path.dirname(folder), "deferred")]
         + cuda_files
     )
     print("\nCompiling the double-precision (64-bit) CUDA library")

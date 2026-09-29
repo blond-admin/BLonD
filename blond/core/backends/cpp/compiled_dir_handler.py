@@ -54,6 +54,26 @@ DEFAULT_COMPILER = "g++"
 
 _EXTENSIONS = (".py", ".h", ".cpp")
 
+
+def _kernel_call_records_digest() -> str:
+    """
+    Return the digest of the generated deferred-records header.
+
+    The header lives in ``../deferred``, outside the folder whose sources
+    are hashed, so its content is folded into the key explicitly.
+
+    Returns
+    -------
+    str
+        SHA-256 of ``kernel_call_records.h``.
+    """
+    from blond.core.backends.deferred.kernel_call_records import (  # NOQA: PLC0415
+        header_digest,
+    )
+
+    return header_digest()
+
+
 # Name of the file (in the fixed `compiled/` folder, not inside a
 # hash-specific subdirectory -- it must be readable *before* the hash is
 # known) recording the parameters of the most recent build.
@@ -133,6 +153,7 @@ def cpp_compiled_dir(
             f"fftw={with_fftw}/{with_fftw_threads}/{with_fftw_omp}"
             f"/{with_fftw_lib}/{with_fftw_header}",
             f"boost={boost}",
+            f"kernel_call_records={_kernel_call_records_digest()}",
         ),
     )
     return os.path.join(folder, "compiled", hash_)
