@@ -65,7 +65,10 @@ if TYPE_CHECKING:  # pragma: no cover
 HEADER_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "kernel_call_records.h"
 )
-KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096
+# The CUDA executor takes the batch by value in its kernel parameters,
+# which are limited to 4096 bytes before CUDA 12.1 / Volta; the other
+# 32 bytes are its remaining parameters (`execute_kernel_call_batch`).
+KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096 - 32
 MAX_RF_HARMONICS_PER_RECORD = 32
 MAX_HIGHER_ALPHA = 8
 

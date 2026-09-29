@@ -650,13 +650,22 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
 // parameter space like `RFParamsBatch`: no host-to-device copy per
 // flush. 8-byte slots keep every record 8-byte aligned. Must match
 // `_KERNEL_CALL_BATCH_DTYPE` in callables.py, which splits larger
-// batches over several launches. With the other arguments the kernel
-// parameters exceed 4 KiB, which needs CUDA >= 12.1 on Volta or newer.
+// batches over several launches.
 // NOLINTBEGIN(*-avoid-c-arrays,misc-use-internal-linkage)
 struct KernelCallBatch {
   unsigned long long slots[KERNEL_CALL_BATCH_CAPACITY_BYTES / 8];
 };
 // NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
+
+// The batch plus the other parameters of `execute_kernel_call_batch`
+// (`n_bytes` padded to 8, `beam_dt`, `beam_dE`, `n_macroparticles`)
+// must fit the 4096-byte kernel parameter limit of CUDA < 12.1 and
+// pre-Volta GPUs: kernels.cu is one translation unit, so overflowing it
+// would break every kernel on those targets.
+static_assert(sizeof(KernelCallBatch) + 8 + sizeof(real_t *) * 2 +
+                      sizeof(index_t) <=
+                  4096,
+              "execute_kernel_call_batch parameters exceed 4096 bytes");
 
 // Compiled Args sizes, compared with the numpy dtypes when loading.
 extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =

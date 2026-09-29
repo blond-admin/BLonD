@@ -43,7 +43,7 @@ enum class KernelId : std::uint32_t {
   KickInterpolated = 5,
 };
 constexpr int KERNEL_COUNT = 6;
-constexpr std::size_t KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096;
+constexpr std::size_t KERNEL_CALL_BATCH_CAPACITY_BYTES = 4064;
 
 struct KernelCallHeader {
   KernelId kernel_id;
