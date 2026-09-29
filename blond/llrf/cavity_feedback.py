@@ -1770,7 +1770,29 @@ class LHCCavityLoop(CavityFeedback):
                         )
                         - 1
                     )
-                    if n_gap > 0:
+                    if n_gap > 0 and cavity_loop_kernels.NUMBA_AVAILABLE:
+                        # same recursion as below, without the fine-grid
+                        # arrays of the gap (up to the whole turn long)
+                        V_A_init, I_gen_init = (
+                            cavity_loop_kernels.cavity_response_gap(
+                                complex(prev_V_end),
+                                complex(prev_I_gen_last),
+                                complex(prev_I_beam_last),
+                                prev_end_time,
+                                profile.bin_size,
+                                n_gap,
+                                self.rf_centers,
+                                self.I_GEN_COARSE[-self.n_coarse :],
+                                0.5 * self.R_over_Q * self.samples_fine,
+                                complex(
+                                    1
+                                    - 0.5 * self.samples_fine / self.Q_L
+                                    + 1j * self.detuning * self.samples_fine
+                                ),
+                            )
+                        )
+                        I_beam_before = 0.0 + 0.0j
+                    elif n_gap > 0:
                         gap_centers = prev_end_time + profile.bin_size * (
                             np.arange(1, n_gap + 1)
                         )
