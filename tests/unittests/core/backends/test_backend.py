@@ -401,11 +401,13 @@ class TestSpecials(BLonDTestCase):
         self.special_modes = [
             "python",
             "cpp",
+            "cpp_deferred",
             "cpp_single_core",
             "numba",
         ]
         if cupy_available:
             self.special_modes.append("cuda")
+            self.special_modes.append("cuda_deferred")
         set_num_threads(N_TEST_THREADS)
         self.original_backend = type(backend)
         self.original_backend_specials_mode = backend.specials_mode
@@ -414,11 +416,28 @@ class TestSpecials(BLonDTestCase):
         backend.change_backend(self.original_backend)
         backend.set_specials(self.original_backend_specials_mode)
 
+    def _read(self, array):
+        """Flush any queued deferred kernels, then read `array` to host.
+
+        Kernel results read straight off a raw array (as these tests
+        do) are only guaranteed current after a flush: under
+        `cpp_deferred`/`cuda_deferred` the deferrable kernels
+        (`kick_single_harmonic`, `kick_multi_harmonic`, `drift_simple`,
+        `drift_like_line_segment`, `drift_exact`, dense
+        `kick_interpolated`) queue their work instead of running it
+        immediately. Flushing first (a no-op under every other
+        specials mode, and a no-op if nothing is queued) makes this a
+        single safe read path for every backend.
+        """
+        backend.specials.flush()
+        return copy_to_cpu(array)
+
     @pytest.mark.backend_mutation
     def _setUp(self, dtype, special_mode) -> None:
         if special_mode in (
             "python",
             "cpp",
+            "cpp_deferred",
             "cpp_single_core",
             "numba",
         ):
@@ -426,7 +445,7 @@ class TestSpecials(BLonDTestCase):
                 raise TypeError("32 Bit backends have been removed")
             else:
                 backend.change_backend(Numpy64Bit)
-        elif special_mode in ("cuda",):
+        elif special_mode in ("cuda", "cuda_deferred"):
             if dtype == np.float32:
                 raise TypeError("32 Bit backends have been removed")
             else:
@@ -493,7 +512,7 @@ class TestSpecials(BLonDTestCase):
                 beta=self.beta,
                 energy=self.energy,
             )
-            result = copy_to_cpu(self.dt)
+            result = self._read(self.dt)
             if reference is None:
                 reference = result
             else:
@@ -522,7 +541,7 @@ class TestSpecials(BLonDTestCase):
             beta=self.beta,
             energy=self.energy,
         )
-        result_strided = copy_to_cpu(self.dt)
+        result_strided = self._read(self.dt)
 
         self._setUp(dtype=np.float64, special_mode="cuda")
         contiguous = cp.ascontiguousarray(strided)
@@ -535,7 +554,7 @@ class TestSpecials(BLonDTestCase):
             beta=self.beta,
             energy=self.energy,
         )
-        result_contiguous = copy_to_cpu(self.dt)
+        result_contiguous = self._read(self.dt)
 
         np.testing.assert_allclose(
             result_strided, result_contiguous, rtol=1e-12
@@ -556,13 +575,14 @@ class TestSpecials(BLonDTestCase):
                     dE=self.dE,
                     T=self.t_rev * self.length_ratio,
                     alpha_0=self.alpha_0,
-                    higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                    # host: `InlineRealArrayField` (the cpp_deferred/
+                    # cuda_deferred packer) rejects a device array to
+                    # avoid a per-call host<->device sync.
+                    higher_alpha=np.array([1.0, 2.0], dtype=dtype),
                     beta=self.beta,
                     energy=self.energy,
                 )
-            result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = self._read(self.dt)
             if i == 0:
                 result_python = result
             else:
@@ -602,11 +622,12 @@ class TestSpecials(BLonDTestCase):
                         dE=self.dE,
                         T=self.t_rev * self.length_ratio,
                         alpha_0=self.alpha_0,
-                        higher_alpha=backend.array(higher_alpha, dtype=dtype),
+                        # host: see the comment in `test_drift_exact`.
+                        higher_alpha=np.array(higher_alpha, dtype=dtype),
                         beta=self.beta,
                         energy=self.energy,
                     )
-                    result = copy_to_cpu(self.dt)
+                    result = self._read(self.dt)
                     if i == 0:
                         result_python = result
                     else:
@@ -650,8 +671,12 @@ class TestSpecials(BLonDTestCase):
             ap = backend.array([1.0, 0.0, 0.0], dtype=backend.float)
             time_since_last_track = 10.0
 
-            if special in ("numba", "cuda"):
+            if special in ("numba", "cuda", "cuda_deferred"):
                 # MuSiC was not shipped for these backends in BLonD2.
+                # `cuda_deferred` flushes then calls the eager `cuda`
+                # kernel, so it must raise the same way; `cpp_deferred`
+                # is the `cpp` flush-then-call wrapper and falls
+                # through to the supported path below.
                 with self.assertRaises(NotImplementedError):
                     backend.specials.music_track(
                         self.dt,
@@ -668,12 +693,12 @@ class TestSpecials(BLonDTestCase):
             backend.specials.music_track(
                 self.dt, dE, iv, ap, *coeffs, time_since_last_track, False
             )
-            single = copy_to_cpu(iv)
+            single = self._read(iv)
             iv2 = backend.zeros(n, dtype=backend.float)
             backend.specials.music_track(
                 self.dt, dE, iv2, ap, *coeffs, time_since_last_track, True
             )
-            multi = copy_to_cpu(iv2)
+            multi = self._read(iv2)
 
             if reference_single is None:
                 reference_single = single
@@ -714,9 +739,7 @@ class TestSpecials(BLonDTestCase):
                 beta=self.beta,
                 energy=self.energy,
             )
-            result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = self._read(self.dt)
             if i == 0:
                 result_python = result
             else:
@@ -744,9 +767,7 @@ class TestSpecials(BLonDTestCase):
                 beta=self.beta,
                 energy=self.energy,
             )
-            result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = self._read(self.dt)
             if i == 0:
                 result_python = result
             else:
@@ -777,9 +798,7 @@ class TestSpecials(BLonDTestCase):
                 beta=self.beta,
                 energy=self.energy,
             )
-            result = self.dt
-            if special == "cuda":
-                result = result.get()
+            result = self._read(self.dt)
             if i == 0:
                 result_python = result
             else:
@@ -815,9 +834,7 @@ class TestSpecials(BLonDTestCase):
                     n_rf=len(self.voltages),
                     acceleration_kick=self.acceleration_kick,
                 )
-                result = self.dE
-                if special == "cuda":
-                    result = result.get()
+                result = self._read(self.dE)
                 if i == 0:
                     result_python = result
                 else:
@@ -895,7 +912,7 @@ class TestSpecials(BLonDTestCase):
                 total_energy=total_energy,
                 disable_quantum_excitation=False,
             )
-            dE_after_kick = copy_to_cpu(beam_dE)
+            dE_after_kick = self._read(beam_dE)
             sample_mean = float(dE_after_kick.mean())
             sample_std = float(dE_after_kick.std())
             # 5σ confidence at n=200k → mean error tol ~ 5·σ/√n ≈ 5·1.6e6/√2e5 ≈ 1.8e4
@@ -950,8 +967,8 @@ class TestSpecials(BLonDTestCase):
             backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 beam_dE=beam_dE_second_call, **kick_kwargs
             )
-            dE_first_call = copy_to_cpu(beam_dE_first_call)
-            dE_second_call = copy_to_cpu(beam_dE_second_call)
+            dE_first_call = self._read(beam_dE_first_call)
+            dE_second_call = self._read(beam_dE_second_call)
             np.testing.assert_array_equal(
                 dE_first_call,
                 dE_second_call,
@@ -989,8 +1006,8 @@ class TestSpecials(BLonDTestCase):
             backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
                 beam_dE=beam_dE_second_call, **kick_kwargs
             )
-            dE_first_call = copy_to_cpu(beam_dE_first_call)
-            dE_second_call = copy_to_cpu(beam_dE_second_call)
+            dE_first_call = self._read(beam_dE_first_call)
+            dE_second_call = self._read(beam_dE_second_call)
             self.assertFalse(
                 np.array_equal(dE_first_call, dE_second_call),
                 msg=(
@@ -1029,7 +1046,7 @@ class TestSpecials(BLonDTestCase):
             expected_dE = (
                 1.0 - 2.0 / longitudinal_damping_time
             ) * initial_dE - energy_lost
-            dE_after_kick = copy_to_cpu(beam_dE)
+            dE_after_kick = self._read(beam_dE)
             np.testing.assert_allclose(
                 np.asarray(dE_after_kick),
                 expected_dE * np.ones(1000, dtype=dtype),
@@ -1067,7 +1084,7 @@ class TestSpecials(BLonDTestCase):
                 msg=f"Inplace contract violated for `{special}`",
             )
             # Value must have actually changed (damping + noise).
-            dE_after_kick = copy_to_cpu(beam_dE)
+            dE_after_kick = self._read(beam_dE)
             self.assertFalse(
                 np.allclose(
                     np.asarray(dE_after_kick),
@@ -1094,9 +1111,7 @@ class TestSpecials(BLonDTestCase):
                 charge=self.charge,
                 acceleration_kick=self.acceleration_kick,
             )
-            result = self.dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(self.dE)
             if i == 0:
                 result_python = result
             else:
@@ -1133,9 +1148,7 @@ class TestSpecials(BLonDTestCase):
                 charge=charge,
                 acceleration_kick=acceleration_kick,
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
             if i == 0:
                 result_python = result
             else:
@@ -1169,9 +1182,7 @@ class TestSpecials(BLonDTestCase):
                 charge=charge,
                 acceleration_kick=acceleration_kick,
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
             if i == 0:
                 result_python = result
             else:
@@ -1237,9 +1248,7 @@ class TestSpecials(BLonDTestCase):
                 charge=backend.float(10),
                 acceleration_kick=backend.float(0.5),
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
             result = np.asarray(result)
             np.testing.assert_array_equal(
                 result[~in_range],
@@ -1382,9 +1391,7 @@ class TestSpecials(BLonDTestCase):
                 charge=charge,
                 acceleration_kick=acceleration_kick,
             )
-            result_dense = dE
-            if special == "cuda":
-                result_dense = result_dense.get()
+            result_dense = self._read(dE)
             np.testing.assert_allclose(
                 np.asarray(result_dense),
                 np.full(len(dt_dense_np), acceleration_kick_np),
@@ -1420,9 +1427,7 @@ class TestSpecials(BLonDTestCase):
                 filling_pattern=filling_pattern,
                 bucket_index_to_memory_index=bucket_index_to_memory_index,
             )
-            result_sparse = dE_s
-            if special == "cuda":
-                result_sparse = result_sparse.get()
+            result_sparse = self._read(dE_s)
             np.testing.assert_allclose(
                 np.asarray(result_sparse),
                 np.full(len(dt_sparse_np), acceleration_kick_np),
@@ -1500,9 +1505,7 @@ class TestSpecials(BLonDTestCase):
                 filling_pattern=filling_pattern,
                 bucket_index_to_memory_index=bucket_index_to_memory_index,
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
 
             # Ground truth: same particle kicked against ONLY the second
             # island's own 4-bin dense profile (island-local, no gap).
@@ -1526,9 +1529,7 @@ class TestSpecials(BLonDTestCase):
                 charge=charge,
                 acceleration_kick=acceleration_kick,
             )
-            expected = dE_local
-            if special == "cuda":
-                expected = expected.get()
+            expected = self._read(dE_local)
 
             np.testing.assert_allclose(
                 result,
@@ -1592,9 +1593,7 @@ class TestSpecials(BLonDTestCase):
                 filling_pattern=filling_pattern,
                 bucket_index_to_memory_index=bucket_index_to_memory_index,
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
             np.testing.assert_allclose(
                 result, np.zeros(1), err_msg=f"Failed `{special}` {dtype}"
             )
@@ -1648,7 +1647,7 @@ class TestSpecials(BLonDTestCase):
                 filling_pattern=filling_pattern,
                 bucket_index_to_memory_index=bucket_index_to_memory_index,
             )
-            result = copy_to_cpu(dE)
+            result = self._read(dE)
             np.testing.assert_array_equal(
                 result,
                 np.zeros_like(dt_np),
@@ -1739,11 +1738,8 @@ class TestSpecials(BLonDTestCase):
                 acceleration_kick=acceleration_kick,
             )
 
-            result_sparse = dE_sparse
-            result_dense = dE_dense
-            if special == "cuda":
-                result_sparse = result_sparse.get()
-                result_dense = result_dense.get()
+            result_sparse = self._read(dE_sparse)
+            result_dense = self._read(dE_dense)
 
             if special == "numba":
                 # `numba`'s dense kernel reconstructs bin spacing from
@@ -1844,9 +1840,7 @@ class TestSpecials(BLonDTestCase):
                 start=backend.float(-12),
                 stop=backend.float(8.0),
             )
-            result = array_write
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             np.testing.assert_array_equal(
                 np.asarray(result),
                 expected,
@@ -1895,7 +1889,7 @@ class TestSpecials(BLonDTestCase):
                 stop=backend.float(stop),
             )
             np.testing.assert_array_equal(
-                copy_to_cpu(array_write),
+                self._read(array_write),
                 expected,
                 err_msg=f"{special=} {dtype=} {n_bins=}",
             )
@@ -2347,9 +2341,7 @@ class TestSpecials(BLonDTestCase):
                 charge=charge,
                 acceleration_kick=acceleration_kick,
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
             if i == 0:
                 result_python = result
             else:
@@ -2420,8 +2412,7 @@ class TestSpecials(BLonDTestCase):
                 len(ids),
                 msg=f"Failed test `{special}` with {dtype}",
             )
-            if special == "cuda":
-                result = result.get()
+            result = self._read(result)
 
             result = np.sort(result)  # because of race conditions in
             # parallel execution, the order can not be guaranteed
@@ -2478,9 +2469,7 @@ class TestSpecials(BLonDTestCase):
             dE = dE[:n_new]
             ids = ids[:n_new]
 
-            result = dt  # could be any of the 4 arrays
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dt)  # could be any of the 4 arrays
 
             result = np.sort(result)  # because of race conditions in
             # parallel execution, the order can not be guaranteed
@@ -2611,8 +2600,7 @@ class TestSpecials(BLonDTestCase):
                 dE=dE,
                 flags=flags,
             )
-            if special == "cuda":
-                result = result.get()
+            result = self._read(result)
             if i == 0:
                 result_python = result
             else:
@@ -2656,7 +2644,7 @@ class TestSpecials(BLonDTestCase):
             )
 
             np.testing.assert_array_equal(
-                copy_to_cpu(flags),
+                self._read(flags),
                 np.array(
                     [
                         BeamFlags.ACTIVE.value,
@@ -2700,7 +2688,7 @@ class TestSpecials(BLonDTestCase):
             )
 
             np.testing.assert_array_equal(
-                copy_to_cpu(flags),
+                self._read(flags),
                 np.array(
                     [BeamFlags.ACTIVE.value, BeamFlags.LOST.value],
                     dtype=np.int32,
@@ -2796,10 +2784,7 @@ class TestSpecials(BLonDTestCase):
                     start=backend.float(-12),
                     stop=backend.float(8.0),
                 )
-            result = array_write
-
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             if i == 0:
                 result_python = result
             else:
@@ -3069,10 +3054,7 @@ class TestSpecials(BLonDTestCase):
                     filling_pattern=filling_pattern,
                     bucket_index_to_memory_index=bucket_index_to_memory_index,
                 )
-            result = array_write
-
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             if i == 0:
                 result_python = result
             else:
@@ -3124,10 +3106,7 @@ class TestSpecials(BLonDTestCase):
                     bucket_index_to_memory_index=bucket_index_to_memory_index,
                 )
             print(backend.specials_mode, array_write)
-            result = array_write
-
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             if i == 0:
                 result_python = result
             else:
@@ -3206,9 +3185,7 @@ class TestSpecials(BLonDTestCase):
                     filling_pattern=filling_pattern,
                     bucket_index_to_memory_index=bucket_index_to_memory_index,
                 )
-            result = array_write
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             np.testing.assert_array_equal(
                 result,
                 expected,
@@ -3234,10 +3211,7 @@ class TestSpecials(BLonDTestCase):
                     start=backend.float(2),
                     stop=backend.float(4),
                 )
-            result = array_write
-
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             if i == 0:
                 result_python = result
             else:
@@ -3267,10 +3241,7 @@ class TestSpecials(BLonDTestCase):
                     start=backend.float(-10),
                     stop=backend.float(10),
                 )
-            result = array_write
-
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             if i == 0:
                 result_python = result
             else:
@@ -3304,10 +3275,7 @@ class TestSpecials(BLonDTestCase):
                 start=backend.float(-12),
                 stop=backend.float(8.0),
             )
-            result = array_write
-
-            if special == "cuda":
-                result = result.get()
+            result = self._read(array_write)
             if i == 0:
                 result_python = result
                 print(result_python.tolist())
@@ -3375,9 +3343,7 @@ class TestSpecials(BLonDTestCase):
                     dtype=backend.float,
                 ),
             )
-        if backend.is_gpu:
-            return voltage.get(), states.get()
-        return np.asarray(voltage), np.asarray(states)
+        return self._read(voltage), self._read(states)
 
     def _assert_wake_matches_python(
         self,
@@ -3619,7 +3585,7 @@ class TestSpecials(BLonDTestCase):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
             np.testing.assert_allclose(
-                copy_to_cpu(backend.specials.sum_1d_array(backend.array(x))),
+                self._read(backend.specials.sum_1d_array(backend.array(x))),
                 reference_sum,
                 # Cumulative error is different with and without reduction, causing problems with single-core-cpp.
                 rtol=self.rtol,
@@ -3642,7 +3608,7 @@ class TestSpecials(BLonDTestCase):
                 backend.array(x),
                 backend.array(y),
             )
-            backend_result = copy_to_cpu(backend_result)
+            backend_result = self._read(backend_result)
 
             if backend.float == np.float32:
                 raise TypeError("32 bit backends have been removed.")
@@ -3673,7 +3639,8 @@ class TestSpecials(BLonDTestCase):
                 dE=dE,
                 T=self.t_rev * self.length_ratio,
                 alpha_0=self.alpha_0,
-                higher_alpha=backend.array([1.0, 2.0], dtype=dtype),
+                # host: see the comment in `test_drift_exact`.
+                higher_alpha=np.array([1.0, 2.0], dtype=dtype),
                 beta=self.beta,
                 energy=self.energy,
             )
@@ -3821,9 +3788,7 @@ class TestSpecials(BLonDTestCase):
                 n_rf=0,
                 acceleration_kick=self.acceleration_kick,
             )
-            result = dE
-            if special == "cuda":
-                result = result.get()
+            result = self._read(dE)
             # Without any rf harmonic, every particle receives exactly
             # `acceleration_kick`.
             expected = np.full(
@@ -3968,9 +3933,7 @@ class TestSpecials(BLonDTestCase):
                 )
                 # Post-condition: leading `n_new` entries are non-flagged,
                 # trailing entries are flagged — what the return value means.
-                flags_after = (
-                    flags.get() if special == "cuda" else np.asarray(flags)
-                )
+                flags_after = self._read(flags)
                 self.assertTrue(
                     bool(np.all(flags_after[:n_new] != 0)),
                     msg=(
@@ -4035,7 +3998,7 @@ class TestSpecials(BLonDTestCase):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
             empty = backend.zeros(0, dtype=backend.float)
-            result = copy_to_cpu(backend.specials.sum_1d_array(empty))
+            result = self._read(backend.specials.sum_1d_array(empty))
             np.testing.assert_allclose(
                 float(result),
                 0.0,
@@ -4055,7 +4018,7 @@ class TestSpecials(BLonDTestCase):
                 continue
             empty_a = backend.zeros(0, dtype=backend.float)
             empty_b = backend.zeros(0, dtype=backend.float)
-            result = copy_to_cpu(
+            result = self._read(
                 backend.specials.dot_product_1d_array(empty_a, empty_b)
             )
             np.testing.assert_allclose(
@@ -4127,7 +4090,7 @@ class TestSpecials(BLonDTestCase):
                 factor=backend.float(1.0),
             )
 
-            result = np.asarray(copy_to_cpu(voltage))
+            result = np.asarray(self._read(voltage))
 
             if i == 0:
                 result_reference = result
@@ -4139,7 +4102,7 @@ class TestSpecials(BLonDTestCase):
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
-            result2 = np.asarray(copy_to_cpu(states))
+            result2 = np.asarray(self._read(states))
 
             if i == 0:
                 result2_reference = result2
@@ -4231,7 +4194,7 @@ class TestSpecials(BLonDTestCase):
                             factor=backend.float(charge * 1.0),
                         )
 
-                        result = np.asarray(copy_to_cpu(voltage))
+                        result = np.asarray(self._read(voltage))
 
                         if i == 0:
                             result_reference = result
@@ -4242,7 +4205,7 @@ class TestSpecials(BLonDTestCase):
                                 rtol=1e-10,
                                 err_msg=f"Failed test `{special}` with {dtype}",
                             )
-                        result2 = np.asarray(copy_to_cpu(states))
+                        result2 = np.asarray(self._read(states))
 
                         if i == 0:
                             result2_reference = result2
@@ -4315,7 +4278,7 @@ class TestSpecials(BLonDTestCase):
                 factor=backend.float(1.0),
             )
 
-            result = copy_to_cpu(voltage)
+            result = self._read(voltage)
 
             if i == 0:
                 result_reference = result
@@ -4327,7 +4290,7 @@ class TestSpecials(BLonDTestCase):
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
-            result2 = copy_to_cpu(states)
+            result2 = self._read(states)
 
             if i == 0:
                 result2_reference = result2
@@ -4394,7 +4357,7 @@ class TestSpecials(BLonDTestCase):
                 voltage,
                 voltage_threaded,
             )
-            return np.asarray(copy_to_cpu(voltage)).copy()
+            return np.asarray(self._read(voltage)).copy()
 
         dtype = np.float64
         for special in self.special_modes:
@@ -4489,8 +4452,8 @@ class TestSpecials(BLonDTestCase):
                 voltage_threaded=voltage_threaded,
             )
 
-            result = np.asarray(copy_to_cpu(voltage))
-            states_result = np.asarray(copy_to_cpu(states))
+            result = np.asarray(self._read(voltage))
+            states_result = np.asarray(self._read(states))
 
             if result_reference is None:
                 result_reference = result
