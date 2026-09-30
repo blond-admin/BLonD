@@ -20,7 +20,7 @@ rem Activates ..\..\.venv so python / sphinx-apidoc / sphinx-build resolve to
 rem the venv regardless of how this script is launched (PyCharm run config,
 rem double-click, or a plain shell). Guarded so it no-ops where the venv is
 rem absent (e.g. the Linux CI, which activates its own venv before the build).
-if exist "%~dp0..\..\.venv\Scripts\activate.bat" call "%~dp0..\..\.venv\Scripts\activate.bat"
+if exist "%~dp0..\..\.venv_312\Scripts\activate.bat" call "%~dp0..\..\.venv_312\Scripts\activate.bat"
 
 rem --- clean previous build artifacts ---------------------------------------
 if exist modules\*.rst del /q modules\*.rst
