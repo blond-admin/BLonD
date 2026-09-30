@@ -448,6 +448,10 @@ class KickMultiHarmonicArgs(KernelCallArgs):
             One record per 32 harmonics.
         """
         n_rf = int(arguments["n_rf"])
+        voltage = arguments["voltage"]
+        omega_rf = arguments["omega_rf"]
+        phi_rf = arguments["phi_rf"]
+        assert len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
         records = []
         for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_RECORD):
             last = min(first + MAX_RF_HARMONICS_PER_RECORD, n_rf)
@@ -513,7 +517,11 @@ class DriftExactArgs(KernelCallArgs):
         """
         Inline the higher-order alphas; more than 8 runs eagerly.
 
-        The polynomial cannot be split over records like harmonics.
+        The polynomial cannot be split over records like harmonics. A
+        device ``higher_alpha`` also runs eagerly: `CudaSpecials.
+        drift_exact` accepts it as a compatibility path and copies it to
+        host itself, but inlining it into the record here would read
+        device memory as a host buffer.
 
         Parameters
         ----------
@@ -525,10 +533,13 @@ class DriftExactArgs(KernelCallArgs):
         Returns
         -------
         list or None
-            One record, or None beyond `MAX_HIGHER_ALPHA` coefficients.
+            One record, or None beyond `MAX_HIGHER_ALPHA` coefficients or
+            for a device `higher_alpha`.
         """
         higher_alpha = arguments["higher_alpha"]
         if len(higher_alpha) > MAX_HIGHER_ALPHA:
+            return None
+        if is_cupy_array(higher_alpha):
             return None
         return [
             cls(

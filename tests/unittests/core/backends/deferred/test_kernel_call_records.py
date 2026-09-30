@@ -6,6 +6,7 @@ import numpy as np
 from blond.core.backends.backend import Specials
 from blond.core.backends.deferred import kernel_call_records as records
 from blond.core.backends.deferred.kernel_call_records import (
+    DriftExactArgs,
     DriftLikeLineSegmentArgs,
     KernelCallArgs,
     KickMultiHarmonicArgs,
@@ -148,6 +149,63 @@ class TestKernelCallRecords(BLonDTestCase):
                     args_type.writes_dE,
                     not np.array_equal(dE, dE_before),
                 )
+
+    def test_drift_exact_runs_eagerly_for_a_device_higher_alpha(self) -> None:
+        # `CudaSpecials.drift_exact` still accepts a device `higher_alpha`
+        # as a compatibility path (it copies it to host itself). The
+        # deferred record inlines the coefficients into the record, which
+        # would either crash or silently misread device memory, so this
+        # case must fall back to running eagerly instead of asserting.
+        class _FakeDeviceArray:
+            def __init__(self, data: np.ndarray) -> None:
+                self._data = data
+                self.device = "cuda:0"
+
+            def __len__(self) -> int:
+                return len(self._data)
+
+        arguments = dict(
+            T=1e-6,
+            alpha_0=0.01,
+            higher_alpha=_FakeDeviceArray(np.array([1e-3, 2e-3])),
+            beta=0.9,
+            energy=2e9,
+        )
+        self.assertIsNone(
+            DriftExactArgs.from_specials_call(arguments, eager_specials=None)
+        )
+
+    def test_drift_exact_still_queues_a_host_higher_alpha(self) -> None:
+        arguments = dict(
+            T=1e-6,
+            alpha_0=0.01,
+            higher_alpha=np.array([1e-3, 2e-3]),
+            beta=0.9,
+            energy=2e9,
+        )
+        records = DriftExactArgs.from_specials_call(
+            arguments, eager_specials=None
+        )
+        self.assertIsNotNone(records)
+        self.assertEqual(len(records), 1)
+
+    def test_kick_multi_harmonic_rejects_mismatched_lengths(self) -> None:
+        # Eager `CudaSpecials.kick_multi_harmonic` asserts
+        # `len(voltage) == len(omega_rf) == len(phi_rf) == n_rf`; the
+        # deferred record must reject the same mismatch instead of
+        # silently slicing to the wrong length.
+        arguments = dict(
+            n_rf=2,
+            voltage=np.array([1e3, 2e3, 3e3]),
+            omega_rf=np.array([1e7, 3e7]),
+            phi_rf=np.array([0.0, 1.0]),
+            charge=1.0,
+            acceleration_kick=5.0,
+        )
+        with self.assertRaises(AssertionError):
+            KickMultiHarmonicArgs.from_specials_call(
+                arguments, eager_specials=None
+            )
 
     def test_missing_write_flags_are_rejected_at_definition(self) -> None:
         with self.assertRaisesRegex(TypeError, "writes_dE"):
