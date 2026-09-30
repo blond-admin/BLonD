@@ -18,6 +18,7 @@ import numpy as np
 from blond.core.base import Preparable
 from blond.core.helpers import find_instances_by_class
 from blond.core.ordering import filter_elements
+from blond.generals.formatting_ import pretty_string  # noqa: F401  (re-export)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import TypeVar
