@@ -1,0 +1,98 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENSE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""
+Tests that the eager CUDA kernels do not spill registers to local memory.
+
+The library is built with ``-maxrregcount 32``, so a small change in how a
+kernel holds its parameters (a per-thread struct copy, a shared-memory
+staging with a barrier) can push its per-particle loop into local-memory
+spills. Results stay identical, only the kernel gets slower, so nothing
+else catches it. These tests therefore read ``ptxas -v``'s resource usage
+for the kernels in question.
+"""
+
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+import pytest
+
+from blond.core.backends.cuda import compile as cuda_compile
+from blond.core.backends.cuda.compiled_dir_handler import resolve_nvcc
+from blond.testing.backend_testing import BLonDTestCase
+
+_NVCC = resolve_nvcc()
+_HAS_NVCC = shutil.which(_NVCC) is not None
+_CUDA_DIR = os.path.dirname(os.path.abspath(cuda_compile.__file__))
+_DEFERRED_DIR = os.path.join(os.path.dirname(_CUDA_DIR), "deferred")
+
+# Register allocation depends on the target, so pin the architecture the
+# limits below were measured on (T400) instead of whatever GPU is present;
+# nvcc compiles for it without a device.
+_ARCH = "sm_75"
+
+_PROPERTIES_PATTERN = re.compile(
+    r"Function properties for (?P<name>\w+)\s*\n"
+    r"\s*(?P<stack>\d+) bytes stack frame, "
+    r"(?P<spill_stores>\d+) bytes spill stores, "
+    r"(?P<spill_loads>\d+) bytes spill loads"
+)
+
+
+def _ptxas_resource_usage():
+    """Compile kernels.cu verbosely, return usage per kernel name."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        proc = subprocess.run(
+            [
+                _NVCC,
+                *cuda_compile.NVCC_FLAGS,
+                "-arch",
+                _ARCH,
+                "-Xptxas",
+                "-v",
+                "-I" + _DEFERRED_DIR,
+                "-o",
+                os.path.join(tmp_dir, "kernels.cubin"),
+                os.path.join(_CUDA_DIR, "kernels.cu"),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    usage = {}
+    for match in _PROPERTIES_PATTERN.finditer(proc.stderr + proc.stdout):
+        usage[match["name"]] = {
+            key: int(match[key])
+            for key in ("stack", "spill_stores", "spill_loads")
+        }
+    return usage
+
+
+@pytest.mark.cupy
+@unittest.skipUnless(_HAS_NVCC, "Requires nvcc to inspect generated code")
+class TestEagerKernelRegisterSpills(BLonDTestCase):
+    """The eager kernels keep their per-particle loop in registers."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.usage = _ptxas_resource_usage()
+
+    def test_kick_multi_harmonic_does_not_spill(self):
+        """Reading the RF batch in place keeps the harmonic loop spill-free.
+
+        Staging the batch in shared memory behind a barrier made the loop
+        spill under the 32-register cap.
+        """
+        usage = self.usage["kick_multi_harmonic"]
+        self.assertEqual(usage["spill_stores"], 0, usage)
+        self.assertEqual(usage["spill_loads"], 0, usage)

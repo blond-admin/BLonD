@@ -57,17 +57,29 @@ apply_to_particle(const KickSingleHarmonicArgs &args, const real_t &dt,
         args.acceleration_kick;
 }
 
+// The multi-harmonic kick, templated on whatever holds the per-harmonic
+// `voltage`, `omega_rf` and `phi_rf` arrays: the record, or the eager
+// kernel's `RFParamsBatch` read in place from the parameter space.
+template <class RFParams>
+__device__ __forceinline__ void
+kick_multi_harmonic_particle(const RFParams &rf_params, const int n_rf,
+                             const real_t charge, const real_t acc_kick,
+                             const real_t &dt, real_t &dE) {
+  // Starting from acc_kick rather than zero saves an FP64 add per
+  // particle, measurable on GPUs with low FP64 throughput.
+  real_t dE_sum = acc_kick;
+  for (int j = 0; j < n_rf; j++) {
+    dE_sum += charge * rf_params.voltage[j] *
+              sin(rf_params.omega_rf[j] * dt + rf_params.phi_rf[j]);
+  }
+  dE += dE_sum;
+}
+
 __device__ __forceinline__ void
 apply_to_particle(const KickMultiHarmonicArgs &args, const real_t &dt,
                   real_t &dE) {
-  // Starting from acc_kick rather than zero saves an FP64 add per
-  // particle, measurable on GPUs with low FP64 throughput.
-  real_t dE_sum = args.acceleration_kick;
-  for (int j = 0; j < args.n_rf; j++) {
-    dE_sum += args.charge * args.voltage[j] *
-              sin(args.omega_rf[j] * dt + args.phi_rf[j]);
-  }
-  dE += dE_sum;
+  kick_multi_harmonic_particle(args, args.n_rf, args.charge,
+                               args.acceleration_kick, dt, dE);
 }
 
 __device__ __forceinline__ void
@@ -215,24 +227,14 @@ kick_multi_harmonic(const real_t *__restrict__ beam_dt,
                     const RFParamsBatch rf_params_batch,
                     const int n_rf_in_batch, const real_t charge,
                     const index_t n_macroparticles, const real_t acc_kick) {
-  // One copy of the batch per block, in shared memory: a per-thread copy
-  // of the Args arrays would live in local memory.
-  __shared__ KickMultiHarmonicArgs args;
-  if (threadIdx.x == 0) {
-    args.n_rf = n_rf_in_batch;
-    args.charge = charge;
-    args.acceleration_kick = acc_kick;
-  }
-  for (int j = static_cast<int>(threadIdx.x); j < n_rf_in_batch;
-       j = static_cast<int>(j + blockDim.x)) {
-    args.voltage[j] = rf_params_batch.voltage[j];
-    args.omega_rf[j] = rf_params_batch.omega_rf[j];
-    args.phi_rf[j] = rf_params_batch.phi_rf[j];
-  }
-  __syncthreads();
+  // The batch is read in place from the parameter space. Copying it into
+  // a KickMultiHarmonicArgs first -- per thread, or per block in shared
+  // memory behind a barrier -- makes the harmonic loop spill registers
+  // under -maxrregcount 32.
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    apply_to_particle(args, beam_dt[i], beam_dE[i]);
+    kick_multi_harmonic_particle(rf_params_batch, n_rf_in_batch, charge,
+                                 acc_kick, beam_dt[i], beam_dE[i]);
   }
 }
 

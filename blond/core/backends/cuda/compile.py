@@ -27,6 +27,16 @@ if TYPE_CHECKING:  # pragma: no cover
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
+# Flags of every CUDA library build, apart from the target ``-arch``.
+# Module level so the codegen tests compile with exactly these.
+NVCC_FLAGS = (
+    "--cubin",
+    "-O3",
+    "--use_fast_math",
+    "-maxrregcount",
+    "32",
+)
+
 
 def run_compile(command: list[str], libname: str) -> int:
     """
@@ -76,13 +86,7 @@ def compile_cuda_library(  # NOQA: PLR0915
     cuda_files = [
         os.path.join(_basepath, "kernels.cu"),
     ]
-    nvcc_flags = [
-        "--cubin",
-        "-O3",
-        "--use_fast_math",
-        "-maxrregcount",
-        "32",
-    ]
+    nvcc_flags = list(NVCC_FLAGS)
 
     folder = os.path.dirname(os.path.abspath(__file__))
 
