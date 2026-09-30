@@ -65,6 +65,13 @@ extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
   }
 }
 
+// `thread_range` as compiled, so the tests can check the split.
+extern "C" void blond_thread_range(const index_t n, const int thread_id,
+                                   const int n_threads, index_t *begin,
+                                   index_t *end) {
+  thread_range(n, thread_id, n_threads, *begin, *end);
+}
+
 // Size of each Args struct as compiled, compared against the numpy
 // dtypes once when the library is loaded (callables.py).
 extern "C" std::uint32_t kernel_call_args_size(const int kernel_id) {

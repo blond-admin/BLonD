@@ -29,11 +29,16 @@
 
 #define BLOND_NOINLINE __attribute__((noinline))
 
-// Split [0, n) evenly over the threads, in whole `granule`s, so two
-// threads never share a cache line of particles.
+// Split [0, n) evenly over the threads, in whole `granule`s of one
+// 64-byte cache line of coordinates, so on a 64-byte aligned array no
+// two threads write the same line. numpy does not guarantee that
+// alignment, so a boundary may still split one line; a coarser granule
+// would not avoid that either, and only lets the slowest thread do up
+// to a granule more (128 gave it 7.5% more than an even split at 1e4
+// particles over 12 threads).
 inline void thread_range(const index_t n, const int thread_id,
                          const int n_threads, index_t &begin, index_t &end,
-                         const index_t granule = 128) {
+                         const index_t granule = 64 / sizeof(real_t)) {
   const index_t n_granules = (n + granule - 1) / granule;
   const index_t per_thread = n_granules / n_threads;
   const index_t rest = n_granules % n_threads;
