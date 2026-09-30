@@ -21,6 +21,8 @@ blond/_version.py
 *egg-info
 venvs
 .vscode
+# xsuite kernels compiled into the repo root by the test suite
+/*.pyd
 
 # End of placeholder for user defined entries
 
