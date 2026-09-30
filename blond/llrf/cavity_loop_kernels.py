@@ -8,11 +8,12 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-**Compiled kernels for the LHC/FCC cavity-loop coarse-grid recursion and the
-ACS cavity response.**
+**Compiled kernels for the LHC/FCC cavity-loop coarse-grid recursion, the
+ACS cavity response and the RF beam current.**
 
 The per-sample recursions are identical to the pure-Python implementations in
-:mod:`blond.llrf.cavity_feedback` and :mod:`blond.llrf.impulse_response`;
+:mod:`blond.llrf.cavity_feedback`, :mod:`blond.llrf.impulse_response` and
+:mod:`blond.llrf.signal_processing`;
 numba only removes the interpreter overhead. Set the environment variable
 ``BLOND_DISABLE_NUMBA_KERNELS`` to any non-empty value to force the original
 pure-Python/scipy code paths (e.g. for A/B validation).
@@ -376,3 +377,43 @@ def cavity_response_sparse_windows(
             V_ANT_FINE[n + 1] = V
             I_gen = I_GEN_FINE[n + 1]
             I_beam = I_BEAM_FINE[n]
+
+
+@njit(cache=True)
+def rf_beam_charge(n_macroparticles, bin_centers, charge, omega_c):
+    r"""RF beam charge on the fine grid: the charge of each bin, charge per
+    macro-particle times n_macroparticles, demodulated at omega_c (factor 2
+    included). Same expressions, bin by bin, as the numpy code of
+    :func:`blond.llrf.signal_processing.rf_beam_current`, in a single pass."""
+
+    charges_fine = np.empty(len(bin_centers), dtype=np.complex128)
+    for i in range(len(bin_centers)):
+        charges = charge * n_macroparticles[i]
+        phase = omega_c * bin_centers[i]
+        charges_fine[i] = complex(
+            2.0 * charges * np.cos(phase), -2.0 * charges * np.sin(phase)
+        )
+    return charges_fine
+
+
+@njit(cache=True)
+def charges_from_fine_to_coarse(
+    charges_fine, bin_centers, dT, half_period, T_s, n_points
+):
+    r"""Sum the fine-grid RF beam charge onto the coarse grid: the bin at
+    time t goes to the coarse sample round((t - dT - half_period) / T_s),
+    modulo n_points. Same result as the np.bincount scatter-add of
+    :func:`blond.llrf.signal_processing.charges_from_fine_to_coarse`."""
+
+    charges_coarse = np.zeros(n_points, dtype=np.complex128)
+    for i in range(len(charges_fine)):
+        ind_fine = (bin_centers[i] - dT - half_period) / T_s
+        charges_coarse[int(np.rint(ind_fine)) % n_points] += charges_fine[i]
+    return charges_coarse
+
+
+@njit(cache=True)
+def interp(x, xp, fp):
+    r"""np.interp, compiled"""
+
+    return np.interp(x, xp, fp)

@@ -14,6 +14,7 @@ Unittest for llrf.filters
 """
 
 import unittest
+from unittest import mock
 
 import numpy as np
 from scipy.constants import e
@@ -23,6 +24,7 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.llrf import cavity_loop_kernels
 from blond.llrf.impulse_response import (
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -828,6 +830,49 @@ class TestRFCurrent(unittest.TestCase):
         # Peak RF current on coarse grid
         peak_rf_current = np.max(np.absolute(rf_current_coarse))
         self.assertAlmostEqual(peak_rf_current, 2.9284593979, 7)
+
+    # Test the compiled kernels against the numpy code, with and without
+    # LPF, for a float and an integer profile; the largest dT puts the
+    # profile before the first coarse sample
+    def test_5(self):
+        t = self.profile.bin_centers
+        n_macroparticles = 2600 * np.exp(
+            -((t - 2.5e-9) ** 2) / (2 * 0.5e-9) ** 2
+        )
+        downsample = {"Ts": 5 * self.rf.t_rf[0, 0], "points": 20}
+
+        for dtype in (float, int):
+            self.profile.n_macroparticles = n_macroparticles.astype(dtype)
+            for lpf in (False, True):
+                for dT in (0, 1.3e-9, 1e-7):
+                    args = (self.profile, self.omega, self.ring.t_rev[0])
+                    kwargs = dict(lpf=lpf, downsample=downsample, dT=dT)
+                    fine, coarse = rf_beam_current(*args, **kwargs)
+                    with mock.patch.object(
+                        cavity_loop_kernels, "NUMBA_AVAILABLE", False
+                    ):
+                        fine_numpy, coarse_numpy = rf_beam_current(
+                            *args, **kwargs
+                        )
+                    with self.subTest(dtype=dtype, lpf=lpf, dT=dT):
+                        atol = 1e-13 * np.max(np.absolute(fine_numpy))
+                        np.testing.assert_allclose(
+                            fine,
+                            fine_numpy,
+                            rtol=1e-13,
+                            atol=atol,
+                            err_msg="In TestRfCurrent test_5, mismatch in "
+                            "RF current on the fine grid",
+                        )
+                        np.testing.assert_allclose(
+                            coarse,
+                            coarse_numpy,
+                            rtol=1e-13,
+                            atol=atol,
+                            err_msg="In TestRfCurrent test_5, mismatch in "
+                            "RF current on the coarse grid",
+                        )
+                        self.assertGreater(np.sum(np.absolute(coarse)), 0)
 
 
 class TestComb(unittest.TestCase):

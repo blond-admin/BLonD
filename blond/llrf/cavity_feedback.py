@@ -258,7 +258,7 @@ class CavityFeedback:
         )
 
         # Convert RF beam currents to be in units of Amperes
-        self.I_BEAM_FINE = self.I_BEAM_FINE / self.profile.bin_size
+        self.I_BEAM_FINE /= self.profile.bin_size
         self.I_BEAM_COARSE[-self.n_coarse :] = (
             self.I_BEAM_COARSE[-self.n_coarse :] / self.T_s
         )
@@ -1648,18 +1648,22 @@ class LHCCavityLoop(CavityFeedback):
                     self.I_GEN_FINE = np.concatenate(
                         (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
                     )
+                # All the windows at once, in the order of profiles_list
+                bin_centers = self.profile.bin_centers
                 self.I_GEN_FINE[0] = np.interp(
-                    self.profile.profiles_list[0].bin_centers[0]
-                    - self.profile.bin_size,
+                    bin_centers[0] - self.profile.bin_size,
                     self.rf_centers,
                     self.I_GEN_COARSE[-self.n_coarse :],
                 )
-                for p, profile in enumerate(self.profile.profiles_list):
-                    self.I_GEN_FINE[
-                        p * profile.n_slices + 1 : (p + 1) * profile.n_slices
-                        + 1
-                    ] = np.interp(
-                        profile.bin_centers,
+                if cavity_loop_kernels.NUMBA_AVAILABLE:
+                    self.I_GEN_FINE[1:] = cavity_loop_kernels.interp(
+                        bin_centers,
+                        self.rf_centers,
+                        self.I_GEN_COARSE[-self.n_coarse :],
+                    )
+                else:
+                    self.I_GEN_FINE[1:] = np.interp(
+                        bin_centers,
                         self.rf_centers,
                         self.I_GEN_COARSE[-self.n_coarse :],
                     )

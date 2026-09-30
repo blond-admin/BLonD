@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `cavity_response_no_beam_gap` in `blond.llrf.impulse_response`: closed-form ACS cavity response through a gap without beam, with the generator current interpolated from the coarse grid
+### Changed
+- `LHCCavityLoop` with sparse profiles: the fine-grid antenna voltage is carried across the gaps between windows in closed form instead of being solved sample by sample, which is faster and allocates no gap-sized arrays. The result matches the standard `Profile` solve to round-off.
+- `rf_beam_current` and `charges_from_fine_to_coarse` in `blond.llrf.signal_processing` run in compiled kernels when numba is available, and `LHCCavityLoop` interpolates the fine-grid generator current of all the windows of a sparse profile in one call. Results are unchanged.
 ### Removed
 ### Fixed
 
