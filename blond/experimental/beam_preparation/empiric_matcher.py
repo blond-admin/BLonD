@@ -18,15 +18,15 @@ from tqdm import tqdm
 
 from blond.beam_preparation.base import MatchingRoutine
 from blond.beam_preparation.helpers import populate_beam
+from blond.core.backends.mpi_distributed.helpers import (
+    mpi_aware_random_generator_cpu,
+    mpi_local_size,
+)
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.simulation.simulation import Simulation
 from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
-)
-from blond.generals.distributed.helpers import (
-    mpi_aware_random_generator_cpu,
-    mpi_local_size,
 )
 
 if TYPE_CHECKING:  # pragma: no cover

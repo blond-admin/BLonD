@@ -12,12 +12,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:  # pragma: no cover
-    pass
+    from numpy.typing import NDArray as NumpyArray
 
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class AnyInterpolator(Protocol):
@@ -37,9 +35,9 @@ class AnyInterpolator(Protocol):
         Additional keyword arguments.
     """
 
-    def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None: ...
+    def __init__(self, x: NumpyArray, y: NumpyArray, **kwargs) -> None: ...
 
-    def __call__(self, x: float | np.ndarray) -> np.ndarray:
+    def __call__(self, x: float | NumpyArray) -> NumpyArray:
         """
         Interpolate at new points x.
 
@@ -52,5 +50,33 @@ class AnyInterpolator(Protocol):
         -------
         y
             Interpolated values at the given points.
+        """
+        ...
+
+
+class ScheduleFunction(Protocol):
+    """
+    A callable that computes a scheduled value per turn.
+
+    Used by `ScheduledFunctional`, which calls it with the keyword
+    arguments `turn_i` and `reference_time`, so the parameters must
+    carry exactly these names.
+    """
+
+    def __call__(self, *, turn_i: int, reference_time: float) -> Any:
+        """
+        Compute the scheduled value.
+
+        Parameters
+        ----------
+        turn_i
+            Current turn index.
+        reference_time
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The scheduled value for this turn/time.
         """
         ...

@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import ctypes
 import os
-import platform
 import subprocess
 import sys
 
@@ -391,13 +390,8 @@ def _prepare_cflags(
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
         cflags += ["-fPIC"]
-        if optimize_for_local_cpu:
-            if "-ffast-math" not in cflags:
-                cflags += ["-ffast-math"]
-            cflags = _add_avx_flags(
-                cflags=cflags,
-                compiler=compiler,
-            )
+        if optimize_for_local_cpu and "-ffast-math" not in cflags:
+            cflags += ["-ffast-math"]
 
         root, ext = os.path.splitext(libname)
         if not ext:
@@ -408,13 +402,8 @@ def _prepare_cflags(
 
     elif "win" in sys.platform:
         # Add optimize-for-local-cpu flags for Windows (same as POSIX)
-        if optimize_for_local_cpu:
-            if "-ffast-math" not in cflags:
-                cflags += ["-ffast-math"]
-            cflags = _add_avx_flags(
-                cflags=cflags,
-                compiler=compiler,
-            )
+        if optimize_for_local_cpu and "-ffast-math" not in cflags:
+            cflags += ["-ffast-math"]
 
         root, ext = os.path.splitext(libname)
         if not ext:
@@ -481,64 +470,6 @@ def _prepare_fftw(
                 fftw_cflags += ["-DFFTW3PARALLEL"]
                 fftw_libs += ["-lfftw3_threads", "-lfftw3f_threads"]
     return fftw_cflags, fftw_libs
-
-
-def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
-    """
-    Add AVX/SSE flags to compiler flags.
-
-    Parameters
-    ----------
-    cflags
-        List of compiler flags.
-    compiler
-        The C++ compiler to use.
-
-    Returns
-    -------
-    cflags
-        Updated compiler flags with AVX/SSE optimization.
-    """
-    # Check compiler defined directives
-    # This is compatible with python3.6 - python 3.9
-    # The universal_newlines argument transforms output to text (from binary)
-    proc = subprocess.run(
-        [
-            compiler,
-            "-march=native",
-            "-dM",
-            "-E",
-            "-",
-        ],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
-    # If we have an error
-    if proc.returncode != 0:
-        print(
-            "Compiler auto-optimization did not work. Error: ",
-            proc.stdout,
-        )
-    # Following options exist only on x86 processors
-    elif "arm" not in platform.machine():
-        # Add the appropriate vectorization flag (not use avx512)
-        if "AVX2" in proc.stdout:
-            cflags += ["-mavx2"]
-        elif "AVX" in proc.stdout:
-            cflags += ["-mavx"]
-        elif "SSE4_2" in proc.stdout or "SSE4_1" in proc.stdout:
-            cflags += ["-msse4"]
-        elif "SSE3" in proc.stdout:
-            cflags += ["-msse3"]
-        else:
-            cflags += ["-msse"]
-
-        # Add FMA if supported
-        if "FMA" in proc.stdout:
-            cflags += ["-mfma"]
-    return cflags
 
 
 def main_cli() -> None:

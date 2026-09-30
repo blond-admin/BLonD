@@ -11,10 +11,12 @@ from blond import (
     SingleHarmonicRFStation,
     momentum_compaction_factor,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import lead_82
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 from blond.physics.rf_station import RFStationBaseClass
 from blond.testing.backend_testing import BLonDTestCase

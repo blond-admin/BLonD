@@ -115,16 +115,35 @@ class ObservablesBaseClass(MainLoopRelevant):
     folder
         Target folder to save the data at.
         Use `rename` to change the destination.
+        An empty string means the current working directory.
     **kwargs
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str | None = None, **kwargs):
+    _NOT_A_RECORDER: set[str] = set()
+
+    def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"
         logger.info("Will save %s to %s_,,,", self, self.common_filepath)
+
+    def _calc_n_entries(self, n_turns: int) -> int:
+        """
+        Calculate the number of entries considering `each_turn_i`.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns that the simulation is foreseen to run.
+
+        Returns
+        -------
+        n_entries
+            The number of observations during the simulation.
+        """
+        return int(math.ceil(n_turns / self.each_turn_i))
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         """
@@ -197,6 +216,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     def assert_lateinit(self):
         """Check that DenseArrays are already initialized."""
         for parameter, value in self.__dict__.items():
+            if parameter in self._NOT_A_RECORDER:
+                continue
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
 
@@ -217,6 +238,12 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         Additional keyword arguments.
     """
 
+    _NOT_A_RECORDER = ObservablesBaseClass._NOT_A_RECORDER | {
+        "_turns_array",
+        "_n_turns",
+        "each_turn_i",
+    }
+
     def __init__(
         self,
         each_turn_i: int,
@@ -236,22 +263,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
         self._simulation: Simulation | None = None
 
-    def _calc_n_entries(self, n_turns: int) -> int:
-        """
-        Calculate the number of entries considering `each_turn_i`.
-
-        Parameters
-        ----------
-        n_turns
-            Number of turns that the simulation is foreseen to run.
-
-        Returns
-        -------
-        n_entries
-            The number of observations during the simulation.
-        """
-        return int(math.ceil(n_turns / self.each_turn_i))
-
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray:
         """
@@ -265,6 +276,17 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         turns_array
             Array with turn numbers for observations.
         """
+        if self._turns_array is None:
+            assert self._n_turns is not None
+            self._turns_array = np.arange(
+                0, self._n_turns, self.each_turn_i, dtype=int
+            )
+
+            assert self._turns_array is not None
+
+            assert len(self._turns_array) == self._calc_n_entries(
+                n_turns=self._n_turns
+            )
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -305,9 +327,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             Additional keyword arguments.
         """
         self._n_turns = int(n_turns)
-
-        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
-        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
 
         self._simulation = simulation
 
@@ -407,7 +426,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,
@@ -754,7 +775,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,
@@ -1415,7 +1438,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             n_turns=n_turns,
         )
 
-        n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
+        n_turns_observation = self._calc_n_entries(n_turns)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(

@@ -14,10 +14,12 @@ from blond import (
     backend,
     positron,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, electron
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )

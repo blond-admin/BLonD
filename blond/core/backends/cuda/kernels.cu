@@ -10,11 +10,13 @@
 // The beam coordinates (beam_dt, beam_dE) and the profile coordinates
 // (bin_centers, cut edges) must contain neither NaN nor +/-Inf. Nothing
 // here checks for it -- the check would not be free in a per-particle
-// loop. Note that the guards protecting the conversion of a bin index
+// loop. Note that the guards protecting a C++ conversion of a bin index
 // to `int` are written as `index < lo || index >= hi`: a NaN index
 // compares false against both bounds, passes the guard and reaches the
-// conversion, which is undefined behaviour. The caller must not produce
-// non-finite coordinates. See `Specials` in blond/core/backends/backend.py.
+// conversion, which is undefined behaviour (`floor_to_int` avoids the
+// C++ conversion and instead files a NaN in bin 0). The caller must not
+// produce non-finite coordinates. See `Specials` in
+// blond/core/backends/backend.py.
 
 #ifdef USEFLOAT
 typedef float real_t;
@@ -43,11 +45,11 @@ extern "C" __global__ void
 drift_like_line_segment(real_t *__restrict__ beam_dt,
                         real_t *__restrict__ beam_dE, const real_t T,
                         const real_t eta_zero, const real_t beta,
-                        const real_t energy, const int n_macroparticles) {
+                        const real_t energy, const index_t n_macroparticles) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
-  for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
     const real_t dE = beam_dE[i];
     const real_t delta =
         sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
@@ -61,64 +63,46 @@ extern "C" __global__ void
 kick_single_harmonic(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                      const real_t charge, const real_t voltage,
                      const real_t omega_RF, const real_t phi_RF,
-                     const int n_macroparticles, const real_t acc_kick) {
+                     const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     beam_dE[i] +=
         charge * voltage * sin(omega_RF * beam_dt[i] + phi_RF) + acc_kick;
   }
 }
 
-extern "C" __global__ void kick_multi_harmonic(
-    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE, const int n_rf,
-    const real_t charge, const real_t *__restrict__ voltage,
-    const real_t *__restrict__ omega_RF, const real_t *__restrict__ phi_RF,
-    const index_t n_macroparticles, const real_t acc_kick) {
+// Per-harmonic RF parameters, passed to `kick_multi_harmonic` by value.
+// They arrive in the kernel's parameter space with the launch itself, so
+// the per-turn kick needs no host-to-device copy of three tiny arrays --
+// those copies used to cost more than the kick itself for small beams.
+// Must match `MAX_RF_HARMONICS_PER_LAUNCH` and `_RF_PARAMS_BATCH_DTYPE` in
+// blond/core/backends/cuda/callables.py, which splits more harmonics
+// over several launches. The 32 is not the warp size -- see callables.py
+// for why it was chosen.
+#define MAX_RF_HARMONICS_PER_LAUNCH 32
+struct RFParamsBatch {
+  real_t voltage[MAX_RF_HARMONICS_PER_LAUNCH];
+  real_t omega_rf[MAX_RF_HARMONICS_PER_LAUNCH];
+  real_t phi_rf[MAX_RF_HARMONICS_PER_LAUNCH];
+};
+
+extern "C" __global__ void
+kick_multi_harmonic(const real_t *__restrict__ beam_dt,
+                    real_t *__restrict__ beam_dE,
+                    const RFParamsBatch rf_params_batch,
+                    const int n_rf_in_batch, const real_t charge,
+                    const index_t n_macroparticles, const real_t acc_kick) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  real_t my_beam_dt;
-  real_t my_beam_dE;
-
-  if (n_rf == 1) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x)
-      beam_dE[i] +=
-          charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          acc_kick;
-
-  } else if (n_rf == 2) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      const real_t dE_sum =
-          (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-           charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]));
-      beam_dE[i] += dE_sum + acc_kick;
-    }
-
-  } else if (n_rf == 3) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      const real_t dE_sum =
-          (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-           charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-           charge * voltage[2] * sin(omega_RF[2] * beam_dt[i] + phi_RF[2]));
-      beam_dE[i] += dE_sum + acc_kick;
-    }
-  } else if (n_rf == 4) {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      const real_t dE_sum =
-          (charge * voltage[0] * sin(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-           charge * voltage[1] * sin(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-           charge * voltage[2] * sin(omega_RF[2] * beam_dt[i] + phi_RF[2]) +
-           charge * voltage[3] * sin(omega_RF[3] * beam_dt[i] + phi_RF[3]));
-      beam_dE[i] += dE_sum + acc_kick;
-    }
-  } else {
-    for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-      my_beam_dt = beam_dt[i];
-      my_beam_dE = beam_dE[i];
-      for (int j = 0; j < n_rf; j++) {
-        my_beam_dE +=
-            charge * voltage[j] * sin(omega_RF[j] * my_beam_dt + phi_RF[j]);
-      }
-      beam_dE[i] = my_beam_dE + acc_kick;
-    }
+  for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+    const real_t dt = beam_dt[i];
+    // Starting from acc_kick rather than zero saves an FP64 add per
+    // particle, measurable on GPUs with low FP64 throughput.
+    real_t dE_sum = acc_kick;
+    for (int j = 0; j < n_rf_in_batch; j++)
+      dE_sum +=
+          charge * rf_params_batch.voltage[j] *
+          sin(rf_params_batch.omega_rf[j] * dt + rf_params_batch.phi_rf[j]);
+    beam_dE[i] += dE_sum;
   }
 }
 
@@ -175,6 +159,35 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
   }
 }
 
+// floor(x) as an `int`, in one saturating instruction (cvt.rmi): an
+// out-of-range result clamps to INT_MIN/INT_MAX instead of being
+// undefined behaviour, so callers range-check the integer afterwards.
+// That spares a floor and the FP64 range compares per particle, which is
+// what bounds the per-particle binning kernels on GPUs with low FP64
+// throughput (1/32 rate on consumer cards). A NaN converts to 0.
+__device__ __forceinline__ int floor_to_int(const real_t x) {
+#ifdef USEFLOAT
+  return __float2int_rd(x);
+#else
+  return __double2int_rd(x);
+#endif
+}
+
+// Bin index of `value` in a histogram of `n_slices` bins over
+// [cut_left, cut_right]; any index outside [0, n_slices) means the value
+// lies outside the cut (a NaN lands in bin 0, see `floor_to_int`).
+__device__ __forceinline__ int
+histogram_bin(const real_t value, const real_t cut_left, const real_t cut_right,
+              const real_t inv_bin_width, const int n_slices) {
+  int bin = floor_to_int((value - cut_left) * inv_bin_width);
+  // Scaling is not exact: a value at or just below cut_right can land
+  // on n_slices. Fold it back into the last bin, as np.histogram does,
+  // instead of dropping the particle.
+  if (bin == n_slices && value <= cut_right)
+    bin = n_slices - 1;
+  return bin;
+}
+
 extern "C" __global__ void
 hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t cut_left, const real_t cut_right,
@@ -186,25 +199,16 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
     block_hist[i] = 0;
   __syncthreads();
   int const tid = threadIdx.x + blockDim.x * blockIdx.x;
-  int target_bin;
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
 
   const int low_tbin = (n_slices / 2) - (capacity / 2);
   const int high_tbin = low_tbin + capacity;
 
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    // Range-check in floating point *before* the conversion:
-    // converting an out-of-range value to `int` is undefined
-    // behaviour.
-    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
-    // Scaling is not exact: a value at or just below cut_right can land
-    // on n_slices. Fold it back into the last bin, as np.histogram
-    // does, instead of dropping the particle.
-    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right)
-      target_bin_real = real_t(n_slices - 1);
-    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
+    const int target_bin =
+        histogram_bin(input[i], cut_left, cut_right, inv_bin_width, n_slices);
+    if ((unsigned int)target_bin >= n_slices)
       continue;
-    target_bin = (int)target_bin_real;
     if (target_bin >= low_tbin && target_bin < high_tbin)
       atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
     else
@@ -224,20 +228,12 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
     block_hist[i] = 0;
   __syncthreads();
   int const tid = threadIdx.x + blockDim.x * blockIdx.x;
-  int target_bin;
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    // See `hybrid_histogram`: range-check before converting to `int`,
-    // and fold a value that scales onto n_slices back into the last
-    // bin instead of dropping it.
-    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
-    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right)
-      target_bin_real = real_t(n_slices - 1);
-    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices))
-      continue;
-    target_bin = (int)target_bin_real;
-
-    atomicAdd(&(block_hist[target_bin]), 1);
+    const int target_bin =
+        histogram_bin(input[i], cut_left, cut_right, inv_bin_width, n_slices);
+    if ((unsigned int)target_bin < n_slices)
+      atomicAdd(&(block_hist[target_bin]), 1);
   }
   __syncthreads();
   for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
@@ -276,12 +272,11 @@ lik_only_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
   const real_t bin0 = bin_centers[0];
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-    // Range-check before the conversion to `int` (see `hybrid_histogram`).
-    const real_t fbin_real = floor((beam_dt[i] - bin0) * inv_bin_width);
-    if (fbin_real >= real_t(0) && fbin_real < real_t(n_slices - 1)) {
-      const int fbin = (int)fbin_real;
-      beam_dE[i] += beam_dt[i] * glob_vkick_factor[2 * fbin] +
-                    glob_vkick_factor[2 * fbin + 1];
+    const real_t dt = beam_dt[i];
+    const int fbin = floor_to_int((dt - bin0) * inv_bin_width);
+    if ((unsigned int)fbin < (unsigned int)(n_slices - 1)) {
+      beam_dE[i] +=
+          dt * glob_vkick_factor[2 * fbin] + glob_vkick_factor[2 * fbin + 1];
     } else {
       // Out of range only the interpolated voltage is undefined; acc_kick
       // carries the reference energy change and applies to the whole beam
@@ -332,7 +327,8 @@ lik_sparse_gm_comp(real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
 
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = beam_dt[i];
-    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    // Range-check in floating point before the conversion to `int`:
+    // converting an out-of-range value is undefined behaviour.
     const real_t bucket_real = floor((dt - first_left_cut) * inv_hist_dist);
     // A particle that gets no interpolated voltage still receives
     // acc_kick -- notably one in an *unfilled* bucket, which is fully
@@ -489,7 +485,8 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   for (index_t i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
     const real_t dt = input[i];
 
-    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    // Range-check in floating point before the conversion to `int`:
+    // converting an out-of-range value is undefined behaviour.
     const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
     if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
       continue;
