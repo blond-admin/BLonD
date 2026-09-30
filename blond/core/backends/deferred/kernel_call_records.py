@@ -51,7 +51,6 @@ from typing import (
     Annotated,
     Any,
     ClassVar,
-    Self,
     get_args,
     get_type_hints,
 )
@@ -63,6 +62,7 @@ from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Mapping
+    from typing import Self
 
 HEADER_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "kernel_call_records.h"
