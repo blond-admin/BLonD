@@ -34,6 +34,7 @@ from blond.llrf.impulse_response import (
     rectangle,
     triangle,
     TravellingWaveCavity,
+    cavity_response_no_beam_gap,
     cavity_response_sparse_matrix,
 )
 
@@ -861,6 +862,83 @@ class TestFunctions(unittest.TestCase):
             "test_cavity_response_sparse_matrix_short_inputs: the padded "
             "short-input path differs from full-length inputs",
         )
+
+    def test_cavity_response_no_beam_gap(self):
+        """Crossing a gap without beam in closed form must give the last
+        sample of the sample-by-sample solve of the same gap, with the
+        generator current interpolated from the coarse grid. The gaps start
+        before, inside and end after the coarse grid, and the fine samples
+        fall either between or exactly on the coarse samples."""
+        rng = np.random.default_rng(1234)
+        bin_size = 1.0
+        kwargs = dict(
+            samples_per_rf=self.SAMPLES_PER_RF,
+            R_over_Q=self.R_OVER_Q,
+            Q_L=self.Q_L,
+            detuning=self.DETUNING,
+        )
+        for coarse_period in (37.5, 40.0):
+            coarse_time = 20.0 + coarse_period * np.arange(12)
+            I_gen_coarse = rng.normal(size=12) + 1j * rng.normal(size=12)
+            for t_init in (-30.0, 3.0, 131.0):
+                for n_samples in (1, 2, 3, 17, 40, 41, 200, 700):
+                    V_ant_init = complex(rng.normal(), rng.normal())
+                    I_beam_init = complex(rng.normal(), rng.normal())
+                    I_gen_init = np.interp(t_init, coarse_time, I_gen_coarse)
+
+                    # Sample-by-sample solve of the gap
+                    I_gen_gap = np.interp(
+                        t_init + bin_size * np.arange(1, n_samples + 1),
+                        coarse_time,
+                        I_gen_coarse,
+                    )
+                    V_ref = cavity_response_sparse_matrix(
+                        I_beam=np.concatenate(
+                            ([I_beam_init], np.zeros(n_samples, dtype=complex))
+                        ),
+                        I_gen=np.concatenate(([I_gen_init], I_gen_gap)),
+                        n_samples=n_samples,
+                        V_ant_init=V_ant_init,
+                        I_gen_init=I_gen_init,
+                        **kwargs,
+                    )
+
+                    V_gap, I_gen_end = cavity_response_no_beam_gap(
+                        I_beam_init=I_beam_init,
+                        I_gen_init=I_gen_init,
+                        n_samples=n_samples,
+                        V_ant_init=V_ant_init,
+                        t_init=t_init,
+                        bin_size=bin_size,
+                        coarse_time=coarse_time,
+                        I_gen_coarse=I_gen_coarse,
+                        **kwargs,
+                    )
+                    with self.subTest(
+                        coarse_period=coarse_period,
+                        t_init=t_init,
+                        n_samples=n_samples,
+                    ):
+                        np.testing.assert_allclose(
+                            V_gap,
+                            V_ref[-1],
+                            rtol=1e-12,
+                            atol=1e-14,
+                            err_msg="In TestFunctions "
+                            "test_cavity_response_no_beam_gap: the antenna "
+                            "voltage after the gap differs from the "
+                            "sample-by-sample solve",
+                        )
+                        np.testing.assert_allclose(
+                            I_gen_end,
+                            I_gen_gap[-1],
+                            rtol=1e-12,
+                            atol=1e-14,
+                            err_msg="In TestFunctions "
+                            "test_cavity_response_no_beam_gap: the generator "
+                            "current at the end of the gap differs from the "
+                            "interpolated one",
+                        )
 
     @unittest.skip
     def test_rectangle(self):

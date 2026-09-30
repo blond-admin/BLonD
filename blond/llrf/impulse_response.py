@@ -111,6 +111,86 @@ def cavity_response_sparse_matrix(
     return spsolve(B_matrix, b)
 
 
+def cavity_response_no_beam_gap(
+    I_beam_init,
+    I_gen_init,
+    n_samples,
+    V_ant_init,
+    t_init,
+    bin_size,
+    coarse_time,
+    I_gen_coarse,
+    samples_per_rf,
+    R_over_Q,
+    Q_L,
+    detuning,
+):
+    """Propagating the ACS cavity response model through a gap without beam,
+    e.g. between two windows of a sparse profile, without solving for the
+    samples inside the gap.
+
+    The result is the last element of what cavity_response_sparse_matrix
+    returns for n_samples samples with no RF beam current and the generator
+    current interpolated linearly from the coarse grid (np.interp). As the
+    drive is then piecewise linear, the recursion over each coarse-grid
+    interval is summed analytically, so the cost scales with the number of
+    coarse-grid samples in the gap instead of the number of fine-grid
+    samples, and no fine-grid array is allocated.
+
+    Parameters
+    ----------
+    I_beam_init : complex float
+        RF beam current at the last sample before the gap
+    I_gen_init : complex float
+        Generator current at the last sample before the gap
+    n_samples : int
+        Number of samples in the gap
+    V_ant_init : complex float
+        Antenna voltage at the last sample before the gap
+    t_init : float
+        Time of the last sample before the gap
+    bin_size : float
+        Sampling time in the gap
+    coarse_time : float array
+        Time of the coarse-grid samples of the generator current
+    I_gen_coarse : complex array
+        Generator current on the coarse grid
+    samples_per_rf : int
+        Number of samples per RF period
+    R_over_Q : float
+        The R over Q of the cavity
+    Q_L : float
+        The loaded quality factor of the cavity
+    detuning : float
+        The detuning of the cavity in frequency divided by the rf frequency
+
+    Returns
+    -------
+    complex float
+        The antenna voltage at the last sample of the gap
+    complex float
+        The generator current at the last sample of the gap
+
+    """
+
+    # Same matrix elements as in cavity_response_sparse_matrix
+    A = 0.5 * R_over_Q * samples_per_rf
+    B = 1 - 0.5 * samples_per_rf / Q_L + 1j * detuning * samples_per_rf
+
+    return cavity_loop_kernels.cavity_response_no_beam_gap(
+        complex(V_ant_init),
+        complex(I_gen_init),
+        complex(I_beam_init),
+        int(n_samples),
+        float(t_init),
+        float(bin_size),
+        coarse_time,
+        I_gen_coarse,
+        A,
+        complex(B),
+    )
+
+
 def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
     r"""Rectangular function of time
 

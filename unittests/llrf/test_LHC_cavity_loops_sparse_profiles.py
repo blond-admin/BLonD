@@ -24,6 +24,7 @@ Lina Valle
 """
 
 import unittest
+from unittest import mock
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,6 +40,7 @@ from blond.beam.sparse_profiles import (
 )
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.llrf import cavity_loop_kernels
 from blond.llrf.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
@@ -840,6 +842,28 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
                     "V_ANT_FINE", CL_sparse, name, offset=1
                 )
 
+    def _check_fine_grid_antenna_voltage_kernel(self):
+        """The compiled kernel solving all the windows of a sparse profile
+        at once and the window-by-window python loop used without numba
+        should give the same fine-grid antenna voltage."""
+        for name, CL_sparse in self.loops_sparse.items():
+            with self.subTest(profile=name):
+                CL_sparse.track()
+                CL_sparse.cavity_response_fine_matrix()
+                V_ant_kernel = np.copy(CL_sparse.V_ANT_FINE)
+                with mock.patch.object(
+                    cavity_loop_kernels, "NUMBA_AVAILABLE", False
+                ):
+                    CL_sparse.cavity_response_fine_matrix()
+                np.testing.assert_allclose(
+                    V_ant_kernel,
+                    CL_sparse.V_ANT_FINE,
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    err_msg="V_ANT_FINE differs between the compiled kernel "
+                    f"and the python loop for {name}",
+                )
+
     def _check_generator_power(self):
         self.CL_standard.track()
         for name, CL_sparse in self.loops_sparse.items():
@@ -873,6 +897,9 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
 
     def test_fine_grid_antenna_voltage_consistent(self):
         self._check_fine_grid_antenna_voltage()
+
+    def test_fine_grid_antenna_voltage_kernel(self):
+        self._check_fine_grid_antenna_voltage_kernel()
 
     def test_generator_power_consistent(self):
         self._check_generator_power()
@@ -931,6 +958,10 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
     def test_muliturn_fine_grid_antenna_voltage_consistent(self):
         self._track_loops()
         self._inject_all(self._check_fine_grid_antenna_voltage)
+
+    def test_muliturn_fine_grid_antenna_voltage_kernel(self):
+        self._track_loops()
+        self._inject_all(self._check_fine_grid_antenna_voltage_kernel)
 
     def test_multiturn_injection_generator_power(self):
         self._track_loops()

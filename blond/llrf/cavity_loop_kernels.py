@@ -17,6 +17,10 @@ numba only removes the interpreter overhead. Set the environment variable
 ``BLOND_DISABLE_NUMBA_KERNELS`` to any non-empty value to force the original
 pure-Python/scipy code paths (e.g. for A/B validation).
 
+The exception is :func:`cavity_response_no_beam_gap`, which both code paths
+use to carry the fine-grid antenna voltage of a sparse profile from one
+window to the next without sampling the gap in between.
+
 :Authors: **Lina Valle**
 Co-Authored-By: Claude Sonnet 5 noreply@anthropic.com
 """
@@ -187,3 +191,188 @@ def cavity_response_forward(b, B):
     for n in range(1, len(b)):
         V[n] = B * V[n - 1] + b[n]
     return V
+
+
+@njit(cache=True)
+def cavity_response_n_steps(B, n):
+    r"""Coefficients of n steps of the ACS cavity-response recursion
+    V[j+1] = B * V[j] + d[j] for a drive that is linear in the sample number,
+    d[j] = d[0] + slope * j:
+
+    V[n] = V[0] + excess * V[0] + unit * d[0] + ramp * slope,
+
+    with excess = B^n - 1, unit = sum_{j<n} B^(n-1-j) and
+    ramp = sum_{j<n} j * B^(n-1-j).
+
+    Two consecutive blocks of n1 and n2 steps combine as
+    excess = excess1 + excess2 + excess1 * excess2,
+    unit = unit1 + unit2 + excess2 * unit1 and
+    ramp = ramp1 + ramp2 + excess2 * ramp1 + n1 * unit2, so the coefficients
+    are built by doubling in O(log n) operations.
+
+    B is close to 1, which makes the usual expressions lose digits: the
+    closed forms of these geometric sums divide by the small 1 - B, and the
+    round-off of B^n grows like n when B is squared repeatedly. Doubling the
+    excess B^n - 1 instead (B - 1 is exact in floating point) has neither
+    problem, and the coefficients are accurate to round-off."""
+
+    excess = 0.0j
+    unit = 0.0j
+    ramp = 0.0j
+    steps = 0
+    block_excess = B - 1.0
+    block_unit = 1.0 + 0.0j
+    block_ramp = 0.0j
+    block_steps = 1
+    while n > 0:
+        if n & 1:
+            ramp = ramp + block_ramp + block_excess * ramp + steps * block_unit
+            unit = unit + block_unit + block_excess * unit
+            excess = excess + block_excess + block_excess * excess
+            steps += block_steps
+        block_ramp = (
+            2.0 * block_ramp
+            + block_excess * block_ramp
+            + block_steps * block_unit
+        )
+        block_unit = 2.0 * block_unit + block_excess * block_unit
+        block_excess = 2.0 * block_excess + block_excess * block_excess
+        block_steps += block_steps
+        n >>= 1
+    return excess, unit, ramp
+
+
+@njit(cache=True)
+def cavity_response_no_beam_gap(
+    V,
+    I_gen_init,
+    I_beam_init,
+    n_samples,
+    t_init,
+    bin_size,
+    coarse_time,
+    I_gen_coarse,
+    A,
+    B,
+):
+    r"""Advance the ACS cavity-response recursion
+    V[j+1] = B * V[j] + A * (2 * I_gen[j] - I_beam[j]) through a gap of
+    n_samples samples without beam, the generator current being interpolated
+    linearly from the coarse grid as np.interp does. V, I_gen_init and
+    I_beam_init are the values at the last sample before the gap, at time
+    t_init. Returns the antenna voltage and the generator current at the
+    last sample of the gap, without computing the samples in between: the
+    recursion is summed analytically over each coarse-grid interval, on
+    which the drive is linear."""
+
+    # The first sample of the gap is driven by the currents before the gap
+    V = B * V + A * (2 * I_gen_init - I_beam_init)
+
+    # Sample j+1 is driven by the generator current at sample j, for
+    # j = 1 ... n_samples-1; "knot" is the first coarse-grid sample after
+    # sample "first"
+    n_knots = len(coarse_time)
+    knot = np.searchsorted(coarse_time, t_init + bin_size, side="right")
+    first = 1
+    n_cached = 0
+    excess = 0.0j
+    unit = 0.0j
+    ramp = 0.0j
+    while first < n_samples:
+        # Interpolated generator current I_gen_0 + I_gen_slope * (t - t_0)
+        # up to the next coarse-grid sample, constant outside the coarse grid
+        if knot == 0:
+            stop = int(np.ceil((coarse_time[0] - t_init) / bin_size))
+            t_0 = coarse_time[0]
+            I_gen_0 = I_gen_coarse[0]
+            I_gen_slope = 0.0j
+        elif knot == n_knots:
+            stop = n_samples
+            t_0 = coarse_time[-1]
+            I_gen_0 = I_gen_coarse[-1]
+            I_gen_slope = 0.0j
+        else:
+            stop = int(np.ceil((coarse_time[knot] - t_init) / bin_size))
+            t_0 = coarse_time[knot - 1]
+            I_gen_0 = I_gen_coarse[knot - 1]
+            I_gen_slope = (I_gen_coarse[knot] - I_gen_0) / (
+                coarse_time[knot] - t_0
+            )
+        knot += 1
+        stop = min(stop, n_samples)
+        n = stop - first
+        if n < 1:
+            continue
+        if n != n_cached:
+            excess, unit, ramp = cavity_response_n_steps(B, n)
+            n_cached = n
+        drive = (
+            2 * A * (I_gen_slope * (t_init + first * bin_size - t_0) + I_gen_0)
+        )
+        drive_slope = 2 * A * (I_gen_slope * bin_size)
+        V = V + (excess * V + unit * drive + ramp * drive_slope)
+        first = stop
+
+    I_gen_end = np.interp(
+        t_init + n_samples * bin_size, coarse_time, I_gen_coarse
+    )
+    return V, I_gen_end
+
+
+@njit(cache=True)
+def cavity_response_sparse_windows(
+    V_ANT_FINE,
+    I_BEAM_FINE,
+    I_GEN_FINE,
+    t_first,
+    t_last,
+    order,
+    n_slices,
+    bin_size,
+    coarse_time,
+    I_gen_coarse,
+    V_ant_init,
+    I_gen_init,
+    A,
+    B,
+):
+    r"""ACS cavity response on the fine grid of a sparse profile: the
+    recursion V[j+1] = B * V[j] + A * (2 * I_gen[j] - I_beam[j]) over the
+    windows of n_slices samples taken in time order, bridged by
+    :func:`cavity_response_no_beam_gap` where they are not adjacent.
+    Window p spans t_first[p] to t_last[p], uses I_BEAM_FINE[p * n_slices :
+    (p + 1) * n_slices] and the elements one further in I_GEN_FINE, and
+    fills the same elements of V_ANT_FINE as I_GEN_FINE; element 0 of these
+    is one sample before window 0. V_ant_init and I_gen_init are the values
+    one sample before the earliest window."""
+
+    V = V_ant_init
+    I_gen = I_gen_init
+    I_beam = 0.0j
+    for k in range(len(order)):
+        p = order[k]
+        if k > 0:
+            t_init = t_last[order[k - 1]]
+            # Number of fine bins strictly between the two windows
+            n_gap = int(np.rint((t_first[p] - t_init) / bin_size)) - 1
+            if n_gap > 0:
+                V, I_gen = cavity_response_no_beam_gap(
+                    V,
+                    I_gen,
+                    I_beam,
+                    n_gap,
+                    t_init,
+                    bin_size,
+                    coarse_time,
+                    I_gen_coarse,
+                    A,
+                    B,
+                )
+                I_beam = 0.0j
+        if p == 0:
+            V_ANT_FINE[0] = V
+        for n in range(p * n_slices, (p + 1) * n_slices):
+            V = B * V + A * (2 * I_gen - I_beam)
+            V_ANT_FINE[n + 1] = V
+            I_gen = I_GEN_FINE[n + 1]
+            I_beam = I_BEAM_FINE[n]
