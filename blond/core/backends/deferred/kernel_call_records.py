@@ -87,42 +87,37 @@ def address_of(array: Any) -> int:
 
 @dataclass(frozen=True)
 class DeferrableKernel:
-    """
-    A `Specials` method whose calls can be queued as records.
-
-    Attributes
-    ----------
-    kernel_id
-        Value of its ``KernelId`` in ``kernel_call_records.h``.
-    specials_method
-        Name of the `Specials` method, e.g. ``"drift_simple"``.
-    args_dtype
-        Mirror of its C ``Args`` struct, built with ``align=True``.
-        Subarray fields are inline host arrays with unused slots zeroed;
-        ``uintp`` fields point at a backend array the batch reads.
-    writes_dt, writes_dE
-        Whether the kernel modifies ``dt`` / ``dE``. The CUDA executor
-        stores only the coordinates a batch writes.
-    build_records
-        ``build_records(arguments, eager_specials)`` returning the field
-        values of each record to queue, or None to run the call eagerly.
-        Defaults to one record, each field from the argument of the same
-        name.
-    """
+    """A `Specials` method whose calls can be queued as records."""
 
     kernel_id: int
+    """Value of its ``KernelId`` in ``kernel_call_records.h``."""
     specials_method: str
+    """Name of the `Specials` method, e.g. ``"drift_simple"``."""
     args_dtype: np.dtype
+    """
+    Mirror of its C ``Args`` struct, built with ``align=True``.
+
+    Subarray fields are inline host arrays with unused slots zeroed;
+    ``uintp`` fields point at a backend array the batch reads.
+    """
     writes_dt: bool
+    """Whether the kernel modifies ``dt``; CUDA stores only written ones."""
     writes_dE: bool
+    """Whether the kernel modifies ``dE``; CUDA stores only written ones."""
     build_records: (
         Callable[[Mapping[str, Any], Any], list[dict[str, Any]] | None] | None
     ) = None
+    """
+    ``build_records(arguments, eager_specials)`` returning the field
+    values of each record to queue, or None to run the call eagerly.
+
+    None means one record, each field from the argument of the same name.
+    """
 
     @cached_property
     def record_dtype(self) -> np.dtype:
         """
-        Numpy dtype of a whole record: header, then ``args``.
+        Structured dtype of one record, the header followed by ``args``.
 
         Returns
         -------
