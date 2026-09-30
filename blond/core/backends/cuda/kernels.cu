@@ -649,8 +649,9 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
 // A batch of kernel call records, passed by value in the kernel's
 // parameter space like `RFParamsBatch`: no host-to-device copy per
 // flush. 8-byte slots keep every record 8-byte aligned. Must match
-// `_KERNEL_CALL_BATCH_DTYPE` in callables.py, which splits larger
-// batches over several launches.
+// `KERNEL_CALL_BATCH_CAPACITY_BYTES` in callables.py, which splits
+// larger batches over several launches.
+constexpr std::size_t KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096 - 32;
 // NOLINTBEGIN(*-avoid-c-arrays,misc-use-internal-linkage)
 struct KernelCallBatch {
   unsigned long long slots[KERNEL_CALL_BATCH_CAPACITY_BYTES / 8];
@@ -672,9 +673,12 @@ static_assert(sizeof(KernelCallBatch) + sizeof(unsigned int) * 2 +
 constexpr unsigned int STORE_DT = 1U;
 constexpr unsigned int STORE_DE = 2U;
 
-// Compiled Args sizes, compared with the numpy dtypes when loading.
+// Compiled Args sizes and batch capacity, compared with callables.py
+// when loading.
 extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
+extern "C" __device__ const unsigned int kernel_call_batch_capacity_bytes =
+    KERNEL_CALL_BATCH_CAPACITY_BYTES;
 
 // Particles each thread carries through the whole batch at once. Every
 // record is applied to all of them in one `visit_kernel_call`, so the

@@ -205,7 +205,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         source_cflags += ["-march=native"]
     # Some additional warning reporting related flags
     source_cflags += [
-        # The generated kernel call records header (deferred specials).
+        # The kernel call records header (deferred specials).
         "-I" + os.path.join(os.path.dirname(_basepath), "deferred"),
         "-Wall",
         "-Wno-unknown-pragmas",

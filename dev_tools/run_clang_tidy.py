@@ -36,7 +36,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CPP_DIR = ROOT / "blond" / "core" / "backends" / "cpp"
 CUDA_DIR = ROOT / "blond" / "core" / "backends" / "cuda"
-# The generated kernel call records header (deferred specials), included
+# The kernel call records header (deferred specials), included
 # by both the C++ and the CUDA sources.
 RECORDS_INCLUDE = f"-I{ROOT / 'blond' / 'core' / 'backends' / 'deferred'}"
 COMPILER_FLAGS = [

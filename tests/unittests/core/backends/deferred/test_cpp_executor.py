@@ -9,15 +9,12 @@ from blond.core.backends.deferred import kernel_call_records as records
 from blond.testing.backend_testing import BLonDTestCase
 
 
-def _pack(*kernel_calls: records.KernelCallArgs) -> np.ndarray:
+def _pack(*kernel_calls: tuple[str, dict]) -> np.ndarray:
     parts = []
-    for args in kernel_calls:
-        args_type = type(args)
-        item = np.zeros((), dtype=args_type.record_dtype())
-        item["kernel_id"] = args_type.kernel_id()
-        item["record_size_bytes"] = item.dtype.itemsize
-        for name, record_field in args_type.record_fields():
-            record_field.pack(item["args"], name, getattr(args, name), [])
+    for method, values in kernel_calls:
+        kernel = records.KERNELS_BY_SPECIALS_METHOD[method]
+        item = np.zeros((), dtype=kernel.record_dtype)
+        kernel.pack(item, values, [])
         parts.append(item.tobytes())
     return np.frombuffer(b"".join(parts), dtype=np.uint8).copy()
 
@@ -61,8 +58,8 @@ class TestCppExecutor(BLonDTestCase):
                 )
                 self.eager.drift_simple(dt=dt_eager, dE=dE_eager, **DRIFT)
                 batch = _pack(
-                    records.KickSingleHarmonicArgs(**KICK),
-                    records.DriftSimpleArgs(**DRIFT),
+                    ("kick_single_harmonic", KICK),
+                    ("drift_simple", DRIFT),
                 )
                 self._execute(batch, dt, dE, chunk_size)
                 np.testing.assert_allclose(dE, dE_eager, rtol=1e-12)
@@ -70,13 +67,13 @@ class TestCppExecutor(BLonDTestCase):
 
     def test_zero_macroparticles(self) -> None:  # Review Focus 4
         dt, dE = np.empty(0), np.empty(0)
-        batch = _pack(records.DriftSimpleArgs(**DRIFT))
+        batch = _pack(("drift_simple", DRIFT))
         self._execute(batch, dt, dE)  # must not crash
 
     def test_args_sizes_match_dtypes(self) -> None:
-        for args_type in records.KERNEL_CALL_ARGS:
+        for kernel in records.DEFERRABLE_KERNELS:
             self.assertEqual(
-                self.library.kernel_call_args_size(args_type.kernel_id()),
-                args_type.args_dtype().itemsize,
+                self.library.kernel_call_args_size(kernel.kernel_id),
+                kernel.args_dtype.itemsize,
             )
         self.assertEqual(self.library.kernel_call_args_size(999), 0)

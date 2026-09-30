@@ -9,8 +9,8 @@
 // Executor of a deferred batch: every queued kernel call record applied
 // to one cache-sized chunk of the beam before moving to the next, so the
 // particles stream through memory once per batch instead of once per
-// kernel. The records and the only switch over their kernel ids are
-// generated (kernel_call_records.h); this file has no kernel-specific
+// kernel. The records and the only switch over their kernel ids live in
+// kernel_call_records.h; this file has no kernel-specific
 // code.
 
 #include <algorithm>
