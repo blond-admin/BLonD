@@ -864,8 +864,10 @@ class TestSpecials(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
         dtype = np.float64
-        # 32, 33 and 70 cross the CUDA backend's per-launch harmonic limit.
-        for n_voltages in (1, 2, 3, 4, 5, 32, 33, 70):
+        # 5..9 end the C++ kernel's groups of four harmonics on every
+        # remainder; 32, 33 and 70 cross the CUDA backend's per-launch
+        # harmonic limit.
+        for n_voltages in (1, 2, 3, 4, 5, 6, 7, 8, 9, 32, 33, 70):
             for i, special in enumerate(self.special_modes):
                 self.n_voltages = n_voltages
                 try:

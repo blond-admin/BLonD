@@ -69,60 +69,107 @@ apply_to_chunk(const KickSingleHarmonicArgs &args,
   }
 }
 
-BLOND_PREFER_VECTOR_WIDTH_512 BLOND_NOINLINE inline void
-apply_to_chunk(const KickMultiHarmonicArgs &args,
-               const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
-               const index_t begin, const index_t end) {
-  const RfHarmonics harmonics = harmonics_of(args);
-  const real_t *__restrict__ voltage = harmonics.voltage;
-  const real_t *__restrict__ omega_RF = harmonics.omega_rf;
-  const real_t *__restrict__ phi_RF = harmonics.phi_rf;
-  const real_t charge = args.charge;
-  const real_t acc_kick = args.acceleration_kick;
-  const int n_rf = args.n_rf;
+// Sum of `N` RF harmonics at one particle's `dt`. With `N` a compile-time
+// constant GCC unrolls the sum and vectorizes the particle loop around
+// it. With a run-time count it vectorizes this loop instead, as a
+// reduction over the harmonics, and leaves the particles scalar: few
+// harmonics then run almost entirely in the reduction's scalar remainder
+// (5 harmonics took 9x as long as 4; i5-11500, 1e6 particles).
+template <int N>
+inline real_t rf_harmonics_sum(const real_t *__restrict__ voltage,
+                               const real_t *__restrict__ omega_RF,
+                               const real_t *__restrict__ phi_RF,
+                               const real_t dt) {
+  real_t sum = 0.0;
+  for (int j = 0; j < N; j++) {
+    // The columns trail a kernel call record's Args (harmonics_of); the
+    // analyzer takes the end of the Args for the end of the object.
+    // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
+    sum += voltage[j] * FAST_SIN(omega_RF[j] * dt + phi_RF[j]);
+  }
+  return sum;
+}
 
-  // Unroll loop for up to 4 RF harmonics for speedup. The branches differ;
-  // clang-tidy only sees near-identical bodies.
-  // NOLINTNEXTLINE(bugprone-branch-clone)
-  if (n_rf == 1) {
-    for (index_t i = begin; i < end; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
+// One pass of `N` harmonics over the particles. `noinline` gives every
+// group size its own function, so its code does not depend on the other
+// group sizes: GCC schedules the same instructions differently next to
+// different neighbours, which moved single-harmonic timings by up to 9%.
+template <int N>
+BLOND_PREFER_VECTOR_WIDTH_512 BLOND_NOINLINE void kick_harmonic_group(
+    const real_t *__restrict__ voltage, const real_t *__restrict__ omega_RF,
+    const real_t *__restrict__ phi_RF, const real_t charge,
+    const real_t acc_kick, const real_t *__restrict__ beam_dt,
+    real_t *__restrict__ beam_dE, const index_t begin, const index_t end) {
+  for (index_t i = begin; i < end; i++) {
+    const real_t dE_sum =
+        rf_harmonics_sum<N>(voltage, omega_RF, phi_RF, beam_dt[i]);
+    beam_dE[i] += charge * dE_sum + acc_kick;
+  }
+}
+
+// All `n_rf` harmonics on [begin, end): one pass per group of four, then
+// one for the remaining 1-3. `acc_kick` goes into the last pass only;
+// n_rf == 0 still makes one pass, for `acc_kick` alone.
+inline void kick_harmonic_groups(
+    const real_t *__restrict__ voltage, const real_t *__restrict__ omega_RF,
+    const real_t *__restrict__ phi_RF, const int n_rf, const real_t charge,
+    const real_t acc_kick, const real_t *__restrict__ beam_dt,
+    real_t *__restrict__ beam_dE, const index_t begin, const index_t end) {
+  const int n_groups_of_four = n_rf / 4;
+  const int n_remaining = n_rf % 4;
+  for (int group = 0; group < n_groups_of_four; group++) {
+    const int first = 4 * group;
+    const bool is_last_pass = n_remaining == 0 && group == n_groups_of_four - 1;
+    kick_harmonic_group<4>(voltage + first, omega_RF + first, phi_RF + first,
+                           charge,
+                           is_last_pass ? acc_kick : static_cast<real_t>(0),
+                           beam_dt, beam_dE, begin, end);
+  }
+  const int first = 4 * n_groups_of_four;
+  switch (n_remaining) {
+  case 1:
+    kick_harmonic_group<1>(voltage + first, omega_RF + first, phi_RF + first,
+                           charge, acc_kick, beam_dt, beam_dE, begin, end);
+    break;
+  case 2:
+    kick_harmonic_group<2>(voltage + first, omega_RF + first, phi_RF + first,
+                           charge, acc_kick, beam_dt, beam_dE, begin, end);
+    break;
+  case 3:
+    kick_harmonic_group<3>(voltage + first, omega_RF + first, phi_RF + first,
+                           charge, acc_kick, beam_dt, beam_dE, begin, end);
+    break;
+  default:
+    if (n_groups_of_four == 0) {
+      kick_harmonic_group<0>(voltage, omega_RF, phi_RF, charge, acc_kick,
+                             beam_dt, beam_dE, begin, end);
     }
-  } else if (n_rf == 2) {
-    for (index_t i = begin; i < end; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-  } else if (n_rf == 3) {
-    for (index_t i = begin; i < end; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-          voltage[2] * FAST_SIN(omega_RF[2] * beam_dt[i] + phi_RF[2]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-  } else if (n_rf == 4) {
-    for (index_t i = begin; i < end; i++) {
-      const real_t dE_sum =
-          voltage[0] * FAST_SIN(omega_RF[0] * beam_dt[i] + phi_RF[0]) +
-          voltage[1] * FAST_SIN(omega_RF[1] * beam_dt[i] + phi_RF[1]) +
-          voltage[2] * FAST_SIN(omega_RF[2] * beam_dt[i] + phi_RF[2]) +
-          voltage[3] * FAST_SIN(omega_RF[3] * beam_dt[i] + phi_RF[3]);
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
-  } else {
-    for (index_t i = begin; i < end; i++) {
-      real_t dE_sum = 0.0;
-      // fallback to loop for n_rf > 4 (and n_rf == 0)
-      for (int j = 0; j < n_rf; j++) {
-        dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * beam_dt[i] + phi_RF[j]);
-      }
-      beam_dE[i] += charge * dE_sum + acc_kick;
-    }
+    break;
+  }
+}
+
+// Particles per block when more than four harmonics take several passes:
+// 16 KiB of dt/dE pairs, the budget of DEFERRED_CHUNK_SIZE (callables.py),
+// so every pass after the first reads and writes L1d. Without the blocks
+// each pass streams the whole range through memory again, which 12
+// threads on 1e6 particles already showed (5 harmonics ~1.3x slower;
+// threaded timings on the i5-11500 are noisy, so take it as direction).
+constexpr index_t KICK_HARMONICS_BLOCK = 16384 / (2 * sizeof(real_t));
+
+inline void apply_to_chunk(const KickMultiHarmonicArgs &args,
+                           const real_t *__restrict__ beam_dt,
+                           real_t *__restrict__ beam_dE, const index_t begin,
+                           const index_t end) {
+  const RfHarmonics harmonics = harmonics_of(args);
+  const int n_rf = args.n_rf;
+  const index_t block = (n_rf <= 4) ? end - begin : KICK_HARMONICS_BLOCK;
+  for (index_t block_begin = begin; block_begin < end; block_begin += block) {
+    const index_t block_end =
+        (end - block_begin < block) ? end : block_begin + block;
+    kick_harmonic_groups(harmonics.voltage, harmonics.omega_rf,
+                         harmonics.phi_rf, n_rf, args.charge,
+                         args.acceleration_kick, beam_dt, beam_dE, block_begin,
+                         block_end);
   }
 }
 
