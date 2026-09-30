@@ -118,14 +118,14 @@ PROBE(KickSingleHarmonicArgs)
 PROBE(KickMultiHarmonicArgs)
 PROBE(DriftLikeLineSegmentArgs)
 
-// A bare double square root per particle, as a yardstick.
-extern "C" __global__ void probe_sqrt(real_t *beam_dt, real_t *beam_dE) {{
+// A bare double reciprocal square root per particle, as a yardstick.
+extern "C" __global__ void probe_rsqrt(real_t *beam_dt, real_t *beam_dE) {{
   __syncthreads();
   const index_t start = particle_loop_start();
   const index_t stride = particle_loop_stride();
 #pragma unroll
   for (int k = 0; k < {_PROBE_TILE}; ++k) {{
-    beam_dt[start + k * stride] = sqrt(beam_dE[start + k * stride]);
+    beam_dt[start + k * stride] = rsqrt(beam_dE[start + k * stride]);
   }}
 }}
 """
@@ -316,18 +316,19 @@ class TestDeferredRecordArithmetic(BLonDTestCase):
             _count(single, "DMUL") / single_sines,
         )
 
-    def test_line_segment_drift_costs_a_sqrt_and_four_operations(self):
-        """drift_like_line_segment: a ``sqrt`` plus 4 FP64 operations.
+    def test_line_segment_drift_costs_an_rsqrt_and_four_operations(self):
+        """drift_like_line_segment: an ``rsqrt`` plus 4 FP64 operations.
 
         ``delta = sqrt(1 + (dE^2 / E^2 + 2 dE / E) / beta^2) - 1`` is,
         with the prepared factors ``a = 1 / (beta E)^2`` and
-        ``b = 2 / (beta^2 E)``, ``sqrt(fma(dE, fma(a, dE, b), 1)) - 1``:
-        two FMAs, the square root and a subtraction; the drift is one
-        more FMA. Written as in the formula, it took five FP64
-        operations before the square root.
+        ``b = 2 / (beta^2 E)`` and ``d = fma(dE, fma(a, dE, b), 1)``,
+        ``fma(d, rsqrt(d), -1)``: two FMAs, the reciprocal square root
+        and one more FMA; the drift is another FMA. Written as in the
+        formula, it took five FP64 operations before a full-precision
+        square root (three more than ``rsqrt``) and a subtraction.
         """
         drift = _probe_tile_loop("DriftLikeLineSegmentArgs")
-        yardstick = _probe_tile_loop("sqrt")
+        yardstick = _probe_tile_loop("rsqrt")
         self.assertLessEqual(
             _fp64_arithmetic(drift) / _PROBE_TILE,
             _fp64_arithmetic(yardstick) / _PROBE_TILE + 4,

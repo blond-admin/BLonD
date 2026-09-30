@@ -209,11 +209,20 @@ prepare(const DriftLikeLineSegmentArgs &args) {
 
 // Drift with the linear slip factor but the exact relativistic delta;
 // reproduces the longitudinal drift of an xsuite LineSegmentMap.
+//
+// `delta = sqrt(d) - 1` is computed as `d rsqrt(d) - 1` in one FMA: the
+// reciprocal square root (MUFU seed and one Newton step, max. 1 ulp)
+// takes 5 FP64 operations where the correctly rounded `sqrt` takes 8,
+// and the FMA leaves the product unrounded before the `- 1`. Against a
+// long-double reference the error is no larger than with `sqrt`: the
+// `- 1` cancels to the size of delta either way, so both are off by
+// about an ulp of 1, i.e. of T eta_0.
 __device__ __forceinline__ void
 apply_to_particle(const DriftLikeLineSegmentArgs & /*args*/,
                   const LineSegmentFactors &factors, real_t &dt,
                   const real_t &dE) {
-  const real_t delta = sqrt(factors.delta_argument(dE)) - 1.0;
+  const real_t argument = factors.delta_argument(dE);
+  const real_t delta = fma(argument, rsqrt(argument), -1.0);
   dt += factors.T_eta_0 * delta;
 }
 
@@ -234,9 +243,10 @@ drift_exact_factors(const real_t beta, const real_t energy) {
 // FP64 operations per particle, which bound this kernel on GPUs with a
 // low FP64 rate: `1 + delta` is the square root of the delta argument
 // `d`; its reciprocal square root `r` (MUFU seed and one Newton step,
-// max. 1 ulp) gives both `1 + delta = d r` and the division by it,
-// which saves the full-precision square root and division (16
-// operations) for 7. `delta = d r - 1` is exact. The polynomial is in
+// max. 1 ulp) gives both `delta = d r - 1` (one FMA, the product left
+// unrounded) and the division by `1 + delta`, which saves the
+// full-precision square root and division (16 operations) for 7, and
+// the rounding of `1 + delta` in between. The polynomial is in
 // Horner form: one FMA per coefficient instead of an FMA and a multiply.
 // Against a long-double reference the result is as accurate as the
 // correctly rounded square root and division were (a few ulp of T; the
@@ -248,7 +258,7 @@ drift_exact_particle(const real_t T, const real_t alpha_zero,
                      const real_t dE) {
   const real_t argument = factors.delta_argument(dE);
   const real_t inv_one_plus_delta = rsqrt(argument);
-  const real_t delta = argument * inv_one_plus_delta - 1.0;
+  const real_t delta = fma(argument, inv_one_plus_delta, -1.0);
 
   real_t poly = alpha_zero;
   if (n_alpha > 0) {
