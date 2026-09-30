@@ -302,7 +302,7 @@ class InlineRealArrayField(RecordField):
                 f"assert not _is_cupy_array({name}), "
                 f"'`{name}` must be a host array'"
             ],
-            [f"*{name}", f"*_{name}_zeros[len({name}) :]"],
+            [f"*_host_values({name})", f"*_{name}_zeros[len({name}) :]"],
         )
 
     def packer_globals(self, name: str) -> dict[str, Any]:  # NOQA: D102
@@ -406,10 +406,9 @@ class TrailingColumnsField(RecordField):
         return (
             [
                 f"assert len({name}) == {len(self.columns)}",
-                f"assert all(len(column) == len({name}[0]) "
-                f"for column in {name})",
-                f"assert not any(_is_cupy_array(column) for column in {name})"
-                f", '`{name}` must be host arrays'",
+                f"assert len(set(map(len, {name}))) == 1",
+                f"assert not any(map(_is_cupy_array, {name})), "
+                f"'`{name}` must be host arrays'",
             ],
             [f"len({name}[0])"],
         )
@@ -1125,6 +1124,26 @@ def _max_trailing_length(args_type: type[KernelCallArgs]) -> int:
     return args_type.max_trailing_length()
 
 
+def _host_values(value: Any) -> Any:
+    """
+    Return the values of a host array as Python scalars.
+
+    They unpack into a `struct` ~10x faster than the numpy scalars that
+    iterating the array yields.
+
+    Parameters
+    ----------
+    value
+        A host array, or any other sequence of numbers.
+
+    Returns
+    -------
+    Any
+        A list for a numpy array, else ``value`` itself.
+    """
+    return value.tolist() if isinstance(value, np.ndarray) else value
+
+
 # `struct` codes of the scalar record members, by numpy kind and size.
 _STRUCT_CODES = {
     ("f", 8): "d",
@@ -1222,6 +1241,7 @@ def _record_packer(args_type: type[KernelCallArgs]) -> Callable[..., int]:
         "_pack_into": _record_struct(args_type).pack_into,
         "_address_of": address_of,
         "_is_cupy_array": is_cupy_array,
+        "_host_values": _host_values,
         "_REAL": _REAL,
     }
     statements: list[str] = []

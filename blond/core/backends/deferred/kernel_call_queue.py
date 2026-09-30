@@ -41,14 +41,29 @@ _INITIAL_CAPACITY_BYTES = 4 * 4096
 _RECORD_HEADROOM_BYTES = KERNEL_CALL_BATCH_CAPACITY_BYTES
 
 
-class KernelCallQueue(threading.local):
+class KernelCallQueue:
     """
     Kernel call records of one Python thread, waiting for the next flush.
 
     Per thread because one specials object serves every simulation in the
     process, and simulations may run in separate Python threads (ctypes
-    releases the GIL). The queue is bound to one beam's ``dt``/``dE``.
+    releases the GIL): the deferred specials keep one queue per thread
+    (`make_deferred_specials`). The queue itself is a plain object, whose
+    attributes are several times faster to reach than those of a
+    `threading.local`. It is bound to one beam's ``dt``/``dE``.
     """
+
+    __slots__ = (
+        "buffer",
+        "view",
+        "packing_limit",
+        "n_bytes",
+        "args_types",
+        "record_sizes",
+        "keep_alive",
+        "dt",
+        "dE",
+    )
 
     def __init__(self) -> None:
         self.buffer = np.zeros(_INITIAL_CAPACITY_BYTES, dtype=np.uint8)
@@ -153,6 +168,30 @@ class KernelCallQueue(threading.local):
         self.packing_limit = grown.size - _RECORD_HEADROOM_BYTES
 
 
+class _ThreadQueues(threading.local):
+    """The `KernelCallQueue` of each Python thread."""
+
+    def __init__(self) -> None:
+        self.queue = KernelCallQueue()
+
+
+class _CallingThreadQueue:
+    """
+    ``kernel_call_queue``: the calling thread's queue, on class or object.
+
+    Parameters
+    ----------
+    thread_queues
+        The queue of each thread.
+    """
+
+    def __init__(self, thread_queues: _ThreadQueues) -> None:
+        self.thread_queues = thread_queues
+
+    def __get__(self, instance: Any, owner: type) -> KernelCallQueue:
+        return self.thread_queues.queue
+
+
 def make_deferred_specials(
     eager_specials: type,
     execute_batch: Callable[
@@ -181,13 +220,16 @@ def make_deferred_specials(
     type
         A subclass of ``eager_specials`` named ``Deferred<name>``.
     """
-    queue = KernelCallQueue()
-    namespace: dict[str, Any] = {"kernel_call_queue": queue}
+    thread_queues = _ThreadQueues()
+    namespace: dict[str, Any] = {
+        "kernel_call_queue": _CallingThreadQueue(thread_queues)
+    }
 
     # `deferred_class` is created below; `flush` only runs once it exists,
     # and looks `_execute_batch` up at call time so it can be replaced.
     def flush() -> None:
         """Run all queued kernel calls of this thread."""
+        queue = thread_queues.queue
         n_bytes = queue.n_bytes
         if n_bytes == 0:
             return
@@ -217,7 +259,7 @@ def make_deferred_specials(
                 ARGS_BY_SPECIALS_METHOD[name],
                 eager_method,
                 eager_specials,
-                queue,
+                thread_queues,
                 flush,
             )
         else:
@@ -243,7 +285,7 @@ def _queuing_method(
     args_type: type[KernelCallArgs],
     eager_method: Callable,
     eager_specials: type,
-    queue: KernelCallQueue,
+    thread_queues: _ThreadQueues,
     flush: Callable,
 ) -> Callable:
     """
@@ -265,8 +307,8 @@ def _queuing_method(
         hold, and gives the signature.
     eager_specials
         The eager specials class, for backend-specific helpers.
-    queue
-        The per-thread queue.
+    thread_queues
+        The queue of each thread.
     flush
         Runs the queue.
 
@@ -296,14 +338,13 @@ def _queuing_method(
             "must take dt, dE, then plain positional-or-keyword parameters"
         )
 
-    def rebind(dt: Any, dE: Any) -> None:
+    def rebind(queue: KernelCallQueue, dt: Any, dE: Any) -> None:
         flush()
         queue.bind(dt, dE)
 
     namespace = {
-        "_queue": queue,
+        "_thread_queues": thread_queues,
         "_rebind": rebind,
-        "_append": queue.append_record,
         "_args_type": args_type,
         "_packer": args_type.record_packer(),
         "_field_values": args_type.field_values_from_specials_call,
@@ -324,15 +365,18 @@ def _queuing_method(
     )
     by_name = ", ".join(f"{name}={name}" for name in names)
     rebind_if_other_beam = [
+        "    _queue = _thread_queues.queue",
         "    if _queue.dt is not dt or _queue.dE is not dE:",
-        "        _rebind(dt, dE)",
+        "        _rebind(_queue, dt, dE)",
     ]
     default_hook = KernelCallArgs.field_values_from_specials_call.__func__
     if args_type.field_values_from_specials_call.__func__ is default_hook:
         field_names = [name for name, _ in args_type.record_fields()]
         body = [
             *rebind_if_other_beam,
-            f"    _append(_args_type, _packer, {', '.join(field_names)})",
+            "    _queue.append_record(",
+            f"        _args_type, _packer, {', '.join(field_names)}",
+            "    )",
         ]
     else:
         body = [
@@ -344,7 +388,7 @@ def _queuing_method(
             f"        return _eager_method({by_name})",
             *rebind_if_other_beam,
             "    for _values in _records:",
-            "        _append(_args_type, _packer, *_values)",
+            "        _queue.append_record(_args_type, _packer, *_values)",
         ]
     name = eager_method.__name__
     source = "\n".join([f"def {name}({signature}):", *body])

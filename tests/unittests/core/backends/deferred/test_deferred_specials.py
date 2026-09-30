@@ -298,6 +298,25 @@ class TestCppDeferredSpecials(BLonDTestCase):
             thread.join()
         self.assertEqual(results, {k: (True, True) for k in range(4)})
 
+    def test_kernel_call_queue_is_the_calling_threads(self) -> None:
+        dt, dE = _beam(10)
+        self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
+        main_queue = self.deferred.kernel_call_queue
+        seen = {}
+
+        def worker():
+            seen["queue"] = self.deferred.kernel_call_queue
+            seen["n_bytes"] = seen["queue"].n_bytes
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        self.assertIs(self.deferred.kernel_call_queue, main_queue)
+        self.assertIs(self.deferred_class.kernel_call_queue, main_queue)
+        self.assertIsNot(seen["queue"], main_queue)
+        self.assertEqual(seen["n_bytes"], 0)
+        self.assertGreater(main_queue.n_bytes, 0)
+
     def test_every_specials_method_is_deferred_or_wrapped(self) -> None:
         for name, value in vars(Specials).items():
             if name.startswith("_") or not isinstance(value, staticmethod):
