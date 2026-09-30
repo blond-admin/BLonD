@@ -924,7 +924,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-        if np.any(self.delta_omega_rf != 0):
+        delta_omega_rf = self.delta_omega_rf
+        # plain `!=` for the usual scalar; `np.any` costs ~2 us per turn
+        if (
+            delta_omega_rf != 0
+            if isinstance(delta_omega_rf, float)
+            else np.any(delta_omega_rf != 0)
+        ):
             self._update_delta_phi_rf_from_beam_feedback()
 
     def _track_interp(
@@ -1991,9 +1997,11 @@ class MultiHarmonicRFStation(
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=backend.array(self.voltage, dtype=backend.float),
-            phi_rf=backend.array(self.phi_rf, dtype=backend.float),
-            omega_rf=backend.array(self.omega_rf, dtype=backend.float),
+            # Host arrays on every backend: a GPU kernel receives them by
+            # value, so moving them to the device would only add copies.
+            voltage=np.asarray(self.voltage, dtype=backend.float),
+            phi_rf=np.asarray(self.phi_rf, dtype=backend.float),
+            omega_rf=np.asarray(self.omega_rf, dtype=backend.float),
             charge=beam.signed_charge_with_direction(),
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!

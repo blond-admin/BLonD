@@ -10,9 +10,8 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
-
-import numpy as np
 
 from blond.core.reference_clock.reference_clock_numba import beta as beta_nb
 from blond.core.reference_clock.reference_clock_numba import gamma as gamma_nb
@@ -53,6 +52,19 @@ class ReferenceCoordinates:
         self.time = time  # no property syntax
         self._total_energy = total_energy  # only read access
         self._particle_type = particle_type  # only read access
+
+    def __copy__(self) -> ReferenceCoordinates:
+        """
+        Shallow copy, much faster than the generic `copy.copy` path.
+
+        Returns
+        -------
+        reference
+            New reference with the same time, energy and particle type.
+        """
+        return ReferenceCoordinates(
+            self.time, self._total_energy, self._particle_type
+        )
 
     @property
     def particle_type(self) -> ParticleType:
@@ -135,7 +147,7 @@ class ReferenceCoordinates:
         if self._total_energy is None:
             raise ValueError(_TOTAL_ENERGY_NOT_SET)
         beta = beta_nb(self._total_energy, self._particle_type.mass_inv)
-        assert not np.isnan(beta), f"{beta=}"
+        assert not math.isnan(beta), f"{beta=}"  # np.isnan is slow on floats
         return beta
 
     @property

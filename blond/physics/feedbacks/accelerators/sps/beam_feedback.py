@@ -21,12 +21,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
 
 import numpy as np
 
 from blond.core.beam.base import BeamBaseClass
-from blond.core.simulation.simulation import Simulation
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 
 

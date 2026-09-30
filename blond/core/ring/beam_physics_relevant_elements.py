@@ -18,7 +18,6 @@ import numpy as np
 from blond.core.base import Preparable
 from blond.core.helpers import find_instances_by_class
 from blond.core.ring.helpers import filter_elements
-from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
@@ -26,6 +25,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.base import SimulationElementBase
+    from blond.core.simulation.simulation import Simulation
 
     T = TypeVar("T")
 
