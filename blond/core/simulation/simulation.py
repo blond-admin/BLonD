@@ -1049,6 +1049,10 @@ class Simulation(Preparable):
             until_section_index=until_section_index,
             callbacks=callbacks,
         )
+        # Readouts flush through the Beam's coordinate storage, but the
+        # deferred kernel call queue is per thread and dies with it: run
+        # the last queued calls here, in the thread that queued them.
+        backend.specials.flush()
 
     def _plot_input_info(
         self,

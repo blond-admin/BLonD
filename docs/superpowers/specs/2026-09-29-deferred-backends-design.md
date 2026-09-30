@@ -332,16 +332,14 @@ deadlock on it.
 - **Statistics through `Specials`** (`sum_1d_array`, `dot_product_1d_array`
   in `mpi_distributed/callables.py`) are flush-then-call, so they are
   correct.
-- **Statistics that bypass `Specials`** are:
-  - `DistributedArray.min/max/mean/std/gather/scatter`, which run numpy
-    directly on `array_local`;
-  - the Beam statistics `dt_min`/`dE_max`/… in `core/beam/beams.py`, which
-    read `self._dt` directly.
-
-  Every public Beam method or property that reads particle data therefore
-  flushes first, through one helper, `_flush_kernel_calls()`.
-  `DistributedArray` stays unaware of deferral; its Beam callers do the
-  flushing.
+- **Statistics that bypass `Specials`** are
+  `DistributedArray.min/max/mean/std/sum/mpi_gather/mpi_scatter/copy_as_*`,
+  which run numpy directly on `array_local`, and the Beam statistics
+  `dt_min`/`dE_max`/… built on them. The Beam stores its coordinates as a
+  `FlushingDistributedArray` (`blond/core/beam/flushing_distributed_array.py`),
+  whose `array_local` flushes on every read, so all of these see flushed
+  data without a flush of their own. The base `DistributedArray`, used
+  beyond the Beam, stays unaware of deferral.
 - **GPU with MPI.** CUDA-aware MPI on CuPy arrays already needs the stream
   synchronised before a collective. Deferral changes nothing here, because
   its launches go on the same stream.
@@ -377,57 +375,62 @@ Signature: `execute_batch(batch_bytes, n_bytes, dt, dE, n_macroparticles)`.
 
 ### 5.4 Flush points
 
-**Existing points (as in the prototype):**
-- a non-deferrable call;
-- a call on a different beam;
-- a change of backend or specials;
-- `flush_before_readout` in the execution models, before any active
-  observable or callback;
-- the early-return path and the end of the main loop.
+Two choke points replace per-method flushes:
 
-**New point: Beam data accessors.** `dt`, `dE`, `read_partial_*`,
-`write_partial_*`, and every public Beam method that reads particle data
-(§5.1a).
+1. **Beam coordinate storage.** `BeamBaseClass._dt`, `_dE`, `_flags` and
+   `_ids` are `FlushingCoordinates` descriptors. Whatever is assigned
+   (`setup_beam`, `add_beam`/`add_particles` via
+   `distributed_array.concatenate`, `copy_coordinates_from`, a plain
+   `beam._dE = DistributedArray(...)` in a script) is stored as a
+   `FlushingDistributedArray`; a raw array is rejected. The descriptor
+   flushes *before* replacing, because queued calls reference the old
+   arrays. On the stored array:
+   - reading `array_local` flushes, so every inherited method
+     (`min`/`max`/`mean`/`std`/`sum`/`histogram`/`histogram_sparse`/
+     `mpi_gather`/`mpi_scatter`/`copy_as_*`) and every Beam method or
+     script that reads the data sees queued calls applied, with no flush
+     of its own;
+   - assigning `array_local` flushes before replacing it;
+   - `copy`/`deepcopy`/pickling flush (`__getstate__`), and the copy is
+     again flushing;
+   - `local_size`/`global_size` do **not** flush: queued kernels never
+     change the particle count, and `RFStation._track` asks for
+     `common_array_size` between the queued kick and drift every turn.
+2. **Deferred specials** (`make_deferred_specials`): every non-deferrable
+   method is flush-then-call, and a deferrable call on a different beam
+   flushes first.
 
-**Kernel-argument accessors, which do not flush.** The `Specials` call sites
-in `rf_station.py`, `drifts.py`, `impedances/base.py` and `barrier_bucket.py`
-currently fetch their arrays through `read_partial_dt()` /
-`write_partial_dE()`. If those flushed, every deferred call would flush just
-before being queued, and nothing would fuse. `BeamBaseClass` therefore gets
-two new properties:
+Also: a change of backend or specials flushes, and `Simulation.mainloop`
+flushes once after the execution model returns (normal end and the
+`until_section_index` early return). The latter is not needed for
+readouts in the same thread, which flush through (1); it is needed
+because the queue is `threading.local`: a simulation run in a worker
+thread would otherwise leave its last turn in that thread's queue, which
+is dropped when the thread ends, so a later read from the main thread
+would silently see stale coordinates. The execution models themselves
+contain no flush; observables and callbacks read through the Beam.
 
-```python
-@property
-def kernel_call_dt(self) -> NumpyArray | CupyArray:
-    """Local `dt` to pass to a `Specials` kernel call; does not flush."""
-```
-
-`kernel_call_dE` is the same for `dE`. They are properties because they have
-no side effect; the flushing `read_/write_partial_*` stay methods.
+**Kernel-argument accessors, which do not flush.** If passing the beam to
+a deferred kernel flushed, every deferred call would flush just before
+being queued, and nothing would fuse. `BeamBaseClass` therefore has two
+properties, `kernel_call_dt` and `kernel_call_dE`, which return
+`FlushingDistributedArray.array_local_without_flush`. They are the only
+users of that raw accessor; a test greps `blond/` and fails on any other
+use.
 
 **Accessor rules:**
 - `backend.specials.<kernel>(...)` call sites use `kernel_call_dt` /
   `kernel_call_dE`.
-- Any other Python code that touches particle data uses the flushing
-  accessors.
-- Direct `_dt` / `_dE` access is allowed only inside `blond/core/beam/`, and
-  only after `_flush_kernel_calls()` or in the two kernel-argument
-  properties.
+- Any other code may read the coordinates any way it likes, including
+  `beam._dt.array_local`: every path goes through the flushing storage.
+  The earlier grep guard against `._dt`/`._dE` outside `core/beam/` is
+  replaced by the guard on `array_local_without_flush`.
 
-**Direct `_dt` / `_dE` users outside `blond/core/beam/`** (excluding
-`legacy/` and `experimental/`) are:
-- `simulation.py`
-- `single_beam.py`
-- `observables*.py`
-- `profiles*.py`
-- `synchrotron_radiation/base.py`
-- `beam_preparation/helpers.py`
-- `muon_collider/beam_preparation.py`
-- two examples
-
-The implementation routes each one through the right accessor. A test then
-greps `blond/` for `._dt` / `._dE` outside `core/beam/` and fails on any
-hit.
+**Remaining hole.** A raw NumPy/CuPy array obtained earlier (from
+`read_partial_*`, `kernel_call_*` or `array_local`) is a plain array: if
+more kernel calls are queued afterwards, reading that same object later
+does not flush and may be stale. Re-read through the Beam. The
+`kernel_call_*` and `read_partial_*` docstrings say so.
 
 ## 6. CPU executor (`blond/core/backends/cpp/deferred.cpp`)
 
@@ -517,7 +520,7 @@ TDD applies throughout, with the RED stage shown for each test.
 | 2 | Record sizes match the dtypes at library load | same file |
 | 3 | Deferred matches eager | `tests/unittests/core/backends/deferred/test_deferred_specials.py` |
 | 4 | Flush semantics | same file |
-| 5 | Data accessors flush; `kernel_call_dt`/`kernel_call_dE` do not; no direct `_dt`/`_dE` outside `core/beam/` | `tests/unittests/core/beam/` |
+| 5 | Coordinate storage flushes on every read, statistic, copy and replacement, and every assignment path keeps the flushing type; sizes and `kernel_call_dt`/`kernel_call_dE` do not flush; `array_local_without_flush` is used nowhere else | `tests/unittests/core/beam/test_kernel_call_accessors.py`, `tests/unittests/core/beam/test_flushing_distributed_array.py` |
 | 6 | Main loop: deferred vs eager | `tests/unittests/core/simulation/execution_models/test_single_beam.py` |
 
 **Test 3** runs 3 turns of every kernel on both deferred backends and
@@ -540,8 +543,10 @@ compares coordinates with eager within `rtol`. It covers:
 - switching specials flushes;
 - every public `Specials` method is either deferred or wrapped.
 
-**Test 6** requires deferred to match eager at `rtol=1e-12`, and checks that a
-callback sees the flushed beam.
+**Test 6** requires deferred to match eager at `rtol=1e-12`, checks that a
+callback sees the flushed beam although the main loop does not flush, and
+that a simulation run in a worker thread leaves nothing queued for the
+main thread to miss.
 
 All test classes inherit from `BLonDTestCase`.
 
@@ -602,9 +607,19 @@ T400 (4 GB):
 | cuda | 33.7 ms | 33.1 ms | 33.8 ms |
 | cuda_deferred | 34.9 ms | 31.7 ms | 31.4 ms |
 
-Flushes/turn were 1.33 in every configuration (one `StaticProfile`
-histogram most turns, two histograms whenever a wakefield's own periodic
-solver additionally triggers). On the T400, cuda_deferred is within noise
+Flushes/turn were 1.33 in every configuration. That counter only saw
+explicit `specials.flush()` calls, not the flush-then-call inside
+`histogram`; counting executed batches instead (`batches/turn`, added in
+Task 13) gives exactly 1.00 per turn for the deferred modes: one fused
+kick+drift batch, run by the `StaticProfile` histogram.
+
+After Task 13 (self-flushing Beam storage, main-loop flushes removed),
+same setup, 3 interleaved runs, 12-thread desktop: cpp 43.2 / 39.1 /
+40.6 ms, cpp_deferred 26.0 / 23.0 / 19.0 ms (before: cpp 39.7 / 62.9 /
+44.1, cpp_deferred 27.0 / 26.9 / 22.4); batches/turn 1.00 before and
+after, `flush()` calls/turn 1.33 → 1.60 (extra calls on an empty queue),
+identical checksums. One T400 run each: cuda 36.2 ms, cuda_deferred
+34.2 ms. On the T400, cuda_deferred is within noise
 of cuda -- the fused interpreter kernel amortises launch overhead less
 than on the CPU, where per-call dispatch cost dominates; this matches the
 prediction in the risk table that GPU gains would be smaller.

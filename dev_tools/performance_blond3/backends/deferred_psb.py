@@ -56,6 +56,7 @@ class BenchmarkResult:
     n_turns: int
     ms_per_turn: float
     flushes_per_turn: float
+    batches_per_turn: float
     checksum: float
 
 
@@ -146,14 +147,18 @@ def _set_up_backend(mode: str, single_core: bool):
 
 def _wrap_flush_counter(specials) -> list[int]:
     """
-    Monkeypatch `specials.flush` to count calls, returning the counter cell.
+    Count flush calls and executed batches, returning the counter cells.
 
-    `flush` is a plain function assigned on the *instance*, which Python
-    finds before the class's (static) method during attribute lookup, so
-    this intercepts every flush -- queued or not -- without touching
-    `Specials` itself.
+    `flush` is replaced on the active specials, so this intercepts every
+    explicit ``specials.flush()`` -- queued or not -- without touching
+    `Specials` itself. The deferred flush looks ``_execute_batch`` up on
+    its class at call time, so wrapping that counts every batch actually
+    run, including the implicit flushes of flush-then-call methods such
+    as ``histogram``.
+
+    Returns ``[calls, batches]``.
     """
-    count = [0]
+    count = [0, 0]
     original_flush = specials.flush
 
     def counting_flush() -> None:
@@ -161,6 +166,17 @@ def _wrap_flush_counter(specials) -> list[int]:
         original_flush()
 
     specials.flush = counting_flush
+
+    # The cpp specials are a class, the cuda ones may be an instance.
+    deferred_class = specials if isinstance(specials, type) else type(specials)
+    if "_execute_batch" in vars(deferred_class):
+        original_execute_batch = deferred_class._execute_batch
+
+        def counting_execute_batch(*args, **kwargs) -> None:
+            count[1] += 1
+            original_execute_batch(*args, **kwargs)
+
+        deferred_class._execute_batch = staticmethod(counting_execute_batch)
     return count
 
 
@@ -202,7 +218,7 @@ def run_benchmark(
             show_progressbar=False,
             verbose=False,
         )
-    flush_count[0] = 0
+    flush_count[0] = flush_count[1] = 0
 
     start = time.perf_counter()
     sim.run_simulation(
@@ -226,6 +242,7 @@ def run_benchmark(
         n_turns=n_turns,
         ms_per_turn=elapsed * 1e3 / n_turns,
         flushes_per_turn=flush_count[0] / n_turns,
+        batches_per_turn=flush_count[1] / n_turns,
         checksum=checksum,
     )
 
@@ -251,6 +268,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
     )
     print(f"ms/turn: {result.ms_per_turn:.3f}")
     print(f"flushes/turn: {result.flushes_per_turn:.2f}")
+    print(f"batches/turn: {result.batches_per_turn:.2f}")
     print(f"checksum(dE): {result.checksum!r}")
 
 

@@ -7,8 +7,9 @@ import pytest
 from blond import Beam, proton
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.beam.flags import BeamFlags
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.distributed.distributed_array import DistributedArray
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import BLonDTestCase, cupy_available
 
 KICK = dict(
     voltage=8e3, omega_rf=2e7, phi_rf=0.1, charge=1.0, acceleration_kick=12.0
@@ -144,31 +145,43 @@ class TestCoordinateStorageFlushes(BLonDTestCase):
     (as a future Beam method or a script would do) flushes by itself.
     """
 
-    def setUp(self) -> None:
+    mode = "cpp_deferred"
+
+    def _activate_backend(self) -> None:
         backend.change_backend(Numpy64Bit)
-        backend.set_specials("cpp_deferred")
+
+    def setUp(self) -> None:
+        self._activate_backend()
+        backend.set_specials(self.mode)
         self.beam = Beam(intensity=1e11, particle_type=proton)
         self.beam.setup_beam(
-            dt=np.linspace(-1e-9, 1e-9, 100),
-            dE=np.linspace(-1e6, 1e6, 100),
+            dt=backend.linspace(-1e-9, 1e-9, 100, dtype=backend.float),
+            dE=backend.linspace(-1e6, 1e6, 100, dtype=backend.float),
         )
 
     def tearDown(self) -> None:
         backend.specials.flush()
+        backend.change_backend(Numpy64Bit)
         backend.set_specials("python")
 
     def _queue_kick(self, beam: Beam | None = None) -> np.ndarray:
         beam = self.beam if beam is None else beam
-        before = beam.kernel_call_dE.copy()
+        before = copy_to_cpu(beam.kernel_call_dE)
         backend.specials.kick_single_harmonic(
             dt=beam.kernel_call_dt, dE=beam.kernel_call_dE, **KICK
         )
         self.assertGreater(backend.specials.kernel_call_queue.n_bytes, 0)
         return before
 
-    def _assert_flushed(self, before: np.ndarray) -> None:
+    def _queue_is_empty(self) -> None:
         self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
-        self.assertFalse(np.array_equal(self.beam.kernel_call_dE, before))
+
+    def _assert_changed(self, array, before: np.ndarray) -> None:
+        self.assertFalse(np.array_equal(copy_to_cpu(array), before))
+
+    def _assert_flushed(self, before: np.ndarray) -> None:
+        self._queue_is_empty()
+        self._assert_changed(self.beam.kernel_call_dE, before)
 
     def test_direct_array_local_read_flushes(self) -> None:
         for name in ("_dt", "_dE", "_flags", "_ids"):
@@ -182,16 +195,18 @@ class TestCoordinateStorageFlushes(BLonDTestCase):
             with self.subTest(statistic=name):
                 self._queue_kick()
                 value = getattr(self.beam._dE, name)()
-                self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
-                expected = getattr(np, name)(self.beam.kernel_call_dE)
+                self._queue_is_empty()
+                expected = getattr(np, name)(
+                    copy_to_cpu(self.beam.kernel_call_dE)
+                )
                 self.assertAlmostEqual(value, expected, delta=1e-6)
 
     def test_distributed_histogram_sees_flushed_data(self) -> None:
         self._queue_kick()
-        counts = self.beam._dE.histogram(10, range=(-2e6, 2e6)).copy()
-        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        counts = copy_to_cpu(self.beam._dE.histogram(10, range=(-2e6, 2e6)))
+        self._queue_is_empty()
         expected, _ = np.histogram(
-            self.beam.kernel_call_dE, bins=10, range=(-2e6, 2e6)
+            copy_to_cpu(self.beam.kernel_call_dE), bins=10, range=(-2e6, 2e6)
         )
         np.testing.assert_array_equal(counts, expected)
 
@@ -204,52 +219,50 @@ class TestCoordinateStorageFlushes(BLonDTestCase):
         ):
             before = self._queue_kick()
             copied = read()
-            self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
-            self.assertFalse(np.array_equal(copied, before))
+            self._queue_is_empty()
+            self._assert_changed(copied, before)
 
     def test_replacing_coordinates_applies_queued_calls_first(self) -> None:
         old_dE = self.beam.kernel_call_dE
         before = self._queue_kick()
 
-        self.beam._dE = DistributedArray(np.zeros(100))
+        self.beam._dE = DistributedArray(backend.zeros(100, backend.float))
 
-        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
-        self.assertFalse(np.array_equal(old_dE, before))
+        self._queue_is_empty()
+        self._assert_changed(old_dE, before)
 
     def test_replacing_array_local_applies_queued_calls_first(self) -> None:
         old_dE = self.beam.kernel_call_dE
         before = self._queue_kick()
 
-        self.beam._dE.array_local = np.zeros(100)
+        self.beam._dE.array_local = backend.zeros(100, backend.float)
 
-        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
-        self.assertFalse(np.array_equal(old_dE, before))
+        self._queue_is_empty()
+        self._assert_changed(old_dE, before)
 
     def test_every_assignment_path_keeps_reads_flushing(self) -> None:
+        def values() -> DistributedArray:
+            return DistributedArray(
+                backend.linspace(0.0, 1.0, 100, dtype=backend.float)
+            )
+
         def other_beam() -> Beam:
             other = Beam(intensity=1e11, particle_type=proton)
-            other.setup_beam(
-                dt=np.linspace(-1e-9, 1e-9, 100),
-                dE=np.linspace(-1e6, 1e6, 100),
-            )
+            other.setup_beam(dt=values().array_local, dE=values().array_local)
             return other
 
-        values = np.linspace(0.0, 1.0, 100)
         paths = {
             "setup_beam": lambda: self.beam.setup_beam(
-                dt=values.copy(), dE=values.copy()
+                dt=values().array_local, dE=values().array_local
             ),
             "add_beam": lambda: self.beam.add_beam(other_beam()),
             "add_particles": lambda: self.beam.add_particles(
-                DistributedArray(values.copy()),
-                DistributedArray(values.copy()),
+                values(), values()
             ),
             "copy_coordinates_from": lambda: self.beam.copy_coordinates_from(
                 other_beam()
             ),
-            "plain_assignment": lambda: setattr(
-                self.beam, "_dE", DistributedArray(values.copy())
-            ),
+            "plain_assignment": lambda: setattr(self.beam, "_dE", values()),
         }
         for name, change in paths.items():
             with self.subTest(path=name):
@@ -260,11 +273,11 @@ class TestCoordinateStorageFlushes(BLonDTestCase):
 
     def test_deepcopied_beam_reads_flush(self) -> None:
         copied = deepcopy(self.beam)
-        before = copied.kernel_call_dE.copy()
+        before = copy_to_cpu(copied.kernel_call_dE)
         self._queue_kick(copied)
         copied._dE.array_local  # noqa: B018
-        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
-        self.assertFalse(np.array_equal(copied.kernel_call_dE, before))
+        self._queue_is_empty()
+        self._assert_changed(copied.kernel_call_dE, before)
 
     def test_size_queries_do_not_flush(self) -> None:
         # The RF station asks for `common_array_size` between the queued
@@ -274,6 +287,21 @@ class TestCoordinateStorageFlushes(BLonDTestCase):
         self.assertEqual(self.beam.n_macroparticles_partial(), 100)
         self.assertEqual(self.beam._dt.local_size, 100)
         self.assertGreater(backend.specials.kernel_call_queue.n_bytes, 0)
+
+
+@pytest.mark.cupy
+@pytest.mark.backend_mutation
+class TestCoordinateStorageFlushesCuda(TestCoordinateStorageFlushes):
+    """Every coordinate storage test, rerun with ``cuda_deferred``."""
+
+    mode = "cuda_deferred"
+
+    def _activate_backend(self) -> None:
+        if not cupy_available:
+            self.skipTest("CuPy is not available")
+        from blond.core.backends.backend import Cupy64Bit
+
+        backend.change_backend(Cupy64Bit)
 
 
 class TestRawCoordinateAccessStaysInBeam(BLonDTestCase):

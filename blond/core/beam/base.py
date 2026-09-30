@@ -140,10 +140,10 @@ class BeamBaseClass(Preparable, ABC):
 
         Notes
         -----
-        Runs queued (deferred) kernel calls first, so both this beam's and
-        ``other``'s coordinates are up to date before they are concatenated.
+        Queued (deferred) kernel calls on either beam run before the
+        coordinates are concatenated: the Beam's coordinate storage
+        flushes on access.
         """
-        self._flush_kernel_calls()
         if self.is_distributed != other.is_distributed:
             raise RuntimeError(
                 "A non-distributed beam cannot be added to a distributed beam."
@@ -195,10 +195,9 @@ class BeamBaseClass(Preparable, ABC):
 
         Notes
         -----
-        Runs queued (deferred) kernel calls first, so this beam's existing
-        coordinates are up to date before the new ones are concatenated.
+        Queued (deferred) kernel calls run before the existing coordinates
+        are concatenated: the Beam's coordinate storage flushes on access.
         """
-        self._flush_kernel_calls()
         if (dt.local_size != dE.local_size) or (
             dt.global_size != dE.global_size
         ):
@@ -321,7 +320,6 @@ class BeamBaseClass(Preparable, ABC):
         dE
             Beam macro-particle energy coordinates, in [eV].
         """
-        self._flush_kernel_calls()
         if self._dE is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
@@ -339,7 +337,6 @@ class BeamBaseClass(Preparable, ABC):
         dt
             Beam macro-particle time coordinates, in [s].
         """
-        self._flush_kernel_calls()
         if self._dt is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
@@ -361,7 +358,6 @@ class BeamBaseClass(Preparable, ABC):
         --------
         blond.core.beam.flags.BeamFlags: The available flags.
         """
-        self._flush_kernel_calls()
         if self._flags is None:
             raise AttributeError(
                 "Beam is not properly initialized. "
@@ -637,6 +633,12 @@ class BeamBaseClass(Preparable, ABC):
         Unlike `read_partial_dt`, this does not run queued kernel calls
         first: passing it to a deferred kernel must not flush the queue
         the call is about to join. Use it only as a kernel argument.
+        Together with `kernel_call_dE` it is the only way to get
+        the coordinates without a flush.
+
+        The array may be stale while kernel calls are queued, and stays a
+        plain NumPy/CuPy array: reading this same object later does not
+        flush. Read the coordinates through the Beam instead.
 
         Returns
         -------
@@ -653,6 +655,12 @@ class BeamBaseClass(Preparable, ABC):
         Unlike `read_partial_dE`, this does not run queued kernel calls
         first: passing it to a deferred kernel must not flush the queue
         the call is about to join. Use it only as a kernel argument.
+        Together with `kernel_call_dt` it is the only way to get
+        the coordinates without a flush.
+
+        The array may be stale while kernel calls are queued, and stays a
+        plain NumPy/CuPy array: reading this same object later does not
+        flush. Read the coordinates through the Beam instead.
 
         Returns
         -------
@@ -660,13 +668,6 @@ class BeamBaseClass(Preparable, ABC):
             DE-array on the current node, in [eV].
         """
         return self._dE.array_local_without_flush
-
-    @staticmethod
-    def _flush_kernel_calls() -> None:
-        """Run queued kernel calls before Python reads the coordinates."""
-        from blond.core.backends.backend import backend
-
-        backend.specials.flush()
 
     def read_partial_ids(self) -> NumpyArray | CupyArray:
         """
@@ -687,9 +688,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._ids.array_local
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
@@ -711,9 +713,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._dt.array_local
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
@@ -735,9 +738,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._dt.array_local
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
@@ -759,9 +763,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._dE.array_local
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
@@ -783,9 +788,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._dE.array_local
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
@@ -807,9 +813,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._flags.array_local
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
@@ -831,9 +838,10 @@ class BeamBaseClass(Preparable, ABC):
         visible to the current node.
 
         Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`.
+        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
+        NumPy/CuPy array: after further queued kernel calls it may be
+        stale, so read it again through the Beam instead of reusing it.
         """
-        self._flush_kernel_calls()
         return self._flags.array_local
 
     def sort_by_dt(self) -> None:
@@ -849,7 +857,6 @@ class BeamBaseClass(Preparable, ABC):
             If the beam is distributed across MPI ranks: a per-node sort
             cannot order the global beam, so sorting is unsupported there.
         """
-        self._flush_kernel_calls()
         if self.is_distributed:
             raise NotImplementedError(
                 "`sort_by_dt` cannot sort an MPI-distributed beam: a "

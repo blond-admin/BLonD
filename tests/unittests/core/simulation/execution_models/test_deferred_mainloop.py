@@ -1,3 +1,4 @@
+import threading
 import warnings
 from copy import deepcopy
 
@@ -58,6 +59,21 @@ def _build_two_section_sim() -> tuple[Simulation, Beam]:
 
     sim = Simulation.from_locals(locals())
     return sim, beam
+
+
+def _run_in_worker_thread(mode):
+    backend.change_backend(Numpy64Bit)
+    backend.set_specials(mode)
+    from blond.examples.scripts import EX_23_Main_long_ps_booster as ex
+
+    sim, beam = ex.build(n_macroparticles=10_000, n_bins=1000)
+    worker = threading.Thread(
+        target=sim.run_simulation,
+        kwargs=dict(beams=(beam,), n_turns=5, show_progressbar=False),
+    )
+    worker.start()
+    worker.join()
+    return beam.read_partial_dt().copy(), beam.read_partial_dE().copy()
 
 
 def _run_until_section_index(mode):
@@ -121,7 +137,8 @@ def _run(mode):
     seen = []
 
     def record(simulation, beam):
-        seen.append(beam.read_partial_dE().copy())
+        # Direct storage access: flushes by itself, no accessor needed.
+        seen.append(beam._dE.array_local.copy())
 
     record.each_turn_i = 1
     sim, beam = ex.build(n_macroparticles=10_000, n_bins=1000)  # Step 3
@@ -147,10 +164,9 @@ class TestDeferredMainloop(BLonDTestCase):
 
     def test_end_of_loop_flushes_pending_calls_with_no_readout(self):
         # A callback that does not fire on the last turn (and no
-        # observables) leaves nothing to trigger
-        # `flush_before_readout` during the loop. Only the
-        # end-of-loop flush (Step 4, point 3) can empty the queue
-        # before `run_simulation` returns.
+        # observables) reads nothing at the end of the loop; the queue
+        # is still empty when `run_simulation` returns, because
+        # `Simulation.mainloop` flushes once after the execution model.
         backend.change_backend(Numpy64Bit)
         backend.set_specials("cpp_deferred")
         from blond.examples.scripts import EX_23_Main_long_ps_booster as ex
@@ -163,12 +179,20 @@ class TestDeferredMainloop(BLonDTestCase):
         sim.run_simulation(beams=(beam,), n_turns=5, callbacks=[record])
         self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
 
+    def test_worker_thread_run_leaves_nothing_queued(self):
+        # The queue is per thread and dies with it: a run in a worker
+        # thread must not leave its last turn queued there, or the main
+        # thread would read stale coordinates.
+        eager_dt, eager_dE = _run_in_worker_thread("cpp")
+        deferred_dt, deferred_dE = _run_in_worker_thread("cpp_deferred")
+        np.testing.assert_allclose(deferred_dt, eager_dt, rtol=1e-12)
+        np.testing.assert_allclose(deferred_dE, eager_dE, rtol=1e-12)
+
     def test_early_return_flushes_pending_calls(self):
         # `until_section_index` makes the loop `return` after the
         # first section's kernel calls (RF kick + drift) are queued
-        # but before the second section is reached. Only the flush
-        # at the early `return` (Step 4, point 1) empties the queue
-        # before `run_simulation` returns.
+        # but before the second section is reached. The flush in
+        # `Simulation.mainloop` covers this return path too.
         _, eager_dt, eager_dE = _run_until_section_index("cpp")
         n_bytes, deferred_dt, deferred_dE = _run_until_section_index(
             "cpp_deferred"
@@ -180,7 +204,7 @@ class TestDeferredMainloop(BLonDTestCase):
     def test_early_return_flushes_pending_calls_counterrotating(self):
         # Same as `test_early_return_flushes_pending_calls`, but for
         # `MainloopCounterRotatingBeams`, which has its own early
-        # `return`/flush point in `conterrotating_beams.py`.
+        # `return` in `conterrotating_beams.py`.
         _, eager_dt, eager_dE = _run_until_section_index_counterrotating("cpp")
         n_bytes, deferred_dt, deferred_dE = (
             _run_until_section_index_counterrotating("cpp_deferred")

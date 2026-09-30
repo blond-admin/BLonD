@@ -25,10 +25,7 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
-from blond.core.simulation.execution_models.base import (
-    ExecutionModel,
-    flush_before_readout,
-)
+from blond.core.simulation.execution_models.base import ExecutionModel
 from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import NotTestedWarning
 
@@ -132,9 +129,6 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                 section = element.section_index
 
                 if section >= until_section_index != -1:
-                    from blond.core.backends.backend import backend
-
-                    backend.specials.flush()
                     return
 
                 if element.is_active_this_turn(
@@ -150,9 +144,6 @@ class MainloopCounterRotatingBeams(ExecutionModel):
                 ):
                     element_counterrot.track(beams[1])
 
-            flush_before_readout(
-                observe, callbacks, simulation.turn_counter.value
-            )
             for observable in observe:
                 if observable.is_active_this_turn(
                     turn_i=simulation.turn_counter.value
@@ -162,7 +153,3 @@ class MainloopCounterRotatingBeams(ExecutionModel):
             for callback in callbacks:
                 if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
                     callback(simulation, beams[0])
-
-        from blond.core.backends.backend import backend
-
-        backend.specials.flush()

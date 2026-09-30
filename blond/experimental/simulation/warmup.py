@@ -42,7 +42,6 @@ class _BeamShapeSnapshot:
 
 
 def _snapshot_beam_shape(beam: BeamBaseClass) -> _BeamShapeSnapshot:
-    beam._flush_kernel_calls()
     return _BeamShapeSnapshot(
         dt=beam._dt.array_local.copy(),
         dE=beam._dE.array_local.copy(),
@@ -65,13 +64,11 @@ def _restore_beam_shape(
     also correctly undoes array-length changes caused e.g. by
     `purge_flagged_entries` in between the snapshot and the restore.
 
-    Flushes queued (deferred) kernel calls first: the in-place branch
-    writes directly into the existing buffers, which a pending deferred
-    kernel call may still be bound to; flushing (and thus discarding those
-    calls, since their effect is immediately overwritten here) before the
-    write keeps them from later running on top of the just-restored state.
+    Queued (deferred) kernel calls run before the write, through the
+    Beam's flushing coordinate storage: the in-place branch writes into
+    buffers a pending deferred kernel call may still be bound to, and it
+    must not later run on top of the just-restored state.
     """
-    beam._flush_kernel_calls()
     if (
         beam._dt.local_size == len(snapshot.dt)
         and beam._dE.local_size == len(snapshot.dE)

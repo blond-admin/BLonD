@@ -25,10 +25,7 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
-from blond.core.simulation.execution_models.base import (
-    ExecutionModel,
-    flush_before_readout,
-)
+from blond.core.simulation.execution_models.base import ExecutionModel
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
@@ -124,17 +121,11 @@ class MainloopSingleBeam(ExecutionModel):
             for element in simulation._ring.elements.elements:
                 section = element.section_index
                 if section >= until_section_index != -1:
-                    from blond.core.backends.backend import backend
-
-                    backend.specials.flush()
                     return
                 if element.is_active_this_turn(
                     turn_i=simulation.turn_counter.value
                 ):
                     element.track(beam=beam)
-            flush_before_readout(
-                observe, callbacks, simulation.turn_counter.value
-            )
             for observable in observe:
                 if observable.is_active_this_turn(
                     turn_i=simulation.turn_counter.value
@@ -144,9 +135,6 @@ class MainloopSingleBeam(ExecutionModel):
                 if (turn_i % callback.each_turn_i) == 0:  # NOQA duck-typing
                     callback(simulation, beam)
 
-        from blond.core.backends.backend import backend
-
-        backend.specials.flush()
         # make possible to run two main-loops after each other
         simulation.turn_counter.value += 1
 
