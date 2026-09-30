@@ -38,6 +38,7 @@ from .impulse_response import (  # noqa
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
+    cavity_response_no_beam_gap,
     cavity_response_sparse_matrix,
 )
 from .signal_processing import (  # noqa
@@ -1647,10 +1648,9 @@ class LHCCavityLoop(CavityFeedback):
                     self.I_GEN_FINE = np.concatenate(
                         (self.I_GEN_FINE, np.zeros(difference, dtype=complex))
                     )
-                # scalar query: numpy >= 2.4 refuses to store a 1-element
-                # array into a scalar slot
                 self.I_GEN_FINE[0] = np.interp(
-                    self.profile.bin_centers[0] - self.profile.bin_size,
+                    self.profile.profiles_list[0].bin_centers[0]
+                    - self.profile.bin_size,
                     self.rf_centers,
                     self.I_GEN_COARSE[-self.n_coarse :],
                 )
@@ -1703,7 +1703,7 @@ class LHCCavityLoop(CavityFeedback):
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
         # Interpolators for the coarse-grid loop state (previous and current
-        # turn), used to anchor every fine-grid window solve
+        # turn), used to anchor the fine-grid solve
         coarse_time = np.concatenate(
             (
                 self.rf_centers - self.T_s * self.n_coarse,
@@ -1720,10 +1720,6 @@ class LHCCavityLoop(CavityFeedback):
             self.I_GEN_COARSE,
             fill_value="extrapolate",
         )
-        # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
-        V_A_init = V_ant_coarse_interp(t_at_init)
-        I_gen_init = I_gen_coarse_interp(t_at_init)
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.bin_size
         if isinstance(self.profile, SparseProfileBaseClass):
@@ -1733,138 +1729,119 @@ class LHCCavityLoop(CavityFeedback):
                 self.V_ANT_FINE = np.concatenate(
                     (self.V_ANT_FINE, np.zeros(difference, dtype=complex))
                 )
+            profiles = self.profile.profiles_list
+            n_p = int(profiles[0].n_slices)
+            bin_size = self.profile.bin_size
+            t_first = np.array(
+                [profile.bin_centers[0] for profile in profiles]
+            )
+            t_last = np.array(
+                [profile.bin_centers[-1] for profile in profiles]
+            )
             # Solve the windows in time order (injected profiles are appended
             # to profiles_list, so list order is not necessarily time order),
             # carrying the fine-grid solution through the no-beam gaps so
-            # that the result matches a contiguous standard-Profile solve
-            order = np.argsort(
-                [
-                    profile.bin_centers[0]
-                    for profile in self.profile.profiles_list
-                ]
-            )
-            prev_end_time = 0.0
-            prev_V_end = 0.0 + 0.0j
-            prev_I_gen_last = 0.0 + 0.0j
-            prev_I_beam_last = 0.0 + 0.0j
-            for k, p in enumerate(order):
-                profile = self.profile.profiles_list[p]
-                n_p = profile.n_slices
-                if k == 0:
-                    # Anchor the earliest window on the coarse-grid loop
-                    # state, exactly as the standard-Profile branch does at
-                    # the start of its (single) fine grid
-                    t_at_init = profile.bin_centers[0] - profile.bin_size
-                    V_A_init = V_ant_coarse_interp(t_at_init)
-                    I_gen_init = I_gen_coarse_interp(t_at_init)
-                    I_beam_before = 0.0 + 0.0j
-                else:
-                    # Number of fine bins strictly between the end of the
-                    # previous window and the start of this one
-                    n_gap = (
-                        int(
-                            np.rint(
-                                (profile.bin_centers[0] - prev_end_time)
-                                / profile.bin_size
-                            )
-                        )
-                        - 1
-                    )
-                    if n_gap > 0 and cavity_loop_kernels.NUMBA_AVAILABLE:
-                        # same recursion as below, without the fine-grid
-                        # arrays of the gap (up to the whole turn long)
-                        V_A_init, I_gen_init = (
-                            cavity_loop_kernels.cavity_response_gap(
-                                complex(prev_V_end),
-                                complex(prev_I_gen_last),
-                                complex(prev_I_beam_last),
-                                prev_end_time,
-                                profile.bin_size,
-                                n_gap,
-                                self.rf_centers,
-                                self.I_GEN_COARSE[-self.n_coarse :],
-                                0.5 * self.R_over_Q * self.samples_fine,
-                                complex(
-                                    1
-                                    - 0.5 * self.samples_fine / self.Q_L
-                                    + 1j * self.detuning * self.samples_fine
-                                ),
-                            )
-                        )
-                        I_beam_before = 0.0 + 0.0j
-                    elif n_gap > 0:
-                        gap_centers = prev_end_time + profile.bin_size * (
-                            np.arange(1, n_gap + 1)
-                        )
-                        I_gen_gap = np.interp(
-                            gap_centers,
-                            self.rf_centers,
-                            self.I_GEN_COARSE[-self.n_coarse :],
-                        )
-                        # First elements are the currents at the last bin of
-                        # the previous window, as in a contiguous solve
-                        V_gap = cavity_response_sparse_matrix(
-                            I_beam=np.concatenate(
-                                (
-                                    np.array([prev_I_beam_last]),
-                                    np.zeros(n_gap, dtype=complex),
-                                )
-                            ),
-                            I_gen=np.concatenate(
-                                (np.array([prev_I_gen_last]), I_gen_gap)
-                            ),
-                            n_samples=n_gap,
-                            V_ant_init=prev_V_end,
-                            I_gen_init=prev_I_gen_last,
-                            samples_per_rf=self.samples_fine,
-                            R_over_Q=self.R_over_Q,
-                            Q_L=self.Q_L,
-                            detuning=self.detuning,
-                        )
-                        V_A_init = V_gap[-1]
-                        I_gen_init = I_gen_gap[-1]
-                        I_beam_before = 0.0 + 0.0j
-                    else:
-                        # Adjacent windows: carry the state over directly
-                        V_A_init = prev_V_end
-                        I_gen_init = prev_I_gen_last
-                        I_beam_before = prev_I_beam_last
-                if p == 0 and k == 0:
-                    # I_GEN_FINE[0] holds the value at t_at_init of the
-                    # first listed window; use the stored full-length slice
-                    I_gen_window = self.I_GEN_FINE[0 : n_p + 1]
-                else:
-                    I_gen_window = self.I_GEN_FINE[
-                        p * n_p + 1 : (p + 1) * n_p + 1
-                    ]
-                V_window = cavity_response_sparse_matrix(
-                    I_beam=np.concatenate(
-                        (
-                            np.array([I_beam_before]),
-                            self.I_BEAM_FINE[p * n_p : (p + 1) * n_p],
-                        )
+            # that the result matches a contiguous standard-Profile solve.
+            # The gaps themselves are not sampled.
+            order = np.argsort(t_first)
+            # Anchor the earliest window on the coarse-grid loop state,
+            # exactly as the standard-Profile branch does at the start of
+            # its (single) fine grid
+            t_at_init = t_first[order[0]] - bin_size
+            V_A_init = complex(V_ant_coarse_interp(t_at_init))
+            if order[0] == 0:
+                # I_GEN_FINE[0] holds the value at t_at_init of the first
+                # listed window
+                I_gen_init = complex(self.I_GEN_FINE[0])
+            else:
+                I_gen_init = complex(I_gen_coarse_interp(t_at_init))
+            if cavity_loop_kernels.NUMBA_AVAILABLE:
+                cavity_loop_kernels.cavity_response_sparse_windows(
+                    self.V_ANT_FINE,
+                    self.I_BEAM_FINE,
+                    self.I_GEN_FINE,
+                    t_first,
+                    t_last,
+                    order,
+                    n_p,
+                    bin_size,
+                    self.rf_centers,
+                    self.I_GEN_COARSE[-self.n_coarse :],
+                    V_A_init,
+                    I_gen_init,
+                    0.5 * self.R_over_Q * self.samples_fine,
+                    complex(
+                        1
+                        - 0.5 * self.samples_fine / self.Q_L
+                        + 1j * self.detuning * self.samples_fine
                     ),
-                    I_gen=I_gen_window,
-                    n_samples=n_p,
-                    V_ant_init=V_A_init,
-                    I_gen_init=I_gen_init,
-                    samples_per_rf=self.samples_fine,
-                    R_over_Q=self.R_over_Q,
-                    Q_L=self.Q_L,
-                    detuning=self.detuning,
                 )
-                if p == 0:
-                    self.V_ANT_FINE[0 : n_p + 1] = V_window
-                else:
-                    self.V_ANT_FINE[p * n_p + 1 : (p + 1) * n_p + 1] = (
-                        V_window[-n_p:]
+            else:
+                # Currents at the last bin before the window; they drive its
+                # first bin, as in a contiguous solve
+                I_beam_before = 0.0 + 0.0j
+                for k, p in enumerate(order):
+                    if k > 0:
+                        # Number of fine bins strictly between the end of
+                        # the previous window and the start of this one;
+                        # adjacent windows carry the state over directly
+                        n_gap = (
+                            int(
+                                np.rint(
+                                    (t_first[p] - t_last[order[k - 1]])
+                                    / bin_size
+                                )
+                            )
+                            - 1
+                        )
+                        if n_gap > 0:
+                            V_A_init, I_gen_init = cavity_response_no_beam_gap(
+                                I_beam_init=I_beam_before,
+                                I_gen_init=I_gen_init,
+                                n_samples=n_gap,
+                                V_ant_init=V_A_init,
+                                t_init=t_last[order[k - 1]],
+                                bin_size=bin_size,
+                                coarse_time=self.rf_centers,
+                                I_gen_coarse=self.I_GEN_COARSE[
+                                    -self.n_coarse :
+                                ],
+                                samples_per_rf=self.samples_fine,
+                                R_over_Q=self.R_over_Q,
+                                Q_L=self.Q_L,
+                                detuning=self.detuning,
+                            )
+                            I_beam_before = 0.0 + 0.0j
+                    V_window = cavity_response_sparse_matrix(
+                        I_beam=np.concatenate(
+                            (
+                                np.array([I_beam_before]),
+                                self.I_BEAM_FINE[p * n_p : (p + 1) * n_p],
+                            )
+                        ),
+                        I_gen=self.I_GEN_FINE[p * n_p + 1 : (p + 1) * n_p + 1],
+                        n_samples=n_p,
+                        V_ant_init=V_A_init,
+                        I_gen_init=I_gen_init,
+                        samples_per_rf=self.samples_fine,
+                        R_over_Q=self.R_over_Q,
+                        Q_L=self.Q_L,
+                        detuning=self.detuning,
                     )
-                prev_end_time = profile.bin_centers[-1]
-                prev_V_end = V_window[-1]
-                prev_I_gen_last = self.I_GEN_FINE[(p + 1) * n_p]
-                prev_I_beam_last = self.I_BEAM_FINE[(p + 1) * n_p - 1]
+                    if p == 0:
+                        self.V_ANT_FINE[0] = V_window[0]
+                    self.V_ANT_FINE[p * n_p + 1 : (p + 1) * n_p + 1] = (
+                        V_window[1:]
+                    )
+                    V_A_init = V_window[-1]
+                    I_gen_init = self.I_GEN_FINE[(p + 1) * n_p]
+                    I_beam_before = self.I_BEAM_FINE[(p + 1) * n_p - 1]
 
         else:
+            # Find initial value of antenna voltage and generator current
+            t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
+            V_A_init = V_ant_coarse_interp(t_at_init)
+            I_gen_init = I_gen_coarse_interp(t_at_init)
             self.V_ANT_FINE = cavity_response_sparse_matrix(
                 I_beam=self.I_BEAM_FINE,
                 I_gen=self.I_GEN_FINE,
@@ -1877,9 +1854,7 @@ class LHCCavityLoop(CavityFeedback):
                 detuning=self.detuning,
             )
 
-        self.V_ANT_FINE[-self.profile.n_slices :] = (
-            self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices :]
-        )
+        self.V_ANT_FINE[-self.profile.n_slices :] *= self.n_cavities
 
     def generator_current(self):
         r"""Generator response
