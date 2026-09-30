@@ -151,5 +151,15 @@ class TestEquidistantMultiProfile(BLonDTestCase):
         )
 
 
+class TestEquidistantMultiProfileUnknownKwargs(BLonDTestCase):
+    def test___init___rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            EquidistantMultiProfile(
+                filling_pattern=np.ones(2, dtype=bool),
+                bins_per_profile=8,
+                not_a_parameter=0,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

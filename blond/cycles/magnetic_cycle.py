@@ -37,8 +37,8 @@ from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -52,8 +52,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.simulation.simulation import Simulation
     from blond.generals.protocols import AnyInterpolator
-
-    FloatOrArray = float | NumpyArray
 
     T = TypeVar("T")
 
@@ -542,7 +540,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._value_init = value_init
 
         assert len(values_after_turn.shape) == 1, (
             f"Expected 1D array, but got {values_after_turn.shape}"
@@ -798,7 +795,6 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._value_init = value_init
         self._values_after_rf_station_per_turn = (
             values_after_rf_station_per_turn[:, :]
         )
@@ -1063,7 +1059,6 @@ class MagneticCycleByTime(MagneticCycleBase):
                 bending_radius if in_unit == "bending field" else None
             ),
         )
-        self._base_magnetic_rigidity: NumpyArray = base_magnetic_rigidity
 
         super().__init__(
             reference_particle=reference_particle,
@@ -1075,9 +1070,6 @@ class MagneticCycleByTime(MagneticCycleBase):
             **kwargs,
         )
         self._t_max = reference_time.max()
-        self._base_values = reference_values[:]  # only for debugging
-        self._in_unit = in_unit  # only for debugging
-        self._bending_radius = bending_radius  # only for debugging
 
     @requires(
         [

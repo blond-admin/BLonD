@@ -1192,6 +1192,59 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_kick_interpolated_just_below_first_bin_center(self) -> None:
+        """Particles less than one bin width below ``bin_centers[0]``
+        receive only ``acceleration_kick``.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would give them the interpolated voltage of
+        the first interval.
+        """
+        dtype = np.float64
+        charge, acceleration_kick = 10.0, 0.5
+        bin_centers_np = np.linspace(-4, 4, 20, dtype=dtype)
+        voltage_np = bin_centers_np**2
+        bin_width = bin_centers_np[1] - bin_centers_np[0]
+        dt_np = np.array(
+            [
+                np.nextafter(bin_centers_np[0], -np.inf),
+                bin_centers_np[0] - 0.5 * bin_width,
+                bin_centers_np[0] - 0.999 * bin_width,
+                bin_centers_np[0] + 0.5 * bin_width,  # kicked, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.full_like(dt_np, acceleration_kick)
+        expected[-1] += charge * 0.5 * (voltage_np[0] + voltage_np[1])
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dE = backend.zeros(len(dt_np), dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=backend.array(dt_np, dtype=backend.float),
+                dE=dE,
+                voltage=backend.array(voltage_np, dtype=backend.float),
+                bin_centers=backend.array(bin_centers_np, dtype=backend.float),
+                charge=backend.float(charge),
+                acceleration_kick=backend.float(acceleration_kick),
+            )
+            result = copy_to_cpu(dE)
+            np.testing.assert_array_equal(
+                result[:-1],
+                expected[:-1],
+                err_msg=f"{special=} {dtype=}",
+            )
+            np.testing.assert_allclose(
+                result[-1],
+                expected[-1],
+                rtol=self.rtol,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
     def test_kick_interpolated_raises_on_single_bin(
         self,
     ) -> None:
@@ -3007,6 +3060,37 @@ class TestSpecials(BLonDTestCase):
                         result_python,
                         rtol=1e-12,
                         err_msg=f"Failed `{special}` with {n_bins=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_beam_phase_needs_two_bins(self) -> None:
+        """Fewer than two bins must be rejected on every backend.
+
+        The trapezoidal integral needs two bins: C++ read out of bounds
+        for zero bins, CUDA launched an empty grid, and for one bin python
+        returned nan while C++/CUDA returned a finite value.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for n_bins in (0, 1):
+                with (
+                    self.subTest(special=special, n_bins=n_bins),
+                    self.assertRaisesRegex(
+                        AssertionError, "requires at least two bins"
+                    ),
+                ):
+                    backend.specials.beam_phase(
+                        hist_x=backend.zeros(n_bins, dtype=backend.float),
+                        hist_y=backend.ones(n_bins, dtype=backend.float),
+                        alpha=backend.float(0.5),
+                        omega_rf=backend.float(0.8),
+                        phi_rf=backend.float(0.1),
+                        bin_size=backend.float(1.0),
                     )
 
     @pytest.mark.backend_mutation
