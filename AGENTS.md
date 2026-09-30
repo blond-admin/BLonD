@@ -148,13 +148,22 @@ comparing each backend to the Python reference.
   locally. A kernel present in only some backends fails under
   `BLOND_FORCE_TEST_ALL_BACKENDS=True`. The `python` backend is the readable reference
   implementation; mirror its behaviour exactly in `numba`/`cpp`/`cuda`.
-- **`cpp_deferred`/`cuda_deferred` queue kernel calls instead of running them eagerly.**
-  `backend.set_specials("cpp_deferred")` / `"cuda_deferred"` fuse queued per-particle
-  kernel calls into one batch, run at the next `flush()` (main loops flush before
-  readouts and at the end of the run). Beam exposes `kernel_call_dt`/`kernel_call_dE`
-  for code that only wants to feed a kernel call without forcing a flush — reading the
-  ordinary `dt`/`dE` accessors (or anything else that needs concrete values) flushes
-  first. Never assume a queued call has run yet; if you need the values now, flush.
+- **`cpp_deferred`/`cuda_deferred` queue kernel calls instead of running them eagerly,
+  and are what `setup_backend("auto")`/`autoselect_backend()` now prefer.** They are
+  ~2x faster on CPU and a few % faster on FP64-bound GPUs than the eager modes, with
+  results equal within rounding, so autoselect tries `cuda_deferred` before `cuda` and
+  `cpp_deferred` before `cpp`, falling back to the eager mode only if the deferred one
+  can't be set. `backend.set_specials("cpp_deferred")` / `"cuda_deferred"` fuse queued
+  per-particle kernel calls into one batch, run at the next flush. Beam coordinate
+  storage (`FlushingDistributedArray`/`FlushingCoordinates`) flushes on every data
+  access, so reading `dt`/`dE` (or anything else that needs concrete values) always
+  flushes first automatically. `kernel_call_dt`/`kernel_call_dE` (via
+  `array_local_without_flush`) are the only non-flushing path, and only for feeding a
+  Specials kernel call without forcing a flush — never assume a queued call has run
+  yet if you used them. A raw NumPy/CuPy array captured from an earlier read may go
+  stale after further kernel calls, since those calls are only queued, not applied, until
+  the next flush. `Simulation.mainloop` flushes once at the end of a run (per-thread
+  queues); it does not flush before every readout.
 - **Arrays may be NumPy *or* CuPy — handle both.** Backend arrays are *not* guaranteed to
   be NumPy. The conversion rules:
   - **Use `copy_to_cpu(arr)`, never `arr.get()` directly.**

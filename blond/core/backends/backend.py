@@ -748,7 +748,9 @@ class BackendBaseClass(ABC):
     def autoselect_backend(self) -> None:
         """Set automatically the fastest backend that is available on the computer."""
         order = (
+            (Cupy64Bit, "cuda_deferred"),
             (Cupy64Bit, "cuda"),
+            (Numpy64Bit, "cpp_deferred"),
             (Numpy64Bit, "cpp"),
             (Numpy64Bit, "numba"),
             (Numpy64Bit, "python"),

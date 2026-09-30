@@ -69,6 +69,55 @@ class TestBackendBaseClass(BLonDTestCase):
         self.backend_base_class.autoselect_backend()
 
     @pytest.mark.backend_mutation
+    def test_autoselect_backend_prefers_deferred_cpp(self) -> None:
+        # Force the GPU branch to fail (independent of whether a GPU is
+        # actually present) so autoselect must fall through to the CPU
+        # entries, and assert it picks the deferred mode before the eager
+        # one.
+        def fake_cupy_set_specials(mode):
+            raise RuntimeError("no GPU available (test)")
+
+        with mock.patch.object(
+            CupyBackend, "set_specials", side_effect=fake_cupy_set_specials
+        ):
+            self.backend_base_class.autoselect_backend()
+
+        self.assertEqual(self.backend_base_class.specials_mode, "cpp_deferred")
+
+    @pytest.mark.backend_mutation
+    def test_autoselect_backend_falls_back_when_deferred_unavailable(
+        self,
+    ) -> None:
+        # Simulate a machine where the deferred cpp specials cannot be set
+        # (e.g. the fused kernel failed to build): autoselect must fall
+        # back to the eager "cpp" mode rather than stopping.
+        original_numpy_set_specials = NumpyBackend.set_specials
+
+        def fake_cupy_set_specials(mode):
+            raise RuntimeError("no GPU available (test)")
+
+        def fake_numpy_set_specials(mode):
+            if mode == "cpp_deferred":
+                raise RuntimeError("deferred cpp unavailable (test)")
+            original_numpy_set_specials(self.backend_base_class, mode)
+
+        with (
+            mock.patch.object(
+                CupyBackend,
+                "set_specials",
+                side_effect=fake_cupy_set_specials,
+            ),
+            mock.patch.object(
+                NumpyBackend,
+                "set_specials",
+                side_effect=fake_numpy_set_specials,
+            ),
+        ):
+            self.backend_base_class.autoselect_backend()
+
+        self.assertEqual(self.backend_base_class.specials_mode, "cpp")
+
+    @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
