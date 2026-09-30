@@ -58,7 +58,11 @@ extern "C" void linear_interp_kick_table(const real_t *voltage,
                                          const real_t acc_kick, real_t *table) {
   const real_t inv_bin_width =
       write_kick_table_header(bin_centers, n_slices, table);
-#pragma omp parallel
+  // Serial: the deferred interpolated kick builds its table once per
+  // queued call, outside any parallel region. Waking the OpenMP team for
+  // it (OMP_WAIT_POLICY=passive by default) cost ~15 us, more than the
+  // whole table up to a few 1e4 bins (1024 bins: 18 -> 3 us; 1e4: 18
+  // -> 7 us; 1e5: 25 -> 53 us, measured on 12 threads).
   write_kick_table_pairs(voltage, bin_centers, charge, n_slices, acc_kick,
                          inv_bin_width, table);
 }
