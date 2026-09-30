@@ -1161,9 +1161,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
     if deferred:
         from blond.core.backends.deferred.kernel_call_queue import (  # NOQA: PLC0415
-            deferred_chunk_size,
             make_deferred_specials,
         )
+
+        # Particles per chunk of the deferred executor: 4096 dt/dE pairs
+        # are 64 KiB, which stays in L2 while every record of the batch
+        # is applied to them.
+        deferred_chunk_size = c_index_t(4096)
 
         def execute_batch(batch, record_sizes, dt, dE) -> None:
             _LIBBLOND.execute_kernel_call_batch(
@@ -1172,7 +1176,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(dt),
                 _get_pointer(dE),
                 _get_beam_len(dt),
-                c_index_t(deferred_chunk_size()),
+                deferred_chunk_size,
             )
 
         return make_deferred_specials(CppSpecials, execute_batch)

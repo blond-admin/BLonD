@@ -140,12 +140,6 @@ class TestCppDeferredSpecials(BLonDTestCase):
             [("drift_simple", DRIFT), ("drift_like_line_segment", DRIFT)]
         )
 
-    def test_chunk_sizes(self) -> None:
-        for chunk_size in ("1", "64", "1000000000"):
-            with pytest.MonkeyPatch.context() as patch:
-                patch.setenv("BLOND_DEFERRED_CHUNK_SIZE", chunk_size)
-                self._assert_matches_eager()
-
     def test_queued_until_flush(self) -> None:
         dt, dE = _beam(10)
         before = backend.copy(dE)
@@ -275,16 +269,6 @@ class TestCppDeferredSpecials(BLonDTestCase):
         self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
         backend.set_specials(self.eager_mode)
         self.assertFalse(_equal(dE, before))
-
-    def test_invalid_chunk_size(self) -> None:
-        from blond.core.backends.deferred.kernel_call_queue import (
-            deferred_chunk_size,
-        )
-
-        with pytest.MonkeyPatch.context() as patch:
-            patch.setenv("BLOND_DEFERRED_CHUNK_SIZE", "0")
-            with self.assertRaises(ValueError):
-                deferred_chunk_size()
 
 
 @pytest.mark.cupy

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import functools
 import inspect
-import os
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -35,32 +34,7 @@ from blond.core.backends.deferred.kernel_call_records import (
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
 
-DEFAULT_CHUNK_SIZE = 4096
 _INITIAL_CAPACITY_BYTES = 4096
-
-
-def deferred_chunk_size() -> int:
-    """
-    Return the particles per chunk of the cpp executor.
-
-    Returns
-    -------
-    int
-        ``BLOND_DEFERRED_CHUNK_SIZE`` if set, else `DEFAULT_CHUNK_SIZE`.
-
-    Raises
-    ------
-    ValueError
-        If the environment variable is not a positive integer.
-    """
-    chunk_size = int(
-        os.environ.get("BLOND_DEFERRED_CHUNK_SIZE", DEFAULT_CHUNK_SIZE)
-    )
-    if chunk_size < 1:
-        raise ValueError(
-            f"BLOND_DEFERRED_CHUNK_SIZE must be >= 1, got {chunk_size}"
-        )
-    return chunk_size
 
 
 class KernelCallQueue(threading.local):
