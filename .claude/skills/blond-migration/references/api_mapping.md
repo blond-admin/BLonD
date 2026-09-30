@@ -466,6 +466,16 @@ shape `(n_turns, n_harmonics)`.
 | `bmath.use_gpu()` | `setup_backend("auto")` picks CUDA if available; `backend.change_backend(Cupy64Bit)` forces it |
 | `np.` throughout user code | `backend.` where the array must land on the active device |
 
+`setup_backend("auto")` now prefers the *deferred* modes: it tries
+`cuda_deferred`, then `cuda`, then `cpp_deferred`, then `cpp`, then `numba`,
+then `python`, using the first that initializes. `cpp_deferred`/
+`cuda_deferred` queue per-particle kernel calls and only apply them at the
+next flush (transparent to normal `track()` code, but a coordinate array
+cached across `track()` calls can go stale — see the `blond-assistant` skill).
+If a ported script's custom element holds a coordinate array across calls,
+force eager execution with `setup_backend("cpp")`/`"cuda"` instead of
+`"auto"`.
+
 The legacy `bm` singleton is a **mutable global**. If you import BLonD 2 and
 BLonD 3 in the same process (as the verification recipe does), pin the legacy
 backend explicitly with `bmath.use_cpu()` — otherwise it may inherit whatever

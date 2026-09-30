@@ -530,7 +530,21 @@ Helper for programmatic backend selection:
 ```python
 from blond import setup_backend
 setup_backend("cpp")   # equivalent to backend.set_specials("cpp")
+setup_backend("auto")  # picks cuda_deferred > cuda > cpp_deferred > cpp > ...
 ```
+
+**`setup_backend("auto")` (the default) may pick a *deferred* mode**
+(`cpp_deferred`/`cuda_deferred`): per-particle kernel calls (drifts, kicks, ...)
+are queued and only actually applied at the next flush, not immediately. This
+is transparent as long as you always re-fetch coordinate arrays
+(`read_partial_dt`/`dE`, `write_partial_dt`/`dE`) inside every `track()` call
+and never hold one across calls or elements. Holding a raw array from an
+earlier call and writing through it later lands that write *before* kernel
+calls queued in between, silently reordering the physics relative to eager
+mode, with no error. If your custom element needs to hold or mutate a
+coordinate array outside the immediate `track()` call, force eager execution
+with `setup_backend("cpp")`/`"cuda"` (or `backend.set_specials("cpp")`/`"cuda"`)
+instead of `"auto"`.
 
 Backend classes (for type hints / advanced use):
 ```python
@@ -556,6 +570,12 @@ class MyElement(UserDefinedElement):
     def track(self, beam):
         ...   # modify beam.write_partial_dt() / write_partial_dE() each turn
 ```
+
+**Always re-fetch `read_partial_*`/`write_partial_*` inside `track()`; never
+cache the array across calls** (e.g. in `__init__`/`on_init_simulation`). See
+the note under *Backends* above — under the default `"auto"` backend, holding
+a stale array and writing through it later silently reorders your write
+relative to queued kernel calls.
 
 See `custom_trackable.py` for a complete example.
 

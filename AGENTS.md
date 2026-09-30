@@ -149,11 +149,16 @@ comparing each backend to the Python reference.
   `BLOND_FORCE_TEST_ALL_BACKENDS=True`. The `python` backend is the readable reference
   implementation; mirror its behaviour exactly in `numba`/`cpp`/`cuda`.
 - **`cpp_deferred`/`cuda_deferred` queue kernel calls instead of running them eagerly,
-  and are what `setup_backend("auto")`/`autoselect_backend()` now prefer.** They are
-  ~2x faster on CPU and a few % faster on FP64-bound GPUs than the eager modes, with
-  results equal within rounding, so autoselect tries `cuda_deferred` before `cuda` and
-  `cpp_deferred` before `cpp`, falling back to the eager mode only if the deferred one
-  can't be set. `backend.set_specials("cpp_deferred")` / `"cuda_deferred"` fuse queued
+  and are what `setup_backend("auto")`/`autoselect_backend()` now prefer — but only
+  because they win for *large* beams.** For beams of roughly 1e6+ macroparticles they
+  measure ~2x faster on CPU and a few % faster on FP64-bound GPUs than the eager modes,
+  with results equal within rounding, so autoselect tries `cuda_deferred` before `cuda`
+  and `cpp_deferred` before `cpp`, falling back to the eager mode only if the deferred
+  one can't be set. For *small* beams (measured down to 1e3 macroparticles) or few
+  kernel calls per batch, deferred can be ~20% *slower* than eager — fusing has a fixed
+  per-flush overhead a small batch can't amortize — so autoselect is "fastest for large
+  beams," not fastest unconditionally; pass `set_specials("cpp")`/`"cuda"` explicitly if
+  you know your beam is small. `backend.set_specials("cpp_deferred")` / `"cuda_deferred"` fuse queued
   per-particle kernel calls into one batch, run at the next flush. Beam coordinate
   storage (`FlushingDistributedArray`/`FlushingCoordinates`) flushes on every data
   access, so reading `dt`/`dE` (or anything else that needs concrete values) always

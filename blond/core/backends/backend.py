@@ -746,7 +746,18 @@ class BackendBaseClass(ABC):
                 raise AttributeError(f"{self.__class__}.{attribute} is None.")
 
     def autoselect_backend(self) -> None:
-        """Set automatically the fastest backend that is available on the computer."""
+        """
+        Set automatically the backend that is fastest for large beams.
+
+        Prefers a deferred mode (``cuda_deferred``/``cpp_deferred``) over
+        its eager counterpart where available. Deferred fuses queued
+        per-particle kernel calls into one pass at the next flush, which
+        wins for large beams (roughly 1e6+ macroparticles) but can be
+        ~20% slower than eager for small beams (measured down to 1e3)
+        or few kernel calls per batch, since fusing has a fixed overhead
+        per flush that a small batch cannot amortize. Call
+        ``set_specials("cpp")``/``"cuda"`` explicitly to force eager mode.
+        """
         order = (
             (Cupy64Bit, "cuda_deferred"),
             (Cupy64Bit, "cuda"),

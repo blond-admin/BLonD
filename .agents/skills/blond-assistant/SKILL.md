@@ -218,6 +218,11 @@ backend.set_specials("cuda")   # GPU (requires CUDA + blond-compile-cuda)
 # default is pure NumPy
 ```
 
+`setup_backend("auto")` may pick a *deferred* mode (`cpp_deferred`/
+`cuda_deferred`), which queues per-particle kernel calls and only applies them
+at the next flush. See *Common mistakes* below and `references/api_reference.md`
+→ Backends for what this means for custom elements.
+
 ## Common mistakes to watch for
 
 - Forgetting to call `ring.add_elements(...)` before `Simulation(...)`.
@@ -228,6 +233,12 @@ backend.set_specials("cuda")   # GPU (requires CUDA + blond-compile-cuda)
   phase.
 - Units: voltages in **volts**, energies in **eV**, momenta in **eV/c**,
   times in **seconds**, lengths in **metres**.
+- In a custom `UserDefinedElement`, never cache a coordinate array
+  (`read_partial_*`/`write_partial_*`) across `track()` calls — always fetch
+  it again inside each call. Under the default `"auto"` backend, kernel calls
+  can be queued (deferred) rather than applied immediately; a held array can
+  go stale and writing through it silently reorders physics with no error.
+  Use `setup_backend("cpp")`/`"cuda"` if you need eager, immediate execution.
 - `n_macroparticles` can be passed as a float (e.g. `1e6`) — BLonD converts it.
 - `MagneticCyclePerTurn.values_after_turn` must have length == N_TURNS.
 - `run_simulation` takes `callbacks=` (plural), not `callback=`.

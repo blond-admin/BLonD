@@ -32,6 +32,11 @@ class TimeRandomizer(UserDefinedElement):
         super().__init__()
 
     def _track(self, beam: BeamBaseClass):
+        # `write_partial_dt()` is fetched fresh every call, on purpose:
+        # with a deferred backend (`setup_backend("auto")` may pick
+        # `cpp_deferred`/`cuda_deferred`) a coordinate array held across
+        # `track()` calls can go stale, silently reordering physics
+        # relative to queued kernel calls. Never cache this array.
         dt = beam.write_partial_dt()
         dt += backend.random.rand(len(dt))
 

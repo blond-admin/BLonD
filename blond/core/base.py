@@ -560,6 +560,20 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     -----
     The ``track()`` method must be implemented.
 
+    **Never cache a coordinate array (from ``read_partial_dt``/``dE``,
+    ``write_partial_dt``/``dE``, or ``array_local``) across ``track()``
+    calls or elements -- always fetch it again inside each ``track()``.**
+    With the default ``"auto"`` backend, per-particle kernel calls
+    (drifts, kicks, ...) are queued and only actually applied at the next
+    flush (``cpp_deferred``/``cuda_deferred``). A raw array you held from
+    an earlier call still points at the old, unflushed data: writing
+    through it lands *before* kernel calls that were queued earlier and
+    is applied out of order relative to them, silently changing the
+    physics with no error. Call ``backend.set_specials("cpp")`` /
+    ``"cuda"`` (or ``BLOND_BACKEND_MODE=cpp``/``cuda``) to force the
+    eager backend, where every kernel call applies immediately and
+    holding an array across calls is safe.
+
     Examples
     --------
     >>> from blond import backend
