@@ -140,6 +140,34 @@ class TestCppDeferredSpecials(BLonDTestCase):
             [("drift_simple", DRIFT), ("drift_like_line_segment", DRIFT)]
         )
 
+    def test_drift_records_with_distinct_parameters(self) -> None:
+        # The CUDA executor prepares each record's factors once per
+        # launch; distinct beta/energy per record catch factors applied
+        # to the wrong record. Enough records to span several launches.
+        calls = []
+        for k in range(30):
+            beta = 0.5 + 0.015 * k
+            energy = 1e9 * (1.0 + 0.3 * k)
+            calls += [
+                ("kick_single_harmonic", KICK),
+                ("drift_simple", {**DRIFT, "beta": beta, "energy": energy}),
+                (
+                    "drift_like_line_segment",
+                    {**DRIFT, "beta": beta + 0.01, "energy": 2 * energy},
+                ),
+                (
+                    "drift_exact",
+                    dict(
+                        T=1e-6,
+                        alpha_0=0.01,
+                        higher_alpha=np.array([1e-3, 2e-3]),
+                        beta=beta + 0.02,
+                        energy=3 * energy,
+                    ),
+                ),
+            ]
+        self._assert_batch_matches_eager(calls)
+
     def test_queued_until_flush(self) -> None:
         dt, dE = _beam(10)
         before = backend.copy(dE)

@@ -33,8 +33,10 @@ To add a deferrable kernel:
    ``python -m blond.core.backends.deferred.kernel_call_records``.
 3. Add one overload per backend: ``apply_to_chunk(const <Kernel>Args&,
    ...)`` in ``cpp/particle_kernels.h`` and ``apply_to_particle(const
-   <Kernel>Args&, ...)`` in ``cuda/kernels.cu``. A missing overload does
-   not compile.
+   <Kernel>Args&, <Factors>, ...)`` in ``cuda/kernels.cu``, plus a
+   ``prepare(const <Kernel>Args&)`` returning ``<Factors>`` if the kernel
+   has loop-invariant factors (``NoFactors`` otherwise). A missing
+   overload does not compile.
 """
 
 from __future__ import annotations

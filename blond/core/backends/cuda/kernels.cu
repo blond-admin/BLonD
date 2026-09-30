@@ -16,6 +16,9 @@
 // conversion, which is undefined behaviour. The caller must not produce
 // non-finite coordinates. See `Specials` in blond/core/backends/backend.py.
 
+#include <cstring>
+#include <type_traits>
+
 #ifdef USEFLOAT
 using real_t = float;
 #else
@@ -47,12 +50,29 @@ __device__ __forceinline__ index_t particle_loop_stride() {
 // Per-particle kernel bodies, one overload of `apply_to_particle` per
 // kernel call record (kernel_call_records.h). The eager kernels below and
 // the deferred (fused) kernel call the same overload, so each formula
-// exists once on the GPU. The loop-invariant factors are written inside
-// the overloads; nvcc hoists them out of the particle loop on inlining.
+// exists once on the GPU.
+//
+// A record's loop-invariant factors (the FP64 divisions of the drifts)
+// are split off into `prepare`, which returns them as a small `*Factors`
+// struct; `apply_to_particle` takes the record and its factors. The
+// eager kernels call `prepare` in their particle loop and nvcc hoists it
+// (their SASS is the same as with the factors inside the overloads). The
+// fused tile loop of the deferred executor defeats that hoisting: there
+// every tile repeated a slow FP64 division per drift record. So the
+// executor prepares every record of a batch once per block, before its
+// tile loop. Records without such factors take `NoFactors`.
 namespace {
+struct NoFactors {};
+
+// Every record type without its own `prepare` overload below.
+template <class Args>
+__device__ __forceinline__ NoFactors prepare(const Args &) {
+  return {};
+}
+
 __device__ __forceinline__ void
-apply_to_particle(const KickSingleHarmonicArgs &args, const real_t &dt,
-                  real_t &dE) {
+apply_to_particle(const KickSingleHarmonicArgs &args, NoFactors /*factors*/,
+                  const real_t &dt, real_t &dE) {
   dE += args.charge * args.voltage * sin(args.omega_rf * dt + args.phi_rf) +
         args.acceleration_kick;
 }
@@ -76,26 +96,53 @@ kick_multi_harmonic_particle(const RFParams &rf_params, const int n_rf,
 }
 
 __device__ __forceinline__ void
-apply_to_particle(const KickMultiHarmonicArgs &args, const real_t &dt,
-                  real_t &dE) {
+apply_to_particle(const KickMultiHarmonicArgs &args, NoFactors /*factors*/,
+                  const real_t &dt, real_t &dE) {
   kick_multi_harmonic_particle(args, args.n_rf, args.charge,
                                args.acceleration_kick, dt, dE);
 }
 
+struct DriftSimpleFactors {
+  real_t coeff; // T eta_0 / (beta^2 E)
+};
+
+__device__ __forceinline__ DriftSimpleFactors
+prepare(const DriftSimpleArgs &args) {
+  return {args.T * args.eta_0 / (args.beta * args.beta * args.energy)};
+}
+
 __device__ __forceinline__ void
-apply_to_particle(const DriftSimpleArgs &args, real_t &dt, const real_t &dE) {
-  const real_t coeff =
-      args.T * args.eta_0 / (args.beta * args.beta * args.energy);
-  dt += coeff * dE;
+apply_to_particle(const DriftSimpleArgs & /*args*/,
+                  const DriftSimpleFactors &factors, real_t &dt,
+                  const real_t &dE) {
+  dt += factors.coeff * dE;
+}
+
+// 1 / beta^2 and 1 / E of the relativistic delta, shared by the drifts
+// below that compute it.
+struct RelativisticDeltaFactors {
+  real_t inv_beta_sq;
+  real_t inv_energy;
+};
+
+__device__ __forceinline__ RelativisticDeltaFactors
+relativistic_delta_factors(const real_t beta, const real_t energy) {
+  return {1.0 / (beta * beta), 1.0 / energy};
+}
+
+__device__ __forceinline__ RelativisticDeltaFactors
+prepare(const DriftLikeLineSegmentArgs &args) {
+  return relativistic_delta_factors(args.beta, args.energy);
 }
 
 // Drift with the linear slip factor but the exact relativistic delta;
 // reproduces the longitudinal drift of an xsuite LineSegmentMap.
 __device__ __forceinline__ void
-apply_to_particle(const DriftLikeLineSegmentArgs &args, real_t &dt,
+apply_to_particle(const DriftLikeLineSegmentArgs &args,
+                  const RelativisticDeltaFactors &factors, real_t &dt,
                   const real_t &dE) {
-  const real_t inv_beta_sq = 1.0 / (args.beta * args.beta);
-  const real_t inv_energy = 1.0 / args.energy;
+  const real_t inv_beta_sq = factors.inv_beta_sq;
+  const real_t inv_energy = factors.inv_energy;
   const real_t delta =
       sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
                                 2.0 * dE * inv_energy)) -
@@ -108,10 +155,10 @@ apply_to_particle(const DriftLikeLineSegmentArgs &args, real_t &dt,
 __device__ __forceinline__ void
 drift_exact_particle(const real_t T, const real_t alpha_zero,
                      const real_t *higher_alpha, const int n_alpha,
-                     const real_t beta, const real_t energy, real_t &dt,
+                     const RelativisticDeltaFactors &factors, real_t &dt,
                      const real_t dE) {
-  const real_t inv_beta_sq = 1.0 / (beta * beta);
-  const real_t inv_energy = 1.0 / energy;
+  const real_t inv_beta_sq = factors.inv_beta_sq;
+  const real_t inv_energy = factors.inv_energy;
   const real_t inv_energy_sq = inv_energy * inv_energy;
 
   const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
@@ -130,16 +177,23 @@ drift_exact_particle(const real_t T, const real_t alpha_zero,
   dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + delta) - 1.0);
 }
 
+__device__ __forceinline__ RelativisticDeltaFactors
+prepare(const DriftExactArgs &args) {
+  return relativistic_delta_factors(args.beta, args.energy);
+}
+
 __device__ __forceinline__ void
-apply_to_particle(const DriftExactArgs &args, real_t &dt, const real_t &dE) {
+apply_to_particle(const DriftExactArgs &args,
+                  const RelativisticDeltaFactors &factors, real_t &dt,
+                  const real_t &dE) {
   drift_exact_particle(args.T, args.alpha_0, &args.higher_alpha[0],
-                       args.n_alpha, args.beta, args.energy, dt, dE);
+                       args.n_alpha, factors, dt, dE);
 }
 
 // Reads the table of `build_voltage_kick_table`.
 __device__ __forceinline__ void
-apply_to_particle(const KickInterpolatedArgs &args, const real_t &dt,
-                  real_t &dE) {
+apply_to_particle(const KickInterpolatedArgs &args, NoFactors /*factors*/,
+                  const real_t &dt, real_t &dE) {
   const real_t *table = args.voltage_kick_table;
   const int n_bins = static_cast<int>((args.voltage_kick_table_length - 2) / 2);
   // Range-check before the conversion to `int` (see `hybrid_histogram`).
@@ -165,7 +219,7 @@ extern "C" __global__ void drift_simple(real_t *__restrict__ beam_dt,
   const DriftSimpleArgs args = {T, eta_zero, beta, energy};
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    apply_to_particle(args, beam_dt[i], beam_dE[i]);
+    apply_to_particle(args, prepare(args), beam_dt[i], beam_dE[i]);
   }
 }
 
@@ -177,7 +231,7 @@ drift_like_line_segment(real_t *__restrict__ beam_dt,
   const DriftLikeLineSegmentArgs args = {T, eta_zero, beta, energy};
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    apply_to_particle(args, beam_dt[i], beam_dE[i]);
+    apply_to_particle(args, prepare(args), beam_dt[i], beam_dE[i]);
   }
 }
 
@@ -191,7 +245,7 @@ kick_single_harmonic(const real_t *__restrict__ beam_dt,
                                        acc_kick};
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    apply_to_particle(args, beam_dt[i], beam_dE[i]);
+    apply_to_particle(args, prepare(args), beam_dt[i], beam_dE[i]);
   }
 }
 
@@ -627,8 +681,9 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
   const int n_used = (higher_alpha == nullptr) ? 0 : n_alpha;
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    drift_exact_particle(T, alpha_zero, higher_alpha, n_used, beta, energy,
-                         beam_dt[i], beam_dE[i]);
+    drift_exact_particle(T, alpha_zero, higher_alpha, n_used,
+                         relativistic_delta_factors(beta, energy), beam_dt[i],
+                         beam_dE[i]);
   }
 }
 
@@ -663,21 +718,67 @@ extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
 
 // Particles each thread carries through the whole batch at once. Every
-// record is applied to all of them in one `visit_kernel_call`, so the
-// per-record factors (the FP64 divisions of the drifts, which the eager
-// kernels hoist out of their particle loop) are computed once per tile,
-// not once per particle.
+// record is applied to all of them in one `visit_kernel_call`.
 constexpr int PARTICLES_PER_THREAD = 8;
 
 namespace {
+// Size of the smallest record, which bounds the records per launch.
+constexpr std::size_t smallest_record_size() {
+  std::size_t smallest = KERNEL_CALL_ARGS_SIZES[0];
+  for (const std::uint32_t size : KERNEL_CALL_ARGS_SIZES) {
+    smallest = size < smallest ? size : smallest;
+  }
+  return sizeof(KernelCallHeader) + smallest;
+}
+constexpr int MAX_RECORDS_PER_LAUNCH =
+    static_cast<int>(KERNEL_CALL_BATCH_CAPACITY_BYTES / smallest_record_size());
+
+// Storage of any record's `prepare` result, one per record of a launch.
+// Written and read with memcpy as the type `prepare` returns.
+union RecordFactors {
+  DriftSimpleFactors drift_simple;
+  RelativisticDeltaFactors relativistic_delta;
+};
+
+template <class Factors>
+__device__ __forceinline__ void store_factors(const Factors &factors,
+                                              RecordFactors &slot) {
+  static_assert(sizeof(Factors) <= sizeof(RecordFactors),
+                "add the Factors type to RecordFactors");
+  if (!std::is_empty<Factors>::value) {
+    memcpy(&slot, &factors, sizeof(Factors));
+  }
+}
+
+template <class Factors>
+__device__ __forceinline__ Factors load_factors(const RecordFactors &slot) {
+  Factors factors{};
+  if (!std::is_empty<Factors>::value) {
+    memcpy(&factors, &slot, sizeof(Factors));
+  }
+  return factors;
+}
+
+// Visitor: the record's loop-invariant factors into its slot.
+struct PrepareRecord {
+  RecordFactors *slot;
+  template <class Args> __device__ void operator()(const Args &args) const {
+    store_factors(prepare(args), *slot);
+  }
+};
+
+// Visitor: the record, with the factors in its slot, on a tile.
 // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
 struct ApplyToParticleTile {
   real_t (*dt)[PARTICLES_PER_THREAD];
   real_t (*dE)[PARTICLES_PER_THREAD];
+  const RecordFactors *slot;
   template <class Args> __device__ void operator()(const Args &args) const {
+    using Factors = decltype(prepare(args));
+    const Factors factors = load_factors<Factors>(*slot);
 #pragma unroll
     for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
-      apply_to_particle(args, (*dt)[k], (*dE)[k]);
+      apply_to_particle(args, factors, (*dt)[k], (*dE)[k]);
     }
   }
 };
@@ -688,8 +789,11 @@ struct ApplyToParticleTile {
 // between records. The batch is staged once per block in shared memory:
 // records are addressed through a runtime pointer, and addressing the
 // parameter space that way makes nvcc copy the whole batch to local
-// memory in every thread (a 4 KiB stack frame). All threads of a warp
-// read the same record (a shared-memory broadcast), so the switch in
+// memory in every thread (a 4 KiB stack frame). Then the threads of the
+// block prepare the records' factors (`prepare`) into a shared table,
+// one record each, so the tile loop reads them instead of repeating the
+// drifts' FP64 divisions once per tile. All threads of a warp read the
+// same record and slot (a shared-memory broadcast), so the switch in
 // visit_kernel_call does not diverge. A thread's tile is strided by the
 // grid size, which keeps the loads and stores coalesced. Only the
 // coordinates in `store_flags` are stored: a kick-only batch leaves dt
@@ -700,6 +804,8 @@ extern "C" __global__ void __launch_bounds__(256) execute_kernel_call_batch(
     const unsigned int store_flags, real_t *__restrict__ beam_dt,
     real_t *__restrict__ beam_dE, const index_t n_macroparticles) {
   __shared__ KernelCallBatch staged;
+  // NOLINTNEXTLINE(*-avoid-c-arrays)
+  __shared__ RecordFactors factors[MAX_RECORDS_PER_LAUNCH];
   const auto n_slots = static_cast<int>(n_bytes / sizeof(staged.slots[0]));
   for (int j = static_cast<int>(threadIdx.x); j < n_slots;
        j = static_cast<int>(j + blockDim.x)) {
@@ -712,10 +818,21 @@ extern "C" __global__ void __launch_bounds__(256) execute_kernel_call_batch(
   const auto *last =
       reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
+  // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
+  {
+    int index = 0;
+    for (const KernelCallHeader *record = first; record != last;
+         record = next_record(record), ++index) {
+      if (index % static_cast<int>(blockDim.x) ==
+          static_cast<int>(threadIdx.x)) {
+        visit_kernel_call(record, PrepareRecord{&factors[index]});
+      }
+    }
+  }
+  __syncthreads();
   const index_t stride = particle_loop_stride();
   const bool store_dt = (store_flags & STORE_DT) != 0U;
   const bool store_dE = (store_flags & STORE_DE) != 0U;
-  // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
   for (index_t tile_start = particle_loop_start();
        tile_start < n_macroparticles;
        tile_start += stride * PARTICLES_PER_THREAD) {
@@ -728,10 +845,10 @@ extern "C" __global__ void __launch_bounds__(256) execute_kernel_call_batch(
       dt[k] = i < n_macroparticles ? beam_dt[i] : real_t(0);
       dE[k] = i < n_macroparticles ? beam_dE[i] : real_t(0);
     }
-    const ApplyToParticleTile apply = {&dt, &dE};
+    int index = 0;
     for (const KernelCallHeader *record = first; record != last;
-         record = next_record(record)) {
-      visit_kernel_call(record, apply);
+         record = next_record(record), ++index) {
+      visit_kernel_call(record, ApplyToParticleTile{&dt, &dE, &factors[index]});
     }
 #pragma unroll
     for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
