@@ -34,7 +34,6 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ordering import requires
-from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -54,6 +53,8 @@ from blond.physics.profiles_sparse import EquidistantMultiProfile
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.core.simulation.simulation import Simulation
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):

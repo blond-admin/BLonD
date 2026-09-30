@@ -14,17 +14,19 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.ordering import requires
-from blond.core.simulation.simulation import Simulation
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
 from blond.physics.impedances.base import WakeField
+
+if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.simulation.simulation import Simulation
 
 
 class BeamObservationInRingElement(

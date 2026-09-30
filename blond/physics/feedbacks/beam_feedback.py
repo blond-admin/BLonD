@@ -33,7 +33,6 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.ordering import requires
-from blond.core.simulation.simulation import Simulation
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
@@ -42,6 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
     from blond.physics.rf_station import RFStationBaseClass
 
