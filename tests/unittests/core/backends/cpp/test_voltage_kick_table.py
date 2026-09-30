@@ -61,3 +61,33 @@ class TestVoltageKickTable(BLonDTestCase):
             + 5.0
         )
         np.testing.assert_allclose(dE_cpp, expected, rtol=1e-9, atol=1e-6)
+
+    def test_eager_kick_interpolated_spans_threads(self) -> None:
+        # The eager kernel builds the table and applies it in one OpenMP
+        # region, so every thread must see the whole table before reading
+        # it. A beam of many granules and a table of many bins give each
+        # thread both table rows and particles to work on; n_slices=2 is
+        # the smallest table (one pair, built by a single thread).
+        rng = np.random.default_rng(1)
+        n_macroparticles = 200_003
+        for n_slices in (2, 3, 1000):
+            with self.subTest(n_slices=n_slices):
+                bin_centers = np.linspace(-1e-9, 1e-9, n_slices)
+                voltage = rng.uniform(-1e6, 1e6, n_slices)
+                dt = rng.uniform(-1.5e-9, 1.5e-9, n_macroparticles)
+                dE = rng.normal(0, 1e6, n_macroparticles)
+                charge, acceleration_kick = 2.0, 0.25
+                expected = dE + acceleration_kick
+                in_range = (dt >= bin_centers[0]) & (dt < bin_centers[-1])
+                expected[in_range] += charge * np.interp(
+                    dt[in_range], bin_centers, voltage
+                )
+                backend.specials.kick_interpolated(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
+                np.testing.assert_allclose(dE, expected, rtol=0, atol=1e-6)

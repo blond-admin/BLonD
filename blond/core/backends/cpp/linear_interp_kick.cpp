@@ -18,24 +18,49 @@
 #include "particle_kernels.h"
 #include "scratch_buffer.h"
 
-extern "C" void linear_interp_kick_table(const real_t *voltage,
-                                         const real_t *bin_centers,
-                                         const real_t charge,
-                                         const int n_slices,
-                                         const real_t acc_kick, real_t *table) {
+namespace {
+
+// Writes the header of the kick table (see particle_kernels.h) and
+// returns the inverse bin width the pairs need.
+real_t write_kick_table_header(const real_t *bin_centers, const int n_slices,
+                               real_t *table) {
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
   table[0] = bin_centers[0];
   table[1] = inv_bin_width;
-  // (slope, offset) of the linear voltage in bin `i`.
+  return inv_bin_width;
+}
+
+// (slope, offset) of the linear voltage in each bin. An orphaned
+// `omp for`: inside a parallel region the bins are shared out over the
+// threads and the implicit barrier publishes the whole table; outside
+// one it runs serially.
+void write_kick_table_pairs(const real_t *voltage, const real_t *bin_centers,
+                            const real_t charge, const int n_slices,
+                            const real_t acc_kick, const real_t inv_bin_width,
+                            real_t *table) {
   real_t *const pairs = table + 2;
-#pragma omp parallel for
+#pragma omp for
   for (int i = 0; i < n_slices - 1; i++) {
     const real_t slope = charge * (voltage[i + 1] - voltage[i]) * inv_bin_width;
     const index_t pair = 2 * static_cast<index_t>(i);
     pairs[pair] = slope;
     pairs[pair + 1] = (charge * voltage[i] - bin_centers[i] * slope) + acc_kick;
   }
+}
+
+} // namespace
+
+extern "C" void linear_interp_kick_table(const real_t *voltage,
+                                         const real_t *bin_centers,
+                                         const real_t charge,
+                                         const int n_slices,
+                                         const real_t acc_kick, real_t *table) {
+  const real_t inv_bin_width =
+      write_kick_table_header(bin_centers, n_slices, table);
+#pragma omp parallel
+  write_kick_table_pairs(voltage, bin_centers, charge, n_slices, acc_kick,
+                         inv_bin_width, table);
 }
 
 void apply_to_chunk(const KickInterpolatedArgs &args,
@@ -53,7 +78,10 @@ void apply_to_chunk(const KickInterpolatedArgs &args,
   // Keep the bin index in double until it is range-checked: converting
   // an out-of-range double to an integer type is undefined behaviour
   // (a huge positive index can wrap back into the valid bin range).
-  std::array<double, STEP> fbin{};
+  // Left uninitialised: every element is written before it is read, and
+  // value-initialising it costs a memset per call.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+  std::array<double, STEP> fbin;
 
   for (index_t i = begin; i < end; i += STEP) {
 
@@ -87,13 +115,23 @@ extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
   static thread_local std::vector<real_t> table_buffer;
   real_t *const table =
       reuse_scratch(table_buffer, 2 * static_cast<std::size_t>(n_slices));
-  linear_interp_kick_table(voltage_array, bin_centers, charge, n_slices,
-                           acc_kick, table);
   KickInterpolatedArgs args{};
   args.voltage_kick_table = table;
   args.voltage_kick_table_length = 2 * static_cast<index_t>(n_slices);
   args.acceleration_kick = acc_kick;
-  run_on_all_particles(args, beam_dt, beam_dE, n_macroparticles);
+  const real_t inv_bin_width =
+      write_kick_table_header(bin_centers, n_slices, table);
+  // One parallel region for table and kick: the table's `omp for`
+  // ends in a barrier, after which every thread reads the whole table.
+#pragma omp parallel
+  {
+    write_kick_table_pairs(voltage_array, bin_centers, charge, n_slices,
+                           acc_kick, inv_bin_width, table);
+    index_t begin = 0;
+    index_t end = 0;
+    this_thread_range(n_macroparticles, begin, end);
+    apply_to_chunk(args, beam_dt, beam_dE, begin, end);
+  }
 }
 
 // Sparse variant of linear_interp_kick: bin_centers/voltage are a
