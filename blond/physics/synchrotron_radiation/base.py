@@ -101,8 +101,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         """
         Apply synchrotron radiation and quantum excitation energy kicks.
 
-        Mutates ``beam.kernel_call_dE`` in place via
+        Mutates ``beam``'s energy coordinate in place via
+        ``beam.write_partial_dE()`` and
         ``backend.specials.apply_synchrotron_radiation_and_quantum_excitation_energy_kick``.
+        Synchrotron radiation is not deferrable, so this uses the
+        flushing accessor rather than ``beam.kernel_call_dE``.
 
         Parameters
         ----------
