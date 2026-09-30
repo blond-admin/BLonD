@@ -718,8 +718,17 @@ extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
 
 // Particles each thread carries through the whole batch at once. Every
-// record is applied to all of them in one `visit_kernel_call`.
+// record is applied to all of them in one `visit_kernel_call`. A power
+// of two: the beam's tail is covered by its halvings.
 constexpr int PARTICLES_PER_THREAD = 8;
+static_assert(PARTICLES_PER_THREAD > 0 &&
+                  (PARTICLES_PER_THREAD & (PARTICLES_PER_THREAD - 1)) == 0,
+              "PARTICLES_PER_THREAD must be a power of two");
+// Blocks of the executor launched per SM (`default_blocks` in
+// callables.py). `__launch_bounds__` keeps its registers low enough for
+// them to be resident at once, so the whole grid runs in one wave.
+constexpr int EXECUTOR_BLOCK_SIZE = 256;
+constexpr int EXECUTOR_BLOCKS_PER_SM = 2;
 
 namespace {
 // Size of the smallest record, which bounds the records per launch.
@@ -769,19 +778,91 @@ struct PrepareRecord {
 
 // Visitor: the record, with the factors in its slot, on a tile.
 // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
-struct ApplyToParticleTile {
-  real_t (*dt)[PARTICLES_PER_THREAD];
-  real_t (*dE)[PARTICLES_PER_THREAD];
+template <int TILE> struct ApplyToParticleTile {
+  real_t (*dt)[TILE];
+  real_t (*dE)[TILE];
   const RecordFactors *slot;
   template <class Args> __device__ void operator()(const Args &args) const {
     using Factors = decltype(prepare(args));
     const Factors factors = load_factors<Factors>(*slot);
 #pragma unroll
-    for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
+    for (int k = 0; k < TILE; ++k) {
       apply_to_particle(args, factors, (*dt)[k], (*dE)[k]);
     }
   }
 };
+
+// Every record of the batch on the tile of TILE particles starting at
+// `tile_start`, `stride` apart. Past the end of the beam the tile
+// computes on zeros, never stored.
+template <int TILE>
+__device__ __forceinline__ void
+apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
+                    const RecordFactors *factors,
+                    const unsigned int store_flags,
+                    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
+                    const index_t tile_start, const index_t stride,
+                    const index_t n_macroparticles) {
+  real_t dt[TILE];
+  real_t dE[TILE];
+#pragma unroll
+  for (int k = 0; k < TILE; ++k) {
+    const index_t i = tile_start + k * stride;
+    dt[k] = i < n_macroparticles ? beam_dt[i] : real_t(0);
+    dE[k] = i < n_macroparticles ? beam_dE[i] : real_t(0);
+  }
+  int index = 0;
+  for (const KernelCallHeader *record = first; record != last;
+       record = next_record(record), ++index) {
+    visit_kernel_call(record,
+                      ApplyToParticleTile<TILE>{&dt, &dE, &factors[index]});
+  }
+  const bool store_dt = (store_flags & STORE_DT) != 0U;
+  const bool store_dE = (store_flags & STORE_DE) != 0U;
+#pragma unroll
+  for (int k = 0; k < TILE; ++k) {
+    const index_t i = tile_start + k * stride;
+    if (i < n_macroparticles) {
+      if (store_dt) {
+        beam_dt[i] = dt[k];
+      }
+      if (store_dE) {
+        beam_dE[i] = dE[k];
+      }
+    }
+  }
+}
+
+// The tail of the beam from `sweep_start` on, which needs `tail_length`
+// (< 2 * TILE) particles per thread: a tile of TILE particles if bit TILE
+// of `tail_length` is set, then the rest with the halvings of TILE.
+template <int TILE>
+__device__ __forceinline__ void
+apply_batch_to_tail(const KernelCallHeader *first, const KernelCallHeader *last,
+                    const RecordFactors *factors,
+                    const unsigned int store_flags,
+                    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
+                    index_t sweep_start, const index_t tail_length,
+                    const index_t stride, const index_t n_macroparticles) {
+  if ((tail_length & TILE) != 0) {
+    apply_batch_to_tile<TILE>(first, last, factors, store_flags, beam_dt,
+                              beam_dE, sweep_start + particle_loop_start(),
+                              stride, n_macroparticles);
+    sweep_start += TILE * stride;
+  }
+  apply_batch_to_tail<TILE / 2>(first, last, factors, store_flags, beam_dt,
+                                beam_dE, sweep_start, tail_length, stride,
+                                n_macroparticles);
+}
+
+// No particles left after the tile of one.
+template <>
+__device__ __forceinline__ void apply_batch_to_tail<0>(
+    const KernelCallHeader * /*first*/, const KernelCallHeader * /*last*/,
+    const RecordFactors * /*factors*/, const unsigned int /*store_flags*/,
+    real_t *__restrict__ /*beam_dt*/, real_t *__restrict__ /*beam_dE*/,
+    index_t /*sweep_start*/, const index_t /*tail_length*/,
+    const index_t /*stride*/, const index_t /*n_macroparticles*/) {}
 // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 } // namespace
 
@@ -799,10 +880,22 @@ struct ApplyToParticleTile {
 // coordinates in `store_flags` are stored: a kick-only batch leaves dt
 // untouched, a drift-only batch dE, so storing them would be pure
 // memory traffic. The flags are uniform per launch, so no divergence.
-extern "C" __global__ void __launch_bounds__(256) execute_kernel_call_batch(
-    const KernelCallBatch batch, const unsigned int n_bytes,
-    const unsigned int store_flags, real_t *__restrict__ beam_dt,
-    real_t *__restrict__ beam_dE, const index_t n_macroparticles) {
+// The grid sweeps the beam with full tiles while every thread needs all
+// PARTICLES_PER_THREAD of them. The tail after that needs fewer
+// particles per thread, the same number for the whole grid: it is
+// covered by the halvings of the tile that add up to that number, so
+// each thread computes ceil(n_macroparticles / n_threads) particles
+// instead of that rounded up to a multiple of PARTICLES_PER_THREAD.
+// Which halvings run depends on n_macroparticles and the grid only, so
+// no divergence either.
+extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
+                                             EXECUTOR_BLOCKS_PER_SM)
+    execute_kernel_call_batch(const KernelCallBatch batch,
+                              const unsigned int n_bytes,
+                              const unsigned int store_flags,
+                              real_t *__restrict__ beam_dt,
+                              real_t *__restrict__ beam_dE,
+                              const index_t n_macroparticles) {
   __shared__ KernelCallBatch staged;
   // NOLINTNEXTLINE(*-avoid-c-arrays)
   __shared__ RecordFactors factors[MAX_RECORDS_PER_LAUNCH];
@@ -831,38 +924,21 @@ extern "C" __global__ void __launch_bounds__(256) execute_kernel_call_batch(
   }
   __syncthreads();
   const index_t stride = particle_loop_stride();
-  const bool store_dt = (store_flags & STORE_DT) != 0U;
-  const bool store_dE = (store_flags & STORE_DE) != 0U;
-  for (index_t tile_start = particle_loop_start();
-       tile_start < n_macroparticles;
-       tile_start += stride * PARTICLES_PER_THREAD) {
-    // Past the end of the beam the tile computes on zeros, never stored.
-    real_t dt[PARTICLES_PER_THREAD];
-    real_t dE[PARTICLES_PER_THREAD];
-#pragma unroll
-    for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
-      const index_t i = tile_start + k * stride;
-      dt[k] = i < n_macroparticles ? beam_dt[i] : real_t(0);
-      dE[k] = i < n_macroparticles ? beam_dE[i] : real_t(0);
-    }
-    int index = 0;
-    for (const KernelCallHeader *record = first; record != last;
-         record = next_record(record), ++index) {
-      visit_kernel_call(record, ApplyToParticleTile{&dt, &dE, &factors[index]});
-    }
-#pragma unroll
-    for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
-      const index_t i = tile_start + k * stride;
-      if (i < n_macroparticles) {
-        if (store_dt) {
-          beam_dt[i] = dt[k];
-        }
-        if (store_dE) {
-          beam_dE[i] = dE[k];
-        }
-      }
-    }
+  const index_t sweep_length = stride * PARTICLES_PER_THREAD;
+  index_t sweep_start = 0;
+  // While some thread needs all PARTICLES_PER_THREAD particles of a tile.
+  for (; sweep_start + sweep_length - stride < n_macroparticles;
+       sweep_start += sweep_length) {
+    apply_batch_to_tile<PARTICLES_PER_THREAD>(
+        first, last, factors, store_flags, beam_dt, beam_dE,
+        sweep_start + particle_loop_start(), stride, n_macroparticles);
   }
+  // Particles per thread still to do, < PARTICLES_PER_THREAD.
+  const index_t tail_length =
+      (n_macroparticles - sweep_start + stride - 1) / stride;
+  apply_batch_to_tail<PARTICLES_PER_THREAD / 2>(
+      first, last, factors, store_flags, beam_dt, beam_dE, sweep_start,
+      tail_length, stride, n_macroparticles);
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
 

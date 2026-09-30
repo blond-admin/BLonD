@@ -10,7 +10,8 @@
 Tests the machine code of the deferred CUDA executor.
 
 ``execute_kernel_call_batch`` applies every record of a batch to a tile
-of ``PARTICLES_PER_THREAD`` particles at a time. A record's loop-invariant
+of ``PARTICLES_PER_THREAD`` particles at a time (the beam's tail to tiles
+of its halvings). A record's loop-invariant
 factors (the FP64 reciprocals of the drifts) must be computed once per
 record and block, before the tile loop, not once per tile: on GPUs with a
 low FP64 rate a division per record per tile dominates the cheap drift
@@ -53,6 +54,8 @@ _INSTRUCTION_PATTERN = re.compile(
 _CALL_TARGET_PATTERN = re.compile(
     r"CALL\.REL\.NOINC\s+0x(?P<target>[0-9a-f]+)"
 )
+# A load of a beam coordinate (dt or dE), not of a constant.
+_COORDINATE_LOAD_PATTERN = re.compile(r"\bLDG\.E\.64(?!\.CONSTANT)\b")
 
 
 def _executor_sass() -> list[tuple[int, str]]:
@@ -85,6 +88,33 @@ def _executor_sass() -> list[tuple[int, str]]:
     ]
 
 
+def _tile_loop(instructions: list[tuple[int, str]]) -> list[str]:
+    """Return the instructions after the executor's last barrier.
+
+    Division slow paths are subroutines after the kernel body (CALL
+    targets) and are left out.
+    """
+    call_targets = [
+        int(match["target"], 16)
+        for _, text in instructions
+        if (match := _CALL_TARGET_PATTERN.search(text))
+    ]
+    body_end = min(call_targets, default=instructions[-1][0] + 1)
+    body = [text for address, text in instructions if address < body_end]
+    last_barrier = max(
+        i for i, text in enumerate(body) if text.startswith("BAR.SYNC")
+    )
+    return body[last_barrier + 1 :]
+
+
+def _tile_widths(particles_per_thread: int) -> list[int]:
+    """Widths of the executor's tiles: the full one, then the halvings."""
+    widths = [particles_per_thread]
+    while widths[-1] > 1:
+        widths.append(widths[-1] // 2)
+    return widths
+
+
 def _particles_per_thread() -> int | None:
     """Return ``PARTICLES_PER_THREAD`` of kernels.cu, None if absent."""
     with open(_KERNELS_CU) as file:
@@ -103,8 +133,9 @@ class TestDeferredExecutorCodegen(BLonDTestCase):
         """No per-record reciprocal is left after the last barrier.
 
         Everything after the executor's last ``BAR.SYNC`` is the tile
-        loop. Its only legitimate FP64 division is drift_exact's
-        per-particle ``/ (1 + delta)``, once per particle of a tile. The
+        loops. Their only legitimate FP64 division is drift_exact's
+        per-particle ``/ (1 + delta)``, once per particle of each tile
+        width. The
         reciprocals of the drift factors (``T eta_0 / (beta^2 E)``,
         ``1 / beta^2``, ``1 / E``) belong before that barrier. Division
         slow paths are subroutines after the kernel body (CALL targets)
@@ -112,22 +143,33 @@ class TestDeferredExecutorCodegen(BLonDTestCase):
         """
         particles_per_thread = _particles_per_thread()
         self.assertIsNotNone(particles_per_thread)
-        instructions = _executor_sass()
-        call_targets = [
-            int(match["target"], 16)
-            for _, text in instructions
-            if (match := _CALL_TARGET_PATTERN.search(text))
-        ]
-        body_end = min(call_targets, default=instructions[-1][0] + 1)
-        body = [text for address, text in instructions if address < body_end]
-        last_barrier = max(
-            i for i, text in enumerate(body) if text.startswith("BAR.SYNC")
-        )
         tile_loop_reciprocals = sum(
-            "MUFU.RCP64H" in text for text in body[last_barrier + 1 :]
+            "MUFU.RCP64H" in text for text in _tile_loop(_executor_sass())
         )
         self.assertLessEqual(
             tile_loop_reciprocals,
-            particles_per_thread,
+            sum(_tile_widths(particles_per_thread)),
             "per-record FP64 divisions are computed inside the tile loop",
+        )
+
+    def test_beam_tail_is_covered_by_narrower_tiles(self):
+        """Every halving of the tile has its own tile loop.
+
+        The beam past the last whole sweep of full tiles covers fewer
+        particles per thread than a full tile. Covering it with tiles of
+        half, a quarter, ... of the width (as many as its size needs)
+        makes each thread apply the batch to the ceiling of
+        ``n_macroparticles / n_threads`` particles, where full tiles
+        would round that up to a multiple of ``PARTICLES_PER_THREAD``.
+        Each tile loads the two coordinates of each of its particles, so
+        the tile loops load ``2 * sum(widths)`` coordinates.
+        """
+        particles_per_thread = _particles_per_thread()
+        self.assertIsNotNone(particles_per_thread)
+        coordinate_loads = sum(
+            bool(_COORDINATE_LOAD_PATTERN.search(text))
+            for text in _tile_loop(_executor_sass())
+        )
+        self.assertEqual(
+            coordinate_loads, 2 * sum(_tile_widths(particles_per_thread))
         )

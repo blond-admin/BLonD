@@ -141,7 +141,9 @@ _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 _KERNEL_CALL_BATCH_DTYPE = np.dtype(
     [("slots", np.uint64, (KERNEL_CALL_BATCH_CAPACITY_BYTES // 8,))]
 )
-# `execute_kernel_call_batch` is compiled with `__launch_bounds__(256)`.
+# `execute_kernel_call_batch` is compiled with `__launch_bounds__(256, 2)`
+# (`EXECUTOR_BLOCK_SIZE`, `EXECUTOR_BLOCKS_PER_SM` in kernels.cu): the two
+# blocks per SM of `default_blocks` are resident at once.
 _deferred_block_size = (min(threads, 256), 1, 1)
 # Bits of its `store_flags`, as in kernels.cu.
 STORE_DT = 1

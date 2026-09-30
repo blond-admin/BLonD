@@ -416,3 +416,34 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
 
     def test_specials_mode_is_tracked(self) -> None:
         self.assertEqual(backend.specials_mode, self.mode)
+
+    def test_every_tail_tile_width_matches_eager(self) -> None:
+        # The executor covers the beam past its last whole sweep of full
+        # tiles with the halvings of the tile, as many as that tail needs
+        # particles per thread. One beam size per tail length (1 to 8
+        # particles per thread, the last one short), plus a beam of whole
+        # sweeps and one below a particle per thread.
+        from blond.core.backends.cuda.callables import (
+            _deferred_block_size,
+            grid_size,
+        )
+
+        n_threads = grid_size[0] * _deferred_block_size[0]
+        particles_per_thread = 8
+        sweep = particles_per_thread * n_threads
+        sizes = [sweep + tail * n_threads - 5 for tail in range(1, 9)]
+        sizes += [2 * sweep, n_threads - 3, 100007]
+        for n in sizes:
+            with self.subTest(n_macroparticles=n):
+                dt, dE = _beam(n)
+                dt_eager, dE_eager = backend.copy(dt), backend.copy(dE)
+                for specials, dt_, dE_ in (
+                    (self.eager, dt_eager, dE_eager),
+                    (self.deferred, dt, dE),
+                ):
+                    for _ in range(2):
+                        specials.kick_single_harmonic(dt=dt_, dE=dE_, **KICK)
+                        specials.drift_simple(dt=dt_, dE=dE_, **DRIFT)
+                self.deferred.flush()
+                _close(dt, dt_eager, rtol=1e-11, atol=0)
+                _close(dE, dE_eager, rtol=1e-11, atol=1e-6)

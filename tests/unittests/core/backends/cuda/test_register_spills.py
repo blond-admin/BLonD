@@ -44,11 +44,32 @@ _PROPERTIES_PATTERN = re.compile(
     r"Function properties for (?P<name>\w+)\s*\n"
     r"\s*(?P<stack>\d+) bytes stack frame, "
     r"(?P<spill_stores>\d+) bytes spill stores, "
-    r"(?P<spill_loads>\d+) bytes spill loads"
+    r"(?P<spill_loads>\d+) bytes spill loads\s*\n"
+    r"[^\n]*Used (?P<registers>\d+) registers"
 )
 
+# The GPUs the deferred executor targets: V100 (sm_70), T4/T400 (sm_75),
+# A100 (sm_80), H100/H200 (sm_90). All have 64 Ki registers per SM.
+_EXECUTOR_ARCHS = ("sm_70", "sm_75", "sm_80", "sm_90")
+_REGISTERS_PER_SM = 64 * 1024
+# `_deferred_block_size` and the blocks per SM of `grid_size` in
+# cuda/callables.py (`default_blocks`).
+_EXECUTOR_BLOCK_SIZE = 256
+_EXECUTOR_BLOCKS_PER_SM = 2
 
-def _ptxas_resource_usage():
+
+def _nvcc_archs() -> set[str]:
+    """The ``sm_XX`` targets the installed nvcc can compile for."""
+    listed = subprocess.run(
+        [_NVCC, "--list-gpu-arch"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    return {arch.replace("compute_", "sm_") for arch in listed}
+
+
+def _ptxas_resource_usage(arch=_ARCH):
     """Compile kernels.cu verbosely, return usage per kernel name."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         proc = subprocess.run(
@@ -56,7 +77,7 @@ def _ptxas_resource_usage():
                 _NVCC,
                 *cuda_compile.NVCC_FLAGS,
                 "-arch",
-                _ARCH,
+                arch,
                 "-Xptxas",
                 "-v",
                 "-I" + _DEFERRED_DIR,
@@ -72,7 +93,7 @@ def _ptxas_resource_usage():
     for match in _PROPERTIES_PATTERN.finditer(proc.stderr + proc.stdout):
         usage[match["name"]] = {
             key: int(match[key])
-            for key in ("stack", "spill_stores", "spill_loads")
+            for key in ("stack", "spill_stores", "spill_loads", "registers")
         }
     return usage
 
@@ -106,3 +127,34 @@ class TestEagerKernelRegisterSpills(BLonDTestCase):
         """
         usage = self.usage["drift_exact"]
         self.assertLessEqual(usage["stack"], 32, usage)
+
+
+@pytest.mark.cupy
+@unittest.skipUnless(_HAS_NVCC, "Requires nvcc to inspect generated code")
+class TestDeferredExecutorRegisters(BLonDTestCase):
+    """The deferred executor fits its launch in registers on every target.
+
+    ``execute_kernel_call_batch`` keeps a tile of particles per thread in
+    registers (every tile width is inlined into the one kernel), and is
+    launched with two blocks per SM, which must be resident together.
+    """
+
+    def test_no_spills_and_two_blocks_per_sm(self):
+        """No local-memory spills; the registers of two blocks fit an SM."""
+        available = _nvcc_archs()
+        for arch in _EXECUTOR_ARCHS:
+            with self.subTest(arch=arch):
+                if arch not in available:
+                    self.skipTest(f"nvcc cannot compile for {arch}")
+                usage = _ptxas_resource_usage(arch)[
+                    "execute_kernel_call_batch"
+                ]
+                self.assertEqual(usage["spill_stores"], 0, usage)
+                self.assertEqual(usage["spill_loads"], 0, usage)
+                self.assertLessEqual(
+                    usage["registers"]
+                    * _EXECUTOR_BLOCK_SIZE
+                    * _EXECUTOR_BLOCKS_PER_SM,
+                    _REGISTERS_PER_SM,
+                    usage,
+                )
