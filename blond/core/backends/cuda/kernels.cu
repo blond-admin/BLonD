@@ -52,15 +52,18 @@ __device__ __forceinline__ index_t particle_loop_stride() {
 // the deferred (fused) kernel call the same overload, so each formula
 // exists once on the GPU.
 //
-// A record's loop-invariant factors (the FP64 divisions of the drifts)
-// are split off into `prepare`, which returns them as a small `*Factors`
-// struct; `apply_to_particle` takes the record and its factors. The
+// A record's loop-invariant factors (the FP64 divisions of the drifts,
+// the kick's `charge * voltage`) are split off into `prepare`, which
+// returns them as a small `*Factors` struct; `apply_to_particle` takes
+// the record and its factors. The
 // eager kernels call `prepare` in their particle loop and nvcc hoists it
 // (their SASS is the same as with the factors inside the overloads). The
 // fused tile loop of the deferred executor defeats that hoisting: there
 // every tile repeated a slow FP64 division per drift record. So the
 // executor prepares every record of a batch once per block, before its
-// tile loop. Records without such factors take `NoFactors`.
+// tile loop. Records without such factors take `NoFactors`. The
+// multi-harmonic kick has one factor per harmonic; the executor folds
+// those into the record itself instead (`fold_into_staged_record`).
 namespace {
 struct NoFactors {};
 
@@ -70,37 +73,91 @@ __device__ __forceinline__ NoFactors prepare(const Args &) {
   return {};
 }
 
+struct KickSingleHarmonicFactors {
+  real_t charge_voltage; // charge * voltage
+};
+
+__device__ __forceinline__ KickSingleHarmonicFactors
+prepare(const KickSingleHarmonicArgs &args) {
+  return {args.charge * args.voltage};
+}
+
 __device__ __forceinline__ void
-apply_to_particle(const KickSingleHarmonicArgs &args, NoFactors /*factors*/,
-                  const real_t &dt, real_t &dE) {
-  dE += args.charge * args.voltage * sin(args.omega_rf * dt + args.phi_rf) +
+apply_to_particle(const KickSingleHarmonicArgs &args,
+                  const KickSingleHarmonicFactors &factors, const real_t &dt,
+                  real_t &dE) {
+  dE += factors.charge_voltage * sin(args.omega_rf * dt + args.phi_rf) +
         args.acceleration_kick;
 }
+
+// Multiplies the per-harmonic voltage by the charge.
+struct TimesCharge {
+  real_t charge;
+  __device__ __forceinline__ real_t operator()(const real_t voltage) const {
+    return charge * voltage;
+  }
+};
+
+// For voltages that already hold `charge * voltage`.
+struct ChargeFoldedIn {
+  __device__ __forceinline__ real_t operator()(const real_t voltage) const {
+    return voltage;
+  }
+};
 
 // The multi-harmonic kick, templated on whatever holds the per-harmonic
 // `voltage`, `omega_rf` and `phi_rf` arrays: the record's trailing
 // columns (`RfHarmonics`), or the eager kernel's `RFParamsBatch` read in
-// place from the parameter space.
-template <class RFParams>
-__device__ __forceinline__ void
-kick_multi_harmonic_particle(const RFParams &rf_params, const int n_rf,
-                             const real_t charge, const real_t acc_kick,
-                             const real_t &dt, real_t &dE) {
+// place from the parameter space. `charge_times` turns a voltage into
+// `charge * voltage`, rounded exactly as the product in the formula.
+template <class RFParams, class ChargeTimes>
+__device__ __forceinline__ void kick_multi_harmonic_particle(
+    const RFParams &rf_params, const int n_rf, const ChargeTimes &charge_times,
+    const real_t acc_kick, const real_t &dt, real_t &dE) {
   // Starting from acc_kick rather than zero saves an FP64 add per
   // particle, measurable on GPUs with low FP64 throughput.
   real_t dE_sum = acc_kick;
   for (int j = 0; j < n_rf; j++) {
-    dE_sum += charge * rf_params.voltage[j] *
+    dE_sum += charge_times(rf_params.voltage[j]) *
               sin(rf_params.omega_rf[j] * dt + rf_params.phi_rf[j]);
   }
   dE += dE_sum;
 }
 
+// A record's voltage column holds `charge * voltage` once
+// `fold_into_staged_record` has run on it, which the deferred executor
+// does once per block; `prepare` returns this tag to say so. The
+// product is rounded as in `charge * voltage[j] * sin(...)`, so the
+// kick is bit-identical, minus an FP64 multiply per particle and
+// harmonic.
+struct VoltagesTimesCharge {};
+
+__device__ __forceinline__ VoltagesTimesCharge
+prepare(const KickMultiHarmonicArgs & /*args*/) {
+  return {};
+}
+
 __device__ __forceinline__ void
-apply_to_particle(const KickMultiHarmonicArgs &args, NoFactors /*factors*/,
-                  const real_t &dt, real_t &dE) {
-  kick_multi_harmonic_particle(harmonics_of(args), args.n_rf, args.charge,
+apply_to_particle(const KickMultiHarmonicArgs &args,
+                  VoltagesTimesCharge /*factors*/, const real_t &dt,
+                  real_t &dE) {
+  kick_multi_harmonic_particle(harmonics_of(args), args.n_rf, ChargeFoldedIn{},
                                args.acceleration_kick, dt, dE);
+}
+
+// Rewrites a record in the block's staged copy of the batch, before
+// `prepare`. Only the multi-harmonic kick has anything to fold.
+template <class Args>
+__device__ __forceinline__ void fold_into_staged_record(Args & /*args*/) {}
+
+__device__ __forceinline__ void
+fold_into_staged_record(KickMultiHarmonicArgs &args) {
+  // NOLINTNEXTLINE(*-reinterpret-cast,*-pointer-arithmetic)
+  auto *voltage = reinterpret_cast<real_t *>(&args + 1); // see harmonics_of
+  for (int j = 0; j < args.n_rf; ++j) {
+    // NOLINTNEXTLINE(*-pointer-arithmetic)
+    voltage[j] = args.charge * voltage[j];
+  }
 }
 
 struct DriftSimpleFactors {
@@ -282,8 +339,9 @@ kick_multi_harmonic(const real_t *__restrict__ beam_dt,
   // under -maxrregcount 32.
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    kick_multi_harmonic_particle(rf_params_batch, n_rf_in_batch, charge,
-                                 acc_kick, beam_dt[i], beam_dE[i]);
+    kick_multi_harmonic_particle(rf_params_batch, n_rf_in_batch,
+                                 TimesCharge{charge}, acc_kick, beam_dt[i],
+                                 beam_dE[i]);
   }
 }
 
@@ -741,6 +799,7 @@ constexpr int MAX_RECORDS_PER_LAUNCH =
 // Storage of any record's `prepare` result, one per record of a launch.
 // Written and read with memcpy as the type `prepare` returns.
 union RecordFactors {
+  KickSingleHarmonicFactors kick_single_harmonic;
   DriftSimpleFactors drift_simple;
   RelativisticDeltaFactors relativistic_delta;
 };
@@ -764,10 +823,16 @@ __device__ __forceinline__ Factors load_factors(const RecordFactors &slot) {
   return factors;
 }
 
-// Visitor: the record's loop-invariant factors into its slot.
+// Visitor: folds what it can into the record, which must be in the
+// block's staged (shared, writable) copy of the batch, then stores the
+// record's loop-invariant factors into its slot.
 struct PrepareRecord {
   RecordFactors *slot;
   template <class Args> __device__ void operator()(const Args &args) const {
+    // visit_kernel_call hands out const records; the staged copy they
+    // are in is not const.
+    // NOLINTNEXTLINE(*-const-cast)
+    fold_into_staged_record(const_cast<Args &>(args));
     store_factors(prepare(args), *slot);
   }
 };
@@ -867,9 +932,11 @@ __device__ __forceinline__ void apply_batch_to_tail<0>(
 // records are addressed through a runtime pointer, and addressing the
 // parameter space that way makes nvcc copy the whole batch to local
 // memory in every thread (a 4 KiB stack frame). Then the threads of the
-// block prepare the records' factors (`prepare`) into a shared table,
-// one record each, so the tile loop reads them instead of repeating the
-// drifts' FP64 divisions once per tile. All threads of a warp read the
+// block prepare the records (`PrepareRecord`), one record each: the
+// multi-harmonic kick's charge is folded into its staged voltages, the
+// other factors go into a shared table, so the tile loop reads them
+// instead of repeating the drifts' FP64 divisions once per tile, or the
+// kicks' `charge * voltage` once per particle. All threads of a warp read the
 // same record and slot (a shared-memory broadcast), so the switch in
 // visit_kernel_call does not diverge. A thread's tile is strided by the
 // grid size, which keeps the loads and stores coalesced. Only the

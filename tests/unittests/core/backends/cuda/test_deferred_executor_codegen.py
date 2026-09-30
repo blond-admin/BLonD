@@ -17,6 +17,11 @@ record and block, before the tile loop, not once per tile: on GPUs with a
 low FP64 rate a division per record per tile dominates the cheap drift
 records. Results are identical either way, only the executor gets slower,
 so nothing else catches it. This test therefore reads the SASS.
+
+The same goes for the FP64 arithmetic of each record: on those GPUs the
+fused batch is bound by it, so whatever a record can do once per block
+instead of once per particle is checked here too, on probe kernels that
+apply a single record type to a tile the way the executor does.
 """
 
 import os
@@ -58,8 +63,68 @@ _CALL_TARGET_PATTERN = re.compile(
 _COORDINATE_LOAD_PATTERN = re.compile(r"\bLDG\.E\.64(?!\.CONSTANT)\b")
 
 
-def _executor_sass() -> list[tuple[int, str]]:
-    """Return ``(address, instruction)`` of the executor, in order."""
+# Width of the probe tiles, a width the executor uses.
+_PROBE_TILE = 8
+
+# One kernel per record type: the record staged in shared memory and
+# prepared by one thread behind a barrier, then applied to a tile, as in
+# `execute_kernel_call_batch` but without the switch over the record
+# types, so the SASS after the last barrier is that record's alone.
+_PROBE_SOURCE = f"""
+#include "kernels.cu"
+
+template <class Args>
+__device__ __forceinline__ void probe(const KernelCallBatch &batch,
+                                      real_t *beam_dt, real_t *beam_dE) {{
+  __shared__ KernelCallBatch staged;
+  __shared__ RecordFactors factors[1];
+  for (int j = threadIdx.x; j < KERNEL_CALL_BATCH_CAPACITY_BYTES / 8;
+       j += blockDim.x) {{
+    staged.slots[j] = batch.slots[j];
+  }}
+  __syncthreads();
+  const auto *record = reinterpret_cast<const KernelCallHeader *>(
+      staged.slots);
+  if (threadIdx.x == 0) {{
+    PrepareRecord{{&factors[0]}}(record_args<Args>(record));
+  }}
+  __syncthreads();
+  real_t dt[{_PROBE_TILE}];
+  real_t dE[{_PROBE_TILE}];
+  const index_t start = particle_loop_start();
+  const index_t stride = particle_loop_stride();
+#pragma unroll
+  for (int k = 0; k < {_PROBE_TILE}; ++k) {{
+    dt[k] = beam_dt[start + k * stride];
+    dE[k] = beam_dE[start + k * stride];
+  }}
+  ApplyToParticleTile<{_PROBE_TILE}>{{&dt, &dE, &factors[0]}}(
+      record_args<Args>(record));
+#pragma unroll
+  for (int k = 0; k < {_PROBE_TILE}; ++k) {{
+    beam_dt[start + k * stride] = dt[k];
+    beam_dE[start + k * stride] = dE[k];
+  }}
+}}
+
+#define PROBE(ARGS)                                                    \\
+  extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,    \\
+                                               EXECUTOR_BLOCKS_PER_SM) \\
+      probe_##ARGS(const KernelCallBatch batch, real_t *beam_dt,       \\
+                   real_t *beam_dE) {{                                  \\
+    probe<ARGS>(batch, beam_dt, beam_dE);                              \\
+  }}
+PROBE(KickSingleHarmonicArgs)
+PROBE(KickMultiHarmonicArgs)
+"""
+
+
+def _sass(source: str, function: str) -> list[tuple[int, str]]:
+    """Return ``(address, instruction)`` of `function`, in order.
+
+    `source` is compiled with the flags of the library build, with the
+    CUDA backend's directory on the include path.
+    """
     with tempfile.TemporaryDirectory() as tmp_dir:
         cubin = os.path.join(tmp_dir, "kernels.cubin")
         subprocess.run(
@@ -69,15 +134,16 @@ def _executor_sass() -> list[tuple[int, str]]:
                 "-arch",
                 _ARCH,
                 "-I" + _DEFERRED_DIR,
+                "-I" + _CUDA_DIR,
                 "-o",
                 cubin,
-                _KERNELS_CU,
+                source,
             ],
             check=True,
             capture_output=True,
         )
         sass = subprocess.run(
-            [_CUOBJDUMP, "-sass", "-fun", "execute_kernel_call_batch", cubin],
+            [_CUOBJDUMP, "-sass", "-fun", function, cubin],
             check=True,
             capture_output=True,
             text=True,
@@ -86,6 +152,35 @@ def _executor_sass() -> list[tuple[int, str]]:
         (int(match["address"], 16), match["text"].strip())
         for match in _INSTRUCTION_PATTERN.finditer(sass)
     ]
+
+
+def _executor_sass() -> list[tuple[int, str]]:
+    """Return ``(address, instruction)`` of the executor, in order."""
+    return _sass(_KERNELS_CU, "execute_kernel_call_batch")
+
+
+def _probe_tile_loop(args_type: str) -> list[str]:
+    """Return the tile loop of the probe kernel of record `args_type`."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        source = os.path.join(tmp_dir, "probe.cu")
+        with open(source, "w") as file:
+            file.write(_PROBE_SOURCE)
+        return _tile_loop(_sass(source, f"probe_{args_type}"))
+
+
+def _count(instructions: list[str], opcode: str) -> int:
+    """Return how many of `instructions` have the opcode `opcode`.
+
+    Predicated instructions (``@P0 DMUL ...``) count too; modifiers
+    after a dot (``MUFU.RSQ64H``) are part of the opcode only if
+    `opcode` names them.
+    """
+    count = 0
+    for text in instructions:
+        mnemonic = re.sub(r"^@!?U?P\w+\s+", "", text).split()[0]
+        if mnemonic == opcode or mnemonic.startswith(opcode + "."):
+            count += 1
+    return count
 
 
 def _tile_loop(instructions: list[tuple[int, str]]) -> list[str]:
@@ -172,4 +267,37 @@ class TestDeferredExecutorCodegen(BLonDTestCase):
         )
         self.assertEqual(
             coordinate_loads, 2 * sum(_tile_widths(particles_per_thread))
+        )
+
+
+@pytest.mark.cupy
+@unittest.skipUnless(_HAS_TOOLS, "Requires nvcc and cuobjdump")
+class TestDeferredRecordArithmetic(BLonDTestCase):
+    """Per-particle FP64 arithmetic of each record in the fused tile loop.
+
+    Counted on probe kernels (see `_PROBE_SOURCE`). Every inlined double
+    ``sin`` has exactly one call to its slow-path argument reduction, so
+    the calls count the sines of a kick.
+    """
+
+    def test_multi_harmonic_kick_folds_charge_into_voltages(self):
+        """A harmonic multiplies no more than a single-harmonic kick.
+
+        Both kicks cost a ``sin`` plus a fused multiply-add per harmonic.
+        The single-harmonic kick's ``charge * voltage`` is the same for
+        the whole tile. The multi-harmonic kick's ``charge * voltage[j]``
+        is too, but, inside the harmonic loop, it used to be recomputed
+        for every particle and harmonic: a DMUL per ``sin`` more. The
+        executor folds the charge into the staged voltages once per
+        block instead.
+        """
+        single = _probe_tile_loop("KickSingleHarmonicArgs")
+        multi = _probe_tile_loop("KickMultiHarmonicArgs")
+        single_sines = _count(single, "CALL")
+        multi_sines = _count(multi, "CALL")
+        self.assertEqual(single_sines, _PROBE_TILE)
+        self.assertGreater(multi_sines, 0)
+        self.assertLessEqual(
+            _count(multi, "DMUL") / multi_sines,
+            _count(single, "DMUL") / single_sines,
         )
