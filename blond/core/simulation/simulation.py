@@ -1040,19 +1040,27 @@ class Simulation(Preparable):
         if callbacks is not None:
             callbacks = _as_tuple(callbacks)
 
-        self.execution_model.mainloop(
-            simulation=self,
-            beams=beams,
-            n_turns=n_turns,
-            observe=observe,
-            show_progressbar=show_progressbar,
-            until_section_index=until_section_index,
-            callbacks=callbacks,
-        )
-        # Readouts flush through the Beam's coordinate storage, but the
-        # deferred kernel call queue is per thread and dies with it: run
-        # the last queued calls here, in the thread that queued them.
-        backend.specials.flush()
+        try:
+            self.execution_model.mainloop(
+                simulation=self,
+                beams=beams,
+                n_turns=n_turns,
+                observe=observe,
+                show_progressbar=show_progressbar,
+                until_section_index=until_section_index,
+                callbacks=callbacks,
+            )
+        finally:
+            # Readouts flush through the Beam's coordinate storage, but
+            # the deferred kernel call queue is per thread and dies with
+            # it: run the last queued calls here, in the thread that
+            # queued them -- even if the loop above raised, so a worker
+            # thread's exception does not silently drop an already
+            # queued kernel call. If this flush itself raises, Python's
+            # normal `finally` semantics apply: the flush error
+            # propagates with the original exception kept as its
+            # `__context__`, so neither error is silently lost.
+            backend.specials.flush()
 
     def _plot_input_info(
         self,

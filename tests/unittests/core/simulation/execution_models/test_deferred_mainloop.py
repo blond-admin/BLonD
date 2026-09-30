@@ -201,6 +201,36 @@ class TestDeferredMainloop(BLonDTestCase):
         np.testing.assert_allclose(deferred_dE, eager_dE, rtol=1e-12)
         self.assertEqual(n_bytes, 0)
 
+    def test_worker_thread_exception_still_applies_queued_kick(self):
+        # If the execution model raises mid-turn, the queued kernel
+        # calls from earlier in that turn must still be applied (the
+        # end-of-run flush runs in `finally`), and the original
+        # exception must still propagate, not be masked by the flush.
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("cpp_deferred")
+        sim, beam = _build_two_section_sim()
+        sim.finalize(beams=(beam,), n_turns=1)
+        dt_before = beam.read_partial_dt().copy()
+
+        def _mainloop_that_queues_then_raises(**kwargs) -> None:
+            queued_beam = kwargs["beams"][0]
+            backend.specials.drift_simple(
+                dt=queued_beam.write_partial_dt(),
+                dE=queued_beam.read_partial_dE(),
+                T=1e-6,
+                eta_0=0.01,
+                beta=0.9,
+                energy=450e9,
+            )
+            raise RuntimeError("boom")
+
+        sim.execution_model.mainloop = _mainloop_that_queues_then_raises
+        with self.assertRaisesRegex(RuntimeError, "boom"):
+            sim.mainloop(beams=(beam,), n_turns=1, show_progressbar=False)
+        self.assertEqual(backend.specials.kernel_call_queue.n_bytes, 0)
+        dt_after = beam.read_partial_dt().copy()
+        self.assertFalse(np.array_equal(dt_before, dt_after))
+
     def test_early_return_flushes_pending_calls_counterrotating(self):
         # Same as `test_early_return_flushes_pending_calls`, but for
         # `MainloopCounterRotatingBeams`, which has its own early
