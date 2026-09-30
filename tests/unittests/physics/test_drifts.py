@@ -9,7 +9,7 @@ import sympy
 from scipy.constants import c
 from scipy.constants import speed_of_light as c0
 
-from blond import Simulation, momentum_compaction_factor, proton
+from blond import Beam, Simulation, momentum_compaction_factor, proton
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
@@ -23,7 +23,11 @@ from blond.physics.drifts import (
     DriftSimple,
     _DriftLikeLineSegment,
 )
-from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    cupy_available,
+    multi_backend_testcase,
+)
 
 
 class DriftBaseClassHelper(DriftBaseClass):
@@ -521,6 +525,78 @@ class TestDriftExact(BLonDTestCase):
                 free_names = {s.name for s in ham.free_symbols}
                 for k in range(1, n_alpha + 1):
                     self.assertIn(f"alpha_{k}", free_names)
+
+
+@pytest.mark.backend_mutation
+class TestDriftExactDeferred(BLonDTestCase):
+    """The real `DriftExact` element is queued by the deferred specials.
+
+    A `drift_exact` call the deferred specials cannot record flushes the
+    queue and runs eagerly, silently losing the fusion of every turn.
+    """
+
+    mode = "cpp_deferred"
+    eager_mode = "cpp"
+
+    def setUp(self) -> None:
+        backend.change_backend(self._backend_class())
+        backend.set_specials(self.mode)
+        self.specials = backend.specials
+
+    def tearDown(self) -> None:
+        self.specials.flush()
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("python")
+
+    def _backend_class(self) -> type:
+        return Numpy64Bit
+
+    def _track(self) -> Beam:
+        beam = Beam(intensity=1e9, particle_type=proton)
+        beam.setup_beam(
+            dt=np.linspace(1e-9, 1e-8, 1000),
+            dE=np.linspace(-1e6, 1e6, 1000),
+            reference_time=0,
+            reference_total_energy=26e9,
+        )
+        drift = DriftExact.headless(
+            orbit_length=6911.5,
+            momentum_compaction_factor=1.9e-3,
+            higher_order_alpha=np.array([1e-4, 2e-5]),
+            turn_counter=DynamicParameter(0),
+        )
+        beam.read_partial_dt()  # flush the beam setup
+        drift.track(beam=beam)
+        return beam
+
+    def test_drift_exact_is_queued(self) -> None:
+        self._track()
+        queue = self.specials.kernel_call_queue
+        self.assertEqual(
+            [args_type.__name__ for args_type in queue.args_types],
+            ["DriftExactArgs"],
+        )
+
+    def test_queued_drift_exact_matches_eager(self) -> None:
+        deferred_dt = copy_to_cpu(self._track().read_partial_dt())
+        backend.set_specials(self.eager_mode)
+        eager_dt = copy_to_cpu(self._track().read_partial_dt())
+        np.testing.assert_allclose(deferred_dt, eager_dt, rtol=1e-12)
+
+
+class TestDriftExactCudaDeferred(TestDriftExactDeferred):
+    mode = "cuda_deferred"
+    eager_mode = "cuda"
+
+    def setUp(self) -> None:
+        if not cupy_available:
+            self.skipTest("CuPy is not available")
+        super().setUp()
+
+    def _backend_class(self) -> type:
+        from blond.core.backends.backend import Cupy64Bit
+
+        return Cupy64Bit
 
 
 class Test_DriftLikeLineSegment(BLonDTestCase):
