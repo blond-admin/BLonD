@@ -421,5 +421,25 @@ class TestWeightenedBeam(BLonDTestCase):
         )
 
 
+class TestBeamSetupBeamArguments(BLonDTestCase):
+    def setUp(self):
+        self.beam = Beam(intensity=1e10, particle_type=proton)
+
+    def test_setup_beam_rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            self.beam.setup_beam(
+                dt=np.zeros(4),
+                dE=np.zeros(4),
+                reference_totl_energy=450e9,  # typo
+            )
+
+    def test_setup_beam_applies_zero_reference_time(self):
+        self.beam.reference.time = 1e-3
+        self.beam.setup_beam(
+            dt=np.zeros(4), dE=np.zeros(4), reference_time=0.0
+        )
+        self.assertEqual(self.beam.reference.time, 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()

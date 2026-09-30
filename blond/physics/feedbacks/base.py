@@ -55,14 +55,18 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
         Section index of the feedback.
     name
         Name of the feedback.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ):
-        super().__init__(section_index=section_index, name=name)
+        super().__init__(section_index=section_index, name=name, **kwargs)
 
 
 class LocalFeedback(FeedbackBaseClass):
@@ -153,6 +157,9 @@ class GlobalFeedback(FeedbackBaseClass):
         Section index of the feedback.
     name
         Name of the feedback.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -160,10 +167,12 @@ class GlobalFeedback(FeedbackBaseClass):
         profile: ProfileBaseClass,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
+            **kwargs,
         )
         self.profile = profile
         self.cavities: list[RFStationBaseClass] | None = None

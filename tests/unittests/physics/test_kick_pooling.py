@@ -152,5 +152,11 @@ class TestSupportsPooledInterpolationKickMixIn(BLonDTestCase):
             SupportsPooledInterpolationKickMixIn(not_a_parameter=0)
 
 
+class TestPooledInterpolationKickUnknownKwargs(BLonDTestCase):
+    def test___init___rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            PooledInterpolationKick(max_size=5)  # typo of `maxsize`
+
+
 if __name__ == "__main__":
     unittest.main()

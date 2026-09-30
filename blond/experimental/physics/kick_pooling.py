@@ -69,7 +69,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
         maxsize=100,
         **kwargs,
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
         self._maxsize = maxsize
         self._buffer_voltage = OrderedDict()
         self._buffer_time_axis = OrderedDict()
