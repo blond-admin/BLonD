@@ -869,8 +869,8 @@ class DriftExactArgs(KernelCallArgs):
 
         The polynomial cannot be split over records like harmonics. A
         device ``higher_alpha`` also runs eagerly: `CudaSpecials.
-        drift_exact` accepts it as a compatibility path and copies it to
-        host itself, but inlining it into the record here would read
+        drift_exact` accepts it as a compatibility path and reads it from
+        device memory, but inlining it into the record here would read
         device memory as a host buffer.
 
         Parameters

@@ -32,6 +32,19 @@ using index_t = long long;
 // Needs `real_t` and `index_t` above.
 #include "kernel_call_records.h"
 
+// The higher-order alphas of `drift_exact`, passed by value in the
+// kernel's parameter space like `RFParamsBatch`: no host-to-device copy
+// per call. As many as a `DriftExactArgs` record inlines; more go to
+// `drift_exact_global_alphas`. Must match `_DRIFT_EXACT_ALPHAS_DTYPE` in
+// callables.py.
+constexpr int DRIFT_EXACT_MAX_INLINE_ALPHA =
+    std::extent_v<decltype(DriftExactArgs::higher_alpha)>;
+// NOLINTBEGIN(*-avoid-c-arrays,misc-use-internal-linkage)
+struct DriftExactAlphas {
+  real_t higher_alpha[DRIFT_EXACT_MAX_INLINE_ALPHA];
+};
+// NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
+
 // Start and stride of a grid-stride loop over the macro-particles. They
 // are computed in 32 bits, which is exact: callables.py launches
 // 2 * n_SM blocks of at most 1024 threads, far below 2^31 threads. Only
@@ -236,9 +249,58 @@ drift_exact_factors(const real_t beta, const real_t energy) {
   return {delta_argument(beta, energy), 1.0 / energy};
 }
 
+// `sum_k higher_alpha[k] delta^k`, in Horner form: one FMA per
+// coefficient. For `n_alpha > 0` only.
+template <class Coefficients>
+__device__ __forceinline__ real_t higher_alpha_polynomial(
+    const Coefficients &higher_alpha, const int n_alpha, const real_t delta) {
+  // NOLINTBEGIN(*-pointer-arithmetic)
+  real_t higher = higher_alpha[n_alpha - 1];
+  for (int k = n_alpha - 2; k >= 0; --k) {
+    higher = fma(higher, delta, higher_alpha[k]);
+  }
+  // NOLINTEND(*-pointer-arithmetic)
+  return higher;
+}
+
+// The first `N_ALPHA` coefficients of the eager kernel's
+// `DriftExactAlphas`, read in place from the parameter space. NVVM copies
+// a by-value kernel parameter of up to 128 bytes that is indexed
+// dynamically into local memory, so the count is a compile-time
+// constant: with the loop unrolled every coefficient is a constant-bank
+// operand of its FMA, in neither local memory nor registers.
+template <int N_ALPHA> struct InlineAlphas {
+  const DriftExactAlphas *alphas;
+};
+
+template <int N_ALPHA>
+__device__ __forceinline__ real_t
+higher_alpha_polynomial(const InlineAlphas<N_ALPHA> &higher_alpha,
+                        const int /*n_alpha*/, const real_t delta) {
+  static_assert(N_ALPHA <= DRIFT_EXACT_MAX_INLINE_ALPHA,
+                "N_ALPHA out of range");
+  const DriftExactAlphas &alphas = *higher_alpha.alphas;
+  real_t higher = alphas.higher_alpha[N_ALPHA - 1];
+#pragma unroll
+  for (int k = N_ALPHA - 2; k >= 0; --k) {
+    higher = fma(higher, delta, alphas.higher_alpha[k]);
+  }
+  return higher;
+}
+
+// Instantiated, but never called: `drift_exact_particle` only evaluates
+// the polynomial for `n_alpha > 0`.
+__device__ __forceinline__ real_t
+higher_alpha_polynomial(const InlineAlphas<0> & /*higher_alpha*/,
+                        const int /*n_alpha*/, const real_t /*delta*/) {
+  return 0.0;
+}
+
 // `T (poly(delta) (1 + dE / E) / (1 + delta) - 1)`, with the polynomial
 // `1 + alpha_0 delta + sum_k higher_alpha[k] delta^(k+2)`; shared by the
-// record overload and the eager kernel.
+// record overload and the eager kernels, templated on whatever holds the
+// coefficients: the record's inline array, the eager kernel's
+// `InlineAlphas`, or a pointer to global memory.
 //
 // FP64 operations per particle, which bound this kernel on GPUs with a
 // low FP64 rate: `1 + delta` is the square root of the delta argument
@@ -251,9 +313,10 @@ drift_exact_factors(const real_t beta, const real_t energy) {
 // Against a long-double reference the result is as accurate as the
 // correctly rounded square root and division were (a few ulp of T; the
 // final `- 1` cancels most digits either way).
+template <class Coefficients>
 __device__ __forceinline__ void
 drift_exact_particle(const real_t T, const real_t alpha_zero,
-                     const real_t *higher_alpha, const int n_alpha,
+                     const Coefficients &higher_alpha, const int n_alpha,
                      const DriftExactFactors &factors, real_t &dt,
                      const real_t dE) {
   const real_t argument = factors.delta_argument(dE);
@@ -262,13 +325,8 @@ drift_exact_particle(const real_t T, const real_t alpha_zero,
 
   real_t poly = alpha_zero;
   if (n_alpha > 0) {
-    // NOLINTBEGIN(*-pointer-arithmetic)
-    real_t higher = higher_alpha[n_alpha - 1];
-    for (int k = n_alpha - 2; k >= 0; --k) {
-      higher = fma(higher, delta, higher_alpha[k]);
-    }
-    // NOLINTEND(*-pointer-arithmetic)
-    poly = fma(higher, delta, alpha_zero);
+    poly = fma(higher_alpha_polynomial(higher_alpha, n_alpha, delta), delta,
+               alpha_zero);
   }
   poly = fma(poly, delta, 1.0);
 
@@ -284,8 +342,8 @@ prepare(const DriftExactArgs &args) {
 __device__ __forceinline__ void
 apply_to_particle(const DriftExactArgs &args, const DriftExactFactors &factors,
                   real_t &dt, const real_t &dE) {
-  drift_exact_particle(args.T, args.alpha_0, &args.higher_alpha[0],
-                       args.n_alpha, factors, dt, dE);
+  drift_exact_particle(args.T, args.alpha_0, args.higher_alpha, args.n_alpha,
+                       factors, dt, dE);
 }
 
 // Reads the table of `build_voltage_kick_table`.
@@ -762,13 +820,81 @@ extern "C" __global__ void apply_sr_with_quantum_excitation(
   }
 }
 
+namespace {
+template <int N_ALPHA>
+__device__ __forceinline__ void drift_exact_inline_alphas(
+    real_t *__restrict__ beam_dt, const real_t *__restrict__ beam_dE,
+    const real_t T, const real_t alpha_zero,
+    const DriftExactAlphas &higher_alphas, const real_t beta,
+    const real_t energy, const index_t n_macroparticles) {
+#pragma unroll 1
+  for (index_t i = particle_loop_start(); i < n_macroparticles;
+       i += particle_loop_stride()) {
+    drift_exact_particle(T, alpha_zero, InlineAlphas<N_ALPHA>{&higher_alphas},
+                         N_ALPHA, drift_exact_factors(beta, energy), beam_dt[i],
+                         beam_dE[i]);
+  }
+}
+
+} // namespace
+
+// One particle loop per number of coefficients, see `InlineAlphas`.
 extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
                                        const real_t *__restrict__ beam_dE,
                                        const real_t T, const real_t alpha_zero,
-                                       const real_t *__restrict__ higher_alpha,
+                                       const DriftExactAlphas higher_alphas,
                                        const int n_alpha, const real_t beta,
                                        const real_t energy,
                                        const index_t n_macroparticles) {
+  static_assert(DRIFT_EXACT_MAX_INLINE_ALPHA == 8,
+                "one case per number of coefficients");
+  switch (n_alpha) {
+  case 0:
+    drift_exact_inline_alphas<0>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 1:
+    drift_exact_inline_alphas<1>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 2:
+    drift_exact_inline_alphas<2>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 3:
+    drift_exact_inline_alphas<3>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 4:
+    drift_exact_inline_alphas<4>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 5:
+    drift_exact_inline_alphas<5>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 6:
+    drift_exact_inline_alphas<6>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  case 7:
+    drift_exact_inline_alphas<7>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  default: // 8; callables.py sends more to drift_exact_global_alphas
+    drift_exact_inline_alphas<8>(beam_dt, beam_dE, T, alpha_zero, higher_alphas,
+                                 beta, energy, n_macroparticles);
+    break;
+  }
+}
+
+// `drift_exact` for coefficients in global memory: more than
+// `DRIFT_EXACT_MAX_INLINE_ALPHA` of them, or a device array.
+extern "C" __global__ void drift_exact_global_alphas(
+    real_t *__restrict__ beam_dt, const real_t *__restrict__ beam_dE,
+    const real_t T, const real_t alpha_zero,
+    const real_t *__restrict__ higher_alpha, const int n_alpha,
+    const real_t beta, const real_t energy, const index_t n_macroparticles) {
   // The coefficients are read in place from global memory. Copying them
   // into a per-thread DriftExactArgs puts the dynamically indexed array
   // in local memory, which costs more than the global reads it saves.

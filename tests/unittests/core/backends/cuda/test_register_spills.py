@@ -118,14 +118,26 @@ class TestEagerKernelRegisterSpills(BLonDTestCase):
         self.assertEqual(usage["spill_stores"], 0, usage)
         self.assertEqual(usage["spill_loads"], 0, usage)
 
-    def test_drift_exact_keeps_small_stack_frame(self):
+    def test_drift_exact_has_no_stack_frame(self):
+        """The by-value alphas stay constant-bank operands.
+
+        NVVM copies a small by-value parameter that is indexed dynamically
+        into local memory; the unrolled Horner loop indexes it with
+        compile-time indices instead.
+        """
+        usage = self.usage["drift_exact"]
+        self.assertEqual(usage["stack"], 0, usage)
+        self.assertEqual(usage["spill_stores"], 0, usage)
+        self.assertEqual(usage["spill_loads"], 0, usage)
+
+    def test_drift_exact_global_alphas_keeps_small_stack_frame(self):
         """The alpha coefficients are read in place from global memory.
 
         A per-thread copy of them (a DriftExactArgs record) is dynamically
         indexed, so it lives in local memory and the stack frame grows.
         32 bytes is what the kernel used before that copy was introduced.
         """
-        usage = self.usage["drift_exact"]
+        usage = self.usage["drift_exact_global_alphas"]
         self.assertLessEqual(usage["stack"], 32, usage)
 
 

@@ -26,6 +26,7 @@ from blond.core.backends.deferred.kernel_call_queue import (
 from blond.core.backends.deferred.kernel_call_records import (
     KERNEL_CALL_ARGS,
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
+    MAX_HIGHER_ALPHA,
     KernelCallArgs,
 )
 from blond.core.beam.flags import BeamFlags
@@ -75,6 +76,9 @@ mark_used(_basepath)
 _drift_simple = gpu_module.get_function("drift_simple")
 _drift_like_line_segment = gpu_module.get_function("drift_like_line_segment")
 _drift_exact = gpu_module.get_function("drift_exact")
+_drift_exact_global_alphas = gpu_module.get_function(
+    "drift_exact_global_alphas"
+)
 _beam_phase = gpu_module.get_function("beam_phase")
 _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
 _kick_single_harmonic = gpu_module.get_function("kick_single_harmonic")
@@ -134,6 +138,13 @@ _RF_PARAMS_BATCH_DTYPE = np.dtype(
         ("omega_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
         ("phi_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
     ]
+)
+# The higher-order alphas of `drift_exact`, passed by value like
+# `_RF_PARAMS_BATCH_DTYPE` (`DriftExactAlphas` in kernels.cu). As many as
+# a `DriftExactArgs` record inlines; more, or a device array, go to
+# `drift_exact_global_alphas`.
+_DRIFT_EXACT_ALPHAS_DTYPE = np.dtype(
+    [("higher_alpha", FLOAT, (MAX_HIGHER_ALPHA,))]
 )
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 # A batch of kernel call records, passed to `execute_kernel_call_batch`
@@ -571,28 +582,39 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert dt.flags.c_contiguous
         assert dE.flags.c_contiguous
 
-        # host coefficients, as the ABC declares; one tiny copy per call,
-        # as the caller used to do. `ascontiguousarray` also makes a
-        # non-contiguous device array (the still-accepted compatibility
-        # path) contiguous before it reaches the raw kernel, which reads
-        # it as a flat buffer.
-        higher_alpha = cp.ascontiguousarray(
-            cp.asarray(higher_alpha, dtype=FLOAT)
-        )
+        n_alpha = len(higher_alpha)
+        if n_alpha <= MAX_HIGHER_ALPHA and not is_cupy_array(higher_alpha):
+            # Host coefficients, as the ABC declares, go by value into
+            # the kernel's parameter space: no device allocation, no
+            # host-to-device copy, no sync.
+            alphas_array = np.zeros((), dtype=_DRIFT_EXACT_ALPHAS_DTYPE)
+            alphas_array["higher_alpha"][:n_alpha] = higher_alpha
+            # CuPy packs a structured scalar faster than a 0-d array.
+            alphas = alphas_array[()]
+            kernel = _drift_exact
+        else:
+            # More coefficients than fit (one tiny copy per call), or a
+            # device array (the still-accepted compatibility path).
+            # `ascontiguousarray` makes a non-contiguous device array
+            # contiguous before the raw kernel reads it as a flat buffer.
+            alphas = cp.ascontiguousarray(
+                cp.asarray(higher_alpha, dtype=FLOAT)
+            )
+            kernel = _drift_exact_global_alphas
 
         T = FLOAT(T)
         alpha_0 = FLOAT(alpha_0)
         beta = FLOAT(beta)
         energy = FLOAT(energy)
 
-        _drift_exact(
+        kernel(
             args=(
                 dt,  # beam_dt
                 dE,  # beam_dE
                 T,  # t_rev
                 alpha_0,  # alpha_zero
-                higher_alpha,  # higher_alpha
-                np.int32(len(higher_alpha)),  # n_alpha
+                alphas,  # higher_alphas / higher_alpha
+                np.int32(n_alpha),  # n_alpha
                 beta,  # beta
                 energy,  # energy
                 INDEX_DTYPE(len(dE)),  # n_macroparticles
