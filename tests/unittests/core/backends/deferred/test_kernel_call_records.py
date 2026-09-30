@@ -1,5 +1,6 @@
 import dataclasses
 import inspect
+import struct
 import subprocess
 import sys
 import textwrap
@@ -68,13 +69,22 @@ def _multi_harmonic_arguments(n_rf: int) -> dict:
 
 # Run under `python -O`, where asserts are stripped: every field must still
 # be required and written, or a reused queue buffer would silently keep a
-# stale value from an earlier record.
+# stale value from an earlier record. It queues one call of every
+# deferrable kernel through the deferred specials' own queuing methods,
+# i.e. the fast packing path, and decodes the records with their dtypes.
 _OPTIMIZED_PACKING_CHECK = textwrap.dedent(
     """
+    import numpy as np
+
     from blond.core.backends.deferred import kernel_call_records as records
     from blond.core.backends.deferred.kernel_call_queue import (
         KernelCallQueue,
+        make_deferred_specials,
     )
+    from blond.core.backends.python.callables import PythonSpecials
+
+    def fail(message):  # not `assert`: -O strips it
+        raise SystemExit(message)
 
     queue = KernelCallQueue()
     queue.buffer[:] = 0xFF  # stale bytes of earlier records
@@ -83,14 +93,234 @@ _OPTIMIZED_PACKING_CHECK = textwrap.dedent(
     )
     dtype = records.DriftSimpleArgs.record_dtype()
     args = queue.buffer[: queue.n_bytes].view(dtype)[0]["args"]
-    if args.tolist() != (1.0, 2.0, 3.0, 4.0):  # not `assert`: -O strips it
-        raise SystemExit(f"stale record fields: {args}")
+    if args.tolist() != (1.0, 2.0, 3.0, 4.0):
+        fail(f"stale record fields: {args}")
     try:
         records.DriftSimpleArgs(T=1.0, eta_0=2.0, beta=3.0)
     except TypeError:
         print("missing field rejected")
+
+    table = np.arange(8.0)
+
+    class Eager(PythonSpecials):
+        @staticmethod
+        def _build_voltage_kick_table(
+            voltage, bin_centers, charge, acceleration_kick
+        ):
+            return table
+
+    deferred = make_deferred_specials(Eager, lambda *args: None)
+    dt, dE = np.zeros(4), np.zeros(4)
+    deferred.kernel_call_queue.buffer[:] = 0xFF
+    deferred.kick_single_harmonic(dt, dE, 1.0, 2.0, 3.0, 4.0, 5.0)
+    deferred.kick_multi_harmonic(
+        dt, dE, np.array([6.0, 7.0]), np.array([8.0, 9.0]),
+        np.array([10.0, 11.0]), 12.0, 2, 13.0,
+    )
+    deferred.drift_simple(dt, dE, 14.0, 15.0, 16.0, 17.0)
+    deferred.drift_like_line_segment(dt, dE, 18.0, 19.0, 20.0, 21.0)
+    deferred.drift_exact(dt, dE, 22.0, 23.0, np.array([24.0]), 25.0, 26.0)
+    deferred.kick_interpolated(dt, dE, np.zeros(4), np.zeros(4), 1.0, 27.0)
+    expected = {
+        records.KickSingleHarmonicArgs: (1.0, 2.0, 3.0, 4.0, 5.0),
+        records.KickMultiHarmonicArgs: (12.0, 13.0, 2, 0),
+        records.DriftSimpleArgs: (14.0, 15.0, 16.0, 17.0),
+        records.DriftLikeLineSegmentArgs: (18.0, 19.0, 20.0, 21.0),
+        records.DriftExactArgs: (
+            22.0, 23.0, 25.0, 26.0, 1, 0, (24.0,) + (0.0,) * 7
+        ),
+        records.KickInterpolatedArgs: (table.ctypes.data, 8, 27.0),
+    }
+    buffer = deferred.kernel_call_queue.buffer
+    offset = 0
+    for args_type, size in zip(
+        deferred.kernel_call_queue.args_types,
+        deferred.kernel_call_queue.record_sizes,
+    ):
+        fixed = args_type.record_dtype()
+        record = buffer[offset : offset + fixed.itemsize].view(fixed)[0]
+        if record["kernel_id"] != args_type.kernel_id():
+            fail(f"{args_type.__name__}: kernel id {record['kernel_id']}")
+        if record["record_size_bytes"] != size:
+            fail(f"{args_type.__name__}: size {record['record_size_bytes']}")
+        values = tuple(
+            record["args"][name].tolist()
+            if record["args"][name].ndim == 0
+            else tuple(record["args"][name].tolist())
+            for name in fixed["args"].names
+        )
+        # Padding members are unnamed; read them from the raw bytes.
+        raw = buffer[offset + 8 : offset + fixed.itemsize]
+        if args_type is records.KickMultiHarmonicArgs:
+            values = values + (int(raw[20:24].view(np.int32)[0]),)
+            columns = buffer[offset + fixed.itemsize : offset + size]
+            if columns.view(np.float64).tolist() != [
+                6.0, 7.0, 8.0, 9.0, 10.0, 11.0
+            ]:
+                fail(f"harmonics: {columns.view(np.float64)}")
+        if args_type is records.DriftExactArgs:
+            values = values[:5] + (int(raw[36:40].view(np.int32)[0]),)
+            values = values + (tuple(record["args"]["higher_alpha"]),)
+        if values != expected[args_type]:
+            fail(f"{args_type.__name__}: {values} != {expected[args_type]}")
+        offset += size
+    if offset != deferred.kernel_call_queue.n_bytes or offset == 0:
+        fail(f"decoded {offset} of {deferred.kernel_call_queue.n_bytes} B")
+    try:
+        deferred.drift_simple(dt, dE, 14.0, 15.0, 16.0)
+    except TypeError:
+        print("missing argument rejected")
+    try:
+        deferred.drift_exact(dt, dE, 1.0, 1.0, np.ones(9), 1.0, 1.0)
+    except Exception:
+        fail("more than MAX_HIGHER_ALPHA must run eagerly, not raise")
     """
 )
+
+
+def _reference_record(args: KernelCallArgs) -> bytes:
+    """Record bytes packed through the numpy dtypes: the test oracle."""
+    record = np.zeros(args.record_size_bytes(), dtype=np.uint8)
+    args.pack_into(record, [])
+    return record.tobytes()
+
+
+def _fast_record(args: KernelCallArgs, keep_alive: list) -> bytes:
+    """Record bytes of the fast packer, written over stale bytes."""
+    buffer = np.full(
+        records.KERNEL_CALL_BATCH_CAPACITY_BYTES + 64, 0xFF, dtype=np.uint8
+    )
+    values = [getattr(args, f.name) for f in dataclasses.fields(args)]
+    size = type(args).record_packer()(
+        memoryview(buffer), 16, keep_alive, *values
+    )
+    return buffer[16 : 16 + size].tobytes()
+
+
+def _random_records(rng: np.random.Generator):
+    """Many records of every kernel, with awkward but valid values."""
+    specials = np.array([0.0, -0.0, np.inf, -np.inf, 1e-308, -1e308])
+
+    def real():
+        if rng.random() < 0.2:
+            return float(rng.choice(specials))
+        kind = rng.integers(4)
+        value = rng.normal() * 10.0 ** rng.integers(-12, 12)
+        # Python floats and ints, and numpy scalars of several types.
+        return (
+            float(value),
+            np.float64(value),
+            np.float32(value),
+            int(value) if abs(value) < 2**53 else float(value),
+        )[kind]
+
+    for _ in range(20):
+        yield records.KickSingleHarmonicArgs(*(real() for _ in range(5)))
+        yield records.DriftSimpleArgs(*(real() for _ in range(4)))
+        yield records.DriftLikeLineSegmentArgs(*(real() for _ in range(4)))
+        yield records.KickInterpolatedArgs(
+            voltage_kick_table=rng.normal(size=2 * rng.integers(2, 300)),
+            acceleration_kick=real(),
+        )
+    for n_rf in range(records.MAX_RF_HARMONICS_PER_RECORD + 1):
+        columns = [rng.normal(size=n_rf) * 1e6 for _ in range(3)]
+        if n_rf % 3 == 1:
+            columns[1] = columns[1].tolist()  # a list column
+        if n_rf % 3 == 2:
+            columns[2] = columns[2].astype(np.float32)  # cast on packing
+        yield records.KickMultiHarmonicArgs(
+            charge=real(), acceleration_kick=real(), harmonics=tuple(columns)
+        )
+    for n_alpha in range(records.MAX_HIGHER_ALPHA + 1):
+        higher_alpha = rng.normal(size=n_alpha) * 1e-3
+        yield records.DriftExactArgs(
+            T=real(),
+            alpha_0=real(),
+            beta=real(),
+            energy=real(),
+            n_alpha=n_alpha,
+            higher_alpha=(
+                higher_alpha.tolist() if n_alpha % 2 else higher_alpha
+            ),
+        )
+
+
+class TestRecordPacker(BLonDTestCase):
+    """The fast packer against the numpy-dtype reference packing."""
+
+    def test_bytes_match_the_reference_for_every_kernel(self) -> None:
+        rng = np.random.default_rng(11)
+        seen = set()
+        for args in _random_records(rng):
+            seen.add(type(args))
+            keep_alive = []
+            with self.subTest(args=args):
+                self.assertEqual(
+                    _fast_record(args, keep_alive), _reference_record(args)
+                )
+        self.assertEqual(seen, set(records.KERNEL_CALL_ARGS))
+
+    def test_padding_is_zeroed_over_stale_bytes(self) -> None:
+        # The kick's n_rf is followed by 4 padding bytes, drift_exact's
+        # n_alpha too: they must not keep bytes of an earlier record.
+        (kick,) = KickMultiHarmonicArgs.from_specials_call(
+            _multi_harmonic_arguments(2), eager_specials=None
+        )
+        record = _fast_record(kick, [])
+        self.assertEqual(record[8 + 20 : 8 + 24], bytes(4))
+        (drift,) = DriftExactArgs.from_specials_call(
+            dict(
+                T=1.0,
+                alpha_0=2.0,
+                beta=3.0,
+                energy=4.0,
+                higher_alpha=np.array([5.0]),
+            ),
+            eager_specials=None,
+        )
+        record = _fast_record(drift, [])
+        self.assertEqual(record[8 + 36 : 8 + 40], bytes(4))
+
+    def test_input_arrays_are_kept_alive(self) -> None:
+        table = np.arange(6.0)
+        keep_alive = []
+        _fast_record(
+            records.KickInterpolatedArgs(
+                voltage_kick_table=table, acceleration_kick=1.0
+            ),
+            keep_alive,
+        )
+        self.assertEqual(len(keep_alive), 1)
+        self.assertIs(keep_alive[0], table)
+
+    def test_too_many_inline_values_fail_loudly(self) -> None:
+        # Not an assert: it must fail under `python -O` as well.
+        args = records.DriftExactArgs(
+            T=1.0,
+            alpha_0=1.0,
+            beta=1.0,
+            energy=1.0,
+            n_alpha=9,
+            higher_alpha=np.ones(records.MAX_HIGHER_ALPHA + 1),
+        )
+        with self.assertRaises(struct.error):
+            _fast_record(args, [])
+
+    def test_record_beyond_one_launch_fails_loudly(self) -> None:
+        n_rf = records.MAX_RF_HARMONICS_PER_RECORD + 1
+        args = KickMultiHarmonicArgs(
+            charge=1.0,
+            acceleration_kick=0.0,
+            harmonics=(np.ones(n_rf), np.ones(n_rf), np.ones(n_rf)),
+        )
+        with self.assertRaises(ValueError):
+            _fast_record(args, [])
+
+    def test_missing_value_is_rejected(self) -> None:
+        packer = records.DriftSimpleArgs.record_packer()
+        buffer = memoryview(np.zeros(64, dtype=np.uint8))
+        with self.assertRaises(TypeError):
+            packer(buffer, 0, [], 1.0, 2.0, 3.0)
 
 
 class TestKernelCallRecords(BLonDTestCase):
@@ -102,6 +332,7 @@ class TestKernelCallRecords(BLonDTestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("missing field rejected", result.stdout)
+        self.assertIn("missing argument rejected", result.stdout)
 
     def test_header_is_current(self) -> None:
         with open(records.HEADER_PATH) as file:
@@ -131,11 +362,12 @@ class TestKernelCallRecords(BLonDTestCase):
                 pass
 
     def test_default_fields_are_specials_arguments(self) -> None:
-        # Kernels without their own from_specials_call are filled from
-        # the kwargs by field name.
-        default = KernelCallArgs.from_specials_call.__func__
+        # Kernels without their own field_values_from_specials_call are
+        # filled from the kwargs by field name.
+        default = KernelCallArgs.field_values_from_specials_call.__func__
         for args_type in records.KERNEL_CALL_ARGS:
-            if args_type.from_specials_call.__func__ is not default:
+            hook = args_type.field_values_from_specials_call.__func__
+            if hook is not default:
                 continue
             parameters = inspect.signature(
                 getattr(Specials, args_type.specials_method())

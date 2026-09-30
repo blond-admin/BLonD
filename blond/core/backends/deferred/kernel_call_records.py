@@ -18,7 +18,8 @@ particles in a single fused pass.
 Each kernel's ``Args`` is a frozen dataclass below, e.g. `DriftSimpleArgs`.
 Its annotated fields (`Real`, `Int32`, `InputArray`, ...) fix the layout:
 ``kernel_call_records.h`` is generated from them, with C structs of the
-same names, and the numpy dtypes the queue packs are derived from them.
+same names, and the numpy dtypes and the `struct` formats the queue packs
+records with (`KernelCallArgs.record_packer`) are derived from them.
 A last `TrailingColumnsField` (e.g. the harmonics of
 `KickMultiHarmonicArgs`) makes the record variable-length: its columns
 follow the fixed struct, and ``record_size_bytes`` in the header covers
@@ -31,7 +32,8 @@ To add a deferrable kernel:
 1. Add a ``<Kernel>Args(KernelCallArgs)`` dataclass; its name must be the
    `Specials` method in CamelCase, and it must set `writes_dt` and
    `writes_dE` to the coordinates the kernel modifies. Override
-   `from_specials_call` only if the method's arguments need transforming.
+   `field_values_from_specials_call` only if the method's arguments need
+   transforming.
    Append it to `KERNEL_CALL_ARGS`.
 2. Regenerate the header:
    ``python -m blond.core.backends.deferred.kernel_call_records``.
@@ -49,6 +51,7 @@ import dataclasses
 import hashlib
 import os
 import re
+import struct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cache
@@ -67,7 +70,7 @@ from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
     from typing import Self
 
 HEADER_PATH = os.path.join(
@@ -131,7 +134,7 @@ class RecordField(ABC):
         self, packed: Any, name: str, value: Any, keep_alive: list
     ) -> None:
         """
-        Write ``value`` into the packed record.
+        Write ``value`` into the packed record (reference packing).
 
         Parameters
         ----------
@@ -145,6 +148,44 @@ class RecordField(ABC):
             Arrays the batch references, to hold until the flush.
         """
         packed[name] = value
+
+    def packer_source(self, name: str) -> tuple[list[str], list[str]]:
+        """
+        Return the source that packs this field in `record_packer`.
+
+        The fast packer is generated Python code: it runs the statements,
+        then packs the values of the expressions, one per scalar of the
+        field's `members`, with one `struct.Struct.pack_into`. The field
+        value is the local variable ``name``; ``keep_alive`` is in scope,
+        and so is every name of `packer_globals`.
+
+        Parameters
+        ----------
+        name
+            The dataclass field name.
+
+        Returns
+        -------
+        tuple
+            ``(statements, value expressions)``.
+        """
+        return [], [name]
+
+    def packer_globals(self, name: str) -> dict[str, Any]:
+        """
+        Return the global names `packer_source` refers to.
+
+        Parameters
+        ----------
+        name
+            The dataclass field name.
+
+        Returns
+        -------
+        dict
+            Name to object; none by default.
+        """
+        return {}
 
 
 @dataclass(frozen=True)
@@ -207,6 +248,17 @@ class InputArrayField(RecordField):
         packed[f"{name}_length"] = value.size
         keep_alive.append(value)
 
+    def packer_source(  # NOQA: D102
+        self, name: str
+    ) -> tuple[list[str], list[str]]:
+        return (
+            [
+                f"assert {name}.dtype == _REAL and {name}.flags.c_contiguous",
+                f"keep_alive.append({name})",
+            ],
+            [f"_address_of({name})", f"{name}.size"],
+        )
+
 
 @dataclass(frozen=True)
 class InlineRealArrayField(RecordField):
@@ -239,6 +291,22 @@ class InlineRealArrayField(RecordField):
         assert n_values <= self.max_length
         packed[name][:n_values] = value
         packed[name][n_values:] = 0.0
+
+    def packer_source(  # NOQA: D102
+        self, name: str
+    ) -> tuple[list[str], list[str]]:
+        # Zeros fill the unused slots; more than `max_length` values leave
+        # none and overflow the struct, which raises even under -O.
+        return (
+            [
+                f"assert not _is_cupy_array({name}), "
+                f"'`{name}` must be a host array'"
+            ],
+            [f"*{name}", f"*_{name}_zeros[len({name}) :]"],
+        )
+
+    def packer_globals(self, name: str) -> dict[str, Any]:  # NOQA: D102
+        return {f"_{name}_zeros": (0.0,) * self.max_length}
 
 
 @dataclass(frozen=True)
@@ -331,6 +399,44 @@ class TrailingColumnsField(RecordField):
         n_rows = len(value[0])
         for position, column in enumerate(value):
             reals[position * n_rows : (position + 1) * n_rows] = column
+
+    def packer_source(  # NOQA: D102
+        self, name: str
+    ) -> tuple[list[str], list[str]]:
+        return (
+            [
+                f"assert len({name}) == {len(self.columns)}",
+                f"assert all(len(column) == len({name}[0]) "
+                f"for column in {name})",
+                f"assert not any(_is_cupy_array(column) for column in {name})"
+                f", '`{name}` must be host arrays'",
+            ],
+            [f"len({name}[0])"],
+        )
+
+    def write_trailing(
+        self, view: memoryview, position: int, value: Any
+    ) -> None:
+        """
+        Write the columns from byte ``position`` on (fast packing).
+
+        Parameters
+        ----------
+        view
+            ``memoryview`` of the batch bytes.
+        position
+            Byte offset of the first column, right after the fixed
+            ``Args``.
+        value
+            The field's value. A column of another length than the first
+            does not fit its slot and raises, also under ``python -O``.
+        """
+        n_bytes = len(value[0]) * _REAL.itemsize
+        for column in value:
+            view[position : position + n_bytes] = np.asarray(
+                column, dtype=_REAL
+            ).tobytes()
+            position += n_bytes
 
 
 Real = Annotated[float, RealField()]
@@ -523,9 +629,38 @@ class KernelCallArgs:
             getattr(self, name)
         )
 
+    @classmethod
+    def record_packer(cls) -> Callable[..., int]:
+        """
+        Return the fast packer of this kernel's records.
+
+        ``packer(view, offset, keep_alive, *field_values)`` writes one
+        whole record -- header, ``Args`` including its padding, trailing
+        columns -- into the ``memoryview`` ``view`` at byte ``offset`` and
+        returns its size. ``field_values`` are the dataclass fields in
+        order, so no dataclass instance is needed. It is generated once
+        from the `record_dtype` layout with one `struct.Struct`, and
+        writes exactly the bytes of `pack_into`, the reference packing.
+        A missing or surplus value raises `TypeError`, too many inline
+        values `struct.error`, a record beyond one CUDA launch
+        `ValueError` -- also under ``python -O``.
+
+        Returns
+        -------
+        Callable
+            The packer; ``view`` needs `KERNEL_CALL_BATCH_CAPACITY_BYTES`
+            free bytes at ``offset``.
+        """
+        return _record_packer(cls)
+
     def pack_into(self, record: Any, keep_alive: list) -> None:
         """
-        Write the whole record into ``record``.
+        Write the whole record into ``record`` through the numpy dtypes.
+
+        The reference packing: the queue packs with the equivalent
+        `record_packer`, which is several times faster, and tests hold it
+        to the same bytes. Unlike it, this leaves padding bytes as they
+        were.
 
         Parameters
         ----------
@@ -548,11 +683,15 @@ class KernelCallArgs:
             )
 
     @classmethod
-    def from_specials_call(
+    def field_values_from_specials_call(
         cls, arguments: Mapping[str, Any], eager_specials: Any
-    ) -> list[Self] | None:
+    ) -> list[tuple] | None:
         """
-        Build the records of one `Specials` call.
+        Return the field values of the records of one `Specials` call.
+
+        Override this only if the method's arguments need transforming;
+        the deferred specials pass the arguments of a kernel that does
+        not straight to its `record_packer`.
 
         Parameters
         ----------
@@ -564,13 +703,38 @@ class KernelCallArgs:
         Returns
         -------
         list or None
-            The records to queue, or None to run the call eagerly.
-            By default one record, each field from the argument of the
-            same name.
+            One tuple of field values, in field order, per record to
+            queue, or None to run the call eagerly. By default one record,
+            each field from the argument of the same name.
         """
-        return [
-            cls(**{f.name: arguments[f.name] for f in dataclasses.fields(cls)})
-        ]
+        return [tuple(arguments[name] for name, _ in cls.record_fields())]
+
+    @classmethod
+    def from_specials_call(
+        cls, arguments: Mapping[str, Any], eager_specials: Any
+    ) -> list[Self] | None:
+        """
+        Build the records of one `Specials` call as dataclasses.
+
+        Parameters
+        ----------
+        arguments
+            The call's arguments by name, defaults applied.
+        eager_specials
+            The eager specials class, for backend-specific helpers.
+
+        Returns
+        -------
+        list or None
+            The records of `field_values_from_specials_call`, or None to
+            run the call eagerly.
+        """
+        records = cls.field_values_from_specials_call(
+            arguments, eager_specials
+        )
+        if records is None:
+            return None
+        return [cls(*values) for values in records]
 
 
 @dataclass(frozen=True, eq=False)
@@ -605,9 +769,9 @@ class KickMultiHarmonicArgs(KernelCallArgs):
     harmonics: RfHarmonics
 
     @classmethod
-    def from_specials_call(
+    def field_values_from_specials_call(
         cls, arguments: Mapping[str, Any], eager_specials: Any
-    ) -> list[Self]:
+    ) -> list[tuple]:
         """
         Split the harmonics over records of `MAX_RF_HARMONICS_PER_RECORD`.
 
@@ -625,24 +789,29 @@ class KickMultiHarmonicArgs(KernelCallArgs):
         Returns
         -------
         list
-            One record per `MAX_RF_HARMONICS_PER_RECORD` harmonics.
+            The field values of one record per
+            `MAX_RF_HARMONICS_PER_RECORD` harmonics.
         """
         n_rf = int(arguments["n_rf"])
         voltage = arguments["voltage"]
         omega_rf = arguments["omega_rf"]
         phi_rf = arguments["phi_rf"]
         assert len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
-        per_record = cls.max_trailing_length()
+        per_record = _max_trailing_length(cls)
+        charge = arguments["charge"]
+        acceleration_kick = arguments["acceleration_kick"]
+        if n_rf <= per_record and (
+            len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
+        ):  # one record of the whole arrays, without slicing them
+            return [(charge, acceleration_kick, (voltage, omega_rf, phi_rf))]
         records = []
         for first in range(0, max(n_rf, 1), per_record):
             last = min(first + per_record, n_rf)
             records.append(
-                cls(
-                    charge=arguments["charge"],
-                    acceleration_kick=(
-                        arguments["acceleration_kick"] if last == n_rf else 0.0
-                    ),
-                    harmonics=(
+                (
+                    charge,
+                    acceleration_kick if last == n_rf else 0.0,
+                    (
                         voltage[first:last],
                         omega_rf[first:last],
                         phi_rf[first:last],
@@ -693,9 +862,9 @@ class DriftExactArgs(KernelCallArgs):
     higher_alpha: HigherAlphas
 
     @classmethod
-    def from_specials_call(
+    def field_values_from_specials_call(
         cls, arguments: Mapping[str, Any], eager_specials: Any
-    ) -> list[Self] | None:
+    ) -> list[tuple] | None:
         """
         Inline the higher-order alphas; more than 8 runs eagerly.
 
@@ -715,22 +884,21 @@ class DriftExactArgs(KernelCallArgs):
         Returns
         -------
         list or None
-            One record, or None beyond `MAX_HIGHER_ALPHA` coefficients or
-            for a device `higher_alpha`.
+            The field values of one record, or None beyond
+            `MAX_HIGHER_ALPHA` coefficients or for a device `higher_alpha`.
         """
         higher_alpha = arguments["higher_alpha"]
-        if len(higher_alpha) > MAX_HIGHER_ALPHA:
-            return None
-        if is_cupy_array(higher_alpha):
+        n_alpha = len(higher_alpha)
+        if n_alpha > MAX_HIGHER_ALPHA or is_cupy_array(higher_alpha):
             return None
         return [
-            cls(
-                T=arguments["T"],
-                alpha_0=arguments["alpha_0"],
-                beta=arguments["beta"],
-                energy=arguments["energy"],
-                n_alpha=len(higher_alpha),
-                higher_alpha=higher_alpha,
+            (
+                arguments["T"],
+                arguments["alpha_0"],
+                arguments["beta"],
+                arguments["energy"],
+                n_alpha,
+                higher_alpha,
             )
         ]
 
@@ -752,9 +920,9 @@ class KickInterpolatedArgs(KernelCallArgs):
     acceleration_kick: Real
 
     @classmethod
-    def from_specials_call(
+    def field_values_from_specials_call(
         cls, arguments: Mapping[str, Any], eager_specials: Any
-    ) -> list[Self] | None:
+    ) -> list[tuple] | None:
         """
         Build the voltage-kick table when the call is queued.
 
@@ -771,22 +939,18 @@ class KickInterpolatedArgs(KernelCallArgs):
         Returns
         -------
         list or None
-            One record, or None for sparse profiles.
+            The field values of one record, or None for sparse profiles.
         """
         if arguments["first_left_cut"] is not None:
             return None
+        acceleration_kick = arguments["acceleration_kick"]
         table = eager_specials._build_voltage_kick_table(
             voltage=arguments["voltage"],
             bin_centers=arguments["bin_centers"],
             charge=arguments["charge"],
-            acceleration_kick=arguments["acceleration_kick"],
+            acceleration_kick=acceleration_kick,
         )
-        return [
-            cls(
-                voltage_kick_table=table,
-                acceleration_kick=arguments["acceleration_kick"],
-            )
-        ]
+        return [(table, acceleration_kick)]
 
 
 KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
@@ -954,6 +1118,149 @@ def _record_dtype(args_type: type[KernelCallArgs]) -> np.dtype:
             "itemsize": HEADER_DTYPE.itemsize + args.itemsize,
         }
     )
+
+
+@cache
+def _max_trailing_length(args_type: type[KernelCallArgs]) -> int:
+    return args_type.max_trailing_length()
+
+
+# `struct` codes of the scalar record members, by numpy kind and size.
+_STRUCT_CODES = {
+    ("f", 8): "d",
+    ("i", 4): "i",
+    ("i", 8): "q",
+    ("u", 4): "I",
+    ("u", 8): "Q",
+}
+
+
+def _struct_code(dtype: np.dtype) -> str:
+    if dtype.subdtype is not None:
+        base, shape = dtype.subdtype
+        return f"{int(np.prod(shape))}{_struct_code(base)}"
+    return _STRUCT_CODES[(dtype.kind, dtype.itemsize)]
+
+
+def _record_struct(args_type: type[KernelCallArgs]) -> struct.Struct:
+    """
+    Return the `struct.Struct` of the fixed part of a record.
+
+    Header and ``Args`` in the offsets of `_record_dtype`; padding is
+    ``x``, which `struct` writes as zero bytes.
+
+    Parameters
+    ----------
+    args_type
+        The kernel's ``Args`` class.
+
+    Returns
+    -------
+    struct.Struct
+        Native byte order, no implicit alignment.
+
+    Raises
+    ------
+    TypeError
+        If the format does not reproduce the dtype's size.
+    """
+    record = _record_dtype(args_type)
+    members = [HEADER_DTYPE.fields[name][1::-1] for name in HEADER_DTYPE.names]
+    members += [
+        (HEADER_DTYPE.itemsize + offset, dtype)
+        for _, numpy_name, dtype, offset in _layout(args_type)[0]
+        if numpy_name is not None  # padding: a gap filled with "x"
+    ]
+    codes = []
+    position = 0
+    for offset, dtype in members:
+        if offset > position:
+            codes.append(f"{offset - position}x")
+        codes.append(_struct_code(dtype))
+        position = offset + dtype.itemsize
+    if record.itemsize > position:
+        codes.append(f"{record.itemsize - position}x")
+    packer = struct.Struct("=" + "".join(codes))
+    if packer.size != record.itemsize:
+        raise TypeError(
+            f"{args_type.__name__}: struct {packer.format!r} is "
+            f"{packer.size} B, the record dtype {record.itemsize} B"
+        )
+    return packer
+
+
+@cache
+def _record_packer(args_type: type[KernelCallArgs]) -> Callable[..., int]:
+    """
+    Generate the fast packer of `KernelCallArgs.record_packer`.
+
+    Python source like ``dataclasses`` generates ``__init__``: the field
+    names are the parameters, every `RecordField` contributes its
+    `RecordField.packer_source`, and one ``pack_into`` of
+    `_record_struct` writes header, fields and padding.
+
+    Parameters
+    ----------
+    args_type
+        The kernel's ``Args`` class.
+
+    Returns
+    -------
+    Callable
+        ``packer(view, offset, keep_alive, *field_values) -> size``.
+    """
+    fields = args_type.record_fields()
+    names = [name for name, _ in fields]
+    # The generated code's own names start with "_", or are keep_alive.
+    assert all(
+        name.isidentifier() and not name.startswith("_") for name in names
+    )
+    assert "keep_alive" not in names
+    fixed_size = _record_dtype(args_type).itemsize
+    assert fixed_size <= KERNEL_CALL_BATCH_CAPACITY_BYTES
+    namespace: dict[str, Any] = {
+        "_pack_into": _record_struct(args_type).pack_into,
+        "_address_of": address_of,
+        "_is_cupy_array": is_cupy_array,
+        "_REAL": _REAL,
+    }
+    statements: list[str] = []
+    values: list[str] = []
+    for name, record_field in fields:
+        field_statements, field_values = record_field.packer_source(name)
+        statements += field_statements
+        values += field_values
+        namespace.update(record_field.packer_globals(name))
+    trailing = args_type.trailing_field()
+    if trailing is None:
+        size = str(fixed_size)
+        write_trailing: list[str] = []
+    else:
+        name, columns = trailing
+        namespace["_trailing"] = columns
+        statements += [
+            f"_size = {fixed_size} + len({name}[0]) * {columns.row_nbytes}",
+            f"if _size > {KERNEL_CALL_BATCH_CAPACITY_BYTES}:",
+            "    raise ValueError(",
+            f"        f'a {{_size}} B {args_type.__name__} record exceeds one '",
+            f"        'launch, {KERNEL_CALL_BATCH_CAPACITY_BYTES} B'",
+            "    )",
+        ]
+        size = "_size"
+        write_trailing = [
+            f"_trailing.write_trailing(_view, _offset + {fixed_size}, {name})"
+        ]
+    lines = [
+        f"def pack_{args_type.__name__}("
+        f"_view, _offset, keep_alive, {', '.join(names)}):",
+        *(f"    {line}" for line in statements),
+        f"    _pack_into(_view, _offset, {_KERNEL_IDS[args_type]}, {size}, "
+        f"{', '.join(values)})",
+        *(f"    {line}" for line in write_trailing),
+        f"    return {size}",
+    ]
+    exec("\n".join(lines), namespace)  # noqa: S102
+    return namespace[f"pack_{args_type.__name__}"]
 
 
 MAX_RF_HARMONICS_PER_RECORD = KickMultiHarmonicArgs.max_trailing_length()

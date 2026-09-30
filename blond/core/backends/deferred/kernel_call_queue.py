@@ -28,13 +28,17 @@ import numpy as np
 from blond.core.backends.backend import Specials, backend
 from blond.core.backends.deferred.kernel_call_records import (
     ARGS_BY_SPECIALS_METHOD,
+    KERNEL_CALL_BATCH_CAPACITY_BYTES,
     KernelCallArgs,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
 
-_INITIAL_CAPACITY_BYTES = 4096
+_INITIAL_CAPACITY_BYTES = 4 * 4096
+# No record is larger than one CUDA launch (`record_packer` raises
+# otherwise), so this much free space fits any record.
+_RECORD_HEADROOM_BYTES = KERNEL_CALL_BATCH_CAPACITY_BYTES
 
 
 class KernelCallQueue(threading.local):
@@ -48,6 +52,9 @@ class KernelCallQueue(threading.local):
 
     def __init__(self) -> None:
         self.buffer = np.zeros(_INITIAL_CAPACITY_BYTES, dtype=np.uint8)
+        self.view = memoryview(self.buffer)
+        # Records are appended while n_bytes <= packing_limit.
+        self.packing_limit = self.buffer.size - _RECORD_HEADROOM_BYTES
         self.n_bytes = 0
         self.args_types: list[type[KernelCallArgs]] = []
         self.record_sizes: list[int] = []
@@ -95,13 +102,39 @@ class KernelCallQueue(threading.local):
             The kernel call; its class fixes the record layout, its
             trailing array (if any) the record size.
         """
-        size = args.record_size_bytes()
-        self._reserve(size)
-        args.pack_into(
-            self.buffer[self.n_bytes : self.n_bytes + size], self.keep_alive
+        args_type = type(args)
+        self.append_record(
+            args_type,
+            args_type.record_packer(),
+            *(getattr(args, name) for name, _ in args_type.record_fields()),
         )
-        self.n_bytes += size
-        self.args_types.append(type(args))
+
+    def append_record(
+        self,
+        args_type: type[KernelCallArgs],
+        packer: Callable[..., int],
+        *field_values: Any,
+    ) -> None:
+        """
+        Pack one kernel call record from its field values.
+
+        The hot path of the deferred specials: no dataclass instance.
+
+        Parameters
+        ----------
+        args_type
+            The kernel's ``Args`` class.
+        packer
+            Its `KernelCallArgs.record_packer`.
+        *field_values
+            The ``Args`` fields in order.
+        """
+        offset = self.n_bytes
+        if offset > self.packing_limit:
+            self._grow()
+        size = packer(self.view, offset, self.keep_alive, *field_values)
+        self.n_bytes = offset + size
+        self.args_types.append(args_type)
         self.record_sizes.append(size)
 
     def clear(self) -> None:
@@ -112,12 +145,12 @@ class KernelCallQueue(threading.local):
         self.keep_alive = []
         self.dt = self.dE = None
 
-    def _reserve(self, size: int) -> None:
-        needed = self.n_bytes + size
-        if needed > self.buffer.size:
-            grown = np.zeros(max(2 * self.buffer.size, needed), np.uint8)
-            grown[: self.n_bytes] = self.buffer[: self.n_bytes]
-            self.buffer = grown
+    def _grow(self) -> None:
+        grown = np.zeros(2 * self.buffer.size, np.uint8)
+        grown[: self.n_bytes] = self.buffer[: self.n_bytes]
+        self.buffer = grown
+        self.view = memoryview(grown)
+        self.packing_limit = grown.size - _RECORD_HEADROOM_BYTES
 
 
 def make_deferred_specials(
@@ -204,23 +237,107 @@ def _queuing_method(
     queue: KernelCallQueue,
     flush: Callable,
 ) -> Callable:
-    signature = inspect.signature(eager_method)
+    """
+    Generate the method queuing ``args_type`` records.
 
-    @functools.wraps(eager_method)
-    def queue_kernel_call(*args: Any, **kwargs: Any) -> None:
-        bound = signature.bind(*args, **kwargs)
-        bound.apply_defaults()
-        arguments = bound.arguments
-        kernel_calls = args_type.from_specials_call(arguments, eager_specials)
-        if kernel_calls is None:  # this call must run eagerly
-            flush()
-            eager_method(*args, **kwargs)
-            return
-        dt, dE = arguments["dt"], arguments["dE"]
-        if not queue.holds(dt, dE):
-            flush()
-            queue.bind(dt, dE)
-        for kernel_call in kernel_calls:
-            queue.append(kernel_call)
+    Generated Python source, like ``dataclasses`` generates ``__init__``:
+    it has the eager method's parameters, so Python itself binds the
+    arguments (no `inspect.Signature.bind` per call), and hands them to
+    the `KernelCallArgs.record_packer` directly. A kernel with its own
+    `KernelCallArgs.field_values_from_specials_call` gets its arguments
+    as a dict first.
 
-    return queue_kernel_call
+    Parameters
+    ----------
+    args_type
+        The kernel's ``Args`` class.
+    eager_method
+        The eager specials method; it runs calls the records cannot
+        hold, and gives the signature.
+    eager_specials
+        The eager specials class, for backend-specific helpers.
+    queue
+        The per-thread queue.
+    flush
+        Runs the queue.
+
+    Returns
+    -------
+    Callable
+        The queuing method, with the eager method's metadata.
+
+    Raises
+    ------
+    TypeError
+        If the eager method takes other than plain positional-or-keyword
+        parameters.
+    """
+    parameters = inspect.signature(eager_method).parameters
+    names = list(parameters)
+    if (
+        any(
+            parameter.kind is not inspect.Parameter.POSITIONAL_OR_KEYWORD
+            for parameter in parameters.values()
+        )
+        or any(name.startswith("_") for name in names)
+        or names[:2] != ["dt", "dE"]
+    ):
+        raise TypeError(
+            f"cannot defer {eager_method.__qualname__}{parameters}: it "
+            "must take dt, dE, then plain positional-or-keyword parameters"
+        )
+
+    def rebind(dt: Any, dE: Any) -> None:
+        flush()
+        queue.bind(dt, dE)
+
+    namespace = {
+        "_queue": queue,
+        "_rebind": rebind,
+        "_append": queue.append_record,
+        "_args_type": args_type,
+        "_packer": args_type.record_packer(),
+        "_field_values": args_type.field_values_from_specials_call,
+        "_eager_specials": eager_specials,
+        "_eager_method": eager_method,
+        "_flush": flush,
+        "_defaults": {
+            name: parameter.default
+            for name, parameter in parameters.items()
+            if parameter.default is not inspect.Parameter.empty
+        },
+    }
+    signature = ", ".join(
+        f"{name}=_defaults[{name!r}]"
+        if name in namespace["_defaults"]
+        else name
+        for name in names
+    )
+    by_name = ", ".join(f"{name}={name}" for name in names)
+    rebind_if_other_beam = [
+        "    if _queue.dt is not dt or _queue.dE is not dE:",
+        "        _rebind(dt, dE)",
+    ]
+    default_hook = KernelCallArgs.field_values_from_specials_call.__func__
+    if args_type.field_values_from_specials_call.__func__ is default_hook:
+        field_names = [name for name, _ in args_type.record_fields()]
+        body = [
+            *rebind_if_other_beam,
+            f"    _append(_args_type, _packer, {', '.join(field_names)})",
+        ]
+    else:
+        body = [
+            "    _records = _field_values(",
+            f"        dict({by_name}), _eager_specials",
+            "    )",
+            "    if _records is None:  # this call must run eagerly",
+            "        _flush()",
+            f"        return _eager_method({by_name})",
+            *rebind_if_other_beam,
+            "    for _values in _records:",
+            "        _append(_args_type, _packer, *_values)",
+        ]
+    name = eager_method.__name__
+    source = "\n".join([f"def {name}({signature}):", *body])
+    exec(source, namespace)  # noqa: S102
+    return functools.update_wrapper(namespace[name], eager_method)
