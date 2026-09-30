@@ -73,9 +73,10 @@ BLOND_PREFER_VECTOR_WIDTH_512 BLOND_NOINLINE inline void
 apply_to_chunk(const KickMultiHarmonicArgs &args,
                const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                const index_t begin, const index_t end) {
-  const real_t *__restrict__ voltage = &args.voltage[0];
-  const real_t *__restrict__ omega_RF = &args.omega_rf[0];
-  const real_t *__restrict__ phi_RF = &args.phi_rf[0];
+  const RfHarmonics harmonics = harmonics_of(args);
+  const real_t *__restrict__ voltage = harmonics.voltage;
+  const real_t *__restrict__ omega_RF = harmonics.omega_rf;
+  const real_t *__restrict__ phi_RF = harmonics.phi_rf;
   const real_t charge = args.charge;
   const real_t acc_kick = args.acceleration_kick;
   const int n_rf = args.n_rf;

@@ -19,6 +19,10 @@ Each kernel's ``Args`` is a frozen dataclass below, e.g. `DriftSimpleArgs`.
 Its annotated fields (`Real`, `Int32`, `InputArray`, ...) fix the layout:
 ``kernel_call_records.h`` is generated from them, with C structs of the
 same names, and the numpy dtypes the queue packs are derived from them.
+A last `TrailingColumnsField` (e.g. the harmonics of
+`KickMultiHarmonicArgs`) makes the record variable-length: its columns
+follow the fixed struct, and ``record_size_bytes`` in the header covers
+them.
 
 Notes
 -----
@@ -73,7 +77,6 @@ HEADER_PATH = os.path.join(
 # which are limited to 4096 bytes before CUDA 12.1 / Volta; the other
 # 32 bytes are its remaining parameters (`execute_kernel_call_batch`).
 KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096 - 32
-MAX_RF_HARMONICS_PER_RECORD = 32
 MAX_HIGHER_ALPHA = 8
 
 # Records are laid out for 64-bit reals and indices; the generated header
@@ -238,12 +241,110 @@ class InlineRealArrayField(RecordField):
         packed[name][n_values:] = 0.0
 
 
+@dataclass(frozen=True)
+class TrailingColumnsField(RecordField):
+    """
+    Variable-length columns of reals after the fixed ``Args``.
+
+    The record ends with the value's columns one after the other, as
+    many reals each as the value has rows, so its ``record_size_bytes``
+    grows with them instead of reserving a maximum. In the fixed struct
+    the field is only its ``count``, an ``std::int32_t``; the generated
+    ``<name>_of(args)`` returns a ``view_struct`` of one pointer per
+    column. It must be the last field; reals keep the next record
+    8-byte aligned.
+
+    Columns rather than interleaved rows: a loop over the rows then
+    reads each column contiguously, which GCC vectorises without
+    shuffles, and the layout matches the eager CUDA kick's
+    ``RFParamsBatch``.
+
+    The value is one host array per column, in order and of equal
+    length: reading a device array would sync on every call.
+    """
+
+    count: str
+    """Name of the ``std::int32_t`` count member of the fixed struct."""
+    view_struct: str
+    """C name of the struct of column pointers `<name>_of` returns."""
+    columns: tuple[str, ...]
+    """The columns, in layout order."""
+    max_length_constant: str
+    """C and Python name of the most rows one record may hold."""
+
+    @property
+    def row_nbytes(self) -> int:
+        """
+        Return the bytes one row adds to the record.
+
+        Returns
+        -------
+        int
+            One real per column.
+        """
+        return len(self.columns) * _REAL.itemsize
+
+    def members(  # NOQA: D102
+        self, name: str
+    ) -> list[tuple[str, str, np.dtype]]:
+        return [(f"std::int32_t {self.count};", self.count, _INT32)]
+
+    def pack(  # NOQA: D102
+        self, packed: Any, name: str, value: Any, keep_alive: list
+    ) -> None:
+        assert len(value) == len(self.columns)
+        assert all(len(column) == len(value[0]) for column in value)
+        assert not any(is_cupy_array(column) for column in value), (
+            f"`{name}` must be host arrays"
+        )
+        packed[self.count] = np.int32(len(value[0]))
+
+    def trailing_nbytes(self, value: Any) -> int:
+        """
+        Return the bytes the columns add after the fixed ``Args``.
+
+        Parameters
+        ----------
+        value
+            The field's value.
+
+        Returns
+        -------
+        int
+            Row count times `row_nbytes`.
+        """
+        return len(value[0]) * self.row_nbytes
+
+    def pack_trailing(self, trailing: Any, value: Any) -> None:
+        """
+        Write the columns after the fixed ``Args`` struct.
+
+        Parameters
+        ----------
+        trailing
+            The record's ``uint8`` bytes after the fixed struct,
+            `trailing_nbytes` long.
+        value
+            The field's value.
+        """
+        reals = trailing.view(_REAL)
+        n_rows = len(value[0])
+        for position, column in enumerate(value):
+            reals[position * n_rows : (position + 1) * n_rows] = column
+
+
 Real = Annotated[float, RealField()]
 Int32 = Annotated[int, Int32Field()]
 Index = Annotated[int, IndexField()]
 InputArray = Annotated[Any, InputArrayField()]
-RfParameters = Annotated[
-    Any, InlineRealArrayField(MAX_RF_HARMONICS_PER_RECORD)
+RfHarmonics = Annotated[
+    Any,
+    TrailingColumnsField(
+        count="n_rf",
+        view_struct="RfHarmonics",
+        columns=("voltage", "omega_rf", "phi_rf"),
+        max_length_constant="MAX_RF_HARMONICS_PER_RECORD",
+    ),
 ]
 HigherAlphas = Annotated[Any, InlineRealArrayField(MAX_HIGHER_ALPHA)]
 
@@ -373,6 +474,80 @@ class KernelCallArgs:
         return _record_dtype(cls)
 
     @classmethod
+    def trailing_field(cls) -> tuple[str, TrailingColumnsField] | None:
+        """
+        ``(name, TrailingColumnsField)`` of the last field, if it is one.
+
+        Returns
+        -------
+        tuple or None
+            The trailing array field, or None for a fixed-size record.
+        """
+        return _trailing_field(cls)
+
+    @classmethod
+    def max_trailing_length(cls) -> int:
+        """
+        Most trailing elements one record may hold.
+
+        As many as keep the record within one CUDA launch
+        (`KERNEL_CALL_BATCH_CAPACITY_BYTES`).
+
+        Returns
+        -------
+        int
+            The limit; 0 for a fixed-size record.
+        """
+        trailing = cls.trailing_field()
+        if trailing is None:
+            return 0
+        free_bytes = KERNEL_CALL_BATCH_CAPACITY_BYTES - (
+            cls.record_dtype().itemsize
+        )
+        return free_bytes // trailing[1].row_nbytes
+
+    def record_size_bytes(self) -> int:
+        """
+        Return the bytes of this record: header, ``Args``, trailing array.
+
+        Returns
+        -------
+        int
+            A multiple of 8.
+        """
+        dtype, _, trailing = _packing(type(self))
+        if trailing is None:
+            return dtype.itemsize
+        name, record_field = trailing
+        return dtype.itemsize + record_field.trailing_nbytes(
+            getattr(self, name)
+        )
+
+    def pack_into(self, record: Any, keep_alive: list) -> None:
+        """
+        Write the whole record into ``record``.
+
+        Parameters
+        ----------
+        record
+            ``uint8`` array of exactly `record_size_bytes`.
+        keep_alive
+            Arrays the batch references, to hold until the flush.
+        """
+        dtype, fields, trailing = _packing(type(self))
+        item = record[: dtype.itemsize].view(dtype)[0]
+        item["kernel_id"] = _KERNEL_IDS[type(self)]
+        item["record_size_bytes"] = record.size
+        packed = item["args"]
+        for name, record_field in fields:
+            record_field.pack(packed, name, getattr(self, name), keep_alive)
+        if trailing is not None:
+            name, record_field = trailing
+            record_field.pack_trailing(
+                record[dtype.itemsize :], getattr(self, name)
+            )
+
+    @classmethod
     def from_specials_call(
         cls, arguments: Mapping[str, Any], eager_specials: Any
     ) -> list[Self] | None:
@@ -414,17 +589,20 @@ class KickSingleHarmonicArgs(KernelCallArgs):
 
 @dataclass(frozen=True, eq=False)
 class KickMultiHarmonicArgs(KernelCallArgs):
-    """`Specials.kick_multi_harmonic`, 32 harmonics per record."""
+    """
+    `Specials.kick_multi_harmonic`, its harmonics trailing the record.
+
+    ``harmonics`` is ``(voltage, omega_rf, phi_rf)``, stored as three
+    columns of ``n_rf`` reals after the fixed fields, so a record is
+    ``32 + 24 * n_rf`` bytes.
+    """
 
     writes_dt = False
     writes_dE = True
 
-    n_rf: Int32
-    voltage: RfParameters
-    omega_rf: RfParameters
-    phi_rf: RfParameters
     charge: Real
     acceleration_kick: Real
+    harmonics: RfHarmonics
 
     @classmethod
     def from_specials_call(
@@ -447,25 +625,27 @@ class KickMultiHarmonicArgs(KernelCallArgs):
         Returns
         -------
         list
-            One record per 32 harmonics.
+            One record per `MAX_RF_HARMONICS_PER_RECORD` harmonics.
         """
         n_rf = int(arguments["n_rf"])
         voltage = arguments["voltage"]
         omega_rf = arguments["omega_rf"]
         phi_rf = arguments["phi_rf"]
         assert len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
+        per_record = cls.max_trailing_length()
         records = []
-        for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_RECORD):
-            last = min(first + MAX_RF_HARMONICS_PER_RECORD, n_rf)
+        for first in range(0, max(n_rf, 1), per_record):
+            last = min(first + per_record, n_rf)
             records.append(
                 cls(
-                    n_rf=last - first,
-                    voltage=arguments["voltage"][first:last],
-                    omega_rf=arguments["omega_rf"][first:last],
-                    phi_rf=arguments["phi_rf"][first:last],
                     charge=arguments["charge"],
                     acceleration_kick=(
                         arguments["acceleration_kick"] if last == n_rf else 0.0
+                    ),
+                    harmonics=(
+                        voltage[first:last],
+                        omega_rf[first:last],
+                        phi_rf[first:last],
                     ),
                 )
             )
@@ -657,6 +837,57 @@ def _record_fields(
 
 
 @cache
+def _trailing_field(
+    args_type: type[KernelCallArgs],
+) -> tuple[str, TrailingColumnsField] | None:
+    fields = args_type.record_fields()
+    trailing = [
+        position
+        for position, (_, record_field) in enumerate(fields)
+        if isinstance(record_field, TrailingColumnsField)
+    ]
+    if not trailing:
+        return None
+    if trailing != [len(fields) - 1]:
+        raise TypeError(
+            f"{args_type.__name__} may have one TrailingColumnsField only, "
+            "as its last field"
+        )
+    name, record_field = fields[-1]
+    assert isinstance(record_field, TrailingColumnsField)
+    return name, record_field
+
+
+@cache
+def _packing(
+    args_type: type[KernelCallArgs],
+) -> tuple[
+    np.dtype,
+    tuple[tuple[str, RecordField], ...],
+    tuple[str, TrailingColumnsField] | None,
+]:
+    """
+    Return everything packing a record of ``args_type`` looks up.
+
+    Parameters
+    ----------
+    args_type
+        The kernel's ``Args`` class.
+
+    Returns
+    -------
+    tuple
+        Its `_record_dtype`, `_record_fields` and `_trailing_field`,
+        in one cached lookup per record.
+    """
+    return (
+        _record_dtype(args_type),
+        _record_fields(args_type),
+        _trailing_field(args_type),
+    )
+
+
+@cache
 def _layout(
     args_type: type[KernelCallArgs],
 ) -> tuple[tuple[tuple[str, str | None, np.dtype | None, int], ...], int]:
@@ -723,6 +954,10 @@ def _record_dtype(args_type: type[KernelCallArgs]) -> np.dtype:
             "itemsize": HEADER_DTYPE.itemsize + args.itemsize,
         }
     )
+
+
+MAX_RF_HARMONICS_PER_RECORD = KickMultiHarmonicArgs.max_trailing_length()
+"""Most harmonics one record holds: as many as fit one CUDA launch."""
 
 
 # ---------------------------------------------------------------- header
@@ -795,7 +1030,8 @@ def generate_header() -> str:
         "",
         "struct KernelCallHeader {",
         "  KernelId kernel_id;",
-        "  std::uint32_t record_size_bytes; // header + Args, multiple of 8",
+        "  // header + Args + trailing elements, multiple of 8",
+        "  std::uint32_t record_size_bytes;",
         "};",
         "",
         "// Plain C arrays: the layout is fixed by the numpy dtypes.",
@@ -804,6 +1040,17 @@ def generate_header() -> str:
     for args_type in KERNEL_CALL_ARGS:
         members, size = _layout(args_type)
         struct = args_type.__name__
+        trailing = args_type.trailing_field()
+        if trailing is not None:
+            name, columns = trailing
+            lines.append(
+                f"constexpr int {columns.max_length_constant} = "
+                f"{args_type.max_trailing_length()};"
+            )
+            lines.append(
+                f"// Followed by {len(columns.columns)} columns of "
+                f"`{columns.count}` reals, see `{name}_of`."
+            )
         lines.append(f"struct {struct} {{")
         lines.extend(f"  {member[0]}" for member in members)
         lines.append("};")
@@ -845,6 +1092,36 @@ def generate_header() -> str:
         "      reinterpret_cast<const char *>(record) + "
         "record->record_size_bytes);",
         "}",
+    ]
+    for args_type in KERNEL_CALL_ARGS:
+        trailing = args_type.trailing_field()
+        if trailing is None:
+            continue
+        name, columns = trailing
+        count = columns.count
+        lines += [
+            "",
+            f"// The trailing columns of a {args_type.__name__} record.",
+            f"struct {columns.view_struct} {{",
+            *(f"  const real_t *{column};" for column in columns.columns),
+            "};",
+            f"BLOND_HOST_DEVICE inline {columns.view_struct}",
+            f"{name}_of(const {args_type.__name__} &args) {{",
+            "  const auto *first = reinterpret_cast<const real_t *>"
+            "(&args + 1);",
+            "  return {"
+            + ", ".join(
+                "first"
+                if k == 0
+                else f"first + args.{count}"
+                if k == 1
+                else f"first + {k} * args.{count}"
+                for k in range(len(columns.columns))
+            )
+            + "};",
+            "}",
+        ]
+    lines += [
         "// NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)",
         "",
         "// The only switch over KernelId. `visitor(args)` resolves to the",

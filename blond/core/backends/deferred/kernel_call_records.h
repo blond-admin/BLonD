@@ -47,7 +47,8 @@ constexpr std::size_t KERNEL_CALL_BATCH_CAPACITY_BYTES = 4064;
 
 struct KernelCallHeader {
   KernelId kernel_id;
-  std::uint32_t record_size_bytes; // header + Args, multiple of 8
+  // header + Args + trailing elements, multiple of 8
+  std::uint32_t record_size_bytes;
 };
 
 // Plain C arrays: the layout is fixed by the numpy dtypes.
@@ -66,22 +67,18 @@ BLOND_CHECK_OFFSET(KickSingleHarmonicArgs, phi_rf, 16);
 BLOND_CHECK_OFFSET(KickSingleHarmonicArgs, charge, 24);
 BLOND_CHECK_OFFSET(KickSingleHarmonicArgs, acceleration_kick, 32);
 
+constexpr int MAX_RF_HARMONICS_PER_RECORD = 168;
+// Followed by 3 columns of `n_rf` reals, see `harmonics_of`.
 struct KickMultiHarmonicArgs {
-  std::int32_t n_rf;
-  std::int32_t padding_1;
-  real_t voltage[32];
-  real_t omega_rf[32];
-  real_t phi_rf[32];
   real_t charge;
   real_t acceleration_kick;
+  std::int32_t n_rf;
+  std::int32_t padding_3;
 };
-BLOND_CHECK_SIZE(KickMultiHarmonicArgs, 792);
-BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, n_rf, 0);
-BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, voltage, 8);
-BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, omega_rf, 264);
-BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, phi_rf, 520);
-BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, charge, 776);
-BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, acceleration_kick, 784);
+BLOND_CHECK_SIZE(KickMultiHarmonicArgs, 24);
+BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, charge, 0);
+BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, acceleration_kick, 8);
+BLOND_CHECK_OFFSET(KickMultiHarmonicArgs, n_rf, 16);
 
 struct DriftSimpleArgs {
   real_t T;
@@ -163,6 +160,18 @@ BLOND_HOST_DEVICE inline const KernelCallHeader *
 next_record(const KernelCallHeader *record) {
   return reinterpret_cast<const KernelCallHeader *>(
       reinterpret_cast<const char *>(record) + record->record_size_bytes);
+}
+
+// The trailing columns of a KickMultiHarmonicArgs record.
+struct RfHarmonics {
+  const real_t *voltage;
+  const real_t *omega_rf;
+  const real_t *phi_rf;
+};
+BLOND_HOST_DEVICE inline RfHarmonics
+harmonics_of(const KickMultiHarmonicArgs &args) {
+  const auto *first = reinterpret_cast<const real_t *>(&args + 1);
+  return {first, first + args.n_rf, first + 2 * args.n_rf};
 }
 // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
 

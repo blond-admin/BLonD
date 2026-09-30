@@ -78,8 +78,9 @@ apply_to_particle(const KickSingleHarmonicArgs &args, NoFactors /*factors*/,
 }
 
 // The multi-harmonic kick, templated on whatever holds the per-harmonic
-// `voltage`, `omega_rf` and `phi_rf` arrays: the record, or the eager
-// kernel's `RFParamsBatch` read in place from the parameter space.
+// `voltage`, `omega_rf` and `phi_rf` arrays: the record's trailing
+// columns (`RfHarmonics`), or the eager kernel's `RFParamsBatch` read in
+// place from the parameter space.
 template <class RFParams>
 __device__ __forceinline__ void
 kick_multi_harmonic_particle(const RFParams &rf_params, const int n_rf,
@@ -98,7 +99,7 @@ kick_multi_harmonic_particle(const RFParams &rf_params, const int n_rf,
 __device__ __forceinline__ void
 apply_to_particle(const KickMultiHarmonicArgs &args, NoFactors /*factors*/,
                   const real_t &dt, real_t &dE) {
-  kick_multi_harmonic_particle(args, args.n_rf, args.charge,
+  kick_multi_harmonic_particle(harmonics_of(args), args.n_rf, args.charge,
                                args.acceleration_kick, dt, dE);
 }
 
@@ -268,11 +269,6 @@ struct RFParamsBatch {
   real_t phi_rf[MAX_RF_HARMONICS_PER_LAUNCH];
 };
 // NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
-
-// Must match `MAX_RF_HARMONICS_PER_LAUNCH` above.
-static_assert(sizeof(KickMultiHarmonicArgs::voltage) ==
-                  MAX_RF_HARMONICS_PER_LAUNCH * sizeof(real_t),
-              "one launch batch must fit one KickMultiHarmonicArgs");
 
 extern "C" __global__ void
 kick_multi_harmonic(const real_t *__restrict__ beam_dt,

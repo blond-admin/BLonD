@@ -1174,7 +1174,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         deferred_chunk_size = c_index_t(DEFERRED_CHUNK_SIZE)
 
-        def execute_batch(batch, args_types, dt, dE) -> None:
+        def execute_batch(batch, args_types, record_sizes, dt, dE) -> None:
             _LIBBLOND.execute_kernel_call_batch(
                 ct.c_void_p(batch.ctypes.data),
                 ct.c_size_t(batch.size),

@@ -6,20 +6,15 @@ import pytest
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.backends.cpp.callables import DEFERRED_CHUNK_SIZE, c_index_t
 from blond.core.backends.deferred import kernel_call_records as records
+from blond.core.backends.deferred.kernel_call_queue import KernelCallQueue
 from blond.testing.backend_testing import BLonDTestCase
 
 
 def _pack(*kernel_calls: records.KernelCallArgs) -> np.ndarray:
-    parts = []
-    for args in kernel_calls:
-        args_type = type(args)
-        item = np.zeros((), dtype=args_type.record_dtype())
-        item["kernel_id"] = args_type.kernel_id()
-        item["record_size_bytes"] = item.dtype.itemsize
-        for name, record_field in args_type.record_fields():
-            record_field.pack(item["args"], name, getattr(args, name), [])
-        parts.append(item.tobytes())
-    return np.frombuffer(b"".join(parts), dtype=np.uint8).copy()
+    queue = KernelCallQueue()
+    for kernel_call in kernel_calls:
+        queue.append(kernel_call)
+    return queue.buffer[: queue.n_bytes].copy()
 
 
 KICK = dict(

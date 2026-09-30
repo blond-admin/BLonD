@@ -50,6 +50,7 @@ class KernelCallQueue(threading.local):
         self.buffer = np.zeros(_INITIAL_CAPACITY_BYTES, dtype=np.uint8)
         self.n_bytes = 0
         self.args_types: list[type[KernelCallArgs]] = []
+        self.record_sizes: list[int] = []
         self.keep_alive: list[Any] = []
         self.dt: Any = None
         self.dE: Any = None
@@ -91,27 +92,23 @@ class KernelCallQueue(threading.local):
         Parameters
         ----------
         args
-            The kernel call; its class fixes the record layout.
+            The kernel call; its class fixes the record layout, its
+            trailing array (if any) the record size.
         """
-        args_type = type(args)
-        dtype = args_type.record_dtype()
-        size = dtype.itemsize
+        size = args.record_size_bytes()
         self._reserve(size)
-        item = self.buffer[self.n_bytes : self.n_bytes + size].view(dtype)[0]
-        item["kernel_id"] = args_type.kernel_id()
-        item["record_size_bytes"] = size
-        packed = item["args"]
-        for name, record_field in args_type.record_fields():
-            record_field.pack(
-                packed, name, getattr(args, name), self.keep_alive
-            )
+        args.pack_into(
+            self.buffer[self.n_bytes : self.n_bytes + size], self.keep_alive
+        )
         self.n_bytes += size
-        self.args_types.append(args_type)
+        self.args_types.append(type(args))
+        self.record_sizes.append(size)
 
     def clear(self) -> None:
         """Drop all records and array references; keep the buffer."""
         self.n_bytes = 0
         self.args_types = []
+        self.record_sizes = []
         self.keep_alive = []
         self.dt = self.dE = None
 
@@ -126,7 +123,7 @@ class KernelCallQueue(threading.local):
 def make_deferred_specials(
     eager_specials: type,
     execute_batch: Callable[
-        [np.ndarray, list[type[KernelCallArgs]], Any, Any], None
+        [np.ndarray, list[type[KernelCallArgs]], list[int], Any, Any], None
     ],
 ) -> type:
     """
@@ -137,8 +134,10 @@ def make_deferred_specials(
     eager_specials
         The eager specials class, e.g. ``CppSpecials``.
     execute_batch
-        ``execute_batch(batch, args_types, dt, dE)`` applying the batch
-        bytes, in one fused pass where possible, to the beam.
+        ``execute_batch(batch, args_types, record_sizes, dt, dE)``
+        applying the batch bytes, in one fused pass where possible, to
+        the beam; ``args_types`` and ``record_sizes`` hold the ``Args``
+        class and byte size of every record.
 
     Returns
     -------
@@ -157,7 +156,7 @@ def make_deferred_specials(
         batch = queue.buffer[: queue.n_bytes]
         try:
             deferred_class._execute_batch(
-                batch, queue.args_types, queue.dt, queue.dE
+                batch, queue.args_types, queue.record_sizes, queue.dt, queue.dE
             )
         finally:
             queue.clear()  # never re-apply a batch, even after an error

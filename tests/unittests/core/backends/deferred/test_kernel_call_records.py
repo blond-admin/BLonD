@@ -8,6 +8,7 @@ import numpy as np
 
 from blond.core.backends.backend import Specials
 from blond.core.backends.deferred import kernel_call_records as records
+from blond.core.backends.deferred.kernel_call_queue import KernelCallQueue
 from blond.core.backends.deferred.kernel_call_records import (
     DriftExactArgs,
     DriftLikeLineSegmentArgs,
@@ -52,6 +53,17 @@ _EAGER_CALLS = {
         acceleration_kick=3.0,
     ),
 }
+
+
+def _multi_harmonic_arguments(n_rf: int) -> dict:
+    return dict(
+        n_rf=n_rf,
+        voltage=np.linspace(1e3, 2e3, n_rf),
+        omega_rf=np.linspace(1e7, 3e7, n_rf),
+        phi_rf=np.linspace(0.0, 1.0, n_rf),
+        charge=1.0,
+        acceleration_kick=5.0,
+    )
 
 
 # Run under `python -O`, where asserts are stripped: every field must still
@@ -149,10 +161,93 @@ class TestKernelCallRecords(BLonDTestCase):
             )
 
     def test_kick_multi_harmonic_layout(self) -> None:
+        # Fixed part: charge, acceleration_kick, n_rf and 4 bytes padding;
+        # the harmonics trail it as voltage, omega_rf and phi_rf columns.
         dtype = KickMultiHarmonicArgs.args_dtype()
-        self.assertEqual(dtype.fields["n_rf"][1], 0)
-        self.assertEqual(dtype.fields["voltage"][1], 8)  # 4 bytes padding
-        self.assertEqual(dtype.fields["voltage"][0].shape, (32,))
+        self.assertEqual(dtype.itemsize, 24)
+        self.assertEqual(dtype.fields["charge"][1], 0)
+        self.assertEqual(dtype.fields["acceleration_kick"][1], 8)
+        self.assertEqual(dtype.fields["n_rf"][1], 16)
+        _, columns = KickMultiHarmonicArgs.trailing_field()
+        self.assertEqual(columns.columns, ("voltage", "omega_rf", "phi_rf"))
+        self.assertEqual(columns.row_nbytes, 24)
+
+    def test_kick_multi_harmonic_record_holds_only_its_harmonics(
+        self,
+    ) -> None:
+        for n_rf in (0, 1, 2, 4, 5):
+            with self.subTest(n_rf=n_rf):
+                queue = KernelCallQueue()
+                (record,) = KickMultiHarmonicArgs.from_specials_call(
+                    _multi_harmonic_arguments(n_rf), eager_specials=None
+                )
+                queue.append(record)
+                size = records.HEADER_DTYPE.itemsize + 24 + 24 * n_rf
+                self.assertEqual(queue.n_bytes, size)
+                self.assertEqual(queue.record_sizes, [size])
+                header = queue.buffer[:8].view(records.HEADER_DTYPE)[0]
+                self.assertEqual(header["record_size_bytes"], size)
+
+    def test_kick_multi_harmonic_record_contents(self) -> None:
+        arguments = _multi_harmonic_arguments(3)
+        queue = KernelCallQueue()
+        queue.buffer[:] = 0xFF  # stale bytes of earlier records
+        (record,) = KickMultiHarmonicArgs.from_specials_call(
+            arguments, eager_specials=None
+        )
+        queue.append(record)
+        fixed_end = 8 + KickMultiHarmonicArgs.args_dtype().itemsize
+        args = queue.buffer[8:fixed_end].view(
+            KickMultiHarmonicArgs.args_dtype()
+        )[0]
+        self.assertEqual(args["n_rf"], 3)
+        self.assertEqual(args["charge"], arguments["charge"])
+        self.assertEqual(
+            args["acceleration_kick"], arguments["acceleration_kick"]
+        )
+        columns = queue.buffer[fixed_end : queue.n_bytes].view(np.float64)
+        for position, name in enumerate(("voltage", "omega_rf", "phi_rf")):
+            np.testing.assert_array_equal(
+                columns[3 * position : 3 * (position + 1)], arguments[name]
+            )
+
+    def test_max_harmonics_per_record_fill_one_cuda_launch(self) -> None:
+        # The per-record limit is what one CUDA launch can hold, not a
+        # tuning knob.
+        max_rf = records.MAX_RF_HARMONICS_PER_RECORD
+        fixed = KickMultiHarmonicArgs.record_dtype().itemsize
+        self.assertLessEqual(
+            fixed + 24 * max_rf, records.KERNEL_CALL_BATCH_CAPACITY_BYTES
+        )
+        self.assertGreater(
+            fixed + 24 * (max_rf + 1),
+            records.KERNEL_CALL_BATCH_CAPACITY_BYTES,
+        )
+
+    def test_harmonics_beyond_one_record_are_split(self) -> None:
+        max_rf = records.MAX_RF_HARMONICS_PER_RECORD
+        for n_rf, counts in (
+            (0, [0]),
+            (max_rf, [max_rf]),
+            (max_rf + 1, [max_rf, 1]),
+            (2 * max_rf + 5, [max_rf, max_rf, 5]),
+        ):
+            with self.subTest(n_rf=n_rf):
+                kernel_calls = KickMultiHarmonicArgs.from_specials_call(
+                    _multi_harmonic_arguments(n_rf), eager_specials=None
+                )
+                queue = KernelCallQueue()
+                for kernel_call in kernel_calls:
+                    queue.append(kernel_call)
+                self.assertEqual(
+                    queue.record_sizes,
+                    [8 + 24 + 24 * count for count in counts],
+                )
+                # acceleration_kick goes into the last record only.
+                self.assertEqual(
+                    [call.acceleration_kick for call in kernel_calls],
+                    [0.0] * (len(counts) - 1) + [5.0],
+                )
 
     def test_kernel_ids_are_positions(self) -> None:
         for position, args_type in enumerate(records.KERNEL_CALL_ARGS):

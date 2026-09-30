@@ -6,6 +6,7 @@ import pytest
 from blond.core.backends.backend import Numpy64Bit, Specials, backend
 from blond.core.backends.deferred.kernel_call_records import (
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
+    MAX_RF_HARMONICS_PER_RECORD,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase, cupy_available
@@ -104,7 +105,11 @@ class TestCppDeferredSpecials(BLonDTestCase):
                 _turn(self.eager, dt_eager, dE_eager, **turn_kwargs)
                 _turn(self.deferred, dt, dE, **turn_kwargs)
             self.deferred.flush()
-            _close(dt, dt_eager, rtol=1e-11, atol=0)
+            # Beyond 32 harmonics the eager CUDA kick sums them in several
+            # launches, a record in one: dE differs by rounding, which the
+            # relativistic drifts' sqrt(1 + x) - 1 turns into ~T * eps in
+            # dt (T = 1e-6 s), however close to zero dt is.
+            _close(dt, dt_eager, rtol=1e-11, atol=1e-20)
             _close(dE, dE_eager, rtol=1e-11, atol=1e-6)
 
     def test_matches_eager(self) -> None:
@@ -112,6 +117,14 @@ class TestCppDeferredSpecials(BLonDTestCase):
 
     def test_more_than_32_harmonics(self) -> None:
         self._assert_matches_eager(n_rf=40)
+
+    def test_harmonic_counts(self) -> None:
+        # Records hold exactly n_rf harmonics, split at
+        # MAX_RF_HARMONICS_PER_RECORD; the eager CUDA kernel splits at 32.
+        max_rf = MAX_RF_HARMONICS_PER_RECORD
+        for n_rf in (0, 1, 2, 4, 5, 31, 32, 33, 64, max_rf, max_rf + 1):
+            with self.subTest(n_rf=n_rf):
+                self._assert_matches_eager(n_rf=n_rf)
 
     def test_drift_exact_coefficient_counts(self) -> None:
         for n_alpha in (0, 1, 4, 5, 9):  # 9 falls back to eager
@@ -328,13 +341,13 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
         self.skipTest("the chunk size exists on the cpp executor only")
 
     def test_batch_larger_than_capacity_is_split(self) -> None:
-        # 40 harmonics are 2 multi-harmonic records (~1.6 KB) per turn,
-        # so three turns queue more than one launch holds.
+        # 100 harmonics are a 2432 B record per turn, so three turns
+        # queue more than one launch holds.
         dt, dE = _beam(1000)
         dt_e, dE_e = backend.copy(dt), backend.copy(dE)
         for _ in range(3):
-            _turn(self.deferred, dt, dE, n_rf=40)
-            _turn(self.eager, dt_e, dE_e, n_rf=40)
+            _turn(self.deferred, dt, dE, n_rf=100)
+            _turn(self.eager, dt_e, dE_e, n_rf=100)
         self.assertGreater(
             self.deferred.kernel_call_queue.n_bytes,
             KERNEL_CALL_BATCH_CAPACITY_BYTES,
@@ -343,18 +356,58 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
         _close(dt, dt_e, rtol=1e-11, atol=0)
         _close(dE, dE_e, rtol=1e-11, atol=1e-6)
 
+    def test_multi_harmonic_turns_fit_one_launch(self) -> None:
+        # A two-harmonic kick is an 80 B record, so ten turns of kick and
+        # drift fit one launch instead of three with 800 B records.
+        from blond.core.backends.cuda.callables import _split_batch
+
+        dt, dE = _beam(10)
+        for _ in range(10):
+            self.deferred.kick_multi_harmonic(
+                dt=dt,
+                dE=dE,
+                voltage=np.array([1e3, 2e3]),
+                omega_rf=np.array([1e7, 3e7]),
+                phi_rf=np.array([0.0, 1.0]),
+                charge=1.0,
+                n_rf=2,
+                acceleration_kick=5.0,
+            )
+            self.deferred.drift_simple(dt=dt, dE=dE, **DRIFT)
+        queue = self.deferred.kernel_call_queue
+        self.assertEqual(queue.n_bytes, 10 * (80 + 40))
+        self.assertEqual(
+            len(
+                _split_batch(
+                    queue.args_types,
+                    queue.record_sizes,
+                    KERNEL_CALL_BATCH_CAPACITY_BYTES,
+                )
+            ),
+            1,
+        )
+
     def test_split_batch_ranges(self) -> None:
         from blond.core.backends.cuda.callables import _split_batch
         from blond.core.backends.deferred.kernel_call_records import (
-            KickMultiHarmonicArgs as Multi,  # 800 B records
+            KickMultiHarmonicArgs as Multi,
         )
         from blond.core.backends.deferred.kernel_call_records import (
             KickSingleHarmonicArgs as Single,  # 48 B records
         )
 
+        # Records of one kernel differ in size: 32 harmonics are 800 B,
+        # two are 80 B.
         self.assertEqual(
-            _split_batch([Multi, Single, Multi, Single], 1690),
-            [(0, 1648, [Multi, Single, Multi]), (1648, 1696, [Single])],
+            _split_batch(
+                [Multi, Single, Multi, Single, Multi],
+                [800, 48, 800, 48, 80],
+                1690,
+            ),
+            [
+                (0, 1648, [Multi, Single, Multi]),
+                (1648, 1776, [Single, Multi]),
+            ],
         )
 
     def test_split_batch_exact_fit(self) -> None:
@@ -367,7 +420,7 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
         )
 
         self.assertEqual(
-            _split_batch([Multi, Multi, Drift], 1600),
+            _split_batch([Multi, Multi, Drift], [800, 800, 40], 1600),
             [(0, 1600, [Multi, Multi]), (1600, 1640, [Drift])],
         )
 

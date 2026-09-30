@@ -181,7 +181,9 @@ _check_kernel_call_record_abi()
 
 
 def _split_batch(
-    args_types: list[type[KernelCallArgs]], capacity: int
+    args_types: list[type[KernelCallArgs]],
+    record_sizes: list[int],
+    capacity: int,
 ) -> list[tuple[int, int, list[type[KernelCallArgs]]]]:
     """
     Split consecutive records into byte ranges of at most `capacity`.
@@ -190,6 +192,9 @@ def _split_batch(
     ----------
     args_types
         The ``Args`` class of each record, in batch order.
+    record_sizes
+        The byte size of each record, which varies within a kernel with
+        a trailing array (``KickMultiHarmonicArgs``).
     capacity
         Largest byte range one launch accepts.
 
@@ -200,8 +205,7 @@ def _split_batch(
         ``Args`` classes of its records, covering the batch.
     """
     ranges, start, end, in_range = [], 0, 0, []
-    for args_type in args_types:
-        size = args_type.record_dtype().itemsize
+    for args_type, size in zip(args_types, record_sizes, strict=True):
         assert size <= capacity, f"a {size} B record exceeds {capacity} B"
         if end + size - start > capacity:
             ranges.append((start, end, in_range))
@@ -239,6 +243,7 @@ def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
 def _execute_batch(
     batch: NumpyArray,
     args_types: list[type[KernelCallArgs]],
+    record_sizes: list[int],
     dt: CupyArray,
     dE: CupyArray,
 ) -> None:
@@ -251,11 +256,13 @@ def _execute_batch(
         Kernel call records packed back to back (``uint8``, on the host).
     args_types
         The ``Args`` class of each record of `batch`.
+    record_sizes
+        The byte size of each record of `batch`.
     dt, dE
         Beam coordinates the records act on.
     """
     for start, end, launch_args_types in _split_batch(
-        args_types, KERNEL_CALL_BATCH_CAPACITY_BYTES
+        args_types, record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
     ):
         parameters = np.zeros((), dtype=_KERNEL_CALL_BATCH_DTYPE)
         parameters["slots"].view(np.uint8)[: end - start] = batch[start:end]
