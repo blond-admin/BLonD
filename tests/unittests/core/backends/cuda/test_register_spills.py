@@ -96,3 +96,13 @@ class TestEagerKernelRegisterSpills(BLonDTestCase):
         usage = self.usage["kick_multi_harmonic"]
         self.assertEqual(usage["spill_stores"], 0, usage)
         self.assertEqual(usage["spill_loads"], 0, usage)
+
+    def test_drift_exact_keeps_small_stack_frame(self):
+        """The alpha coefficients are read in place from global memory.
+
+        A per-thread copy of them (a DriftExactArgs record) is dynamically
+        indexed, so it lives in local memory and the stack frame grows.
+        32 bytes is what the kernel used before that copy was introduced.
+        """
+        usage = self.usage["drift_exact"]
+        self.assertLessEqual(usage["stack"], 32, usage)

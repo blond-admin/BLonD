@@ -104,8 +104,7 @@ apply_to_particle(const DriftLikeLineSegmentArgs &args, real_t &dt,
 }
 
 // The polynomial in delta, `1 + alpha_0 delta + sum_k higher_alpha[k]
-// delta^(k+2)`; shared by the record overload and the eager kernel's
-// path for more coefficients than a record holds.
+// delta^(k+2)`; shared by the record overload and the eager kernel.
 __device__ __forceinline__ void
 drift_exact_particle(const real_t T, const real_t alpha_zero,
                      const real_t *higher_alpha, const int n_alpha,
@@ -622,28 +621,13 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
                                        const int n_alpha, const real_t beta,
                                        const real_t energy,
                                        const index_t n_macroparticles) {
-  constexpr int MAX_RECORD_ALPHA{sizeof(DriftExactArgs::higher_alpha) /
-                                 sizeof(real_t)};
-  if (n_alpha <= MAX_RECORD_ALPHA) {
-    DriftExactArgs args = {};
-    args.T = T;
-    args.alpha_0 = alpha_zero;
-    args.beta = beta;
-    args.energy = energy;
-    args.n_alpha = n_alpha;
-    for (int k = 0; k < n_alpha; ++k) {
-      args.higher_alpha[k] = higher_alpha[k];
-    }
-    for (index_t i = particle_loop_start(); i < n_macroparticles;
-         i += particle_loop_stride()) {
-      apply_to_particle(args, beam_dt[i], beam_dE[i]);
-    }
-    return;
-  }
-  // More coefficients than a record holds: read them from global memory.
+  // The coefficients are read in place from global memory. Copying them
+  // into a per-thread DriftExactArgs puts the dynamically indexed array
+  // in local memory, which costs more than the global reads it saves.
+  const int n_used = (higher_alpha == nullptr) ? 0 : n_alpha;
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    drift_exact_particle(T, alpha_zero, higher_alpha, n_alpha, beta, energy,
+    drift_exact_particle(T, alpha_zero, higher_alpha, n_used, beta, energy,
                          beam_dt[i], beam_dE[i]);
   }
 }
