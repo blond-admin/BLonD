@@ -658,14 +658,19 @@ struct KernelCallBatch {
 // NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
 
 // The batch plus the other parameters of `execute_kernel_call_batch`
-// (`n_bytes` padded to 8, `beam_dt`, `beam_dE`, `n_macroparticles`)
+// (`n_bytes`, `store_flags`, `beam_dt`, `beam_dE`, `n_macroparticles`)
 // must fit the 4096-byte kernel parameter limit of CUDA < 12.1 and
 // pre-Volta GPUs: kernels.cu is one translation unit, so overflowing it
 // would break every kernel on those targets.
-static_assert(sizeof(KernelCallBatch) + 8 + sizeof(real_t *) * 2 +
-                      sizeof(index_t) <=
+static_assert(sizeof(KernelCallBatch) + sizeof(unsigned int) * 2 +
+                      sizeof(real_t *) * 2 + sizeof(index_t) <=
                   4096,
               "execute_kernel_call_batch parameters exceed 4096 bytes");
+
+// Bits of `store_flags`: the coordinates any record of the batch writes.
+// Must match `STORE_DT` and `STORE_DE` in callables.py.
+constexpr unsigned int STORE_DT = 1U;
+constexpr unsigned int STORE_DE = 2U;
 
 // Compiled Args sizes, compared with the numpy dtypes when loading.
 extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
@@ -700,13 +705,14 @@ struct ApplyToParticleTile {
 // memory in every thread (a 4 KiB stack frame). All threads of a warp
 // read the same record (a shared-memory broadcast), so the switch in
 // visit_kernel_call does not diverge. A thread's tile is strided by the
-// grid size, which keeps the loads and stores coalesced.
-extern "C" __global__ void __launch_bounds__(256)
-    execute_kernel_call_batch(const KernelCallBatch batch,
-                              const unsigned int n_bytes,
-                              real_t *__restrict__ beam_dt,
-                              real_t *__restrict__ beam_dE,
-                              const index_t n_macroparticles) {
+// grid size, which keeps the loads and stores coalesced. Only the
+// coordinates in `store_flags` are stored: a kick-only batch leaves dt
+// untouched, a drift-only batch dE, so storing them would be pure
+// memory traffic. The flags are uniform per launch, so no divergence.
+extern "C" __global__ void __launch_bounds__(256) execute_kernel_call_batch(
+    const KernelCallBatch batch, const unsigned int n_bytes,
+    const unsigned int store_flags, real_t *__restrict__ beam_dt,
+    real_t *__restrict__ beam_dE, const index_t n_macroparticles) {
   __shared__ KernelCallBatch staged;
   const auto n_slots = static_cast<int>(n_bytes / sizeof(staged.slots[0]));
   for (int j = static_cast<int>(threadIdx.x); j < n_slots;
@@ -721,6 +727,8 @@ extern "C" __global__ void __launch_bounds__(256)
       reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   const index_t stride = particle_loop_stride();
+  const bool store_dt = (store_flags & STORE_DT) != 0U;
+  const bool store_dE = (store_flags & STORE_DE) != 0U;
   // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
   for (index_t tile_start = particle_loop_start();
        tile_start < n_macroparticles;
@@ -743,8 +751,12 @@ extern "C" __global__ void __launch_bounds__(256)
     for (int k = 0; k < PARTICLES_PER_THREAD; ++k) {
       const index_t i = tile_start + k * stride;
       if (i < n_macroparticles) {
-        beam_dt[i] = dt[k];
-        beam_dE[i] = dE[k];
+        if (store_dt) {
+          beam_dt[i] = dt[k];
+        }
+        if (store_dE) {
+          beam_dE[i] = dE[k];
+        }
       }
     }
   }

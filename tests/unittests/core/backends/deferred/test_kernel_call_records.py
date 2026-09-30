@@ -1,6 +1,8 @@
 import dataclasses
 import inspect
 
+import numpy as np
+
 from blond.core.backends.backend import Specials
 from blond.core.backends.deferred import kernel_call_records as records
 from blond.core.backends.deferred.kernel_call_records import (
@@ -8,7 +10,44 @@ from blond.core.backends.deferred.kernel_call_records import (
     KernelCallArgs,
     KickMultiHarmonicArgs,
 )
+from blond.core.backends.python.callables import PythonSpecials
 from blond.testing.backend_testing import BLonDTestCase
+
+_N_PARTICLES = 50
+_N_BINS = 16
+# One call per deferrable kernel, with arguments that move the particles.
+_EAGER_CALLS = {
+    "kick_single_harmonic": dict(
+        voltage=8e3,
+        omega_rf=2e7,
+        phi_rf=0.1,
+        charge=1.0,
+        acceleration_kick=12.0,
+    ),
+    "kick_multi_harmonic": dict(
+        voltage=np.array([1e3, 2e3]),
+        omega_rf=np.array([1e7, 3e7]),
+        phi_rf=np.array([0.0, 1.0]),
+        charge=1.0,
+        n_rf=2,
+        acceleration_kick=5.0,
+    ),
+    "drift_simple": dict(T=1e-6, eta_0=0.01, beta=0.9, energy=2e9),
+    "drift_like_line_segment": dict(T=1e-6, eta_0=0.01, beta=0.9, energy=2e9),
+    "drift_exact": dict(
+        T=1e-6,
+        alpha_0=0.01,
+        higher_alpha=np.array([1e-3, 2e-3]),
+        beta=0.9,
+        energy=2e9,
+    ),
+    "kick_interpolated": dict(
+        voltage=np.sin(np.linspace(0, 3, _N_BINS)) * 1e3,
+        bin_centers=np.linspace(-1e-8, 1e-8, _N_BINS),
+        charge=1.0,
+        acceleration_kick=3.0,
+    ),
+}
 
 
 class TestKernelCallRecords(BLonDTestCase):
@@ -85,3 +124,38 @@ class TestKernelCallRecords(BLonDTestCase):
 
     def test_digest_is_sha256(self) -> None:
         self.assertEqual(len(records.header_digest()), 64)
+
+    def test_write_flags_match_the_eager_kernels(self) -> None:
+        # The CUDA executor stores only the coordinates a batch writes,
+        # so a wrong flag silently drops a kernel's result there.
+        self.assertEqual(
+            set(_EAGER_CALLS), set(records.ARGS_BY_SPECIALS_METHOD)
+        )
+        rng = np.random.default_rng(5)
+        for args_type in records.KERNEL_CALL_ARGS:
+            dt = rng.uniform(-1e-8, 1e-8, _N_PARTICLES)
+            dE = rng.uniform(-1e6, 1e6, _N_PARTICLES)
+            dt_before, dE_before = dt.copy(), dE.copy()
+            getattr(PythonSpecials, args_type.specials_method())(
+                dt=dt, dE=dE, **_EAGER_CALLS[args_type.specials_method()]
+            )
+            with self.subTest(kernel=args_type.__name__):
+                self.assertEqual(
+                    args_type.writes_dt,
+                    not np.array_equal(dt, dt_before),
+                )
+                self.assertEqual(
+                    args_type.writes_dE,
+                    not np.array_equal(dE, dE_before),
+                )
+
+    def test_missing_write_flags_are_rejected_at_definition(self) -> None:
+        with self.assertRaisesRegex(TypeError, "writes_dE"):
+
+            class DriftSimpleArgs(KernelCallArgs):  # noqa: F841
+                writes_dt = True
+
+        with self.assertRaisesRegex(TypeError, "writes_dt"):
+
+            class KickSingleHarmonicArgs(KernelCallArgs):  # noqa: F841
+                writes_dE = True

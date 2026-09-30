@@ -117,6 +117,29 @@ class TestCppDeferredSpecials(BLonDTestCase):
         for n_alpha in (0, 1, 4, 5, 9):  # 9 falls back to eager
             self._assert_matches_eager(n_alpha=n_alpha)
 
+    def _assert_batch_matches_eager(self, calls) -> None:
+        dt, dE = _beam(100003)
+        dt_eager, dE_eager = backend.copy(dt), backend.copy(dE)
+        for specials, dt_, dE_ in (
+            (self.eager, dt_eager, dE_eager),
+            (self.deferred, dt, dE),
+        ):
+            for method, kwargs in calls:
+                getattr(specials, method)(dt=dt_, dE=dE_, **kwargs)
+        self.deferred.flush()
+        _close(dt, dt_eager, rtol=1e-11, atol=0)
+        _close(dE, dE_eager, rtol=1e-11, atol=1e-6)
+
+    def test_kick_only_batch(self) -> None:
+        # Writes dE only: the CUDA executor skips storing dt.
+        self._assert_batch_matches_eager([("kick_single_harmonic", KICK)] * 2)
+
+    def test_drift_only_batch(self) -> None:
+        # Writes dt only: the CUDA executor skips storing dE.
+        self._assert_batch_matches_eager(
+            [("drift_simple", DRIFT), ("drift_like_line_segment", DRIFT)]
+        )
+
     def test_chunk_sizes(self) -> None:
         for chunk_size in ("1", "64", "1000000000"):
             with pytest.MonkeyPatch.context() as patch:
@@ -328,6 +351,50 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
         self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
         self.deferred.flush()
         self.assertEqual(self.deferred.kernel_call_queue.n_bytes, 0)
+
+    def test_store_flags(self) -> None:
+        from blond.core.backends.cuda.callables import (
+            STORE_DE,
+            STORE_DT,
+            _store_flags,
+        )
+        from blond.core.backends.deferred.kernel_call_records import (
+            DriftExactArgs,
+            DriftSimpleArgs,
+            KickInterpolatedArgs,
+            KickSingleHarmonicArgs,
+        )
+
+        self.assertEqual(_store_flags([KickInterpolatedArgs]), STORE_DE)
+        self.assertEqual(
+            _store_flags([DriftSimpleArgs, DriftExactArgs]), STORE_DT
+        )
+        self.assertEqual(
+            _store_flags([KickSingleHarmonicArgs, DriftSimpleArgs]),
+            STORE_DT | STORE_DE,
+        )
+        self.assertEqual(_store_flags([]), 0)
+
+    def test_record_types_of_a_range(self) -> None:
+        from blond.core.backends.cuda.callables import _record_types
+        from blond.core.backends.deferred.kernel_call_records import (
+            DriftSimpleArgs,
+            KickInterpolatedArgs,
+            KickSingleHarmonicArgs,
+        )
+
+        types = [KickSingleHarmonicArgs, DriftSimpleArgs, KickInterpolatedArgs]
+        records = [np.zeros((), dtype=t.record_dtype()) for t in types]
+        for record, args_type in zip(records, types):
+            record["kernel_id"] = args_type.kernel_id()
+            record["record_size_bytes"] = args_type.record_dtype().itemsize
+        batch = np.concatenate([r.reshape(1).view(np.uint8) for r in records])
+        sizes = [t.record_dtype().itemsize for t in types]
+        self.assertEqual(
+            _record_types(batch, sizes[0], sizes[0] + sizes[1] + sizes[2]),
+            [DriftSimpleArgs, KickInterpolatedArgs],
+        )
+        self.assertEqual(_record_types(batch, 0, sizes[0]), types[:1])
 
     def test_specials_mode_is_tracked(self) -> None:
         self.assertEqual(backend.specials_mode, self.mode)

@@ -24,14 +24,18 @@ from blond.core.backends.deferred.kernel_call_queue import (
     make_deferred_specials,
 )
 from blond.core.backends.deferred.kernel_call_records import (
+    HEADER_DTYPE,
     KERNEL_CALL_ARGS,
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
+    KernelCallArgs,
 )
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Iterable
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -140,6 +144,9 @@ _KERNEL_CALL_BATCH_DTYPE = np.dtype(
 )
 # `execute_kernel_call_batch` is compiled with `__launch_bounds__(256)`.
 _deferred_block_size = (min(threads, 256), 1, 1)
+# Bits of its `store_flags`, as in kernels.cu.
+STORE_DT = 1
+STORE_DE = 2
 
 
 def _check_kernel_call_record_abi() -> None:
@@ -201,6 +208,60 @@ def _split_batch(
     return ranges
 
 
+def _record_types(
+    batch: NumpyArray, start: int, end: int
+) -> list[type[KernelCallArgs]]:
+    """
+    Return the kernel of every record in a byte range of the batch.
+
+    Parameters
+    ----------
+    batch
+        Kernel call records packed back to back (``uint8``, on the host).
+    start, end
+        Byte range of whole records, as returned by `_split_batch`.
+
+    Returns
+    -------
+    list[type[KernelCallArgs]]
+        The ``Args`` class of each record, in batch order.
+    """
+    types = []
+    offset = start
+    while offset < end:
+        header = batch[offset : offset + HEADER_DTYPE.itemsize].view(
+            HEADER_DTYPE
+        )[0]
+        types.append(KERNEL_CALL_ARGS[header["kernel_id"]])
+        offset += int(header["record_size_bytes"])
+    assert offset == end, "the range does not end on a record boundary"
+    return types
+
+
+def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
+    """
+    Return the ``store_flags`` of a launch applying these records.
+
+    Parameters
+    ----------
+    record_types
+        The ``Args`` class of every record of the launch.
+
+    Returns
+    -------
+    int
+        `STORE_DT` if any record writes ``dt``, OR `STORE_DE` if any
+        writes ``dE``.
+    """
+    flags = 0
+    for args_type in record_types:
+        if args_type.writes_dt:
+            flags |= STORE_DT
+        if args_type.writes_dE:
+            flags |= STORE_DE
+    return flags
+
+
 def _execute_batch(
     batch: NumpyArray,
     record_sizes: list[int],
@@ -228,6 +289,7 @@ def _execute_batch(
             args=(
                 parameters,
                 np.uint32(end - start),
+                np.uint32(_store_flags(_record_types(batch, start, end))),
                 dt,
                 dE,
                 INDEX_DTYPE(dt.size),

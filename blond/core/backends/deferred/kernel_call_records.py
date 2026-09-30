@@ -25,9 +25,10 @@ Notes
 To add a deferrable kernel:
 
 1. Add a ``<Kernel>Args(KernelCallArgs)`` dataclass; its name must be the
-   `Specials` method in CamelCase. Override `from_specials_call` only if
-   the method's arguments need transforming. Append it to
-   `KERNEL_CALL_ARGS`.
+   `Specials` method in CamelCase, and it must set `writes_dt` and
+   `writes_dE` to the coordinates the kernel modifies. Override
+   `from_specials_call` only if the method's arguments need transforming.
+   Append it to `KERNEL_CALL_ARGS`.
 2. Regenerate the header:
    ``python -m blond.core.backends.deferred.kernel_call_records``.
 3. Add one overload per backend: ``apply_to_chunk(const <Kernel>Args&,
@@ -49,6 +50,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Self,
     get_args,
     get_type_hints,
@@ -257,9 +259,14 @@ class KernelCallArgs:
     annotated with `Real`, `Int32`, ..., are the struct members in order.
     """
 
+    writes_dt: ClassVar[bool]
+    """Whether the kernel modifies ``dt``; required on every subclass."""
+    writes_dE: ClassVar[bool]
+    """Whether the kernel modifies ``dE``; required on every subclass."""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
-        Reject a subclass that does not name a `Specials` method.
+        Reject a subclass that is not a complete kernel description.
 
         Parameters
         ----------
@@ -270,7 +277,7 @@ class KernelCallArgs:
         ------
         TypeError
             If the class is not named ``<Kernel>Args`` after a `Specials`
-            method.
+            method, or does not set `writes_dt` and `writes_dE`.
         """
         super().__init_subclass__(**kwargs)
         if not cls.__name__.endswith("Args") or not hasattr(
@@ -281,6 +288,14 @@ class KernelCallArgs:
                 f"Specials method; Specials has no "
                 f"{cls.specials_method()!r}."
             )
+        # The CUDA executor stores only the coordinates a batch writes,
+        # so a missing flag must not default to either value.
+        for flag in ("writes_dt", "writes_dE"):
+            if not isinstance(getattr(cls, flag, None), bool):
+                raise TypeError(
+                    f"{cls.__name__} must set `{flag}` to True or False: "
+                    "whether the kernel modifies that coordinate."
+                )
 
     @classmethod
     def specials_method(cls) -> str:
@@ -385,6 +400,9 @@ class KernelCallArgs:
 class KickSingleHarmonicArgs(KernelCallArgs):
     """`Specials.kick_single_harmonic`."""
 
+    writes_dt = False
+    writes_dE = True
+
     voltage: Real
     omega_rf: Real
     phi_rf: Real
@@ -395,6 +413,9 @@ class KickSingleHarmonicArgs(KernelCallArgs):
 @dataclass(frozen=True, eq=False)
 class KickMultiHarmonicArgs(KernelCallArgs):
     """`Specials.kick_multi_harmonic`, 32 harmonics per record."""
+
+    writes_dt = False
+    writes_dE = True
 
     n_rf: Int32
     voltage: RfParameters
@@ -449,6 +470,9 @@ class KickMultiHarmonicArgs(KernelCallArgs):
 class DriftSimpleArgs(KernelCallArgs):
     """`Specials.drift_simple`."""
 
+    writes_dt = True
+    writes_dE = False
+
     T: Real
     eta_0: Real
     beta: Real
@@ -459,6 +483,9 @@ class DriftSimpleArgs(KernelCallArgs):
 class DriftLikeLineSegmentArgs(KernelCallArgs):
     """`Specials.drift_like_line_segment`."""
 
+    writes_dt = True
+    writes_dE = False
+
     T: Real
     eta_0: Real
     beta: Real
@@ -468,6 +495,9 @@ class DriftLikeLineSegmentArgs(KernelCallArgs):
 @dataclass(frozen=True, eq=False)
 class DriftExactArgs(KernelCallArgs):
     """`Specials.drift_exact`, up to `MAX_HIGHER_ALPHA` coefficients."""
+
+    writes_dt = True
+    writes_dE = False
 
     T: Real
     alpha_0: Real
@@ -521,6 +551,9 @@ class KickInterpolatedArgs(KernelCallArgs):
     (slope, offset) * n_bins]`` with ``charge`` and ``acceleration_kick``
     folded into the pairs; both backends build it the same way.
     """
+
+    writes_dt = False
+    writes_dE = True
 
     voltage_kick_table: InputArray
     acceleration_kick: Real
