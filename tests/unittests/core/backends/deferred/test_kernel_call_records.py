@@ -1,5 +1,8 @@
 import dataclasses
 import inspect
+import subprocess
+import sys
+import textwrap
 
 import numpy as np
 
@@ -51,7 +54,43 @@ _EAGER_CALLS = {
 }
 
 
+# Run under `python -O`, where asserts are stripped: every field must still
+# be required and written, or a reused queue buffer would silently keep a
+# stale value from an earlier record.
+_OPTIMIZED_PACKING_CHECK = textwrap.dedent(
+    """
+    from blond.core.backends.deferred import kernel_call_records as records
+    from blond.core.backends.deferred.kernel_call_queue import (
+        KernelCallQueue,
+    )
+
+    queue = KernelCallQueue()
+    queue.buffer[:] = 0xFF  # stale bytes of earlier records
+    queue.append(
+        records.DriftSimpleArgs(T=1.0, eta_0=2.0, beta=3.0, energy=4.0)
+    )
+    dtype = records.DriftSimpleArgs.record_dtype()
+    args = queue.buffer[: queue.n_bytes].view(dtype)[0]["args"]
+    if args.tolist() != (1.0, 2.0, 3.0, 4.0):  # not `assert`: -O strips it
+        raise SystemExit(f"stale record fields: {args}")
+    try:
+        records.DriftSimpleArgs(T=1.0, eta_0=2.0, beta=3.0)
+    except TypeError:
+        print("missing field rejected")
+    """
+)
+
+
 class TestKernelCallRecords(BLonDTestCase):
+    def test_packing_is_complete_under_python_optimize(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-O", "-c", _OPTIMIZED_PACKING_CHECK],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("missing field rejected", result.stdout)
+
     def test_header_is_current(self) -> None:
         with open(records.HEADER_PATH) as file:
             on_disk = file.read()
