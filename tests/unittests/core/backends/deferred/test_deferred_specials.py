@@ -387,6 +387,27 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
             1,
         )
 
+    def test_batch_parameter_holds_the_launch_bytes(self) -> None:
+        # A view of the queue's buffer where a whole batch struct fits
+        # after `start`, else a zero-padded copy.
+        from blond.core.backends.cuda.callables import (
+            _KERNEL_CALL_BATCH_DTYPE,
+            _batch_parameter,
+        )
+
+        capacity = _KERNEL_CALL_BATCH_DTYPE.itemsize
+        buffer = (np.arange(capacity + 100) % 251 + 1).astype(np.uint8)
+        for start, end in ((0, 48), (100, 100 + capacity), (200, 300)):
+            with self.subTest(start=start, end=end):
+                parameter = _batch_parameter(buffer, start, end)
+                self.assertEqual(parameter.dtype, _KERNEL_CALL_BATCH_DTYPE)
+                raw = np.frombuffer(parameter.tobytes(), dtype=np.uint8)
+                np.testing.assert_array_equal(
+                    raw[: end - start], buffer[start:end]
+                )
+                if start + capacity > buffer.size:
+                    self.assertFalse(raw[end - start :].any())
+
     def test_split_batch_ranges(self) -> None:
         from blond.core.backends.cuda.callables import _split_batch
         from blond.core.backends.deferred.kernel_call_records import (

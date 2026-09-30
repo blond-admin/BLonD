@@ -156,7 +156,8 @@ class KernelCallQueue(threading.local):
 def make_deferred_specials(
     eager_specials: type,
     execute_batch: Callable[
-        [np.ndarray, list[type[KernelCallArgs]], list[int], Any, Any], None
+        [np.ndarray, int, list[type[KernelCallArgs]], list[int], Any, Any],
+        None,
     ],
 ) -> type:
     """
@@ -167,10 +168,13 @@ def make_deferred_specials(
     eager_specials
         The eager specials class, e.g. ``CppSpecials``.
     execute_batch
-        ``execute_batch(batch, args_types, record_sizes, dt, dE)``
-        applying the batch bytes, in one fused pass where possible, to
-        the beam; ``args_types`` and ``record_sizes`` hold the ``Args``
-        class and byte size of every record.
+        ``execute_batch(buffer, n_bytes, args_types, record_sizes, dt,
+        dE)`` applying the first ``n_bytes`` of the ``uint8`` array
+        ``buffer``, in one fused pass where possible, to the beam;
+        ``args_types`` and ``record_sizes`` hold the ``Args`` class and
+        byte size of every record. ``buffer`` is the queue's own array,
+        the same object from flush to flush until it grows, so a cached
+        pointer to it stays valid.
 
     Returns
     -------
@@ -184,12 +188,17 @@ def make_deferred_specials(
     # and looks `_execute_batch` up at call time so it can be replaced.
     def flush() -> None:
         """Run all queued kernel calls of this thread."""
-        if queue.n_bytes == 0:
+        n_bytes = queue.n_bytes
+        if n_bytes == 0:
             return
-        batch = queue.buffer[: queue.n_bytes]
         try:
             deferred_class._execute_batch(
-                batch, queue.args_types, queue.record_sizes, queue.dt, queue.dE
+                queue.buffer,
+                n_bytes,
+                queue.args_types,
+                queue.record_sizes,
+                queue.dt,
+                queue.dE,
             )
         finally:
             queue.clear()  # never re-apply a batch, even after an error

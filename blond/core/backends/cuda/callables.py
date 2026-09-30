@@ -240,8 +240,42 @@ def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
     return flags
 
 
+# The cupy `Function` of the RawKernel: calling it directly skips the
+# RawKernel's keyword wrapper, ~0.5 us per launch.
+_launch_kernel_call_batch = _execute_kernel_call_batch_kernel.kernel
+
+
+def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> np.void:
+    """
+    Return the ``KernelCallBatch`` launch parameter of ``buffer[start:end]``.
+
+    A ``np.void`` scalar, which cupy packs about 2 us faster than a 0-d
+    structured array. Where the buffer holds a whole batch struct from
+    ``start`` on it is a view of the queue's bytes, else a zero-padded
+    copy; the kernel reads only the first ``end - start`` bytes.
+
+    Parameters
+    ----------
+    buffer
+        The queue's ``uint8`` batch buffer.
+    start, end
+        Byte range of the launch.
+
+    Returns
+    -------
+    np.void
+        Of `_KERNEL_CALL_BATCH_DTYPE`.
+    """
+    if start + _KERNEL_CALL_BATCH_DTYPE.itemsize <= buffer.size:
+        return np.frombuffer(buffer, _KERNEL_CALL_BATCH_DTYPE, 1, start)[0]
+    parameters = np.zeros(1, dtype=_KERNEL_CALL_BATCH_DTYPE)
+    parameters.view(np.uint8)[: end - start] = buffer[start:end]
+    return parameters[0]
+
+
 def _execute_batch(
-    batch: NumpyArray,
+    buffer: NumpyArray,
+    n_bytes: int,
     args_types: list[type[KernelCallArgs]],
     record_sizes: list[int],
     dt: CupyArray,
@@ -252,31 +286,37 @@ def _execute_batch(
 
     Parameters
     ----------
-    batch
-        Kernel call records packed back to back (``uint8``, on the host).
+    buffer
+        Kernel call records packed back to back (``uint8``, on the host)
+        in its first ``n_bytes``.
+    n_bytes
+        Bytes of the batch.
     args_types
-        The ``Args`` class of each record of `batch`.
+        The ``Args`` class of each record of the batch.
     record_sizes
-        The byte size of each record of `batch`.
+        The byte size of each record of the batch.
     dt, dE
         Beam coordinates the records act on.
     """
-    for start, end, launch_args_types in _split_batch(
-        args_types, record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
-    ):
-        parameters = np.zeros((), dtype=_KERNEL_CALL_BATCH_DTYPE)
-        parameters["slots"].view(np.uint8)[: end - start] = batch[start:end]
-        _execute_kernel_call_batch_kernel(
-            args=(
-                parameters,
+    if n_bytes <= KERNEL_CALL_BATCH_CAPACITY_BYTES:  # one launch, no split
+        launches = [(0, n_bytes, args_types)]
+    else:
+        launches = _split_batch(
+            args_types, record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
+        )
+    n_macroparticles = INDEX_DTYPE(dt.size)
+    for start, end, launch_args_types in launches:
+        _launch_kernel_call_batch(
+            grid_size,
+            _deferred_block_size,
+            (
+                _batch_parameter(buffer, start, end),
                 np.uint32(end - start),
-                np.uint32(_store_flags(launch_args_types)),
+                np.uint32(_store_flags(set(launch_args_types))),
                 dt,
                 dE,
-                INDEX_DTYPE(dt.size),
+                n_macroparticles,
             ),
-            grid=grid_size,
-            block=_deferred_block_size,
         )
 
 

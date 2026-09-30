@@ -1174,10 +1174,14 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         deferred_chunk_size = c_index_t(DEFERRED_CHUNK_SIZE)
 
-        def execute_batch(batch, args_types, record_sizes, dt, dE) -> None:
+        def execute_batch(
+            buffer, n_bytes, args_types, record_sizes, dt, dE
+        ) -> None:
+            # `buffer` is the queue's array itself, not a fresh slice, so
+            # its pointer comes from the cache.
             _LIBBLOND.execute_kernel_call_batch(
-                ct.c_void_p(batch.ctypes.data),
-                ct.c_size_t(batch.size),
+                _get_pointer(buffer),
+                ct.c_size_t(n_bytes),
                 _get_pointer(dt),
                 _get_pointer(dE),
                 _get_beam_len(dt),
