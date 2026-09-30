@@ -86,30 +86,6 @@ class BeamBaseClass(Preparable, ABC):
             time=0, total_energy=None, particle_type=particle_type
         )
 
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        """
-        Restore a pickled beam, migrating pre-`FlushingCoordinates` state.
-
-        A beam pickled before coordinates were stored through
-        `FlushingCoordinates` keeps its data directly under the
-        ``_dt``/``_dE``/``_flags``/``_ids`` keys of ``__dict__``, instead
-        of the ``<name>_storage`` keys the data descriptor now reads.
-        Loading such a state without migrating it leaves the descriptor
-        with nothing set, so `dt`/`dE`/... raise "Beam is not properly
-        initialized" even though the array was pickled successfully.
-
-        Parameters
-        ----------
-        state
-            The unpickled instance ``__dict__``, legacy or current.
-        """
-        legacy_coordinates = {
-            name: state.pop(name) for name in ("_dt", "_dE") if name in state
-        }
-        self.__dict__.update(state)
-        for name, value in legacy_coordinates.items():
-            setattr(self, name, value)
-
     def __iadd__(self, other: Self) -> Self:
         """
         In place addition of another beam to this one.
