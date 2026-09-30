@@ -49,7 +49,7 @@ class KernelCallQueue(threading.local):
     def __init__(self) -> None:
         self.buffer = np.zeros(_INITIAL_CAPACITY_BYTES, dtype=np.uint8)
         self.n_bytes = 0
-        self.record_sizes: list[int] = []
+        self.kernels: list[DeferrableKernel] = []
         self.keep_alive: list[Any] = []
         self.dt: Any = None
         self.dE: Any = None
@@ -104,12 +104,12 @@ class KernelCallQueue(threading.local):
             record.view(kernel.record_dtype)[0], values, self.keep_alive
         )
         self.n_bytes += size
-        self.record_sizes.append(size)
+        self.kernels.append(kernel)
 
     def clear(self) -> None:
         """Drop all records and array references; keep the buffer."""
         self.n_bytes = 0
-        self.record_sizes = []
+        self.kernels = []
         self.keep_alive = []
         self.dt = self.dE = None
 
@@ -123,7 +123,9 @@ class KernelCallQueue(threading.local):
 
 def make_deferred_specials(
     eager_specials: type,
-    execute_batch: Callable[[np.ndarray, list[int], Any, Any], None],
+    execute_batch: Callable[
+        [np.ndarray, list[DeferrableKernel], Any, Any], None
+    ],
 ) -> type:
     """
     Derive deferred specials from eager ones.
@@ -133,7 +135,7 @@ def make_deferred_specials(
     eager_specials
         The eager specials class, e.g. ``CppSpecials``.
     execute_batch
-        ``execute_batch(batch, record_sizes, dt, dE)`` applying the batch
+        ``execute_batch(batch, kernels, dt, dE)`` applying the batch
         bytes, in one fused pass where possible, to the beam.
 
     Returns
@@ -153,7 +155,7 @@ def make_deferred_specials(
         batch = queue.buffer[: queue.n_bytes]
         try:
             deferred_class._execute_batch(
-                batch, queue.record_sizes, queue.dt, queue.dE
+                batch, queue.kernels, queue.dt, queue.dE
             )
         finally:
             queue.clear()  # never re-apply a batch, even after an error

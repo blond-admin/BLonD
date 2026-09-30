@@ -25,7 +25,6 @@ from blond.core.backends.deferred.kernel_call_queue import (
 )
 from blond.core.backends.deferred.kernel_call_records import (
     DEFERRABLE_KERNELS,
-    HEADER_DTYPE,
     DeferrableKernel,
 )
 from blond.core.beam.flags import BeamFlags
@@ -194,62 +193,35 @@ _check_kernel_call_record_abi()
 
 
 def _split_batch(
-    record_sizes: list[int], capacity: int
-) -> list[tuple[int, int]]:
+    kernels: list[DeferrableKernel], capacity: int
+) -> list[tuple[int, int, list[DeferrableKernel]]]:
     """
     Split consecutive records into byte ranges of at most `capacity`.
 
     Parameters
     ----------
-    record_sizes
-        Size in bytes of each record, in batch order.
+    kernels
+        The kernel of each record, in batch order.
     capacity
         Largest byte range one launch accepts.
 
     Returns
     -------
-    list[tuple[int, int]]
-        ``(start, end)`` byte ranges covering the batch, one per launch.
+    list[tuple[int, int, list[DeferrableKernel]]]
+        ``(start, end, kernels)`` per launch: the byte range and the
+        kernels of its records, covering the batch.
     """
-    ranges, start, end = [], 0, 0
-    for size in record_sizes:
+    ranges, start, end, in_range = [], 0, 0, []
+    for kernel in kernels:
+        size = kernel.record_dtype.itemsize
         assert size <= capacity, f"a {size} B record exceeds {capacity} B"
         if end + size - start > capacity:
-            ranges.append((start, end))
-            start = end
+            ranges.append((start, end, in_range))
+            start, in_range = end, []
         end += size
-    ranges.append((start, end))
+        in_range.append(kernel)
+    ranges.append((start, end, in_range))
     return ranges
-
-
-def _record_types(
-    batch: NumpyArray, start: int, end: int
-) -> list[DeferrableKernel]:
-    """
-    Return the kernel of every record in a byte range of the batch.
-
-    Parameters
-    ----------
-    batch
-        Kernel call records packed back to back (``uint8``, on the host).
-    start, end
-        Byte range of whole records, as returned by `_split_batch`.
-
-    Returns
-    -------
-    list[DeferrableKernel]
-        The kernel of each record, in batch order.
-    """
-    types = []
-    offset = start
-    while offset < end:
-        header = batch[offset : offset + HEADER_DTYPE.itemsize].view(
-            HEADER_DTYPE
-        )[0]
-        types.append(DEFERRABLE_KERNELS[header["kernel_id"]])
-        offset += int(header["record_size_bytes"])
-    assert offset == end, "the range does not end on a record boundary"
-    return types
 
 
 def _store_flags(record_types: Iterable[DeferrableKernel]) -> int:
@@ -278,7 +250,7 @@ def _store_flags(record_types: Iterable[DeferrableKernel]) -> int:
 
 def _execute_batch(
     batch: NumpyArray,
-    record_sizes: list[int],
+    kernels: list[DeferrableKernel],
     dt: CupyArray,
     dE: CupyArray,
 ) -> None:
@@ -289,13 +261,13 @@ def _execute_batch(
     ----------
     batch
         Kernel call records packed back to back (``uint8``, on the host).
-    record_sizes
-        Size in bytes of each record of `batch`.
+    kernels
+        The kernel of each record of `batch`.
     dt, dE
         Beam coordinates the records act on.
     """
-    for start, end in _split_batch(
-        record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
+    for start, end, launch_kernels in _split_batch(
+        kernels, KERNEL_CALL_BATCH_CAPACITY_BYTES
     ):
         parameters = np.zeros((), dtype=_KERNEL_CALL_BATCH_DTYPE)
         parameters["slots"].view(np.uint8)[: end - start] = batch[start:end]
@@ -303,7 +275,7 @@ def _execute_batch(
             args=(
                 parameters,
                 np.uint32(end - start),
-                np.uint32(_store_flags(_record_types(batch, start, end))),
+                np.uint32(_store_flags(launch_kernels)),
                 dt,
                 dE,
                 INDEX_DTYPE(dt.size),
