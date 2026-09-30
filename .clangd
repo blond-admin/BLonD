@@ -1,0 +1,23 @@
+# clangd settings for the C++ and CUDA backends, mirroring the flags of
+# dev_tools/run_clang_tidy.py. Without a compile_commands.json clangd
+# compiles each file from its own directory, hence the relative include of
+# the generated kernel call records header (blond/core/backends/deferred).
+---
+If:
+  PathMatch: blond/core/backends/cpp/.*
+CompileFlags:
+  Add:
+    - -xc++
+    - -std=c++11
+    - -D_USE_MATH_DEFINES
+    - -fopenmp
+    - -DPARALLEL
+    - -I../deferred
+---
+If:
+  PathMatch: blond/core/backends/cuda/.*\.cu
+CompileFlags:
+  Add:
+    - --cuda-gpu-arch=sm_75
+    - -nocudalib
+    - -I../deferred
