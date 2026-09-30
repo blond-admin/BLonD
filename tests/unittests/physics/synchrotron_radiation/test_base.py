@@ -61,8 +61,8 @@ class BeamBaseClassTester(BeamBaseClass):
             backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
         )  # delta t
         # in s
-        self._flags = backend.zeros(10, dtype=np.int32)
-        self._ids = backend.arange(10, dtype=INDEX_DTYPE)
+        self._flags = DistributedArray(backend.zeros(10, dtype=np.int32))
+        self._ids = DistributedArray(backend.arange(10, dtype=INDEX_DTYPE))
 
     @cached_property
     def ratio(self) -> float:

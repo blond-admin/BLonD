@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 
 from blond import Beam, proton
+from blond.generals.distributed.distributed_array import DistributedArray
 from blond.specifics.muon_collider.beam_preparation import (
     copy_beam_data_from_other_beam,
     load_beam_coordinates_counterrot_from_file,
@@ -57,10 +58,10 @@ class TestBeamPreparationMuCol(BLonDTestCase):
         )
 
         filename = "testfile.npz"
-        beam._dt = np.linspace(-50e-9, 50e-9, num=100)
-        beam._dE = np.linspace(-50e9, 50e9, num=100)
-        beam._flags = np.ones_like(beam._dE)
-        beam._ids = np.arange(len(beam._dE))
+        beam._dt = DistributedArray(np.linspace(-50e-9, 50e-9, num=100))
+        beam._dE = DistributedArray(np.linspace(-50e9, 50e9, num=100))
+        beam._flags = DistributedArray(np.ones(100, dtype=np.int32))
+        beam._ids = DistributedArray(np.arange(100))
 
         beam_CR = Beam(
             intensity=2, particle_type=proton, is_counter_rotating=False
@@ -68,11 +69,12 @@ class TestBeamPreparationMuCol(BLonDTestCase):
 
         copy_beam_data_from_other_beam(beam_CR, beam)
 
-        assert np.allclose(beam._dE, beam_CR._dE)
-        assert np.allclose(beam._flags, beam_CR._flags)
-        assert np.allclose(beam._ids, beam_CR._ids)
-        assert np.allclose(beam._dt, beam_CR._dt)
-        assert beam.intensity == beam_CR.intensity
+        for name in ("_dt", "_dE", "_flags", "_ids"):
+            np.testing.assert_allclose(
+                getattr(beam, name).array_local,
+                getattr(beam_CR, name).array_local,
+            )
+        self.assertEqual(beam.intensity, beam_CR.intensity)
 
         beam._is_distributed = True
 

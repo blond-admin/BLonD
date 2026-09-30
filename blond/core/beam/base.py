@@ -19,6 +19,7 @@ import numpy as np
 
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
+from blond.core.beam.flushing_distributed_array import FlushingCoordinates
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
@@ -52,6 +53,12 @@ class BeamBaseClass(Preparable, ABC):
     is_distributed
         Developer option to allow distributed computing.
     """
+
+    # Particle data; reading it runs queued (deferred) kernel calls first.
+    _dE = FlushingCoordinates()
+    _dt = FlushingCoordinates()
+    _flags = FlushingCoordinates()
+    _ids = FlushingCoordinates()
 
     def __init__(
         self,
@@ -636,7 +643,7 @@ class BeamBaseClass(Preparable, ABC):
         dt
             Dt-array on the current node, in [s].
         """
-        return self._dt.array_local
+        return self._dt.array_local_without_flush
 
     @property
     def kernel_call_dE(self) -> NumpyArray | CupyArray:
@@ -652,7 +659,7 @@ class BeamBaseClass(Preparable, ABC):
         dE
             DE-array on the current node, in [eV].
         """
-        return self._dE.array_local
+        return self._dE.array_local_without_flush
 
     @staticmethod
     def _flush_kernel_calls() -> None:
