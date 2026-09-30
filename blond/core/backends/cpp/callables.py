@@ -42,6 +42,14 @@ _PTR_CACHE_MAX_SIZE = 4096
 # ctypes twin of `INDEX_DTYPE`, matching `index_t` in `blond_common.h`.
 c_index_t = np.ctypeslib.as_ctypes_type(INDEX_DTYPE)
 
+# Particles per chunk of the deferred executor, which applies every
+# record of a batch to one chunk before moving to the next. 1024 dt/dE
+# pairs are 16 KiB, so the chunk stays in L1d even while the
+# hyperthread sibling works on its own chunk in the same (>= 32 KiB)
+# L1d. 4096 pairs (64 KiB) overflowed it: drift-only batches ran
+# 1.4-1.7x slower single-threaded (i5-11500, 48 KiB L1d).
+DEFERRED_CHUNK_SIZE = 1024
+
 
 def check_index_abi(library: CDLL) -> None:
     """
@@ -1164,10 +1172,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             make_deferred_specials,
         )
 
-        # Particles per chunk of the deferred executor: 4096 dt/dE pairs
-        # are 64 KiB, which stays in L2 while every record of the batch
-        # is applied to them.
-        deferred_chunk_size = c_index_t(4096)
+        deferred_chunk_size = c_index_t(DEFERRED_CHUNK_SIZE)
 
         def execute_batch(batch, args_types, dt, dE) -> None:
             _LIBBLOND.execute_kernel_call_batch(

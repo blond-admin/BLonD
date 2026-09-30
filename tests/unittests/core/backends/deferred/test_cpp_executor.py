@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from blond.core.backends.backend import Numpy64Bit, backend
-from blond.core.backends.cpp.callables import c_index_t
+from blond.core.backends.cpp.callables import DEFERRED_CHUNK_SIZE, c_index_t
 from blond.core.backends.deferred import kernel_call_records as records
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -39,7 +39,7 @@ class TestCppExecutor(BLonDTestCase):
     def tearDown(self) -> None:
         backend.set_specials("python")
 
-    def _execute(self, batch, dt, dE, chunk_size=4096) -> None:
+    def _execute(self, batch, dt, dE, chunk_size=DEFERRED_CHUNK_SIZE) -> None:
         self.library.execute_kernel_call_batch(
             ct.c_void_p(batch.ctypes.data),
             ct.c_size_t(batch.size),
@@ -80,3 +80,13 @@ class TestCppExecutor(BLonDTestCase):
                 args_type.args_dtype().itemsize,
             )
         self.assertEqual(self.library.kernel_call_args_size(999), 0)
+
+
+class TestDeferredChunkSize(BLonDTestCase):
+    def test_chunk_fits_hyperthread_share_of_l1(self) -> None:
+        # All records of a batch are applied to one chunk before the
+        # next, so its dt/dE must stay L1-resident. Two hyperthreads
+        # share one L1d, and 32 KiB is the smallest common L1d size, so
+        # each thread's chunk gets at most 16 KiB of 64-bit dt + dE.
+        chunk_bytes = 2 * DEFERRED_CHUNK_SIZE * np.dtype(np.float64).itemsize
+        self.assertLessEqual(chunk_bytes, 32 * 1024 // 2)
