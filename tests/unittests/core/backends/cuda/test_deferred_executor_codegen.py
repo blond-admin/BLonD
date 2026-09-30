@@ -116,6 +116,18 @@ __device__ __forceinline__ void probe(const KernelCallBatch &batch,
   }}
 PROBE(KickSingleHarmonicArgs)
 PROBE(KickMultiHarmonicArgs)
+PROBE(DriftLikeLineSegmentArgs)
+
+// A bare double square root per particle, as a yardstick.
+extern "C" __global__ void probe_sqrt(real_t *beam_dt, real_t *beam_dE) {{
+  __syncthreads();
+  const index_t start = particle_loop_start();
+  const index_t stride = particle_loop_stride();
+#pragma unroll
+  for (int k = 0; k < {_PROBE_TILE}; ++k) {{
+    beam_dt[start + k * stride] = sqrt(beam_dE[start + k * stride]);
+  }}
+}}
 """
 
 
@@ -166,6 +178,11 @@ def _probe_tile_loop(args_type: str) -> list[str]:
         with open(source, "w") as file:
             file.write(_PROBE_SOURCE)
         return _tile_loop(_sass(source, f"probe_{args_type}"))
+
+
+def _fp64_arithmetic(instructions: list[str]) -> int:
+    """Return how many of `instructions` are FP64 adds and multiplies."""
+    return sum(_count(instructions, op) for op in ("DADD", "DMUL", "DFMA"))
 
 
 def _count(instructions: list[str], opcode: str) -> int:
@@ -224,27 +241,24 @@ def _particles_per_thread() -> int | None:
 class TestDeferredExecutorCodegen(BLonDTestCase):
     """The executor's tile loop holds only per-particle divisions."""
 
-    def test_record_factors_are_computed_before_the_tile_loop(self):
-        """No per-record reciprocal is left after the last barrier.
+    def test_no_fp64_division_in_the_tile_loop(self):
+        """No FP64 reciprocal is left after the last barrier.
 
         Everything after the executor's last ``BAR.SYNC`` is the tile
-        loops. Their only legitimate FP64 division is drift_exact's
-        per-particle ``/ (1 + delta)``, once per particle of each tile
-        width. The
-        reciprocals of the drift factors (``T eta_0 / (beta^2 E)``,
-        ``1 / beta^2``, ``1 / E``) belong before that barrier. Division
-        slow paths are subroutines after the kernel body (CALL targets)
-        and are not counted.
+        loops. The reciprocals of the drift factors (``T eta_0 / (beta^2
+        E)``, ``1 / beta^2``, ``1 / E``) belong before that barrier, and
+        drift_exact divides by ``1 + delta`` as a multiplication with the
+        reciprocal square root it needs anyway. Division slow paths are
+        subroutines after the kernel body (CALL targets) and are not
+        counted.
         """
-        particles_per_thread = _particles_per_thread()
-        self.assertIsNotNone(particles_per_thread)
         tile_loop_reciprocals = sum(
             "MUFU.RCP64H" in text for text in _tile_loop(_executor_sass())
         )
-        self.assertLessEqual(
+        self.assertEqual(
             tile_loop_reciprocals,
-            sum(_tile_widths(particles_per_thread)),
-            "per-record FP64 divisions are computed inside the tile loop",
+            0,
+            "FP64 divisions are computed inside the tile loop",
         )
 
     def test_beam_tail_is_covered_by_narrower_tiles(self):
@@ -300,4 +314,21 @@ class TestDeferredRecordArithmetic(BLonDTestCase):
         self.assertLessEqual(
             _count(multi, "DMUL") / multi_sines,
             _count(single, "DMUL") / single_sines,
+        )
+
+    def test_line_segment_drift_costs_a_sqrt_and_four_operations(self):
+        """drift_like_line_segment: a ``sqrt`` plus 4 FP64 operations.
+
+        ``delta = sqrt(1 + (dE^2 / E^2 + 2 dE / E) / beta^2) - 1`` is,
+        with the prepared factors ``a = 1 / (beta E)^2`` and
+        ``b = 2 / (beta^2 E)``, ``sqrt(fma(dE, fma(a, dE, b), 1)) - 1``:
+        two FMAs, the square root and a subtraction; the drift is one
+        more FMA. Written as in the formula, it took five FP64
+        operations before the square root.
+        """
+        drift = _probe_tile_loop("DriftLikeLineSegmentArgs")
+        yardstick = _probe_tile_loop("sqrt")
+        self.assertLessEqual(
+            _fp64_arithmetic(drift) / _PROBE_TILE,
+            _fp64_arithmetic(yardstick) / _PROBE_TILE + 4,
         )

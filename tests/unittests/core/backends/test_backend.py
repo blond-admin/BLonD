@@ -861,6 +861,141 @@ class TestSpecials(BLonDTestCase):
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
 
+    # Proton beams at the extremes of the relativistic delta: LHC at
+    # injection (beta close to 1) and a PSB-like low energy, with
+    # energy offsets far beyond the RF bucket. Energies in eV, T in s.
+    _DRIFT_ACCURACY_CASES = {
+        "LHC 450 GeV": dict(
+            T=8.89e-5,
+            alpha_0=3.48e-4,
+            higher_alpha=[1e-3, -2e-3],
+            eta_0=3.18e-4,
+            energy=450e9,
+            mass=938.272e6,
+            max_dE=1e9,
+        ),
+        "PSB 160 MeV": dict(
+            T=1e-6,
+            alpha_0=0.0617,
+            higher_alpha=[0.1, 0.05],
+            eta_0=-0.707,
+            energy=1.098e9,
+            mass=938.272e6,
+            max_dE=0.1 * 1.098e9,
+        ),
+    }
+
+    def _drift_increment_errors(self, drift, reference, scale):
+        """Yield ``(case, special, error)`` for every backend and case.
+
+        `drift(special, case, dt, dE)` runs the drift on ``dt = 0``;
+        `reference(case, dE)` returns the exact increment (long double);
+        `error` is the largest deviation from it in units of
+        ``scale(case) * eps``.
+        """
+        eps = np.finfo(np.float64).eps
+        for name, case in self._DRIFT_ACCURACY_CASES.items():
+            dE_host = np.random.default_rng(42).uniform(
+                -case["max_dE"], case["max_dE"], 4096
+            )
+            exact = reference(case, dE_host)
+            for special in self.special_modes:
+                self._setUp(dtype=np.float64, special_mode=special)
+                dt = backend.zeros(len(dE_host), dtype=backend.float)
+                dE = backend.array(dE_host, dtype=backend.float)
+                drift(case, dt, dE)
+                result = self._read(dt).astype(np.longdouble)
+                error = np.max(np.abs(result - exact)) / (scale(case) * eps)
+                yield name, special, float(error)
+
+    @staticmethod
+    def _exact_delta(case, dE_host):
+        """Relativistic momentum deviation, in long double."""
+        L = np.longdouble
+        gamma = L(case["energy"]) / L(case["mass"])
+        inv_beta_sq = L(1) / (L(1) - L(1) / (gamma * gamma))
+        x = dE_host.astype(L) / L(case["energy"])
+        return np.sqrt(L(1) + inv_beta_sq * (x * x + 2 * x)) - 1, x
+
+    @staticmethod
+    def _beta(case):
+        gamma = case["energy"] / case["mass"]
+        return np.sqrt(1 - 1 / gamma**2)
+
+    @pytest.mark.backend_mutation
+    @unittest.skipUnless(
+        np.finfo(np.longdouble).eps < np.finfo(np.float64).eps,
+        "Needs an extended-precision long double as reference",
+    )
+    def test_drift_exact_accuracy_at_large_dE(self) -> None:
+        """Every backend's `drift_exact` is within 8 ``T eps`` of exact.
+
+        ``T (poly (1 + dE/E) / (1 + delta) - 1)`` cancels to the size of
+        ``eta delta``, so its error is a few ulps of ``T``, not of the
+        result. The reference is the same formula in long double; 8 is
+        about twice what a plain double evaluation reaches.
+        """
+
+        def drift(case, dt, dE):
+            backend.specials.drift_exact(
+                dt=dt,
+                dE=dE,
+                T=case["T"],
+                alpha_0=case["alpha_0"],
+                higher_alpha=np.array(case["higher_alpha"]),
+                beta=self._beta(case),
+                energy=case["energy"],
+            )
+
+        def reference(case, dE_host):
+            L = np.longdouble
+            delta, x = self._exact_delta(case, dE_host)
+            poly = 1 + L(case["alpha_0"]) * delta
+            for k, alpha in enumerate(case["higher_alpha"]):
+                poly += L(alpha) * delta ** (k + 2)
+            return L(case["T"]) * (poly * (1 + x) / (1 + delta) - 1)
+
+        for name, special, error in self._drift_increment_errors(
+            drift, reference, scale=lambda case: case["T"]
+        ):
+            with self.subTest(case=name, special=special):
+                self.assertLess(error, 8.0)
+
+    @pytest.mark.backend_mutation
+    @unittest.skipUnless(
+        np.finfo(np.longdouble).eps < np.finfo(np.float64).eps,
+        "Needs an extended-precision long double as reference",
+    )
+    def test_drift_like_line_segment_accuracy_at_large_dE(self) -> None:
+        """Every backend is within 8 ``T |eta_0| eps`` of exact.
+
+        ``sqrt(...) - 1`` cancels to the size of delta, so its error is
+        a few ulps of 1, times ``T eta_0``. The reference is the same
+        formula in long double.
+        """
+
+        def drift(case, dt, dE):
+            backend.specials.drift_like_line_segment(
+                dt=dt,
+                dE=dE,
+                T=case["T"],
+                eta_0=case["eta_0"],
+                beta=self._beta(case),
+                energy=case["energy"],
+            )
+
+        def reference(case, dE_host):
+            delta, _ = self._exact_delta(case, dE_host)
+            return np.longdouble(case["T"] * case["eta_0"]) * delta
+
+        for name, special, error in self._drift_increment_errors(
+            drift,
+            reference,
+            scale=lambda case: case["T"] * abs(case["eta_0"]),
+        ):
+            with self.subTest(case=name, special=special):
+                self.assertLess(error, 8.0)
+
     @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
         dtype = np.float64

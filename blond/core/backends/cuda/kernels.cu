@@ -176,74 +176,104 @@ apply_to_particle(const DriftSimpleArgs & /*args*/,
   dt += factors.coeff * dE;
 }
 
-// 1 / beta^2 and 1 / E of the relativistic delta, shared by the drifts
-// below that compute it.
-struct RelativisticDeltaFactors {
-  real_t inv_beta_sq;
-  real_t inv_energy;
+// The square of `1 + delta` for the relativistic delta, shared by the
+// drifts below: `1 + (x^2 + 2 x) / beta^2` with `x = dE / E`, written as
+// a polynomial in dE with prepared coefficients. Two FMAs per particle
+// instead of the five FP64 operations of the formula as written; the
+// rounding differs from that by an ulp of the result at most.
+struct DeltaArgument {
+  real_t dE_sq_coeff; // 1 / (beta E)^2
+  real_t dE_coeff;    // 2 / (beta^2 E)
+  __device__ __forceinline__ real_t operator()(const real_t dE) const {
+    return fma(dE, fma(dE_sq_coeff, dE, dE_coeff), 1.0);
+  }
 };
 
-__device__ __forceinline__ RelativisticDeltaFactors
-relativistic_delta_factors(const real_t beta, const real_t energy) {
-  return {1.0 / (beta * beta), 1.0 / energy};
+__device__ __forceinline__ DeltaArgument delta_argument(const real_t beta,
+                                                        const real_t energy) {
+  const real_t inv_beta_sq = 1.0 / (beta * beta);
+  const real_t inv_energy = 1.0 / energy;
+  return {inv_beta_sq * inv_energy * inv_energy,
+          2.0 * inv_beta_sq * inv_energy};
 }
 
-__device__ __forceinline__ RelativisticDeltaFactors
+struct LineSegmentFactors {
+  DeltaArgument delta_argument;
+  real_t T_eta_0; // T * eta_0
+};
+
+__device__ __forceinline__ LineSegmentFactors
 prepare(const DriftLikeLineSegmentArgs &args) {
-  return relativistic_delta_factors(args.beta, args.energy);
+  return {delta_argument(args.beta, args.energy), args.T * args.eta_0};
 }
 
 // Drift with the linear slip factor but the exact relativistic delta;
 // reproduces the longitudinal drift of an xsuite LineSegmentMap.
 __device__ __forceinline__ void
-apply_to_particle(const DriftLikeLineSegmentArgs &args,
-                  const RelativisticDeltaFactors &factors, real_t &dt,
+apply_to_particle(const DriftLikeLineSegmentArgs & /*args*/,
+                  const LineSegmentFactors &factors, real_t &dt,
                   const real_t &dE) {
-  const real_t inv_beta_sq = factors.inv_beta_sq;
-  const real_t inv_energy = factors.inv_energy;
-  const real_t delta =
-      sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy * inv_energy +
-                                2.0 * dE * inv_energy)) -
-      1.0;
-  dt += args.T * args.eta_0 * delta;
+  const real_t delta = sqrt(factors.delta_argument(dE)) - 1.0;
+  dt += factors.T_eta_0 * delta;
 }
 
-// The polynomial in delta, `1 + alpha_0 delta + sum_k higher_alpha[k]
-// delta^(k+2)`; shared by the record overload and the eager kernel.
+struct DriftExactFactors {
+  DeltaArgument delta_argument;
+  real_t inv_energy; // 1 / E
+};
+
+__device__ __forceinline__ DriftExactFactors
+drift_exact_factors(const real_t beta, const real_t energy) {
+  return {delta_argument(beta, energy), 1.0 / energy};
+}
+
+// `T (poly(delta) (1 + dE / E) / (1 + delta) - 1)`, with the polynomial
+// `1 + alpha_0 delta + sum_k higher_alpha[k] delta^(k+2)`; shared by the
+// record overload and the eager kernel.
+//
+// FP64 operations per particle, which bound this kernel on GPUs with a
+// low FP64 rate: `1 + delta` is the square root of the delta argument
+// `d`; its reciprocal square root `r` (MUFU seed and one Newton step,
+// max. 1 ulp) gives both `1 + delta = d r` and the division by it,
+// which saves the full-precision square root and division (16
+// operations) for 7. `delta = d r - 1` is exact. The polynomial is in
+// Horner form: one FMA per coefficient instead of an FMA and a multiply.
+// Against a long-double reference the result is as accurate as the
+// correctly rounded square root and division were (a few ulp of T; the
+// final `- 1` cancels most digits either way).
 __device__ __forceinline__ void
 drift_exact_particle(const real_t T, const real_t alpha_zero,
                      const real_t *higher_alpha, const int n_alpha,
-                     const RelativisticDeltaFactors &factors, real_t &dt,
+                     const DriftExactFactors &factors, real_t &dt,
                      const real_t dE) {
-  const real_t inv_beta_sq = factors.inv_beta_sq;
-  const real_t inv_energy = factors.inv_energy;
-  const real_t inv_energy_sq = inv_energy * inv_energy;
+  const real_t argument = factors.delta_argument(dE);
+  const real_t inv_one_plus_delta = rsqrt(argument);
+  const real_t delta = argument * inv_one_plus_delta - 1.0;
 
-  const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                 2.0 * dE * inv_energy)) -
-                       1.0;
-
-  real_t poly = 1.0 + alpha_zero * delta;
-
-  real_t delta_power = delta * delta; // starts at δ²
-  for (int k = 0; k < n_alpha; ++k) {
-    // NOLINTNEXTLINE(*-pointer-arithmetic)
-    poly += higher_alpha[k] * delta_power;
-    delta_power *= delta; // next power
+  real_t poly = alpha_zero;
+  if (n_alpha > 0) {
+    // NOLINTBEGIN(*-pointer-arithmetic)
+    real_t higher = higher_alpha[n_alpha - 1];
+    for (int k = n_alpha - 2; k >= 0; --k) {
+      higher = fma(higher, delta, higher_alpha[k]);
+    }
+    // NOLINTEND(*-pointer-arithmetic)
+    poly = fma(higher, delta, alpha_zero);
   }
+  poly = fma(poly, delta, 1.0);
 
-  dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + delta) - 1.0);
+  dt +=
+      T * (poly * fma(dE, factors.inv_energy, 1.0) * inv_one_plus_delta - 1.0);
 }
 
-__device__ __forceinline__ RelativisticDeltaFactors
+__device__ __forceinline__ DriftExactFactors
 prepare(const DriftExactArgs &args) {
-  return relativistic_delta_factors(args.beta, args.energy);
+  return drift_exact_factors(args.beta, args.energy);
 }
 
 __device__ __forceinline__ void
-apply_to_particle(const DriftExactArgs &args,
-                  const RelativisticDeltaFactors &factors, real_t &dt,
-                  const real_t &dE) {
+apply_to_particle(const DriftExactArgs &args, const DriftExactFactors &factors,
+                  real_t &dt, const real_t &dE) {
   drift_exact_particle(args.T, args.alpha_0, &args.higher_alpha[0],
                        args.n_alpha, factors, dt, dE);
 }
@@ -736,7 +766,7 @@ extern "C" __global__ void drift_exact(real_t *__restrict__ beam_dt,
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
     drift_exact_particle(T, alpha_zero, higher_alpha, n_used,
-                         relativistic_delta_factors(beta, energy), beam_dt[i],
+                         drift_exact_factors(beta, energy), beam_dt[i],
                          beam_dE[i]);
   }
 }
@@ -801,7 +831,8 @@ constexpr int MAX_RECORDS_PER_LAUNCH =
 union RecordFactors {
   KickSingleHarmonicFactors kick_single_harmonic;
   DriftSimpleFactors drift_simple;
-  RelativisticDeltaFactors relativistic_delta;
+  LineSegmentFactors line_segment;
+  DriftExactFactors drift_exact;
 };
 
 template <class Factors>
