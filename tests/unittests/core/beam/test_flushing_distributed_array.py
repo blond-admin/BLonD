@@ -96,7 +96,7 @@ class TestFlushingCoordinatesFirstAssignment(BLonDTestCase):
     """`FlushingCoordinates.__set__` should only flush a real replacement."""
 
     def test_creating_a_beam_does_not_flush(self) -> None:
-        # Beam.__init__ sets _dE/_dt/_flags/_ids to None for the first
+        # Beam.__init__ sets _dE/_dt to None for the first
         # time; there is nothing queued against them yet, so creating a
         # beam mid-turn must not split a pending batch.
         with mock.patch.object(backend.specials, "flush") as flush:
@@ -126,9 +126,9 @@ class TestFlushingCoordinatesFirstAssignment(BLonDTestCase):
 
 
 class TestBeamCoordinateStorage(BLonDTestCase):
-    """Every way of setting Beam coordinates ends as the flushing type."""
+    """Every way of setting dt/dE ends as the flushing type."""
 
-    COORDINATES = ("_dt", "_dE", "_flags", "_ids")
+    COORDINATES = ("_dt", "_dE")
 
     def setUp(self) -> None:
         self.beam = Beam(intensity=1e11, particle_type=proton)

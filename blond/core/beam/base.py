@@ -54,11 +54,12 @@ class BeamBaseClass(Preparable, ABC):
         Developer option to allow distributed computing.
     """
 
-    # Particle data; reading it runs queued (deferred) kernel calls first.
+    # Particle coordinates; reading them runs queued (deferred) kernel
+    # calls first. `_flags` and `_ids` stay plain attributes: no
+    # deferrable kernel touches them, so reading them must not split a
+    # batch.
     _dE = FlushingCoordinates()
     _dt = FlushingCoordinates()
-    _flags = FlushingCoordinates()
-    _ids = FlushingCoordinates()
 
     def __init__(
         self,
@@ -103,9 +104,7 @@ class BeamBaseClass(Preparable, ABC):
             The unpickled instance ``__dict__``, legacy or current.
         """
         legacy_coordinates = {
-            name: state.pop(name)
-            for name in ("_dt", "_dE", "_flags", "_ids")
-            if name in state
+            name: state.pop(name) for name in ("_dt", "_dE") if name in state
         }
         self.__dict__.update(state)
         for name, value in legacy_coordinates.items():
@@ -712,11 +711,6 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
-
-        Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
-        NumPy/CuPy array: after further queued kernel calls it may be
-        stale, so read it again through the Beam instead of reusing it.
         """
         return self._ids.array_local
 
@@ -837,11 +831,6 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
-
-        Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
-        NumPy/CuPy array: after further queued kernel calls it may be
-        stale, so read it again through the Beam instead of reusing it.
         """
         return self._flags.array_local
 
@@ -862,11 +851,6 @@ class BeamBaseClass(Preparable, ABC):
 
         If distributed, returns only the particles
         visible to the current node.
-
-        Runs queued (deferred) kernel calls first; kernel arguments use
-        `kernel_call_dt` / `kernel_call_dE`. The result is a plain
-        NumPy/CuPy array: after further queued kernel calls it may be
-        stale, so read it again through the Beam instead of reusing it.
         """
         return self._flags.array_local
 

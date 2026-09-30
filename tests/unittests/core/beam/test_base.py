@@ -732,7 +732,7 @@ class TestLegacyPickleMigration(BLonDTestCase):
         # `DistributedArray`s -- `FlushingCoordinates`/
         # `FlushingDistributedArray` did not exist yet.
         legacy_state = dict(beam.__dict__)
-        for name in ("_dt", "_dE", "_flags", "_ids"):
+        for name in ("_dt", "_dE"):
             storage_key = f"{name}_storage"
             flushing_array = legacy_state.pop(storage_key)
             legacy_state[name] = DistributedArray(
@@ -742,7 +742,7 @@ class TestLegacyPickleMigration(BLonDTestCase):
         new_beam = Beam.__new__(Beam)
         new_beam.__setstate__(legacy_state)
 
-        for name in ("_dt", "_dE", "_flags", "_ids"):
+        for name in ("_dt", "_dE"):
             self.assertIsInstance(
                 getattr(new_beam, name), FlushingDistributedArray, name
             )

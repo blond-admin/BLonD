@@ -184,11 +184,22 @@ class TestCoordinateStorageFlushes(BLonDTestCase):
         self._assert_changed(self.beam.kernel_call_dE, before)
 
     def test_direct_array_local_read_flushes(self) -> None:
-        for name in ("_dt", "_dE", "_flags", "_ids"):
+        for name in ("_dt", "_dE"):
             with self.subTest(coordinate=name):
                 before = self._queue_kick()
                 getattr(self.beam, name).array_local  # noqa: B018
                 self._assert_flushed(before)
+
+    def test_flags_and_ids_reads_do_not_flush(self) -> None:
+        # No deferrable kernel touches flags or ids, so reading them
+        # between two queued calls must not split the batch.
+        for name in ("_flags", "_ids"):
+            with self.subTest(coordinate=name):
+                self._queue_kick()
+                getattr(self.beam, name).array_local  # noqa: B018
+                self.assertGreater(
+                    backend.specials.kernel_call_queue.n_bytes, 0
+                )
 
     def test_distributed_statistics_see_flushed_data(self) -> None:
         for name in ("min", "max", "mean", "std", "sum"):
