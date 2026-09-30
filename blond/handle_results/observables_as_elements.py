@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass

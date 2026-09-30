@@ -17,7 +17,7 @@ from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )

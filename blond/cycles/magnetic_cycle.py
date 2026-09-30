@@ -37,8 +37,8 @@ from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover

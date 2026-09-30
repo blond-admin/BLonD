@@ -32,7 +32,7 @@ from blond.core.base import (
     DynamicParameter,
     Schedulable,
 )
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
