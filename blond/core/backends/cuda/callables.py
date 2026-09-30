@@ -24,9 +24,10 @@ from blond.core.backends.deferred.kernel_call_queue import (
     make_deferred_specials,
 )
 from blond.core.backends.deferred.kernel_call_records import (
-    DEFERRABLE_KERNELS,
     HEADER_DTYPE,
-    DeferrableKernel,
+    KERNEL_CALL_ARGS,
+    KERNEL_CALL_BATCH_CAPACITY_BYTES,
+    KernelCallArgs,
 )
 from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
@@ -136,11 +137,6 @@ _RF_PARAMS_BATCH_DTYPE = np.dtype(
     ]
 )
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
-# The CUDA executor takes the batch by value in its kernel parameters,
-# which are limited to 4096 bytes before CUDA 12.1 / Volta; the other
-# 32 bytes are its remaining parameters (`execute_kernel_call_batch`).
-# Must match `KERNEL_CALL_BATCH_CAPACITY_BYTES` in kernels.cu.
-KERNEL_CALL_BATCH_CAPACITY_BYTES = 4096 - 32
 # A batch of kernel call records, passed to `execute_kernel_call_batch`
 # by value (`KernelCallBatch` in kernels.cu), like `_RF_PARAMS_BATCH_DTYPE`.
 _KERNEL_CALL_BATCH_DTYPE = np.dtype(
@@ -155,7 +151,7 @@ STORE_DE = 2
 
 def _check_kernel_call_record_abi() -> None:
     """
-    Assert the compiled record structs match their numpy dtypes.
+    Assert every compiled kernel call ``Args`` struct matches its dtype.
 
     A mismatch would make the fused kernel read wrong parameters;
     comparing once at load time turns that into a loud failure.
@@ -163,31 +159,21 @@ def _check_kernel_call_record_abi() -> None:
     Raises
     ------
     AssertionError
-        If a compiled ``Args`` size or the batch capacity differs from
-        its Python counterpart.
+        If a compiled struct size differs from its numpy dtype.
     """
     sizes = cp.ndarray(
-        (len(DEFERRABLE_KERNELS),),
+        (len(KERNEL_CALL_ARGS),),
         dtype=np.uint32,
         memptr=gpu_module.get_global("kernel_call_args_sizes"),
     ).get()
-    for kernel in DEFERRABLE_KERNELS:
-        compiled = int(sizes[kernel.kernel_id])
-        expected = kernel.args_dtype.itemsize
+    for args_type in KERNEL_CALL_ARGS:
+        compiled = int(sizes[args_type.kernel_id()])
+        expected = args_type.args_dtype().itemsize
         assert compiled == expected, (
-            f"{kernel.specials_method} Args are {compiled} bytes in the "
-            f"cubin but {expected} in kernel_call_records.py; rebuild the "
-            "CUDA backend with `blond-compile-cuda`."
+            f"{args_type.__name__} is {compiled} bytes in the cubin but "
+            f"{expected} in kernel_call_records.py; rebuild the CUDA "
+            "backend with `blond-compile-cuda`."
         )
-    capacity = cp.ndarray(
-        (1,),
-        dtype=np.uint32,
-        memptr=gpu_module.get_global("kernel_call_batch_capacity_bytes"),
-    ).get()[0]
-    assert capacity == KERNEL_CALL_BATCH_CAPACITY_BYTES, (
-        f"the cubin holds {capacity} bytes of records per launch, "
-        f"callables.py {KERNEL_CALL_BATCH_CAPACITY_BYTES}"
-    )
 
 
 _check_kernel_call_record_abi()
@@ -224,7 +210,7 @@ def _split_batch(
 
 def _record_types(
     batch: NumpyArray, start: int, end: int
-) -> list[DeferrableKernel]:
+) -> list[type[KernelCallArgs]]:
     """
     Return the kernel of every record in a byte range of the batch.
 
@@ -237,8 +223,8 @@ def _record_types(
 
     Returns
     -------
-    list[DeferrableKernel]
-        The kernel of each record, in batch order.
+    list[type[KernelCallArgs]]
+        The ``Args`` class of each record, in batch order.
     """
     types = []
     offset = start
@@ -246,20 +232,20 @@ def _record_types(
         header = batch[offset : offset + HEADER_DTYPE.itemsize].view(
             HEADER_DTYPE
         )[0]
-        types.append(DEFERRABLE_KERNELS[header["kernel_id"]])
+        types.append(KERNEL_CALL_ARGS[header["kernel_id"]])
         offset += int(header["record_size_bytes"])
     assert offset == end, "the range does not end on a record boundary"
     return types
 
 
-def _store_flags(record_types: Iterable[DeferrableKernel]) -> int:
+def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
     """
     Return the ``store_flags`` of a launch applying these records.
 
     Parameters
     ----------
     record_types
-        The kernel of every record of the launch.
+        The ``Args`` class of every record of the launch.
 
     Returns
     -------
@@ -268,10 +254,10 @@ def _store_flags(record_types: Iterable[DeferrableKernel]) -> int:
         writes ``dE``.
     """
     flags = 0
-    for kernel in record_types:
-        if kernel.writes_dt:
+    for args_type in record_types:
+        if args_type.writes_dt:
             flags |= STORE_DT
-        if kernel.writes_dE:
+        if args_type.writes_dE:
             flags |= STORE_DE
     return flags
 

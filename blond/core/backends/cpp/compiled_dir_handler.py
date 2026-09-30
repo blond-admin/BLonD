@@ -57,7 +57,7 @@ _EXTENSIONS = (".py", ".h", ".cpp")
 
 def _kernel_call_records_digest() -> str:
     """
-    Return the digest of the deferred kernel call records header.
+    Return the digest of the generated deferred-records header.
 
     The header lives in ``../deferred``, outside the folder whose sources
     are hashed, so its content is folded into the key explicitly.

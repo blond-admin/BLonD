@@ -4,6 +4,9 @@ import numpy as np
 import pytest
 
 from blond.core.backends.backend import Numpy64Bit, Specials, backend
+from blond.core.backends.deferred.kernel_call_records import (
+    KERNEL_CALL_BATCH_CAPACITY_BYTES,
+)
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase, cupy_available
 
@@ -293,11 +296,10 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("python")
 
-    def test_batch_larger_than_capacity_is_split(self) -> None:
-        from blond.core.backends.cuda.callables import (
-            KERNEL_CALL_BATCH_CAPACITY_BYTES,
-        )
+    def test_chunk_sizes(self) -> None:
+        self.skipTest("the chunk size exists on the cpp executor only")
 
+    def test_batch_larger_than_capacity_is_split(self) -> None:
         # 40 harmonics are 2 multi-harmonic records (~1.6 KB) per turn,
         # so three turns queue more than one launch holds.
         dt, dE = _beam(1000)
@@ -341,20 +343,18 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
             _store_flags,
         )
         from blond.core.backends.deferred.kernel_call_records import (
-            KERNELS_BY_SPECIALS_METHOD as KERNELS,
+            DriftExactArgs,
+            DriftSimpleArgs,
+            KickInterpolatedArgs,
+            KickSingleHarmonicArgs,
         )
 
+        self.assertEqual(_store_flags([KickInterpolatedArgs]), STORE_DE)
         self.assertEqual(
-            _store_flags([KERNELS["kick_interpolated"]]), STORE_DE
+            _store_flags([DriftSimpleArgs, DriftExactArgs]), STORE_DT
         )
         self.assertEqual(
-            _store_flags([KERNELS["drift_simple"], KERNELS["drift_exact"]]),
-            STORE_DT,
-        )
-        self.assertEqual(
-            _store_flags(
-                [KERNELS["kick_single_harmonic"], KERNELS["drift_simple"]]
-            ),
+            _store_flags([KickSingleHarmonicArgs, DriftSimpleArgs]),
             STORE_DT | STORE_DE,
         )
         self.assertEqual(_store_flags([]), 0)
@@ -362,23 +362,21 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
     def test_record_types_of_a_range(self) -> None:
         from blond.core.backends.cuda.callables import _record_types
         from blond.core.backends.deferred.kernel_call_records import (
-            KERNELS_BY_SPECIALS_METHOD as KERNELS,
+            DriftSimpleArgs,
+            KickInterpolatedArgs,
+            KickSingleHarmonicArgs,
         )
 
-        types = [
-            KERNELS["kick_single_harmonic"],
-            KERNELS["drift_simple"],
-            KERNELS["kick_interpolated"],
-        ]
-        records = [np.zeros((), dtype=t.record_dtype) for t in types]
-        for record, kernel in zip(records, types):
-            record["kernel_id"] = kernel.kernel_id
-            record["record_size_bytes"] = kernel.record_dtype.itemsize
+        types = [KickSingleHarmonicArgs, DriftSimpleArgs, KickInterpolatedArgs]
+        records = [np.zeros((), dtype=t.record_dtype()) for t in types]
+        for record, args_type in zip(records, types):
+            record["kernel_id"] = args_type.kernel_id()
+            record["record_size_bytes"] = args_type.record_dtype().itemsize
         batch = np.concatenate([r.reshape(1).view(np.uint8) for r in records])
-        sizes = [t.record_dtype.itemsize for t in types]
+        sizes = [t.record_dtype().itemsize for t in types]
         self.assertEqual(
             _record_types(batch, sizes[0], sizes[0] + sizes[1] + sizes[2]),
-            types[1:],
+            [DriftSimpleArgs, KickInterpolatedArgs],
         )
         self.assertEqual(_record_types(batch, 0, sizes[0]), types[:1])
 

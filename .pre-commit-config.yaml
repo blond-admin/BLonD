@@ -46,8 +46,10 @@ repos:
     hooks:
       - id: clang-format
         types_or: [c, c++, cuda]
-        # verbatim copy of an external project, keep it diffable upstream
-        exclude: ^blond/interfaces/rf_noise_cpp/varigen\.h$
+        # varigen.h: verbatim copy of an external project, keep it diffable
+        # upstream. kernel_call_records.h: generated, its layout is the
+        # generator's (a test compares it with the generator's output).
+        exclude: ^blond/interfaces/rf_noise_cpp/varigen\.h$|^blond/core/backends/deferred/kernel_call_records\.h$
 
   # Check that the copyright notice is there
   - repo: local

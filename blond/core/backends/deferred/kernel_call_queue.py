@@ -10,7 +10,7 @@
 Queue of deferred kernel calls, shared by ``cpp_deferred``/``cuda_deferred``.
 
 `make_deferred_specials` derives deferred specials from eager ones: each
-deferrable kernel (`DEFERRABLE_KERNELS`) packs a kernel call record into
+deferrable kernel (`KERNEL_CALL_ARGS`) packs a kernel call record into
 a per-thread `KernelCallQueue` instead of running; every other method
 flushes the queue and then runs eagerly. A flush hands the batch to the
 backend's ``execute_batch``, which applies it in one fused pass.
@@ -27,12 +27,12 @@ import numpy as np
 
 from blond.core.backends.backend import Specials, backend
 from blond.core.backends.deferred.kernel_call_records import (
-    KERNELS_BY_SPECIALS_METHOD,
-    DeferrableKernel,
+    ARGS_BY_SPECIALS_METHOD,
+    KernelCallArgs,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable
 
 _INITIAL_CAPACITY_BYTES = 4096
 
@@ -84,25 +84,27 @@ class KernelCallQueue(threading.local):
         assert dt.flags.c_contiguous and dE.flags.c_contiguous
         self.dt, self.dE = dt, dE
 
-    def append(
-        self, kernel: DeferrableKernel, values: Mapping[str, Any]
-    ) -> None:
+    def append(self, args: KernelCallArgs) -> None:
         """
         Pack one kernel call record at the end of the batch.
 
         Parameters
         ----------
-        kernel
-            The kernel called; it fixes the record layout.
-        values
-            ``{field: value}`` of the kernel's ``Args`` struct.
+        args
+            The kernel call; its class fixes the record layout.
         """
-        size = kernel.record_dtype.itemsize
+        args_type = type(args)
+        dtype = args_type.record_dtype()
+        size = dtype.itemsize
         self._reserve(size)
-        record = self.buffer[self.n_bytes : self.n_bytes + size]
-        kernel.pack(
-            record.view(kernel.record_dtype)[0], values, self.keep_alive
-        )
+        item = self.buffer[self.n_bytes : self.n_bytes + size].view(dtype)[0]
+        item["kernel_id"] = args_type.kernel_id()
+        item["record_size_bytes"] = size
+        packed = item["args"]
+        for name, record_field in args_type.record_fields():
+            record_field.pack(
+                packed, name, getattr(args, name), self.keep_alive
+            )
         self.n_bytes += size
         self.record_sizes.append(size)
 
@@ -167,9 +169,9 @@ def make_deferred_specials(
         if not isinstance(value, staticmethod):
             continue
         eager_method = getattr(eager_specials, name)
-        if name in KERNELS_BY_SPECIALS_METHOD:
+        if name in ARGS_BY_SPECIALS_METHOD:
             method = _queuing_method(
-                KERNELS_BY_SPECIALS_METHOD[name],
+                ARGS_BY_SPECIALS_METHOD[name],
                 eager_method,
                 eager_specials,
                 queue,
@@ -195,7 +197,7 @@ def _flushing_method(eager_method: Callable, flush: Callable) -> Callable:
 
 
 def _queuing_method(
-    kernel: DeferrableKernel,
+    args_type: type[KernelCallArgs],
     eager_method: Callable,
     eager_specials: type,
     queue: KernelCallQueue,
@@ -208,8 +210,8 @@ def _queuing_method(
         bound = signature.bind(*args, **kwargs)
         bound.apply_defaults()
         arguments = bound.arguments
-        records = kernel.records(arguments, eager_specials)
-        if records is None:  # this call must run eagerly
+        kernel_calls = args_type.from_specials_call(arguments, eager_specials)
+        if kernel_calls is None:  # this call must run eagerly
             flush()
             eager_method(*args, **kwargs)
             return
@@ -217,7 +219,7 @@ def _queuing_method(
         if not queue.holds(dt, dE):
             flush()
             queue.bind(dt, dE)
-        for values in records:
-            queue.append(kernel, values)
+        for kernel_call in kernel_calls:
+            queue.append(kernel_call)
 
     return queue_kernel_call

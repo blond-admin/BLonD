@@ -115,17 +115,17 @@ def check_kernel_call_record_abi(library: CDLL) -> None:
         If a compiled struct size differs from its numpy dtype.
     """
     from blond.core.backends.deferred.kernel_call_records import (  # NOQA: PLC0415
-        DEFERRABLE_KERNELS,
+        KERNEL_CALL_ARGS,
     )
 
     library.kernel_call_args_size.restype = ct.c_uint32
-    for kernel in DEFERRABLE_KERNELS:
-        compiled = int(library.kernel_call_args_size(kernel.kernel_id))
-        expected = kernel.args_dtype.itemsize
+    for args_type in KERNEL_CALL_ARGS:
+        compiled = int(library.kernel_call_args_size(args_type.kernel_id()))
+        expected = args_type.args_dtype().itemsize
         assert compiled == expected, (
-            f"{kernel.specials_method} Args are {compiled} bytes in "
-            f"libblond but {expected} in kernel_call_records.py; rebuild "
-            "the C++ backend with `blond-compile-cpp`."
+            f"{args_type.__name__} is {compiled} bytes in libblond but "
+            f"{expected} in kernel_call_records.py; rebuild the C++ "
+            "backend with `blond-compile-cpp`."
         )
 
 
