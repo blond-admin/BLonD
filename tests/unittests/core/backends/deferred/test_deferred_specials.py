@@ -315,40 +315,17 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
 
     def test_split_batch_ranges(self) -> None:
         from blond.core.backends.cuda.callables import _split_batch
-        from blond.core.backends.deferred.kernel_call_records import (
-            KERNELS_BY_SPECIALS_METHOD as KERNELS,
-        )
 
-        multi = KERNELS["kick_multi_harmonic"]  # 800 B records
-        single = KERNELS["kick_single_harmonic"]  # 48 B records
         self.assertEqual(
-            _split_batch([multi, single, multi, single], 1690),
-            [(0, 1648, [multi, single, multi]), (1648, 1696, [single])],
+            _split_batch([1000, 1000, 1000, 2000, 100], 4096),
+            [(0, 3000), (3000, 5100)],
         )
 
     def test_split_batch_exact_fit(self) -> None:
         from blond.core.backends.cuda.callables import _split_batch
-        from blond.core.backends.deferred.kernel_call_records import (
-            KERNELS_BY_SPECIALS_METHOD as KERNELS,
-        )
 
-        multi = KERNELS["kick_multi_harmonic"]
-        drift = KERNELS["drift_simple"]
         self.assertEqual(
-            _split_batch([multi, multi, drift], 1600),
-            [(0, 1600, [multi, multi]), (1600, 1640, [drift])],
-        )
-
-    def test_queue_remembers_the_kernel_of_every_record(self) -> None:
-        dt, dE = _beam(10)
-        self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
-        self.deferred.drift_simple(dt=dt, dE=dE, **DRIFT)
-        self.assertEqual(
-            [
-                k.specials_method
-                for k in self.deferred.kernel_call_queue.kernels
-            ],
-            ["kick_single_harmonic", "drift_simple"],
+            _split_batch([2048, 2048, 8], 4096), [(0, 4096), (4096, 4104)]
         )
 
     def test_zero_macroparticles(self) -> None:  # Review Focus 4
@@ -381,6 +358,29 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
             STORE_DT | STORE_DE,
         )
         self.assertEqual(_store_flags([]), 0)
+
+    def test_record_types_of_a_range(self) -> None:
+        from blond.core.backends.cuda.callables import _record_types
+        from blond.core.backends.deferred.kernel_call_records import (
+            KERNELS_BY_SPECIALS_METHOD as KERNELS,
+        )
+
+        types = [
+            KERNELS["kick_single_harmonic"],
+            KERNELS["drift_simple"],
+            KERNELS["kick_interpolated"],
+        ]
+        records = [np.zeros((), dtype=t.record_dtype) for t in types]
+        for record, kernel in zip(records, types):
+            record["kernel_id"] = kernel.kernel_id
+            record["record_size_bytes"] = kernel.record_dtype.itemsize
+        batch = np.concatenate([r.reshape(1).view(np.uint8) for r in records])
+        sizes = [t.record_dtype.itemsize for t in types]
+        self.assertEqual(
+            _record_types(batch, sizes[0], sizes[0] + sizes[1] + sizes[2]),
+            types[1:],
+        )
+        self.assertEqual(_record_types(batch, 0, sizes[0]), types[:1])
 
     def test_specials_mode_is_tracked(self) -> None:
         self.assertEqual(backend.specials_mode, self.mode)
