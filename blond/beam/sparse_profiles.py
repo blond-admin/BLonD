@@ -194,11 +194,15 @@ class SparseProfileBaseClass:
 
     @property
     def n_macroparticles(self):
-        return self.n_macroparticles_array.flatten()
+        return np.concatenate(
+            [profile.n_macroparticles for profile in self.profiles_list]
+        )
 
     @property
     def bin_centers(self):
-        return self.bin_centers_array.flatten()
+        return np.concatenate(
+            [profile.bin_centers for profile in self.profiles_list]
+        )
 
     @property
     def bin_size(self):

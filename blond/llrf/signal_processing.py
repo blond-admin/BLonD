@@ -39,6 +39,7 @@ from scipy.constants import e
 from scipy.special import comb
 from ..beam.profile import Profile
 from ..utils.legacy_support import handle_legacy_kwargs
+from . import cavity_loop_kernels
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
@@ -238,47 +239,59 @@ def rf_beam_current(
         on the coarse time grid
 
     """
+    # For a sparse profile these are built from the list of windows at each
+    # access, so get them only once
+    n_macroparticles = profile.n_macroparticles
+    bin_centers = profile.bin_centers
+
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    if isinstance(profile, SparseProfileBaseClass):
-        charges = (
-            profile.beam.ratio
-            * profile.beam.particle.charge
-            * e
-            * np.copy(profile.n_macroparticles)
+    charge = profile.beam.ratio * profile.beam.particle.charge * e
+    debug = logger.isEnabledFor(logging.DEBUG)
+    if debug:
+        logger.debug(
+            "Sum of particles: %d, total charge: %.4e C",
+            np.sum(n_macroparticles),
+            np.sum(charge * n_macroparticles),
         )
-    else:
-        charges = (
-            profile.beam.ratio
-            * profile.beam.particle.charge
-            * e
-            * np.copy(profile.n_macroparticles)
+        logger.debug(
+            "DC current is %.4e A", np.sum(charge * n_macroparticles) / T_rev
         )
-    logger.debug(
-        "Sum of particles: %d, total charge: %.4e C",
-        np.sum(profile.n_macroparticles),
-        np.sum(charges),
-    )
-    logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.0 * charges * np.cos(omega_c * profile.bin_centers)
-    Q_f = -2.0 * charges * np.sin(omega_c * profile.bin_centers)
+    if (
+        cavity_loop_kernels.NUMBA_AVAILABLE
+        and isinstance(n_macroparticles, np.ndarray)
+        and isinstance(bin_centers, np.ndarray)
+    ):
+        charges_fine = cavity_loop_kernels.rf_beam_charge(
+            n_macroparticles, bin_centers, charge, omega_c
+        )
+    else:
+        charges = charge * n_macroparticles
+        mixing_phase = omega_c * bin_centers
+        charges_fine = 2.0 * charges * np.cos(mixing_phase) + 1j * (
+            -2.0 * charges * np.sin(mixing_phase)
+        )
 
     # Pass through a low-pass filter
     if lpf is True:
         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
         cutoff = 20.0e6 * 2.0 * profile.bin_size
-        I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
-        Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
-    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
-    charges_fine = I_f + 1j * Q_f
+        charges_fine = low_pass_filter(
+            charges_fine.real, cutoff_frequency=cutoff
+        ) + 1j * low_pass_filter(charges_fine.imag, cutoff_frequency=cutoff)
+    if debug:
+        logger.debug(
+            "RF total current is %.4e A",
+            np.fabs(np.sum(charges_fine.real)) / T_rev,
+        )
     if external_reference:
         # slippage in phase due to a non-integer harmonic number
         dphi = dT * omega_c
         # Total phase correction
         phase = dphi
-        charges_fine = charges_fine * np.exp(1j * phase)
+        charges_fine *= np.exp(1j * phase)
 
     if downsample:
         try:
@@ -288,16 +301,13 @@ def rf_beam_current(
             raise RuntimeError(
                 "Downsampling input erroneous in rf_beam_current"
             )
-        profile_bin_centers_for_coarse = profile.bin_centers
-        charges_fine_for_coarse_grid = charges_fine
-
         charges_coarse = charges_from_fine_to_coarse(
             T_s,
-            charges_fine_for_coarse_grid,
+            charges_fine,
             dT,
             n_points,
             omega_c,
-            profile_bin_centers_for_coarse,
+            bin_centers,
         )
 
         return charges_fine, charges_coarse
@@ -314,6 +324,20 @@ def charges_from_fine_to_coarse(
     omega_c: float,
     profile_bin_centers: ndarray,
 ) -> ndarray[tuple[int], dtype[Any]]:
+    if (
+        cavity_loop_kernels.NUMBA_AVAILABLE
+        and isinstance(charges_fine, np.ndarray)
+        and isinstance(profile_bin_centers, np.ndarray)
+    ):
+        return cavity_loop_kernels.charges_from_fine_to_coarse(
+            charges_fine,
+            profile_bin_centers,
+            float(dT),
+            np.pi / omega_c,
+            float(T_s),
+            int(n_points),
+        )
+
     ind_fine = (profile_bin_centers - dT - np.pi / omega_c) / T_s
     ind_fine = np.round(ind_fine).astype(int)
 
