@@ -16,7 +16,7 @@ Unittest for trackers.tracker.py
 import time
 import unittest
 from copy import deepcopy
-from unittest import skipIf
+from unittest import mock, skipIf
 
 import numpy as np
 import pytest
@@ -37,7 +37,9 @@ from blond.beam.sparse_profiles import (
 )
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.llrf import cavity_loop_kernels
 from blond.llrf.rf_modulation import PhaseModulation as PMod
+from blond.trackers import tracker_kernels
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath
 
@@ -736,6 +738,133 @@ class TestSparseInterpolatedKick(unittest.TestCase):
                 np.testing.assert_allclose(
                     dE_sparse, dE_exact, rtol=0, atol=5e-3 * self.V
                 )
+
+    def _track_beam_one_turn(self, dt, dE, make_profile):
+        """Track a beam with the given coordinates for one turn with the
+        profile returned by make_profile(rf_station, beam), return its dE"""
+        ring, rf_station = self._make_ring_and_rf()
+        beam = Beam(ring, len(dt), 1e9)
+        beam.dt = dt.copy()
+        beam.dE = dE.copy()
+        profile = make_profile(rf_station, beam)
+        profile.track()
+        RingAndRFTracker(
+            rf_station, beam, profile=profile, interpolation=True
+        ).track()
+        return beam.dE
+
+    def _bunches(self, bucket_indices):
+        """Coordinates of one bunch like those of setUp in each bucket"""
+        n = self.n_macroparticles_per_bunch
+        dt = np.concatenate(
+            [
+                self.dt_init[:n] + bucket * self.t_rf
+                for bucket in bucket_indices
+            ]
+        )
+        dE = np.tile(self.dE_init[:n], len(bucket_indices))
+        return dt, dE
+
+    def test_kernel_matches_window_loop(self):
+        """The single-pass kernel and the window-by-window kick used
+        without numba should give the same kick."""
+        for profile_kind in self.sparse_profile_kinds:
+            with self.subTest(profile=profile_kind):
+                with mock.patch.object(
+                    tracker_kernels,
+                    "sparse_linear_interp_kick",
+                    wraps=tracker_kernels.sparse_linear_interp_kick,
+                ) as kernel:
+                    dE_kernel = self._track_one_turn(
+                        profile_kind, interpolation=True
+                    )
+                if cavity_loop_kernels.NUMBA_AVAILABLE:
+                    kernel.assert_called_once()
+                with mock.patch.object(
+                    cavity_loop_kernels, "NUMBA_AVAILABLE", False
+                ):
+                    dE_loop = self._track_one_turn(
+                        profile_kind, interpolation=True
+                    )
+                np.testing.assert_allclose(
+                    dE_kernel, dE_loop, rtol=0, atol=1e-5
+                )
+
+    def test_kernel_windows_out_of_time_order(self):
+        """A window injected later, between two existing ones, is last in
+        the list of windows; particles outside all the windows are not
+        kicked. The kick should match the window-by-window kick and the
+        one of a standard profile."""
+        n = self.n_macroparticles_per_bunch
+        # Bunches in injection order, then particles without a window
+        dt, dE = self._bunches((0, 20, 10, 40))
+
+        def make_sparse_profile(rf_station, beam):
+            bunch_list = np.zeros(self.h)
+            bunch_list[[0, 20]] = 1
+            profile = SparseBucket(
+                rf_station=rf_station,
+                beam=beam,
+                number_of_slices_per_profile=self.n_slices_per_bucket,
+                bunch_list=bunch_list,
+                tracker_mode="onebyone",
+            )
+            bunch_list = bunch_list.copy()
+            bunch_list[10] = 1
+            profile.update_bunch_list(bunch_list)
+            return profile
+
+        def make_standard_profile(rf_station, beam):
+            return Profile(
+                beam,
+                CutOptions(
+                    cut_left=0.0,
+                    cut_right=21 * self.t_rf,
+                    n_slices=21 * self.n_slices_per_bucket,
+                ),
+            )
+
+        dE_kernel = self._track_beam_one_turn(dt, dE, make_sparse_profile)
+        with mock.patch.object(cavity_loop_kernels, "NUMBA_AVAILABLE", False):
+            dE_loop = self._track_beam_one_turn(dt, dE, make_sparse_profile)
+        dE_standard = self._track_beam_one_turn(dt, dE, make_standard_profile)
+
+        np.testing.assert_allclose(dE_kernel, dE_loop, rtol=0, atol=1e-5)
+        np.testing.assert_allclose(dE_kernel, dE_standard, rtol=0, atol=1e-5)
+        np.testing.assert_array_equal(dE_kernel[3 * n :], dE[3 * n :])
+        for i in range(3):
+            self.assertGreater(
+                np.max(np.abs(dE_kernel - dE)[self._bunch_slice(i)]),
+                0.1 * self.V,
+                f"bunch {i} was not kicked",
+            )
+
+    def test_overlapping_windows_use_window_loop(self):
+        """A particle in two overlapping windows is kicked once per window
+        by the window-by-window kick, which a single pass cannot reproduce:
+        the kernel must not be used."""
+        dt, dE = self._bunches((0, 1, 2))
+
+        def make_profile(rf_station, beam):
+            batch_list = np.zeros(self.h)
+            batch_list[[0, 1]] = 1
+            return SparseBatch(
+                rf_station=rf_station,
+                beam=beam,
+                number_of_slices_per_profile=2 * self.n_slices_per_bucket,
+                batch_list=batch_list,
+                batch_length=2,
+                tracker_mode="onebyone",
+            )
+
+        with mock.patch.object(
+            tracker_kernels, "sparse_linear_interp_kick"
+        ) as kernel:
+            dE_overlap = self._track_beam_one_turn(dt, dE, make_profile)
+        kernel.assert_not_called()
+        with mock.patch.object(cavity_loop_kernels, "NUMBA_AVAILABLE", False):
+            dE_loop = self._track_beam_one_turn(dt, dE, make_profile)
+        np.testing.assert_array_equal(dE_overlap, dE_loop)
 
 
 if __name__ == "__main__":

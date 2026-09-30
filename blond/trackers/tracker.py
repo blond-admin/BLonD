@@ -36,9 +36,11 @@ from packaging.version import Version
 
 from blond.utils import precision
 from blond.utils.custom_warnings import PerformanceWarning
+from ..llrf import cavity_loop_kernels
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
+from . import tracker_kernels
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -468,6 +470,53 @@ class RingAndRFTracker:
                 self.rf_params.energy[index],
             )
 
+    def _linear_interp_kick_sparse(self, index: int):
+        """Interpolated kick with a sparse profile, each window of the
+        profile being paired with its slice of the total voltage."""
+        number_of_bins = len(self.profile.profiles_list[0].n_macroparticles)
+
+        if (
+            cavity_loop_kernels.NUMBA_AVAILABLE
+            and isinstance(self.beam.dt, np.ndarray)
+            and isinstance(self.beam.dE, np.ndarray)
+            and isinstance(self.total_voltage, np.ndarray)
+        ):
+            bin_centers = self.profile.bin_centers
+            window_first = bin_centers[::number_of_bins]
+            window_last = bin_centers[number_of_bins - 1 :: number_of_bins]
+            # Windows in time order (injected profiles are appended to
+            # profiles_list, so list order is not necessarily time order)
+            window = np.argsort(window_first)
+            # A single pass over the particles, instead of one pass per
+            # window, is the same kick only if no particle can be in two
+            # windows
+            if np.all(window_last[window[:-1]] < window_first[window[1:]]):
+                tracker_kernels.sparse_linear_interp_kick(
+                    self.beam.dt,
+                    self.beam.dE,
+                    self.total_voltage,
+                    bin_centers,
+                    number_of_bins,
+                    window_first[window],
+                    window,
+                    (number_of_bins - 1) / (window_last - window_first),
+                    float(self.beam.particle.charge),
+                    float(self.acceleration_kick[index]),
+                )
+                return
+
+        for i, profile in enumerate(self.profile.profiles_list):
+            bm.linear_interp_kick(
+                dt=self.beam.dt,
+                dE=self.beam.dE,
+                voltage=self.total_voltage[
+                    i * number_of_bins : (i + 1) * number_of_bins
+                ],
+                bin_centers=profile.bin_centers,
+                charge=self.beam.particle.charge,
+                acceleration_kick=self.acceleration_kick[index],
+            )
+
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
         beam at a given turn. Requires a Profile object.
@@ -600,23 +649,7 @@ class RingAndRFTracker:
                         self.total_voltage = self.rf_voltage
 
                     if isinstance(self.profile, SparseProfileBaseClass):
-                        number_of_bins = len(
-                            self.profile.profiles_list[0].n_macroparticles
-                        )
-                        for i, profile in enumerate(
-                            self.profile.profiles_list
-                        ):
-                            bm.linear_interp_kick(
-                                dt=self.beam.dt,
-                                dE=self.beam.dE,
-                                voltage=self.total_voltage[
-                                    i * number_of_bins : (i + 1)
-                                    * number_of_bins
-                                ],
-                                bin_centers=profile.bin_centers,
-                                charge=self.beam.particle.charge,
-                                acceleration_kick=self.acceleration_kick[turn],
-                            )
+                        self._linear_interp_kick_sparse(turn)
                     else:
                         bm.linear_interp_kick(
                             dt=self.beam.dt,

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `LHCCavityLoop` with sparse profiles: the fine-grid antenna voltage is carried across the gaps between windows in closed form instead of being solved sample by sample, which is faster and allocates no gap-sized arrays. The result matches the standard `Profile` solve to round-off.
 - `rf_beam_current` and `charges_from_fine_to_coarse` in `blond.llrf.signal_processing` run in compiled kernels when numba is available, and `LHCCavityLoop` interpolates the fine-grid generator current of all the windows of a sparse profile in one call. Results are unchanged.
+- `RingAndRFTracker` with sparse profiles: the interpolated kick is applied in one pass over the particles when numba is available, instead of one pass per window. The kick is unchanged to round-off.
 ### Removed
 ### Fixed
 
