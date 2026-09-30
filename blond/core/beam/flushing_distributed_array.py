@@ -185,6 +185,12 @@ class FlushingCoordinates:
         """
         Flush, then store ``value`` as a `FlushingDistributedArray`.
 
+        Only flushes when an old array is actually being replaced: the
+        first assignment (e.g. `BeamBaseClass.__init__` setting the
+        coordinate to ``None``, or setting it up for the first time) has
+        nothing queued against it yet, so it must not split a pending
+        batch queued for another beam.
+
         Parameters
         ----------
         instance
@@ -202,7 +208,9 @@ class FlushingCoordinates:
                 "Beam coordinates must be a `DistributedArray`, "
                 f"got {type(value).__name__}."
             )
-        backend.specials.flush()
+        old_value = instance.__dict__.get(self._storage_name)
+        if old_value is not None:
+            backend.specials.flush()
         if value is not None and not isinstance(
             value, FlushingDistributedArray
         ):

@@ -7,6 +7,7 @@ import numpy as np
 from blond import Beam, proton
 from blond.core.backends.backend import backend
 from blond.core.beam.flushing_distributed_array import (
+    FlushingCoordinates,
     FlushingDistributedArray,
 )
 from blond.generals.distributed.distributed_array import DistributedArray
@@ -83,6 +84,45 @@ class TestFlushingDistributedArray(BLonDTestCase):
         self.assertIsInstance(converted, FlushingDistributedArray)
         self.assertIs(converted.array_local_without_flush, self.values)
         self.assertEqual(converted.is_distributed, plain.is_distributed)
+
+
+class _CoordinateHolder:
+    """Bare-bones owner of a single `FlushingCoordinates` attribute."""
+
+    _dt = FlushingCoordinates()
+
+
+class TestFlushingCoordinatesFirstAssignment(BLonDTestCase):
+    """`FlushingCoordinates.__set__` should only flush a real replacement."""
+
+    def test_creating_a_beam_does_not_flush(self) -> None:
+        # Beam.__init__ sets _dE/_dt/_flags/_ids to None for the first
+        # time; there is nothing queued against them yet, so creating a
+        # beam mid-turn must not split a pending batch.
+        with mock.patch.object(backend.specials, "flush") as flush:
+            Beam(intensity=1e11, particle_type=proton)
+        flush.assert_not_called()
+
+    def test_first_real_assignment_does_not_flush(self) -> None:
+        holder = _CoordinateHolder()
+        holder._dt = None  # as BeamBaseClass.__init__ does
+        # Pre-wrap the value while flushing is un-patched: constructing a
+        # fresh `FlushingDistributedArray` legitimately flushes once (it
+        # is a new object, not a replacement) -- that is not what this
+        # test is about. Assigning it directly (already the flushing
+        # type) skips that wrapping step.
+        new_value = FlushingDistributedArray(np.zeros(10))
+        with mock.patch.object(backend.specials, "flush") as flush:
+            holder._dt = new_value
+        flush.assert_not_called()
+
+    def test_replacing_existing_coordinates_still_flushes(self) -> None:
+        holder = _CoordinateHolder()
+        holder._dt = FlushingDistributedArray(np.zeros(10))
+        new_value = FlushingDistributedArray(np.ones(10))
+        with mock.patch.object(backend.specials, "flush") as flush:
+            holder._dt = new_value
+        flush.assert_called_once_with()
 
 
 class TestBeamCoordinateStorage(BLonDTestCase):
