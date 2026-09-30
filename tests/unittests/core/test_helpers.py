@@ -15,11 +15,13 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )

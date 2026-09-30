@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.beams import Beam
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.helpers import (
     mpi_aware_random_generator_cpu,
     mpi_local_size,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import Beam
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray  # type: ignore

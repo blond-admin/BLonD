@@ -426,7 +426,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,
@@ -773,7 +775,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,

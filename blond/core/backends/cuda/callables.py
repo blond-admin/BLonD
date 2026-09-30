@@ -435,6 +435,12 @@ class CudaSpecials(Specials):  # NOQA: D101
         acceleration_kick = FLOAT(acceleration_kick)
 
         if first_left_cut is None:
+            n_slices = bin_centers.size
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
+
             glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
             _gm_linear_interp_kick_help(
                 args=(
@@ -594,6 +600,10 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert hist_y.dtype == FLOAT
         assert hist_x.flags.c_contiguous
         assert hist_y.flags.c_contiguous
+        assert len(hist_x) >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule, "
+            f"got {len(hist_x)}"
+        )
 
         # Cast Python floats to backend floattype
         alpha = FLOAT(alpha)

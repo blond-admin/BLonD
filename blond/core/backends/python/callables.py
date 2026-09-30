@@ -129,6 +129,10 @@ class PythonSpecials(Specials):
         beam_phase
             # TODO ported from blond2, was undocumented.
         """
+        assert len(hist_x) >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule, "
+            f"got {len(hist_x)}"
+        )
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
@@ -495,6 +499,10 @@ class PythonSpecials(Specials):
         if sparse:
             inv_bin_width = bins_per_profile / cut_width
         else:
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
             inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width

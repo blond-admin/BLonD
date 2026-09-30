@@ -34,7 +34,6 @@ import skrf as rf
 from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
-from blond.core.simulation.simulation import Simulation
 from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -49,6 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.generals.typing_ import AnyArray
 
 

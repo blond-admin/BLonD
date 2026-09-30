@@ -240,7 +240,9 @@ class TestBackendBaseClass(BLonDTestCase):
         self.assertEqual(backend.specials_mode, "cpp_single_core")
 
 
-def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
+def _run_python(
+    code: str, *interpreter_flags: str
+) -> "subprocess.CompletedProcess[str]":
     """Run a code snippet in a fresh interpreter without BLOND env vars."""
     env = os.environ.copy()
     # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
@@ -252,7 +254,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     ):
         env.pop(key, None)
     return subprocess.run(
-        [sys.executable, "-c", code],
+        [sys.executable, *interpreter_flags, "-c", code],
         check=False,
         capture_output=True,
         text=True,
@@ -1190,7 +1192,60 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
-    def test_kick_interpolated_single_bin_applies_only_acceleration_kick(
+    def test_kick_interpolated_just_below_first_bin_center(self) -> None:
+        """Particles less than one bin width below ``bin_centers[0]``
+        receive only ``acceleration_kick``.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would give them the interpolated voltage of
+        the first interval.
+        """
+        dtype = np.float64
+        charge, acceleration_kick = 10.0, 0.5
+        bin_centers_np = np.linspace(-4, 4, 20, dtype=dtype)
+        voltage_np = bin_centers_np**2
+        bin_width = bin_centers_np[1] - bin_centers_np[0]
+        dt_np = np.array(
+            [
+                np.nextafter(bin_centers_np[0], -np.inf),
+                bin_centers_np[0] - 0.5 * bin_width,
+                bin_centers_np[0] - 0.999 * bin_width,
+                bin_centers_np[0] + 0.5 * bin_width,  # kicked, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.full_like(dt_np, acceleration_kick)
+        expected[-1] += charge * 0.5 * (voltage_np[0] + voltage_np[1])
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dE = backend.zeros(len(dt_np), dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=backend.array(dt_np, dtype=backend.float),
+                dE=dE,
+                voltage=backend.array(voltage_np, dtype=backend.float),
+                bin_centers=backend.array(bin_centers_np, dtype=backend.float),
+                charge=backend.float(charge),
+                acceleration_kick=backend.float(acceleration_kick),
+            )
+            result = copy_to_cpu(dE)
+            np.testing.assert_array_equal(
+                result[:-1],
+                expected[:-1],
+                err_msg=f"{special=} {dtype=}",
+            )
+            np.testing.assert_allclose(
+                result[-1],
+                expected[-1],
+                rtol=self.rtol,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_kick_interpolated_raises_on_single_bin(
         self,
     ) -> None:
         """A single-bin `bin_centers` has no bin width to interpolate
@@ -1209,26 +1264,17 @@ class TestSpecials(BLonDTestCase):
             voltage = backend.array([1.0], dtype=backend.float)
             charge = backend.float(10)
             acceleration_kick = backend.float(0.5)
-            backend.specials.kick_interpolated(
-                dt=dt,
-                dE=dE,
-                voltage=voltage,
-                bin_centers=bin_centers,
-                charge=charge,
-                acceleration_kick=acceleration_kick,
-            )
-            result = dE
-            if special == "cuda":
-                result = result.get()
-            np.testing.assert_array_equal(
-                np.asarray(result),
-                0.5,
-                err_msg=(
-                    "a single-bin profile has no width to interpolate "
-                    "across, so no particle receives an interpolated "
-                    f"voltage -- only `acceleration_kick`, {special=}"
-                ),
-            )
+            with self.assertRaisesRegex(
+                AssertionError, "kick_interpolated needs at least 2 bins"
+            ):
+                backend.specials.kick_interpolated(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_applies_acceleration_kick_everywhere(
@@ -1815,6 +1861,50 @@ class TestSpecials(BLonDTestCase):
         )
         expected = np.zeros(n_bins, dtype=dtype)
         expected[-1] = len(values_np)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(start),
+                stop=backend.float(stop),
+            )
+            np.testing.assert_array_equal(
+                copy_to_cpu(array_write),
+                expected,
+                err_msg=f"{special=} {dtype=} {n_bins=}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_drops_values_just_below_start(self) -> None:
+        """Values less than one bin width below ``start`` are dropped.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would count them in the first bin.
+        """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_drops_values_below_start(n_bins)
+
+    def _assert_histogram_drops_values_below_start(self, n_bins: int) -> None:
+        dtype = np.float64
+        start, stop = -12.0, 8.0
+        bin_width = (stop - start) / n_bins
+        values_np = np.array(
+            [
+                np.nextafter(start, -np.inf),
+                start - 0.5 * bin_width,
+                start - 0.999 * bin_width,
+                start + 0.5 * bin_width,  # counted, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[0] = 1
         for special in self.special_modes:
             try:
                 self._setUp(dtype=dtype, special_mode=special)
@@ -2970,6 +3060,37 @@ class TestSpecials(BLonDTestCase):
                         result_python,
                         rtol=1e-12,
                         err_msg=f"Failed `{special}` with {n_bins=}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_beam_phase_needs_two_bins(self) -> None:
+        """Fewer than two bins must be rejected on every backend.
+
+        The trapezoidal integral needs two bins: C++ read out of bounds
+        for zero bins, CUDA launched an empty grid, and for one bin python
+        returned nan while C++/CUDA returned a finite value.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for n_bins in (0, 1):
+                with (
+                    self.subTest(special=special, n_bins=n_bins),
+                    self.assertRaisesRegex(
+                        AssertionError, "requires at least two bins"
+                    ),
+                ):
+                    backend.specials.beam_phase(
+                        hist_x=backend.zeros(n_bins, dtype=backend.float),
+                        hist_y=backend.ones(n_bins, dtype=backend.float),
+                        alpha=backend.float(0.5),
+                        omega_rf=backend.float(0.8),
+                        phi_rf=backend.float(0.1),
+                        bin_size=backend.float(1.0),
                     )
 
     @pytest.mark.backend_mutation

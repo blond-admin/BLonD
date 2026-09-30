@@ -411,7 +411,7 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._continuous_memory_hist_x = backend.zeros(
             total,
-            dtype=self.profiles[0]._hist_x.dtype,
+            dtype=self.profiles[0].hist_x.dtype,
         )
         self._continuous_memory_hist_y = backend.zeros_like(
             self._continuous_memory_hist_x
@@ -421,8 +421,8 @@ class EquidistantMultiProfile(MultiProfile):
             sel = self._get_slice_single_profile(i)
 
             # core region
-            self._continuous_memory_hist_x[sel] = profile._hist_x
-            self._continuous_memory_hist_y[sel] = profile._hist_y
+            self._continuous_memory_hist_x[sel] = profile.hist_x
+            self._continuous_memory_hist_y[sel] = profile.hist_y
 
         self._bind_profiles()
 
@@ -431,8 +431,10 @@ class EquidistantMultiProfile(MultiProfile):
         for i, _profile in enumerate(self.profiles):
             sel = self._get_slice_single_profile(i)
 
-            self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
-            self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
+            self.profiles[i]._bind_arrays(
+                hist_x=self._continuous_memory_hist_x[sel],
+                hist_y=self._continuous_memory_hist_y[sel],
+            )
 
     def _get_slice_single_profile(self, index: int) -> slice:
         """

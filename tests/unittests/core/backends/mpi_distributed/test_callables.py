@@ -7,8 +7,10 @@ from blond import Cupy64Bit, Numpy64Bit, backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.callables import (
     rms_emittance,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import mpi_is_distributed
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 from blond.testing.backend_testing import BLonDTestCase
 
 is_distributed = mpi_is_distributed()

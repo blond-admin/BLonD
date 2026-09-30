@@ -7,16 +7,18 @@ import numpy as np
 import pytest
 
 from blond import Beam, Simulation, proton, uranium_29
-from blond.core.beam.base import BeamBaseClass, BeamFlags
-from blond.core.beam.beams import ProbeBeam
-from blond.core.beam.particle_types import lead_82
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     MPI_COMM_WORLD,
     MPI_RANK,
     MPI_SIZE,
     mpi_is_distributed,
 )
+from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.particle_types import lead_82
 from blond.testing.backend_testing import BLonDTestCase
 
 

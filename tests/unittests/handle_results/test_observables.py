@@ -20,11 +20,13 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
