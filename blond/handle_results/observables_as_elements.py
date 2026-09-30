@@ -78,7 +78,6 @@ class BeamObservationInRingElement(
         simulation: Simulation,
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
-        obs_per_turn: int = 1,
         **kwargs: dict[
             str,
             Any,
@@ -95,8 +94,6 @@ class BeamObservationInRingElement(
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        obs_per_turn
-            Number of observations per turn.
         **kwargs
             Additional keyword arguments.
         """
