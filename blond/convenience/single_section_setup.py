@@ -41,7 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def single_section_simulation(  # noqa: PLR0912
     ring_circumference: float,
-    cycle_values: float | NumpyArray,
+    cycle_values: int | float | NumpyArray,
     cycle_unit: SynchronousDataTypes,
     particle_type: ParticleType,
     ring_momentum_compaction_factor: float | ScheduledBaseClass,
@@ -125,7 +125,7 @@ def single_section_simulation(  # noqa: PLR0912
     ... )
     """
     assert cavity_n_harmonics > 0, f"{cavity_n_harmonics=}"
-    if isinstance(cycle_values, float):
+    if isinstance(cycle_values, (int, float)):
         _cycle = ConstantMagneticCycle(
             reference_particle=particle_type,
             value=cycle_values,
@@ -192,7 +192,7 @@ def single_section_simulation(  # noqa: PLR0912
             cut_right=_cycle.get_t_rev_init(
                 circumference=ring_circumference, particle_type=particle_type
             )
-            / rf_station.harmonic,
+            / rf_station.get_main_harmonic(),
             cutoff_frequency=wakefield_cutoff_frequency,
         )
         wakefield = WakeField(

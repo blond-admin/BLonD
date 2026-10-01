@@ -29,6 +29,12 @@ variables:
   # CPU-homogeneous and you prefer full `-march=native` kernel speed.
   NUMBA_CPU_NAME: "generic"
   NUMBA_CPU_FEATURES: ""
+  # --- GPU runner selection ---
+  # Tag of the runner all GPU jobs are sent to. Defaults to the dedicated
+  # H100 project runner (few concurrent jobs, but no queueing behind other
+  # projects); set to `k8s-gpu` (e.g. when running a pipeline manually) to
+  # fall back to the shared Kubernetes GPU runners.
+  GPU_RUNNER_TAG: "accpoc-h100-.5"
 stages:
   - precommit
   - doc_build
@@ -417,6 +423,8 @@ test_py_315_no_cupy:
     - .main_no_gpu
     - .cache_test
   dependencies: []
+  tags:
+    - cpu-intensive
 
 test_py_315_main_many_environments:
   image: gitlab-registry.cern.ch/blond/blond/python315
@@ -429,7 +437,7 @@ test_py_315_main_many_environments:
     - .cache_test
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
 
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
@@ -442,7 +450,7 @@ test_py_311:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -461,7 +469,7 @@ test_py_312:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -480,7 +488,7 @@ test_py_313:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -499,7 +507,7 @@ test_py_314:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -534,7 +542,7 @@ test_py_315_only_cupy:
     - .cache_test
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -585,7 +593,7 @@ test_minimum:
       -v
       --import-mode=importlib
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
