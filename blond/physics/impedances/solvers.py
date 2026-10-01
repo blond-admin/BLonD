@@ -33,8 +33,7 @@ from scipy.fft import next_fast_len
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.ring.helpers import requires
-from blond.core.simulation.simulation import Simulation
+from blond.core.ordering import requires
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -54,6 +53,8 @@ from blond.physics.profiles_sparse import EquidistantMultiProfile
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.core.simulation.simulation import Simulation
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -171,7 +172,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._t_periodicity = t_periodicity
         self._parent_wakefield: WakeField | None = None
         self._n_time: int | None = None
-        self._n_freq: int | None = None
         self._freq_x: NumpyArray | None = None
         self._freq_y: NumpyArray | None = None
 
@@ -301,7 +301,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_x = backend.fft.rfftfreq(
             self._n_time, d=self._parent_wakefield.profile.hist_step
         ).astype(backend.float)
-        self._n_freq = len(self._freq_x)
 
         self._freq_y_needs_update = True
 

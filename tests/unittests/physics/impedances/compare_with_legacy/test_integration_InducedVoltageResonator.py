@@ -200,7 +200,6 @@ class Blond3:
             solver=SingleTurnResonatorConvolutionSolver(),
             profile=profile,
         )
-        wake.solver._wake_pot_vals_need_update = True
         ring.add_elements((profile, cavity1, drift, wake))
         magnetic_cycle = ConstantMagneticCycle(
             value=25.92e9,
