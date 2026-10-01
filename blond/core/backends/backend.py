@@ -350,7 +350,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ) -> None:
+    ) -> int:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
@@ -368,6 +368,12 @@ class Specials(ABC):
             Macro-particle ids.
             This allows to identify single particles,
             even if the array indexing is changed.
+
+        Returns
+        -------
+        n_new
+            Number of particles that are not flagged, as a host ``int``
+            on every backend.
         """
         raise NotImplementedError(
             "The backend for `move_flagged_elements_to_end` is missing."

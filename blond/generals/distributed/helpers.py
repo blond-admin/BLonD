@@ -141,7 +141,7 @@ def distributed_arange(
             rank 0: [0, 1, 2]
             rank 1: [3, 4, 5]
     """
-    from blond import backend
+    from blond.core.backends.backend import backend
     from blond.generals.distributed.distributed_array import DistributedArray
 
     # Compute starting offset for this rank
@@ -184,7 +184,7 @@ def distributed_zeros(
             rank 0: [0, 0, 0]
             rank 1: [0, 0, 0]
     """
-    from blond import backend
+    from blond.core.backends.backend import backend
     from blond.generals.distributed.distributed_array import DistributedArray
 
     local_ids = backend.zeros(local_n, dtype=dtype)
