@@ -72,6 +72,27 @@ repos:
         files: ^blond/
         exclude: ^blond/(experimental|examples)/
 
+  # `blond/__init__.py` is a one-way door: it re-exports the public API
+  # for users, and package code must not import back through it. Doing so
+  # makes the facade a cycle -- importing the package runs `__init__.py`,
+  # which imports the module, which asks `__init__.py` back for a name it
+  # may not have bound yet -- which in turn makes the order of the
+  # re-exports load-bearing for unrelated modules. Internal code imports
+  # from the module that defines the name.
+  - repo: local
+    hooks:
+      - id: no-facade-imports
+        name: internal code must not import from the blond facade
+        language: pygrep
+        # Matches `from blond import X` but not `from blond.x import X`,
+        # since the literal " import" must follow "blond" directly.
+        entry: '^\s*(from blond import|import blond\s*$)'
+        types: [python]
+        files: ^blond/
+        # `examples` is user-facing and should demonstrate the public
+        # API; `legacy` is BLonD 2, excluded by repo convention.
+        exclude: ^blond/(examples|legacy)/
+
   # Every class exported at BLonD toplevel needs a documentation category
   - repo: local
     hooks:

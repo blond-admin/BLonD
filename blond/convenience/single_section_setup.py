@@ -14,19 +14,19 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import (
-    ConstantMagneticCycle,
-    DriftSimple,
-    MultiHarmonicRFStation,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    StaticProfile,
-    WakeField,
-)
+from blond.core.ring.ring import Ring
 from blond.core.scheduling import ScheduledBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import (
+    ConstantMagneticCycle,
     MagneticCyclePerTurn,
+)
+from blond.physics.drifts import DriftSimple
+from blond.physics.impedances.base import WakeField
+from blond.physics.profiles import StaticProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 
 if TYPE_CHECKING:  # pragma: no cover

@@ -129,7 +129,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         artists
             The plotting artists.
         """
-        from blond import AllowPlotting
+        from blond.generals.cupy_.no_cupy_import import AllowPlotting
 
         with AllowPlotting():
             artists = plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
