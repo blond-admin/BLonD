@@ -20,7 +20,9 @@ variables:
   # Centralise numba's on-disk cache (.nbi/.nbc) into one dir so GitLab can
   # cache it between runs; the kernels already use `cache=True`, but the
   # cache is otherwise cold on every fresh runner and recompiles during the
-  # test run (the dominant cost).
+  # test run (the dominant cost). numba checks entries against the source
+  # file mtime, which a fresh checkout resets; before_script therefore runs
+  # `dev_tools/ci_numba_cache.py stamp` to restore content-derived mtimes.
   NUMBA_CACHE_DIR: "${CI_PROJECT_DIR}/.numba_cache"
   # Compile CPU-generic code so a cached entry is valid on ANY runner,
   # independent of its CPU. numba self-validates entries, so a mismatch only
@@ -137,6 +139,9 @@ workflow:
     # pure stdlib: no venv needed, and no `import blond` -- which would
     # recompile kernels into the very cache we are pruning. Size budget:
     # BLOND_NUMBA_CACHE_MAX_MB (default 500).
+    # Report the cache state and the kernels compiled during this job
+    # (= cache misses) before pruning, see dev_tools/ci_numba_cache.py.
+    - python3 dev_tools/ci_numba_cache.py report blond --compare .numba_cache_snapshot.json
     - python3 dev_tools/prune_numba_cache.py
     # Same bookkeeping for the uv cache as in `.cache_uv` (kept in sync by
     # hand -- see the NOTE above on why it cannot be inherited).
@@ -167,6 +172,16 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # numba validates its on-disk cache against the source file mtime,
+    # and a fresh checkout gives every file a new one -- so the cached
+    # kernels restored above would all be recompiled. Give the sources
+    # content-derived mtimes instead (identical content -> identical
+    # stamp on every runner) and print what the cache now holds. The
+    # snapshot lets after_script report what was compiled in this job.
+    # Bare python3 + stdlib, must run before anything imports blond.
+    # See dev_tools/ci_numba_cache.py.
+    - python3 dev_tools/ci_numba_cache.py stamp blond
+    - python3 dev_tools/ci_numba_cache.py report blond --snapshot .numba_cache_snapshot.json
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -196,6 +211,16 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # numba validates its on-disk cache against the source file mtime,
+    # and a fresh checkout gives every file a new one -- so the cached
+    # kernels restored above would all be recompiled. Give the sources
+    # content-derived mtimes instead (identical content -> identical
+    # stamp on every runner) and print what the cache now holds. The
+    # snapshot lets after_script report what was compiled in this job.
+    # Bare python3 + stdlib, must run before anything imports blond.
+    # See dev_tools/ci_numba_cache.py.
+    - python3 dev_tools/ci_numba_cache.py stamp blond
+    - python3 dev_tools/ci_numba_cache.py report blond --snapshot .numba_cache_snapshot.json
     # Verify installation
     - gcc --version
     - python3 --version && gcc --version && mpirun --version
@@ -571,6 +596,16 @@ test_minimum:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # numba validates its on-disk cache against the source file mtime,
+    # and a fresh checkout gives every file a new one -- so the cached
+    # kernels restored above would all be recompiled. Give the sources
+    # content-derived mtimes instead (identical content -> identical
+    # stamp on every runner) and print what the cache now holds. The
+    # snapshot lets after_script report what was compiled in this job.
+    # Bare python3 + stdlib, must run before anything imports blond.
+    # See dev_tools/ci_numba_cache.py.
+    - python3 dev_tools/ci_numba_cache.py stamp blond
+    - python3 dev_tools/ci_numba_cache.py report blond --snapshot .numba_cache_snapshot.json
     # Create venv to avoid permission error when installing packages
     - *uv_setup
     - uv venv ./.venv
