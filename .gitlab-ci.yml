@@ -646,6 +646,14 @@ test_documentation_building:
       - ${project_root}/docs/_build/html
     expire_in: 3 hour
     when: always
+  rules:
+    # Blocking in merge requests: a broken doc build must not be mergeable.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: false
+    # Warning-only on commit pipelines (e.g. direct pushes to blonder):
+    # surface the failure without reddening the whole pipeline.
+    - when: on_success
+      allow_failure: true
 
 
 pages:
