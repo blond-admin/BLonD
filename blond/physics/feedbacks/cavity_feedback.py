@@ -373,7 +373,9 @@ class IQCavityFeedbackBase(LocalFeedback):
         SCALING: PER CAVITY -- the current fed to one single cavity, the
         same convention as the coarse antenna voltage (the two are related
         by the per-cavity ``R_over_Q``). With a controller attached it is
-        the controller's per-cavity output.
+        the controller's per-cavity output: its held command, or, when
+        the controller carries a klystron pole
+        (``klystron_time_constant``), the klystron's output chasing it.
 
         UNITS: amperes, complex IQ envelope.
         """
@@ -2707,6 +2709,17 @@ class IQCavityFeedbackCoarseGrid(
                 # Between samples the loop holds its last command, which is
                 # the one that drove this very step.
                 self.generator_current_coarse_grid[index] = generator_current
+            if self._controller.klystron_time_constant > 0.0:
+                # With a klystron pole the grid carries what the klystron
+                # delivers: its output relaxes from the one that drove this
+                # step towards the command the controller now holds (the
+                # compiled scans' ``klystron_cell``).
+                self.generator_current_coarse_grid[index] = (
+                    self._controller.klystron_output(
+                        generator_current,
+                        omega_times_dt / self._omega_input_for_pi,
+                    )
+                )
 
     def _kernel_beam_current(
         self,
@@ -3614,8 +3627,9 @@ class IQCavityFeedbackCoarseGrid(
         seed_voltage
             Demodulation-frame antenna voltage at that centre [V].
         held_generator_current
-            Generator command held over the step into the first forward
-            cell [A], in the design frame the commands are recorded in.
+            Generator current driving the step into the first forward
+            cell [A] -- the held command, or the klystron's output with a
+            klystron pole -- in the design frame the grid is recorded in.
         """
         if forward_start > 0:
             voltage_beam = self.antenna_voltage_beam_coarse_grid[

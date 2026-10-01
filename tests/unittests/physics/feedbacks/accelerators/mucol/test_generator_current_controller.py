@@ -527,7 +527,9 @@ class TestDelayLineStateHandoff(unittest.TestCase):
         before = list(controller._delay_line)
         integral = controller.integral
         state = controller.envelope_scan_state()
-        controller.absorb_envelope_scan_state((state[3], state[4], state[5]))
+        controller.absorb_envelope_scan_state(
+            (state[3], state[4], state[5], state[-1])
+        )
         self.assertEqual(list(controller._delay_line), before)
         self.assertEqual(controller.integral, integral)
 

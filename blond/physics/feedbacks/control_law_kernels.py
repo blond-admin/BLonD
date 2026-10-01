@@ -24,11 +24,19 @@ of it, in three layers kept apart on purpose:
   addition to the setpoint, which enters the measurement, and a per-cell
   addition to the bias, which a scan hands its law *as* the bias of that
   sample, so every law clamps the sum without knowing the term exists;
+- the **klystron**, law-independent and optional: :func:`klystron_cell`
+  relaxes the generator current towards the held command through one
+  real pole on every cell, so the cavity is driven by what a klystron of
+  finite bandwidth delivers rather than by the command itself;
 - the **closed-loop scans**, one per law: :func:`envelope_pi_scan` and
   :func:`envelope_p_scan` step the cavity model cell by cell through
   :func:`~blond.physics.feedbacks.envelope_kernel.propagate_envelope_cell`,
   sample the loop every ``controller_update_interval`` cells, hold the
   command in between (zero order), and call their own law on each sample.
+  With a klystron pole the generator grid carries the klystron's output
+  and the held command travels as law state (``klystron_command``);
+  without one (``klystron_time_constant`` zero) the grid is the held
+  command, exactly as before the pole existed.
 
 The two scans share their first positional arguments -- the cavity and the
 sampler -- and differ only in the law state that follows, so the feedback
@@ -123,6 +131,40 @@ def delay_line_push(delay_buffer, delay_head, error):
     delay_buffer[delay_head] = error
     delay_head = (delay_head + 1) % delay_buffer.shape[0]
     return delay_buffer[delay_head], delay_head
+
+
+@nb.njit(cache=True)  # pragma: no cover
+def klystron_cell(previous_output, command, delta_t, time_constant):
+    """
+    Advance the klystron's one-pole output by one coarse cell.
+
+    The output relaxes exactly towards the command held over the cell,
+    ``u + (y - u) exp(-dt / tau)``, and the result drives the NEXT cell,
+    as a command does without the pole. Holding it over that cell instead
+    of averaging the exponential over it lags the continuous pole by half
+    a cell, an RF period at most against a klystron time constant of tens
+    of them. The compiled twin of
+    :func:`~blond.physics.feedbacks.generator_current_controller.klystron_relax`.
+
+    Parameters
+    ----------
+    previous_output
+        Klystron output at the end of the previous cell [A].
+    command
+        Command held over this cell [A].
+    delta_t
+        Length of this cell [s].
+    time_constant
+        The pole's time constant [s], positive.
+
+    Returns
+    -------
+    output
+        Klystron output at the end of this cell [A].
+    """
+    return command + (previous_output - command) * np.exp(
+        -delta_t / time_constant
+    )
 
 
 #: Integer code of the directional anti-windup: its index in
@@ -263,6 +305,8 @@ def envelope_pi_scan(
     integral,
     max_output,
     anti_windup=0,
+    klystron_time_constant=0.0,
+    klystron_command=0.0 + 0.0j,
 ):
     """
     The cavity model closed through the PI law, over one span.
@@ -277,7 +321,8 @@ def envelope_pi_scan(
     generator_current_out
         Generator current (complex128, length ``N``), in/out: pre-filled
         with the grid, overwritten with each sample's command and with the
-        held command between samples.
+        held command between samples -- or, with a klystron pole, with the
+        klystron's output on every cell.
     voltage_gen_init, voltage_beam_init, generator_current_init
         State seeding the first cell.
     r_over_q
@@ -312,10 +357,15 @@ def envelope_pi_scan(
     anti_windup
         Anti-windup code (see :func:`pi_law_step`); 0, the conditional
         freeze, if omitted.
+    klystron_time_constant
+        Time constant of the klystron pole [s]; 0, no pole, if omitted.
+    klystron_command
+        Command the klystron is chasing as the span starts: the last
+        command of the previous span.
 
     Returns
     -------
-    delay_buffer, delay_head, integral
+    delay_buffer, delay_head, integral, klystron_command
         The PI state after the span, for
         ``GeneratorCurrentPIController.absorb_envelope_scan_state``.
     """
@@ -344,8 +394,17 @@ def envelope_pi_scan(
         voltage_beam_previous = voltage_beam
         voltage_gen_previous = voltage_gen
         if (cell + controller_update_phase) % controller_update_interval != 0:
-            # Between samples the loop holds its last command.
-            generator_current_out[cell] = generator_current_drive
+            if klystron_time_constant > 0.0:
+                # The klystron keeps moving between samples.
+                generator_current_out[cell] = klystron_cell(
+                    generator_current_drive,
+                    klystron_command,
+                    omega_times_dt[cell] / omega_input,
+                    klystron_time_constant,
+                )
+            else:
+                # Between samples the loop holds its last command.
+                generator_current_out[cell] = generator_current_drive
             continue
         error = regulation_error(
             voltage,
@@ -362,7 +421,7 @@ def envelope_pi_scan(
         delayed_error, delay_head = delay_line_push(
             delay_buffer, delay_head, error
         )
-        generator_current_out[cell], integral = pi_law_step(
+        klystron_command, integral = pi_law_step(
             delayed_error,
             delta_t,
             integral,
@@ -372,7 +431,16 @@ def envelope_pi_scan(
             max_output,
             anti_windup,
         )
-    return delay_buffer, delay_head, integral
+        if klystron_time_constant > 0.0:
+            generator_current_out[cell] = klystron_cell(
+                generator_current_drive,
+                klystron_command,
+                omega_times_dt[cell] / omega_input,
+                klystron_time_constant,
+            )
+        else:
+            generator_current_out[cell] = klystron_command
+    return delay_buffer, delay_head, integral, klystron_command
 
 
 @nb.njit(cache=True)  # pragma: no cover
@@ -404,6 +472,8 @@ def envelope_p_scan(
     delay_buffer,
     delay_head,
     max_output,
+    klystron_time_constant=0.0,
+    klystron_command=0.0 + 0.0j,
 ):
     """
     The cavity model closed through the proportional law, over one span.
@@ -439,18 +509,22 @@ def envelope_p_scan(
         Per-cell addition to the bias [A], read on controller samples
         and clamped with it. Zero is a no-op.
     omega_input
-        Segment angular frequency; unused, since a proportional law has
-        no time constant of its own.
+        Segment angular frequency, to recover the cell length for the
+        klystron pole; a proportional law has no time constant of its own.
     gain_proportional, generator_current_bias
         P tuning.
     delay_buffer, delay_head
         The loop's delay line, advanced in place.
     max_output
         Klystron current-magnitude limit, or ``inf``.
+    klystron_time_constant
+        Time constant of the klystron pole [s]; 0, no pole, if omitted.
+    klystron_command
+        Command the klystron is chasing as the span starts.
 
     Returns
     -------
-    delay_buffer, delay_head
+    delay_buffer, delay_head, klystron_command
         The P state after the span, for
         ``GeneratorCurrentPController.absorb_envelope_scan_state``.
     """
@@ -479,7 +553,15 @@ def envelope_p_scan(
         voltage_beam_previous = voltage_beam
         voltage_gen_previous = voltage_gen
         if (cell + controller_update_phase) % controller_update_interval != 0:
-            generator_current_out[cell] = generator_current_drive
+            if klystron_time_constant > 0.0:
+                generator_current_out[cell] = klystron_cell(
+                    generator_current_drive,
+                    klystron_command,
+                    omega_times_dt[cell] / omega_input,
+                    klystron_time_constant,
+                )
+            else:
+                generator_current_out[cell] = generator_current_drive
             continue
         error = regulation_error(
             voltage,
@@ -491,10 +573,19 @@ def envelope_p_scan(
         delayed_error, delay_head = delay_line_push(
             delay_buffer, delay_head, error
         )
-        generator_current_out[cell] = p_law_step(
+        klystron_command = p_law_step(
             delayed_error,
             gain_proportional,
             generator_current_bias + generator_current_feedforward[cell],
             max_output,
         )
-    return delay_buffer, delay_head
+        if klystron_time_constant > 0.0:
+            generator_current_out[cell] = klystron_cell(
+                generator_current_drive,
+                klystron_command,
+                omega_times_dt[cell] / omega_input,
+                klystron_time_constant,
+            )
+        else:
+            generator_current_out[cell] = klystron_command
+    return delay_buffer, delay_head, klystron_command

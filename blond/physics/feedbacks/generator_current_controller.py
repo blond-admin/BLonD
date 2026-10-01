@@ -22,6 +22,11 @@ choice of anti-windup, see :data:`ANTI_WINDUP_SCHEMES`) and
 own tuning and state and names its own compiled closed-loop scan in
 :mod:`~blond.physics.feedbacks.control_law_kernels`; the cavity model in
 :mod:`~blond.physics.feedbacks.envelope_kernel` knows neither.
+
+Both laws can also carry the klystron's bandwidth, as one real pole
+between the clamped command and the generator current that drives the
+cavity (``klystron_time_constant``, off by default; see
+:func:`klystron_time_constant_from_bandwidth`).
 """
 
 from __future__ import annotations
@@ -30,6 +35,7 @@ from __future__ import annotations
 # documented by automodule, and on Python 3.14 (the CI doc image) autodoc fails
 # to format its C-level signature, which breaks the ``-W`` doc build.
 import collections
+import math
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -76,6 +82,110 @@ def current_limit_from_power(
         Corresponding maximum generator-current magnitude [A].
     """
     return float(np.sqrt(2.0 * power / (R_over_Q * Q_L)))
+
+
+def klystron_time_constant_from_bandwidth(
+    bandwidth: float, attenuation_db: float = 1.0
+) -> float:
+    r"""
+    Time constant of the one-pole klystron with a given bandwidth.
+
+    A klystron's bandwidth is quoted as the full width about the carrier
+    over which its gain stays within ``attenuation_db`` (1 dB, 3 dB, ...).
+    On the complex envelope that is a low-pass, here one real pole with
+    :math:`|H(\omega)|^2 = 1 / (1 + (\omega \tau)^2)`, which loses
+    ``attenuation_db`` at half the bandwidth:
+
+    .. math::
+        \tau = \frac{\sqrt{10^{\,a / 10} - 1}}{\pi B}
+
+    with :math:`a` the attenuation [dB] and :math:`B` the full bandwidth.
+
+    Parameters
+    ----------
+    bandwidth
+        Full bandwidth about the carrier [Hz], e.g. 5 MHz for +-2.5 MHz.
+    attenuation_db
+        Gain lost at the band edges [dB]. Default 1.
+
+    Returns
+    -------
+    time_constant
+        The pole's time constant [s].
+
+    Raises
+    ------
+    ValueError
+        If ``bandwidth`` or ``attenuation_db`` is not positive.
+    """
+    if not bandwidth > 0.0:
+        raise ValueError(f"bandwidth={bandwidth} must be positive")
+    if not attenuation_db > 0.0:
+        raise ValueError(f"attenuation_db={attenuation_db} must be positive")
+    return math.sqrt(10.0 ** (attenuation_db / 10.0) - 1.0) / (
+        math.pi * bandwidth
+    )
+
+
+def _validated_klystron_time_constant(klystron_time_constant: float) -> float:
+    """
+    Refuse a negative (or NaN) klystron time constant.
+
+    Parameters
+    ----------
+    klystron_time_constant
+        Time constant handed to a controller [s].
+
+    Returns
+    -------
+    klystron_time_constant
+        The same value, as a float.
+
+    Raises
+    ------
+    ValueError
+        If it is not ``>= 0``.
+    """
+    if not klystron_time_constant >= 0.0:
+        raise ValueError(
+            f"klystron_time_constant={klystron_time_constant} must be >= 0 "
+            "(0 is no pole)"
+        )
+    return float(klystron_time_constant)
+
+
+def klystron_relax(
+    previous_output: complex,
+    command: complex,
+    delta_t: float,
+    time_constant: float,
+) -> complex:
+    """
+    Advance the klystron's one-pole output by one coarse cell.
+
+    The Python twin of
+    :func:`~blond.physics.feedbacks.control_law_kernels.klystron_cell`:
+    the output relaxes exactly towards the command held over the cell.
+
+    Parameters
+    ----------
+    previous_output
+        Klystron output at the end of the previous cell [A].
+    command
+        Command held over this cell [A].
+    delta_t
+        Length of this cell [s].
+    time_constant
+        The pole's time constant [s], positive.
+
+    Returns
+    -------
+    output
+        Klystron output at the end of this cell [A].
+    """
+    return command + (previous_output - command) * math.exp(
+        -delta_t / time_constant
+    )
 
 
 def clamp_magnitude(
@@ -137,10 +247,28 @@ class GeneratorCurrentController(ABC):
     advertise it are driven cell-by-cell through
     :meth:`update_generator_current` instead, so implementing this interface
     never requires knowing anything about the compiled path.
+
+    A controller may also model the klystron's bandwidth: a positive
+    :attr:`klystron_time_constant` puts one real pole between the clamped
+    command and the generator current the cavity is driven with, and the
+    feedback then advances it on every coarse cell through
+    :meth:`klystron_output`. The base class has none.
     """
 
     #: Whether this controller supplies a compiled scan (see class docstring).
     supports_envelope_scan: bool = False
+
+    @property
+    def klystron_time_constant(self) -> float:
+        """
+        Time constant of the klystron pole; the base class has none.
+
+        Returns
+        -------
+        klystron_time_constant
+            0, no pole [s].
+        """
+        return 0.0
 
     @abstractmethod
     def update_generator_current(
@@ -193,6 +321,36 @@ class GeneratorCurrentController(ABC):
             The input, limited to the actuator range.
         """
         return generator_current
+
+    def klystron_output(
+        self, previous_output: complex, delta_t: float
+    ) -> complex:
+        """
+        Advance the klystron pole by one coarse cell.
+
+        Only called when :attr:`klystron_time_constant` is positive: the
+        output relaxes towards the last command this controller issued.
+
+        Parameters
+        ----------
+        previous_output
+            Klystron output at the end of the previous cell [A].
+        delta_t
+            Length of this cell [s].
+
+        Returns
+        -------
+        output
+            Klystron output at the end of this cell [A].
+
+        Raises
+        ------
+        NotImplementedError
+            When the controller models no klystron pole.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} models no klystron pole."
+        )
 
     def envelope_scan_kernel(self) -> Callable:
         """
@@ -299,8 +457,17 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
     \mathrm{Re}(e_\mathsf{d}\,\Delta t\,u^*)`, the increment loses
     :math:`r\,u` when :math:`K_i\,r > 0` and is kept whole otherwise.
     All state lives on the controller -- the delay line (the buffer of
-    recent errors) and the running integral -- so it can be driven and
-    inspected in isolation.
+    recent errors), the running integral and, with a klystron pole, the
+    command the klystron is chasing -- so it can be driven and inspected
+    in isolation.
+
+    With ``klystron_time_constant`` positive the cavity is not driven by
+    the command itself but by a klystron that follows it through one real
+    pole: on every coarse cell (not only on controller samples) its output
+    relaxes towards the last command as ``exp(-dt / tau)``. The pole sits
+    after the clamp, so the output never leaves the limit circle, and the
+    law does not see it: the anti-windup acts on the command, and the
+    loop learns what the klystron did only through the cavity voltage.
 
     Parameters
     ----------
@@ -330,11 +497,16 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         it, ``"directional"`` keeps all but the outward part of the
         increment. The two are the same law while the clamp is idle.
         Fixed at construction, like ``n_delay``.
+    klystron_time_constant
+        Time constant of the klystron pole [s] (see
+        :func:`klystron_time_constant_from_bandwidth`); 0, the default, is
+        no pole. Fixed at construction.
 
     Raises
     ------
     ValueError
-        If ``anti_windup`` is not one of :data:`ANTI_WINDUP_SCHEMES`.
+        If ``anti_windup`` is not one of :data:`ANTI_WINDUP_SCHEMES`, or
+        ``klystron_time_constant`` is negative.
     """
 
     def __init__(
@@ -345,6 +517,7 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         n_delay: int = 0,
         max_output: float | None = None,
         anti_windup: str = "conditional",
+        klystron_time_constant: float = 0.0,
     ):
         assert n_delay >= 0, f"{n_delay=}, but must be >= 0."
         if anti_windup not in ANTI_WINDUP_SCHEMES:
@@ -358,6 +531,12 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         self._n_delay = int(n_delay)
         self.max_output = max_output
         self._anti_windup = anti_windup
+        self._klystron_time_constant = _validated_klystron_time_constant(
+            klystron_time_constant
+        )
+        # The command the klystron is chasing; it starts where the bias
+        # holds the cavity, so a run starts without a transient.
+        self._klystron_command: complex = complex(generator_current_bias)
 
         self._integral: complex = 0.0 + 0.0j
         # Zero-prefilled so the first n_delay updates act on a null error.
@@ -430,6 +609,44 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         return self._anti_windup
 
     @property
+    def klystron_time_constant(self) -> float:
+        """
+        Time constant of the klystron pole, fixed at construction.
+
+        Returns
+        -------
+        klystron_time_constant
+            The pole's time constant [s]; 0 is no pole.
+        """
+        return self._klystron_time_constant
+
+    def klystron_output(
+        self, previous_output: complex, delta_t: float
+    ) -> complex:
+        """
+        Advance the klystron pole by one coarse cell.
+
+        Parameters
+        ----------
+        previous_output
+            Klystron output at the end of the previous cell [A].
+        delta_t
+            Length of this cell [s].
+
+        Returns
+        -------
+        output
+            Klystron output at the end of this cell, relaxed towards the
+            last command [A].
+        """
+        return klystron_relax(
+            previous_output,
+            self._klystron_command,
+            delta_t,
+            self._klystron_time_constant,
+        )
+
+    @property
     def integral(self) -> complex:
         """
         Committed error integral.
@@ -477,8 +694,9 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         -------
         state
             ``(gain_proportional, gain_integral, generator_current_bias,
-            delay_buffer, delay_head, integral, max_output, anti_windup)``,
-            the last as its index in :data:`ANTI_WINDUP_SCHEMES`.
+            delay_buffer, delay_head, integral, max_output, anti_windup,
+            klystron_time_constant, klystron_command)``, ``anti_windup`` as
+            its index in :data:`ANTI_WINDUP_SCHEMES`.
         """
         return (
             float(self.gain_proportional),
@@ -489,11 +707,13 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
             complex(self._integral),
             np.inf if self.max_output is None else float(self.max_output),
             ANTI_WINDUP_SCHEMES.index(self._anti_windup),
+            self._klystron_time_constant,
+            complex(self._klystron_command),
         )
 
     def absorb_envelope_scan_state(self, state: tuple) -> None:
         """
-        Restore the delay line and integral the compiled scan advanced.
+        Restore the state the compiled scan advanced.
 
         Adopts the kernel's buffer and head as-is, so a following span or
         turn resumes exactly where the scan stopped. The buffer handed out
@@ -504,13 +724,14 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
         Parameters
         ----------
         state
-            ``(delay_buffer, delay_head, integral)`` as returned by the
-            kernel.
+            ``(delay_buffer, delay_head, integral, klystron_command)`` as
+            returned by the kernel.
         """
-        delay_buffer, delay_head, integral = state
+        delay_buffer, delay_head, integral, klystron_command = state
         self._delay_buffer = delay_buffer
         self._delay_head = int(delay_head)
         self._integral = integral
+        self._klystron_command = complex(klystron_command)
 
     def update_generator_current(
         self,
@@ -573,7 +794,9 @@ class GeneratorCurrentPIController(GeneratorCurrentController):
                 increment = increment - radial * unit
             self._integral = self._integral + increment
 
-        return clamp_magnitude(output, self.max_output)
+        command = clamp_magnitude(output, self.max_output)
+        self._klystron_command = command
+        return command
 
     def limit(
         self, generator_current: complex | NumpyArray
@@ -635,11 +858,14 @@ class GeneratorCurrentPController(GeneratorCurrentController):
     max_output
         Maximum generator-current magnitude [A] (klystron limit). If None,
         the output is not limited.
+    klystron_time_constant
+        Time constant of the klystron pole [s], after the clamp, as for
+        :class:`GeneratorCurrentPIController`; 0, the default, is no pole.
 
     Raises
     ------
     ValueError
-        If ``n_delay`` is negative.
+        If ``n_delay`` or ``klystron_time_constant`` is negative.
     """
 
     #: The P law has a compiled counterpart (see :meth:`envelope_scan_kernel`).
@@ -651,6 +877,7 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         generator_current_bias: complex,
         n_delay: int = 0,
         max_output: float | None = None,
+        klystron_time_constant: float = 0.0,
     ):
         if n_delay < 0:
             raise ValueError(f"n_delay={n_delay} must be >= 0")
@@ -658,6 +885,10 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         self.generator_current_bias = generator_current_bias
         self._n_delay = int(n_delay)
         self.max_output = max_output
+        self._klystron_time_constant = _validated_klystron_time_constant(
+            klystron_time_constant
+        )
+        self._klystron_command: complex = complex(generator_current_bias)
         # Circular buffer: ``_delay_buffer[_delay_head]`` is the slot written
         # next and holds the oldest error -- the convention of
         # ``control_law_kernels.delay_line_push``, so the compiled scan
@@ -678,6 +909,44 @@ class GeneratorCurrentPController(GeneratorCurrentController):
             The loop delay this controller was built with [samples].
         """
         return self._n_delay
+
+    @property
+    def klystron_time_constant(self) -> float:
+        """
+        Time constant of the klystron pole, fixed at construction.
+
+        Returns
+        -------
+        klystron_time_constant
+            The pole's time constant [s]; 0 is no pole.
+        """
+        return self._klystron_time_constant
+
+    def klystron_output(
+        self, previous_output: complex, delta_t: float
+    ) -> complex:
+        """
+        Advance the klystron pole by one coarse cell.
+
+        Parameters
+        ----------
+        previous_output
+            Klystron output at the end of the previous cell [A].
+        delta_t
+            Length of this cell [s].
+
+        Returns
+        -------
+        output
+            Klystron output at the end of this cell, relaxed towards the
+            last command [A].
+        """
+        return klystron_relax(
+            previous_output,
+            self._klystron_command,
+            delta_t,
+            self._klystron_time_constant,
+        )
 
     @property
     def _delay_line(self) -> collections.deque[complex]:
@@ -728,7 +997,9 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         output = (
             self.generator_current_bias + generator_current_feedforward
         ) + self.gain_proportional * delayed_error
-        return clamp_magnitude(output, self.max_output)
+        command = clamp_magnitude(output, self.max_output)
+        self._klystron_command = command
+        return command
 
     def limit(
         self, generator_current: complex | NumpyArray
@@ -765,7 +1036,7 @@ class GeneratorCurrentPController(GeneratorCurrentController):
 
     def envelope_scan_state(self) -> tuple:
         """
-        Gain, bias, delay line and limit, in the kernel's argument order.
+        Gain, bias, delay line, limit and pole, in the kernel's order.
 
         The buffer is copied: the kernel advances it in place, and only
         :meth:`absorb_envelope_scan_state` commits the result.
@@ -774,7 +1045,8 @@ class GeneratorCurrentPController(GeneratorCurrentController):
         -------
         state
             ``(gain_proportional, generator_current_bias, delay_buffer,
-            delay_head, max_output)``.
+            delay_head, max_output, klystron_time_constant,
+            klystron_command)``.
         """
         return (
             float(self.gain_proportional),
@@ -782,17 +1054,21 @@ class GeneratorCurrentPController(GeneratorCurrentController):
             self._delay_buffer.copy(),
             self._delay_head,
             np.inf if self.max_output is None else float(self.max_output),
+            self._klystron_time_constant,
+            complex(self._klystron_command),
         )
 
     def absorb_envelope_scan_state(self, state: tuple) -> None:
         """
-        Take back the delay line the compiled scan advanced.
+        Take back the state the compiled scan advanced.
 
         Parameters
         ----------
         state
-            ``(delay_buffer, delay_head)`` as returned by the kernel.
+            ``(delay_buffer, delay_head, klystron_command)`` as returned
+            by the kernel.
         """
-        delay_buffer, delay_head = state
+        delay_buffer, delay_head, klystron_command = state
         self._delay_buffer = delay_buffer
         self._delay_head = int(delay_head)
+        self._klystron_command = complex(klystron_command)

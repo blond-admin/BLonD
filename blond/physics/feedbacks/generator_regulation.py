@@ -30,7 +30,11 @@ already clamped; it is there for controllers whose
 ``update_generator_current`` does not clamp. The fine-grid generator current
 is a linear interpolation of those commands, and a straight line between two
 points inside the limit circle stays inside it, so no clamp follows the
-interpolation.
+interpolation. With a klystron pole (a controller's
+``klystron_time_constant``) the coarse grid carries the klystron's output
+instead of the commands -- what actually drives the cavity -- and the fine
+grid interpolates that; the pole follows the clamp, and a relaxation
+between two points inside the circle stays inside it too.
 
 It is a *mixin*: those methods read and write host state
 (``_controller``, ``_voltage_setpoint``, ``n_cavities``, ``R_over_Q``,

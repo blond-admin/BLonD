@@ -250,8 +250,8 @@ class TestDriveFeedforwardInTheKernels(unittest.TestCase):
     def test_the_anti_windup_sees_the_sum(self):
         """A table that rails the output must freeze the PI integral."""
         span = _Span(max_output=0.06)
-        _, (_, _, integral_free) = span.run("pi")
-        _, (_, _, integral_railed) = span.run(
+        _, (_, _, integral_free, _) = span.run("pi")
+        _, (_, _, integral_railed, _) = span.run(
             "pi", drive=np.full(span.n_cells, 0.5 + 0.0j)
         )
         self.assertNotEqual(integral_free, 0.0 + 0.0j)

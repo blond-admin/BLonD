@@ -205,14 +205,16 @@ class TestProportionalScanHandoff(unittest.TestCase):
         )
 
     def test_scan_state_carries_no_integral(self):
-        """Gains, bias, delay line and limit: no running integral."""
+        """Gains, bias, delay line, limit and pole: no running integral."""
         state = _controller(n_delay=3, max_output=0.5).envelope_scan_state()
-        gain, bias, buffer, head, max_output = state
+        gain, bias, buffer, head, max_output, tau, command = state
         self.assertEqual((gain, bias, head, max_output), (GAIN, BIAS, 0, 0.5))
         self.assertEqual(buffer.shape, (4,))
+        # No klystron pole, and the command it would chase is the bias.
+        self.assertEqual((tau, command), (0.0, BIAS))
 
     def test_an_unlimited_controller_hands_the_kernel_infinity(self):
-        self.assertEqual(_controller().envelope_scan_state()[-1], np.inf)
+        self.assertEqual(_controller().envelope_scan_state()[4], np.inf)
 
     def test_scan_state_round_trip_is_lossless(self):
         controller = _controller(n_delay=9)
@@ -222,8 +224,8 @@ class TestProportionalScanHandoff(unittest.TestCase):
                 1e-3 * complex(rng.normal(), rng.normal()), 3e-10
             )
         before = list(controller._delay_line)
-        _, _, buffer, head, _ = controller.envelope_scan_state()
-        controller.absorb_envelope_scan_state((buffer, head))
+        _, _, buffer, head, _, _, command = controller.envelope_scan_state()
+        controller.absorb_envelope_scan_state((buffer, head, command))
         self.assertEqual(list(controller._delay_line), before)
 
     def test_scan_state_hands_out_a_copy(self):

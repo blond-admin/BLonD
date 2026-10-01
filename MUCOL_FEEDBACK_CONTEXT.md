@@ -2333,6 +2333,90 @@ feedforward programmes only when not the default; along the chain
 `ChainConfig.llrf_anti_windup` and `ChainConfig.llrf_stability_margin`,
 per machine.
 
+### 2.38 Klystron bandwidth as a pole in the controllers, opt-in (2026-10-01)
+
+**Why.** The command was applied to the cavity as a zero-order hold on the
+controller clock, i.e. by an infinitely fast klystron. On the rail (RCS1-4
+at 1.1x, ~99 % of samples) the circular clamp turns the P term's answer to
+every bunch passage into a pure phase step of the drive, 41-47 deg on
+average and up to 128 deg in ONE 12.35 ns controller sample, exactly
+`n_delay` after the bunch, with either anti-windup -- several times what a
+klystron with a 1 dB bandwidth of 5 MHz can slew (11 deg per sample at the
+band edge). Maintainer question: does the bandwidth matter in the closed
+loop?
+
+**What.** `GeneratorCurrentPIController(..., klystron_time_constant=0.0)`
+and the same on `GeneratorCurrentPController`; read-only, `0` is no pole.
+`klystron_time_constant_from_bandwidth(bandwidth, attenuation_db=1.0)`
+converts a quoted full bandwidth about the carrier (one real pole losing
+`attenuation_db` at half of it: 5 MHz at 1 dB -> 32.4 ns). The pole sits
+AFTER the clamp, so the output stays inside the limit circle and the
+anti-windup still acts on the command; the law does not see the klystron
+except through the cavity voltage. On every coarse cell -- between
+controller samples too -- the output relaxes towards the held command,
+`u + (y - u) exp(-dt / tau)` (`control_law_kernels.klystron_cell`, Python
+twin `generator_current_controller.klystron_relax`), and drives the next
+cell, so the grid carries the klystron's output: the fine grid
+interpolates it and `generator_power` reads it. Holding the output over a
+cell rather than averaging the exponential lags by half a cell (one RF
+period against tau of tens). The held command is law state: both scans
+take `klystron_time_constant, klystron_command` as trailing arguments
+(defaults `0.0, 0j`, positional callers unchanged) and return the command
+last; `envelope_scan_state` appends both, `absorb_envelope_scan_state`
+takes the command back (PI 4-tuple, P 3-tuple). The reference path
+(`cavity_response`) steps it through `controller.klystron_output`; the base
+class has no pole (`klystron_time_constant` property 0.0), so a custom law
+is untouched. With tau 0 every arithmetic path is the old one: bit-neutral.
+
+**Verified.** RED first (`ImportError` on the converter). Twelve tests in
+`test_klystron_pole.py`: the converter loses exactly the stated dB at the
+band edge, 32.39 ns at 5 MHz, refuses a non-positive bandwidth; both laws
+default to no pole, refuse a negative one, round-trip the held command
+through the scan state; with zero gains the grid is the single-pole step
+response cell by cell (both laws, both paths, interval 1 and 4) and the
+cavity is the open-loop cavity driven by that grid; kernel against
+reference to 1e-12 for PI (free, clamped, both anti-windups) and P (free,
+clamped); the held command carries across spans (a scan that forgot it
+differs); the output never leaves the clamp; tau 0 is bit-identical to no
+argument. Three existing tests updated for the new state layout
+(`test_generator_current_p_controller.py` x2,
+`test_generator_current_controller.py`) and one for the PI scan's
+4-tuple (`test_feedforward_table.py`). `tests/unittests/physics/feedbacks`
+serially: 767 passed / 8 skipped. Under `-n 8` three
+`test_generator_power_conservation.py` tests report `DumpError: can't
+serialize numpy.complex128` -- xdist cannot ship their complex `subTest`
+parameters; they pass serially and do not touch the pole. Pre-commit
+clean on every touched file except `check copyright` (§0, `WinError 3`,
+on untouched files too; the script itself passes under the venv's
+interpreter).
+
+**Tracked in the outer repo** (`RunConfig.klystron_bandwidth`,
+`--klystron-bandwidth` in MHz, keyed into learnt programmes only when
+set; study `feedback_studies/klystron_bandwidth.py`; 1.1x klystron,
+default section counts, 20 000 macroparticles, full
+ramps, no phase loop, same seed with and without). **5 MHz (1 dB) does
+not matter**: on every ring and for conditional margin 2, directional
+margin 2 and directional margin 8, the voltage error the bunches meet
+moves by +0.1 to +0.4 % of itself, the residual dipole by 0.0 to +1.0 %,
+the dipole oscillation by -0.2 to +1.0 %, the centroid by <= 0.01 deg
+(RCS1) / 0.0025 deg (RCS2) per turn; what changes is the drive: the
+per-passage jump falls from 41-47 deg (max 128) to 12-14 deg per sample
+(max 45), spread over ~100 ns. RCS1 bandwidth scan, residual dipole
+against no pole (directional margin 2; conditional and margin 8 alike):
+10 / 5 / 2 / 1 / 0.5 / 0.25 / 0.1 MHz -> +0.3 / +0.6 / +1.4 / +2.8 /
++5.6 / +13 / +39 % -- it starts to matter once tau is a sizeable part of
+the 1 us loop delay. Near the stability boundary (RCS1 unclamped,
+`llrf="idealised"`): margin 1.02 stays bounded without the pole and runs
+away with 5 MHz (277 % error in the last turn), 1.04 stays bounded --
+the 2-4 % of gain margin that 32 ns of extra delay predicts
+(`critical_stability_product` at 84 against 81 samples: 4 %), against
+the factor 2 the shipped tuning keeps. **Caveats.** The pole is linear:
+a large phase step on the rail cuts the chord of the limit circle
+(|I| down to 0.45 I_max for ~30 ns at 5 MHz), which a saturated tube
+would partly compress; no AM/PM conversion. The outer `ShotMetrics.
+railed_fraction` counts `|I| >= limit (1 - tol)` and reads ~0 with a pole,
+whose output only approaches the limit exponentially.
+
 ## 3. Open items / flagged (NOT done — need decisions)
 
 ### 3.1 Counter-rotating / two-beam
