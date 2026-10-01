@@ -525,7 +525,7 @@ test_py_315:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
