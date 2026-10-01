@@ -68,6 +68,102 @@ workflow:
   - uv --version
 
 # ---------------------------------------------------------------------------
+# Swap diagnostics
+# ---------------------------------------------------------------------------
+# `free -h` in the before_scripts shows the host's swap row, which is not
+# the question that matters in a container: whether an area is actually
+# enabled, how eagerly the kernel uses it, and whether the *cgroup* lets
+# this job swap at all. `memory.swap.max=0` is a common runner default --
+# the host then has gigabytes of swap while the job is still OOM-killed
+# (bare exit 137) rather than slowed down. The two failure modes look
+# nothing alike but were indistinguishable from the job log.
+#
+# Report-only on purpose: a timing-sensitive benchmark wants no swap, a
+# large end-to-end run wants the safety net, so nothing here calls a
+# configuration wrong -- it only prints what the kernel says.
+.swap_info: &swap_info
+  - >
+    echo "swap: $(swapon --show --noheadings 2>/dev/null | wc -l) area(s) enabled";
+    swapon --show || true;
+    echo "swap: vm.swappiness=$(cat /proc/sys/vm/swappiness 2>/dev/null || echo unavailable)";
+    grep . /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.swap.max
+    /sys/fs/cgroup/memory.swap.current 2>/dev/null
+    || echo "swap: cgroup v2 memory files not exposed to this job";
+
+# ---------------------------------------------------------------------------
+# Resource sampling along the run
+# ---------------------------------------------------------------------------
+# `lscpu`/`nvidia-smi` say what the runner *is*; these samplers say what the
+# job actually *does* with it over time. Both tools sample themselves --
+# vmstat (procps, same package as the `free` above) and nvidia-smi's own
+# `-l` logging mode -- so there is no profiler to install or maintain, and
+# crucially nothing wraps the tests: the samplers are ordinary background
+# processes, started here and killed in after_script, so they cannot
+# perturb the per-turn kernel timings the way an in-process per-test
+# profiler does.
+#
+# `vmstat -t -w 5` appends a timestamped line every 5 s with the CPU split
+# (us/sy/id/wa), free/buff/cache memory and -- the point of the exercise --
+# `swpd` plus `si`/`so`, i.e. how much is swapped out and whether pages are
+# actually moving. A run that starts paging becomes visible as paging
+# instead of as an unexplained slowdown.
+#
+# Sampling is system-wide and not attributed per test: pytest's own
+# `--durations` names the expensive tests and the timeline's timestamps
+# place them. Both files are uploaded as artifacts by `.publish`.
+.sample_resources_start: &sample_resources_start
+  - rm -f "${CI_PROJECT_DIR}/resource-timeline.txt"
+    "${CI_PROJECT_DIR}/gpu-timeline.csv"
+  - >
+    if command -v vmstat >/dev/null 2>&1; then
+      (vmstat -t -w 5 > "${CI_PROJECT_DIR}/resource-timeline.txt" 2>&1 &);
+      echo "resources: sampling CPU/RAM/swap every 5 s -> resource-timeline.txt";
+    else
+      echo "resources: vmstat not installed, no CPU/RAM/swap timeline";
+    fi
+  - >
+    if command -v nvidia-smi >/dev/null 2>&1; then
+      (nvidia-smi \
+       --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw \
+       --format=csv -l 5 -f "${CI_PROJECT_DIR}/gpu-timeline.csv" >/dev/null 2>&1 &);
+      echo "resources: sampling GPU every 5 s -> gpu-timeline.csv";
+    fi
+
+# Counterpart of `.sample_resources_start`, spliced into the after_script of
+# `.cache_test`. after_script runs in a fresh shell, but the samplers are
+# separate processes in the same container, so pkill still reaches them.
+# The digest line is what makes the log self-sufficient: peak swap in use,
+# the lowest free memory reached, peak CPU and the total swap traffic --
+# enough to answer "did this job page, or nearly run out of memory?"
+# without downloading the artifact. memory.peak / memory.swap.peak are the
+# kernel's own high-water marks for this job's cgroup (Linux >= 5.19),
+# which are exact where the 5 s sampling can miss a short spike.
+.sample_resources_stop: &sample_resources_stop
+  - pkill -f "vmstat -t -w" || true
+  - pkill -f "nvidia-smi --query-gpu" || true
+  - >
+    echo "resources: cgroup memory.peak=$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo unavailable)
+    memory.swap.peak=$(cat /sys/fs/cgroup/memory.swap.peak 2>/dev/null || echo unavailable)";
+  # vmstat -t -w columns: r b swpd free buff cache si so bi bo in cs
+  # us sy id wa st <date> <time>; the two header lines and any repeated
+  # header are skipped by the numeric test on $1.
+  - >
+    awk 'NR > 2 && $1 ~ /^[0-9]+$/ {
+      samples++;
+      if ($3 > peak_swap) peak_swap = $3;
+      if (min_free == "" || $4 < min_free) min_free = $4;
+      busy = $13 + $14;
+      if (busy > peak_cpu) peak_cpu = busy;
+      swapped_in += $7;
+      swapped_out += $8;
+    } END {
+      if (samples) printf "resources: %d samples  peak_swap_used=%d kB  min_free_mem=%d kB  peak_cpu=%d%%  swapped_in=%d kB  swapped_out=%d kB\n",
+        samples, peak_swap, min_free, peak_cpu, swapped_in, swapped_out;
+    }' "${CI_PROJECT_DIR}/resource-timeline.txt" || true
+  - tail -n 25 "${CI_PROJECT_DIR}/resource-timeline.txt" || true
+  - tail -n 3 "${CI_PROJECT_DIR}/gpu-timeline.csv" 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
 # Caches
 # ---------------------------------------------------------------------------
 # NOTE: GitLab `extends` merges hashes but OVERWRITES arrays, so two
@@ -133,6 +229,11 @@ workflow:
         - blond/core/backends/cpp/compiled/
         - blond/core/backends/cuda/compiled/
   after_script:
+    # Stop the resource samplers started in the before_script and print the
+    # digest of what the job used (see `.sample_resources_stop`). First, so
+    # the samplers are gone before the cache bookkeeping below runs and the
+    # digest is not buried under it.
+    - *sample_resources_stop
     # Bound the numba cache size before GitLab uploads it. Bare python3 +
     # pure stdlib: no venv needed, and no `import blond` -- which would
     # recompile kernels into the very cache we are pruning. Size budget:
@@ -173,6 +274,11 @@ workflow:
     # Diagnostics only, so a slim image without util-linux must not fail.
     - lscpu || true
     - free -h || true
+    # Whether this job can swap at all (see the `.swap_info` comment).
+    - *swap_info
+    # Start the background CPU/RAM/swap (+GPU) samplers; killed again in
+    # the after_script of `.cache_test` (see `.sample_resources_start`).
+    - *sample_resources_start
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -208,6 +314,11 @@ workflow:
     # Diagnostics only, so a slim image without util-linux must not fail.
     - lscpu || true
     - free -h || true
+    # Whether this job can swap at all (see the `.swap_info` comment).
+    - *swap_info
+    # Start the background CPU/RAM/swap (+GPU) samplers; killed again in
+    # the after_script of `.cache_test` (see `.sample_resources_start`).
+    - *sample_resources_start
     # Verify installation
     - gcc --version
     - python3 --version && gcc --version && mpirun --version
@@ -261,6 +372,7 @@ workflow:
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
+      --durations=25
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -287,6 +399,7 @@ workflow:
       -m "not backend_mutation"
       -v
       --randomly-seed=$CI_PIPELINE_ID
+      --durations=25
 
 .main_no_gpu:
   variables:
@@ -311,6 +424,7 @@ workflow:
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
+      --durations=25
 
 .main_many_environments:
   variables:
@@ -369,6 +483,7 @@ workflow:
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
+      --durations=25
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -394,6 +509,12 @@ workflow:
       - ${project_root}coverage-html/*
       - ${project_root}coverage.xml
       - ${project_root}junit-reports/junit-report-*.xml
+      # Resource timelines of the whole job, for plotting against the
+      # `--durations` list (see `.sample_resources_start`). Written by
+      # vmstat/nvidia-smi themselves; `artifacts:` tolerates a missing file,
+      # so a runner without either tool simply uploads nothing.
+      - ${project_root}resource-timeline.txt
+      - ${project_root}gpu-timeline.csv
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
@@ -589,6 +710,11 @@ test_minimum:
     # Diagnostics only, so a slim image without util-linux must not fail.
     - lscpu || true
     - free -h || true
+    # Whether this job can swap at all (see the `.swap_info` comment).
+    - *swap_info
+    # Start the background CPU/RAM/swap (+GPU) samplers; killed again in
+    # the after_script of `.cache_test` (see `.sample_resources_start`).
+    - *sample_resources_start
     # Create venv to avoid permission error when installing packages
     - *uv_setup
     - uv venv ./.venv
