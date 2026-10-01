@@ -25,7 +25,9 @@ from blond import (
     mu_plus,
 )
 from blond.acc_math.analytic.simple_math import gaussian_distribution
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.handle_results.observables import (
     WakeFieldObservation,
 )

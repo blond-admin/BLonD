@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.mpi_distributed import distributed_array
+from blond.core.backends.mpi_distributed import helpers as dist_help
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
-from blond.generals.distributed import distributed_array
-from blond.generals.distributed import helpers as dist_help
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
@@ -30,9 +30,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
-    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 class BeamBaseClass(Preparable, ABC):
@@ -193,7 +195,7 @@ class BeamBaseClass(Preparable, ABC):
         )
 
         id_max = INDEX_DTYPE(self._ids.max())
-        local_size = self._dt.local_size
+        local_size = dt.local_size
 
         new_ids = dist_help.distributed_arange(local_size, INDEX_DTYPE)
         new_ids.array_local += id_max + 1
@@ -758,7 +760,7 @@ class BeamBaseClass(Preparable, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
-        from blond.generals.distributed.helpers import mpi_barrier
+        from blond.core.backends.mpi_distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
 

@@ -97,7 +97,6 @@ class TestInductiveImpedances(BLonDTestCase):
                 ),
             )
             profile.track(beam)
-            profile.invalidate_cache()
 
             sim = Simulation(
                 ring=ring,

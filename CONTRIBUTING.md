@@ -56,22 +56,29 @@ blond/                        BLonD beam dynamics software.
 ├────────── lhc/              Functions to define the CERN Large Hadron Collider feedback systems.
 ├────────── psb/              Functions to define the CERN Proton Synchrotron Booster feedback systems.
 ├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
+├──── simulation/             Experimental extensions to :class:`~blond.core.simulation.simulation.Simulation`.
 ├── generals/                 Function definitions that are useful outside the beam physics context.
-├──── cupy/                   Scripts that are useful to work with Cupy.
-├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
+├──── cupy_/                  Scripts that are useful to work with Cupy.
 ├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.ObservablesBaseClass`.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
 ├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├────── physics/              Beam physics classes for interfacing XSuite.
+├──── rf_noise_cpp/           Python ctypes interface to CERN's external ``rf-noise-cpp`` library.
 ├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
 ├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
-├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
+├──── feedbacks/              Module to manage and describe rf feedback systems.
+├────── accelerators/         Module to manage and describe rf feedback systems for specific accelerators.
+├──────── lhc/                Module to manage and describe rf feedback systems for the Large Hadron Collider.
+├──────── ps/                 Module to manage and describe rf feedback systems for the Proton Synchrotron.
+├──────── psb/                Module to manage and describe rf feedback systems for the Proton Synchrotron Booster.
+├──────── sps/                Module to manage and describe rf feedback systems for the Super Proton Synchrotron.
 ├──── impedances/             Module to handle the interaction of impedance sources with the beam.
 ├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
 ├── specifics/                Utility functions for specific accelerators.
 ├──── cern/                   Utility functions for CERN synchrotrons.
 ├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
+├──────── varinoise/          LHC VariNoise data (spectral-shape ``gain_y`` for band-limited RF noise).
 ├────── ps/                   Utility functions for the CERN Proton Synchrotron.
 ├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
 ├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
@@ -81,6 +88,7 @@ blond/                        BLonD beam dynamics software.
 ├── utilities/                Module contains various utilities used throughout the library.
 ├──── separatrix/             Package which contains utilities for working with separatrix.
 ```
+
 
 **Where to start reading:**
 

@@ -1,3 +1,4 @@
+import ctypes as ct
 import os
 import subprocess
 import sys
@@ -18,7 +19,7 @@ from blond.core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond.core.backends.cpp.callables import check_index_abi
+from blond.core.backends.cpp.callables import _get_len, check_index_abi
 from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.testing.backend_testing import (
@@ -239,7 +240,9 @@ class TestBackendBaseClass(BLonDTestCase):
         self.assertEqual(backend.specials_mode, "cpp_single_core")
 
 
-def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
+def _run_python(
+    code: str, *interpreter_flags: str
+) -> "subprocess.CompletedProcess[str]":
     """Run a code snippet in a fresh interpreter without BLOND env vars."""
     env = os.environ.copy()
     # PYCHARM_HOSTED makes colorama treat the captured stdout pipe as a
@@ -251,7 +254,7 @@ def _run_python(code: str) -> "subprocess.CompletedProcess[str]":
     ):
         env.pop(key, None)
     return subprocess.run(
-        [sys.executable, "-c", code],
+        [sys.executable, *interpreter_flags, "-c", code],
         check=False,
         capture_output=True,
         text=True,
@@ -443,13 +446,15 @@ class TestSpecials(BLonDTestCase):
         self.omega_rf_single_harmonic = backend.float(2 * np.pi * 400e3)
         self.phi_rf_single_harmonic = backend.float(0.3)
 
-        self.voltages = backend.linspace(
+        # Per-harmonic RF parameters are host (NumPy) arrays on every
+        # backend, as `Specials.kick_multi_harmonic` specifies.
+        self.voltages = np.linspace(
             1e6, 5e6, self.n_voltages, dtype=backend.float
         )
-        self.omegas = backend.linspace(
+        self.omegas = np.linspace(
             200e6, 400e6, self.n_voltages, dtype=backend.float
         )
-        self.phis = backend.linspace(
+        self.phis = np.linspace(
             0, 2 * np.pi, self.n_voltages, dtype=backend.float
         )
 
@@ -497,6 +502,47 @@ class TestSpecials(BLonDTestCase):
                     rtol=self.rtol,
                     err_msg=f"Failed test `{special}` with {dtype}",
                 )
+
+    @pytest.mark.backend_mutation
+    def test_drift_exact_alpha_orders(self) -> None:
+        """All backends agree for every length of `higher_alpha`.
+
+        The C++ kernel dispatches on the number of higher-order momentum
+        compaction factors to a compile-time-unrolled instantiation, and
+        falls back to a generic loop beyond the longest one. The lengths
+        below cover every instantiation and the fallback, so a dispatch
+        arm that computes the wrong power of delta cannot pass unnoticed.
+        """
+        dtype = np.float64
+        for n_alpha in range(6):
+            higher_alpha = [1.0 + 0.5 * k for k in range(n_alpha)]
+            result_python = None
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                with self.subTest(n_alpha=n_alpha, special=special):
+                    backend.specials.drift_exact(
+                        dt=self.dt,
+                        dE=self.dE,
+                        T=self.t_rev * self.length_ratio,
+                        alpha_0=self.alpha_0,
+                        higher_alpha=backend.array(higher_alpha, dtype=dtype),
+                        beta=self.beta,
+                        energy=self.energy,
+                    )
+                    result = copy_to_cpu(self.dt)
+                    if i == 0:
+                        result_python = result
+                    else:
+                        np.testing.assert_allclose(
+                            result,
+                            result_python,
+                            rtol=self.rtol,
+                            err_msg=f"Failed `{special}`, {n_alpha=}",
+                        )
 
     @pytest.mark.backend_mutation
     def test_music_track(self) -> None:
@@ -677,7 +723,8 @@ class TestSpecials(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_kick_multi_harmonic(self) -> None:
         dtype = np.float64
-        for n_voltages in (1, 2, 3, 4, 5):
+        # 32, 33 and 70 cross the CUDA backend's per-launch harmonic limit.
+        for n_voltages in (1, 2, 3, 4, 5, 32, 33, 70):
             for i, special in enumerate(self.special_modes):
                 self.n_voltages = n_voltages
                 try:
@@ -1145,49 +1192,64 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
-    def test_kick_interpolated_rejects_non_uniform_bin_centers(self) -> None:
-        """Non-uniform bin_centers (e.g. a sparse multi-island hist_x from
-        EquidistantMultiProfile) must raise, not silently compute the wrong
-        physics by assuming a global uniform grid.
+    def test_kick_interpolated_just_below_first_bin_center(self) -> None:
+        """Particles less than one bin width below ``bin_centers[0]``
+        receive only ``acceleration_kick``.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would give them the interpolated voltage of
+        the first interval.
         """
         dtype = np.float64
+        charge, acceleration_kick = 10.0, 0.5
+        bin_centers_np = np.linspace(-4, 4, 20, dtype=dtype)
+        voltage_np = bin_centers_np**2
+        bin_width = bin_centers_np[1] - bin_centers_np[0]
+        dt_np = np.array(
+            [
+                np.nextafter(bin_centers_np[0], -np.inf),
+                bin_centers_np[0] - 0.5 * bin_width,
+                bin_centers_np[0] - 0.999 * bin_width,
+                bin_centers_np[0] + 0.5 * bin_width,  # kicked, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.full_like(dt_np, acceleration_kick)
+        expected[-1] += charge * 0.5 * (voltage_np[0] + voltage_np[1])
         for special in self.special_modes:
             try:
                 self._setUp(dtype=dtype, special_mode=special)
             except (FileNotFoundError, OSError):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
-            dt = backend.linspace(-5, 5, 20, dtype=backend.float)
-            dE = backend.zeros_like(dt, dtype=backend.float)
-            # islands: uniform within [0, 4) and [10, 14), gap in between
-            bin_centers_np = np.concatenate(
-                [
-                    np.linspace(0, 4, 10, endpoint=False),
-                    np.linspace(10, 14, 10, endpoint=False),
-                ]
+            dE = backend.zeros(len(dt_np), dtype=backend.float)
+            backend.specials.kick_interpolated(
+                dt=backend.array(dt_np, dtype=backend.float),
+                dE=dE,
+                voltage=backend.array(voltage_np, dtype=backend.float),
+                bin_centers=backend.array(bin_centers_np, dtype=backend.float),
+                charge=backend.float(charge),
+                acceleration_kick=backend.float(acceleration_kick),
             )
-            bin_centers = backend.array(bin_centers_np, dtype=backend.float)
-            voltage = bin_centers**2
-            charge = backend.float(10)
-            acceleration_kick = backend.float(0.5)
-            with self.assertRaises(ValueError):
-                backend.specials.kick_interpolated(
-                    dt=dt,
-                    dE=dE,
-                    voltage=voltage,
-                    bin_centers=bin_centers,
-                    charge=charge,
-                    acceleration_kick=acceleration_kick,
-                )
+            result = copy_to_cpu(dE)
+            np.testing.assert_array_equal(
+                result[:-1],
+                expected[:-1],
+                err_msg=f"{special=} {dtype=}",
+            )
+            np.testing.assert_allclose(
+                result[-1],
+                expected[-1],
+                rtol=self.rtol,
+                err_msg=f"{special=} {dtype=}",
+            )
 
     @pytest.mark.backend_mutation
-    def test_kick_interpolated_single_bin_skips_uniformity_check(
+    def test_kick_interpolated_raises_on_single_bin(
         self,
     ) -> None:
-        """A single-bin `bin_centers` cannot expose non-uniform spacing
-        (`np.diff` on it is empty), so the uniformity guard must not even
-        attempt the check -- and must not kick any particle, since there is
-        no bin width to interpolate across.
+        """A single-bin `bin_centers` has no bin width to interpolate
+        across, so no particle may receive an interpolated voltage.
         """
         dtype = np.float64
         for special in self.special_modes:
@@ -1202,26 +1264,17 @@ class TestSpecials(BLonDTestCase):
             voltage = backend.array([1.0], dtype=backend.float)
             charge = backend.float(10)
             acceleration_kick = backend.float(0.5)
-            backend.specials.kick_interpolated(
-                dt=dt,
-                dE=dE,
-                voltage=voltage,
-                bin_centers=bin_centers,
-                charge=charge,
-                acceleration_kick=acceleration_kick,
-            )
-            result = dE
-            if special == "cuda":
-                result = result.get()
-            np.testing.assert_array_equal(
-                np.asarray(result),
-                0.5,
-                err_msg=(
-                    "a single-bin profile has no width to interpolate "
-                    "across, so no particle receives an interpolated "
-                    f"voltage -- only `acceleration_kick`, {special=}"
-                ),
-            )
+            with self.assertRaisesRegex(
+                AssertionError, "kick_interpolated needs at least 2 bins"
+            ):
+                backend.specials.kick_interpolated(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
+                )
 
     @pytest.mark.backend_mutation
     def test_kick_interpolated_applies_acceleration_kick_everywhere(
@@ -1808,6 +1861,50 @@ class TestSpecials(BLonDTestCase):
         )
         expected = np.zeros(n_bins, dtype=dtype)
         expected[-1] = len(values_np)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            array_write = backend.ones(n_bins, dtype=backend.float)
+            backend.specials.histogram(
+                array_read=backend.array(values_np, dtype=backend.float),
+                array_write=array_write,
+                start=backend.float(start),
+                stop=backend.float(stop),
+            )
+            np.testing.assert_array_equal(
+                copy_to_cpu(array_write),
+                expected,
+                err_msg=f"{special=} {dtype=} {n_bins=}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_histogram_drops_values_just_below_start(self) -> None:
+        """Values less than one bin width below ``start`` are dropped.
+
+        Their scaled bin index lies in ``(-1, 0)``: rounding it towards
+        zero instead of down would count them in the first bin.
+        """
+        for n_bins in (21, 20_000):
+            self._assert_histogram_drops_values_below_start(n_bins)
+
+    def _assert_histogram_drops_values_below_start(self, n_bins: int) -> None:
+        dtype = np.float64
+        start, stop = -12.0, 8.0
+        bin_width = (stop - start) / n_bins
+        values_np = np.array(
+            [
+                np.nextafter(start, -np.inf),
+                start - 0.5 * bin_width,
+                start - 0.999 * bin_width,
+                start + 0.5 * bin_width,  # counted, for contrast
+            ],
+            dtype=dtype,
+        )
+        expected = np.zeros(n_bins, dtype=dtype)
+        expected[0] = 1
         for special in self.special_modes:
             try:
                 self._setUp(dtype=dtype, special_mode=special)
@@ -2966,6 +3063,37 @@ class TestSpecials(BLonDTestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_beam_phase_needs_two_bins(self) -> None:
+        """Fewer than two bins must be rejected on every backend.
+
+        The trapezoidal integral needs two bins: C++ read out of bounds
+        for zero bins, CUDA launched an empty grid, and for one bin python
+        returned nan while C++/CUDA returned a finite value.
+        """
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for n_bins in (0, 1):
+                with (
+                    self.subTest(special=special, n_bins=n_bins),
+                    self.assertRaisesRegex(
+                        AssertionError, "requires at least two bins"
+                    ),
+                ):
+                    backend.specials.beam_phase(
+                        hist_x=backend.zeros(n_bins, dtype=backend.float),
+                        hist_y=backend.ones(n_bins, dtype=backend.float),
+                        alpha=backend.float(0.5),
+                        omega_rf=backend.float(0.8),
+                        phi_rf=backend.float(0.1),
+                        bin_size=backend.float(1.0),
+                    )
+
+    @pytest.mark.backend_mutation
     def test_histogram_sparse(self) -> None:
         dtype = np.float64
         for i, special in enumerate(self.special_modes):
@@ -3735,9 +3863,9 @@ class TestSpecials(BLonDTestCase):
                 continue
             dt = backend.linspace(1e-9, 10e-9, 10, dtype=backend.float)
             dE = backend.zeros(10, dtype=backend.float)
-            empty_voltage = backend.zeros(0, dtype=backend.float)
-            empty_omega = backend.zeros(0, dtype=backend.float)
-            empty_phi = backend.zeros(0, dtype=backend.float)
+            empty_voltage = np.zeros(0, dtype=backend.float)
+            empty_omega = np.zeros(0, dtype=backend.float)
+            empty_phi = np.zeros(0, dtype=backend.float)
             backend.specials.kick_multi_harmonic(
                 dt=dt,
                 dE=dE,
@@ -4528,6 +4656,35 @@ class TestCppIndexAbi(unittest.TestCase):
         with self.assertRaises(RuntimeError) as caught:
             check_index_abi(object())
         self.assertIn("blond-compile-cpp", str(caught.exception))
+
+
+class TestCppGetLen(BLonDTestCase):
+    """``_get_len`` must not wrap a length that overflows a C ``int``.
+
+    ``ct.c_int`` does no overflow checking, so ``ct.c_int(2**31)`` silently
+    becomes ``-2**31`` and the kernel would loop over a negative count.
+    """
+
+    C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
+
+    @staticmethod
+    def _array_of_length(length: int) -> np.ndarray:
+        """Zero-stride view: any length without allocating its memory."""
+        return np.broadcast_to(np.int8(0), (length,))
+
+    def test_returns_the_length_as_c_int(self) -> None:
+        length = _get_len(np.zeros(7))
+        self.assertIsInstance(length, ct.c_int)
+        self.assertEqual(length.value, 7)
+
+    def test_accepts_the_largest_c_int(self) -> None:
+        length = _get_len(self._array_of_length(self.C_INT_MAX))
+        self.assertEqual(length.value, self.C_INT_MAX)
+
+    def test_rejects_a_length_that_overflows_c_int(self) -> None:
+        with self.assertRaises(AssertionError) as caught:
+            _get_len(self._array_of_length(self.C_INT_MAX + 1))
+        self.assertIn("_get_beam_len", str(caught.exception))
 
 
 if __name__ == "__main__":
