@@ -167,6 +167,12 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -196,6 +202,12 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Verify installation
     - gcc --version
     - python3 --version && gcc --version && mpirun --version
@@ -571,6 +583,12 @@ test_minimum:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Create venv to avoid permission error when installing packages
     - *uv_setup
     - uv venv ./.venv
