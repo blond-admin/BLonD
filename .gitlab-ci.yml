@@ -613,16 +613,28 @@ test_documentation_building:
     # the uv venv is isolated from the system site-packages.)
     - uv pip install ${project_root}[doc,xsuite,gpu_cuda12]
     - cd ${project_root}/docs
-    - . ./create_docs.sh
+    - ./create_docs.sh
   artifacts:
     paths:
       - ${project_root}/docs/_build/html
     expire_in: 3 hour
     when: always
+  rules:
+    # Blocking in merge requests: a broken doc build must not be mergeable.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: false
+    # Blocking on blonder itself: this is the branch `pages` deploys from.
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+      allow_failure: false
+    # Warning-only on other commit pipelines: surface the failure without
+    # reddening the whole pipeline.
+    - when: on_success
+      allow_failure: true
 
 
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: deploy
   extends:
     - .cache_uv
   script:
