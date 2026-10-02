@@ -17,8 +17,9 @@ Usage::
 
     python run_comparison.py --backends numba cpp cuda --n-runs 3
 
-``cpp_deferred`` runs BLonD 3 with the queued, chunked C++ kernels
-(chunk size from ``BLOND_DEFERRED_CHUNK_SIZE``).
+``cpp_deferred`` and ``cuda_deferred`` run BLonD 3 with the queued
+C++ / CUDA kernels (CPU chunk size from ``BLOND_DEFERRED_CHUNK_SIZE``).
+BLonD 2 has no deferred mode, so it runs its plain C++ / GPU code there.
 
 Without ``--backends``, numba and cpp are run, plus cuda if a GPU is
 available. The C++ backends must be compiled first
@@ -37,7 +38,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Cupy64Bit, Numpy64Bit, backend
+from blond import backend
+from blond.core.backends.backend import backend_class_for_mode
 from blond.legacy.blond2.utils import bmath as bm
 
 RESOURCES = Path(__file__).parent / "resources" / "psb_ramp.npz"
@@ -52,6 +54,7 @@ QUALITY_FACTOR = 3
 PROFILE_LENGTH = 2.124873604201372e-06  # s
 N_BINS = 1024
 N_TURNS_WARMUP = 100
+GPU_TARGETS = ("cuda", "cuda_deferred")
 
 
 class Params:
@@ -236,13 +239,14 @@ def run_blond3(params: Params, n_turns: int, use_gpu: bool) -> float:
 
 def set_backends(target: str) -> None:
     """Activate `target` in both BLonD 3 and BLonD 2."""
-    backend.change_backend(Cupy64Bit if target == "cuda" else Numpy64Bit)
+    backend.change_backend(backend_class_for_mode(target))
     backend.set_specials(target)
     {
         "cpp": bm.use_cpp,
         # BLonD 2 has no deferred mode; its plain C++ is the reference
         "cpp_deferred": bm.use_cpp,
         "cuda": bm.use_gpu,
+        "cuda_deferred": bm.use_gpu,
         "numba": bm.use_numba,
         "python": bm.use_py,
     }[target]()
@@ -257,7 +261,7 @@ def measure(
         code: {} for code in runners
     }
     for target in targets:
-        use_gpu = target == "cuda"
+        use_gpu = target in GPU_TARGETS
         for code, runner in runners.items():
             set_backends(target)
             runner(params, N_TURNS_WARMUP, use_gpu)
@@ -318,7 +322,14 @@ def main() -> None:
         "--backends",
         nargs="+",
         default=None,
-        choices=["numba", "cpp", "cpp_deferred", "cuda", "python"],
+        choices=[
+            "numba",
+            "cpp",
+            "cpp_deferred",
+            "cuda",
+            "cuda_deferred",
+            "python",
+        ],
         help="default: numba cpp, plus cuda if a GPU is available",
     )
     parser.add_argument("--n-macroparticles", type=float, default=1e4)
