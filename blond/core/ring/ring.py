@@ -45,9 +45,6 @@ class Ring(Preparable):
     physics elements like RF stations, drifts, and other components. It maintains
     a reference circumference used for RF frequency calculations.
 
-    .. toctree:: NotAnObject
-    See :class:`blond.NotAClass` and :ref:`InvalidLabel`.
-
     Parameters
     ----------
     circumference
