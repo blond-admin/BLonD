@@ -331,13 +331,16 @@ class TrailingColumnsField(RecordField):
     length: reading a device array would sync on every call.
     """
 
-    count: str
+    # The C names are left out of the repr: Sphinx renders the repr of
+    # `Annotated` metadata into the docs, with strings as type names it
+    # then fails to resolve.
+    count: str = dataclasses.field(repr=False)
     """Name of the ``std::int32_t`` count member of the fixed struct."""
-    view_struct: str
+    view_struct: str = dataclasses.field(repr=False)
     """C name of the struct of column pointers `<name>_of` returns."""
     columns: tuple[str, ...]
     """The columns, in layout order."""
-    max_length_constant: str
+    max_length_constant: str = dataclasses.field(repr=False)
     """C and Python name of the most rows one record may hold."""
 
     @property
@@ -1284,7 +1287,7 @@ def _record_packer(args_type: type[KernelCallArgs]) -> Callable[..., int]:
 
 
 MAX_RF_HARMONICS_PER_RECORD = KickMultiHarmonicArgs.max_trailing_length()
-"""Most harmonics one record holds: as many as fit one CUDA launch."""
+"""Most harmonics one record holds, as many as fit one CUDA launch."""
 
 
 # ---------------------------------------------------------------- header
