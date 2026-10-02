@@ -128,7 +128,6 @@ def _make_gaussian_profile(cutoff_frequency: float) -> StaticProfile:
     # of the binning.
     profile.hist_y_to_density_factor = 1.0 / float(np.sum(line_density))
     profile.active = False  # freeze: never recomputed from the beam
-    profile.invalidate_cache()
     return profile
 
 
