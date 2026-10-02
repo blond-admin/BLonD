@@ -230,6 +230,18 @@ class EquidistantMultiProfile(MultiProfile):
         return self._continuous_memory_hist_y
 
     @property
+    def hist_step(self) -> float:
+        """
+        Size of a single histogram bin, shared by all profiles.
+
+        Returns
+        -------
+        hist_step
+            Size of a single histogram bin, in [s].
+        """
+        return self.profiles[0].hist_step
+
+    @property
     def n_bins(self):
         """
         Total number of bins among all profiles.

@@ -3473,12 +3473,14 @@ class TestSpecials(BLonDTestCase):
         factor,
         bin_dt,
         states,
+        extra_scratch_rows=0,
     ):
         """Run the active backend's kernel; `states` is a backend array, updated."""
         n_bins = len(profile)
         voltage = backend.zeros(n_bins, dtype=backend.float)
         voltage_threaded = backend.zeros(
-            (backend.specials.get_max_threads(), n_bins), dtype=backend.float
+            (backend.specials.get_max_threads() + extra_scratch_rows, n_bins),
+            dtype=backend.float,
         )
         backend.specials.wake_from_pole_residue(
             profile_time=backend.array(profile_time, dtype=backend.float),
@@ -3727,6 +3729,47 @@ class TestSpecials(BLonDTestCase):
                 voltage,
                 np.zeros(n_bins),
                 err_msg=f"`{special}` gave a voltage without poles",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_accepts_extra_scratch_rows(self) -> None:
+        """More scratch rows than threads, as the contract allows, are fine.
+
+        The solver sizes the scratch once, for the backend active at its
+        first call; a later backend with fewer threads must still run.
+        """
+        n_bins = 16
+        bin_dt = 1e-9
+        args = (
+            np.arange(n_bins) * bin_dt,
+            np.sin(np.linspace(0, 3 * np.pi, n_bins)) ** 2,
+            0.0,
+            False,
+            0.0,
+            2 * bin_dt,
+            np.array([-1e8 + 2e9j, -3e8 + 0.0j]),
+            np.array([1.0 + 0.5j, 2.0 + 0.0j]),
+            False,
+            np.ones(2),
+            1.0,
+            bin_dt,
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=np.float64, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test")
+                continue
+            expected = self._run_pole_kernel(
+                *args, backend.zeros(2, dtype=backend.complex)
+            )
+            voltage = self._run_pole_kernel(
+                *args,
+                backend.zeros(2, dtype=backend.complex),
+                extra_scratch_rows=3,
+            )
+            np.testing.assert_allclose(
+                voltage, expected, rtol=1e-14, err_msg=f"{special=}"
             )
 
     @pytest.mark.backend_mutation

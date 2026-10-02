@@ -453,9 +453,10 @@ class Specials(ABC):
         so far, :math:`S(T) = \sum_{t_j \le T} q_j e^{p (T - t_j)}`, and a
         bin's far field is :math:`\mathrm{Re}[\rho S(T_i)]` read at the
         clock :math:`T_i = t_i - 2 \Delta t`, two bins behind the bin
-        itself, where the bin-averaged wake is a pure exponential (recipe 3
-        of ``explain_nearfield_farfield_model_rechenbuch.ipynb``). The three
-        nearer lags are the caller's, in closed form. The kernel steps the
+        itself, where the bin-averaged wake is a pure exponential (Steps
+        65-71 of ``docs/models_new/pole-residue/
+        bin_averaged_wake_derivation.py``). Every lag below two bins is the
+        caller's, in closed form. The kernel steps the
         state from clock to clock along ``profile_time`` itself, so gaps in
         a sparse profile need no bookkeeping; every exponent is negative or
         zero, so nothing can overflow.

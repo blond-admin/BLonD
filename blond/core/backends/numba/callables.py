@@ -941,9 +941,9 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
         voltage[:] = 0
         voltage_threaded[:, :] = 0
-        if not (voltage_threaded.shape[0] == numba.get_num_threads()):
+        if voltage_threaded.shape[0] < numba.get_num_threads():
             raise RuntimeError(
-                "Number of threads does not match voltage threaded shape."
+                "voltage_threaded has fewer rows than numba has threads."
             )
 
         t_0 = profile_time[0]

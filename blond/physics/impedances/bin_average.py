@@ -24,7 +24,8 @@ the next one.
 For a pole :math:`p` with residue :math:`\rho`, wake
 :math:`W(t) = 2\,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`, the average
 :math:`\overline W = W * B_2` is the third difference of a third
-antiderivative (recipe 2 of ``explain_nearfield_farfield_model_rechenbuch.ipynb``):
+antiderivative (Steps 47-51 of
+``docs/models_new/pole-residue/bin_averaged_wake_derivation.py``):
 
 .. math::
     \overline W(t) = 2\,\mathrm{Re}\!\left[\rho\,

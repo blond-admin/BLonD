@@ -38,6 +38,12 @@ class MyTestCase(BLonDTestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_hist_step(self):
+        """Every sub-profile shares one bin width: slot width per bin."""
+        self.assertAlmostEqual(
+            self.multiprofile_equidistant.hist_step, 10.0 / 4, places=12
+        )
+
     def test_track(self):
         DEV_DRAW = False
 

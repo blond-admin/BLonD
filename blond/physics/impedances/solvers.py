@@ -34,6 +34,7 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ordering import requires
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -1265,6 +1266,47 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 # spans the whole revolution period meets the check with equality, and its
 # two sides are computed along different routes.
 _CALL_GAP_TOLERANCE = 1e-6
+# Slack on the whole-bin check of the profile's own gaps, as a fraction of a
+# bin; no looser than the kernel's 1e-6 bin, which decides whether a bin is
+# two bins behind the read-out.
+_BIN_GRID_TOLERANCE = 1e-6
+
+
+def _check_whole_bin_gaps(
+    hist_x: NumpyArray | CupyArray, bin_dt: float
+) -> None:
+    """
+    Check that consecutive bins lie a whole number of bins apart.
+
+    The near field takes the neighbours at exactly one bin, the far field
+    every bin at two bins and more, so a neighbour between one and two bins
+    away would be counted at the wrong lag or not at all.
+
+    Parameters
+    ----------
+    hist_x
+        Bin centres, in [s], increasing.
+    bin_dt
+        Profile bin width, in [s].
+
+    Raises
+    ------
+    ValueError
+        If two consecutive bins are not a whole number (at least one) of
+        bin widths apart.
+    """
+    spacing_bins = copy_to_cpu(hist_x[1:] - hist_x[:-1]) / bin_dt
+    whole_bins = np.round(spacing_bins)
+    is_off_grid = (whole_bins < 1) | (
+        np.abs(spacing_bins - whole_bins) > _BIN_GRID_TOLERANCE
+    )
+    if np.any(is_off_grid):
+        first = int(np.argmax(is_off_grid))
+        raise ValueError(
+            "MultiPoleSparseSolve: the bins of the profile must lie a whole "
+            f"number of bin widths ({bin_dt} s) apart, but bins {first} and "
+            f"{first + 1} are {spacing_bins[first]} bin widths apart."
+        )
 
 
 class MultiPoleSparseSolve(WakeFieldSolver):
@@ -1279,8 +1321,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     and read two bins behind the bin -- and a **near field**, the three
     taps at lags of minus one, zero and one bin, evaluated in closed form by
     :func:`~blond.physics.impedances.bin_average.triple_box_average_poles`.
-    The split is an identity, not an approximation; recipe 3 of
-    ``explain_nearfield_farfield_model_rechenbuch.ipynb``.
+    The split is an identity, not an approximation, for a profile whose
+    bins lie a whole number of bins apart (checked at the first call); see
+    Steps 61-71 of ``docs/models_new/pole-residue/
+    bin_averaged_wake_derivation.py``.
 
     Between calls the kernel hands its state over one bin before the last
     bin, and the last bin's charge is carried separately: it enters the
@@ -1299,8 +1343,14 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._residues: NumpyArray | CupyArray | None = None
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
         # Read once at the first call, so no device transfer per turn.
-        self._bin_dt: float | StaticProfile | None = None
+        self._bin_dt: float | None = None
         self._span_dt: float | None = None  # first to last bin centre
+        # Fixed by the model and the bin width, so computed once: the
+        # far-field residues, the near-field taps at lags of one, zero and
+        # minus one bin, and which bins have their neighbour one bin away.
+        self._far_field_residues: NumpyArray | CupyArray | None = None
+        self._taps: NumpyArray | CupyArray | None = None
+        self._adjacent: NumpyArray | CupyArray | None = None
         # The far-field state per pole, and the kernel's per-thread scratch.
         self._states: NumpyArray | CupyArray | None = None
         self._voltage_threaded: NumpyArray | CupyArray | None = None
@@ -1353,15 +1403,53 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._counterrotating_pole_signs = backend.array(
             signs, dtype=backend.float
         )
-        hist_x = self._parent_wakefield.profile.hist_x
-        self._bin_dt = float(hist_x[1] - hist_x[0])
+        profile = self._parent_wakefield.profile
+        hist_x = profile.hist_x
+        bin_dt = float(profile.hist_step)
+        _check_whole_bin_gaps(hist_x, bin_dt)
+        self._bin_dt = bin_dt
         self._span_dt = float(hist_x[-1] - hist_x[0])
+
+        pole_dt = self._poles * bin_dt
+        self._far_field_residues = (
+            self._residues
+            * (backend.expm1(pole_dt) / pole_dt) ** 3
+            * backend.exp(pole_dt / 2.0)
+        )
+        self._taps = triple_box_average_poles(
+            backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float),
+            self._poles,
+            self._residues,
+            bin_dt,
+        )
+        self._adjacent = (hist_x[1:] - hist_x[:-1]) < 1.5 * bin_dt
+
         self._states = backend.zeros(len(poles), dtype=backend.complex)
         self._voltage_threaded = backend.zeros(
             (backend.specials.get_max_threads(), len(hist_x)),
             dtype=backend.float,
         )
         self._carried_charge = backend.zeros(1, dtype=backend.float)
+
+    def _thread_scratch(self) -> NumpyArray | CupyArray:
+        """
+        The kernel's per-thread scratch, grown for the active backend.
+
+        The scratch is sized at the first call, but the active backend may
+        change later and use more threads.
+
+        Returns
+        -------
+        voltage_threaded
+            At least ``get_max_threads()`` rows of ``n_bins``.
+        """
+        n_threads = backend.specials.get_max_threads()
+        if self._voltage_threaded.shape[0] < n_threads:
+            self._voltage_threaded = backend.zeros(
+                (n_threads, self._voltage_threaded.shape[1]),
+                dtype=backend.float,
+            )
+        return self._voltage_threaded
 
     def _gap_since_previous_call(self, beam: BeamBaseClass) -> float:
         """
@@ -1428,12 +1516,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         # Far field: the recursion, with the residues scaled to the
         # bin-averaged wake past its onset.
-        pole_dt = self._poles * bin_dt
-        far_field_residues = (
-            self._residues
-            * (backend.expm1(pole_dt) / pole_dt) ** 3
-            * backend.exp(pole_dt / 2.0)
-        )
         voltage = backend.zeros(len(hist_y), dtype=backend.float)
         backend.specials.wake_from_pole_residue(
             profile_time=hist_x,
@@ -1443,25 +1525,19 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             state_lag_dt=gap_dt - bin_dt,
             carried_lag_dt=gap_dt,
             poles=self._poles,
-            residues=far_field_residues,
+            residues=self._far_field_residues,
             is_counterrotating_beam=beam.is_counter_rotating,
             counterrotating_pole_signs=self._counterrotating_pole_signs,
             factor=factor,
             bin_dt=bin_dt,
             states=self._states,
             voltage=voltage,
-            voltage_threaded=self._voltage_threaded,
+            voltage_threaded=self._thread_scratch(),
         )
 
         # Near field: the previous bin, the bin itself and the next bin --
         # when adjacent; a neighbour across a gap is the recursion's.
-        taps = triple_box_average_poles(
-            backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float),
-            self._poles,
-            self._residues,
-            bin_dt,
-        )
-        adjacent = (hist_x[1:] - hist_x[:-1]) < 1.5 * bin_dt
+        taps, adjacent = self._taps, self._adjacent
         voltage += (factor * taps[1]) * hist_y
         voltage[1:] += factor * taps[0] * adjacent * hist_y[:-1]
         voltage[:-1] += factor * taps[2] * adjacent * hist_y[1:]

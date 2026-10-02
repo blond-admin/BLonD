@@ -522,7 +522,8 @@ class Resonators(
         Each resonator is one pole :math:`p = -\alpha + i \bar\omega` with
         residue :math:`\rho = R \alpha (1 + i \alpha / \bar\omega)`, so that
         its wake is :math:`2\,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`
-        (recipe 1 of ``explain_nearfield_farfield_model_rechenbuch.ipynb``).
+        (Step 38 of ``docs/models_new/pole-residue/
+        bin_averaged_wake_derivation.py``).
 
         Parameters
         ----------
