@@ -254,27 +254,27 @@ workflow:
       -v
       --randomly-seed=$CI_PIPELINE_ID
 
-.main_no_gpu:
+.smoke_no_gpu:
+  # Smoke test: does BLonD install and run end-to-end WITHOUT CuPy? Only the
+  # examples are run -- the full unittest suite without CuPy is already
+  # covered by the last pytest run of `.main_many_environments`. Kept small
+  # so this job (in the `checks` stage) gates the GPU jobs quickly.
   variables:
-    BLOND_BACKEND_MODE: "cpp"     # Set the basic backend to numba. It is most verbose about wrong types
-    BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
-    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+    BLOND_BACKEND_MODE: "cpp"
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive.
   script:
     - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    - uv pip list
-    - cd ${project_root}
-    # Run only MPI unittests. Only the main thread should report.
-    # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
-    # they can desync on an MPI collective and deadlock (see .main for details).
-    # See the `-x --timeout=...` rationale in `.main` above.
-    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
-    # Run all unittests + the examples
+    # The examples' tests carry the `mpi` marker; without mpirun they must
+    # run single-rank, so drop mpi4py (as the other jobs do).
     - uv pip uninstall mpi4py
     # cupy is not part of all_no_cuda; uninstalling a missing package is a
-    # no-op for uv, kept so the job stays identical if the extras change.
+    # no-op for uv, kept so the job stays CuPy-free if the extras change.
     - uv pip uninstall cupy-cuda12x
+    - uv pip list
+    - cd ${project_root}
     - python3 -m pytest
+      tests/integration/examples
       -v
       --randomly-seed=$CI_PIPELINE_ID
 
@@ -392,13 +392,13 @@ precommit-check:
       paths:
         - .cache/pre-commit
 
-test_py_314_no_cupy:
+smoke_examples_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
   stage: checks
   interruptible: true
   extends:
     - .before_no_gpu
-    - .main_no_gpu
+    - .smoke_no_gpu
     - .cache_test
   dependencies: []
   tags:
