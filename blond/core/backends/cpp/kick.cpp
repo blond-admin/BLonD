@@ -36,7 +36,7 @@ extern "C" void kick_multi_harmonic(
   // record, at most MAX_RF_HARMONICS_PER_RECORD per pass; `acc_kick` goes
   // into the last pass only, and one pass always runs so that n_rf == 0
   // still applies it.
-  KickMultiHarmonicRecord record;
+  KickMultiHarmonicRecord record{};
   const int per_pass = MAX_RF_HARMONICS_PER_RECORD;
   const int n_passes = (n_rf > per_pass) ? (n_rf + per_pass - 1) / per_pass : 1;
   for (int pass = 0; pass < n_passes; pass++) {

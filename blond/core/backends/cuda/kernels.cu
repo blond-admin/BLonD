@@ -82,7 +82,7 @@ struct NoFactors {};
 
 // Every record type without its own `prepare` overload below.
 template <class Args>
-__device__ __forceinline__ NoFactors prepare(const Args &) {
+__device__ __forceinline__ NoFactors prepare(const Args & /*args*/) {
   return {};
 }
 
@@ -105,6 +105,8 @@ apply_to_particle(const KickSingleHarmonicArgs &args,
 
 // Multiplies the per-harmonic voltage by the charge.
 struct TimesCharge {
+  // Public, so that it stays an aggregate built as `TimesCharge{charge}`.
+  // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   real_t charge;
   __device__ __forceinline__ real_t operator()(const real_t voltage) const {
     return charge * voltage;
@@ -195,8 +197,11 @@ apply_to_particle(const DriftSimpleArgs & /*args*/,
 // instead of the five FP64 operations of the formula as written; the
 // rounding differs from that by an ulp of the result at most.
 struct DeltaArgument {
+  // Public, so that it stays an aggregate built from braces.
+  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
   real_t dE_sq_coeff; // 1 / (beta E)^2
   real_t dE_coeff;    // 2 / (beta^2 E)
+  // NOLINTEND(misc-non-private-member-variables-in-classes)
   __device__ __forceinline__ real_t operator()(const real_t dE) const {
     return fma(dE, fma(dE_sq_coeff, dE, dE_coeff), 1.0);
   }
@@ -976,7 +981,7 @@ __device__ __forceinline__ void store_factors(const Factors &factors,
                                               RecordFactors &slot) {
   static_assert(sizeof(Factors) <= sizeof(RecordFactors),
                 "add the Factors type to RecordFactors");
-  if (!std::is_empty<Factors>::value) {
+  if (!std::is_empty_v<Factors>) {
     memcpy(&slot, &factors, sizeof(Factors));
   }
 }
@@ -984,7 +989,7 @@ __device__ __forceinline__ void store_factors(const Factors &factors,
 template <class Factors>
 __device__ __forceinline__ Factors load_factors(const RecordFactors &slot) {
   Factors factors{};
-  if (!std::is_empty<Factors>::value) {
+  if (!std::is_empty_v<Factors>) {
     memcpy(&factors, &slot, sizeof(Factors));
   }
   return factors;
@@ -1036,8 +1041,8 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
-    dt[k] = i < n_macroparticles ? beam_dt[i] : real_t(0);
-    dE[k] = i < n_macroparticles ? beam_dE[i] : real_t(0);
+    dt[k] = i < n_macroparticles ? beam_dt[i] : static_cast<real_t>(0);
+    dE[k] = i < n_macroparticles ? beam_dE[i] : static_cast<real_t>(0);
   }
   int index = 0;
   for (const KernelCallHeader *record = first; record != last;
@@ -1160,14 +1165,14 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   for (; sweep_start + sweep_length - stride < n_macroparticles;
        sweep_start += sweep_length) {
     apply_batch_to_tile<PARTICLES_PER_THREAD>(
-        first, last, factors, store_flags, beam_dt, beam_dE,
+        first, last, &factors[0], store_flags, beam_dt, beam_dE,
         sweep_start + particle_loop_start(), stride, n_macroparticles);
   }
   // Particles per thread still to do, < PARTICLES_PER_THREAD.
   const index_t tail_length =
       (n_macroparticles - sweep_start + stride - 1) / stride;
   apply_batch_to_tail<PARTICLES_PER_THREAD / 2>(
-      first, last, factors, store_flags, beam_dt, beam_dE, sweep_start,
+      first, last, &factors[0], store_flags, beam_dt, beam_dE, sweep_start,
       tail_length, stride, n_macroparticles);
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
