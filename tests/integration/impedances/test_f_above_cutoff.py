@@ -204,7 +204,7 @@ def _run_one_turn(
     bin_fractions = _bin_integrated_gaussian(
         hist_x, profile.hist_step, center=0.5 * t_rf, sigma_dt=sigma_dt
     )
-    profile._hist_y[:] = backend.array(bin_fractions, dtype=backend.float)
+    profile.hist_y[:] = backend.array(bin_fractions, dtype=backend.float)
     # `hist_y` already holds the per-bin probability, i.e. what a real
     # histogram of `n` macroparticles would give after scaling by `1/n`
     profile.hist_y_to_density_factor = 1.0

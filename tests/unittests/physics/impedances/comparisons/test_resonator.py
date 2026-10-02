@@ -131,7 +131,9 @@ def _low_q_run(
     sigma = 0.83162555241781e-9 / 2
     centre = 2.5e-9
     x = np.asarray(profile.hist_x)
-    profile._hist_y = backend.array(np.exp(-0.5 * ((x - centre) / sigma) ** 2))
+    profile.hist_y[:] = backend.array(
+        np.exp(-0.5 * ((x - centre) / sigma) ** 2), dtype=backend.float
+    )
     # normally set by profile.track; irrelevant here as it is identical for
     # every solver and cancels in the relative comparison
     profile.hist_y_to_density_factor = 1.0
