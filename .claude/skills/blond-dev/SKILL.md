@@ -8,7 +8,7 @@ description: Use when developing in the BLonD3 / BLonD codebase (gitlab.cern.ch/
 CERN Python code for simulating longitudinal beam dynamics in synchrotrons
 (macroparticle tracking through RF systems, magnetic ramps, and collective
 effects). Active dev branch is `blonder` (NOT `develop`/`master`).
-Python ≥3.10, line length 79.
+Python ≥3.11, line length 79.
 
 **Stay critical — the code can be wrong.** BLonD is under active development and
 still has bugs. Don't assume existing code (or its comments/docstrings) is correct
