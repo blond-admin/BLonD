@@ -347,6 +347,10 @@ def main() -> None:
             args.backends.append("cuda")
         print(f"Backends: {' '.join(args.backends)}")
 
+    if any(target in GPU_TARGETS for target in args.backends):
+        # BLonD 2 sporadically fails its CUDA init (cudaErrorInitialization
+        # Error) once BLonD 3 has touched the GPU, so initialise it first
+        bm.use_gpu()
     params = Params(int(args.n_macroparticles), args.n_turns)
     runtimes = measure(params, args.backends, args.n_runs)
     title = (
