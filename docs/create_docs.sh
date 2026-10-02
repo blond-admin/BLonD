@@ -5,7 +5,7 @@ cp -r ../blond/examples/* ./examples/ # copy examples into the `docs` scope
 
 
 shopt -s globstar nullglob
-sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 2 -P
+sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py "../blond/**/*.so" -f -e -M -d 2 -P
 
 rm -f modules/modules.rst
 
