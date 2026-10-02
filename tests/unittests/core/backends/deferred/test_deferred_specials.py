@@ -419,6 +419,11 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
         for start, end in ((0, 48), (100, 100 + capacity), (200, 300)):
             with self.subTest(start=start, end=end):
                 parameter = _batch_parameter(buffer, start, end)
+                # A 0-d array, not an `np.void` scalar: CuPy 13 rejects
+                # `np.void` launch arguments and CuPy 14.0 asserts their
+                # size fits 32 bytes.
+                self.assertIsInstance(parameter, np.ndarray)
+                self.assertEqual(parameter.shape, ())
                 self.assertEqual(parameter.dtype, _KERNEL_CALL_BATCH_DTYPE)
                 raw = np.frombuffer(parameter.tobytes(), dtype=np.uint8)
                 np.testing.assert_array_equal(

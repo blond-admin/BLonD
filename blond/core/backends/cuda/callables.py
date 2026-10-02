@@ -256,14 +256,16 @@ def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
 _launch_kernel_call_batch = _execute_kernel_call_batch_kernel.kernel
 
 
-def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> np.void:
+def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> NumpyArray:
     """
     Return the ``KernelCallBatch`` launch parameter of ``buffer[start:end]``.
 
-    A ``np.void`` scalar, which cupy packs about 2 us faster than a 0-d
-    structured array. Where the buffer holds a whole batch struct from
-    ``start`` on it is a view of the queue's bytes, else a zero-padded
-    copy; the kernel reads only the first ``end - start`` bytes.
+    A 0-d structured array. An ``np.void`` scalar packs about 2 us
+    faster, but CuPy 13 rejects it as a launch argument and CuPy 14.0
+    asserts it fits 32 bytes. Where the buffer holds a whole batch struct
+    from ``start`` on it is a view of the queue's bytes, else a
+    zero-padded copy; the kernel reads only the first ``end - start``
+    bytes.
 
     Parameters
     ----------
@@ -274,14 +276,16 @@ def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> np.void:
 
     Returns
     -------
-    np.void
-        Of `_KERNEL_CALL_BATCH_DTYPE`.
+    NumpyArray
+        0-d, of `_KERNEL_CALL_BATCH_DTYPE`.
     """
     if start + _KERNEL_CALL_BATCH_DTYPE.itemsize <= buffer.size:
-        return np.frombuffer(buffer, _KERNEL_CALL_BATCH_DTYPE, 1, start)[0]
+        return np.frombuffer(
+            buffer, _KERNEL_CALL_BATCH_DTYPE, 1, start
+        ).reshape(())
     parameters = np.zeros(1, dtype=_KERNEL_CALL_BATCH_DTYPE)
     parameters.view(np.uint8)[: end - start] = buffer[start:end]
-    return parameters[0]
+    return parameters.reshape(())
 
 
 def _execute_batch(
