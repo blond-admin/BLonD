@@ -509,7 +509,7 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         hist_y = np.zeros(n_bins)
         hist_y[5:10] = [1, 2, 3, 2, 1]
         profile = StaticProfile(cut_left=-0.5, cut_right=0.5, n_bins=n_bins)
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0
 
         parent_wakefield = Mock(WakeField)
@@ -3367,7 +3367,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3430,7 +3430,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3459,12 +3459,10 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         from blond.testing.mocks import beam_mock
 
         prof = DynamicProfileConstNBins(n_bins=128)
-        prof.cut_left = -1e-9
-        prof.cut_right = 1e-9
-        prof._hist_x = backend.linspace(prof.cut_left, prof.cut_right, 128)
+        prof._set_window(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3492,7 +3490,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3568,7 +3566,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof_single.hist_y_to_density_factor = 0.3
-        prof_single._hist_y = backend.array(
+        prof_single.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3577,7 +3575,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         )
 
         prof_two_turns.hist_y_to_density_factor = 0.3
-        prof_two_turns._hist_y = np.concatenate(
+        prof_two_turns.hist_y[:] = np.concatenate(
             (prof_single.hist_y, 0.5 * prof_single.hist_y)
         )
 
@@ -3603,7 +3601,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         wf_single.calc_induced_voltage(beam=beam_mock)
 
         wf_mutli.calc_induced_voltage(beam=beam_mock)
-        prof_single._hist_y *= 0.5
+        prof_single.hist_y[:] *= 0.5
         wf_mutli.calc_induced_voltage(beam=beam_mock)  # second turn
 
         DEV_DEBUG = False

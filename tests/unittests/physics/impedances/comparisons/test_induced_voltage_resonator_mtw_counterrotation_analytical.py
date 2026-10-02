@@ -25,7 +25,9 @@ from blond import (
     mu_minus,
     mu_plus,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
@@ -142,7 +144,9 @@ class TestInducedVoltageResonatorPhysics(BLonDTestCase):
         shc_list = []
         cav_obs_list = []
         profile_list = []
-        prof._hist_y = gauss(prof.hist_x, self.sigma_bunch, self.bunch_offset)
+        prof.hist_y[:] = gauss(
+            prof.hist_x, self.sigma_bunch, self.bunch_offset
+        )
 
         mocked_profile = Mock(spec=StaticProfile)
         mocked_profile.cut_left = prof.cut_left

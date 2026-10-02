@@ -34,8 +34,8 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
@@ -49,8 +49,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Ring
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.ring.ring import Ring
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
     from blond.experimental.physics.feedbacks.base import (
@@ -244,6 +244,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         array such as `EquidistantMultiProfile.hist_x`, since the
         sparse-profile metadata needed to resolve particles to their
         own bucket is not (yet) forwarded through this parameter.
+    main_harmonic_idx
+        Index of the main harmonic, used to attach a single
+        `cavity_feedback` to it.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
@@ -262,6 +265,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        main_harmonic_idx: int = 0,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
         assert n_rf > 0, f"{n_rf=}"
@@ -286,7 +290,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if not isinstance(cavity_feedback, list | None):
             self.attach_cavity_feedback(
                 cavity_feedback=cavity_feedback,
-                harmonic_index=kwargs.get("main_harmonic_idx", 0),
+                harmonic_index=main_harmonic_idx,
             )
         elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -912,7 +916,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-        if np.any(self.delta_omega_rf != 0):
+        delta_omega_rf = self.delta_omega_rf
+        # plain `!=` for the usual scalar; `np.any` costs ~2 us per turn
+        if (
+            delta_omega_rf != 0
+            if isinstance(delta_omega_rf, float)
+            else np.any(delta_omega_rf != 0)
+        ):
             self._update_delta_phi_rf_from_beam_feedback()
 
     def _track_interp(
@@ -1955,9 +1965,11 @@ class MultiHarmonicRFStation(
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=backend.array(self.voltage, dtype=backend.float),
-            phi_rf=backend.array(self.phi_rf, dtype=backend.float),
-            omega_rf=backend.array(self.omega_rf, dtype=backend.float),
+            # Host arrays on every backend: a GPU kernel receives them by
+            # value, so moving them to the device would only add copies.
+            voltage=np.asarray(self.voltage, dtype=backend.float),
+            phi_rf=np.asarray(self.phi_rf, dtype=backend.float),
+            omega_rf=np.asarray(self.omega_rf, dtype=backend.float),
             charge=beam.signed_charge_with_direction(),
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!

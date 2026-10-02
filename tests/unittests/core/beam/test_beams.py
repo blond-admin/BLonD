@@ -7,16 +7,18 @@ import numpy as np
 import pytest
 
 from blond import Beam, Simulation, proton, uranium_29
-from blond.core.beam.base import BeamBaseClass, BeamFlags
-from blond.core.beam.beams import ProbeBeam
-from blond.core.beam.particle_types import lead_82
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     MPI_COMM_WORLD,
     MPI_RANK,
     MPI_SIZE,
     mpi_is_distributed,
 )
+from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.particle_types import lead_82
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -417,6 +419,26 @@ class TestWeightenedBeam(BLonDTestCase):
         self.weightened_beam.setup_beam(
             dt=None, dE=None, flags=None, weights=None
         )
+
+
+class TestBeamSetupBeamArguments(BLonDTestCase):
+    def setUp(self):
+        self.beam = Beam(intensity=1e10, particle_type=proton)
+
+    def test_setup_beam_rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            self.beam.setup_beam(
+                dt=np.zeros(4),
+                dE=np.zeros(4),
+                reference_totl_energy=450e9,  # typo
+            )
+
+    def test_setup_beam_applies_zero_reference_time(self):
+        self.beam.reference.time = 1e-3
+        self.beam.setup_beam(
+            dt=np.zeros(4), dE=np.zeros(4), reference_time=0.0
+        )
+        self.assertEqual(self.beam.reference.time, 0.0)
 
 
 if __name__ == "__main__":

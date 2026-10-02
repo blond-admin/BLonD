@@ -15,7 +15,7 @@ dynamic = ["version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Helga Timko", email = "helga.timko@cern.ch" }]
 maintainers = [
   { name = "Alexandre Lasheen", email = "alexandre.lasheen@cern.ch" },
@@ -26,9 +26,10 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
   "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
@@ -38,7 +39,6 @@ dependencies = [
   "matplotlib>=3.9",      # plotting and visualization
   "numba>=0.61",          # simple computing backend that compiles everywhere out of the box
   "tqdm>4",               # nice loading bar
-  "mpi4py>=4",            # distributed computing
   "mpmath>=1",            # for numba fastmath replacement
   "sympy>=1.9",           # symbolic math for separatrix calculations, etc.
   "scikit-rf>1",          # pole fitting of impedances
@@ -72,7 +72,10 @@ doc = [
   "algebra_with_sympy",          # used by the pole-residue notebook
 ]
 mpi = [
-  "mpi4py>=4", # MPI bindings for distributed computing
+  # Distributed computing. Optional: the wheel needs an MPI runtime
+  # (libmpi) on the system to import, which not every machine has, and
+  # BLonD degrades to a single rank without it.
+  "mpi4py>=4",
 ]
 gpu_cuda12 = [
   "cupy-cuda12x!=14.0.0,!=14.2.0", # GPU array computing (CUDA 12)
@@ -118,7 +121,7 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 [tool.ruff]
 src = ["blond"]                                                       # Source directories
 line-length = 79
-target-version = "py310"                                              # Minimum supported version (no quotes)
+target-version = "py311"                                              # Minimum supported version (no quotes)
 fix = true                                                            # Enable autofix
 exclude = ["blond/legacy/*", "legacy/*", "integrationtests_blond3/*"]
 [tool.ruff.lint]
@@ -136,6 +139,7 @@ select = [
   "SIM", # flake8-simplify
   "NPY", # numpy-specific rules
   "PL",  # pylint rules
+  "G",   # flake8-logging-format (no eager f-string log messages)
 ]
 
 ignore = [

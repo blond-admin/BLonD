@@ -146,7 +146,7 @@ def _find(
 
         # Check if object has the desired method
         if is_wanted(obj):
-            logger.info(f"Found {obj} at {where}")
+            logger.info("Found %s at %s", obj, where)
             found.add(obj)
 
         # Recurse into object attributes or container elements

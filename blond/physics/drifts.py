@@ -228,8 +228,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         self._register_schedulable_variables("momentum_compaction_factor")
 
-        self._simulation: Simulation | None = None
-
         self._last_eta_0: float | None = None
 
         self.momentum_compaction_factor: float | None = (
@@ -678,6 +676,8 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
 
         # Advance reference
         dt = self.track_reference(beam.reference)
+        # Linear slip factor, recorded for observations only
+        self._last_eta_0 = self.eta_0(beam.reference.gamma)
 
         higher_alpha = backend.array(
             self.higher_order_alpha

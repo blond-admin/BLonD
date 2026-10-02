@@ -16,19 +16,12 @@ variables:
   # Always use the interpreter shipped in the CI image, never let uv download
   # a managed Python of its own.
   UV_PYTHON_DOWNLOADS: "never"
-  # --- numba JIT cache (persisted across pipelines, see `.cache_numba`) ---
-  # Centralise numba's on-disk cache (.nbi/.nbc) into one dir so GitLab can
-  # cache it between runs; the kernels already use `cache=True`, but the
-  # cache is otherwise cold on every fresh runner and recompiles during the
-  # test run (the dominant cost).
-  NUMBA_CACHE_DIR: "${CI_PROJECT_DIR}/.numba_cache"
-  # Compile CPU-generic code so a cached entry is valid on ANY runner,
-  # independent of its CPU. numba self-validates entries, so a mismatch only
-  # ever forces a recompile (never wrong code); `generic` just maximises the
-  # cross-runner hit rate. Remove these two if the runner pool is
-  # CPU-homogeneous and you prefer full `-march=native` kernel speed.
-  NUMBA_CPU_NAME: "generic"
-  NUMBA_CPU_FEATURES: ""
+  # --- GPU runner selection ---
+  # Tag of the runner all GPU jobs are sent to. Defaults to the dedicated
+  # H100 project runner (few concurrent jobs, but no queueing behind other
+  # projects); set to `k8s-gpu` (e.g. when running a pipeline manually) to
+  # fall back to the shared Kubernetes GPU runners.
+  GPU_RUNNER_TAG: "accpoc-h100-.5"
 stages:
   - precommit
   - doc_build
@@ -105,14 +98,6 @@ workflow:
     - key: "uv-${CI_JOB_NAME}"
       paths:
         - .uv_cache/
-    # Persist numba's JIT cache between pipelines. The key is per-job, which
-    # also separates Python versions (different image -> different
-    # numba/python -> entries would not validate anyway). Safe to share
-    # across GPU and non-GPU runners: it holds only CPU kernel code and
-    # self-validates on load.
-    - key: "numba-${CI_JOB_NAME}"
-      paths:
-        - .numba_cache/
     # Persist the compiled C++/CUDA backends between pipelines. Each
     # compiled/<hash>/ directory is keyed (see compiled_dir_handler) on the
     # toolchain version, host CPU instruction set and build flags, so a
@@ -127,11 +112,6 @@ workflow:
         - blond/core/backends/cpp/compiled/
         - blond/core/backends/cuda/compiled/
   after_script:
-    # Bound the numba cache size before GitLab uploads it. Bare python3 +
-    # pure stdlib: no venv needed, and no `import blond` -- which would
-    # recompile kernels into the very cache we are pruning. Size budget:
-    # BLOND_NUMBA_CACHE_MAX_MB (default 500).
-    - python3 dev_tools/prune_numba_cache.py
     # Same bookkeeping for the uv cache as in `.cache_uv` (kept in sync by
     # hand -- see the NOTE above on why it cannot be inherited).
     - export PATH="${HOME}/.local/bin:${PATH}"
@@ -161,6 +141,12 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -190,6 +176,12 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Verify installation
     - gcc --version
     - python3 --version && gcc --version && mpirun --version
@@ -215,8 +207,8 @@ workflow:
     - uv pip list
     - cd ${project_root}
     # Warm the numba JIT cache in a single process before mpirun spawns 2
-    # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
-    # cold, both processes race to compile and write the same cache
+    # concurrent ranks. numba's on-disk cache (__pycache__) is shared by
+    # both ranks; if it is cold, both race to compile and write the same cache
     # entries concurrently, and the loser can be left with a corrupted or
     # partial entry -- causing an unrelated numba-backed call to raise on
     # just that rank, which then deadlocks the other rank's next MPI
@@ -306,8 +298,8 @@ workflow:
     - cd ${project_root}
     - mkdir -p junit-reports
     # Warm the numba JIT cache in a single process before mpirun spawns 2
-    # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
-    # cold, both processes race to compile and write the same cache
+    # concurrent ranks. numba's on-disk cache (__pycache__) is shared by
+    # both ranks; if it is cold, both race to compile and write the same cache
     # entries concurrently, and the loser can be left with a corrupted or
     # partial entry -- causing an unrelated numba-backed call to raise on
     # just that rank, which then deadlocks the other rank's next MPI
@@ -417,6 +409,8 @@ test_py_314_no_cupy:
     - .main_no_gpu
     - .cache_test
   dependencies: []
+  tags:
+    - cpu-intensive
 
 test_py_314_main_many_environments:
   image: gitlab-registry.cern.ch/blond/blond/python314
@@ -429,26 +423,7 @@ test_py_314_main_many_environments:
     - .cache_test
   dependencies: []
   tags:
-    - k8s-gpu
-
-test_py_310:
-  image: gitlab-registry.cern.ch/blond/blond/python310
-  stage: test
-  interruptible: true
-  extends:
-    - .before
-    - .main
-    - .cache_test
-    # - .publish
-  dependencies: []
-  tags:
-    - k8s-gpu
-  rules:
-    # Run on branch blonder
-    - if: '$CI_COMMIT_BRANCH == "blonder"'
-
-    # ALSO run in merge requests targeting blonder
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - $GPU_RUNNER_TAG
 
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
@@ -461,7 +436,7 @@ test_py_311:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -480,7 +455,7 @@ test_py_312:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -499,7 +474,7 @@ test_py_313:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -518,7 +493,7 @@ test_py_314:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -535,7 +510,7 @@ test_py_314_only_cupy:
     - .cache_test
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -543,7 +518,7 @@ test_py_314_only_cupy:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_minimum:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: test
   interruptible: true
   extends:
@@ -563,6 +538,12 @@ test_minimum:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Create venv to avoid permission error when installing packages
     - *uv_setup
     - uv venv ./.venv
@@ -586,7 +567,7 @@ test_minimum:
       -v
       --import-mode=importlib
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -594,8 +575,8 @@ test_minimum:
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
-release_sdist_310:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+release_sdist_311:
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: deploy
   extends:
     - .on_tag
@@ -632,16 +613,28 @@ test_documentation_building:
     # the uv venv is isolated from the system site-packages.)
     - uv pip install ${project_root}[doc,xsuite,gpu_cuda12]
     - cd ${project_root}/docs
-    - . ./create_docs.sh
+    - ./create_docs.sh
   artifacts:
     paths:
       - ${project_root}/docs/_build/html
     expire_in: 3 hour
     when: always
+  rules:
+    # Blocking in merge requests: a broken doc build must not be mergeable.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: false
+    # Blocking on blonder itself: this is the branch `pages` deploys from.
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+      allow_failure: false
+    # Warning-only on other commit pipelines: surface the failure without
+    # reddening the whole pipeline.
+    - when: on_success
+      allow_failure: true
 
 
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: deploy
   extends:
     - .cache_uv
   script:

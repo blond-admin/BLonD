@@ -97,6 +97,40 @@ def check_index_abi(library: CDLL) -> None:
     )
 
 
+# Largest length a C ``int`` can hold; see `_get_len`.
+_C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
+
+
+def _get_len(x: NumpyArray) -> ct.c_int:
+    """
+    Return the length of ``x`` as a ``c_int``.
+
+    Only for short arrays (bins, harmonics, poles); arrays that scale
+    with the number of macroparticles use ``_get_beam_len``.
+
+    ctypes does no overflow checking, so a too long array would silently
+    wrap to a negative count. Uses ``assert`` on purpose so ``python -O``
+    strips the check.
+
+    Parameters
+    ----------
+    x
+        Array whose length is passed to the C++ kernel.
+
+    Returns
+    -------
+    ct.c_int
+        ``len(x)`` wrapped as a ctypes ``c_int``.
+    """
+    len_ = len(x)
+    assert len_ <= _C_INT_MAX, (
+        f"Array length {len_} overflows the C int (max {_C_INT_MAX}) this"
+        " kernel argument is declared as. Particle counts must be passed"
+        " with `_get_beam_len` (index_t) instead."
+    )
+    return ct.c_int(len_)
+
+
 def c_real(
     scalar: float, floattype: type[np.float64]
 ) -> ct.c_float | ct.c_double:
@@ -395,25 +429,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             _pointer_cache[_id] = (weakref.ref(x), pointer)
         return pointer
 
-    def _get_len(x: NumpyArray) -> ct.c_int:
-        """
-        Return the length of ``x`` as a ``c_int``.
-
-        Only for short arrays (bins, harmonics, poles); arrays that scale
-        with the number of macroparticles use `_get_beam_len`.
-
-        Parameters
-        ----------
-        x
-            Array whose length is passed to the C++ kernel.
-
-        Returns
-        -------
-        ct.c_int
-            ``len(x)`` wrapped as a ctypes ``c_int``.
-        """
-        return ct.c_int(len(x))
-
     def _get_beam_len(x: NumpyArray) -> ct.c_int64:
         """
         Return the length of ``x`` as the C++ ``index_t``.
@@ -500,14 +515,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bin_size: float,
         ) -> float:
             assert _is_valid((hist_x, floattype), (hist_y, floattype))
+            assert len(hist_x) >= 2, (  # noqa: PLR2004
+                "beam_phase requires at least two bins for the trapezoidal "
+                f"rule, got {len(hist_x)}"
+            )
 
             # Relies on `_LIBBLOND.beam_phase.restype` set above; without it
             # the C double is read as an int. The cast only matches the
             # `floattype` scalar the other backends return.
             return floattype(
                 _LIBBLOND.beam_phase(
-                    hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
-                    hist_y.ctypes.data_as(ct.c_void_p),  # profile
+                    _get_pointer(hist_x),  # bin_centers
+                    _get_pointer(hist_y),  # profile
                     c_real(alpha, floattype),  # alpha
                     c_real(omega_rf, floattype),  # omega_rf
                     c_real(phi_rf, floattype),  # phi_rf
@@ -530,8 +549,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             stop = floattype(stop)
 
             _LIBBLOND.histogram(
-                array_read.ctypes.data_as(ct.c_void_p),
-                array_write.ctypes.data_as(ct.c_void_p),
+                _get_pointer(array_read),
+                _get_pointer(array_write),
                 c_real(start, floattype),
                 c_real(stop, floattype),
                 ct.c_int(len(array_write)),
@@ -565,27 +584,15 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             if first_left_cut is None:
                 n_slices = len(bin_centers)
-                if n_slices >= 2:  # noqa: PLR2004
-                    diffs = np.diff(bin_centers)
-                    if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
-                        raise ValueError(
-                            "bin_centers is not uniformly spaced (looks "
-                            "like a sparse/multi-island "
-                            "EquidistantMultiProfile.hist_x). Either "
-                            "pass this profile's sparse metadata "
-                            "(first_left_cut, left_cut_distance, "
-                            "cut_width, bins_per_profile, "
-                            "filling_pattern, "
-                            "bucket_index_to_memory_index), e.g. via "
-                            "`profile.sparse_kick_metadata`, or use "
-                            "EquidistantMultiProfile.profiles[i].hist_x "
-                            "for a single bucket."
-                        )
+                assert n_slices >= 2, (  # noqa: PLR2004
+                    "kick_interpolated needs at least 2 bins to "
+                    f"interpolate across, got {n_slices}"
+                )
                 _LIBBLOND.linear_interp_kick(
-                    dt.ctypes.data_as(ct.c_void_p),
-                    dE.ctypes.data_as(ct.c_void_p),
-                    voltage.ctypes.data_as(ct.c_void_p),
-                    bin_centers.ctypes.data_as(ct.c_void_p),
+                    _get_pointer(dt),
+                    _get_pointer(dE),
+                    _get_pointer(voltage),
+                    _get_pointer(bin_centers),
                     c_real(charge, floattype),
                     ct.c_int(len(bin_centers)),
                     _get_beam_len(dt),
@@ -599,10 +606,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert bucket_index_to_memory_index.flags.c_contiguous
 
             _LIBBLOND.linear_interp_kick_sparse(
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
-                voltage.ctypes.data_as(ct.c_void_p),
-                bin_centers.ctypes.data_as(ct.c_void_p),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(voltage),
+                _get_pointer(bin_centers),
                 c_real(charge, floattype),
                 ct.c_int(len(bin_centers)),
                 _get_beam_len(dt),
@@ -612,8 +619,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(floattype(cut_width), floattype),
                 ct.c_int(bins_per_profile),
                 ct.c_int(len(filling_pattern)),
-                filling_pattern.ctypes.data_as(ct.c_void_p),
-                bucket_index_to_memory_index.ctypes.data_as(ct.c_void_p),
+                _get_pointer(filling_pattern),
+                _get_pointer(bucket_index_to_memory_index),
             )
 
         @staticmethod
@@ -664,8 +671,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick = floattype(acceleration_kick)
 
             _LIBBLOND.kick_single_harmonic(
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 c_real(charge, floattype),
                 c_real(voltage, floattype),
                 c_real(omega_rf, floattype),
@@ -791,7 +798,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _get_len(dt),
+                _get_beam_len(dt),
             )
 
         @staticmethod
@@ -884,10 +891,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
                 ct.c_int32(np.int32(flag)),
-                flags.ctypes.data_as(ct.c_void_p),
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
-                ids.ctypes.data_as(ct.c_void_p),
+                _get_pointer(flags),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(ids),
                 _get_beam_len(dt),  # n_macroparticles
             )
             n_new = int(n_new)

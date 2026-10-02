@@ -24,7 +24,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.image import AxesImage
 from numpy.typing import NDArray as NumpyArray
 
-from blond import backend
+from blond.core.backends.backend import backend
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
@@ -34,10 +34,10 @@ from blond.physics.drifts import DriftSimple
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from blond import WakeField
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.generals.typing_ import AnyArray
+    from blond.physics.impedances.base import WakeField
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
     from blond.physics.rf_station import (
         SingleHarmonicRFStation,
@@ -114,16 +114,33 @@ class ObservablesBaseClass(MainLoopRelevant):
     folder
         Target folder to save the data at.
         Use `rename` to change the destination.
+        An empty string means the current working directory.
     **kwargs
         Additional keyword arguments.
     """
 
-    def __init__(self, folder: str | None = None, **kwargs):
+    def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_filepath = folder + "last"
-        logger.info(f"Will save {self} to {self.common_filepath}_,,,")
+        logger.info("Will save %s to %s_,,,", self, self.common_filepath)
+
+    def _calc_n_entries(self, n_turns: int) -> int:
+        """
+        Calculate the number of entries considering `each_turn_i`.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns that the simulation is foreseen to run.
+
+        Returns
+        -------
+        n_entries
+            The number of observations during the simulation.
+        """
+        return int(math.ceil(n_turns / self.each_turn_i))
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         """
@@ -170,21 +187,21 @@ class ObservablesBaseClass(MainLoopRelevant):
             )
         self.common_filepath = new_common_filepath
         logger.info(
-            f"Changed save target of {self} to {self.common_filepath}."
+            "Changed save target of %s to %s.", self, self.common_filepath
         )
 
     def to_disk(self) -> None:
         """Save data to disk."""
         for _attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Saved {array_recorder.filepath_array}")
+            logger.info("Saved %s", array_recorder.filepath_array)
             array_recorder.to_disk()
 
     def from_disk(self) -> None:
         """Load data from disk."""
         for attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Loaded {array_recorder.filepath_array}")
+            logger.info("Loaded %s", array_recorder.filepath_array)
 
             self.__setattr__(
                 attribute_name,
@@ -231,25 +248,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._last_turn_i_observed = (
             -1
         )  # to avoid double recordings with multiple drifts in one section
-        self._last_section_i_observed = -1
 
         self._simulation: Simulation | None = None
-
-    def _calc_n_entries(self, n_turns: int) -> int:
-        """
-        Calculate the number of entries considering `each_turn_i`.
-
-        Parameters
-        ----------
-        n_turns
-            Number of turns that the simulation is foreseen to run.
-
-        Returns
-        -------
-        n_entries
-            The number of observations during the simulation.
-        """
-        return int(math.ceil(n_turns / self.each_turn_i))
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
@@ -406,7 +406,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,
@@ -753,7 +755,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,
@@ -1413,7 +1417,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        n_turns_observation = int(len(self._turns_array) // self.each_turn_i)
+        n_turns_observation = self._calc_n_entries(n_turns)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)
         self._hist_y = DenseArrayRecorder(
