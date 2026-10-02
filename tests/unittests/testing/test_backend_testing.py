@@ -282,7 +282,7 @@ class TestPinFastTestSpecials(BLonDTestCase):
 
     def test_resets_legacy_blond2_backend_if_imported(self):
         # A stub stands in for BLonD 2, which the test suite no longer
-        # imports (its outputs are frozen in golden files).
+        # imports (its outputs are frozen in BLonD 2 reference files).
         legacy_utils = mock.Mock()
         with mock.patch.dict(
             "sys.modules", {"blond.legacy.blond2.utils": legacy_utils}

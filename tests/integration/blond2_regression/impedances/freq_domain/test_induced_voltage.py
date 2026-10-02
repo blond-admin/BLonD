@@ -11,13 +11,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(__file__).parent / "resources"
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 @pytest.mark.integration
@@ -150,9 +150,9 @@ def test_induced_voltage():
         callbacks=_blond3_callback,
     )
 
-    # ── BLonD 2 (golden file) ────────────────────────────────────────────
-    golden_path = _RESOURCES / "induced_voltage_blond2.npz"
-    if REWRITE_GOLDEN_FILE:
+    # ── BLonD 2 (reference file) ────────────────────────────────────────────
+    blond2_reference_path = _RESOURCES / "induced_voltage_blond2.npz"
+    if REWRITE_BLOND2_REFERENCE_FILE:
         from blond.legacy.blond2.beam.beam import Beam, Proton
         from blond.legacy.blond2.beam.profile import CutOptions, Profile
         from blond.legacy.blond2.impedances.impedance import (
@@ -211,18 +211,18 @@ def test_induced_voltage():
                 total_induced_voltage.induced_voltage
             )
 
-        save_golden_file(
-            golden_path,
+        save_blond2_reference_file(
+            blond2_reference_path,
             time_history=time_history_blond2,
             energy_history=energy_history_blond2,
             profile_history=profile_history_blond2,
             induced_history=induced_history_blond2,
         )
-    with np.load(golden_path) as golden:
-        time_history_blond2 = golden["time_history"]
-        energy_history_blond2 = golden["energy_history"]
-        profile_history_blond2 = golden["profile_history"]
-        induced_history_blond2 = golden["induced_history"]
+    with np.load(blond2_reference_path) as blond2_reference:
+        time_history_blond2 = blond2_reference["time_history"]
+        energy_history_blond2 = blond2_reference["energy_history"]
+        profile_history_blond2 = blond2_reference["profile_history"]
+        induced_history_blond2 = blond2_reference["induced_history"]
 
     if _DEV_DRAW:
         plt.figure()

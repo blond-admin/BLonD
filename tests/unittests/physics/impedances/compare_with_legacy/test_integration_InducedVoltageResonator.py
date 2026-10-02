@@ -24,7 +24,7 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
 from .test_integration_InducedVoltageFreq import (
     Q_factor,
@@ -34,12 +34,12 @@ from .test_integration_InducedVoltageFreq import (
 
 DEV_PLOT = False
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 def _run_blond2(n_macroparticles, n_slices, bunch_length):
-    """Run BLonD 2 and return the arrays stored in the golden file."""
+    """Run BLonD 2 and return the arrays stored in the reference file."""
     from blond.legacy.blond2.beam.beam import Beam, Proton
     from blond.legacy.blond2.beam.distributions import bigaussian
     from blond.legacy.blond2.beam.profile import CutOptions, Profile
@@ -66,10 +66,10 @@ def _run_blond2(n_macroparticles, n_slices, bunch_length):
         rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
         full_beam = Beam(ring, n_macroparticles, 1e10)
         bigaussian(ring, rf_station, full_beam, bunch_length, seed=1)
-        # Keeps the golden file small: beams above 1e5 particles are thinned
+        # Keeps the BLonD 2 reference file small: beams above 1e5 particles are thinned
         # to about 1e5 (every 10th particle for the 1e6 case: 1.6 MB instead
         # of 16 MB). BLonD 2 computes the induced voltage from this thinned
-        # beam, and BLonD 3 loads the same particles from the golden file,
+        # beam, and BLonD 3 loads the same particles from the BLonD 2 reference file,
         # so both still see identical input.
         stride = max(1, n_macroparticles // 100_000)
         beam = Beam(
@@ -135,27 +135,27 @@ def _run_blond2(n_macroparticles, n_slices, bunch_length):
 
 
 def load_blond2(n_macroparticles, n_slices, bunch_length):
-    """BLonD 2 results, loaded from the golden file."""
-    golden_path = callers_relative_path(
+    """BLonD 2 results, loaded from the reference file."""
+    blond2_reference_path = callers_relative_path(
         "resources/induced_voltage_resonator"
         f"_{n_macroparticles}_{n_slices}_{bunch_length:.3e}_blond2.npz",
         stacklevel=1,
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(
-            golden_path,
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
             **_run_blond2(n_macroparticles, n_slices, bunch_length),
         )
-    with np.load(golden_path) as golden:
+    with np.load(blond2_reference_path) as blond2_reference:
         return SimpleNamespace(
-            dt=golden["dt"],
-            dE=golden["dE"],
+            dt=blond2_reference["dt"],
+            dE=blond2_reference["dE"],
             profile=SimpleNamespace(
-                cut_left=golden["cut_left"].item(),
-                cut_right=golden["cut_right"].item(),
-                n_slices=golden["n_slices"].item(),
+                cut_left=blond2_reference["cut_left"].item(),
+                cut_right=blond2_reference["cut_right"].item(),
+                n_slices=blond2_reference["n_slices"].item(),
             ),
-            induced_voltage=golden["induced_voltage"],
+            induced_voltage=blond2_reference["induced_voltage"],
         )
 
 

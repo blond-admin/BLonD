@@ -1,10 +1,10 @@
-# BLonD 2 golden files
+# BLonD 2 reference files
 
-The `*_blond2.npz` files in this directory are **golden files**: outputs of
+The `*_blond2.npz` files in this directory are **BLonD 2 reference files**: outputs of
 BLonD 2 (`blond.legacy.blond2`), frozen so the tests next to this directory
 can compare BLonD 3 against them without running BLonD 2.
 
-| Golden file | Written by |
+| BLonD 2 reference file | Written by |
 |-------------|------------|
 | `induced_voltage_freq_blond2.npz` | `test_integration_InducedVoltageFreq.py::TestBothBlonds::test___init__` |
 | `induced_voltage_resonator_1000000_1024_1.250e-10_blond2.npz` | `test_integration_InducedVoltageResonator.py::TestBothBlonds::test_integration` |
@@ -13,18 +13,18 @@ can compare BLonD 3 against them without running BLonD 2.
 | `induced_voltage_resonator_mtw_blond2.npz` | `test_induced_voltage_resonator_mtw_physics.py::TestInducedVoltageResonatorComparison::test_blond2_3` |
 
 - **Don't edit these files by hand.** Regenerate them.
-- A test fails with `FileNotFoundError` when its golden file is missing.
+- A test fails with `FileNotFoundError` when its BLonD 2 reference file is missing.
   That is intentional. Don't work around it; rewrite the file.
-- **To rewrite:** set `REWRITE_GOLDEN_FILE = True` in the test module and
-  run it in the pinned environment from `tests/legacy-golden-requirements.txt`
+- **To rewrite:** set `REWRITE_BLOND2_REFERENCE_FILE = True` in the test module and
+  run it in the pinned environment from `tests/blond2-reference-requirements.txt`
   (the header of that file has the exact commands). Then set the flag back to
   `False` and commit the `.npz`.
 - **Debugging a mismatch:** each file stores the environment that produced
   it (`pip_list`, Python version, platform, git commit, date) as JSON under
-  the `golden_environment` key:
+  the `blond2_reference_environment` key:
 
   ```bash
-  python -c "import numpy as np, sys; print(np.load(sys.argv[1])['golden_environment'])" <file.npz>
+  python -c "import numpy as np, sys; print(np.load(sys.argv[1])['blond2_reference_environment'])" <file.npz>
   ```
 
 The long-term aim is to stop running BLonD 2 anywhere in the test suite, so

@@ -35,7 +35,10 @@ from blond.handle_results.observables import (
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators as res_b3
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.helpers import enforce_64_bit_backend, save_golden_file
+from blond.testing.helpers import (
+    enforce_64_bit_backend,
+    save_blond2_reference_file,
+)
 
 
 def nonperiodic_wake(time_array, f0, R, Q):
@@ -60,8 +63,8 @@ def nonperiodic_wake(time_array, f0, R, Q):
 DEBUG_PLOTTING = False
 SAVE_PLOTS = False
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 plt.rcParams["axes.prop_cycle"] = cycler(
     color=["#0033a0", "#e15e32", "#2f2f2f", "#708238", "#6a4c93", "#c9a227"]
@@ -383,7 +386,7 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
                         rtol=1e-8,
                     )
 
-    def _blond2_golden_arrays(self):
+    def _blond2_blond2_reference_arrays(self):
         """Arrays from `setUpB2` that `setUpB3` needs."""
         expected_induced_voltage = np.zeros(
             (self.n_stations, self.n_turns, self.profile.n_slices)
@@ -410,26 +413,30 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
         )
 
     def load_blond2(self):
-        """Load the `setUpB2` results from the golden file."""
-        golden_path = callers_relative_path(
+        """Load the `setUpB2` results from the BLonD 2 reference file."""
+        blond2_reference_path = callers_relative_path(
             "resources/induced_voltage_resonator_mtw_blond2.npz",
             stacklevel=1,
         )
-        if REWRITE_GOLDEN_FILE:
+        if REWRITE_BLOND2_REFERENCE_FILE:
             self.setUpB2(old_impl=False)
             # self.setUpB2(old_impl=True)  # This will give wrong results, leaving in as comparison
-            save_golden_file(golden_path, **self._blond2_golden_arrays())
-        with np.load(golden_path) as golden:
-            self.hist_x = golden["hist_x"]
-            self.hist_y = golden["hist_y"]
-            self.hist_step = golden["hist_step"].item()
-            self.beam_intensity = golden["beam_intensity"].item()
-            self.t_rf = golden["t_rf"].item()
-            self.plot_normalisation_const = golden[
+            save_blond2_reference_file(
+                blond2_reference_path, **self._blond2_blond2_reference_arrays()
+            )
+        with np.load(blond2_reference_path) as blond2_reference:
+            self.hist_x = blond2_reference["hist_x"]
+            self.hist_y = blond2_reference["hist_y"]
+            self.hist_step = blond2_reference["hist_step"].item()
+            self.beam_intensity = blond2_reference["beam_intensity"].item()
+            self.t_rf = blond2_reference["t_rf"].item()
+            self.plot_normalisation_const = blond2_reference[
                 "plot_normalisation_const"
             ].item()
-            self.time_array_profile = golden["time_array_profile"]
-            self.expected_induced_voltage = golden["expected_induced_voltage"]
+            self.time_array_profile = blond2_reference["time_array_profile"]
+            self.expected_induced_voltage = blond2_reference[
+                "expected_induced_voltage"
+            ]
 
     @pytest.mark.backend_mutation
     def setUpB3(self):

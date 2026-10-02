@@ -15,14 +15,14 @@ import pytest
 
 from blond import copy_to_cpu, setup_backend
 from blond.examples import scripts
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
 _DEV_DRAW = os.getenv("DEV_DRAW", "False").lower() == "true"
 _RESOURCES = Path(scripts.__path__[0]) / "resources"
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
-_GOLDEN_PATH = (
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
+_BLOND2_REFERENCE_PATH = (
     Path(__file__).parent
     / "resources"
     / "compare_inductive_impedance_blond2.npz"
@@ -129,9 +129,9 @@ class _CompareBlond23:
         )
         full_beam = Beam(ring, self.n_macroparticles, self.n_particles)
         bigaussian(ring, RF_sct_par, full_beam, self.sigma_dt, seed=1)
-        # Keeps the golden file small (0.8 MB instead of 8 MB): only every
+        # Keeps the BLonD 2 reference file small (0.8 MB instead of 8 MB): only every
         # 10th bigaussian particle is kept. BLonD 2 tracks this thinned
-        # beam, and BLonD 3 loads the same particles from the golden file,
+        # beam, and BLonD 3 loads the same particles from the BLonD 2 reference file,
         # so both still see identical input.
         dt_init = full_beam.dt[::10].copy()
         dE_init = full_beam.dE[::10].copy()
@@ -298,20 +298,20 @@ class _CompareBlond23:
         return copy_to_cpu(total_voltage), copy_to_cpu(profile.hist_y)
 
     def execute(self):
-        if REWRITE_GOLDEN_FILE:
+        if REWRITE_BLOND2_REFERENCE_FILE:
             induced_voltage, hist_y, dt_init, dE_init = self._exec_blond2()
-            save_golden_file(
-                _GOLDEN_PATH,
+            save_blond2_reference_file(
+                _BLOND2_REFERENCE_PATH,
                 induced_voltage=induced_voltage,
                 hist_y=hist_y,
                 dt_init=dt_init,
                 dE_init=dE_init,
             )
-        with np.load(_GOLDEN_PATH) as golden:
-            induced_voltage_blond2 = golden["induced_voltage"]
-            hist_y_blond2 = golden["hist_y"]
-            dt_init = golden["dt_init"]
-            dE_init = golden["dE_init"]
+        with np.load(_BLOND2_REFERENCE_PATH) as blond2_reference:
+            induced_voltage_blond2 = blond2_reference["induced_voltage"]
+            hist_y_blond2 = blond2_reference["hist_y"]
+            dt_init = blond2_reference["dt_init"]
+            dE_init = blond2_reference["dE_init"]
         induced_voltage_blond3, hist_y_blond3 = self._exec_blond3(
             dt_init, dE_init
         )

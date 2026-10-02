@@ -23,16 +23,16 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import InductiveImpedance
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
 DEV_PLOT = False
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 def _run_blond2():
-    """Run BLonD 2 and return the arrays stored in the golden file."""
+    """Run BLonD 2 and return the arrays stored in the reference file."""
     from blond.legacy.blond2.beam.beam import Beam, Proton
     from blond.legacy.blond2.beam.distributions import bigaussian
     from blond.legacy.blond2.beam.profile import CutOptions, Profile
@@ -65,10 +65,10 @@ def _run_blond2():
     bucket_length = 2.0 * np.pi / rf_station.omega_rf[0, 0]
 
     bigaussian(ring, rf_station, full_beam, 180e-9 / 4, seed=1)
-    # Keeps the golden file small (1.6 MB instead of 160 MB): only every
+    # Keeps the BLonD 2 reference file small (1.6 MB instead of 160 MB): only every
     # 100th bigaussian particle is kept. BLonD 2 computes the induced
     # voltage from this thinned beam, and BLonD 3 loads the same particles
-    # from the golden file, so both still see identical input.
+    # from the BLonD 2 reference file, so both still see identical input.
     beam = Beam(
         ring,
         len(full_beam.dt[::100]),
@@ -109,21 +109,23 @@ def _run_blond2():
 
 
 def load_blond2():
-    """BLonD 2 results, loaded from the golden file."""
-    golden_path = callers_relative_path(
+    """BLonD 2 results, loaded from the reference file."""
+    blond2_reference_path = callers_relative_path(
         "resources/inductive_impedance_blond2.npz", stacklevel=1
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(golden_path, **_run_blond2())
-    with np.load(golden_path) as golden:
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(blond2_reference_path, **_run_blond2())
+    with np.load(blond2_reference_path) as blond2_reference:
         return SimpleNamespace(
-            beam=SimpleNamespace(dt=golden["dt"], dE=golden["dE"]),
-            profile=SimpleNamespace(
-                cut_left=golden["cut_left"].item(),
-                cut_right=golden["cut_right"].item(),
-                n_slices=golden["n_slices"].item(),
+            beam=SimpleNamespace(
+                dt=blond2_reference["dt"], dE=blond2_reference["dE"]
             ),
-            induced_voltage=golden["induced_voltage"],
+            profile=SimpleNamespace(
+                cut_left=blond2_reference["cut_left"].item(),
+                cut_right=blond2_reference["cut_right"].item(),
+                n_slices=blond2_reference["n_slices"].item(),
+            ),
+            induced_voltage=blond2_reference["induced_voltage"],
         )
 
 

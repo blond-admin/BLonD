@@ -9,10 +9,10 @@ from blond import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 def get_poles(
@@ -98,17 +98,17 @@ class TestPole(BLonDTestCase):
         centers, hist_y = get_test_data()
         centers -= centers.min()
 
-        golden_path = callers_relative_path(
+        blond2_reference_path = callers_relative_path(
             "resources/resonators_impedance_and_wake_blond2.npz",
             stacklevel=1,
         )
-        if REWRITE_GOLDEN_FILE:
-            save_golden_file(
-                golden_path, **_run_blond2_resonators(freq, centers)
+        if REWRITE_BLOND2_REFERENCE_FILE:
+            save_blond2_reference_file(
+                blond2_reference_path, **_run_blond2_resonators(freq, centers)
             )
-        with np.load(golden_path) as golden:
-            Z = golden["impedance"]
-            kernel = golden["wake"]
+        with np.load(blond2_reference_path) as blond2_reference:
+            Z = blond2_reference["impedance"]
+            kernel = blond2_reference["wake"]
 
         poles, residues, rms_error, proportional_coeff, constant_coeff = (
             get_poles(freqs=freq, Z=Z, n_pole=3)

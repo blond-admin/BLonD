@@ -6,10 +6,10 @@ from scipy.integrate import cumulative_trapezoid
 from blond import DerivativeInterpolator
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 def _knot_aligned_grid(time, n_sub=51):
@@ -304,18 +304,18 @@ class TestAgreementWithBlond2(BLonDTestCase):
         time = np.linspace(0.0, 0.5, 51)
         momentum = 2e9 + 24e9 * (0.5 - 0.5 * np.cos(np.pi * time / 0.5))
 
-        golden_path = callers_relative_path(
+        blond2_reference_path = callers_relative_path(
             "resources/ring_options_derivative_preprocessing_blond2.npz",
             stacklevel=1,
         )
-        if REWRITE_GOLDEN_FILE:
-            save_golden_file(
-                golden_path,
+        if REWRITE_BLOND2_REFERENCE_FILE:
+            save_blond2_reference_file(
+                blond2_reference_path,
                 **_run_blond2_ring_options(circumference, time, momentum),
             )
-        with np.load(golden_path) as golden:
-            time_blond2 = golden["time"]
-            momentum_blond2 = golden["momentum"]
+        with np.load(blond2_reference_path) as blond2_reference:
+            time_blond2 = blond2_reference["time"]
+            momentum_blond2 = blond2_reference["momentum"]
         n_common = min(len(time_blond2), len(momentum_blond2))
         time_blond2 = np.asarray(time_blond2[:n_common])
         momentum_blond2 = np.asarray(momentum_blond2[:n_common])

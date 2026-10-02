@@ -32,10 +32,10 @@ from blond.core.beam.particle_types import uranium_29
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.sources import Resonators
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 @pytest.fixture(autouse=True)
@@ -127,12 +127,12 @@ def test_single_turn_matches_legacy_and_sorts():
     intensity = beam.intensity
 
     # legacy oracle
-    golden_path = callers_relative_path(
+    blond2_reference_path = callers_relative_path(
         "resources/music_single_turn_blond2.npz", stacklevel=1
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(
-            golden_path,
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
             **_run_legacy_music(
                 np.asarray(dt).copy(),
                 np.asarray(dE).copy(),
@@ -142,10 +142,10 @@ def test_single_turn_matches_legacy_and_sorts():
                 n_turns=1,
             ),
         )
-    with np.load(golden_path) as golden:
-        dt_blond2 = golden["dt"]
-        dE_blond2 = golden["dE"]
-        induced_voltage_blond2 = golden["induced_voltage"]
+    with np.load(blond2_reference_path) as blond2_reference:
+        dt_blond2 = blond2_reference["dt"]
+        dE_blond2 = blond2_reference["dE"]
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
 
     music = Music.headless(beam=beam, source=_resonator())
     ids_before = np.asarray(beam.read_partial_ids()).copy()
@@ -202,18 +202,18 @@ def test_multiturn_matches_legacy():
         music.track(beam=beam)
 
     # legacy oracle driven by hand with the same fixed dt every turn
-    golden_path = callers_relative_path(
+    blond2_reference_path = callers_relative_path(
         "resources/music_multiturn_blond2.npz", stacklevel=1
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(
-            golden_path,
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
             **_run_legacy_music(
                 dt_np, dE_np, n, intensity, t_rev=t_rev, n_turns=n_turns
             ),
         )
-    with np.load(golden_path) as golden:
-        dE_blond2 = golden["dE"]
+    with np.load(blond2_reference_path) as blond2_reference:
+        dE_blond2 = blond2_reference["dE"]
 
     np.testing.assert_allclose(
         np.asarray(beam.read_partial_dE()), dE_blond2, rtol=1e-9

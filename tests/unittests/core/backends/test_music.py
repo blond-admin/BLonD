@@ -22,10 +22,10 @@ from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.helpers import callers_relative_path
-from blond.testing.helpers import save_golden_file
+from blond.testing.helpers import save_blond2_reference_file
 
-# BLonD 2 only runs to rewrite the golden file, see resources/README.md.
-REWRITE_GOLDEN_FILE = False
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 @pytest.fixture(autouse=True)
@@ -98,19 +98,19 @@ def test_music_track_single_turn_matches_legacy():
     dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup()
     n = len(dt)
 
-    golden_path = callers_relative_path(
+    blond2_reference_path = callers_relative_path(
         "resources/music_track_single_turn_blond2.npz", stacklevel=1
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(
-            golden_path,
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
             **_run_legacy_music(
                 dt, dE, R_S, omega_R, Q, n_particles, t_rev, "track_py"
             ),
         )
-    with np.load(golden_path) as golden:
-        induced_voltage_blond2 = golden["induced_voltage"]
-        dE_blond2 = golden["dE"]
+    with np.load(blond2_reference_path) as blond2_reference:
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
+        dE_blond2 = blond2_reference["dE"]
 
     alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
     idx = np.argsort(dt)
@@ -149,19 +149,19 @@ def test_music_track_matches_bruteforce_ground_truth():
     dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup(seed=42, n=200)
     n = len(dt)
 
-    golden_path = callers_relative_path(
+    blond2_reference_path = callers_relative_path(
         "resources/music_track_bruteforce_blond2.npz", stacklevel=1
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(
-            golden_path,
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
             # O(n^2) brute-force reference
             **_run_legacy_music(
                 dt, dE, R_S, omega_R, Q, n_particles, t_rev, "track_classic"
             ),
         )
-    with np.load(golden_path) as golden:
-        induced_voltage_blond2 = golden["induced_voltage"]
+    with np.load(blond2_reference_path) as blond2_reference:
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
 
     alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
     idx = np.argsort(dt)
@@ -197,19 +197,19 @@ def test_music_track_multiturn_matches_legacy():
     n = len(dt)
 
     dt2 = (np.random.default_rng(7).random(n) * 1e-9).astype(backend.float)
-    golden_path = callers_relative_path(
+    blond2_reference_path = callers_relative_path(
         "resources/music_track_multiturn_blond2.npz", stacklevel=1
     )
-    if REWRITE_GOLDEN_FILE:
-        save_golden_file(
-            golden_path,
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
             **_run_legacy_music_multiturn(
                 dt, dt2, dE, R_S, omega_R, Q, n_particles, t_rev
             ),
         )
-    with np.load(golden_path) as golden:
-        induced_voltage_blond2 = golden["induced_voltage"]
-        dE_blond2 = golden["dE"]
+    with np.load(blond2_reference_path) as blond2_reference:
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
+        dE_blond2 = blond2_reference["dE"]
 
     alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
     idx = np.argsort(dt)

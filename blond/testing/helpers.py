@@ -120,7 +120,7 @@ def enforce_64_bit_backend():
         raise TypeError("32-bit float and 64-bit complex have been removed.")
 
 
-_GOLDEN_ENVIRONMENT_KEY = "golden_environment"
+_BLOND2_REFERENCE_ENVIRONMENT_KEY = "blond2_reference_environment"
 
 
 def _git_commit(directory: str) -> str:
@@ -160,13 +160,13 @@ def _git_commit(directory: str) -> str:
     return f"{commit}-dirty" if status else commit
 
 
-def save_golden_file(path: str, **arrays: NumpyArray) -> None:
+def save_blond2_reference_file(path: str, **arrays: NumpyArray) -> None:
     """
     Save reference arrays together with the environment that produced them.
 
-    Golden files freeze the output of code that should no longer run in the
+    BLonD 2 reference files freeze the output of code that should no longer run in the
     test suite (e.g. BLonD 2 in the legacy regression tests). Next to the
-    arrays, the ``golden_environment`` entry stores a JSON string with the
+    arrays, the ``blond2_reference_environment`` entry stores a JSON string with the
     installed packages (``pip_list``), the Python version, the platform,
     the git commit and the creation time, so a later mismatch can be traced
     back to a version drift.
@@ -181,13 +181,13 @@ def save_golden_file(path: str, **arrays: NumpyArray) -> None:
     Raises
     ------
     ValueError
-        If one of the arrays uses the reserved name ``golden_environment``.
+        If one of the arrays uses the reserved name ``blond2_reference_environment``.
 
     Examples
     --------
-    >>> save_golden_file("resources/golden.npz", dt=beam.dt, dE=beam.dE)
-    >>> with np.load("resources/golden.npz") as golden:
-    ...     dt = golden["dt"]
+    >>> save_blond2_reference_file("resources/blond2_reference.npz", dt=beam.dt, dE=beam.dE)
+    >>> with np.load("resources/blond2_reference.npz") as blond2_reference:
+    ...     dt = blond2_reference["dt"]
     """
     import datetime
     import json
@@ -195,8 +195,10 @@ def save_golden_file(path: str, **arrays: NumpyArray) -> None:
     import sys
     from importlib import metadata
 
-    if _GOLDEN_ENVIRONMENT_KEY in arrays:
-        raise ValueError(f"'{_GOLDEN_ENVIRONMENT_KEY}' is a reserved name.")
+    if _BLOND2_REFERENCE_ENVIRONMENT_KEY in arrays:
+        raise ValueError(
+            f"'{_BLOND2_REFERENCE_ENVIRONMENT_KEY}' is a reserved name."
+        )
 
     pip_list = sorted(
         f"{distribution.metadata['Name']}=={distribution.version}"
@@ -211,6 +213,10 @@ def save_golden_file(path: str, **arrays: NumpyArray) -> None:
     }
     np.savez(
         path,
-        **{_GOLDEN_ENVIRONMENT_KEY: json.dumps(environment, indent=1)},
+        **{
+            _BLOND2_REFERENCE_ENVIRONMENT_KEY: json.dumps(
+                environment, indent=1
+            )
+        },
         **arrays,
     )

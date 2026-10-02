@@ -1,23 +1,23 @@
-# Pinned environment for REWRITING the BLonD 2 golden files -- nothing else.
+# Pinned environment for REWRITING the BLonD 2 reference files -- nothing else.
 #
 # The legacy regression tests no longer run BLonD 2: they compare BLonD 3
-# against BLonD 2 outputs frozen in golden `.npz` files (see the README.md
-# next to each golden file). BLonD 2 only runs when a test module's
-# `REWRITE_GOLDEN_FILE = True`. Rewriting should happen in this environment
+# against BLonD 2 outputs frozen in `.npz` reference files (see the README.md
+# next to each BLonD 2 reference file). BLonD 2 only runs when a test module's
+# `REWRITE_BLOND2_REFERENCE_FILE = True`. Rewriting should happen in this environment
 # so the frozen outputs don't drift with newer NumPy/SciPy/Numba releases.
 # These pins must NOT go into `pyproject.toml`: uv resolves one lock for all
 # extras, so any upper bound there would downgrade every environment.
 #
-# Rewrite a golden file:
+# Rewrite a BLonD 2 reference file:
 #   uv venv --python 3.14 .venv-legacy
-#   uv pip install --python .venv-legacy -r tests/legacy-golden-requirements.txt
+#   uv pip install --python .venv-legacy -r tests/blond2-reference-requirements.txt
 #   uv pip install --python .venv-legacy --no-deps -e .
-#   # set REWRITE_GOLDEN_FILE = True in the test module, then:
+#   # set REWRITE_BLOND2_REFERENCE_FILE = True in the test module, then:
 #   .venv-legacy/bin/python -m pytest -p no:randomly <test module>
-#   # set REWRITE_GOLDEN_FILE = False again and commit the .npz
+#   # set REWRITE_BLOND2_REFERENCE_FILE = False again and commit the .npz
 #
-# Each golden file stores the environment that produced it; inspect with
-#   python -c "import numpy as np, sys; print(np.load(sys.argv[1])['golden_environment'])" <file.npz>
+# Each BLonD 2 reference file stores the environment that produced it; inspect with
+#   python -c "import numpy as np, sys; print(np.load(sys.argv[1])['blond2_reference_environment'])" <file.npz>
 #
 # Frozen from uv.lock (extras `dev` + the former `legacy` extra) on 2026-09-28.
 attrs==26.1.0
