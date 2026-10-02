@@ -22,10 +22,12 @@ variables:
   # projects); set to `k8s-gpu` (e.g. when running a pipeline manually) to
   # fall back to the shared Kubernetes GPU runners.
   GPU_RUNNER_TAG: "accpoc-h100-.5"
+# The jobs in `checks` run in parallel on non-GPU runners. The GPU jobs are
+# then gated twice so that a broken commit cannot flood the (few-slot) GPU
+# runner: `test_py314` (a single job) starts only once every check passed, and
+# the `test` fan-out only once that single GPU job passed.
 stages:
-  - precommit
-  - doc_build
-  - test_without_gpu
+  - checks
   - test_py314
   - test
   - deploy
@@ -229,21 +231,12 @@ workflow:
     # test, not per session: 300s leaves ~40x headroom over the slowest MPI
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
-    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
-      --cov-append
-      --cov
-      --cov-config=.coveragerc
-      --cov-report html:coverage-html
-      --cov-report xml:coverage.xml
-      --junitxml=junit-report.xml
-    - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
-    - echo "XML_COVERAGE=$COV"
-  # coverage: '/XML_COVERAGE=(\d+\.\d+)/'
 
 
 .main_only_cupy:
@@ -275,7 +268,7 @@ workflow:
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
     # they can desync on an MPI collective and deadlock (see .main for details).
-    # See the `-x --timeout=...` rationale in the `test_py_314` job above.
+    # See the `-x --timeout=...` rationale in `.main` above.
     - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
@@ -375,7 +368,7 @@ precommit-check:
 
   # Harbor proxy cache: anonymous Docker Hub pulls get 429-throttled.
   image: registry.cern.ch/docker.io/library/python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
-  stage: precommit
+  stage: checks
   interruptible: true
   extends:
     - .cache_uv
@@ -402,7 +395,7 @@ precommit-check:
 
 test_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: test_without_gpu
+  stage: checks
   interruptible: true
   extends:
     - .before_no_gpu
@@ -479,24 +472,6 @@ test_py_313:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
 
-    # ALSO run in merge requests targeting blonder
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
-test_py_314:
-  image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: test
-  interruptible: true
-  extends:
-    - .before
-    - .main
-    - .cache_test
-    # - .publish
-  dependencies: []
-  tags:
-    - $GPU_RUNNER_TAG
-  rules:
-    # Run on branch blonder
-    - if: '$CI_COMMIT_BRANCH == "blonder"'
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
@@ -598,7 +573,7 @@ release_sdist_311:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: doc_build
+  stage: checks
   interruptible: true
   extends:
     - .cache_uv
