@@ -251,6 +251,7 @@ workflow:
     - cd ${project_root}
     - python3 -m pytest
       -m "not backend_mutation and not mpi"
+      -m "not backend_mutation"
       -v
       --randomly-seed=$CI_PIPELINE_ID
 
