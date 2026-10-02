@@ -6,12 +6,13 @@ variables:
   # --- uv (package installer, replaces pip; see `.cache_uv`) ---
   # uv keeps a content-addressed store of every downloaded/built wheel and
   # of the index metadata. Point it into the project dir so GitLab can cache
-  # it between pipelines: a warm cache turns the ~6 minute fresh
-  # `pip install .[all_cuda12]` into a few seconds of hard-linking. There is
-  # deliberately NO lockfile (uv.lock is git-ignored): every pipeline creates
-  # a fresh venv and re-resolves against the index, so we always test the
-  # newest releases and notice breakage early. Only the wheel *files* are
-  # reused from the cache, not a pinned set of versions.
+  # it between pipelines. Only wheels uv had to build from source are kept
+  # (`uv cache prune --ci`, see `.cache_uv`); prebuilt wheels are re-fetched
+  # from PyPI, which is faster than zipping/uploading/restoring them. There
+  # is deliberately NO lockfile (uv.lock is git-ignored): every pipeline
+  # creates a fresh venv and re-resolves against the index, so we always
+  # test the newest releases and notice breakage early. Only the wheel
+  # *files* are reused from the cache, not a pinned set of versions.
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv_cache"
   # Always use the interpreter shipped in the CI image, never let uv download
   # a managed Python of its own.
@@ -77,14 +78,16 @@ workflow:
         - .uv_cache/
   after_script:
     # after_script runs in a fresh shell: PATH and the venv are gone, so
-    # re-add uv. `uv cache prune` drops entries no longer reachable by the
-    # current cache layout. Because every pipeline installs the newest
-    # releases, superseded wheels still accumulate slowly; wipe the cache
-    # once it outgrows BLOND_UV_CACHE_MAX_MB (default 3000) so the GitLab
-    # cache archive stays bounded. after_script runs just before the cache
-    # upload.
+    # re-add uv. `uv cache prune --ci` keeps only wheels built from source
+    # and drops prebuilt wheels plus their unpacked copies: re-downloading
+    # those from PyPI takes a few seconds, while archiving them made the
+    # cache ~900 MB and cost more to upload/restore than it saved. Because
+    # every pipeline installs the newest releases, superseded source builds
+    # still accumulate slowly; wipe the cache once it outgrows
+    # BLOND_UV_CACHE_MAX_MB (default 3000) so the GitLab cache archive stays
+    # bounded. after_script runs just before the cache upload.
     - export PATH="${HOME}/.local/bin:${PATH}"
-    - uv cache prune || true
+    - uv cache prune --ci || true
     - >
       size_mb=$(du -sm "${UV_CACHE_DIR}" 2>/dev/null | cut -f1 || echo 0);
       max_mb="${BLOND_UV_CACHE_MAX_MB:-3000}";
@@ -117,7 +120,7 @@ workflow:
     # Same bookkeeping for the uv cache as in `.cache_uv` (kept in sync by
     # hand -- see the NOTE above on why it cannot be inherited).
     - export PATH="${HOME}/.local/bin:${PATH}"
-    - uv cache prune || true
+    - uv cache prune --ci || true
     - >
       size_mb=$(du -sm "${UV_CACHE_DIR}" 2>/dev/null | cut -f1 || echo 0);
       max_mb="${BLOND_UV_CACHE_MAX_MB:-3000}";
