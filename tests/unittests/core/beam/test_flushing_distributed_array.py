@@ -155,7 +155,7 @@ class TestBeamCoordinateStorage(BLonDTestCase):
             self.assertIsNone(getattr(beam, name), name)
 
     def test_every_assignment_path_keeps_the_flushing_type(self) -> None:
-        values = np.linspace(0.0, 1.0, 10)
+        values = backend.array(np.linspace(0.0, 1.0, 10), dtype=backend.float)
         paths = {
             "setup_beam": lambda beam: None,
             "add_beam": lambda beam: beam.add_beam(self._other_beam()),

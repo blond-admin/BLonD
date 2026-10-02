@@ -7,17 +7,21 @@ from blond.testing.backend_testing import BLonDTestCase
 
 
 class TestSpecialsFlush(BLonDTestCase):
+    def setUp(self) -> None:
+        self.backend_class = type(backend)
+        self.specials_mode = backend.specials_mode
+
     def tearDown(self) -> None:
-        backend.change_backend(Numpy64Bit)
-        backend.set_specials("python")
+        backend.change_backend(self.backend_class)
+        backend.set_specials(self.specials_mode)
 
     def test_every_specials_has_flush(self) -> None:
-        backend.set_specials("python")
         self.assertIsNone(Specials.flush())
         self.assertIsNone(backend.specials.flush())
 
     @pytest.mark.backend_mutation
     def test_set_specials_flushes_previous(self) -> None:
+        backend.change_backend(Numpy64Bit)
         backend.set_specials("python")
         with mock.patch.object(
             type(backend.specials), "flush", create=True
