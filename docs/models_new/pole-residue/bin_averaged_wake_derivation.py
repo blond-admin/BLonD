@@ -195,13 +195,13 @@ def _(mo):
     mo.md(r"""
     # Induced voltage from a wakefield — the short way
 
-    Same result as `step_by_step.py`, but with the conventions chosen up front so that
+    The conventions are chosen up front so that
     almost no substitutions or identities are needed on the way:
 
     1. **One time variable.** $t$ is time everywhere, $t'$ the integration variable.
        Every integral is a convolution $(f * g)(t) = \int f(t - t')\, g(t')\, dt'$, and we use its
        algebra (linear, commutative, associative, shift) instead of renaming variables.
-    2. **Bin-centred grid.** Bin centres $t_j = j\,\Delta t$: the origin sits on a bin centre
+    2. **Bin-centred grid.** Bin centres $t_\ell = \ell\,\Delta t$: the origin sits on a bin centre
        ($t_0$ always cancelled anyway).
     3. **Bin kernel from steps.** The box is the difference of two Heaviside steps at the bin
        edges, centred and normalised: $h = \delta\theta / \Delta t$. It is even, so the bin
@@ -508,7 +508,7 @@ def _(mo):
     mo.md(r"""
     ## 3. The interpolated line density
 
-    The simulation only has one number $\lambda_j$ per bin, at the bin centre $t_j$.
+    The simulation only has one number $\lambda_\ell$ per bin, at the bin centre $t_\ell$.
     The convolution needs $\lambda(t)$ at every $t$: interpolate linearly with a hat.
     """)
     return
@@ -516,12 +516,12 @@ def _(mo):
 
 @app.cell
 def _(Eqn, dt, new, sp, step):
-    j = sp.Symbol("j", integer=True)
+    ell = sp.Symbol("ell", integer=True)
     M = sp.Symbol("M", integer=True, positive=True)
-    tg = sp.IndexedBase("{t}", real=True)  # grid points t_j; label "{t}" keeps it separate from the symbol t
-    eq18 = Eqn(tg[j], j * dt)
-    step(r"**Step 18.** Bin centres on a uniform grid, $j = 0, \dots, M - 1$; the origin sits on a bin centre.", new(eq18))
-    return M, j, tg
+    tg = sp.IndexedBase("{t}", real=True)  # grid points t_ell; label "{t}" keeps it separate from the symbol t
+    eq18 = Eqn(tg[ell], ell * dt)
+    step(r"**Step 18.** Bin centres on a uniform grid, $\ell = 0, \dots, M - 1$; the origin sits on a bin centre.", new(eq18))
+    return M, ell, tg
 
 
 @app.cell
@@ -563,7 +563,8 @@ def _(Eqn, Lam, dt, sp, step, t):
 def _(Eqn, sp, step, t, theta, tp):
     tt = sp.Function(r"\left(\theta * \theta\right)")
     eq23 = Eqn(tt(t), theta(t) * sp.Integral(1, (tp, 0, t)))
-    step(r"**Step 23.** $\theta$ is causal, so $\theta * \theta$ is its running integral (Step 9).", eq23)
+    step(r"**Step 23.** $\theta$ is causal, so $\theta * \theta$ is its running integral (Step 9); "
+        r"inside the range of integration, $0 < t' < t$, the integrand is $\theta(t') = 1$.", eq23)
     return eq23, tt
 
 
@@ -638,18 +639,18 @@ def _(f_hat, np, plt):
 
 
 @app.cell
-def _(Eqn, Lam, M, dt, hh, j, lam, mul, new, sp, step, t, tg):
-    lam_j = sp.IndexedBase("lambda", real=True)
-    eq28 = Eqn(lam(t), sp.Sum(mul(lam_j[j], Lam(t - tg[j])), (j, 0, M - 1)))
-    eq28b = Eqn(lam(t), mul(dt, sp.Sum(mul(lam_j[j], hh(t - tg[j])), (j, 0, M - 1))))
+def _(Eqn, Lam, M, dt, hh, ell, lam, mul, new, sp, step, t, tg):
+    lam_ell = sp.IndexedBase("lambda", real=True)
+    eq28 = Eqn(lam(t), sp.Sum(mul(lam_ell[ell], Lam(t - tg[ell])), (ell, 0, M - 1)))
+    eq28b = Eqn(lam(t), mul(dt, sp.Sum(mul(lam_ell[ell], hh(t - tg[ell])), (ell, 0, M - 1))))
     step(
-        r"**Step 28.** Linear interpolation: one hat per bin. At $t = t_m$ only the term $j = m$ survives "
+        r"**Step 28.** Linear interpolation: one hat per bin. At $t = t_m$ only the term $\ell = m$ survives "
         r"(Step 27), so $\lambda(t_m) = \lambda_m$. With Step 19, and $\Delta t$ pulled out of the sum:",
         new(eq28),
         eq28b,
         order="none",
     )
-    return (lam_j,)
+    return (lam_ell,)
 
 
 @app.cell
@@ -660,8 +661,8 @@ def _(f_hat, np, plt):
     _fig, _ax = plt.subplots(figsize=(6.5, 2.8))
     for _jj, _l in zip(_j, _lam):
         _ax.plot(_t, _l * f_hat(_t - _jj), color="C0", lw=0.8, alpha=0.6)
-    _ax.plot(_t, sum(_l * f_hat(_t - _jj) for _jj, _l in zip(_j, _lam)), "k", lw=2, label=r"$\lambda(t) = \sum_j \lambda_j\,\Lambda(t - t_j)$")
-    _ax.plot(_j, _lam, "o", color="C3", label=r"bin values $\lambda_j$")
+    _ax.plot(_t, sum(_l * f_hat(_t - _jj) for _jj, _l in zip(_j, _lam)), "k", lw=2, label=r"$\lambda(t) = \sum_\ell \lambda_\ell\,\Lambda(t - t_\ell)$")
+    _ax.plot(_j, _lam, "o", color="C3", label=r"bin values $\lambda_\ell$")
     _ax.set_xlabel(r"$t / \Delta t$")
     _ax.set_title(r"Plot: linear interpolation with one hat per bin (Step 28)")
     _ax.legend(loc="upper right", fontsize=8)
@@ -692,12 +693,12 @@ def _(Eqn, N, V_k, mul, q, sp, step, t_k):
 
 
 @app.cell
-def _(Eqn, M, N, V_k, dt, j, lam_j, mul, q, sp, step, t_k):
-    _hW = sp.Function(r"\left(h * W * \left(h * h\right)(\cdot - t_{j})\right)")
-    eq30 = Eqn(V_k, mul(-q * N, dt, sp.Sum(mul(lam_j[j], _hW(t_k)), (j, 0, M - 1))))
+def _(Eqn, M, N, V_k, dt, ell, lam_ell, mul, q, sp, step, t_k):
+    _hW = sp.Function(r"\left(h * W * \left(h * h\right)(\cdot - t_{\ell})\right)")
+    eq30 = Eqn(V_k, mul(-q * N, dt, sp.Sum(mul(lam_ell[ell], _hW(t_k)), (ell, 0, M - 1))))
     step(
         r"**Step 30.** Insert the interpolated $\lambda$ (Step 28). Convolution is linear: "
-        r"$\Delta t$, the finite sum and the $\lambda_j$ come out.",
+        r"$\Delta t$, the finite sum and the $\lambda_\ell$ come out.",
         eq30,
         order="none",
     )
@@ -705,11 +706,11 @@ def _(Eqn, M, N, V_k, dt, j, lam_j, mul, q, sp, step, t_k):
 
 
 @app.cell
-def _(Eqn, M, N, V_k, dt, j, lam_j, mul, q, sp, step, t_k, tg):
+def _(Eqn, M, N, V_k, dt, ell, lam_ell, mul, q, sp, step, t_k, tg):
     hWhh = sp.Function(r"\left(h * W * h * h\right)")
-    eq31 = Eqn(V_k, mul(-q * N, dt, sp.Sum(mul(lam_j[j], hWhh(t_k - tg[j])), (j, 0, M - 1))))
+    eq31 = Eqn(V_k, mul(-q * N, dt, sp.Sum(mul(lam_ell[ell], hWhh(t_k - tg[ell])), (ell, 0, M - 1))))
     step(
-        r"**Step 31.** The shifted factor shifts the whole convolution (Step 12, $a = t_j$).",
+        r"**Step 31.** The shifted factor shifts the whole convolution (Step 12, $a = t_\ell$).",
         eq31,
         order="none",
     )
@@ -717,17 +718,17 @@ def _(Eqn, M, N, V_k, dt, j, lam_j, mul, q, sp, step, t_k, tg):
 
 
 @app.cell
-def _(Eqn, M, N, V_k, add, dt, j, key, lam_j, mul, new, q, sp, step, t):
+def _(Eqn, M, N, V_k, add, dt, ell, key, lam_ell, mul, new, q, sp, step, t):
     k = sp.Symbol("k", integer=True)
     n = sp.Symbol("n", integer=True)
     Wt = sp.Function(r"\tilde{W}")
     hhhW = sp.Function(r"\left(h * h * h * W\right)")
     eq32 = Eqn(
-        V_k, mul(-q * N, dt, sp.Sum(mul(lam_j[j], Wt(mul(add(k, -j), dt))), (j, 0, M - 1)))
+        V_k, mul(-q * N, dt, sp.Sum(mul(lam_ell[ell], Wt(mul(add(k, -ell), dt))), (ell, 0, M - 1)))
     )
     step(
         r"**Step 32.** Reorder the convolution (commutative) and name it the effective wake $\tilde W$. "
-        r"With $t_k = k\,\Delta t$ and $t_j = j\,\Delta t$ (Step 18) the argument is a whole number of bins:",
+        r"With $t_k = k\,\Delta t$ and $t_\ell = \ell\,\Delta t$ (Step 18) the argument is a whole number of bins:",
         key(new(Eqn(Wt(t), hhhW(t)))),
         key(eq32),
         order="none",
@@ -1142,16 +1143,16 @@ def _(
     x,
 ):
     _R = sp.Rational
-    i = sp.Symbol("i", integer=True)
+    nu = sp.Symbol("nu", integer=True)
     _sg = sig[p]
-    a_i = add(n, _R(3, 2), -i)
-    c_i = mul(sp.Pow(-1, i), sp.binomial(3, i))
+    a_nu = add(n, _R(3, 2), -nu)
+    c_nu = mul(sp.Pow(-1, nu), sp.binomial(3, nu))
     _term = lambda c, v: mul(*([] if c == 1 else [c]), theta(add(n, v)), Ecal(mul(_sg, add(n, v))))
     eq50 = Eqn(
         I_p(n),
         mul(sp.Pow(_sg, -3), add(_term(1, _R(3, 2)), _term(-3, _R(1, 2)), _term(3, -_R(1, 2)), _term(-1, -_R(3, 2)))),
     )
-    eq50c = Eqn(I_p(n), mul(sp.Pow(_sg, -3), sp.Sum(mul(c_i, theta(a_i), Ecal(mul(_sg, a_i))), (i, 0, 3))))
+    eq50c = Eqn(I_p(n), mul(sp.Pow(_sg, -3), sp.Sum(mul(c_nu, theta(a_nu), Ecal(mul(_sg, a_nu))), (nu, 0, 3))))
     # check: delta^3 of G_p(t) = theta(t) E(s t)/s^3 directly at t = n dt, numerically, for n = -3..3
     _s, _dt = sp.Rational(-3, 10) + sp.Rational(21, 10) * sp.I, sp.Rational(7, 10)
     _G = theta(t) * E_def.subs(x, sp.Symbol("s") * t) / sp.Symbol("s") ** 3
@@ -1160,21 +1161,21 @@ def _(
     _err = max(abs(complex((_direct.subs(t, m * _dt) - _closed.subs(n, m)).evalf(30))) for m in range(-3, 4))
     step(
         r"**Step 51.** Step 50 in all four terms of Step 49: one closed formula for every $n$. "
-        r"Compactly, with the binomial weights $c_i = (-1)^i \binom{3}{i}$ and the points $a_i = n + \tfrac32 - i$:"
+        r"Compactly, with the binomial weights $c_\nu = (-1)^\nu \binom{3}{\nu}$ and the points $a_\nu = n + \tfrac32 - \nu$:"
         "\n\n*Check: Step 3 applied three times to G_p, at t = nΔt with s_p = −0.3 + 2.1i, Δt = 0.7, "
         f"n = −3…3: max |difference| = {_err:.1e}*",
         eq50,
-        new(r"c_i = (-1)^i \binom{3}{i}, \qquad a_i = n + \tfrac32 - i"),
+        new(r"c_\nu = (-1)^\nu \binom{3}{\nu}, \qquad a_\nu = n + \tfrac32 - \nu"),
         key(eq50c),
         order="none",
     )
-    return a_i, c_i, eq50, i
+    return a_nu, c_nu, eq50, nu
 
 
 @app.cell
 def _(Eqn, I_p, eq50, n, step):
     step(
-        r"**Step 52. Case $n \le -2$ (bins ahead of the source).** All four points $a_i \le -\tfrac12 < 0$: "
+        r"**Step 52. Case $n \le -2$ (bins ahead of the source).** All four points $a_\nu \le -\tfrac12 < 0$: "
         r"every $\theta$ is $0$. Causality, smeared over one bin at most by the boxes."
         "\n\n*Check: Step 51 at n = −2, −3:*",
         Eqn(I_p(n), 0),
@@ -1193,10 +1194,10 @@ def _(mo):
 
 
 @app.cell
-def _(Ecal, Eqn, I_p, a_i, c_i, i, mul, n, p, sig, sp, step):
-    eq52 = Eqn(I_p(n), mul(sp.Pow(sig[p], -3), sp.Sum(mul(c_i, Ecal(mul(sig[p], a_i))), (i, 0, 3))))
+def _(Ecal, Eqn, I_p, a_nu, c_nu, nu, mul, n, p, sig, sp, step):
+    eq52 = Eqn(I_p(n), mul(sp.Pow(sig[p], -3), sp.Sum(mul(c_nu, Ecal(mul(sig[p], a_nu))), (nu, 0, 3))))
     step(
-        r"**Step 53. Case $n \ge 2$.** All four points $a_i \ge \tfrac12 > 0$: every $\theta$ is $1$ (the boxes never "
+        r"**Step 53. Case $n \ge 2$.** All four points $a_\nu \ge \tfrac12 > 0$: every $\theta$ is $1$ (the boxes never "
         r"see the jump of the wake at $t = 0$).",
         eq52,
         order="none",
@@ -1205,27 +1206,27 @@ def _(Ecal, Eqn, I_p, a_i, c_i, i, mul, n, p, sig, sp, step):
 
 
 @app.cell
-def _(Eqn, a_i, c_i, i, p, sig, sp, step):
-    _sum = lambda e: sp.Sum(sp.Mul(c_i, e, evaluate=False), (i, 0, 3))
+def _(Eqn, a_nu, c_nu, nu, p, sig, sp, step):
+    _sum = lambda e: sp.Sum(sp.Mul(c_nu, e, evaluate=False), (nu, 0, 3))
     _sg = sig[p]
     step(
         r"**Step 54.** Insert $\mathcal{E}(x) = e^x - 1 - x - \tfrac{x^2}{2}$: the polynomial parts carry the "
-        r"weights $c_i$ times $1$, $a_i$, $a_i^2$, and a third difference of a polynomial of degree $\le 2$ "
+        r"weights $c_\nu$ times $1$, $a_\nu$, $a_\nu^2$, and a third difference of a polynomial of degree $\le 2$ "
         r"vanishes, **for every $n$**:",
         Eqn(_sum(1), _sum(1).doit()),
-        Eqn(_sum(a_i), sp.expand(_sum(a_i).doit())),
-        Eqn(_sum(a_i**2), sp.expand(_sum(a_i**2).doit())),
+        Eqn(_sum(a_nu), sp.expand(_sum(a_nu).doit())),
+        Eqn(_sum(a_nu**2), sp.expand(_sum(a_nu**2).doit())),
         order="none",
     )
     return
 
 
 @app.cell
-def _(Eqn, I_p, a_i, add, c_i, i, mul, n, p, sig, sp, step):
+def _(Eqn, I_p, a_nu, add, c_nu, nu, mul, n, p, sig, sp, step):
     _R = sp.Rational
     _sg = sig[p]
     _e = lambda c, v: sp.exp(mul(_sg, add(n, v))) if c == 1 else mul(c, sp.exp(mul(_sg, add(n, v))))
-    eq54 = Eqn(I_p(n), mul(sp.Pow(_sg, -3), sp.Sum(mul(c_i, sp.exp(mul(_sg, a_i))), (i, 0, 3))))
+    eq54 = Eqn(I_p(n), mul(sp.Pow(_sg, -3), sp.Sum(mul(c_nu, sp.exp(mul(_sg, a_nu))), (nu, 0, 3))))
     eq54b = Eqn(
         I_p(n), mul(sp.Pow(_sg, -3), add(_e(1, _R(3, 2)), _e(-3, _R(1, 2)), _e(3, -_R(1, 2)), _e(-1, -_R(3, 2))))
     )
@@ -1302,10 +1303,10 @@ def _(
     Eqn,
     Far,
     I_p,
-    a_i,
+    a_nu,
     add,
-    c_i,
-    i,
+    c_nu,
+    nu,
     mul,
     n,
     new,
@@ -1319,12 +1320,12 @@ def _(
     _sg = sig[p]
     eq57 = Eqn(Near(n), add(I_p(n), mul(-1, Far(n))))
     eq57b = Eqn(
-        Near(n), mul(sp.Pow(_sg, -3), sp.Sum(mul(c_i, add(theta(a_i), -1), Ecal(mul(_sg, a_i))), (i, 0, 3)))
+        Near(n), mul(sp.Pow(_sg, -3), sp.Sum(mul(c_nu, add(theta(a_nu), -1), Ecal(mul(_sg, a_nu))), (nu, 0, 3)))
     )
     step(
         r"**Step 58.** Take the far-field formula as a function of **every** $n$ and call the rest the near field. "
-        r"Steps 54–57 hold for every $n$, so $I^{\mathrm{far}}_p(n) = \sigma_p^{-3}\sum_i c_i\, \mathcal{E}(\sigma_p a_i)$; "
-        r"subtract it from Step 51. $\theta(a_i) - 1$ is $-1$ for $a_i < 0$ and $0$ for $a_i > 0$: only the points behind "
+        r"Steps 54–57 hold for every $n$, so $I^{\mathrm{far}}_p(n) = \sigma_p^{-3}\sum_\nu c_\nu\, \mathcal{E}(\sigma_p a_\nu)$; "
+        r"subtract it from Step 51. $\theta(a_\nu) - 1$ is $-1$ for $a_\nu < 0$ and $0$ for $a_\nu > 0$: only the points behind "
         r"the jump remain, each with the Taylor polynomial removed.",
         new(eq57),
         eq57b,
@@ -1350,9 +1351,10 @@ def _(E_def, Ecal, Eqn, Near, add, eq50, eq56, mul, n, p, sig, sp, step, x):
         for m, f in _forms.items()
     ]
     step(
-        r"**Step 59.** Step 58 for each $n$ (points $a_i = n + \tfrac32, n + \tfrac12, n - \tfrac12, n - \tfrac32$ "
-        r"with weights $1, -3, 3, -1$; keep those with $a_i < 0$ and flip their sign). "
-        r"Non-zero on three bins only; for $n \ge 2$ nothing is cut, for $n \le -2$ it cancels the far field (Step 52)."
+        r"**Step 59.** Step 58 for each $n$ (points $a_\nu = n + \tfrac32, n + \tfrac12, n - \tfrac12, n - \tfrac32$ "
+        r"with weights $1, -3, 3, -1$; keep those with $a_\nu < 0$ and flip their sign). "
+        r"Non-trivial on three bins only: for $n \ge 2$ nothing is cut ($I^{\mathrm{near}}_p = 0$), for $n \le -2$ it "
+        r"cancels the far field, $I^{\mathrm{near}}_p = -I^{\mathrm{far}}_p$, since $I_p = 0$ there (Step 52)."
         "\n\n*Check: (Step 51) − (Step 57) − (this), for n = −1, 0, 1, 2:* "
         + ", ".join(f"**{d}**" for d in _diffs),
         *[Eqn(Near(m), mul(f, sp.Pow(_sg, -3)) if f != 0 else f) for m, f in _forms.items()],
@@ -1374,9 +1376,9 @@ def _(
     Wn,
     add,
     dt,
-    j,
+    ell,
     k,
-    lam_j,
+    lam_ell,
     mul,
     n,
     p,
@@ -1388,7 +1390,7 @@ def _(
     step(
         r"**Step 60. Result.** The bin voltage is a discrete convolution with the effective wake; per pole, a "
         r"geometric far field plus a near-field correction on the three bins around the source.",
-        Eqn(V_k, mul(-q * N, dt, sp.Sum(mul(lam_j[j], Wn[add(k, -j)]), (j, 0, add(M, -1))))),
+        Eqn(V_k, mul(-q * N, dt, sp.Sum(mul(lam_ell[ell], Wn[add(k, -ell)]), (ell, 0, add(M, -1))))),
         Eqn(Wn[n], mul(2, sp.re(sp.Sum(mul(r_p[p], I_p(n)), (p, 1, P))))),
         Eqn(I_p(n), add(Far(n), Near(n))),
         order="none",
@@ -1400,7 +1402,7 @@ def _(
 def _(E_def, Ecal, eq50, mo, n, p, sig, sp, x):
     import mpmath
 
-    # independent check: the quadratic B-spline of step_by_step.py (Step 80) and the integral of its Step 84
+    # independent check: the quadratic B-spline beta = h * h * h written out piecewise, integrated numerically
     _y = sp.Symbol("y", real=True)
     _R = sp.Rational
     _beta = sp.Piecewise(
@@ -1418,7 +1420,7 @@ def _(E_def, Ecal, eq50, mo, n, p, sig, sp, x):
         _lim_direct = sp.integrate(_beta.subs(x, _n - _y), (_y, 0, 6))
         _rows.append(f"| {_n} | {_err:.1e} | ${sp.latex(_lim)}$ | ${sp.latex(_lim_direct)}$ |")
     mo.md(
-        r"**Independent check** against `step_by_step.py`: there $I_p(n) = \int_0^\infty \beta(n - y)\, e^{\sigma_p y}\, dy$ "
+        r"**Independent check** by a different route: $I_p(n) = \int_0^\infty \beta(n - y)\, e^{\sigma_p y}\, dy$ "
         r"with the quadratic B-spline $\beta$ worked out piece by piece. Numerical integral at $\sigma_p = -0.3 + 2.1i$, "
         r"and the limit $\sigma_p \to 0$ against $\int_0^\infty \beta(n - y)\, dy$:"
         "\n\n| n | abs(Step 51 − numerical) | limit σ→0 of Step 51 | direct |\n|---|---|---|---|\n" + "\n".join(_rows)
@@ -1436,25 +1438,25 @@ def _(mo):
     needs the charge of the *next* bin and factors $e^{-\sigma_p}$ that grow for strongly damped poles.
     Better (as in the BLonD near-/far-field note): the recursion only takes lags $n \ge 2$, where the
     far-field formula is exact anyway (Step 53); the three lags $n = -1, 0, 1$ are applied as three exact
-    taps; $n \le -2$ is zero (Step 52). Below, $\lambda_j = 0$ for bins outside $0, \dots, M - 1$.
+    taps; $n \le -2$ is zero (Step 52). Below, $\lambda_\ell = 0$ for bins outside $0, \dots, M - 1$.
     """)
     return
 
 
 @app.cell
-def _(Eqn, N, V_k, Wn, add, dt, j, k, lam_j, mul, new, q, sp, step):
+def _(Eqn, N, V_k, Wn, add, dt, ell, k, lam_ell, mul, new, q, sp, step):
     V_far = sp.Symbol(r"V_k^{\mathrm{far}}")
     V_near = sp.Symbol(r"V_k^{\mathrm{near}}")
     _pre = -q * N * dt
     eq61 = Eqn(V_k, add(V_far, V_near))
-    eq61_far = Eqn(V_far, mul(_pre, sp.Sum(mul(lam_j[j], Wn[add(k, -j)]), (j, 0, add(k, -2)))))
+    eq61_far = Eqn(V_far, mul(_pre, sp.Sum(mul(lam_ell[ell], Wn[add(k, -ell)]), (ell, 0, add(k, -2)))))
     eq61_near = Eqn(
         V_near,
-        mul(_pre, add(mul(lam_j[add(k, -1)], Wn[1]), mul(lam_j[k], Wn[0]), mul(lam_j[add(k, 1)], Wn[-1]))),
+        mul(_pre, add(mul(lam_ell[add(k, -1)], Wn[1]), mul(lam_ell[k], Wn[0]), mul(lam_ell[add(k, 1)], Wn[-1]))),
     )
     # check: for M = 6 bins and every k, full sum (with W_n = 0 for n <= -2, Step 52) minus the split
     _M = 6
-    _lam = lambda jj: lam_j[jj] if 0 <= jj < _M else 0
+    _lam = lambda jj: lam_ell[jj] if 0 <= jj < _M else 0
     _W = lambda nn: Wn[nn] if nn >= -1 else 0
     _diffs = []
     for _k in range(_M):
@@ -1464,8 +1466,8 @@ def _(Eqn, N, V_k, Wn, add, dt, j, k, lam_j, mul, new, q, sp, step):
         )
         _diffs.append(sp.expand(_full - _split))
     step(
-        r"**Step 61.** Split the sum of Step 60 by the lag $n = k - j$: $n \ge 2$ (bins $j \le k - 2$, far field), "
-        r"$n = 1, 0, -1$ (the previous bin, the bin itself, the next bin: near field). The bins $j \ge k + 2$ "
+        r"**Step 61.** Split the sum of Step 60 by the lag $n = k - \ell$: $n \ge 2$ (bins $\ell \le k - 2$, far field), "
+        r"$n = 1, 0, -1$ (the previous bin, the bin itself, the next bin: near field). The bins $\ell \ge k + 2$ "
         r"have $n \le -2$ and drop out (Step 52)."
         "\n\n*Check with M = 6 bins, for k = 0, …, 5 (full sum minus split):* "
         + ", ".join(f"**{d}**" for d in _diffs),
@@ -1490,8 +1492,8 @@ def _(E_def, Ecal, Eqn, I_p, add, eq50, key, mul, n, p, sig, sp, step, x):
     _ev = lambda e: e.doit().replace(Ecal, lambda v: E_def.subs(x, v))
     _diffs = [sp.simplify(_ev(f / _sg**3) - _ev(eq50.rhs).subs(n, m)) for m, f in _taps.items()]
     step(
-        r"**Step 62. The three near-field taps.** Step 51 at $n = -1, 0, 1$: the points $a_i$ are half-integers, "
-        r"so each $\theta(a_i)$ is $1$ for $a_i > 0$ and $0$ for $a_i < 0$; only the points ahead of the jump stay. "
+        r"**Step 62. The three near-field taps.** Step 51 at $n = -1, 0, 1$: the points $a_\nu$ are half-integers, "
+        r"so each $\theta(a_\nu)$ is $1$ for $a_\nu > 0$ and $0$ for $a_\nu < 0$; only the points after the jump at $a = 0$ (those with $a_\nu > 0$) stay. "
         r"Each tap is $\tilde W_m = 2\,\mathrm{Re}\sum_p r_p\, I_p(m)$, computed once per setup "
         r"(for small $|\sigma_p|$ evaluate $\mathcal{E}$ by its series, Step 46)."
         "\n\n*Check: Step 51 at n = −1, 0, 1 minus these:* " + ", ".join(f"**{d}**" for d in _diffs),
@@ -1520,7 +1522,7 @@ def _(f_W, f_Wt, f_far, np, plt):
     _a2.plot(_n[_far], f_Wt(_n[_far]), "o", color="C0", label=r"far field $\tilde W_n$, $n \geq 2$: recursion")
     _a2.plot(_n[_near], f_Wt(_n[_near]), "s", color="C3", ms=7, label=r"near-field taps $n = -1, 0, 1$")
     _a2.axvspan(-1.5, 1.5, color="C3", alpha=0.08)
-    _a2.set_xlabel(r"lag $n = (t_k - t_j) / \Delta t$")
+    _a2.set_xlabel(r"lag $n = (t_k - t_\ell) / \Delta t$")
     _a2.set_ylabel(r"$\tilde W / W(0^+)$  (zoom)")
     _a2.set_title("Bottom: zoom; on the grid the taps leave the geometric curve", fontsize=10)
     _a2.legend(loc="upper right", fontsize=7)
@@ -1532,16 +1534,16 @@ def _(f_W, f_Wt, f_far, np, plt):
 
 
 @app.cell
-def _(Eqn, N, P, V_far, add, dt, j, k, lam_j, mul, p, q, r_p, sig, sp, step):
+def _(Eqn, N, P, V_far, add, dt, ell, k, lam_ell, mul, p, q, r_p, sig, sp, step):
     _sg = sig[p]
     Fsig = mul(2, sp.sinh(mul(sp.Rational(1, 2), _sg)), sp.Pow(_sg, -1))
-    _far = mul(r_p[p], sp.exp(mul(_sg, add(k, -j))), sp.Pow(Fsig, 3, evaluate=False))
+    _far = mul(r_p[p], sp.exp(mul(_sg, add(k, -ell))), sp.Pow(Fsig, 3, evaluate=False))
     eq63 = Eqn(
         V_far,
-        mul(-q * N * dt, sp.Sum(mul(lam_j[j], 2, sp.re(sp.Sum(_far, (p, 1, P)))), (j, 0, add(k, -2)))),
+        mul(-q * N * dt, sp.Sum(mul(lam_ell[ell], 2, sp.re(sp.Sum(_far, (p, 1, P)))), (ell, 0, add(k, -2)))),
     )
     step(
-        r"**Step 63. Far field.** Every lag in the far sum is $n = k - j \ge 2$, where the far-field formula "
+        r"**Step 63. Far field.** Every lag in the far sum is $n = k - \ell \ge 2$, where the far-field formula "
         r"(Step 57) is exact. Insert it into Step 61:",
         eq63,
         order="none",
@@ -1559,9 +1561,9 @@ def _(
     add,
     cmath,
     dt,
-    j,
+    ell,
     k,
-    lam_j,
+    lam_ell,
     mul,
     p,
     q,
@@ -1583,14 +1585,14 @@ def _(
                     mul(
                         r_p[p],
                         sp.Pow(Fsig, 3, evaluate=False),
-                        sp.Sum(mul(lam_j[j], sp.exp(mul(_sg, add(k, -j)))), (j, 0, add(k, -2))),
+                        sp.Sum(mul(lam_ell[ell], sp.exp(mul(_sg, add(k, -ell)))), (ell, 0, add(k, -2))),
                     ),
                     (p, 1, P),
                 )
             ),
         ),
     )
-    # numerical check: real lambda_j, 2 poles, k = 7
+    # numerical check: real lambda_ell, 2 poles, k = 7
     random.seed(1)
     _lam = [random.uniform(0, 1) for _ in range(8)]
     _poles = [(complex(0.3, -0.7), complex(-0.2, 4.39)), (complex(-1.1, 0.4), complex(-0.05, 1.3))]
@@ -1599,9 +1601,9 @@ def _(
     _a = sum(_lam[jj] * sum(2 * (r * cmath.exp(s_ * (_k - jj)) * _F(s_)).real for r, s_ in _poles) for jj in range(_k - 1))
     _b = 2 * sum(r * _F(s_) * sum(_lam[jj] * cmath.exp(s_ * (_k - jj)) for jj in range(_k - 1)) for r, s_ in _poles).real
     step(
-        r"**Step 64.** The $\lambda_j$ are real and $\mathrm{Re}$ is linear: pull $2\,\mathrm{Re}$, the sum over the "
-        r"poles and the $j$-independent factors out of the sum over $j$."
-        "\n\n" + f"*Check with random real λ_j, two poles, k = 7: |Step 63 − Step 64| = {abs(_a - _b):.1e}*",
+        r"**Step 64.** The $\lambda_\ell$ are real and $\mathrm{Re}$ is linear: pull $2\,\mathrm{Re}$, the sum over the "
+        r"poles and the $\ell$-independent factors out of the sum over $\ell$."
+        "\n\n" + f"*Check with random real λ_ℓ, two poles, k = 7: |Step 63 − Step 64| = {abs(_a - _b):.1e}*",
         eq64,
         order="none",
     )
@@ -1617,7 +1619,7 @@ def _(Eqn, Fsig, add, key, mul, new, p, r_p, sig, sp, step):
         r_p[p], sp.Pow(mul(add(sp.exp(_sg), -1), sp.Pow(_sg, -1)), 3, evaluate=False), sp.exp(mul(sp.Rational(1, 2), _sg))
     )
     step(
-        r"**Step 65.** Factor two bins out of each exponential, $e^{\sigma_p (k - j)} = e^{2\sigma_p}\, e^{\sigma_p (k - 2 - j)}$, "
+        r"**Step 65.** Factor two bins out of each exponential, $e^{\sigma_p (k - \ell)} = e^{2\sigma_p}\, e^{\sigma_p (k - 2 - \ell)}$, "
         r"and collect the constants of pole $p$ into the readout residue $\rho_p$. "
         r"With $2\sinh\frac{\sigma_p}{2} = e^{-\sigma_p/2}\,(e^{\sigma_p} - 1)$ it takes a second form:"
         "\n\n*Check: first form minus second form:*",
@@ -1640,9 +1642,9 @@ def _(
     V_far,
     add,
     dt,
-    j,
+    ell,
     k,
-    lam_j,
+    lam_ell,
     mul,
     new,
     p,
@@ -1655,11 +1657,11 @@ def _(
     S = sp.IndexedBase("S")
     z = sp.IndexedBase("z")
     eq66_z = Eqn(z[p], sp.exp(sig[p]))
-    eq66_S = Eqn(S[p, k], sp.Sum(mul(lam_j[j], sp.Pow(z[p], add(k, -2, -j))), (j, 0, add(k, -2))))
+    eq66_S = Eqn(S[p, k], sp.Sum(mul(lam_ell[ell], sp.Pow(z[p], add(k, -2, -ell))), (ell, 0, add(k, -2))))
     eq66 = Eqn(V_far, mul(-q * N * dt, 2, sp.re(sp.Sum(mul(rho_p[p], S[p, k]), (p, 1, P)))))
     step(
-        r"**Step 66.** Name the factor per bin $z_p$ and the remaining sum over $j$ the **state** $S_{p,k}$ of pole $p$ "
-        r"at bin $k$: every charge $\lambda_j$, carried from bin $j$ to bin $k - 2$ (decayed and rotated by $z_p$ "
+        r"**Step 66.** Name the factor per bin $z_p$ and the remaining sum over $\ell$ the **state** $S_{p,k}$ of pole $p$ "
+        r"at bin $k$: every charge $\lambda_\ell$, carried from bin $\ell$ to bin $k - 2$ (decayed and rotated by $z_p$ "
         r"per bin). The whole $k$-dependence of the far field sits in $S_{p,k}$.",
         new(eq66_z),
         new(eq66_S),
@@ -1670,13 +1672,13 @@ def _(
 
 
 @app.cell
-def _(Eqn, S, add, j, k, lam_j, mul, p, sp, step, z):
+def _(Eqn, S, add, ell, k, lam_ell, mul, p, sp, step, z):
     eq67 = Eqn(
         S[p, k],
-        add(lam_j[add(k, -2)], sp.Sum(mul(lam_j[j], sp.Pow(z[p], add(k, -2, -j))), (j, 0, add(k, -3)))),
+        add(lam_ell[add(k, -2)], sp.Sum(mul(lam_ell[ell], sp.Pow(z[p], add(k, -2, -ell))), (ell, 0, add(k, -3)))),
     )
     step(
-        r"**Step 67.** Split off the newest term, $j = k - 2$ (exponent $0$, so $z_p^0 = 1$).",
+        r"**Step 67.** Split off the newest term, $\ell = k - 2$ (exponent $0$, so $z_p^0 = 1$).",
         eq67,
         order="none",
     )
@@ -1684,16 +1686,16 @@ def _(Eqn, S, add, j, k, lam_j, mul, p, sp, step, z):
 
 
 @app.cell
-def _(Eqn, S, add, j, k, lam_j, mul, p, sp, step, z):
+def _(Eqn, S, add, ell, k, lam_ell, mul, p, sp, step, z):
     eq68 = Eqn(
         S[p, k],
         add(
-            lam_j[add(k, -2)],
-            mul(z[p], sp.Sum(mul(lam_j[j], sp.Pow(z[p], add(add(k, -1), -2, -j))), (j, 0, add(add(k, -1), -2)))),
+            lam_ell[add(k, -2)],
+            mul(z[p], sp.Sum(mul(lam_ell[ell], sp.Pow(z[p], add(add(k, -1), -2, -ell))), (ell, 0, add(add(k, -1), -2)))),
         ),
     )
     step(
-        r"**Step 68.** Pull one factor $z_p$ out of the remaining sum: $z_p^{k-2-j} = z_p \cdot z_p^{(k-1)-2-j}$, "
+        r"**Step 68.** Pull one factor $z_p$ out of the remaining sum: $z_p^{k-2-\ell} = z_p \cdot z_p^{(k-1)-2-\ell}$, "
         r"and write the upper limit $k - 3$ as $(k - 1) - 2$.",
         eq68,
         order="none",
@@ -1702,11 +1704,11 @@ def _(Eqn, S, add, j, k, lam_j, mul, p, sp, step, z):
 
 
 @app.cell
-def _(Eqn, S, add, k, key, lam_j, mul, p, sp, step, z):
-    eq69 = Eqn(S[p, k], add(mul(z[p], S[p, add(k, -1)]), lam_j[add(k, -2)]))
+def _(Eqn, S, add, k, key, lam_ell, mul, p, sp, step, z):
+    eq69 = Eqn(S[p, k], add(mul(z[p], S[p, add(k, -1)]), lam_ell[add(k, -2)]))
     # check: with the definition of Step 66 written out for k = 2..7, S_k - (z S_{k-1} + lambda_{k-2})
-    _Sdef = lambda kk: sum(lam_j[jj] * z[p] ** (kk - 2 - jj) for jj in range(0, kk - 1))
-    _diffs = [sp.expand(_Sdef(kk) - (z[p] * _Sdef(kk - 1) + lam_j[kk - 2])) for kk in range(2, 8)]
+    _Sdef = lambda kk: sum(lam_ell[jj] * z[p] ** (kk - 2 - jj) for jj in range(0, kk - 1))
+    _diffs = [sp.expand(_Sdef(kk) - (z[p] * _Sdef(kk - 1) + lam_ell[kk - 2])) for kk in range(2, 8)]
     step(
         r"**Step 69. The far-field recursion.** The sum in Step 68 is the state of the previous bin, $S_{p,k-1}$ "
         r"(Step 66 with $k \to k - 1$). Per bin and pole: **decay** (multiply by $z_p$), **inject** the charge that "
@@ -1731,7 +1733,7 @@ def _(cmath, math, step):
     }
     step(
         r"**Step 70. Why the state lags two bins.** For a damped pole, $\mathrm{Re}\,\sigma_p \le 0$, every factor in the "
-        r"recursion is bounded by one: $|z_p| = e^{\mathrm{Re}\,\sigma_p} \le 1$; "
+        r"recursion and its readout is bounded by one: $|z_p| = e^{\mathrm{Re}\,\sigma_p} \le 1$; "
         r"$\left|\frac{e^{\sigma_p} - 1}{\sigma_p}\right| = \left|\int_0^1 e^{\sigma_p u}\, du\right| \le 1$; "
         r"$|e^{\sigma_p/2}| \le 1$. So $|\rho_p| \le |r_p|$ (second form of Step 65), and nothing can overflow at any "
         r"bin width. A state referred to bin $k$ itself would need $e^{-2\sigma_p}$ in the readout instead, which "
@@ -1760,7 +1762,7 @@ def _(
     eq50,
     k,
     key,
-    lam_j,
+    lam_ell,
     mul,
     n,
     p,
@@ -1774,16 +1776,16 @@ def _(
     z,
 ):
 
-    eq71_S = Eqn(S[p, k], add(mul(z[p], S[p, add(k, -1)]), lam_j[add(k, -2)]))
+    eq71_S = Eqn(S[p, k], add(mul(z[p], S[p, add(k, -1)]), lam_ell[add(k, -2)]))
     eq71_V = Eqn(
         V_k,
         mul(
             -q * N * dt,
             add(
                 mul(2, sp.re(sp.Sum(mul(rho_p[p], S[p, k]), (p, 1, P)))),
-                mul(lam_j[add(k, -1)], Wn[1]),
-                mul(lam_j[k], Wn[0]),
-                mul(lam_j[add(k, 1)], Wn[-1]),
+                mul(lam_ell[add(k, -1)], Wn[1]),
+                mul(lam_ell[k], Wn[0]),
+                mul(lam_ell[add(k, 1)], Wn[-1]),
             ),
         ),
     )
@@ -1815,7 +1817,8 @@ def _(
     step(
         r"**Step 71. Result.** Per bin $k$ and pole $p$: one multiplication and one addition for the state, one "
         r"product for the readout; plus three taps for the near field. $\mathcal{O}(1)$ per bin and pole, "
-        r"$\mathcal{O}(M P)$ for the whole profile instead of $\mathcal{O}(M^2 P)$."
+        r"$\mathcal{O}(M P)$ for the whole profile instead of $\mathcal{O}(M^2)$ for the direct convolution with "
+        r"the tabulated $\tilde W_n$ ($\mathcal{O}(M^2 P)$ if the poles are summed inside the double sum)."
         "\n\n"
         + f"*Check: M = 40 random bins, two poles (one is the 0.7 GHz, Q = 11 resonator at Δt = 1 ns): "
         f"max |direct convolution − (recursion + taps)| / max |V| = {_err:.1e}*",
@@ -1836,7 +1839,7 @@ def _(ex_r, ex_sig, f_Wt, np, plt):
     _z = np.exp(ex_sig)
     _rho = ex_r * ((np.exp(ex_sig) - 1) / ex_sig) ** 3 * np.exp(ex_sig / 2)
     _taps = {m: float(f_Wt(m)) for m in (-1, 0, 1)}
-    _lamx = lambda j: _lam[j] if 0 <= j < _M else 0.0
+    _lamx = lambda ell: _lam[ell] if 0 <= ell < _M else 0.0
     _S, _Vfar, _Vnear = 0j, [], []
     for _kk in range(_M):
         _S = _z * _S + _lamx(_kk - 2)
@@ -1845,10 +1848,10 @@ def _(ex_r, ex_sig, f_Wt, np, plt):
     _Vfar, _Vnear = np.array(_Vfar), np.array(_Vnear)
     # direct discrete convolution with the effective wake, for comparison
     _Wn = lambda n: float(f_Wt(n)) if n >= -1 else 0.0
-    _direct = np.array([sum(_lam[j] * _Wn(kk - j) for j in range(_M)) for kk in range(_M)])
+    _direct = np.array([sum(_lam[ell] * _Wn(kk - ell) for ell in range(_M)) for kk in range(_M)])
     _fig, (_a1, _a2) = plt.subplots(2, 1, figsize=(6.5, 4.6), sharex=True)
     _a1.bar(_k, _lam, width=1.0, color="0.75", edgecolor="0.5", lw=0.4)
-    _a1.set_ylabel(r"$\lambda_j$")
+    _a1.set_ylabel(r"$\lambda_\ell$")
     _a1.set_title("Plot: induced voltage of an example bunch, recursion + taps (Step 71)")
     _a2.plot(_k, _direct, "k", lw=2, label="direct convolution")
     _a2.plot(_k, _Vfar + _Vnear, "o", color="C1", ms=3.5, label="far (recursion) + near (taps)")

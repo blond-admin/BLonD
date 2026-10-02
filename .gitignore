@@ -375,3 +375,7 @@ tests/unittests/interfaces/rf_noise_cpp/rf-noise-cpp/
 tests/last_*
 last_*.json
 last_*.npy
+
+# marimo notebooks: cache and the .ipynb exported by docs/conf.py
+__marimo__/
+/docs/models_new/pole-residue/*.ipynb

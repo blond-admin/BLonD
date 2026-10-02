@@ -19,7 +19,9 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import datetime
 import os
+import re
 import shutil
+import subprocess
 import sys
 from importlib.metadata import version as get_version
 
@@ -72,6 +74,56 @@ def check_system_dependencies():
 
 
 check_system_dependencies()
+
+
+def export_marimo_notebooks(notebooks):
+    r"""
+    Export marimo notebooks to executed ``.ipynb`` files for nbsphinx.
+
+    marimo wraps math as ``<marimo-tex>||[ ... ||]</marimo-tex>``, which
+    only its own frontend renders, so the tags are rewritten to the
+    ``\[ ... \]`` / ``\( ... \)`` delimiters MathJax picks up.
+
+    Parameters
+    ----------
+    notebooks : list of str
+        Paths of the marimo ``.py`` notebooks, relative to ``docs/``.
+
+    Raises
+    ------
+    RuntimeError
+        If a ``<marimo-tex>`` tag survives the rewrite, i.e. marimo
+        changed its output format.
+    """
+    docs_dir = os.path.dirname(os.path.abspath(__file__))
+    for notebook in notebooks:
+        source = os.path.join(docs_dir, notebook)
+        target = os.path.splitext(source)[0] + ".ipynb"
+        subprocess.run(
+            [sys.executable, "-m", "marimo", "export", "ipynb", source,
+             "-o", target, "--include-outputs", "--force"],
+            check=True,
+        )  # fmt: skip
+        with open(target, encoding="utf-8") as f:
+            text = f.read()
+        text = re.sub(
+            r'<marimo-tex class=\\"arithmatex\\">\|\|([\[(])(.*?)'
+            r"\|\|[\])]</marimo-tex>",
+            lambda m: rf"\\{m[1]}{m[2]}\\{']' if m[1] == '[' else ')'}",
+            text,
+        )
+        if "marimo-tex" in text:
+            raise RuntimeError(
+                f"Unconverted <marimo-tex> left in {target}; marimo "
+                "changed its math output, update export_marimo_notebooks."
+            )
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(text)
+
+
+export_marimo_notebooks(
+    ["models_new/pole-residue/bin_averaged_wake_derivation.py"]
+)
 
 sys.path.insert(0, os.path.abspath(".."))
 
