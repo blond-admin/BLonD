@@ -255,8 +255,14 @@ def make_deferred_specials(
             continue
         eager_method = getattr(eager_specials, name)
         if name in ARGS_BY_SPECIALS_METHOD:
-            method = _queuing_method(
-                ARGS_BY_SPECIALS_METHOD[name],
+            args_type = ARGS_BY_SPECIALS_METHOD[name]
+            make_method = (
+                _queuing_method
+                if args_type.reads_queued_dt_as is None
+                else _queuing_on_queued_dt_method
+            )
+            method = make_method(
+                args_type,
                 eager_method,
                 eager_specials,
                 thread_queues,
@@ -279,6 +285,68 @@ def _flushing_method(eager_method: Callable, flush: Callable) -> Callable:
         return eager_method(*args, **kwargs)
 
     return flush_then_call
+
+
+def _queuing_on_queued_dt_method(
+    args_type: type[KernelCallArgs],
+    eager_method: Callable,
+    eager_specials: type,
+    thread_queues: _ThreadQueues,
+    flush: Callable,
+) -> Callable:
+    """
+    Make the method queuing a kernel that reads the queued ``dt``.
+
+    For a kernel whose method takes no ``dt, dE`` (e.g. `histogram`),
+    but an array that may be the queued beam's ``dt``: a call on that
+    ``dt`` queues ``args_type`` records, ending the batch it joins; a
+    call on any other array, or with nothing queued, runs eagerly.
+
+    Parameters
+    ----------
+    args_type
+        The kernel's ``Args`` class; `reads_queued_dt_as` names the
+        parameter.
+    eager_method
+        The eager specials method, for the eager calls and the
+        signature.
+    eager_specials
+        The eager specials class, for backend-specific helpers.
+    thread_queues
+        The queue of each thread.
+    flush
+        Runs the queue.
+
+    Returns
+    -------
+    Callable
+        The queuing method, with the eager method's metadata.
+    """
+    signature = inspect.signature(eager_method)
+    dt_parameter = args_type.reads_queued_dt_as
+    packer = args_type.record_packer()
+
+    @functools.wraps(eager_method)
+    def queue_if_queued_dt(*args: Any, **kwargs: Any) -> Any:
+        bound = signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+        arguments = bound.arguments
+        queue = thread_queues.queue
+        records = None
+        if queue.n_bytes > 0 and arguments[dt_parameter] is queue.dt:
+            records = args_type.field_values_from_specials_call(
+                arguments, eager_specials
+            )
+        if records is None:  # nothing to fuse with, or not the queued dt
+            flush()
+            return eager_method(**arguments)
+        for values in records:
+            queue.append_record(args_type, packer, *values)
+        if args_type.ends_batch:
+            flush()
+        return None
+
+    return queue_if_queued_dt
 
 
 def _queuing_method(

@@ -37,7 +37,7 @@ KICK = dict(
 )
 DRIFT = dict(T=1e-6, eta_0=0.01, beta=0.9, energy=2e9)
 # Inside the ±1e-8 s of `_beam`, so some particles fall outside.
-CUTS = dict(cut_left=-0.8e-8, cut_right=0.9e-8)
+CUTS = dict(start=-0.8e-8, stop=0.9e-8)
 
 
 def _turn(specials, dt, dE, n_rf=3, n_alpha=2, n_bins=64):
@@ -325,10 +325,10 @@ class TestCppDeferredSpecials(BLonDTestCase):
                 continue
             self.assertIn(name, vars(self.deferred_class), name)
 
-    # ------------------------------------------------------ beam_histogram
+    # ----------------------------------------------------------- histogram
 
     def _histogram_matches_eager(self, dt, dE, n_bins, calls=()) -> None:
-        """Run ``calls`` then ``beam_histogram`` eagerly and deferred."""
+        """Run ``calls`` then ``histogram`` of dt eagerly and deferred."""
         dt_eager, dE_eager = backend.copy(dt), backend.copy(dE)
         results = []
         for specials, dt_, dE_ in (
@@ -338,7 +338,7 @@ class TestCppDeferredSpecials(BLonDTestCase):
             for method, kwargs in calls:
                 getattr(specials, method)(dt=dt_, dE=dE_, **kwargs)
             hist_y = backend.ones(n_bins, dtype=backend.float)
-            specials.beam_histogram(dt=dt_, dE=dE_, hist_y=hist_y, **CUTS)
+            specials.histogram(array_read=dt_, array_write=hist_y, **CUTS)
             results.append(hist_y)
         # Counts are integers: no tolerance.
         np.testing.assert_array_equal(
@@ -368,7 +368,7 @@ class TestCppDeferredSpecials(BLonDTestCase):
         # Exactly cut_left and cut_right count in the first and last bin;
         # values that scale to n_bins but lie below cut_right count in the
         # last bin; values just outside either cut are dropped.
-        left, right = CUTS["cut_left"], CUTS["cut_right"]
+        left, right = CUTS["start"], CUTS["stop"]
         n_bins = 1000
         width = (right - left) / n_bins
         values = np.array(
@@ -397,23 +397,23 @@ class TestCppDeferredSpecials(BLonDTestCase):
         before = backend.copy(dE)
         hist_y = backend.ones(64, dtype=backend.float)
         self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
-        self.deferred.beam_histogram(dt=dt, dE=dE, hist_y=hist_y, **CUTS)
+        self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
         self.assertEqual(self.deferred.kernel_call_queue.n_bytes, 0)
         self.assertFalse(_equal(dE, before))
         self.assertEqual(
             float(np.sum(copy_to_cpu(hist_y))),
             float(
                 np.sum(
-                    (copy_to_cpu(dt) >= CUTS["cut_left"])
-                    & (copy_to_cpu(dt) <= CUTS["cut_right"])
+                    (copy_to_cpu(dt) >= CUTS["start"])
+                    & (copy_to_cpu(dt) <= CUTS["stop"])
                 )
             ),
         )
 
     def test_histogram_runs_in_the_batch_it_ends(self) -> None:
         from blond.core.backends.deferred.kernel_call_records import (
-            BeamHistogramArgs,
             DriftSimpleArgs,
+            HistogramArgs,
             KickSingleHarmonicArgs,
         )
 
@@ -430,13 +430,58 @@ class TestCppDeferredSpecials(BLonDTestCase):
         try:
             self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
             self.deferred.drift_simple(dt=dt, dE=dE, **DRIFT)
-            self.deferred.beam_histogram(dt=dt, dE=dE, hist_y=hist_y, **CUTS)
+            self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
         finally:
             self.deferred_class._execute_batch = staticmethod(original)
         self.assertEqual(
             batches,
-            [[KickSingleHarmonicArgs, DriftSimpleArgs, BeamHistogramArgs]],
+            [[KickSingleHarmonicArgs, DriftSimpleArgs, HistogramArgs]],
         )
+
+    def test_histogram_of_another_array_runs_after_the_batch(self) -> None:
+        # Only the queued dt is binned in the batch; any other array (dE,
+        # a copy of dt) is binned eagerly, after the batch has run.
+        from blond.core.backends.deferred.kernel_call_records import (
+            KickSingleHarmonicArgs,
+        )
+
+        dt, dE = _beam(1000)
+        dE_eager = backend.copy(dE)
+        self.eager.kick_single_harmonic(dt=dt, dE=dE_eager, **KICK)
+        energy_cuts = dict(start=-1e6, stop=1.5e6)
+        for array, eager_array in ((dE, dE_eager), (backend.copy(dt), dt)):
+            with self.subTest(array_is_dE=array is dE):
+                batches = []
+                original = self.deferred_class._execute_batch
+
+                def recording(buffer, n_bytes, args_types, *rest):
+                    batches.append(list(args_types))
+                    original(buffer, n_bytes, args_types, *rest)
+
+                self.deferred_class._execute_batch = staticmethod(recording)
+                try:
+                    if array is dE:
+                        self.deferred.kick_single_harmonic(
+                            dt=dt, dE=dE, **KICK
+                        )
+                    else:  # dt itself is unchanged by a kick
+                        self.deferred.kick_single_harmonic(
+                            dt=dt, dE=backend.copy(dE), **KICK
+                        )
+                    hist_y = backend.ones(64, dtype=backend.float)
+                    self.deferred.histogram(
+                        array_read=array, array_write=hist_y, **energy_cuts
+                    )
+                finally:
+                    self.deferred_class._execute_batch = staticmethod(original)
+                self.assertEqual(batches, [[KickSingleHarmonicArgs]])
+                expected = backend.zeros(64, dtype=backend.float)
+                self.eager.histogram(
+                    array_read=eager_array, array_write=expected, **energy_cuts
+                )
+                np.testing.assert_array_equal(
+                    copy_to_cpu(hist_y), copy_to_cpu(expected)
+                )
 
     def test_histogram_of_another_beam(self) -> None:
         # The histogram's beam is not the queued one: the queued batch
@@ -459,7 +504,7 @@ class TestCppDeferredSpecials(BLonDTestCase):
     def test_histogram_of_no_particles(self) -> None:
         dt, dE = backend.zeros(0), backend.zeros(0)
         hist_y = backend.ones(16, dtype=backend.float)
-        self.deferred.beam_histogram(dt=dt, dE=dE, hist_y=hist_y, **CUTS)
+        self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
         np.testing.assert_array_equal(copy_to_cpu(hist_y), np.zeros(16))
 
     def test_switching_specials_flushes(self) -> None:

@@ -610,21 +610,6 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def beam_histogram(  # NOQA: D102
-            dt: NumpyArray,
-            dE: NumpyArray,
-            hist_y: NumpyArray,
-            cut_left: float,
-            cut_right: float,
-        ) -> None:
-            CppSpecials.histogram(
-                array_read=dt,
-                array_write=hist_y,
-                start=cut_left,
-                stop=cut_right,
-            )
-
-        @staticmethod
         def _max_deferred_histogram_bins() -> int:
             # The deferred executor keeps one row of counts per thread on
             # the heap, so any profile fits.

@@ -53,8 +53,12 @@ _EAGER_CALLS = {
         charge=1.0,
         acceleration_kick=3.0,
     ),
-    "beam_histogram": dict(
-        hist_y=np.zeros(_N_BINS), cut_left=-0.8e-8, cut_right=0.9e-8
+    # Bins dt, which it reads as `array_read`: arguments from (dt, dE).
+    "histogram": lambda dt, dE: dict(
+        array_read=dt,
+        array_write=np.zeros(_N_BINS),
+        start=-0.8e-8,
+        stop=0.9e-8,
     ),
 }
 
@@ -225,10 +229,10 @@ def _random_records(rng: np.random.Generator):
             voltage_kick_table=rng.normal(size=2 * rng.integers(2, 300)),
             acceleration_kick=real(),
         )
-        yield records.BeamHistogramArgs(
-            hist_y=np.zeros(rng.integers(1, 300)),
-            cut_left=real(),
-            cut_right=real(),
+        yield records.HistogramArgs(
+            array_write=np.zeros(rng.integers(1, 300)),
+            start=real(),
+            stop=real(),
         )
     for n_rf in range(records.MAX_RF_HARMONICS_PER_RECORD + 1):
         columns = [rng.normal(size=n_rf) * 1e6 for _ in range(3)]
@@ -511,9 +515,11 @@ class TestKernelCallRecords(BLonDTestCase):
             dt = rng.uniform(-1e-8, 1e-8, _N_PARTICLES)
             dE = rng.uniform(-1e6, 1e6, _N_PARTICLES)
             dt_before, dE_before = dt.copy(), dE.copy()
-            getattr(PythonSpecials, args_type.specials_method())(
-                dt=dt, dE=dE, **_EAGER_CALLS[args_type.specials_method()]
+            call = _EAGER_CALLS[args_type.specials_method()]
+            arguments = (
+                call(dt, dE) if callable(call) else dict(dt=dt, dE=dE, **call)
             )
+            getattr(PythonSpecials, args_type.specials_method())(**arguments)
             with self.subTest(kernel=args_type.__name__):
                 self.assertEqual(
                     args_type.writes_dt,

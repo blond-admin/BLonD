@@ -27,7 +27,7 @@ from blond.core.backends.deferred.kernel_call_records import (
     KERNEL_CALL_ARGS,
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
     MAX_HIGHER_ALPHA,
-    BeamHistogramArgs,
+    HistogramArgs,
     KernelCallArgs,
 )
 from blond.core.beam.flags import BeamFlags
@@ -268,7 +268,7 @@ def _max_histogram_bins_in_executor() -> int:
     Returns
     -------
     int
-        The largest ``hist_y`` a deferred `beam_histogram` bins.
+        The most bins a deferred `histogram` holds in shared memory.
     """
     attributes = cp.cuda.Device(0).attributes
     static = _execute_kernel_call_batch_kernel.attributes["shared_size_bytes"]
@@ -306,14 +306,16 @@ def _histogram_shared_memory(
     Returns
     -------
     int
-        ``hist_y_length`` counters if a record is the histogram, else 0.
+        ``array_write_length`` counters if a record is the histogram, else 0.
     """
     position = start
     for args_type, size in zip(args_types, record_sizes, strict=True):
-        if args_type is BeamHistogramArgs:
-            record_dtype = BeamHistogramArgs.record_dtype()
+        if args_type is HistogramArgs:
+            record_dtype = HistogramArgs.record_dtype()
             record = buffer[position : position + record_dtype.itemsize]
-            n_bins = int(record.view(record_dtype)[0]["args"]["hist_y_length"])
+            n_bins = int(
+                record.view(record_dtype)[0]["args"]["array_write_length"]
+            )
             return _HIST_COUNT_ITEMSIZE * n_bins
         position += size
     return 0
@@ -934,18 +936,6 @@ class CudaSpecials(Specials):  # NOQA: D101
     @staticmethod
     def _max_deferred_histogram_bins() -> int:
         return _MAX_DEFERRED_HISTOGRAM_BINS
-
-    @staticmethod
-    def beam_histogram(  # NOQA: D102
-        dt: CupyArray,
-        dE: CupyArray,
-        hist_y: CupyArray,
-        cut_left: float,
-        cut_right: float,
-    ) -> None:
-        CudaSpecials.histogram(
-            array_read=dt, array_write=hist_y, start=cut_left, stop=cut_right
-        )
 
     @staticmethod
     def beam_phase(  # NOQA: D102

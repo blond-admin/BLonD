@@ -496,6 +496,10 @@ class KernelCallArgs:
     ends_batch: ClassVar[bool] = False
     """Whether queuing the kernel runs the batch right away, e.g. because
     its output is read next."""
+    reads_queued_dt_as: ClassVar[str | None] = None
+    """For a kernel whose method takes no ``dt, dE``: the parameter that
+    is queued only when it is the queued beam's ``dt``, else the call
+    runs eagerly."""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
@@ -978,12 +982,14 @@ class KickInterpolatedArgs(KernelCallArgs):
 
 
 @dataclass(frozen=True, eq=False)
-class BeamHistogramArgs(KernelCallArgs):
+class HistogramArgs(KernelCallArgs):
     """
-    `Specials.beam_histogram`, binning the final ``dt`` of the batch.
+    `Specials.histogram` of the queued ``dt``, binned in the batch.
 
-    Bins in the same pass over the particles as the batch's other
-    kernels. Ends its batch: the caller reads ``hist_y`` next (the induced
+    Bins the batch's final ``dt`` in the same pass over the particles as
+    its other kernels. Only a histogram of the queued beam's ``dt`` is a
+    record (`reads_queued_dt_as`); any other array is binned eagerly.
+    Ends its batch: the caller reads ``array_write`` next (the induced
     voltage, observables), so the flush that fills it comes right away
     and nobody sees a half-filled histogram.
     """
@@ -991,10 +997,11 @@ class BeamHistogramArgs(KernelCallArgs):
     writes_dt = False
     writes_dE = False
     ends_batch = True
+    reads_queued_dt_as = "array_read"
 
-    hist_y: OutputArray
-    cut_left: Real
-    cut_right: Real
+    array_write: OutputArray
+    start: Real
+    stop: Real
 
     @classmethod
     def field_values_from_specials_call(
@@ -1003,9 +1010,10 @@ class BeamHistogramArgs(KernelCallArgs):
         """
         Zero the histogram when the call is queued.
 
-        The executors add their counts into it. Nothing queued before reads ``hist_y``, so zeroing it ahead of
-        the flush is exact. On the GPU the fill and the batch run on the
-        same stream, in that order.
+        The executors add their counts into it. Nothing queued before
+        reads ``array_write``, so zeroing it ahead of the flush is exact.
+        On the GPU the fill and the batch run on the same stream, in that
+        order.
 
         Parameters
         ----------
@@ -1020,11 +1028,11 @@ class BeamHistogramArgs(KernelCallArgs):
             The field values of one record, or None if the executor
             cannot hold that many bins.
         """
-        hist_y = arguments["hist_y"]
-        if hist_y.size > eager_specials._max_deferred_histogram_bins():
+        array_write = arguments["array_write"]
+        if array_write.size > eager_specials._max_deferred_histogram_bins():
             return None
-        hist_y.fill(0)
-        return [(hist_y, arguments["cut_left"], arguments["cut_right"])]
+        array_write.fill(0)
+        return [(array_write, arguments["start"], arguments["stop"])]
 
 
 KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
@@ -1034,7 +1042,7 @@ KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
     DriftLikeLineSegmentArgs,
     DriftExactArgs,
     KickInterpolatedArgs,
-    BeamHistogramArgs,
+    HistogramArgs,
 )
 ARGS_BY_SPECIALS_METHOD = {
     args_type.specials_method(): args_type for args_type in KERNEL_CALL_ARGS

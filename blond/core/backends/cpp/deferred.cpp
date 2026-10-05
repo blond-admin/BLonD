@@ -35,25 +35,27 @@ struct ApplyToChunk {
   index_t end;
 
   // The calling thread's histogram counts, if the batch bins dt.
+  // Public like the members above: built as an aggregate.
+  // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
   index_t *histogram_counts;
 
   template <class Args> void operator()(const Args &args) const {
     apply_to_chunk(args, beam_dt, beam_dE, begin, end);
   }
-  void operator()(const BeamHistogramArgs &args) const {
+  void operator()(const HistogramArgs &args) const {
     bin_chunk(args, beam_dt, histogram_counts, begin, end);
   }
 };
 
 // The batch's histogram record, or nullptr; queuing one runs the batch,
 // so a batch holds at most one, as its last record.
-const BeamHistogramArgs *find_histogram(const KernelCallHeader *first,
-                                        const KernelCallHeader *last) {
-  const BeamHistogramArgs *histogram = nullptr;
+const HistogramArgs *find_histogram(const KernelCallHeader *first,
+                                    const KernelCallHeader *last) {
+  const HistogramArgs *histogram = nullptr;
   for (const KernelCallHeader *record = first; record != last;
        record = next_record(record)) {
-    if (record->kernel_id == KernelId::BeamHistogram) {
-      histogram = &record_args<BeamHistogramArgs>(record);
+    if (record->kernel_id == KernelId::Histogram) {
+      histogram = &record_args<HistogramArgs>(record);
     }
   }
   return histogram;
@@ -70,8 +72,9 @@ extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
   const auto *last =
       reinterpret_cast<const KernelCallHeader *>(batch + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
-  const BeamHistogramArgs *const histogram = find_histogram(first, last);
-  const index_t n_bins = histogram != nullptr ? histogram->hist_y_length : 0;
+  const HistogramArgs *const histogram = find_histogram(first, last);
+  const index_t n_bins =
+      histogram != nullptr ? histogram->array_write_length : 0;
   // One row of counts per thread, summed into hist_y after the chunks;
   // index_t, so a bin can count more than 2^31 - 1 particles.
   static thread_local std::vector<index_t> counts_buffer;
@@ -105,7 +108,7 @@ extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
           count += counts[static_cast<std::size_t>(thread) * n_bins + bin];
         }
         // exact while a bin holds fewer than 2^53 particles
-        histogram->hist_y[bin] = static_cast<real_t>(count);
+        histogram->array_write[bin] = static_cast<real_t>(count);
       }
     }
   }

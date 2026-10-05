@@ -24,6 +24,7 @@
 #include <cmath>
 
 #include "blond_common.h"
+#include "histogram_bin.h"
 #include "kernel_call_records.h"
 #include "openmp.h"
 
@@ -212,27 +213,21 @@ void apply_to_chunk(const KickInterpolatedArgs &args, const real_t *beam_dt,
 
 // Adds the chunk's dt to the calling thread's `counts`, binned like
 // `histogram` (histogram.cpp): the executor reduces the threads' counts
-// into `args.hist_y` after the last chunk.
-BLOND_NOINLINE inline void bin_chunk(const BeamHistogramArgs &args,
+// into `args.array_write` after the last chunk.
+BLOND_NOINLINE inline void bin_chunk(const HistogramArgs &args,
                                      const real_t *__restrict__ beam_dt,
                                      index_t *__restrict__ counts,
                                      const index_t begin, const index_t end) {
-  const index_t n_bins = args.hist_y_length;
+  const index_t n_bins = args.array_write_length;
   const real_t inv_bin_width =
-      static_cast<real_t>(n_bins) / (args.cut_right - args.cut_left);
+      static_cast<real_t>(n_bins) / (args.stop - args.start);
   for (index_t i = begin; i < end; i++) {
-    // In double until range-checked: converting an out-of-range double
-    // to an integer is undefined behaviour.
-    double fbin = std::floor((beam_dt[i] - args.cut_left) * inv_bin_width);
-    // A value at or just below cut_right can scale to n_bins: it
-    // belongs in the last bin, as in np.histogram.
-    if (fbin >= static_cast<double>(n_bins) && beam_dt[i] <= args.cut_right) {
-      fbin = static_cast<double>(n_bins - 1);
-    }
-    if (fbin < 0.0 || fbin >= static_cast<double>(n_bins)) {
+    const double bin = histogram_bin_position(beam_dt[i], args.start, args.stop,
+                                              inv_bin_width, n_bins);
+    if (bin < 0.0 || bin >= static_cast<double>(n_bins)) {
       continue;
     }
-    counts[static_cast<index_t>(fbin)] += 1;
+    counts[static_cast<index_t>(bin)] += 1;
   }
 }
 

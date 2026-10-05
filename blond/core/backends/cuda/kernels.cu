@@ -1040,10 +1040,12 @@ struct BlockHistogram {
   real_t inv_bin_width; // n_bins / (cut_right - cut_left)
   int n_bins;
 };
+// Shared memory is declared at namespace scope.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 __shared__ BlockHistogram block_histogram;
 // Its counts, one per bin: the executor is launched with that much
 // dynamic shared memory, else none.
-// NOLINTNEXTLINE(*-avoid-c-arrays)
+// NOLINTNEXTLINE(*-avoid-c-arrays,*-avoid-non-const-global-variables)
 extern __shared__ int histogram_counts[];
 
 // Visitor: the record, with the factors in its slot, on a tile.
@@ -1061,18 +1063,18 @@ template <int TILE> struct ApplyToParticleTile {
     }
   }
   // Binned at the end of the tile, see `BlockHistogram`.
-  __device__ void operator()(const BeamHistogramArgs & /*args*/) const {}
+  __device__ void operator()(const HistogramArgs & /*args*/) const {}
 };
 
 // The batch's histogram record, or nullptr; queuing one runs the batch,
 // so a batch holds at most one, as its last record.
-__device__ __forceinline__ const BeamHistogramArgs *
+__device__ __forceinline__ const HistogramArgs *
 find_histogram(const KernelCallHeader *first, const KernelCallHeader *last) {
-  const BeamHistogramArgs *histogram = nullptr;
+  const HistogramArgs *histogram = nullptr;
   for (const KernelCallHeader *record = first; record != last;
        record = next_record(record)) {
-    if (record->kernel_id == KernelId::BeamHistogram) {
-      histogram = &record_args<BeamHistogramArgs>(record);
+    if (record->kernel_id == KernelId::Histogram) {
+      histogram = &record_args<HistogramArgs>(record);
     }
   }
   return histogram;
@@ -1211,22 +1213,22 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
   {
-    const BeamHistogramArgs *histogram = find_histogram(first, last);
-    const int n_bins =
-        histogram != nullptr ? static_cast<int>(histogram->hist_y_length) : 0;
+    const HistogramArgs *histogram = find_histogram(first, last);
+    const unsigned int n_bins =
+        histogram != nullptr
+            ? static_cast<unsigned int>(histogram->array_write_length)
+            : 0U;
     if (threadIdx.x == 0) {
-      block_histogram.n_bins = n_bins;
+      block_histogram.n_bins = static_cast<int>(n_bins);
       if (histogram != nullptr) {
-        block_histogram.hist_y = histogram->hist_y;
-        block_histogram.cut_left = histogram->cut_left;
-        block_histogram.cut_right = histogram->cut_right;
+        block_histogram.hist_y = histogram->array_write;
+        block_histogram.cut_left = histogram->start;
+        block_histogram.cut_right = histogram->stop;
         block_histogram.inv_bin_width =
-            static_cast<real_t>(n_bins) /
-            (histogram->cut_right - histogram->cut_left);
+            static_cast<real_t>(n_bins) / (histogram->stop - histogram->start);
       }
     }
-    for (int bin = static_cast<int>(threadIdx.x); bin < n_bins;
-         bin = static_cast<int>(bin + blockDim.x)) {
+    for (unsigned int bin = threadIdx.x; bin < n_bins; bin += blockDim.x) {
       histogram_counts[bin] = 0;
     }
   }
@@ -1259,11 +1261,10 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       tail_length, stride, n_macroparticles);
   // Add the block's counts to the histogram, which was zeroed when the
   // record was queued.
-  const int n_bins = block_histogram.n_bins;
-  if (n_bins > 0) {
+  const auto n_bins = static_cast<unsigned int>(block_histogram.n_bins);
+  if (n_bins > 0U) {
     __syncthreads();
-    for (int bin = static_cast<int>(threadIdx.x); bin < n_bins;
-         bin = static_cast<int>(bin + blockDim.x)) {
+    for (unsigned int bin = threadIdx.x; bin < n_bins; bin += blockDim.x) {
       const int count = histogram_counts[bin];
       if (count != 0) {
         atomicAdd(&block_histogram.hist_y[bin], static_cast<real_t>(count));

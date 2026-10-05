@@ -411,12 +411,11 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             # The kernel-call coordinates do not flush: deferred specials
             # bin dt in the same pass as the kernels queued before, and
             # run that batch right away, so hist_y is complete here.
-            backend.specials.beam_histogram(
-                dt=beam.kernel_call_dt,
-                dE=beam.kernel_call_dE,
-                hist_y=geometry.hist_y,  # type: ignore
-                cut_left=geometry.cut_left,  # type: ignore
-                cut_right=geometry.cut_right,  # type: ignore
+            backend.specials.histogram(
+                array_read=beam.kernel_call_dt,
+                array_write=geometry.hist_y,  # type: ignore
+                start=geometry.cut_left,  # type: ignore
+                stop=geometry.cut_right,  # type: ignore
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)

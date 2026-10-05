@@ -640,8 +640,8 @@ class TestProfileTrackDeferred(BLonDTestCase):
 
     def test_histogram_ends_the_queued_batch(self):
         from blond.core.backends.deferred.kernel_call_records import (
-            BeamHistogramArgs,
             DriftSimpleArgs,
+            HistogramArgs,
         )
 
         dt = np.linspace(-4, 4, 1000)
@@ -673,6 +673,6 @@ class TestProfileTrackDeferred(BLonDTestCase):
         finally:
             specials_class._execute_batch = staticmethod(original)
 
-        self.assertEqual(batches, [[DriftSimpleArgs, BeamHistogramArgs]])
+        self.assertEqual(batches, [[DriftSimpleArgs, HistogramArgs]])
         expected, _ = np.histogram(dt, bins=11, range=(-5.5, 5.5))
         np.testing.assert_array_equal(copy_to_cpu(profile.hist_y), expected)

@@ -41,7 +41,7 @@ enum class KernelId : std::uint32_t {
   DriftLikeLineSegment = 3,
   DriftExact = 4,
   KickInterpolated = 5,
-  BeamHistogram = 6,
+  Histogram = 6,
 };
 constexpr int KERNEL_COUNT = 7;
 constexpr std::size_t KERNEL_CALL_BATCH_CAPACITY_BYTES = 4064;
@@ -132,17 +132,17 @@ BLOND_CHECK_OFFSET(KickInterpolatedArgs, voltage_kick_table, 0);
 BLOND_CHECK_OFFSET(KickInterpolatedArgs, voltage_kick_table_length, 8);
 BLOND_CHECK_OFFSET(KickInterpolatedArgs, acceleration_kick, 16);
 
-struct BeamHistogramArgs {
-  real_t *hist_y;
-  index_t hist_y_length;
-  real_t cut_left;
-  real_t cut_right;
+struct HistogramArgs {
+  real_t *array_write;
+  index_t array_write_length;
+  real_t start;
+  real_t stop;
 };
-BLOND_CHECK_SIZE(BeamHistogramArgs, 32);
-BLOND_CHECK_OFFSET(BeamHistogramArgs, hist_y, 0);
-BLOND_CHECK_OFFSET(BeamHistogramArgs, hist_y_length, 8);
-BLOND_CHECK_OFFSET(BeamHistogramArgs, cut_left, 16);
-BLOND_CHECK_OFFSET(BeamHistogramArgs, cut_right, 24);
+BLOND_CHECK_SIZE(HistogramArgs, 32);
+BLOND_CHECK_OFFSET(HistogramArgs, array_write, 0);
+BLOND_CHECK_OFFSET(HistogramArgs, array_write_length, 8);
+BLOND_CHECK_OFFSET(HistogramArgs, start, 16);
+BLOND_CHECK_OFFSET(HistogramArgs, stop, 24);
 
 // A macro, so the CUDA side can initialise a __device__ array
 // from the same list (kernels.cu).
@@ -154,7 +154,7 @@ BLOND_CHECK_OFFSET(BeamHistogramArgs, cut_right, 24);
     sizeof(DriftLikeLineSegmentArgs), \
     sizeof(DriftExactArgs), \
     sizeof(KickInterpolatedArgs), \
-    sizeof(BeamHistogramArgs), \
+    sizeof(HistogramArgs), \
   }
 constexpr std::uint32_t KERNEL_CALL_ARGS_SIZES[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
@@ -218,8 +218,8 @@ visit_kernel_call(const KernelCallHeader *record, const Visitor &visitor) {
   case KernelId::KickInterpolated:
     visitor(record_args<KickInterpolatedArgs>(record));
     break;
-  case KernelId::BeamHistogram:
-    visitor(record_args<BeamHistogramArgs>(record));
+  case KernelId::Histogram:
+    visitor(record_args<HistogramArgs>(record));
     break;
   }
 }
