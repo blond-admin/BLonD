@@ -747,17 +747,18 @@ class KernelCallArgs:
         return [tuple(arguments[name] for name, _ in cls.record_fields())]
 
     @classmethod
-    def n_counters(cls, args: Any) -> int:
+    def n_counters(cls, *field_values: Any) -> int:
         """
-        Return how many counters a record needs per block or thread.
+        Return the counters per thread (C++) or block (CUDA) of a record.
 
-        Only for kernels that `counts_across_particles`; must match the
-        executors' ``counters_per_block`` / ``counters_per_thread``.
+        Only for kernels that `counts_across_particles`; the executors
+        size the counters from this alone. 0 is valid, e.g. for a kernel
+        that counts straight into its output.
 
         Parameters
         ----------
-        args
-            The record's ``Args`` fields (a structured scalar).
+        *field_values
+            The record's ``Args`` fields in order, as queued.
 
         Returns
         -------
@@ -1065,21 +1066,10 @@ class HistogramArgs(KernelCallArgs):
         return [(array_write, arguments["start"], arguments["stop"])]
 
     @classmethod
-    def n_counters(cls, args: Any) -> int:
-        """
-        Return the counters of a histogram record: one per bin.
-
-        Parameters
-        ----------
-        args
-            The record's ``Args`` fields.
-
-        Returns
-        -------
-        int
-            ``array_write_length``.
-        """
-        return int(args["array_write_length"])
+    def n_counters(  # NOQA: D102
+        cls, array_write: Any, start: float, stop: float
+    ) -> int:
+        return array_write.size  # one per bin
 
 
 KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (

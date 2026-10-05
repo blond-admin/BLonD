@@ -538,19 +538,13 @@ histogram_bin(const real_t value, const real_t cut_left, const real_t cut_right,
 }
 
 // Records that count across particles, e.g. a histogram. The deferred
-// executor gives each record `counters_per_block` zeroed counters in the
-// block's shared memory, passes them to `count_particle` with every
-// particle's final coordinates at the end of its tile, and lets the record merge them
-// with `merge_block_counters` after the block's last tile. Counting
-// there, not in `apply_to_particle`, keeps the counting out of the tile
-// loop's register budget. Records that count nothing
-// use the defaults.
-template <class Args>
-__device__ __forceinline__ unsigned int
-counters_per_block(const Args & /*args*/) {
-  return 0U;
-}
-
+// executor gives such a record zeroed counters in the block's shared
+// memory (`KernelCallArgs.n_counters`), passes them to `count_particle`
+// with every particle's final coordinates at the end of its tile, and
+// lets the record merge them with `merge_block_counters` after the
+// block's last tile. Counting there, not in `apply_to_particle`, keeps
+// the counting out of the tile loop's register budget. Records that
+// count nothing use the defaults.
 // One particle of the beam with its final coordinates; tile lanes past
 // the beam are not counted.
 template <class Args, class Factors>
@@ -582,11 +576,6 @@ __device__ __forceinline__ void
 apply_to_particle(const HistogramArgs & /*args*/,
                   const HistogramFactors & /*factors*/, const real_t & /*dt*/,
                   const real_t & /*dE*/) {}
-
-__device__ __forceinline__ unsigned int
-counters_per_block(const HistogramArgs &args) {
-  return static_cast<unsigned int>(args.array_write_length);
-}
 
 __device__ __forceinline__ void
 count_particle(const HistogramArgs &args, const HistogramFactors &factors,
@@ -1029,7 +1018,7 @@ struct KernelCallBatch {
 // NOLINTEND(*-avoid-c-arrays,misc-use-internal-linkage)
 
 // The batch plus the other parameters of `execute_kernel_call_batch`
-// (`n_bytes`, `store_flags`, `beam_dt`, `beam_dE`, `n_macroparticles`)
+// (`n_bytes`, `launch_flags`, `beam_dt`, `beam_dE`, `n_macroparticles`)
 // must fit the 4096-byte kernel parameter limit of CUDA < 12.1 and
 // pre-Volta GPUs: kernels.cu is one translation unit, so overflowing it
 // would break every kernel on those targets.
@@ -1038,10 +1027,12 @@ static_assert(sizeof(KernelCallBatch) + sizeof(unsigned int) * 2 +
                   4096,
               "execute_kernel_call_batch parameters exceed 4096 bytes");
 
-// Bits of `store_flags`: the coordinates any record of the batch writes.
-// Must match `STORE_DT` and `STORE_DE` in callables.py.
+// Bits of `launch_flags`: the coordinates any record of the batch writes;
+// from COUNTING_RECORD_SHIFT on, the position + 1 of the launch's
+// counting record, 0 for none. Must match callables.py.
 constexpr unsigned int STORE_DT = 1U;
 constexpr unsigned int STORE_DE = 2U;
+constexpr unsigned int COUNTING_RECORD_SHIFT = 8U;
 
 // Compiled Args sizes, compared with the numpy dtypes when loading.
 extern "C" __device__ const unsigned int kernel_call_args_sizes[KERNEL_COUNT] =
@@ -1105,28 +1096,23 @@ struct PrepareRecord {
   }
 };
 
-// The launch's record that counts across particles (`counters_per_block`
-// > 0), or nullptr. At most one: such a record ends its batch. Only it is
-// visited at the end of a tile; visiting every record there spilled
-// registers. Shared memory is declared at namespace scope.
+// The launch's record that counts across particles, or nullptr. At most
+// one: such a record ends its batch. Only it is visited at the end of a
+// tile; visiting every record there spilled registers. Shared memory is
+// declared at namespace scope.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 __shared__ const KernelCallHeader *counting_record;
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 __shared__ int counting_record_index;
-// Its counters: the executor is launched with that much dynamic shared
-// memory.
+// Its counters: all of the launch's dynamic shared memory.
 // NOLINTNEXTLINE(*-avoid-c-arrays,*-avoid-non-const-global-variables)
 extern __shared__ int record_counters[];
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-__shared__ unsigned int n_block_counters;
 
-// Visitor: the record's counters per block.
-struct CountersPerBlock {
-  unsigned int *total;
-  template <class Args> __device__ void operator()(const Args &args) const {
-    *total += counters_per_block(args);
-  }
-};
+__device__ __forceinline__ unsigned int dynamic_shared_memory_bytes() {
+  unsigned int bytes = 0U;
+  asm("mov.u32 %0, %%dynamic_smem_size;" : "=r"(bytes));
+  return bytes;
+}
 
 // Visitor: the record, with the factors in its slot, on a tile.
 // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
@@ -1273,7 +1259,7 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
                                              EXECUTOR_BLOCKS_PER_SM)
     execute_kernel_call_batch(const KernelCallBatch batch,
                               const unsigned int n_bytes,
-                              const unsigned int store_flags,
+                              const unsigned int launch_flags,
                               real_t *__restrict__ beam_dt,
                               real_t *__restrict__ beam_dE,
                               const index_t n_macroparticles) {
@@ -1293,20 +1279,13 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
+  const unsigned int store_flags = launch_flags & (STORE_DT | STORE_DE);
+  const int counting_index =
+      static_cast<int>(launch_flags >> COUNTING_RECORD_SHIFT) - 1;
   if (threadIdx.x == 0) {
-    counting_record = nullptr;
-    counting_record_index = 0;
-    n_block_counters = 0U;
-    int index = 0;
-    for (const KernelCallHeader *record = first; record != last;
-         record = next_record(record), ++index) {
-      unsigned int n_counters = 0U;
-      visit_kernel_call(record, CountersPerBlock{&n_counters});
-      if (n_counters > 0U) {
-        counting_record = record;
-        counting_record_index = index;
-        n_block_counters = n_counters;
-      }
+    counting_record_index = counting_index;
+    if (counting_index < 0) {
+      counting_record = nullptr;
     }
   }
   {
@@ -1316,11 +1295,15 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       if (index % static_cast<int>(blockDim.x) ==
           static_cast<int>(threadIdx.x)) {
         visit_kernel_call(record, PrepareRecord{&factors[index]});
+        if (index == counting_index) {
+          counting_record = record;
+        }
       }
     }
   }
-  __syncthreads();
-  for (unsigned int counter = threadIdx.x; counter < n_block_counters;
+  const unsigned int n_counters =
+      dynamic_shared_memory_bytes() / sizeof(record_counters[0]);
+  for (unsigned int counter = threadIdx.x; counter < n_counters;
        counter += blockDim.x) {
     record_counters[counter] = 0;
   }

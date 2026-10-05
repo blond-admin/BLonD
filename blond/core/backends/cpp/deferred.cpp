@@ -27,8 +27,8 @@
 
 namespace {
 // Visitor: forwards each record to its `apply_to_chunk_counting`
-// overload (particle_kernels.h), with the calling thread's counters of
-// that record, then moves `counters` past them.
+// overload (particle_kernels.h), with the calling thread's counters,
+// which only the batch's counting record uses.
 struct ApplyToChunk {
   real_t *beam_dt;
   real_t *beam_dE;
@@ -36,54 +36,49 @@ struct ApplyToChunk {
   index_t end;
   // Public like the members above: built as an aggregate.
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-  index_t **counters;
+  index_t *counters;
 
   template <class Args> void operator()(const Args &args) const {
-    apply_to_chunk_counting(args, beam_dt, beam_dE, begin, end, *counters);
-    *counters += counters_per_thread(args);
+    apply_to_chunk_counting(args, beam_dt, beam_dE, begin, end, counters);
   }
 };
 
-// Visitor: adds up the counters per thread of the records.
-struct CountersPerThread {
-  index_t *total;
-  template <class Args> void operator()(const Args &args) const {
-    *total += counters_per_thread(args);
-  }
-};
-
-// Visitor: lets each record merge its counters of every thread
-// (`merge_counters`), then moves `counters` past them. Called by every
-// thread of the parallel region, after all chunks.
+// Visitor: lets the counting record merge its counters of every thread
+// (`merge_counters`). Called by every thread of the parallel region,
+// after all chunks.
 struct MergeCounters {
-  const index_t **counters;
+  const index_t *counters;
   std::size_t row_length;
   int n_threads;
   template <class Args> void operator()(const Args &args) const {
-    merge_counters(args, *counters, row_length, n_threads);
-    *counters += counters_per_thread(args);
+    merge_counters(args, counters, row_length, n_threads);
   }
 };
+
+const KernelCallHeader *record_at(const KernelCallHeader *record,
+                                  int position) {
+  for (; position > 0; --position) {
+    record = next_record(record);
+  }
+  return record;
+}
 } // namespace
 
-extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
-                                          const std::size_t n_bytes,
-                                          real_t *beam_dt, real_t *beam_dE,
-                                          const index_t n_macroparticles,
-                                          const index_t chunk_size) {
+// `counting_record` is the position of the record that counts across
+// particles (e.g. binning them), -1 for none; Python sizes its counters
+// (`KernelCallArgs.n_counters`). Each thread gets a zeroed row of
+// `n_counters`, and the record merges the rows after the last chunk.
+extern "C" void execute_kernel_call_batch(
+    const std::uint8_t *batch, const std::size_t n_bytes,
+    const int counting_record, const index_t n_counters, real_t *beam_dt,
+    real_t *beam_dE, const index_t n_macroparticles,
+    const index_t chunk_size) {
   // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
   const auto *first = reinterpret_cast<const KernelCallHeader *>(batch);
   const auto *last =
       reinterpret_cast<const KernelCallHeader *>(batch + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
-  // Records that count across particles (e.g. binning them) get zeroed
-  // counters, one row per thread holding every such record's counters in
-  // batch order; they merge them after the last chunk.
-  index_t row_length = 0;
-  for (const KernelCallHeader *record = first; record != last;
-       record = next_record(record)) {
-    visit_kernel_call(record, CountersPerThread{&row_length});
-  }
+  const auto row_length = static_cast<std::size_t>(n_counters);
   static thread_local std::vector<index_t> counters_buffer;
   index_t *const counters = reuse_scratch(
       counters_buffer,
@@ -99,25 +94,19 @@ extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
     this_thread_range(n_macroparticles, thread_begin, thread_end);
     for (index_t chunk_begin = thread_begin; chunk_begin < thread_end;
          chunk_begin += chunk_size) {
-      index_t *record_counters = thread_counters;
       const ApplyToChunk apply = {
           beam_dt, beam_dE, chunk_begin,
-          std::min(chunk_begin + chunk_size, thread_end), &record_counters};
+          std::min(chunk_begin + chunk_size, thread_end), thread_counters};
       for (const KernelCallHeader *record = first; record != last;
            record = next_record(record)) {
         visit_kernel_call(record, apply);
       }
     }
-    if (row_length > 0) {
+    if (counting_record >= 0) {
 #pragma omp barrier
-      const index_t *record_counters = counters;
-      const MergeCounters merge = {&record_counters,
-                                   static_cast<std::size_t>(row_length),
-                                   omp_get_num_threads()};
-      for (const KernelCallHeader *record = first; record != last;
-           record = next_record(record)) {
-        visit_kernel_call(record, merge);
-      }
+      visit_kernel_call(record_at(first, counting_record),
+                        MergeCounters{counters, row_length,
+                                      omp_get_num_threads()});
     }
   }
 }

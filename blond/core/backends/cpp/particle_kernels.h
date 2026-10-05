@@ -213,16 +213,12 @@ void apply_to_chunk(const KickInterpolatedArgs &args, const real_t *beam_dt,
                     real_t *beam_dE, index_t begin, index_t end);
 
 // Records that count across particles, e.g. a histogram. The executor
-// gives each record `counters_per_thread` zeroed counters per thread,
-// hands the calling thread's to `apply_to_chunk_counting` with every
-// chunk, and lets the record merge all threads' counters with
-// `merge_counters` after the last chunk. Records that count nothing use
-// the defaults: no counters, `apply_to_chunk`, nothing to merge.
-template <class Args>
-inline index_t counters_per_thread(const Args & /*args*/) {
-  return 0;
-}
-
+// gives such a record a row of zeroed counters per thread, as many as
+// `KernelCallArgs.n_counters` says, hands the calling thread's row to
+// `apply_to_chunk_counting` with every chunk, and lets the record merge
+// all threads' rows with `merge_counters` after the last chunk. Records
+// that count nothing use the defaults: `apply_to_chunk`, nothing to
+// merge.
 template <class Args>
 inline void apply_to_chunk_counting(const Args &args, real_t *beam_dt,
                                     real_t *beam_dE, const index_t begin,
@@ -239,12 +235,9 @@ inline void merge_counters(const Args & /*args*/, const index_t * /*counters*/,
                            const int /*n_threads*/) {}
 
 // The histogram counts the dt of the chunk per bin, binned like the
-// eager `histogram` (histogram.cpp); index_t counters, so a bin can
-// count more than 2^31 - 1 particles.
-inline index_t counters_per_thread(const HistogramArgs &args) {
-  return args.array_write_length;
-}
-
+// eager `histogram` (histogram.cpp), with one counter per bin
+// (`HistogramArgs.n_counters`); index_t counters, so a bin can count
+// more than 2^31 - 1 particles.
 BLOND_NOINLINE inline void
 apply_to_chunk_counting(const HistogramArgs &args, real_t *__restrict__ beam_dt,
                         real_t * /*beam_dE*/, const index_t begin,

@@ -159,9 +159,11 @@ _KERNEL_CALL_BATCH_DTYPE = np.dtype(
 # (`EXECUTOR_BLOCK_SIZE`, `EXECUTOR_BLOCKS_PER_SM` in kernels.cu): the two
 # blocks per SM of `default_blocks` are resident at once.
 _deferred_block_size = (min(threads, 256), 1, 1)
-# Bits of its `store_flags`, as in kernels.cu.
+# Bits of its `launch_flags`, as in kernels.cu; from bit 8 on: the
+# position + 1 of the launch's counting record, 0 for none.
 STORE_DT = 1
 STORE_DE = 2
+COUNTING_RECORD_SHIFT = 8
 
 
 def _check_kernel_call_record_abi() -> None:
@@ -288,45 +290,6 @@ def _max_counters_in_executor() -> int:
 _MAX_DEFERRED_COUNTERS = _max_counters_in_executor()
 
 
-def _counters_shared_memory(
-    buffer: NumpyArray,
-    start: int,
-    args_types: list[type[KernelCallArgs]],
-    record_sizes: list[int],
-) -> int:
-    """
-    Return the dynamic shared memory of a launch: its records' counters.
-
-    Parameters
-    ----------
-    buffer
-        The queue's records.
-    start
-        Byte offset of the launch's first record.
-    args_types, record_sizes
-        Kind and size of each of the launch's records.
-
-    Returns
-    -------
-    int
-        Bytes of the counters of the records that count across particles.
-    """
-    # The executor gives its counters to one record per launch, which
-    # holds at most one: queuing a counting record runs the batch.
-    assert sum(t.counts_across_particles for t in args_types) <= 1
-    n_counters = 0
-    position = start
-    for args_type, size in zip(args_types, record_sizes, strict=True):
-        if args_type.counts_across_particles:
-            record_dtype = args_type.record_dtype()
-            record = buffer[position : position + record_dtype.itemsize]
-            n_counters += args_type.n_counters(
-                record.view(record_dtype)[0]["args"]
-            )
-        position += size
-    return _COUNTER_ITEMSIZE * n_counters
-
-
 def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> NumpyArray:
     """
     Return the ``KernelCallBatch`` launch parameter of ``buffer[start:end]``.
@@ -364,6 +327,8 @@ def _execute_batch(
     n_bytes: int,
     args_types: list[type[KernelCallArgs]],
     record_sizes: list[int],
+    counting_record: int,
+    n_counters: int,
     dt: CupyArray,
     dE: CupyArray,
 ) -> None:
@@ -381,6 +346,9 @@ def _execute_batch(
         The ``Args`` class of each record of the batch.
     record_sizes
         The byte size of each record of the batch.
+    counting_record, n_counters
+        Position of the record that counts across particles (-1 for
+        none), and its counters, as dynamic shared memory of its launch.
     dt, dE
         Beam coordinates the records act on.
     """
@@ -391,11 +359,15 @@ def _execute_batch(
             args_types, record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
         )
     n_macroparticles = INDEX_DTYPE(dt.size)
-    first_record = 0
+    first_record = 0  # of the launch, in the batch
     for start, end, launch_args_types in launches:
-        launch_records = slice(
-            first_record, first_record + len(launch_args_types)
-        )
+        # The counting record ends the batch, so it is in the last launch.
+        launch_counting_record = counting_record - first_record
+        if 0 <= launch_counting_record < len(launch_args_types):
+            counters_bytes = _COUNTER_ITEMSIZE * n_counters
+        else:
+            launch_counting_record = -1
+            counters_bytes = 0
         first_record += len(launch_args_types)
         _launch_kernel_call_batch(
             grid_size,
@@ -403,17 +375,15 @@ def _execute_batch(
             (
                 _batch_parameter(buffer, start, end),
                 np.uint32(end - start),
-                np.uint32(_store_flags(set(launch_args_types))),
+                np.uint32(
+                    _store_flags(set(launch_args_types))
+                    | (launch_counting_record + 1) << COUNTING_RECORD_SHIFT
+                ),
                 dt,
                 dE,
                 n_macroparticles,
             ),
-            shared_mem=_counters_shared_memory(
-                buffer,
-                start,
-                launch_args_types,
-                record_sizes[launch_records],
-            ),
+            shared_mem=counters_bytes,
         )
 
 
