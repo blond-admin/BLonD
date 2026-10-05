@@ -413,16 +413,17 @@ class TestBeamObservation(BLonDTestCase):
                 ),
             )
             plt.plot(phase_observation.phases)
-            fig = plt.figure()
-            for i in range(bunch_observation.dts.shape[0]):
-                plt.clf()
-                sel = ~np.isnan(bunch_observation.dts[i, :])
-                plt.hist2d(
-                    bunch_observation.dts[i, sel],
-                    bunch_observation.dEs[i, sel],
-                    bins=256,
-                    # range=[[0, 2.5e-9], [-4e8, 4e8]],
-                )
+            if DEV_DRAW:  # one plot per observed turn, only for inspection
+                plt.figure()
+                for i in range(bunch_observation.dts.shape[0]):
+                    plt.clf()
+                    sel = ~np.isnan(bunch_observation.dts[i, :])
+                    plt.hist2d(
+                        bunch_observation.dts[i, sel],
+                        bunch_observation.dEs[i, sel],
+                        bins=256,
+                        # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                    )
             obs_beam_hist2d.plot(
                 result_idx=-1
             )  # tests that the plots are functional
