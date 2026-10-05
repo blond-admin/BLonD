@@ -1118,7 +1118,7 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
       if (store_dE) {
         beam_dE[i] = dE[k];
       }
-      if (n_bins > 0) {
+      if (n_bins > 0 && false) { // diagnostic: no binning
         const int bin = histogram_bin(
             dt[k], block_histogram.cut_left, block_histogram.cut_right,
             block_histogram.inv_bin_width, static_cast<unsigned int>(n_bins));
