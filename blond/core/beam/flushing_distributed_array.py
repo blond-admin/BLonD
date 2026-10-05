@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.generals.distributed.distributed_array import (
+from blond.core.backends.mpi_distributed.distributed_array import (
     MPI,
     DistributedArray,
 )

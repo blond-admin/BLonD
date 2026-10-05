@@ -21,6 +21,23 @@ from blond.physics.rf_station import SingleHarmonicRFStation
 
 simulation_mock = Mock(Simulation)
 
+
+def new_simulation_mock() -> Mock:
+    """
+    Create a fresh `Simulation` mock.
+
+    Unlike the shared module-level `simulation_mock`, each call returns an
+    independent mock, so state set by one caller cannot leak into another.
+
+    Returns
+    -------
+    simulation
+        Mock with the spec of
+        :class:`~blond.core.simulation.simulation.Simulation`.
+    """
+    return Mock(Simulation)
+
+
 beam_mock = Mock(Beam)
 beam_mock.reference = Mock(ReferenceCoordinates)
 static_profile_mock = Mock(StaticProfile)

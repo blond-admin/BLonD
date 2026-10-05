@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import numpy as np
 
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
+from blond.generals.formatting_ import pretty_string
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -452,10 +453,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         str
             The state of the object.
         """
-        from blond.core.ring.beam_physics_relevant_elements import (
-            pretty_string,  # prevent circular import
-        )
-
         filtered_dict = {
             k: pretty_string(v)
             for k, v in self.__dict__.items()

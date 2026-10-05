@@ -1665,5 +1665,35 @@ class TestCavityFeedbackSparseProfileIntegration(BLonDTestCase):
         )
 
 
+class TestRFStationUnknownKwargs(BLonDTestCase):
+    def test_single_harmonic_rejects_misspelled_kwarg(self):
+        # `phi_rf_design` is the attribute name, the argument is `phi_rf`.
+        # It used to be swallowed silently, leaving `phi_rf_design=None`.
+        with self.assertRaises(TypeError):
+            SingleHarmonicRFStation(
+                harmonic=35640, voltage=6e6, phi_rf_design=0.0
+            )
+
+    def test_multi_harmonic_rejects_misspelled_kwarg(self):
+        with self.assertRaises(TypeError):
+            MultiHarmonicRFStation(
+                n_harmonics=2,
+                main_harmonic_idx=0,
+                harmonic=np.array([1.0, 2.0]),
+                voltage=np.array([1e6, 0.5e6]),
+                phi_rf_design=np.array([0.0, np.pi]),
+            )
+
+    def test_multi_harmonic_accepts_valid_kwargs(self):
+        rf_station = MultiHarmonicRFStation(
+            n_harmonics=2,
+            main_harmonic_idx=1,
+            harmonic=np.array([1.0, 2.0]),
+            voltage=np.array([1e6, 0.5e6]),
+            phi_rf=np.array([0.0, np.pi]),
+        )
+        self.assertEqual(rf_station.main_harmonic_idx, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

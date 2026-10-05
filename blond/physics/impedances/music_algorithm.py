@@ -20,8 +20,8 @@ import numpy as np
 from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 from blond.core.base import BeamPhysicsRelevant
-from blond.generals.distributed.helpers import mpi_is_distributed
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray

@@ -4,7 +4,9 @@ import unittest
 import numpy as np
 
 from blond import Beam, proton
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.specifics.muon_collider.beam_preparation import (
     copy_beam_data_from_other_beam,
     load_beam_coordinates_counterrot_from_file,

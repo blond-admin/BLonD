@@ -6,9 +6,11 @@ import pytest
 
 from blond import Beam, proton
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.beam.flags import BeamFlags
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.testing.backend_testing import BLonDTestCase, cupy_available
 
 KICK = dict(

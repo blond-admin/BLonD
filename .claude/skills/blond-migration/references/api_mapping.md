@@ -506,7 +506,7 @@ experimental class without saying so.
 | `llrf/cavity_feedback.py` (`SPSCavityFeedback`, `LHCCavityLoop`, …) | as above; `tests/integration/test_sps_cavity_feedback/` shows how far it has been carried |
 | `llrf/rf_noise.py`, `rf_modulation.py` | partially: `blond/cycles/noise_generators/`, `EX_13_RFnoise.py`, `blond/interfaces/rf_noise_cpp/`. Check coverage against the legacy script's use. |
 | `monitors/`, `plots/` | replaced by observations + your own plotting (§9) |
-| `utils/mpi_config.py`, `mpi_main_files/` | BLonD 3 distribution is different (`blond/generals/distributed/`, `blond/core/backends/mpi_distributed/`). Not a port — a redesign. Flag. |
+| `utils/mpi_config.py`, `mpi_main_files/` | BLonD 3 distribution is different (`blond/core/backends/mpi_distributed/`). Not a port — a redesign. Flag. |
 | `toolbox/` (`tomoscope`, `parameter_scaling`, `filters_and_fitting`, `action`, `diffusion`) | mostly absent; some maths lives in `blond/acc_math/`. Check case by case. |
 | `matched_from_distribution_function` / `matched_from_line_density` | see §5 |
 | `losses_separatrix` | see §8 |

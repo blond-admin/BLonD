@@ -248,7 +248,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._last_turn_i_observed = (
             -1
         )  # to avoid double recordings with multiple drifts in one section
-        self._last_section_i_observed = -1
 
         self._simulation: Simulation | None = None
 
@@ -407,7 +406,9 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,
@@ -754,7 +755,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.generals.distributed.helpers import mpi_is_distributed
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
 
         super().on_run_simulation(
             simulation=simulation,

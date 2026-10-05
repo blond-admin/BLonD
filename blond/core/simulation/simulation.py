@@ -40,8 +40,8 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.ordering import filter_elements, get_required_order
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format

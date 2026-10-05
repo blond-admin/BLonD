@@ -18,17 +18,19 @@ import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, backend
 from blond.core.backends.mpi_distributed.callables import rms_emittance
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
-from blond.core.helpers import int_from_float_with_warning
-from blond.generals.cupy_.no_cupy_import import AllowPlotting
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     distributed_arange,
     mpi_aware_random_generator_cpu,
     mpi_is_distributed,
     mpi_local_size,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
+from blond.core.helpers import int_from_float_with_warning
+from blond.generals.cupy_.no_cupy_import import AllowPlotting
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -103,7 +105,6 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
-        **kwargs,
     ) -> None:
         """
         Configure the beam with an initial particle distributions.
@@ -150,10 +151,6 @@ class Beam(BeamBaseClass):
               each rank needs to work with its own independent data (e.g., generating separate
               random distributions with `np.random.randn()`).
 
-        **kwargs
-            Unused - Keyword arguments to make the non-abstract implementation
-            extendable.
-
         Notes
         -----
         Calling this on an already set-up beam replaces
@@ -183,9 +180,9 @@ class Beam(BeamBaseClass):
             backend.array(flags, dtype=np.int32)
         )
 
-        if reference_time:
+        if reference_time is not None:
             self.reference.time = reference_time
-        if reference_total_energy:
+        if reference_total_energy is not None:
             self.reference.total_energy = reference_total_energy
 
         if mpi_mode == "root-distributes":

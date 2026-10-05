@@ -877,6 +877,10 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert hist_y.dtype == FLOAT
         assert hist_x.flags.c_contiguous
         assert hist_y.flags.c_contiguous
+        assert len(hist_x) >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule, "
+            f"got {len(hist_x)}"
+        )
 
         # Cast Python floats to backend floattype
         alpha = FLOAT(alpha)
