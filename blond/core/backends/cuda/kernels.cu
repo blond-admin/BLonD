@@ -1194,7 +1194,7 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
   // the compiler knows the record is in shared memory, else every field
   // read is a slow generic load.
   const int counting_offset = counting_record_offset;
-  if (counting_offset >= 0) {
+  if (counting_offset >= 0 && false) { // diagnostic: no counting
     // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
     const auto *counting = reinterpret_cast<const KernelCallHeader *>(
         reinterpret_cast<const char *>(first) + counting_offset);
