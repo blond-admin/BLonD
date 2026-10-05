@@ -1179,20 +1179,6 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
     visit_kernel_call(record,
                       ApplyToParticleTile<TILE>{&dt, &dE, &factors[index]});
   }
-  const bool store_dt = (store_flags & STORE_DT) != 0U;
-  const bool store_dE = (store_flags & STORE_DE) != 0U;
-#pragma unroll
-  for (int k = 0; k < TILE; ++k) {
-    const index_t i = tile_start + k * stride;
-    if (i < n_macroparticles) { // past the beam the tile holds padding
-      if (store_dt) {
-        beam_dt[i] = dt[k];
-      }
-      if (store_dE) {
-        beam_dE[i] = dE[k];
-      }
-    }
-  }
   // The launch's counting record counts the tile's final coordinates.
   // Addressed from `first` rather than through a stored pointer: then
   // the compiler knows the record is in shared memory, else every field
@@ -1207,6 +1193,20 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
                       CountTile<TILE>{&dt, &dE, &factors[counting_record_index],
                                       &record_counters[0], tile_start, stride,
                                       n_macroparticles});
+  }
+  const bool store_dt = (store_flags & STORE_DT) != 0U;
+  const bool store_dE = (store_flags & STORE_DE) != 0U;
+#pragma unroll
+  for (int k = 0; k < TILE; ++k) {
+    const index_t i = tile_start + k * stride;
+    if (i < n_macroparticles) { // past the beam the tile holds padding
+      if (store_dt) {
+        beam_dt[i] = dt[k];
+      }
+      if (store_dE) {
+        beam_dE[i] = dE[k];
+      }
+    }
   }
 }
 
