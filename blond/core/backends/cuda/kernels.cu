@@ -1191,6 +1191,16 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
     dt[k] = i < n_macroparticles ? beam_dt[i] : static_cast<real_t>(0);
     dE[k] = i < n_macroparticles ? beam_dE[i] : static_cast<real_t>(0);
   }
+  // Fetches the next tile into L2 while this one computes: with a few
+  // warps per scheduler, nothing else would keep DRAM busy meanwhile.
+#pragma unroll
+  for (int k = 0; k < TILE; ++k) {
+    const index_t next = tile_start + (TILE + k) * stride;
+    if (next < n_macroparticles) {
+      asm volatile("prefetch.global.L2 [%0];" ::"l"(&beam_dt[next]));
+      asm volatile("prefetch.global.L2 [%0];" ::"l"(&beam_dE[next]));
+    }
+  }
   int index = 0;
   for (const KernelCallHeader *record = first; record != last;
        record = next_record(record), ++index) {
