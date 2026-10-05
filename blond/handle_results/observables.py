@@ -362,7 +362,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         each_turn_i: int,
         folder: str = "",
         bins: int | tuple[int, int] = 32,
-        range: AnyArray | None = None,
+        range: AnyArray | None = None,  # noqa: A002 (np API)
     ):
         super().__init__(
             each_turn_i=each_turn_i,

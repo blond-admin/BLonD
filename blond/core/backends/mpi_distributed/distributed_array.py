@@ -307,7 +307,7 @@ class DistributedArray:
     def histogram(
         self,
         bins,
-        range: tuple[float, float] | None = None,
+        range: tuple[float, float] | None = None,  # noqa: A002 (np API)
         out: NumpyArray | CupyArray | None = None,
     ) -> NumpyArray | CupyArray:
         """
@@ -339,14 +339,13 @@ class DistributedArray:
             assert out.dtype == backend.float
             array_write_local = out
 
-        if range is None:
-            range = (self.min(), self.max())
+        hist_range = (self.min(), self.max()) if range is None else range
 
         backend.specials.histogram(
             array_read=self.array_local,
             array_write=array_write_local,
-            start=range[0],
-            stop=range[1],
+            start=hist_range[0],
+            stop=hist_range[1],
         )
 
         # Combine histograms from all processes

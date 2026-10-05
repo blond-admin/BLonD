@@ -128,6 +128,7 @@ select = [
   "NPY", # numpy-specific rules
   "PL",  # pylint rules
   "G",   # flake8-logging-format (no eager f-string log messages)
+  "A",   # flake8-builtins (no shadowing of Python builtins)
 ]
 
 ignore = [
