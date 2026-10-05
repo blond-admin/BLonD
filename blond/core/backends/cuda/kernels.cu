@@ -367,15 +367,28 @@ apply_to_particle(const DriftExactArgs &args, const DriftExactFactors &factors,
                        factors, dt, dE);
 }
 
+// The header of the table of `build_voltage_kick_table`. Loaded per tile,
+// it stalled the whole tile on a global load.
+struct KickInterpolatedFactors {
+  real_t start;         // table[0]
+  real_t inv_bin_width; // table[1]
+};
+
+__device__ __forceinline__ KickInterpolatedFactors
+prepare(const KickInterpolatedArgs &args) {
+  return {args.voltage_kick_table[0], args.voltage_kick_table[1]};
+}
+
 // Reads the table of `build_voltage_kick_table`.
 __device__ __forceinline__ void
-apply_to_particle(const KickInterpolatedArgs &args, NoFactors /*factors*/,
-                  const real_t &dt, real_t &dE) {
+apply_to_particle(const KickInterpolatedArgs &args,
+                  const KickInterpolatedFactors &factors, const real_t &dt,
+                  real_t &dE) {
   const real_t *table = args.voltage_kick_table;
   const int n_bins = static_cast<int>((args.voltage_kick_table_length - 2) / 2);
   // Range-checks the integer bin, as `lik_only_gm_comp` does.
   // NOLINTBEGIN(*-pointer-arithmetic)
-  const int fbin = floor_to_int((dt - table[0]) * table[1]);
+  const int fbin = floor_to_int((dt - factors.start) * factors.inv_bin_width);
   if (static_cast<unsigned int>(fbin) < static_cast<unsigned int>(n_bins)) {
     const int pair = 2 + 2 * fbin;
     dE += dt * table[pair] + table[pair + 1];
@@ -983,6 +996,7 @@ union RecordFactors {
   LineSegmentFactors line_segment;
   DriftExactFactors drift_exact;
   HistogramFactors histogram;
+  KickInterpolatedFactors kick_interpolated;
 };
 } // namespace
 
