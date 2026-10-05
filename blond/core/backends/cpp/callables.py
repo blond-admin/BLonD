@@ -610,9 +610,9 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
-        def _max_deferred_histogram_bins() -> int:
-            # The deferred executor keeps one row of counts per thread on
-            # the heap, so any profile fits.
+        def _max_deferred_counters() -> int:
+            # The deferred executor keeps one row of counters per thread
+            # on the heap, so any count fits.
             return sys.maxsize
 
         @staticmethod

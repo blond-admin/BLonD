@@ -496,6 +496,10 @@ class KernelCallArgs:
     ends_batch: ClassVar[bool] = False
     """Whether queuing the kernel runs the batch right away, e.g. because
     its output is read next."""
+    counts_across_particles: ClassVar[bool] = False
+    """Whether the kernel accumulates over particles into counters of
+    the executor (`n_counters`), e.g. a histogram. Such a kernel must
+    also set `ends_batch`: the CUDA executor serves one per launch."""
     reads_queued_dt_as: ClassVar[str | None] = None
     """For a kernel whose method takes no ``dt, dE``: the parameter that
     is queued only when it is the queued beam's ``dt``, else the call
@@ -533,6 +537,11 @@ class KernelCallArgs:
                     f"{cls.__name__} must set `{flag}` to True or False: "
                     "whether the kernel modifies that coordinate."
                 )
+        if cls.counts_across_particles and not cls.ends_batch:
+            raise TypeError(
+                f"{cls.__name__} counts across particles, so it must set "
+                "`ends_batch`: the CUDA executor serves one per launch."
+            )
 
     @classmethod
     def specials_method(cls) -> str:
@@ -736,6 +745,26 @@ class KernelCallArgs:
             each field from the argument of the same name.
         """
         return [tuple(arguments[name] for name, _ in cls.record_fields())]
+
+    @classmethod
+    def n_counters(cls, args: Any) -> int:
+        """
+        Return how many counters a record needs per block or thread.
+
+        Only for kernels that `counts_across_particles`; must match the
+        executors' ``counters_per_block`` / ``counters_per_thread``.
+
+        Parameters
+        ----------
+        args
+            The record's ``Args`` fields (a structured scalar).
+
+        Returns
+        -------
+        int
+            The number of counters; none by default.
+        """
+        return 0
 
     @classmethod
     def from_specials_call(
@@ -997,6 +1026,7 @@ class HistogramArgs(KernelCallArgs):
     writes_dt = False
     writes_dE = False
     ends_batch = True
+    counts_across_particles = True
     reads_queued_dt_as = "array_read"
 
     array_write: OutputArray
@@ -1020,7 +1050,7 @@ class HistogramArgs(KernelCallArgs):
         arguments
             The call's arguments by name.
         eager_specials
-            Provides ``_max_deferred_histogram_bins``.
+            Provides ``_max_deferred_counters``.
 
         Returns
         -------
@@ -1029,10 +1059,27 @@ class HistogramArgs(KernelCallArgs):
             cannot hold that many bins.
         """
         array_write = arguments["array_write"]
-        if array_write.size > eager_specials._max_deferred_histogram_bins():
+        if array_write.size > eager_specials._max_deferred_counters():
             return None
         array_write.fill(0)
         return [(array_write, arguments["start"], arguments["stop"])]
+
+    @classmethod
+    def n_counters(cls, args: Any) -> int:
+        """
+        Return the counters of a histogram record: one per bin.
+
+        Parameters
+        ----------
+        args
+            The record's ``Args`` fields.
+
+        Returns
+        -------
+        int
+            ``array_write_length``.
+        """
+        return int(args["array_write_length"])
 
 
 KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (

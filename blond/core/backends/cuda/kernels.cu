@@ -536,6 +536,79 @@ histogram_bin(const real_t value, const real_t cut_left, const real_t cut_right,
   }
   return bin;
 }
+
+// Records that count across particles, e.g. a histogram. The deferred
+// executor gives each record `counters_per_block` zeroed counters in the
+// block's shared memory, passes them to `count_particle` with every
+// particle's final coordinates at the end of its tile, and lets the record merge them
+// with `merge_block_counters` after the block's last tile. Counting
+// there, not in `apply_to_particle`, keeps the counting out of the tile
+// loop's register budget. Records that count nothing
+// use the defaults.
+template <class Args>
+__device__ __forceinline__ unsigned int
+counters_per_block(const Args & /*args*/) {
+  return 0U;
+}
+
+// One particle of the beam with its final coordinates; tile lanes past
+// the beam are not counted.
+template <class Args, class Factors>
+__device__ __forceinline__ void
+count_particle(const Args & /*args*/, const Factors & /*factors*/,
+               const real_t & /*dt*/, const real_t & /*dE*/,
+               int * /*counters*/) {}
+
+// Called by every thread of the block.
+template <class Args>
+__device__ __forceinline__ void merge_block_counters(const Args & /*args*/,
+                                                     const int * /*counters*/) {
+}
+
+// The histogram counts the tile's final dt per bin, binned like the
+// eager kernels; the block's counts are added to `array_write`, which
+// was zeroed when the record was queued.
+struct HistogramFactors {
+  real_t inv_bin_width; // n_bins / (stop - start)
+};
+
+__device__ __forceinline__ HistogramFactors prepare(const HistogramArgs &args) {
+  return {static_cast<real_t>(args.array_write_length) /
+          (args.stop - args.start)};
+}
+
+// Counts in `count_particle`, once dt is final.
+__device__ __forceinline__ void
+apply_to_particle(const HistogramArgs & /*args*/,
+                  const HistogramFactors & /*factors*/, const real_t & /*dt*/,
+                  const real_t & /*dE*/) {}
+
+__device__ __forceinline__ unsigned int
+counters_per_block(const HistogramArgs &args) {
+  return static_cast<unsigned int>(args.array_write_length);
+}
+
+__device__ __forceinline__ void
+count_particle(const HistogramArgs &args, const HistogramFactors &factors,
+               const real_t &dt, const real_t & /*dE*/, int *counters) {
+  const auto n_bins = static_cast<unsigned int>(args.array_write_length);
+  const int bin =
+      histogram_bin(dt, args.start, args.stop, factors.inv_bin_width, n_bins);
+  if (static_cast<unsigned int>(bin) < n_bins) {
+    atomicAdd(&counters[bin], 1);
+  }
+}
+
+__device__ __forceinline__ void merge_block_counters(const HistogramArgs &args,
+                                                     const int *counters) {
+  const auto n_bins = static_cast<unsigned int>(args.array_write_length);
+  for (unsigned int bin = threadIdx.x; bin < n_bins; bin += blockDim.x) {
+    const int count = counters[bin];
+    if (count != 0) {
+      atomicAdd(&args.array_write[bin], static_cast<real_t>(count));
+    }
+  }
+}
 } // namespace
 
 extern "C" __global__ void
@@ -931,6 +1004,19 @@ extern "C" __global__ void drift_exact_global_alphas(
   }
 }
 
+namespace {
+// Storage of any record's `prepare` result, one per record of a launch
+// of the deferred executor. Written and read with memcpy as the type
+// `prepare` returns.
+union RecordFactors {
+  KickSingleHarmonicFactors kick_single_harmonic;
+  DriftSimpleFactors drift_simple;
+  LineSegmentFactors line_segment;
+  DriftExactFactors drift_exact;
+  HistogramFactors histogram;
+};
+} // namespace
+
 // A batch of kernel call records, passed by value in the kernel's
 // parameter space like `RFParamsBatch`: no host-to-device copy per
 // flush. 8-byte slots keep every record 8-byte aligned. Must match
@@ -986,15 +1072,6 @@ constexpr std::size_t smallest_record_size() {
 constexpr int MAX_RECORDS_PER_LAUNCH =
     static_cast<int>(KERNEL_CALL_BATCH_CAPACITY_BYTES / smallest_record_size());
 
-// Storage of any record's `prepare` result, one per record of a launch.
-// Written and read with memcpy as the type `prepare` returns.
-union RecordFactors {
-  KickSingleHarmonicFactors kick_single_harmonic;
-  DriftSimpleFactors drift_simple;
-  LineSegmentFactors line_segment;
-  DriftExactFactors drift_exact;
-};
-
 template <class Factors>
 __device__ __forceinline__ void store_factors(const Factors &factors,
                                               RecordFactors &slot) {
@@ -1028,25 +1105,28 @@ struct PrepareRecord {
   }
 };
 
-// The batch's histogram record, binned at the end of every tile rather
-// than as a record of the tile loop: there its bins and range checks
-// pushed the executor over its register limit. Since the histogram is
-// the batch's last record, the tile's dt is final by then either way.
-// `n_bins` is 0 if the batch has no histogram.
-struct BlockHistogram {
-  real_t *hist_y;
-  real_t cut_left;
-  real_t cut_right;
-  real_t inv_bin_width; // n_bins / (cut_right - cut_left)
-  int n_bins;
-};
-// Shared memory is declared at namespace scope.
+// The launch's record that counts across particles (`counters_per_block`
+// > 0), or nullptr. At most one: such a record ends its batch. Only it is
+// visited at the end of a tile; visiting every record there spilled
+// registers. Shared memory is declared at namespace scope.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-__shared__ BlockHistogram block_histogram;
-// Its counts, one per bin: the executor is launched with that much
-// dynamic shared memory, else none.
+__shared__ const KernelCallHeader *counting_record;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+__shared__ int counting_record_index;
+// Its counters: the executor is launched with that much dynamic shared
+// memory.
 // NOLINTNEXTLINE(*-avoid-c-arrays,*-avoid-non-const-global-variables)
-extern __shared__ int histogram_counts[];
+extern __shared__ int record_counters[];
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+__shared__ unsigned int n_block_counters;
+
+// Visitor: the record's counters per block.
+struct CountersPerBlock {
+  unsigned int *total;
+  template <class Args> __device__ void operator()(const Args &args) const {
+    *total += counters_per_block(args);
+  }
+};
 
 // Visitor: the record, with the factors in its slot, on a tile.
 // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
@@ -1062,23 +1142,27 @@ template <int TILE> struct ApplyToParticleTile {
       apply_to_particle(args, factors, (*dt)[k], (*dE)[k]);
     }
   }
-  // Binned at the end of the tile, see `BlockHistogram`.
-  __device__ void operator()(const HistogramArgs & /*args*/) const {}
 };
 
-// The batch's histogram record, or nullptr; queuing one runs the batch,
-// so a batch holds at most one, as its last record.
-__device__ __forceinline__ const HistogramArgs *
-find_histogram(const KernelCallHeader *first, const KernelCallHeader *last) {
-  const HistogramArgs *histogram = nullptr;
-  for (const KernelCallHeader *record = first; record != last;
-       record = next_record(record)) {
-    if (record->kernel_id == KernelId::Histogram) {
-      histogram = &record_args<HistogramArgs>(record);
-    }
+// Visitor: the record counts one particle (`count_particle`).
+struct CountParticle {
+  const real_t *dt;
+  const real_t *dE;
+  const RecordFactors *slot;
+  int *counters;
+  template <class Args> __device__ void operator()(const Args &args) const {
+    using Factors = decltype(prepare(args));
+    count_particle(args, load_factors<Factors>(*slot), *dt, *dE, counters);
   }
-  return histogram;
-}
+};
+
+// Visitor: the record merges the block's counters.
+struct MergeBlockCounters {
+  const int *counters;
+  template <class Args> __device__ void operator()(const Args &args) const {
+    merge_block_counters(args, counters);
+  }
+};
 
 // Every record of the batch on the tile of TILE particles starting at
 // `tile_start`, `stride` apart. Past the end of the beam the tile
@@ -1107,7 +1191,7 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
   }
   const bool store_dt = (store_flags & STORE_DT) != 0U;
   const bool store_dE = (store_flags & STORE_DE) != 0U;
-  const int n_bins = block_histogram.n_bins;
+  const KernelCallHeader *counting = counting_record;
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
@@ -1118,14 +1202,11 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
       if (store_dE) {
         beam_dE[i] = dE[k];
       }
-      if (n_bins > 0) {
-        const int bin = histogram_bin(
-            dt[k], block_histogram.cut_left, block_histogram.cut_right,
-            block_histogram.inv_bin_width, static_cast<unsigned int>(n_bins));
-        if (static_cast<unsigned int>(bin) <
-            static_cast<unsigned int>(n_bins)) {
-          atomicAdd(&histogram_counts[bin], 1);
-        }
+      if (counting != nullptr) {
+        visit_kernel_call(counting,
+                          CountParticle{&dt[k], &dE[k],
+                                        &factors[counting_record_index],
+                                        &record_counters[0]});
       }
     }
   }
@@ -1212,24 +1293,20 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
-  {
-    const HistogramArgs *histogram = find_histogram(first, last);
-    const unsigned int n_bins =
-        histogram != nullptr
-            ? static_cast<unsigned int>(histogram->array_write_length)
-            : 0U;
-    if (threadIdx.x == 0) {
-      block_histogram.n_bins = static_cast<int>(n_bins);
-      if (histogram != nullptr) {
-        block_histogram.hist_y = histogram->array_write;
-        block_histogram.cut_left = histogram->start;
-        block_histogram.cut_right = histogram->stop;
-        block_histogram.inv_bin_width =
-            static_cast<real_t>(n_bins) / (histogram->stop - histogram->start);
+  if (threadIdx.x == 0) {
+    counting_record = nullptr;
+    counting_record_index = 0;
+    n_block_counters = 0U;
+    int index = 0;
+    for (const KernelCallHeader *record = first; record != last;
+         record = next_record(record), ++index) {
+      unsigned int n_counters = 0U;
+      visit_kernel_call(record, CountersPerBlock{&n_counters});
+      if (n_counters > 0U) {
+        counting_record = record;
+        counting_record_index = index;
+        n_block_counters = n_counters;
       }
-    }
-    for (unsigned int bin = threadIdx.x; bin < n_bins; bin += blockDim.x) {
-      histogram_counts[bin] = 0;
     }
   }
   {
@@ -1241,6 +1318,11 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
         visit_kernel_call(record, PrepareRecord{&factors[index]});
       }
     }
+  }
+  __syncthreads();
+  for (unsigned int counter = threadIdx.x; counter < n_block_counters;
+       counter += blockDim.x) {
+    record_counters[counter] = 0;
   }
   __syncthreads();
   const index_t stride = particle_loop_stride();
@@ -1259,17 +1341,10 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   apply_batch_to_tail<PARTICLES_PER_THREAD / 2>(
       first, last, &factors[0], store_flags, beam_dt, beam_dE, sweep_start,
       tail_length, stride, n_macroparticles);
-  // Add the block's counts to the histogram, which was zeroed when the
-  // record was queued.
-  const auto n_bins = static_cast<unsigned int>(block_histogram.n_bins);
-  if (n_bins > 0U) {
+  // Let the records merge the block's counters.
+  if (counting_record != nullptr) {
     __syncthreads();
-    for (unsigned int bin = threadIdx.x; bin < n_bins; bin += blockDim.x) {
-      const int count = histogram_counts[bin];
-      if (count != 0) {
-        atomicAdd(&block_histogram.hist_y[bin], static_cast<real_t>(count));
-      }
-    }
+    visit_kernel_call(counting_record, MergeBlockCounters{&record_counters[0]});
   }
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
