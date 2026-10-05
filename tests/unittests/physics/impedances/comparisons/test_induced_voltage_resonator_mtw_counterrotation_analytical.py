@@ -25,7 +25,9 @@ from blond import (
     mu_minus,
     mu_plus,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )

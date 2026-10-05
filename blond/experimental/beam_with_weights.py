@@ -14,9 +14,11 @@ import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.beam.beams import Beam
 from blond.core.beam.particle_types import ParticleType
-from blond.generals.distributed.distributed_array import DistributedArray
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal

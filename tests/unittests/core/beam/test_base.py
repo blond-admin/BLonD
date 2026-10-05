@@ -9,16 +9,18 @@ import pytest
 
 from blond import Simulation, mu_plus, proton
 from blond.core.backends.backend import INDEX_DTYPE, backend
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
-from blond.core.beam.particle_types import ParticleType, mu_minus
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
     mpi_barrier,
     mpi_is_distributed,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
+from blond.core.beam.particle_types import ParticleType, mu_minus
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase
 
 if TYPE_CHECKING:
