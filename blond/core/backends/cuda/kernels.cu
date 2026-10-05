@@ -1277,14 +1277,13 @@ __device__ __forceinline__ void apply_batch_to_tail<0>(
 // instead of that rounded up to a multiple of PARTICLES_PER_THREAD.
 // Which halvings run depends on n_macroparticles and the grid only, so
 // no divergence either.
-extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
-                                             EXECUTOR_BLOCKS_PER_SM)
-    execute_kernel_call_batch(const KernelCallBatch batch,
-                              const unsigned int n_bytes,
-                              const unsigned int launch_flags,
-                              real_t *__restrict__ beam_dt,
-                              real_t *__restrict__ beam_dE,
-                              const index_t n_macroparticles) {
+// The executor's body, `PARTICLES` particles per thread; each variant
+// below sets its own `__launch_bounds__`.
+template <int PARTICLES>
+__device__ __forceinline__ void
+execute_batch(const KernelCallBatch &batch, const unsigned int n_bytes,
+              const unsigned int launch_flags, real_t *__restrict__ beam_dt,
+              real_t *__restrict__ beam_dE, const index_t n_macroparticles) {
   __shared__ KernelCallBatch staged;
   // NOLINTNEXTLINE(*-avoid-c-arrays)
   __shared__ RecordFactors factors[MAX_RECORDS_PER_LAUNCH];
@@ -1334,21 +1333,21 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   }
   __syncthreads();
   const index_t stride = particle_loop_stride();
-  const index_t sweep_length = stride * PARTICLES_PER_THREAD;
+  const index_t sweep_length = stride * PARTICLES;
   index_t sweep_start = 0;
   // While some thread needs all PARTICLES_PER_THREAD particles of a tile.
   for (; sweep_start + sweep_length - stride < n_macroparticles;
        sweep_start += sweep_length) {
-    apply_batch_to_tile<PARTICLES_PER_THREAD>(
+    apply_batch_to_tile<PARTICLES>(
         first, last, &factors[0], store_flags, beam_dt, beam_dE,
         sweep_start + particle_loop_start(), stride, n_macroparticles);
   }
   // Particles per thread still to do, < PARTICLES_PER_THREAD.
   const index_t tail_length =
       (n_macroparticles - sweep_start + stride - 1) / stride;
-  apply_batch_to_tail<PARTICLES_PER_THREAD / 2>(
-      first, last, &factors[0], store_flags, beam_dt, beam_dE, sweep_start,
-      tail_length, stride, n_macroparticles);
+  apply_batch_to_tail<PARTICLES / 2>(first, last, &factors[0], store_flags,
+                                     beam_dt, beam_dE, sweep_start, tail_length,
+                                     stride, n_macroparticles);
   // Let the records merge the block's counters.
   if (counting_record_offset >= 0) {
     __syncthreads();
@@ -1360,6 +1359,27 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   }
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
+
+// Executor variants: P particles per thread, registers bounded for B
+// blocks of EXECUTOR_BLOCK_SIZE threads resident per SM. callables.py
+// picks one (`BLOND_DEFERRED_EXECUTOR`, default the unsuffixed one).
+#define EXECUTOR_VARIANT(NAME, P, B)                                           \
+  extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE, B)         \
+      NAME(const KernelCallBatch batch, const unsigned int n_bytes,            \
+           const unsigned int launch_flags, real_t *__restrict__ beam_dt,      \
+           real_t *__restrict__ beam_dE, const index_t n_macroparticles) {     \
+    execute_batch<P>(batch, n_bytes, launch_flags, beam_dt, beam_dE,           \
+                     n_macroparticles);                                        \
+  }
+EXECUTOR_VARIANT(execute_kernel_call_batch, PARTICLES_PER_THREAD,
+                 EXECUTOR_BLOCKS_PER_SM)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p8_b3, 8, 3)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p4_b2, 4, 2)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p4_b3, 4, 3)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p4_b4, 4, 4)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p2_b4, 2, 4)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p2_b6, 2, 6)
+EXECUTOR_VARIANT(execute_kernel_call_batch_p1_b8, 1, 8)
 
 extern "C" __global__ void
 histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,

@@ -104,8 +104,15 @@ _apply_sr_without_quantum_excitation = gpu_module.get_function(
 _apply_sr_with_quantum_excitation = gpu_module.get_function(
     "apply_sr_with_quantum_excitation"
 )
+# Executor variant ``p<particles per thread>_b<blocks per SM>`` (kernels.cu
+# `EXECUTOR_VARIANT`); unset: the default, 8 particles, 2 blocks per SM.
+_EXECUTOR_VARIANT = os.environ.get("BLOND_DEFERRED_EXECUTOR", "")
 _execute_kernel_call_batch_kernel = gpu_module.get_function(
     "execute_kernel_call_batch"
+    + (f"_{_EXECUTOR_VARIANT}" if _EXECUTOR_VARIANT else "")
+)
+_EXECUTOR_BLOCKS_PER_SM = (
+    int(_EXECUTOR_VARIANT.split("_b")[1]) if _EXECUTOR_VARIANT else 2
 )
 
 default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
@@ -159,6 +166,14 @@ _KERNEL_CALL_BATCH_DTYPE = np.dtype(
 # (`EXECUTOR_BLOCK_SIZE`, `EXECUTOR_BLOCKS_PER_SM` in kernels.cu): the two
 # blocks per SM of `default_blocks` are resident at once.
 _deferred_block_size = (min(threads, 256), 1, 1)
+_deferred_grid_size = (
+    _EXECUTOR_BLOCKS_PER_SM
+    * cp.cuda.Device(0).attributes["MultiProcessorCount"]
+    if _EXECUTOR_VARIANT
+    else blocks,
+    1,
+    1,
+)
 # Bits of its `launch_flags`, as in kernels.cu; from bit 8 on: the
 # position + 1 of the launch's counting record, 0 for none.
 STORE_DT = 1
@@ -279,7 +294,7 @@ def _max_counters_in_executor() -> int:
     static = _execute_kernel_call_batch_kernel.attributes["shared_size_bytes"]
     reserved = attributes.get("ReservedSharedMemoryPerBlock", 1024)
     per_sm = attributes["MaxSharedMemoryPerMultiprocessor"]
-    executor_blocks_per_sm = 2  # EXECUTOR_BLOCKS_PER_SM in kernels.cu
+    executor_blocks_per_sm = _EXECUTOR_BLOCKS_PER_SM
     dynamic = min(
         max_shared_memory_per_block - static,
         per_sm // executor_blocks_per_sm - reserved - static,
@@ -370,7 +385,7 @@ def _execute_batch(
             counters_bytes = 0
         first_record += len(launch_args_types)
         _launch_kernel_call_batch(
-            grid_size,
+            _deferred_grid_size,
             _deferred_block_size,
             (
                 _batch_parameter(buffer, start, end),
