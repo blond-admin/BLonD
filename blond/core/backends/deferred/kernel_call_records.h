@@ -160,6 +160,11 @@ constexpr std::uint32_t KERNEL_CALL_ARGS_SIZES[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
 // NOLINTEND(*-avoid-c-arrays)
 
+// `KernelCallArgs.counts_across_particles`.
+template <class Args>
+constexpr bool counts_across_particles = false;
+template <> constexpr bool counts_across_particles<HistogramArgs> = true;
+
 // The records are packed back to back in a byte buffer, hence the
 // casts from the header to its Args and to the next header.
 // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)

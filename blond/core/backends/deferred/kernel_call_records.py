@@ -493,13 +493,10 @@ class KernelCallArgs:
     """Whether the kernel modifies ``dt``; required on every subclass."""
     writes_dE: ClassVar[bool]
     """Whether the kernel modifies ``dE``; required on every subclass."""
-    ends_batch: ClassVar[bool] = False
-    """Whether queuing the kernel runs the batch right away, e.g. because
-    its output is read next."""
     counts_across_particles: ClassVar[bool] = False
-    """Whether the kernel accumulates over particles into counters of
-    the executor (`n_counters`), e.g. a histogram. Such a kernel must
-    also set `ends_batch`: the CUDA executor serves one per launch."""
+    """Whether the kernel accumulates over particles, e.g. a histogram,
+    into counters of the executor (`n_counters`). Queuing it runs the
+    batch: its output is read next, and a batch holds at most one."""
     reads_queued_dt_as: ClassVar[str | None] = None
     """For a kernel whose method takes no ``dt, dE``: the parameter that
     is queued only when it is the queued beam's ``dt``, else the call
@@ -537,11 +534,6 @@ class KernelCallArgs:
                     f"{cls.__name__} must set `{flag}` to True or False: "
                     "whether the kernel modifies that coordinate."
                 )
-        if cls.counts_across_particles and not cls.ends_batch:
-            raise TypeError(
-                f"{cls.__name__} counts across particles, so it must set "
-                "`ends_batch`: the CUDA executor serves one per launch."
-            )
 
     @classmethod
     def specials_method(cls) -> str:
@@ -1026,7 +1018,6 @@ class HistogramArgs(KernelCallArgs):
 
     writes_dt = False
     writes_dE = False
-    ends_batch = True
     counts_across_particles = True
     reads_queued_dt_as = "array_read"
 
@@ -1522,6 +1513,16 @@ def generate_header() -> str:
         "constexpr std::uint32_t KERNEL_CALL_ARGS_SIZES[KERNEL_COUNT] =",
         "    KERNEL_CALL_ARGS_SIZES_INITIALIZER;",
         "// NOLINTEND(*-avoid-c-arrays)",
+        "",
+        "// `KernelCallArgs.counts_across_particles`.",
+        "template <class Args>",
+        "constexpr bool counts_across_particles = false;",
+        *(
+            "template <> constexpr bool "
+            f"counts_across_particles<{args_type.__name__}> = true;"
+            for args_type in KERNEL_CALL_ARGS
+            if args_type.counts_across_particles
+        ),
         "",
         "// The records are packed back to back in a byte buffer, hence the",
         "// casts from the header to its Args and to the next header.",

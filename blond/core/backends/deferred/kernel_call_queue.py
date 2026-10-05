@@ -210,14 +210,15 @@ def make_deferred_specials(
         The eager specials class, e.g. ``CppSpecials``.
     execute_batch
         ``execute_batch(buffer, n_bytes, args_types, record_sizes,
-        counting_record, n_counters, dt, dE)`` applying the first ``n_bytes`` of the ``uint8`` array
-        ``buffer``, in one fused pass where possible, to the beam;
-        ``args_types`` and ``record_sizes`` hold the ``Args`` class and
-        byte size of every record; ``counting_record`` is the position of
-        the record that counts across particles (-1 for none), which gets
-        ``n_counters`` counters (`KernelCallArgs.n_counters`). ``buffer`` is the queue's own array,
-        the same object from flush to flush until it grows, so a cached
-        pointer to it stays valid.
+        counting_record, n_counters, dt, dE)`` applying the first
+        ``n_bytes`` of the ``uint8`` array ``buffer``, in one fused pass
+        where possible, to the beam; ``args_types`` and ``record_sizes``
+        hold the ``Args`` class and byte size of every record;
+        ``counting_record`` is the position of the record that counts
+        across particles (-1 for none), which gets ``n_counters``
+        counters (`KernelCallArgs.n_counters`). ``buffer`` is the
+        queue's own array, the same object from flush to flush until it
+        grows, so a cached pointer to it stays valid.
 
     Returns
     -------
@@ -354,7 +355,7 @@ def _queuing_on_queued_dt_method(
             return eager_method(**arguments)
         for values in records:
             queue.append_record(args_type, packer, *values)
-        if args_type.ends_batch:
+        if args_type.counts_across_particles:
             flush()
         return None
 
@@ -470,7 +471,7 @@ def _queuing_method(
             "    for _values in _records:",
             "        _queue.append_record(_args_type, _packer, *_values)",
         ]
-    if args_type.ends_batch:
+    if args_type.counts_across_particles:
         body.append("    _flush()")
     name = eager_method.__name__
     source = "\n".join([f"def {name}({signature}):", *body])

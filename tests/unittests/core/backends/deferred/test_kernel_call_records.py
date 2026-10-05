@@ -587,15 +587,6 @@ class TestKernelCallRecords(BLonDTestCase):
                 arguments, eager_specials=None
             )
 
-    def test_counting_kernel_must_end_its_batch(self) -> None:
-        # The CUDA executor gives its counters to one record per launch.
-        with self.assertRaisesRegex(TypeError, "ends_batch"):
-
-            class HistogramArgs(KernelCallArgs):  # noqa: F841
-                writes_dt = False
-                writes_dE = False
-                counts_across_particles = True
-
     def test_missing_write_flags_are_rejected_at_definition(self) -> None:
         with self.assertRaisesRegex(TypeError, "writes_dE"):
 
