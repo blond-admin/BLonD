@@ -1076,15 +1076,8 @@ struct PrepareRecord {
   }
 };
 
-// Byte offset in the staged batch of the launch's record that counts
-// across particles, or -1. At most one: such a record ends its batch. Only it is visited at the end of a
-// tile; visiting every record there spilled registers. Shared memory is
-// declared at namespace scope.
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-__shared__ int counting_record_offset;
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-__shared__ int counting_record_index;
-// Its counters: all of the launch's dynamic shared memory.
+// The counters of the launch's record that counts across particles
+// (`launch_flags`): all of the launch's dynamic shared memory.
 // NOLINTNEXTLINE(*-avoid-c-arrays,*-avoid-non-const-global-variables)
 extern __shared__ int record_counters[];
 
@@ -1157,7 +1150,7 @@ template <int TILE>
 __device__ __forceinline__ void
 apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
                     const RecordFactors *factors,
-                    const unsigned int store_flags,
+                    const unsigned int launch_flags,
                     real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                     const index_t tile_start, const index_t stride,
                     const index_t n_macroparticles) {
@@ -1169,14 +1162,22 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
     dt[k] = i < n_macroparticles ? beam_dt[i] : static_cast<real_t>(0);
     dE[k] = i < n_macroparticles ? beam_dE[i] : static_cast<real_t>(0);
   }
+  // From the launch flags, a kernel parameter, so the compiler keeps
+  // the counting record's index warp-uniform.
+  const int counting_index =
+      static_cast<int>(launch_flags >> COUNTING_RECORD_SHIFT) - 1;
+  const KernelCallHeader *counting = nullptr;
   int index = 0;
   for (const KernelCallHeader *record = first; record != last;
        record = next_record(record), ++index) {
     visit_kernel_call(record,
                       ApplyToParticleTile<TILE>{&dt, &dE, &factors[index]});
+    if (index == counting_index) {
+      counting = record;
+    }
   }
-  const bool store_dt = (store_flags & STORE_DT) != 0U;
-  const bool store_dE = (store_flags & STORE_DE) != 0U;
+  const bool store_dt = (launch_flags & STORE_DT) != 0U;
+  const bool store_dE = (launch_flags & STORE_DE) != 0U;
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
@@ -1190,17 +1191,9 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
     }
   }
   // The launch's counting record counts the tile's final coordinates.
-  // Addressed from `first` rather than through a stored pointer: then
-  // the compiler knows the record is in shared memory, else every field
-  // read is a slow generic load.
-  const int counting_offset = counting_record_offset;
-  if (counting_offset >= 0) {
-    // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
-    const auto *counting = reinterpret_cast<const KernelCallHeader *>(
-        reinterpret_cast<const char *>(first) + counting_offset);
-    // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
+  if (counting != nullptr) {
     visit_kernel_call(counting,
-                      CountTile<TILE>{&dt, &dE, &factors[counting_record_index],
+                      CountTile<TILE>{&dt, &dE, &factors[counting_index],
                                       &record_counters[0], tile_start, stride,
                                       n_macroparticles});
   }
@@ -1213,17 +1206,17 @@ template <int TILE>
 __device__ __forceinline__ void
 apply_batch_to_tail(const KernelCallHeader *first, const KernelCallHeader *last,
                     const RecordFactors *factors,
-                    const unsigned int store_flags,
+                    const unsigned int launch_flags,
                     real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
                     index_t sweep_start, const index_t tail_length,
                     const index_t stride, const index_t n_macroparticles) {
   if ((tail_length & TILE) != 0) {
-    apply_batch_to_tile<TILE>(first, last, factors, store_flags, beam_dt,
+    apply_batch_to_tile<TILE>(first, last, factors, launch_flags, beam_dt,
                               beam_dE, sweep_start + particle_loop_start(),
                               stride, n_macroparticles);
     sweep_start += TILE * stride;
   }
-  apply_batch_to_tail<TILE / 2>(first, last, factors, store_flags, beam_dt,
+  apply_batch_to_tail<TILE / 2>(first, last, factors, launch_flags, beam_dt,
                                 beam_dE, sweep_start, tail_length, stride,
                                 n_macroparticles);
 }
@@ -1232,7 +1225,7 @@ apply_batch_to_tail(const KernelCallHeader *first, const KernelCallHeader *last,
 template <>
 __device__ __forceinline__ void apply_batch_to_tail<0>(
     const KernelCallHeader * /*first*/, const KernelCallHeader * /*last*/,
-    const RecordFactors * /*factors*/, const unsigned int /*store_flags*/,
+    const RecordFactors * /*factors*/, const unsigned int /*launch_flags*/,
     real_t *__restrict__ /*beam_dt*/, real_t *__restrict__ /*beam_dE*/,
     index_t /*sweep_start*/, const index_t /*tail_length*/,
     const index_t /*stride*/, const index_t /*n_macroparticles*/) {}
@@ -1287,15 +1280,9 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       reinterpret_cast<const KernelCallHeader *>(bytes + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
-  const unsigned int store_flags = launch_flags & (STORE_DT | STORE_DE);
   const int counting_index =
       static_cast<int>(launch_flags >> COUNTING_RECORD_SHIFT) - 1;
-  if (threadIdx.x == 0) {
-    counting_record_index = counting_index;
-    if (counting_index < 0) {
-      counting_record_offset = -1;
-    }
-  }
+  const KernelCallHeader *counting = nullptr;
   {
     int index = 0;
     for (const KernelCallHeader *record = first; record != last;
@@ -1303,12 +1290,9 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       if (index % static_cast<int>(blockDim.x) ==
           static_cast<int>(threadIdx.x)) {
         visit_kernel_call(record, PrepareRecord{&factors[index]});
-        if (index == counting_index) {
-          // NOLINTBEGIN(*-reinterpret-cast)
-          counting_record_offset =
-              static_cast<int>(reinterpret_cast<const char *>(record) - bytes);
-          // NOLINTEND(*-reinterpret-cast)
-        }
+      }
+      if (index == counting_index) {
+        counting = record;
       }
     }
   }
@@ -1326,23 +1310,19 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   for (; sweep_start + sweep_length - stride < n_macroparticles;
        sweep_start += sweep_length) {
     apply_batch_to_tile<PARTICLES_PER_THREAD>(
-        first, last, &factors[0], store_flags, beam_dt, beam_dE,
+        first, last, &factors[0], launch_flags, beam_dt, beam_dE,
         sweep_start + particle_loop_start(), stride, n_macroparticles);
   }
   // Particles per thread still to do, < PARTICLES_PER_THREAD.
   const index_t tail_length =
       (n_macroparticles - sweep_start + stride - 1) / stride;
   apply_batch_to_tail<PARTICLES_PER_THREAD / 2>(
-      first, last, &factors[0], store_flags, beam_dt, beam_dE, sweep_start,
+      first, last, &factors[0], launch_flags, beam_dt, beam_dE, sweep_start,
       tail_length, stride, n_macroparticles);
   // Let the records merge the block's counters.
-  if (counting_record_offset >= 0) {
+  if (counting != nullptr) {
     __syncthreads();
-    // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
-    visit_kernel_call(reinterpret_cast<const KernelCallHeader *>(
-                          bytes + counting_record_offset),
-                      MergeCounters{&record_counters[0]});
-    // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
+    visit_kernel_call(counting, MergeCounters{&record_counters[0]});
   }
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
