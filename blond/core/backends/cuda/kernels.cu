@@ -60,6 +60,20 @@ __device__ __forceinline__ index_t particle_loop_stride() {
   const unsigned int stride = blockDim.x * gridDim.x;
   return stride;
 }
+
+// floor(x) as an `int`, in one saturating instruction (cvt.rmi): an
+// out-of-range result clamps to INT_MIN/INT_MAX instead of being
+// undefined behaviour, so callers range-check the integer afterwards.
+// That spares a floor and the FP64 range compares per particle, which is
+// what bounds the per-particle binning kernels on GPUs with low FP64
+// throughput (1/32 rate on consumer cards). A NaN converts to 0.
+__device__ __forceinline__ int floor_to_int(const real_t x) {
+#ifdef USEFLOAT
+  return __float2int_rd(x);
+#else
+  return __double2int_rd(x);
+#endif
+}
 } // namespace
 
 // Per-particle kernel bodies, one overload of `apply_to_particle` per
@@ -359,12 +373,11 @@ apply_to_particle(const KickInterpolatedArgs &args, NoFactors /*factors*/,
                   const real_t &dt, real_t &dE) {
   const real_t *table = args.voltage_kick_table;
   const int n_bins = static_cast<int>((args.voltage_kick_table_length - 2) / 2);
-  // Range-check before the conversion to `int` (see `hybrid_histogram`).
+  // Range-checks the integer bin, as `lik_only_gm_comp` does.
   // NOLINTBEGIN(*-pointer-arithmetic)
-  const real_t fbin_real = floor((dt - table[0]) * table[1]);
-  if (fbin_real >= static_cast<real_t>(0) &&
-      fbin_real < static_cast<real_t>(n_bins)) {
-    const int pair = 2 + 2 * static_cast<int>(fbin_real);
+  const int fbin = floor_to_int((dt - table[0]) * table[1]);
+  if (static_cast<unsigned int>(fbin) < static_cast<unsigned int>(n_bins)) {
+    const int pair = 2 + 2 * fbin;
     dE += dt * table[pair] + table[pair + 1];
   } else {
     // Out of range only the interpolated voltage is undefined.
@@ -507,20 +520,6 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
 }
 
 namespace {
-// floor(x) as an `int`, in one saturating instruction (cvt.rmi): an
-// out-of-range result clamps to INT_MIN/INT_MAX instead of being
-// undefined behaviour, so callers range-check the integer afterwards.
-// That spares a floor and the FP64 range compares per particle, which is
-// what bounds the per-particle binning kernels on GPUs with low FP64
-// throughput (1/32 rate on consumer cards). A NaN converts to 0.
-__device__ __forceinline__ int floor_to_int(const real_t x) {
-#ifdef USEFLOAT
-  return __float2int_rd(x);
-#else
-  return __double2int_rd(x);
-#endif
-}
-
 // Bin index of `value` in a histogram of `n_slices` bins over
 // [cut_left, cut_right]; any index outside [0, n_slices) means the value
 // lies outside the cut (a NaN lands in bin 0, see `floor_to_int`).
