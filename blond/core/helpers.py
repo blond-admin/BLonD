@@ -68,6 +68,42 @@ def int_from_float_with_warning(
         raise TypeError(type(value))
 
 
+class _DictKey:
+    """
+    Path segment of `_find` for a dict key, formatted only on demand.
+
+    Parameters
+    ----------
+    key
+        Dictionary key leading to the next object of the walk.
+    """
+
+    __slots__ = ("key",)
+
+    def __init__(self, key: Any) -> None:
+        self.key = key
+
+    def __str__(self) -> str:
+        return f"[{self.key!r}]"
+
+
+def _format_path(where: tuple) -> str:
+    """
+    Join the path segments collected by `_find` into one string.
+
+    Parameters
+    ----------
+    where
+        Path segments, from the root of the walk to the current object.
+
+    Returns
+    -------
+    path
+        Path such as ``.items[1]['key']``.
+    """
+    return "".join(str(segment) for segment in where)
+
+
 def _find(
     root: Any,
     is_wanted: Callable[[object], bool],
@@ -146,17 +182,24 @@ def _find(
 
         # Check if object has the desired method
         if is_wanted(obj):
-            logger.info("Found %s at %s", obj, where)
+            if logger.isEnabledFor(logging.INFO):
+                logger.info("Found %s at %s", obj, _format_path(where))
             found.add(obj)
 
         # Recurse into object attributes or container elements
+        # `where` holds the path as segments and is only formatted when a
+        # match is logged: stringifying every visited value (arrays
+        # included) on each step would dominate the walk.
         if isinstance(obj, dict):
             for key, value in obj.items():
-                _walk(key, skip_list, where + str(key))
-                _walk(value, skip_list, where + str(value))
-        elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
+                _walk(key, skip_list, where)
+                _walk(value, skip_list, (*where, _DictKey(key)))
+        elif isinstance(obj, (list, tuple)):  # NOQA: UP038
+            for index, item in enumerate(obj):
+                _walk(item, skip_list, (*where, f"[{index}]"))
+        elif isinstance(obj, set):
             for item in obj:
-                _walk(item, skip_list, where + str(item))
+                _walk(item, skip_list, (*where, "{...}"))
         elif hasattr(obj, "__dict__"):
             # checks if is python class
             for attr_name in obj.__dict__ if skip_properties else dir(obj):
@@ -172,7 +215,7 @@ def _find(
                     attr = getattr(obj, attr_name)
                 except Exception:
                     continue  # Skip attributes that raise errors on access
-                _walk(attr, skip_list, where + str(attr))
+                _walk(attr, skip_list, (*where, f".{attr_name}"))
 
     _walk(
         root,
@@ -180,7 +223,7 @@ def _find(
             "_mock_children",  # prevent infinite recursion in mock object
             "return_value",  # prevent infinite recursion in mock object
         ],
-        where="",
+        where=(),
     )
 
     return found
