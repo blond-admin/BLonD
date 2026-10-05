@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
     distributed_arange,
     mpi_aware_random_generator_cpu,
@@ -23,7 +23,7 @@ class TestCallablesWithMPI(BLonDTestCase):
             self.skipTest("Only with MPI")
 
     def test_mpi_local_size(self):
-        from blond.generals.distributed.helpers import mpi_local_size
+        from blond.core.backends.mpi_distributed.helpers import mpi_local_size
 
         with self.assertWarnsRegex(
             UserWarning, "Because MPI is used, `global_size`"
@@ -35,7 +35,9 @@ class TestCallablesWithMPI(BLonDTestCase):
             self.assertEqual(local_n, 6)
 
     def test_distributed_arange(self):
-        from blond.generals.distributed.helpers import distributed_arange
+        from blond.core.backends.mpi_distributed.helpers import (
+            distributed_arange,
+        )
 
         da = distributed_arange(12, dtype=np.int32)
         if da._rank == 0:
@@ -52,7 +54,9 @@ class TestCallablesWithMPI(BLonDTestCase):
             )
 
     def test_distributed_zeros(self):
-        from blond.generals.distributed.helpers import distributed_zeros
+        from blond.core.backends.mpi_distributed.helpers import (
+            distributed_zeros,
+        )
 
         da = distributed_zeros(12, dtype=np.int32)
         if da._rank == 0 or da._rank == 1:
@@ -108,8 +112,12 @@ class TestCallablesNoMPI(BLonDTestCase):
     def test_mpi_local_size(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
             # trigger new import
-            sys.modules.pop("blond.generals.distributed.helpers", None)
-            from blond.generals.distributed.helpers import mpi_local_size
+            sys.modules.pop(
+                "blond.core.backends.mpi_distributed.helpers", None
+            )
+            from blond.core.backends.mpi_distributed.helpers import (
+                mpi_local_size,
+            )
 
             self.assertEqual(
                 10, mpi_local_size(global_size=10, warning_hint="")
@@ -118,8 +126,12 @@ class TestCallablesNoMPI(BLonDTestCase):
     def test_distributed_arange(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
             # trigger new import
-            sys.modules.pop("blond.generals.distributed.helpers", None)
-            from blond.generals.distributed.helpers import distributed_arange
+            sys.modules.pop(
+                "blond.core.backends.mpi_distributed.helpers", None
+            )
+            from blond.core.backends.mpi_distributed.helpers import (
+                distributed_arange,
+            )
 
             da = distributed_arange(12, dtype=np.int32)
             np.testing.assert_allclose(da.copy_as_numpy(), np.arange(0, 12))
@@ -130,7 +142,8 @@ class TestCallablesNoMPI(BLonDTestCase):
         mock_comm = MagicMock()
         mock_comm.Get_size.return_value = 1
         with patch(
-            "blond.generals.distributed.helpers.MPI_COMM_WORLD", mock_comm
+            "blond.core.backends.mpi_distributed.helpers.MPI_COMM_WORLD",
+            mock_comm,
         ):
             result = mpi_is_distributed()
         self.assertFalse(result)
