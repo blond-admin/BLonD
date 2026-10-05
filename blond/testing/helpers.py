@@ -209,7 +209,7 @@ def save_blond2_reference_file(path: str, **arrays: NumpyArray) -> None:
         "python": sys.version,
         "platform": platform.platform(),
         "git_commit": _git_commit(os.path.dirname(os.path.abspath(path))),
-        "created": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "created": datetime.datetime.now(datetime.UTC).isoformat(),
     }
     np.savez(
         path,
