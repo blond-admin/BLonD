@@ -10,11 +10,13 @@
 // The beam coordinates (beam_dt, beam_dE) and the profile coordinates
 // (bin_centers, cut edges) must contain neither NaN nor +/-Inf. Nothing
 // here checks for it -- the check would not be free in a per-particle
-// loop. Note that the guards protecting the conversion of a bin index
+// loop. Note that the guards protecting a C++ conversion of a bin index
 // to `int` are written as `index < lo || index >= hi`: a NaN index
 // compares false against both bounds, passes the guard and reaches the
-// conversion, which is undefined behaviour. The caller must not produce
-// non-finite coordinates. See `Specials` in blond/core/backends/backend.py.
+// conversion, which is undefined behaviour (`floor_to_int` avoids the
+// C++ conversion and instead files a NaN in bin 0). The caller must not
+// produce non-finite coordinates. See `Specials` in
+// blond/core/backends/backend.py.
 
 #ifdef USEFLOAT
 using real_t = float;
@@ -183,6 +185,39 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
   }
 }
 
+namespace {
+// floor(x) as an `int`, in one saturating instruction (cvt.rmi): an
+// out-of-range result clamps to INT_MIN/INT_MAX instead of being
+// undefined behaviour, so callers range-check the integer afterwards.
+// That spares a floor and the FP64 range compares per particle, which is
+// what bounds the per-particle binning kernels on GPUs with low FP64
+// throughput (1/32 rate on consumer cards). A NaN converts to 0.
+__device__ __forceinline__ int floor_to_int(const real_t x) {
+#ifdef USEFLOAT
+  return __float2int_rd(x);
+#else
+  return __double2int_rd(x);
+#endif
+}
+
+// Bin index of `value` in a histogram of `n_slices` bins over
+// [cut_left, cut_right]; any index outside [0, n_slices) means the value
+// lies outside the cut (a NaN lands in bin 0, see `floor_to_int`).
+__device__ __forceinline__ int
+histogram_bin(const real_t value, const real_t cut_left, const real_t cut_right,
+              const real_t inv_bin_width, const unsigned int n_slices) {
+  int bin = floor_to_int((value - cut_left) * inv_bin_width);
+  // Scaling is not exact: a value at or just below cut_right can land
+  // on n_slices. Fold it back into the last bin, as np.histogram does,
+  // instead of dropping the particle.
+  const int n_bins = static_cast<int>(n_slices);
+  if (bin == n_bins && value <= cut_right) {
+    bin = n_bins - 1;
+  }
+  return bin;
+}
+} // namespace
+
 extern "C" __global__ void
 hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t cut_left, const real_t cut_right,
@@ -203,20 +238,11 @@ hybrid_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
 
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    // Range-check in floating point *before* the conversion:
-    // converting an out-of-range value to `int` is undefined
-    // behaviour.
-    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
-    // Scaling is not exact: a value at or just below cut_right can land
-    // on n_slices. Fold it back into the last bin, as np.histogram
-    // does, instead of dropping the particle.
-    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right) {
-      target_bin_real = real_t(n_slices - 1);
-    }
-    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices)) {
+    const int target_bin =
+        histogram_bin(input[i], cut_left, cut_right, inv_bin_width, n_slices);
+    if (static_cast<unsigned int>(target_bin) >= n_slices) {
       continue;
     }
-    const int target_bin = (int)target_bin_real;
     if (target_bin >= low_tbin && target_bin < high_tbin) {
       atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
     } else {
@@ -244,19 +270,11 @@ sm_histogram(const real_t *__restrict__ input, real_t *__restrict__ output,
   real_t const inv_bin_width = n_slices / (cut_right - cut_left);
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    // See `hybrid_histogram`: range-check before converting to `int`,
-    // and fold a value that scales onto n_slices back into the last
-    // bin instead of dropping it.
-    real_t target_bin_real = floor((input[i] - cut_left) * inv_bin_width);
-    if (target_bin_real >= real_t(n_slices) && input[i] <= cut_right) {
-      target_bin_real = real_t(n_slices - 1);
+    const int target_bin =
+        histogram_bin(input[i], cut_left, cut_right, inv_bin_width, n_slices);
+    if (static_cast<unsigned int>(target_bin) < n_slices) {
+      atomicAdd(&(slice_hist[target_bin]), 1);
     }
-    if (target_bin_real < real_t(0) || target_bin_real >= real_t(n_slices)) {
-      continue;
-    }
-    const int target_bin = (int)target_bin_real;
-
-    atomicAdd(&(slice_hist[target_bin]), 1);
   }
   __syncthreads();
   for (unsigned int i = threadIdx.x; i < n_slices; i += blockDim.x) {
@@ -304,12 +322,13 @@ extern "C" __global__ void lik_only_gm_comp(
   const real_t bin0 = bin_centers[0];
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
-    // Range-check before the conversion to `int` (see `hybrid_histogram`).
-    const real_t fbin_real = floor((beam_dt[i] - bin0) * inv_bin_width);
-    if (fbin_real >= real_t(0) && fbin_real < real_t(n_slices - 1)) {
-      const int factor_i = 2 * (int)fbin_real;
-      beam_dE[i] += beam_dt[i] * glob_vkick_factor[factor_i] +
-                    glob_vkick_factor[factor_i + 1];
+    const real_t dt = beam_dt[i];
+    const int fbin = floor_to_int((dt - bin0) * inv_bin_width);
+    if (static_cast<unsigned int>(fbin) <
+        static_cast<unsigned int>(n_slices - 1)) {
+      const int factor_i = 2 * fbin;
+      beam_dE[i] +=
+          dt * glob_vkick_factor[factor_i] + glob_vkick_factor[factor_i + 1];
     } else {
       // Out of range only the interpolated voltage is undefined; acc_kick
       // carries the reference energy change and applies to the whole beam
@@ -364,7 +383,8 @@ extern "C" __global__ void lik_sparse_gm_comp(
   for (index_t i = particle_loop_start(); i < n_macroparticles;
        i += particle_loop_stride()) {
     const real_t dt = beam_dt[i];
-    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    // Range-check in floating point before the conversion to `int`:
+    // converting an out-of-range value is undefined behaviour.
     const real_t bucket_real = floor((dt - first_left_cut) * inv_hist_dist);
     // A particle that gets no interpolated voltage still receives
     // acc_kick -- notably one in an *unfilled* bucket, which is fully
@@ -523,7 +543,8 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
        i += particle_loop_stride()) {
     const real_t dt = input[i];
 
-    // Range-check before the conversion to `int` (see `hybrid_histogram`).
+    // Range-check in floating point before the conversion to `int`:
+    // converting an out-of-range value is undefined behaviour.
     const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
     if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets)) {
       continue;

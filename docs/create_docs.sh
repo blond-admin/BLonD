@@ -1,3 +1,5 @@
+set -euxo pipefail
+
 rm -f modules/*.rst
 rm -rf _build/*
 

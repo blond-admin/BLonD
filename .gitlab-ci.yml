@@ -6,33 +6,29 @@ variables:
   # --- uv (package installer, replaces pip; see `.cache_uv`) ---
   # uv keeps a content-addressed store of every downloaded/built wheel and
   # of the index metadata. Point it into the project dir so GitLab can cache
-  # it between pipelines: a warm cache turns the ~6 minute fresh
-  # `pip install .[all_cuda12]` into a few seconds of hard-linking. There is
-  # deliberately NO lockfile (uv.lock is git-ignored): every pipeline creates
-  # a fresh venv and re-resolves against the index, so we always test the
-  # newest releases and notice breakage early. Only the wheel *files* are
-  # reused from the cache, not a pinned set of versions.
+  # it between pipelines. Only wheels uv had to build from source are kept
+  # (`uv cache prune --ci`, see `.cache_uv`); prebuilt wheels are re-fetched
+  # from PyPI, which is faster than zipping/uploading/restoring them. There
+  # is deliberately NO lockfile (uv.lock is git-ignored): every pipeline
+  # creates a fresh venv and re-resolves against the index, so we always
+  # test the newest releases and notice breakage early. Only the wheel
+  # *files* are reused from the cache, not a pinned set of versions.
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv_cache"
   # Always use the interpreter shipped in the CI image, never let uv download
   # a managed Python of its own.
   UV_PYTHON_DOWNLOADS: "never"
-  # --- numba JIT cache (persisted across pipelines, see `.cache_numba`) ---
-  # Centralise numba's on-disk cache (.nbi/.nbc) into one dir so GitLab can
-  # cache it between runs; the kernels already use `cache=True`, but the
-  # cache is otherwise cold on every fresh runner and recompiles during the
-  # test run (the dominant cost).
-  NUMBA_CACHE_DIR: "${CI_PROJECT_DIR}/.numba_cache"
-  # Compile CPU-generic code so a cached entry is valid on ANY runner,
-  # independent of its CPU. numba self-validates entries, so a mismatch only
-  # ever forces a recompile (never wrong code); `generic` just maximises the
-  # cross-runner hit rate. Remove these two if the runner pool is
-  # CPU-homogeneous and you prefer full `-march=native` kernel speed.
-  NUMBA_CPU_NAME: "generic"
-  NUMBA_CPU_FEATURES: ""
+  # --- GPU runner selection ---
+  # Tag of the runner all GPU jobs are sent to. Defaults to the dedicated
+  # H100 project runner (few concurrent jobs, but no queueing behind other
+  # projects); set to `k8s-gpu` (e.g. when running a pipeline manually) to
+  # fall back to the shared Kubernetes GPU runners.
+  GPU_RUNNER_TAG: "accpoc-h100-.5"
+# The jobs in `checks` run in parallel on non-GPU runners. The GPU jobs are
+# then gated twice so that a broken commit cannot flood the (few-slot) GPU
+# runner: `test_py314` (a single job) starts only once every check passed, and
+# the `test` fan-out only once that single GPU job passed.
 stages:
-  - precommit
-  - doc_build
-  - test_without_gpu
+  - checks
   - test_py314
   - test
   - deploy
@@ -82,14 +78,16 @@ workflow:
         - .uv_cache/
   after_script:
     # after_script runs in a fresh shell: PATH and the venv are gone, so
-    # re-add uv. `uv cache prune` drops entries no longer reachable by the
-    # current cache layout. Because every pipeline installs the newest
-    # releases, superseded wheels still accumulate slowly; wipe the cache
-    # once it outgrows BLOND_UV_CACHE_MAX_MB (default 3000) so the GitLab
-    # cache archive stays bounded. after_script runs just before the cache
-    # upload.
+    # re-add uv. `uv cache prune --ci` keeps only wheels built from source
+    # and drops prebuilt wheels plus their unpacked copies: re-downloading
+    # those from PyPI takes a few seconds, while archiving them made the
+    # cache ~900 MB and cost more to upload/restore than it saved. Because
+    # every pipeline installs the newest releases, superseded source builds
+    # still accumulate slowly; wipe the cache once it outgrows
+    # BLOND_UV_CACHE_MAX_MB (default 3000) so the GitLab cache archive stays
+    # bounded. after_script runs just before the cache upload.
     - export PATH="${HOME}/.local/bin:${PATH}"
-    - uv cache prune || true
+    - uv cache prune --ci || true
     - >
       size_mb=$(du -sm "${UV_CACHE_DIR}" 2>/dev/null | cut -f1 || echo 0);
       max_mb="${BLOND_UV_CACHE_MAX_MB:-3000}";
@@ -105,14 +103,6 @@ workflow:
     - key: "uv-${CI_JOB_NAME}"
       paths:
         - .uv_cache/
-    # Persist numba's JIT cache between pipelines. The key is per-job, which
-    # also separates Python versions (different image -> different
-    # numba/python -> entries would not validate anyway). Safe to share
-    # across GPU and non-GPU runners: it holds only CPU kernel code and
-    # self-validates on load.
-    - key: "numba-${CI_JOB_NAME}"
-      paths:
-        - .numba_cache/
     # Persist the compiled C++/CUDA backends between pipelines. Each
     # compiled/<hash>/ directory is keyed (see compiled_dir_handler) on the
     # toolchain version, host CPU instruction set and build flags, so a
@@ -127,15 +117,10 @@ workflow:
         - blond/core/backends/cpp/compiled/
         - blond/core/backends/cuda/compiled/
   after_script:
-    # Bound the numba cache size before GitLab uploads it. Bare python3 +
-    # pure stdlib: no venv needed, and no `import blond` -- which would
-    # recompile kernels into the very cache we are pruning. Size budget:
-    # BLOND_NUMBA_CACHE_MAX_MB (default 500).
-    - python3 dev_tools/prune_numba_cache.py
     # Same bookkeeping for the uv cache as in `.cache_uv` (kept in sync by
     # hand -- see the NOTE above on why it cannot be inherited).
     - export PATH="${HOME}/.local/bin:${PATH}"
-    - uv cache prune || true
+    - uv cache prune --ci || true
     - >
       size_mb=$(du -sm "${UV_CACHE_DIR}" 2>/dev/null | cut -f1 || echo 0);
       max_mb="${BLOND_UV_CACHE_MAX_MB:-3000}";
@@ -161,6 +146,12 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
@@ -190,6 +181,12 @@ workflow:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Verify installation
     - gcc --version
     - python3 --version && gcc --version && mpirun --version
@@ -215,8 +212,8 @@ workflow:
     - uv pip list
     - cd ${project_root}
     # Warm the numba JIT cache in a single process before mpirun spawns 2
-    # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
-    # cold, both processes race to compile and write the same cache
+    # concurrent ranks. numba's on-disk cache (__pycache__) is shared by
+    # both ranks; if it is cold, both race to compile and write the same cache
     # entries concurrently, and the loser can be left with a corrupted or
     # partial entry -- causing an unrelated numba-backed call to raise on
     # just that rank, which then deadlocks the other rank's next MPI
@@ -237,21 +234,12 @@ workflow:
     # test, not per session: 300s leaves ~40x headroom over the slowest MPI
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
-    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     - python3 -m pytest
       -v
       --randomly-seed=$CI_PIPELINE_ID
-      --cov-append
-      --cov
-      --cov-config=.coveragerc
-      --cov-report html:coverage-html
-      --cov-report xml:coverage.xml
-      --junitxml=junit-report.xml
-    - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
-    - echo "XML_COVERAGE=$COV"
-  # coverage: '/XML_COVERAGE=(\d+\.\d+)/'
 
 
 .main_only_cupy:
@@ -266,31 +254,30 @@ workflow:
     - cd ${project_root}
     - python3 -m pytest
       -m "not backend_mutation and not mpi"
-      -m "not backend_mutation"
       -v
       --randomly-seed=$CI_PIPELINE_ID
 
-.main_no_gpu:
+.smoke_no_gpu:
+  # Smoke test: does BLonD install and run end-to-end WITHOUT CuPy? Only the
+  # examples are run -- the full unittest suite without CuPy is already
+  # covered by the last pytest run of `.main_many_environments`. Kept small
+  # so this job (in the `checks` stage) gates the GPU jobs quickly.
   variables:
-    BLOND_BACKEND_MODE: "cpp"     # Set the basic backend to numba. It is most verbose about wrong types
-    BLOND_FORCE_TEST_ALL_BACKENDS: "False"     # Force backend scanning unittests to use all available backends
-    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+    BLOND_BACKEND_MODE: "cpp"
+    MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive.
   script:
     - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
-    - uv pip list
-    - cd ${project_root}
-    # Run only MPI unittests. Only the main thread should report.
-    # `-p no:randomly`: both ranks MUST run tests in identical order, otherwise
-    # they can desync on an MPI collective and deadlock (see .main for details).
-    # See the `-x --timeout=...` rationale in the `test_py_314` job above.
-    - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
-    # Run all unittests + the examples
+    # The examples' tests carry the `mpi` marker; without mpirun they must
+    # run single-rank, so drop mpi4py (as the other jobs do).
     - uv pip uninstall mpi4py
     # cupy is not part of all_no_cuda; uninstalling a missing package is a
-    # no-op for uv, kept so the job stays identical if the extras change.
+    # no-op for uv, kept so the job stays CuPy-free if the extras change.
     - uv pip uninstall cupy-cuda12x
+    - uv pip list
+    - cd ${project_root}
     - python3 -m pytest
+      tests/integration/examples
       -v
       --randomly-seed=$CI_PIPELINE_ID
 
@@ -306,8 +293,8 @@ workflow:
     - cd ${project_root}
     - mkdir -p junit-reports
     # Warm the numba JIT cache in a single process before mpirun spawns 2
-    # concurrent ranks. NUMBA_CACHE_DIR is shared by both ranks; if it is
-    # cold, both processes race to compile and write the same cache
+    # concurrent ranks. numba's on-disk cache (__pycache__) is shared by
+    # both ranks; if it is cold, both race to compile and write the same cache
     # entries concurrently, and the loser can be left with a corrupted or
     # partial entry -- causing an unrelated numba-backed call to raise on
     # just that rank, which then deadlocks the other rank's next MPI
@@ -383,7 +370,7 @@ precommit-check:
 
   # Harbor proxy cache: anonymous Docker Hub pulls get 429-throttled.
   image: registry.cern.ch/docker.io/library/python:3.14 # See https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker
-  stage: precommit
+  stage: checks
   interruptible: true
   extends:
     - .cache_uv
@@ -453,15 +440,17 @@ clang-tidy:
       paths:
         - .uv_cache/
 
-test_py_314_no_cupy:
+smoke_examples_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: test_without_gpu
+  stage: checks
   interruptible: true
   extends:
     - .before_no_gpu
-    - .main_no_gpu
+    - .smoke_no_gpu
     - .cache_test
   dependencies: []
+  tags:
+    - cpu-intensive
 
 test_py_314_main_many_environments:
   image: gitlab-registry.cern.ch/blond/blond/python314
@@ -474,26 +463,7 @@ test_py_314_main_many_environments:
     - .cache_test
   dependencies: []
   tags:
-    - k8s-gpu
-
-test_py_310:
-  image: gitlab-registry.cern.ch/blond/blond/python310
-  stage: test
-  interruptible: true
-  extends:
-    - .before
-    - .main
-    - .cache_test
-    # - .publish
-  dependencies: []
-  tags:
-    - k8s-gpu
-  rules:
-    # Run on branch blonder
-    - if: '$CI_COMMIT_BRANCH == "blonder"'
-
-    # ALSO run in merge requests targeting blonder
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - $GPU_RUNNER_TAG
 
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
@@ -506,7 +476,7 @@ test_py_311:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -525,7 +495,7 @@ test_py_312:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -544,29 +514,11 @@ test_py_313:
     # - .publish
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
 
-    # ALSO run in merge requests targeting blonder
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
-test_py_314:
-  image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: test
-  interruptible: true
-  extends:
-    - .before
-    - .main
-    - .cache_test
-    # - .publish
-  dependencies: []
-  tags:
-    - k8s-gpu
-  rules:
-    # Run on branch blonder
-    - if: '$CI_COMMIT_BRANCH == "blonder"'
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
@@ -580,7 +532,7 @@ test_py_314_only_cupy:
     - .cache_test
   dependencies: []
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -588,7 +540,7 @@ test_py_314_only_cupy:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 test_minimum:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: test
   interruptible: true
   extends:
@@ -608,6 +560,12 @@ test_minimum:
     - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py)
     - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - echo "OMP_NUM_THREADS=$OMP_NUM_THREADS (host nproc=$(nproc))"
+    # Print the host CPU and RAM (the CPU counterpart of `nvidia-smi`
+    # below): model, topology, clocks, caches, SIMD flags. Note that
+    # lscpu describes the *host*, not the cgroup entitlement echoed above.
+    # Diagnostics only, so a slim image without util-linux must not fail.
+    - lscpu || true
+    - free -h || true
     # Create venv to avoid permission error when installing packages
     - *uv_setup
     - uv venv ./.venv
@@ -631,7 +589,7 @@ test_minimum:
       -v
       --import-mode=importlib
   tags:
-    - k8s-gpu
+    - $GPU_RUNNER_TAG
   rules:
     # Run on branch blonder
     - if: '$CI_COMMIT_BRANCH == "blonder"'
@@ -639,8 +597,8 @@ test_minimum:
     # ALSO run in merge requests targeting blonder
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
-release_sdist_310:
-  image: gitlab-registry.cern.ch/blond/blond/python310
+release_sdist_311:
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: deploy
   extends:
     - .on_tag
@@ -662,7 +620,7 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python314
-  stage: doc_build
+  stage: checks
   interruptible: true
   extends:
     - .cache_uv
@@ -677,16 +635,28 @@ test_documentation_building:
     # the uv venv is isolated from the system site-packages.)
     - uv pip install ${project_root}[doc,xsuite,gpu_cuda12]
     - cd ${project_root}/docs
-    - . ./create_docs.sh
+    - ./create_docs.sh
   artifacts:
     paths:
       - ${project_root}/docs/_build/html
     expire_in: 3 hour
     when: always
+  rules:
+    # Blocking in merge requests: a broken doc build must not be mergeable.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: false
+    # Blocking on blonder itself: this is the branch `pages` deploys from.
+    - if: '$CI_COMMIT_BRANCH == "blonder"'
+      allow_failure: false
+    # Warning-only on other commit pipelines: surface the failure without
+    # reddening the whole pipeline.
+    - when: on_success
+      allow_failure: true
 
 
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python314
+  stage: deploy
   extends:
     - .cache_uv
   script:
