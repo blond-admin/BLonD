@@ -41,7 +41,9 @@ To add a deferrable kernel:
    ...)`` in ``cpp/particle_kernels.h`` and ``apply_to_particle(const
    <Kernel>Args&, <Factors>, ...)`` in ``cuda/kernels.cu``, plus a
    ``prepare(const <Kernel>Args&)`` returning ``<Factors>`` if the kernel
-   has loop-invariant factors (``NoFactors`` otherwise). A missing
+   has loop-invariant factors (``NoFactors`` otherwise). A kernel that
+   `counts_across_particles` has ``count_chunk`` / ``count_particle``
+   instead, plus ``merge_counters``, see the comments there. A missing
    overload does not compile.
 """
 
@@ -495,8 +497,9 @@ class KernelCallArgs:
     """Whether the kernel modifies ``dE``; required on every subclass."""
     counts_across_particles: ClassVar[bool] = False
     """Whether the kernel accumulates over particles, e.g. a histogram,
-    into counters of the executor (`n_counters`). Queuing it runs the
-    batch: its output is read next, and a batch holds at most one."""
+    into counters of the executor (`n_counters`), and writes neither
+    coordinate. Queuing it runs the batch: its output is read next, and
+    a batch holds at most one."""
     reads_queued_dt_as: ClassVar[str | None] = None
     """For a kernel whose method takes no ``dt, dE``: the parameter that
     is queued only when it is the queued beam's ``dt``, else the call
@@ -534,6 +537,8 @@ class KernelCallArgs:
                     f"{cls.__name__} must set `{flag}` to True or False: "
                     "whether the kernel modifies that coordinate."
                 )
+        if cls.counts_across_particles and (cls.writes_dt or cls.writes_dE):
+            raise TypeError(f"{cls.__name__} counts, so it cannot write.")
 
     @classmethod
     def specials_method(cls) -> str:

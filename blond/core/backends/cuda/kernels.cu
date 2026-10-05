@@ -537,28 +537,14 @@ histogram_bin(const real_t value, const real_t cut_left, const real_t cut_right,
   return bin;
 }
 
-// Records that count across particles, e.g. a histogram. The deferred
-// executor gives such a record zeroed counters in the block's shared
-// memory (`KernelCallArgs.n_counters`), passes them to `count_particle`
-// with every particle's final coordinates at the end of its tile, and
-// lets the record merge them with `merge_block_counters` after the
-// block's last tile. Counting there, not in `apply_to_particle`, keeps
-// the counting out of the tile loop's register budget. Records that
-// count nothing use the defaults.
-// One particle of the beam with its final coordinates; tile lanes past
-// the beam are not counted.
-template <class Args, class Factors>
-__device__ __forceinline__ void
-count_particle(const Args & /*args*/, const Factors & /*factors*/,
-               const real_t & /*dt*/, const real_t & /*dE*/,
-               int * /*counters*/) {}
-
-// Called by every thread of the block.
-template <class Args>
-__device__ __forceinline__ void merge_block_counters(const Args & /*args*/,
-                                                     const int * /*counters*/) {
-}
-
+// A record that counts across particles (e.g. a histogram) has
+// `count_particle` instead of `apply_to_particle`: the deferred executor
+// calls it with each particle's final coordinates at the end of its tile
+// (lanes past the beam are not counted), which keeps the counting out of
+// the tile loop's register budget, and with the block's zeroed
+// shared-memory counters (`KernelCallArgs.n_counters`). After the
+// block's last tile, every thread of the block calls its
+// `merge_counters`.
 // The histogram counts the tile's final dt per bin, binned like the
 // eager kernels; the block's counts are added to `array_write`, which
 // was zeroed when the record was queued.
@@ -571,12 +557,6 @@ __device__ __forceinline__ HistogramFactors prepare(const HistogramArgs &args) {
           (args.stop - args.start)};
 }
 
-// Counts in `count_particle`, once dt is final.
-__device__ __forceinline__ void
-apply_to_particle(const HistogramArgs & /*args*/,
-                  const HistogramFactors & /*factors*/, const real_t & /*dt*/,
-                  const real_t & /*dE*/) {}
-
 __device__ __forceinline__ void
 count_particle(const HistogramArgs &args, const HistogramFactors &factors,
                const real_t &dt, const real_t & /*dE*/, int *counters) {
@@ -588,8 +568,8 @@ count_particle(const HistogramArgs &args, const HistogramFactors &factors,
   }
 }
 
-__device__ __forceinline__ void merge_block_counters(const HistogramArgs &args,
-                                                     const int *counters) {
+__device__ __forceinline__ void merge_counters(const HistogramArgs &args,
+                                               const int *counters) {
   const auto n_bins = static_cast<unsigned int>(args.array_write_length);
   for (unsigned int bin = threadIdx.x; bin < n_bins; bin += blockDim.x) {
     const int count = counters[bin];
@@ -1121,11 +1101,13 @@ template <int TILE> struct ApplyToParticleTile {
   real_t (*dE)[TILE];
   const RecordFactors *slot;
   template <class Args> __device__ void operator()(const Args &args) const {
-    using Factors = decltype(prepare(args));
-    const Factors factors = load_factors<Factors>(*slot);
+    if constexpr (!counts_across_particles<Args>) {
+      using Factors = decltype(prepare(args));
+      const Factors factors = load_factors<Factors>(*slot);
 #pragma unroll
-    for (int k = 0; k < TILE; ++k) {
-      apply_to_particle(args, factors, (*dt)[k], (*dE)[k]);
+      for (int k = 0; k < TILE; ++k) {
+        apply_to_particle(args, factors, (*dt)[k], (*dE)[k]);
+      }
     }
   }
 };
@@ -1137,16 +1119,20 @@ struct CountParticle {
   const RecordFactors *slot;
   int *counters;
   template <class Args> __device__ void operator()(const Args &args) const {
-    using Factors = decltype(prepare(args));
-    count_particle(args, load_factors<Factors>(*slot), *dt, *dE, counters);
+    if constexpr (counts_across_particles<Args>) {
+      using Factors = decltype(prepare(args));
+      count_particle(args, load_factors<Factors>(*slot), *dt, *dE, counters);
+    }
   }
 };
 
 // Visitor: the record merges the block's counters.
-struct MergeBlockCounters {
+struct MergeCounters {
   const int *counters;
   template <class Args> __device__ void operator()(const Args &args) const {
-    merge_block_counters(args, counters);
+    if constexpr (counts_across_particles<Args>) {
+      merge_counters(args, counters);
+    }
   }
 };
 
@@ -1327,7 +1313,7 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   // Let the records merge the block's counters.
   if (counting_record != nullptr) {
     __syncthreads();
-    visit_kernel_call(counting_record, MergeBlockCounters{&record_counters[0]});
+    visit_kernel_call(counting_record, MergeCounters{&record_counters[0]});
   }
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }

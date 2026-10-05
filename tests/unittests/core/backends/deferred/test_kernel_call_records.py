@@ -587,6 +587,14 @@ class TestKernelCallRecords(BLonDTestCase):
                 arguments, eager_specials=None
             )
 
+    def test_counting_kernel_cannot_write(self) -> None:
+        with self.assertRaisesRegex(TypeError, "cannot write"):
+
+            class HistogramArgs(KernelCallArgs):  # noqa: F841
+                writes_dt = True
+                writes_dE = False
+                counts_across_particles = True
+
     def test_missing_write_flags_are_rejected_at_definition(self) -> None:
         with self.assertRaisesRegex(TypeError, "writes_dE"):
 

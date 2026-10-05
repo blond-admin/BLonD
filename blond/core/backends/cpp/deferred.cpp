@@ -26,9 +26,9 @@
 #include "scratch_buffer.h"
 
 namespace {
-// Visitor: forwards each record to its `apply_to_chunk_counting`
-// overload (particle_kernels.h), with the calling thread's counters,
-// which only the batch's counting record uses.
+// Visitor: forwards each record to its `apply_to_chunk` overload
+// (particle_kernels.h), or the counting record to its `count_chunk`
+// with the calling thread's counters.
 struct ApplyToChunk {
   real_t *beam_dt;
   real_t *beam_dE;
@@ -39,7 +39,11 @@ struct ApplyToChunk {
   index_t *counters;
 
   template <class Args> void operator()(const Args &args) const {
-    apply_to_chunk_counting(args, beam_dt, beam_dE, begin, end, counters);
+    if constexpr (counts_across_particles<Args>) {
+      count_chunk(args, beam_dt, beam_dE, begin, end, counters);
+    } else {
+      apply_to_chunk(args, beam_dt, beam_dE, begin, end);
+    }
   }
 };
 
@@ -51,7 +55,9 @@ struct MergeCounters {
   std::size_t row_length;
   int n_threads;
   template <class Args> void operator()(const Args &args) const {
-    merge_counters(args, counters, row_length, n_threads);
+    if constexpr (counts_across_particles<Args>) {
+      merge_counters(args, counters, row_length, n_threads);
+    }
   }
 };
 

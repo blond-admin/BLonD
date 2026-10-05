@@ -212,36 +212,20 @@ void apply_to_chunk(const DriftExactArgs &args, real_t *beam_dt,
 void apply_to_chunk(const KickInterpolatedArgs &args, const real_t *beam_dt,
                     real_t *beam_dE, index_t begin, index_t end);
 
-// Records that count across particles, e.g. a histogram. The executor
-// gives such a record a row of zeroed counters per thread, as many as
-// `KernelCallArgs.n_counters` says, hands the calling thread's row to
-// `apply_to_chunk_counting` with every chunk, and lets the record merge
-// all threads' rows with `merge_counters` after the last chunk. Records
-// that count nothing use the defaults: `apply_to_chunk`, nothing to
-// merge.
-template <class Args>
-inline void apply_to_chunk_counting(const Args &args, real_t *beam_dt,
-                                    real_t *beam_dE, const index_t begin,
-                                    const index_t end, index_t * /*counters*/) {
-  apply_to_chunk(args, beam_dt, beam_dE, begin, end);
-}
-
-// Called by every thread of the parallel region. `counters` are the
-// record's counters of thread 0; thread t's follow `t * row_length`
-// later.
-template <class Args>
-inline void merge_counters(const Args & /*args*/, const index_t * /*counters*/,
-                           const std::size_t /*row_length*/,
-                           const int /*n_threads*/) {}
-
+// A record that counts across particles (e.g. a histogram) has
+// `count_chunk` instead of `apply_to_chunk`: the executor hands it the
+// calling thread's row of zeroed counters (`KernelCallArgs.n_counters`)
+// with every chunk. After the last chunk, every thread of the parallel
+// region calls its `merge_counters`, with thread 0's row; thread t's
+// follows `t * row_length` later.
 // The histogram counts the dt of the chunk per bin, binned like the
 // eager `histogram` (histogram.cpp), with one counter per bin
 // (`HistogramArgs.n_counters`); index_t counters, so a bin can count
 // more than 2^31 - 1 particles.
 BLOND_NOINLINE inline void
-apply_to_chunk_counting(const HistogramArgs &args, real_t *__restrict__ beam_dt,
-                        real_t * /*beam_dE*/, const index_t begin,
-                        const index_t end, index_t *__restrict__ counters) {
+count_chunk(const HistogramArgs &args, const real_t *__restrict__ beam_dt,
+            const real_t * /*beam_dE*/, const index_t begin, const index_t end,
+            index_t *__restrict__ counters) {
   const index_t n_bins = args.array_write_length;
   const real_t inv_bin_width =
       static_cast<real_t>(n_bins) / (args.stop - args.start);
