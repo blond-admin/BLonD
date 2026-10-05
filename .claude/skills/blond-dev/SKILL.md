@@ -8,7 +8,7 @@ description: Use when developing in the BLonD3 / BLonD codebase (gitlab.cern.ch/
 CERN Python code for simulating longitudinal beam dynamics in synchrotrons
 (macroparticle tracking through RF systems, magnetic ramps, and collective
 effects). Active dev branch is `blonder` (NOT `develop`/`master`).
-Python ≥3.10, line length 79.
+Python ≥3.11, line length 79.
 
 **Stay critical — the code can be wrong.** BLonD is under active development and
 still has bugs. Don't assume existing code (or its comments/docstrings) is correct
@@ -76,6 +76,14 @@ Backend-relevant env vars and markers:
 - Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`.
   Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`.
 - `pytest-randomly` randomizes order; reproduce a failure with `--randomly-seed=<N>`.
+- **The test suite does not run BLonD 2.** Legacy regression tests compare BLonD 3
+  against BLonD 2 outputs frozen in `resources/*_blond2.npz` reference files (each
+  `resources/README.md` lists them). BLonD 2 runs only when a module sets
+  `REWRITE_BLOND2_REFERENCE_FILE = True`, in the pinned environment from
+  `tests/blond2-reference-requirements.txt`. **Never add legacy version caps to
+  `pyproject.toml`:** uv resolves one lock across all extras, so a cap in any
+  extra downgrades everyone's `uv sync`. A missing BLonD 2 reference file makes its test fail
+  with `FileNotFoundError` on purpose. Don't add a fallback that runs BLonD 2.
 - **Tests run in random order *and* `backend_mutation` tests flip the global
   active backend (`set_specials`) mid-run.** So both the tests and the BLonD
   code they exercise must be **backend-agnostic**: never assume which backend is
