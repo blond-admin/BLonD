@@ -15,11 +15,21 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.acc_math.analytic.conversions import (
+    delta_P_to_delta_E,
+    total_energy_to_momentum,
+)
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant
+from blond.core.base import BeamPhysicsRelevant, Schedulable
+from blond.core.scheduling import ScheduledFunctional
 
 if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.base import DynamicParameter
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.reference_clock.reference_clock import (
+        ReferenceCoordinates,
+    )
+    from blond.core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant, ABC):
@@ -78,7 +88,7 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
             beam.purge_flagged_entries()
 
 
-class BoxLosses(LossesBaseClass):
+class BoxLosses(LossesBaseClass, Schedulable):
     """
     Particles outside a rectangle will be flagged lost.
 
@@ -151,6 +161,79 @@ class BoxLosses(LossesBaseClass):
         self.e_min = float(e_min)
         self.e_max = float(e_max)
 
+        self._turn_counter: DynamicParameter | None = None
+        self._reference: ReferenceCoordinates | None = None
+        self._register_schedulable_variables(
+            "t_min", "t_max", "e_min", "e_max"
+        )
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
+        """
+        super().on_init_simulation(
+            simulation, turn_counter=simulation.turn_counter, **kwargs
+        )
+
+    def configure(
+        self, *, turn_counter: DynamicParameter | None = None, **kwargs
+    ) -> None:
+        """
+        Store the turn counter needed for schedule application during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        self._turn_counter = turn_counter
+        super().configure(**kwargs)
+
+    def schedule_momentum_acceptance(self, dp_over_p: float) -> None:
+        """
+        Schedule ``e_min``/``e_max`` to a relative momentum limit.
+
+        Each turn, ``e_min``/``e_max`` are set to the exact energy offsets
+        of ``dp/p = -dp_over_p`` and ``+dp_over_p``, using the beam
+        reference at this element.
+
+        Parameters
+        ----------
+        dp_over_p
+            Macro-particles with ``|dp/p| > dp_over_p`` will be labeled/removed.
+        """
+
+        def energy_limit(sign: float) -> ScheduledFunctional:
+            def function(turn_i: int, reference_time: float) -> float:
+                rest_mass = self._reference.particle_type.mass
+                momentum = total_energy_to_momentum(
+                    total_energy=self._reference.total_energy,
+                    rest_mass=rest_mass,
+                )
+                return delta_P_to_delta_E(
+                    delta_P=sign * dp_over_p * momentum,
+                    momentum=momentum,
+                    rest_mass=rest_mass,
+                )
+
+            return ScheduledFunctional(function)
+
+        # Deliberately NOT `self.schedule(...)`: it evaluates the schedule
+        # right away (turn 0), when `self._reference` is still None and
+        # the scheduled function would crash. `_track` sets it first.
+        self.schedules["e_max"] = energy_limit(sign=+1.0)
+        self.schedules["e_min"] = energy_limit(sign=-1.0)
+        self.schedule_active = True
+
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
@@ -160,6 +243,15 @@ class BoxLosses(LossesBaseClass):
         beam
             Beam class to interact with this element.
         """
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self._reference = beam.reference
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=beam.reference.time,
+            )
         if beam.common_array_size > 0:
             backend.specials.loss_box(
                 e_max=backend.float(self.e_max),

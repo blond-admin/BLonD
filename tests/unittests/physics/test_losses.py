@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Beam, BoxLosses, Simulation, proton, uranium_29
+from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
@@ -69,9 +70,44 @@ class TestBoxLosses(BLonDTestCase):
         pass  # calls setUp()
 
     def test_on_init_simulation(self):
-        self.box_losses.on_init_simulation(
-            simulation=simulation_mock,
+        simulation = Mock()
+        simulation.turn_counter = DynamicParameter(value_init=0)
+        self.box_losses.on_init_simulation(simulation=simulation)
+        self.assertIs(self.box_losses._turn_counter, simulation.turn_counter)
+
+    def test_schedule_e_max_per_turn(self):
+        turn_counter = DynamicParameter(value_init=0)
+        self.box_losses.configure(turn_counter=turn_counter)
+        self.box_losses.schedule("e_max", np.array([20.0, 5.0]))
+        turn_counter.value = 1
+        beam = Beam(intensity=1e12, particle_type=proton)
+        beam.setup_beam(
+            dt=np.linspace(-10, 10, 201),
+            dE=np.linspace(-100, 100, 201),
         )
+        self.box_losses.track(beam=beam)
+        self.assertEqual(self.box_losses.e_max, 5.0)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dE()) <= 5, True)
+
+    def test_schedule_momentum_acceptance(self):
+        self.box_losses.configure(turn_counter=DynamicParameter(value_init=0))
+        self.box_losses.schedule_momentum_acceptance(dp_over_p=1e-3)
+        beam = Beam(intensity=1e12, particle_type=proton)
+        beam.reference.total_energy = 2e9
+        beam.setup_beam(dt=np.zeros(3), dE=np.zeros(3))
+        for total_energy in (2e9, 20e9):
+            beam.reference.total_energy = total_energy
+            self.box_losses.track(beam=beam)
+            momentum = np.sqrt(total_energy**2 - proton.mass**2)
+            for dp_over_p, e_lim in (
+                (1e-3, self.box_losses.e_max),
+                (-1e-3, self.box_losses.e_min),
+            ):
+                expected = (
+                    np.hypot(momentum * (1 + dp_over_p), proton.mass)
+                    - total_energy
+                )
+                self.assertAlmostEqual(e_lim, expected, delta=1e-5)
 
     def test_on_run_simulation(self):
         self.box_losses.on_run_simulation(
