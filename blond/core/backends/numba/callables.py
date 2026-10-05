@@ -497,6 +497,17 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
+    def beam_histogram(  # NOQA: D102
+        dt: NumpyArray,
+        dE: NumpyArray,
+        hist_y: NumpyArray,
+        cut_left: float,
+        cut_right: float,
+    ) -> None:
+        # Positional: the compiled kernel takes no keywords.
+        NumbaSpecials.histogram(dt, hist_y, cut_left, cut_right)
+
+    @staticmethod
     @enforce_precision(FLOAT)
     @njit(
         sig_loss_box,

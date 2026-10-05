@@ -390,6 +390,8 @@ def _queuing_method(
             "    for _values in _records:",
             "        _queue.append_record(_args_type, _packer, *_values)",
         ]
+    if args_type.ends_batch:
+        body.append("    _flush()")
     name = eager_method.__name__
     source = "\n".join([f"def {name}({signature}):", *body])
     exec(source, namespace)  # noqa: S102

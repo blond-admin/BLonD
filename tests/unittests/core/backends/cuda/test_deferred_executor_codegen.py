@@ -200,11 +200,15 @@ def _count(instructions: list[str], opcode: str) -> int:
     return count
 
 
-def _tile_loop(instructions: list[tuple[int, str]]) -> list[str]:
-    """Return the instructions after the executor's last barrier.
+def _tile_loop(
+    instructions: list[tuple[int, str]], barriers_after: int = 0
+) -> list[str]:
+    """Return the instructions after the barrier before the tile loop.
 
-    Division slow paths are subroutines after the kernel body (CALL
-    targets) and are left out.
+    That is the last barrier of a probe kernel. The executor has one more
+    after its tile loop (``barriers_after=1``), before it adds the block's
+    histogram counts to the profile. Division slow paths are subroutines
+    after the kernel body (CALL targets) and are left out.
     """
     call_targets = [
         int(match["target"], 16)
@@ -213,10 +217,12 @@ def _tile_loop(instructions: list[tuple[int, str]]) -> list[str]:
     ]
     body_end = min(call_targets, default=instructions[-1][0] + 1)
     body = [text for address, text in instructions if address < body_end]
-    last_barrier = max(
+    barriers = [
         i for i, text in enumerate(body) if text.startswith("BAR.SYNC")
-    )
-    return body[last_barrier + 1 :]
+    ]
+    start = barriers[-1 - barriers_after] + 1
+    end = barriers[-barriers_after] if barriers_after else len(body)
+    return body[start:end]
 
 
 def _tile_widths(particles_per_thread: int) -> list[int]:
@@ -253,7 +259,8 @@ class TestDeferredExecutorCodegen(BLonDTestCase):
         counted.
         """
         tile_loop_reciprocals = sum(
-            "MUFU.RCP64H" in text for text in _tile_loop(_executor_sass())
+            "MUFU.RCP64H" in text
+            for text in _tile_loop(_executor_sass(), barriers_after=1)
         )
         self.assertEqual(
             tile_loop_reciprocals,
@@ -277,7 +284,7 @@ class TestDeferredExecutorCodegen(BLonDTestCase):
         self.assertIsNotNone(particles_per_thread)
         coordinate_loads = sum(
             bool(_COORDINATE_LOAD_PATTERN.search(text))
-            for text in _tile_loop(_executor_sass())
+            for text in _tile_loop(_executor_sass(), barriers_after=1)
         )
         self.assertEqual(
             coordinate_loads, 2 * sum(_tile_widths(particles_per_thread))

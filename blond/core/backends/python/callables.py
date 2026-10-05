@@ -176,6 +176,18 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
+    def beam_histogram(  # NOQA: D102
+        dt: NumpyArray,
+        dE: NumpyArray,
+        hist_y: NumpyArray,
+        cut_left: float,
+        cut_right: float,
+    ) -> None:
+        PythonSpecials.histogram(
+            array_read=dt, array_write=hist_y, start=cut_left, stop=cut_right
+        )
+
+    @staticmethod
     def loss_box(  # NOQA: D102
         e_max: float,
         e_min: float,

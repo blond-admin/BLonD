@@ -1028,6 +1028,24 @@ struct PrepareRecord {
   }
 };
 
+// The batch's histogram record, binned at the end of every tile rather
+// than as a record of the tile loop: there its bins and range checks
+// pushed the executor over its register limit. Since the histogram is
+// the batch's last record, the tile's dt is final by then either way.
+// `n_bins` is 0 if the batch has no histogram.
+struct BlockHistogram {
+  real_t *hist_y;
+  real_t cut_left;
+  real_t cut_right;
+  real_t inv_bin_width; // n_bins / (cut_right - cut_left)
+  int n_bins;
+};
+__shared__ BlockHistogram block_histogram;
+// Its counts, one per bin: the executor is launched with that much
+// dynamic shared memory, else none.
+// NOLINTNEXTLINE(*-avoid-c-arrays)
+extern __shared__ int histogram_counts[];
+
 // Visitor: the record, with the factors in its slot, on a tile.
 // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
 template <int TILE> struct ApplyToParticleTile {
@@ -1042,7 +1060,23 @@ template <int TILE> struct ApplyToParticleTile {
       apply_to_particle(args, factors, (*dt)[k], (*dE)[k]);
     }
   }
+  // Binned at the end of the tile, see `BlockHistogram`.
+  __device__ void operator()(const BeamHistogramArgs & /*args*/) const {}
 };
+
+// The batch's histogram record, or nullptr; queuing one runs the batch,
+// so a batch holds at most one, as its last record.
+__device__ __forceinline__ const BeamHistogramArgs *
+find_histogram(const KernelCallHeader *first, const KernelCallHeader *last) {
+  const BeamHistogramArgs *histogram = nullptr;
+  for (const KernelCallHeader *record = first; record != last;
+       record = next_record(record)) {
+    if (record->kernel_id == KernelId::BeamHistogram) {
+      histogram = &record_args<BeamHistogramArgs>(record);
+    }
+  }
+  return histogram;
+}
 
 // Every record of the batch on the tile of TILE particles starting at
 // `tile_start`, `stride` apart. Past the end of the beam the tile
@@ -1071,15 +1105,25 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
   }
   const bool store_dt = (store_flags & STORE_DT) != 0U;
   const bool store_dE = (store_flags & STORE_DE) != 0U;
+  const int n_bins = block_histogram.n_bins;
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
-    if (i < n_macroparticles) {
+    if (i < n_macroparticles) { // past the beam the tile holds padding
       if (store_dt) {
         beam_dt[i] = dt[k];
       }
       if (store_dE) {
         beam_dE[i] = dE[k];
+      }
+      if (n_bins > 0) {
+        const int bin = histogram_bin(
+            dt[k], block_histogram.cut_left, block_histogram.cut_right,
+            block_histogram.inv_bin_width, static_cast<unsigned int>(n_bins));
+        if (static_cast<unsigned int>(bin) <
+            static_cast<unsigned int>(n_bins)) {
+          atomicAdd(&histogram_counts[bin], 1);
+        }
       }
     }
   }
@@ -1167,6 +1211,26 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   // NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
   {
+    const BeamHistogramArgs *histogram = find_histogram(first, last);
+    const int n_bins =
+        histogram != nullptr ? static_cast<int>(histogram->hist_y_length) : 0;
+    if (threadIdx.x == 0) {
+      block_histogram.n_bins = n_bins;
+      if (histogram != nullptr) {
+        block_histogram.hist_y = histogram->hist_y;
+        block_histogram.cut_left = histogram->cut_left;
+        block_histogram.cut_right = histogram->cut_right;
+        block_histogram.inv_bin_width =
+            static_cast<real_t>(n_bins) /
+            (histogram->cut_right - histogram->cut_left);
+      }
+    }
+    for (int bin = static_cast<int>(threadIdx.x); bin < n_bins;
+         bin = static_cast<int>(bin + blockDim.x)) {
+      histogram_counts[bin] = 0;
+    }
+  }
+  {
     int index = 0;
     for (const KernelCallHeader *record = first; record != last;
          record = next_record(record), ++index) {
@@ -1193,6 +1257,19 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   apply_batch_to_tail<PARTICLES_PER_THREAD / 2>(
       first, last, &factors[0], store_flags, beam_dt, beam_dE, sweep_start,
       tail_length, stride, n_macroparticles);
+  // Add the block's counts to the histogram, which was zeroed when the
+  // record was queued.
+  const int n_bins = block_histogram.n_bins;
+  if (n_bins > 0) {
+    __syncthreads();
+    for (int bin = static_cast<int>(threadIdx.x); bin < n_bins;
+         bin = static_cast<int>(bin + blockDim.x)) {
+      const int count = histogram_counts[bin];
+      if (count != 0) {
+        atomicAdd(&block_histogram.hist_y[bin], static_cast<real_t>(count));
+      }
+    }
+  }
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
 

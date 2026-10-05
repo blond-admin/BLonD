@@ -344,6 +344,39 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def beam_histogram(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        hist_y: NumpyArray,
+        cut_left: float,
+        cut_right: float,
+    ) -> None:
+        """
+        Bin the beam's ``dt`` like `histogram`, one bin per ``hist_y``.
+
+        Takes the beam's coordinates like the per-particle kernels, so
+        the deferred specials can bin ``dt`` in the pass that tracks it;
+        ``dE`` is not read.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s].
+        dE
+            Macro-particle energy coordinates, in [eV]; not read.
+        hist_y
+            Output, one count per bin; overwritten.
+        cut_left
+            Left edge of the first bin, in [s].
+        cut_right
+            Right edge of the last bin, in [s].
+        """
+        raise NotImplementedError(
+            "Abstract method `beam_histogram` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def beam_phase(  # NOQA: D102
         hist_x: NumpyArray,
         hist_y: NumpyArray,

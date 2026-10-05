@@ -53,6 +53,9 @@ _EAGER_CALLS = {
         charge=1.0,
         acceleration_kick=3.0,
     ),
+    "beam_histogram": dict(
+        hist_y=np.zeros(_N_BINS), cut_left=-0.8e-8, cut_right=0.9e-8
+    ),
 }
 
 
@@ -221,6 +224,11 @@ def _random_records(rng: np.random.Generator):
         yield records.KickInterpolatedArgs(
             voltage_kick_table=rng.normal(size=2 * rng.integers(2, 300)),
             acceleration_kick=real(),
+        )
+        yield records.BeamHistogramArgs(
+            hist_y=np.zeros(rng.integers(1, 300)),
+            cut_left=real(),
+            cut_right=real(),
         )
     for n_rf in range(records.MAX_RF_HARMONICS_PER_RECORD + 1):
         columns = [rng.normal(size=n_rf) * 1e6 for _ in range(3)]

@@ -408,13 +408,15 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             )
         geometry = self._geometry
         if beam.common_array_size > 0:
-            beam.dt.histogram(  # MPI aware histogram calculation
-                geometry.n_bins,  # type: ignore
-                range=(
-                    geometry.cut_left,  # type: ignore
-                    geometry.cut_right,  # type: ignore
-                ),
-                out=geometry.hist_y,  # type: ignore
+            # The kernel-call coordinates do not flush: deferred specials
+            # bin dt in the same pass as the kernels queued before, and
+            # run that batch right away, so hist_y is complete here.
+            backend.specials.beam_histogram(
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
+                hist_y=geometry.hist_y,  # type: ignore
+                cut_left=geometry.cut_left,  # type: ignore
+                cut_right=geometry.cut_right,  # type: ignore
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)

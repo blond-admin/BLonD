@@ -210,6 +210,32 @@ void apply_to_chunk(const DriftExactArgs &args, real_t *beam_dt,
 void apply_to_chunk(const KickInterpolatedArgs &args, const real_t *beam_dt,
                     real_t *beam_dE, index_t begin, index_t end);
 
+// Adds the chunk's dt to the calling thread's `counts`, binned like
+// `histogram` (histogram.cpp): the executor reduces the threads' counts
+// into `args.hist_y` after the last chunk.
+BLOND_NOINLINE inline void bin_chunk(const BeamHistogramArgs &args,
+                                     const real_t *__restrict__ beam_dt,
+                                     index_t *__restrict__ counts,
+                                     const index_t begin, const index_t end) {
+  const index_t n_bins = args.hist_y_length;
+  const real_t inv_bin_width =
+      static_cast<real_t>(n_bins) / (args.cut_right - args.cut_left);
+  for (index_t i = begin; i < end; i++) {
+    // In double until range-checked: converting an out-of-range double
+    // to an integer is undefined behaviour.
+    double fbin = std::floor((beam_dt[i] - args.cut_left) * inv_bin_width);
+    // A value at or just below cut_right can scale to n_bins: it
+    // belongs in the last bin, as in np.histogram.
+    if (fbin >= static_cast<double>(n_bins) && beam_dt[i] <= args.cut_right) {
+      fbin = static_cast<double>(n_bins - 1);
+    }
+    if (fbin < 0.0 || fbin >= static_cast<double>(n_bins)) {
+      continue;
+    }
+    counts[static_cast<index_t>(fbin)] += 1;
+  }
+}
+
 // Table read by the interpolated kick: `2 * n_slices` entries,
 // [bin_centers[0], inverse bin width, (slope, offset) per bin], with
 // `charge` and `acc_kick` folded into the pairs.
