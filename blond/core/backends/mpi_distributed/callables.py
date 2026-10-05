@@ -21,10 +21,12 @@ except Exception as exc:
     warnings.warn(str(exc), ImportWarning, stacklevel=1)
     MPI = None
 
-from blond.generals.distributed.helpers import mpi_is_distributed
+from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond.generals.distributed.distributed_array import DistributedArray
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
 
 from blond.core.backends.backend import backend
 

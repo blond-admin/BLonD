@@ -18,17 +18,19 @@ import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, backend
 from blond.core.backends.mpi_distributed.callables import rms_emittance
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
-from blond.core.helpers import int_from_float_with_warning
-from blond.generals.cupy_.no_cupy_import import is_cupy_array
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     distributed_arange,
     mpi_aware_random_generator_cpu,
     mpi_is_distributed,
     mpi_local_size,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
+from blond.core.helpers import int_from_float_with_warning
+from blond.generals.cupy_.no_cupy_import import AllowPlotting
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -103,7 +105,6 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
-        **kwargs,
     ) -> None:
         """
         Configure the beam with an initial particle distributions.
@@ -149,10 +150,6 @@ class Beam(BeamBaseClass):
               While this mode uses more memory, it can be simpler to implement in scenarios where
               each rank needs to work with its own independent data (e.g., generating separate
               random distributions with `np.random.randn()`).
-
-        **kwargs
-            Unused - Keyword arguments to make the non-abstract implementation
-            extendable.
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
@@ -176,9 +173,9 @@ class Beam(BeamBaseClass):
             backend.array(flags, dtype=np.int32)
         )
 
-        if reference_time:
+        if reference_time is not None:
             self.reference.time = reference_time
-        if reference_total_energy:
+        if reference_total_energy is not None:
             self.reference.total_energy = reference_total_energy
 
         if mpi_mode == "root-distributes":
@@ -343,14 +340,7 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
-            counts, xedges, yedges, image = plt.hist2d(
-                dt.get(), dE.get(), **kwargs
-            )
-        else:
+        with AllowPlotting():  # handles Cupy arrays gracefully
             counts, xedges, yedges, image = plt.hist2d(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
@@ -373,7 +363,7 @@ class Beam(BeamBaseClass):
             The `PathCollection` of the scatter plot.
         """
         if ax is None:
-            ax = plt
+            ax = plt.gca()
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -384,12 +374,7 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
-            scat = ax.scatter(dt.get(), dE.get(), **kwargs)
-        else:
+        with AllowPlotting():  # handles Cupy arrays gracefully
             scat = ax.scatter(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
@@ -429,24 +414,15 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        dE = self._dE.array_local
-        dt = self._dt.array_local
-
-        if is_cupy_array(dE):  # assume `dE` is the same like `dt`
-            if axis == 0:
-                dt = dt.get()
-            elif axis == 1:
-                dE = dE.get()
-            else:
-                raise ValueError(f"{axis=}")
-
         if axis == 0:
-            xs = dt
+            xs = self._dt.array_local
         elif axis == 1:
-            xs = dE
+            xs = self._dE.array_local
         else:
             raise ValueError(f"{axis=}")
-        plt.hist(xs, **kwargs)
+
+        with AllowPlotting():  # handles Cupy arrays gracefully
+            plt.hist(xs, **kwargs)
 
     @staticmethod
     def simple_gaussian(

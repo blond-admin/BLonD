@@ -17,7 +17,7 @@ from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
@@ -537,7 +537,7 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         assert induced_voltage.dtype == backend.float, (
             f"{induced_voltage.dtype}"
         )
-        voltage = induced_voltage.astype(backend.float)
+        voltage = induced_voltage.astype(backend.float, copy=False)
         bin_centers = self.profile.hist_x  # base for induced voltage
         sparse_metadata = (
             self.profile.sparse_kick_metadata
@@ -599,11 +599,10 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
             section_index=section_index,
             profile=profile,
         )
-        from unittest.mock import Mock
+        # Local import: `blond.testing.mocks` imports this module.
+        from blond.testing.mocks import new_simulation_mock
 
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
+        simulation = new_simulation_mock()
         wf.on_init_simulation(simulation=simulation)
         wf.on_run_simulation(
             simulation=simulation,
