@@ -1076,12 +1076,12 @@ struct PrepareRecord {
   }
 };
 
-// The launch's record that counts across particles, or nullptr. At most
-// one: such a record ends its batch. Only it is visited at the end of a
+// Byte offset in the staged batch of the launch's record that counts
+// across particles, or -1. At most one: such a record ends its batch. Only it is visited at the end of a
 // tile; visiting every record there spilled registers. Shared memory is
 // declared at namespace scope.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-__shared__ const KernelCallHeader *counting_record;
+__shared__ int counting_record_offset;
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 __shared__ int counting_record_index;
 // Its counters: all of the launch's dynamic shared memory.
@@ -1089,7 +1089,8 @@ __shared__ int counting_record_index;
 extern __shared__ int record_counters[];
 
 __device__ __forceinline__ unsigned int dynamic_shared_memory_bytes() {
-  unsigned int bytes = 0U;
+  // Written by the asm, so not const.
+  unsigned int bytes = 0U; // NOLINT(misc-const-correctness)
   asm("mov.u32 %0, %%dynamic_smem_size;" : "=r"(bytes));
   return bytes;
 }
@@ -1112,19 +1113,32 @@ template <int TILE> struct ApplyToParticleTile {
   }
 };
 
-// Visitor: the record counts one particle (`count_particle`).
-struct CountParticle {
-  const real_t *dt;
-  const real_t *dE;
+// Visitor: the counting record counts the particles of a tile that are
+// in the beam (`count_particle`), dispatched once per tile.
+// NOLINTBEGIN(*-avoid-c-arrays,*-constant-array-index)
+template <int TILE> struct CountTile {
+  const real_t (*dt)[TILE];
+  const real_t (*dE)[TILE];
   const RecordFactors *slot;
   int *counters;
+  index_t tile_start;
+  index_t stride;
+  index_t n_macroparticles;
   template <class Args> __device__ void operator()(const Args &args) const {
     if constexpr (counts_across_particles<Args>) {
       using Factors = decltype(prepare(args));
-      count_particle(args, load_factors<Factors>(*slot), *dt, *dE, counters);
+      const Factors factors = load_factors<Factors>(*slot);
+#pragma unroll
+      for (int k = 0; k < TILE; ++k) {
+        // past the beam the tile holds padding
+        if (tile_start + k * stride < n_macroparticles) {
+          count_particle(args, factors, (*dt)[k], (*dE)[k], counters);
+        }
+      }
     }
   }
 };
+// NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 
 // Visitor: the record merges the block's counters.
 struct MergeCounters {
@@ -1163,7 +1177,6 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
   }
   const bool store_dt = (store_flags & STORE_DT) != 0U;
   const bool store_dE = (store_flags & STORE_DE) != 0U;
-  const KernelCallHeader *counting = counting_record;
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
@@ -1174,13 +1187,22 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
       if (store_dE) {
         beam_dE[i] = dE[k];
       }
-      if (counting != nullptr) {
-        visit_kernel_call(counting,
-                          CountParticle{&dt[k], &dE[k],
-                                        &factors[counting_record_index],
-                                        &record_counters[0]});
-      }
     }
+  }
+  // The launch's counting record counts the tile's final coordinates.
+  // Addressed from `first` rather than through a stored pointer: then
+  // the compiler knows the record is in shared memory, else every field
+  // read is a slow generic load.
+  const int counting_offset = counting_record_offset;
+  if (counting_offset >= 0) {
+    // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
+    const auto *counting = reinterpret_cast<const KernelCallHeader *>(
+        reinterpret_cast<const char *>(first) + counting_offset);
+    // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
+    visit_kernel_call(counting,
+                      CountTile<TILE>{&dt, &dE, &factors[counting_record_index],
+                                      &record_counters[0], tile_start, stride,
+                                      n_macroparticles});
   }
 }
 
@@ -1271,7 +1293,7 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   if (threadIdx.x == 0) {
     counting_record_index = counting_index;
     if (counting_index < 0) {
-      counting_record = nullptr;
+      counting_record_offset = -1;
     }
   }
   {
@@ -1282,7 +1304,10 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
           static_cast<int>(threadIdx.x)) {
         visit_kernel_call(record, PrepareRecord{&factors[index]});
         if (index == counting_index) {
-          counting_record = record;
+          // NOLINTBEGIN(*-reinterpret-cast)
+          counting_record_offset =
+              static_cast<int>(reinterpret_cast<const char *>(record) - bytes);
+          // NOLINTEND(*-reinterpret-cast)
         }
       }
     }
@@ -1311,9 +1336,13 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
       first, last, &factors[0], store_flags, beam_dt, beam_dE, sweep_start,
       tail_length, stride, n_macroparticles);
   // Let the records merge the block's counters.
-  if (counting_record != nullptr) {
+  if (counting_record_offset >= 0) {
     __syncthreads();
-    visit_kernel_call(counting_record, MergeCounters{&record_counters[0]});
+    // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
+    visit_kernel_call(reinterpret_cast<const KernelCallHeader *>(
+                          bytes + counting_record_offset),
+                      MergeCounters{&record_counters[0]});
+    // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
   }
   // NOLINTEND(*-avoid-c-arrays,*-constant-array-index)
 }
