@@ -1128,11 +1128,15 @@ template <int TILE> struct CountTile {
     if constexpr (counts_across_particles<Args>) {
       using Factors = decltype(prepare(args));
       const Factors factors = load_factors<Factors>(*slot);
+      // A copy in registers: the record and the counters are both in
+      // shared memory, so the compiler would reload every field the
+      // record reads after each atomic on a counter.
+      const Args record = args;
 #pragma unroll
       for (int k = 0; k < TILE; ++k) {
         // past the beam the tile holds padding
         if (tile_start + k * stride < n_macroparticles) {
-          count_particle(args, factors, (*dt)[k], (*dE)[k], counters);
+          count_particle(record, factors, (*dt)[k], (*dE)[k], counters);
         }
       }
     }
