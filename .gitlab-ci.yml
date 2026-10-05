@@ -84,35 +84,45 @@ workflow:
 # Resource sampling along the run
 # ---------------------------------------------------------------------------
 # `lscpu`/`nvidia-smi` say what the runner *is*; these samplers say what the
-# job actually *does* with it over time. Both tools sample themselves --
-# vmstat (procps, same package as the `free` above) and nvidia-smi's own
-# `-l` logging mode -- so there is no profiler to install or maintain, and
-# crucially nothing wraps the tests: the samplers are ordinary background
-# processes, started here and killed in after_script, so they cannot
-# perturb the per-turn kernel timings the way an in-process per-test
-# profiler does.
+# job actually *does* with it over time. They are ordinary background
+# processes, started here and killed in after_script -- nothing wraps the
+# tests, so they cannot perturb the per-turn kernel timings the way an
+# in-process per-test profiler does.
 #
-# `vmstat -t -w 5` appends a timestamped line every 5 s with the CPU split
-# (us/sy/id/wa), free/buff/cache memory and -- the point of the exercise --
-# `swpd` plus `si`/`so`, i.e. how much is swapped out and whether pages are
-# actually moving. A run that starts paging becomes visible as paging
-# instead of as an unexplained slowdown.
+# CPU/RAM/swap come from the job's own cgroup via
+# `dev_tools/ci_resource_monitor.py`, NOT from vmstat: in a pod on a
+# 192-CPU node vmstat reported a job saturating its 8 CPUs as "4% busy"
+# and quoted the node's free memory instead of the job's `memory.max`.
+# The cgroup counters also expose CFS throttling, i.e. whether the tests
+# are starved by the CPU quota -- the number no host-wide tool can show.
 #
-# Sampling is system-wide and not attributed per test: pytest's own
-# `--durations` names the expensive tests and the timeline's timestamps
-# place them. Both files are uploaded as artifacts by `.publish`.
+# GPU: nvidia-smi cannot report utilisation or memory of a MIG slice
+# ("[N/A]" / "[Insufficient Permissions]"); power.draw is the whole card's,
+# shared with the other tenant. On MIG there is therefore no timeline, only
+# a log line saying so.
+#
+# Sampling is not attributed per test: pytest's `--durations` names the
+# expensive tests and the timeline's timestamps place them. Both files are
+# uploaded as artifacts by `.publish`.
 .sample_resources_start: &sample_resources_start
-  - rm -f "${CI_PROJECT_DIR}/resource-timeline.txt"
+  - rm -f "${CI_PROJECT_DIR}/resource-timeline.csv"
     "${CI_PROJECT_DIR}/gpu-timeline.csv"
   - >
-    if command -v vmstat >/dev/null 2>&1; then
-      (vmstat -t -w 5 > "${CI_PROJECT_DIR}/resource-timeline.txt" 2>&1 &);
-      echo "resources: sampling CPU/RAM/swap every 5 s -> resource-timeline.txt";
+    if [ -r /sys/fs/cgroup/cpu.stat ]; then
+      (python3 dev_tools/ci_resource_monitor.py sample \
+       "${CI_PROJECT_DIR}/resource-timeline.csv" --interval 5 \
+       >/dev/null 2>&1 &);
+      echo "resources: sampling cgroup CPU/RAM/swap every 5 s -> resource-timeline.csv";
     else
-      echo "resources: vmstat not installed, no CPU/RAM/swap timeline";
+      echo "resources: cgroup v2 not exposed, no CPU/RAM/swap timeline";
     fi
   - >
-    if command -v nvidia-smi >/dev/null 2>&1; then
+    if ! command -v nvidia-smi >/dev/null 2>&1; then
+      :;
+    elif nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader \
+         2>/dev/null | grep -q Enabled; then
+      echo "resources: GPU is a MIG slice, nvidia-smi cannot sample it -- no GPU timeline";
+    else
       (nvidia-smi \
        --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw \
        --format=csv -l 5 -f "${CI_PROJECT_DIR}/gpu-timeline.csv" >/dev/null 2>&1 &);
@@ -122,36 +132,27 @@ workflow:
 # Counterpart of `.sample_resources_start`, spliced into the after_script of
 # `.cache_test`. after_script runs in a fresh shell, but the samplers are
 # separate processes in the same container, so pkill still reaches them.
-# The digest line is what makes the log self-sufficient: peak swap in use,
-# the lowest free memory reached, peak CPU and the total swap traffic --
-# enough to answer "did this job page, or nearly run out of memory?"
-# without downloading the artifact. memory.peak / memory.swap.peak are the
-# kernel's own high-water marks for this job's cgroup (Linux >= 5.19),
-# which are exact where the 5 s sampling can miss a short spike.
+# The digest line makes the log self-sufficient: peak memory against
+# `memory.max`, CPU in cores against the entitlement, and CFS throttling.
+# memory.peak / memory.swap.peak are the kernel's own high-water marks for
+# the cgroup (Linux >= 5.19), exact where 5 s sampling can miss a spike;
+# memory.events counts how often the limit was hit (`max`) or the OOM
+# killer fired (`oom_kill`).
 .sample_resources_stop: &sample_resources_stop
-  - pkill -f "vmstat -t -w" || true
-  - pkill -f "nvidia-smi --query-gpu" || true
+  - pkill -f "ci_resource_monitor[.]py sample" || true
+  - pkill -f "nvidia-smi --query-gp[u]" || true
   - >
     echo "resources: cgroup memory.peak=$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo unavailable)
-    memory.swap.peak=$(cat /sys/fs/cgroup/memory.swap.peak 2>/dev/null || echo unavailable)";
-  # vmstat -t -w columns: r b swpd free buff cache si so bi bo in cs
-  # us sy id wa st <date> <time>; the two header lines and any repeated
-  # header are skipped by the numeric test on $1.
+    memory.swap.peak=$(cat /sys/fs/cgroup/memory.swap.peak 2>/dev/null || echo unavailable)
+    events: $(tr '\n' ' ' 2>/dev/null < /sys/fs/cgroup/memory.events || echo unavailable)";
+  - python3 dev_tools/ci_resource_monitor.py digest
+    "${CI_PROJECT_DIR}/resource-timeline.csv" || true
+  # nvidia-smi is killed mid-write, so the last line may lack its newline;
+  # the trailing echo keeps the next log line from being glued onto it.
   - >
-    awk 'NR > 2 && $1 ~ /^[0-9]+$/ {
-      samples++;
-      if ($3 > peak_swap) peak_swap = $3;
-      if (min_free == "" || $4 < min_free) min_free = $4;
-      busy = $13 + $14;
-      if (busy > peak_cpu) peak_cpu = busy;
-      swapped_in += $7;
-      swapped_out += $8;
-    } END {
-      if (samples) printf "resources: %d samples  peak_swap_used=%d kB  min_free_mem=%d kB  peak_cpu=%d%%  swapped_in=%d kB  swapped_out=%d kB\n",
-        samples, peak_swap, min_free, peak_cpu, swapped_in, swapped_out;
-    }' "${CI_PROJECT_DIR}/resource-timeline.txt" || true
-  - tail -n 25 "${CI_PROJECT_DIR}/resource-timeline.txt" || true
-  - tail -n 3 "${CI_PROJECT_DIR}/gpu-timeline.csv" 2>/dev/null || true
+    if [ -s "${CI_PROJECT_DIR}/gpu-timeline.csv" ]; then
+      tail -n 3 "${CI_PROJECT_DIR}/gpu-timeline.csv"; echo;
+    fi
 
 # ---------------------------------------------------------------------------
 # Caches
@@ -434,6 +435,7 @@ workflow:
     - uv pip uninstall mpi4py
     - python3 -m pytest
       -v
+      --durations=25
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -442,6 +444,7 @@ workflow:
     - python3 -m pytest
       -v
       -m "not mpi and not backend_mutation"
+      --durations=25
       --cov-append
       --cov
       --cov-config=.coveragerc
@@ -479,10 +482,10 @@ workflow:
       - ${project_root}coverage.xml
       - ${project_root}junit-reports/junit-report-*.xml
       # Resource timelines of the whole job, for plotting against the
-      # `--durations` list (see `.sample_resources_start`). Written by
-      # vmstat/nvidia-smi themselves; `artifacts:` tolerates a missing file,
-      # so a runner without either tool simply uploads nothing.
-      - ${project_root}resource-timeline.txt
+      # `--durations` list (see `.sample_resources_start`). `artifacts:`
+      # tolerates a missing file, so a runner without cgroup v2 or a
+      # non-MIG GPU simply uploads nothing.
+      - ${project_root}resource-timeline.csv
       - ${project_root}gpu-timeline.csv
     # reports:
     #   junit: ${project_root}/coverage-report.xml
