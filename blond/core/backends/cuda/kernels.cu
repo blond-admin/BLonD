@@ -1124,6 +1124,10 @@ template <int TILE> struct CountTile {
   index_t tile_start;
   index_t stride;
   index_t n_macroparticles;
+  real_t *beam_dt;
+  real_t *beam_dE;
+  bool store_dt;
+  bool store_dE;
   template <class Args> __device__ void operator()(const Args &args) const {
     if constexpr (counts_across_particles<Args>) {
       using Factors = decltype(prepare(args));
@@ -1135,7 +1139,14 @@ template <int TILE> struct CountTile {
 #pragma unroll
       for (int k = 0; k < TILE; ++k) {
         // past the beam the tile holds padding
-        if (tile_start + k * stride < n_macroparticles) {
+        const index_t i = tile_start + k * stride;
+        if (i < n_macroparticles) {
+          if (store_dt) {
+            beam_dt[i] = (*dt)[k];
+          }
+          if (store_dE) {
+            beam_dE[i] = (*dE)[k];
+          }
           count_particle(record, factors, (*dt)[k], (*dE)[k], counters);
         }
       }
@@ -1181,6 +1192,19 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
   }
   const bool store_dt = (store_flags & STORE_DT) != 0U;
   const bool store_dE = (store_flags & STORE_DE) != 0U;
+  const int counting_offset = counting_record_offset;
+  if (counting_offset >= 0) {
+    // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
+    const auto *counting = reinterpret_cast<const KernelCallHeader *>(
+        reinterpret_cast<const char *>(first) + counting_offset);
+    // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
+    visit_kernel_call(counting,
+                      CountTile<TILE>{&dt, &dE, &factors[counting_record_index],
+                                      &record_counters[0], tile_start, stride,
+                                      n_macroparticles, beam_dt, beam_dE,
+                                      store_dt, store_dE});
+    return;
+  }
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
@@ -1192,21 +1216,6 @@ apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
         beam_dE[i] = dE[k];
       }
     }
-  }
-  // The launch's counting record counts the tile's final coordinates.
-  // Addressed from `first` rather than through a stored pointer: then
-  // the compiler knows the record is in shared memory, else every field
-  // read is a slow generic load.
-  const int counting_offset = counting_record_offset;
-  if (counting_offset >= 0) {
-    // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
-    const auto *counting = reinterpret_cast<const KernelCallHeader *>(
-        reinterpret_cast<const char *>(first) + counting_offset);
-    // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
-    visit_kernel_call(counting,
-                      CountTile<TILE>{&dt, &dE, &factors[counting_record_index],
-                                      &record_counters[0], tile_start, stride,
-                                      n_macroparticles});
   }
 }
 
