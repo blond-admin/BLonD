@@ -1158,24 +1158,82 @@ struct MergeCounters {
   }
 };
 
-// Every record of the batch on the tile of TILE particles starting at
-// `tile_start`, `stride` apart. Past the end of the beam the tile
-// computes on zeros, never stored.
+// A thread's next tile, copied into shared memory with cp.async (sm_80+)
+// while it computes the current one: its own loads would leave DRAM idle
+// meanwhile. Each thread copies and reads only its own slots.
+template <int TILE> struct NextTile {
+  real_t dt[TILE][EXECUTOR_BLOCK_SIZE];
+  real_t dE[TILE][EXECUTOR_BLOCK_SIZE];
+};
+
 template <int TILE>
 __device__ __forceinline__ void
-apply_batch_to_tile(const KernelCallHeader *first, const KernelCallHeader *last,
-                    const RecordFactors *factors,
-                    const unsigned int store_flags,
-                    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
-                    const index_t tile_start, const index_t stride,
-                    const index_t n_macroparticles) {
-  real_t dt[TILE];
-  real_t dE[TILE];
+copy_tile_async(NextTile<TILE> &tile, const real_t *beam_dt,
+                const real_t *beam_dE, const index_t tile_start,
+                const index_t stride, const index_t n_macroparticles) {
+#pragma unroll
+  for (int k = 0; k < TILE; ++k) {
+    const index_t i = tile_start + k * stride;
+    if (i < n_macroparticles) {
+      asm volatile("cp.async.ca.shared.global [%0], [%1], 8;" ::"r"(
+                       static_cast<unsigned int>(
+                           __cvta_generic_to_shared(&tile.dt[k][threadIdx.x]))),
+                   "l"(&beam_dt[i])
+                   : "memory");
+      asm volatile("cp.async.ca.shared.global [%0], [%1], 8;" ::"r"(
+                       static_cast<unsigned int>(
+                           __cvta_generic_to_shared(&tile.dE[k][threadIdx.x]))),
+                   "l"(&beam_dE[i])
+                   : "memory");
+    }
+  }
+}
+
+// The tile of TILE particles starting at `tile_start`, `stride` apart,
+// from `staged` if given, else from the beam; zeros past the beam.
+template <int TILE>
+__device__ __forceinline__ void
+load_tile(real_t (&dt)[TILE], real_t (&dE)[TILE], const NextTile<TILE> *staged,
+          const real_t *beam_dt, const real_t *beam_dE,
+          const index_t tile_start, const index_t stride,
+          const index_t n_macroparticles) {
+  if (staged != nullptr) {
+    asm volatile("cp.async.wait_all;" ::: "memory");
+#pragma unroll
+    for (int k = 0; k < TILE; ++k) {
+      const bool in_beam = tile_start + k * stride < n_macroparticles;
+      dt[k] = in_beam ? staged->dt[k][threadIdx.x] : static_cast<real_t>(0);
+      dE[k] = in_beam ? staged->dE[k][threadIdx.x] : static_cast<real_t>(0);
+    }
+    return;
+  }
 #pragma unroll
   for (int k = 0; k < TILE; ++k) {
     const index_t i = tile_start + k * stride;
     dt[k] = i < n_macroparticles ? beam_dt[i] : static_cast<real_t>(0);
     dE[k] = i < n_macroparticles ? beam_dE[i] : static_cast<real_t>(0);
+  }
+}
+
+// Every record of the batch on the tile of TILE particles starting at
+// `tile_start`, `stride` apart. Past the end of the beam the tile
+// computes on zeros, never stored. With `next_tile`, the tile is read
+// from it, and the next one copied into it if `copy_next`.
+template <int TILE>
+__device__ __forceinline__ void apply_batch_to_tile(
+    const KernelCallHeader *first, const KernelCallHeader *last,
+    const RecordFactors *factors, const unsigned int store_flags,
+    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
+    const index_t tile_start, const index_t stride,
+    const index_t n_macroparticles, NextTile<TILE> *next_tile = nullptr,
+    const bool copy_next = false) {
+  real_t dt[TILE];
+  real_t dE[TILE];
+  load_tile(dt, dE, next_tile, beam_dt, beam_dE, tile_start, stride,
+            n_macroparticles);
+  if (next_tile != nullptr && copy_next) {
+    copy_tile_async(*next_tile, beam_dt, beam_dE, tile_start + TILE * stride,
+                    stride, n_macroparticles);
   }
   int index = 0;
   for (const KernelCallHeader *record = first; record != last;
@@ -1336,12 +1394,22 @@ extern "C" __global__ void __launch_bounds__(EXECUTOR_BLOCK_SIZE,
   const index_t stride = particle_loop_stride();
   const index_t sweep_length = stride * PARTICLES_PER_THREAD;
   index_t sweep_start = 0;
+#if __CUDA_ARCH__ >= 800
+  __shared__ NextTile<PARTICLES_PER_THREAD> next_tile;
+  copy_tile_async(next_tile, beam_dt, beam_dE, particle_loop_start(), stride,
+                  n_macroparticles);
+  NextTile<PARTICLES_PER_THREAD> *const staged_tile = &next_tile;
+#else
+  NextTile<PARTICLES_PER_THREAD> *const staged_tile = nullptr;
+#endif
   // While some thread needs all PARTICLES_PER_THREAD particles of a tile.
   for (; sweep_start + sweep_length - stride < n_macroparticles;
        sweep_start += sweep_length) {
     apply_batch_to_tile<PARTICLES_PER_THREAD>(
         first, last, &factors[0], store_flags, beam_dt, beam_dE,
-        sweep_start + particle_loop_start(), stride, n_macroparticles);
+        sweep_start + particle_loop_start(), stride, n_macroparticles,
+        staged_tile,
+        sweep_start + 2 * sweep_length - stride < n_macroparticles);
   }
   // Particles per thread still to do, < PARTICLES_PER_THREAD.
   const index_t tail_length =
