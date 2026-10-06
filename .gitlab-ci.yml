@@ -286,6 +286,7 @@ workflow:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
+    BLOND_XDIST_WORKERS: "4"     # pytest-xdist workers for the CuPy-free run
   script:
     - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
@@ -335,8 +336,17 @@ workflow:
     - export BLOND_BACKEND_MODE="numba"
     - uv pip uninstall cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
+    # CuPy is gone, so this run can use pytest-xdist workers without any
+    # CUDA context. `--dist loadfile` keeps each test module on one worker
+    # (module-level fixtures and backend state stay as in a serial run).
+    # The thread pools are split between the workers like the MPI ranks
+    # above, so they do not oversubscribe the entitled CPUs.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - python3 -m pytest
       -v
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov

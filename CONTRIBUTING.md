@@ -259,6 +259,14 @@ export BLOND_FORCE_TEST_ALL_BACKENDS=True
 python3 -m pytest -v tests/unittests/
 ```
 
+To run the suite in parallel, use pytest-xdist (part of the `dev` extra).
+CI does this only for its CuPy-free run; with CuPy, parallel workers on one
+GPU are untested.
+
+```bash
+python3 -m pytest -n 4 --dist loadfile tests/unittests/
+```
+
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock

@@ -52,6 +52,7 @@ dev = [
   "mpmath>=1",           # part of the testing against blond2
   "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
   "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
+  "pytest-xdist>=3",     # parallel test workers (`-n N`)
   "nbconvert>=6",        # notebook execution in tests
 ]
 doc = [
