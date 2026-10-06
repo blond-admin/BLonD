@@ -377,8 +377,13 @@ apply_to_particle(const KickInterpolatedArgs &args, NoFactors /*factors*/,
   // NOLINTBEGIN(*-pointer-arithmetic)
   const int fbin = floor_to_int((dt - table[0]) * table[1]);
   if (static_cast<unsigned int>(fbin) < static_cast<unsigned int>(n_bins)) {
-    const int pair = 2 + 2 * fbin;
-    dE += dt * table[pair] + table[pair + 1];
+    // The bin's slope and offset in one 16-byte read-only load: pairs
+    // start at an even index of the table, a fresh CuPy allocation.
+    using Pair =
+        std::conditional_t<std::is_same_v<real_t, float>, float2, double2>;
+    // NOLINTNEXTLINE(*-reinterpret-cast)
+    const Pair line = __ldg(reinterpret_cast<const Pair *>(table) + 1 + fbin);
+    dE += dt * line.x + line.y;
   } else {
     // Out of range only the interpolated voltage is undefined.
     dE += args.acceleration_kick;
