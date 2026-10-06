@@ -213,6 +213,58 @@ def main():
         compile_cuda_library(args, nvcc_flags, float_flags, cuda_files, nvcc)
 
 
+def native_vectorization_flags(compiler: str) -> list[str]:
+    """
+    Return the x86 SIMD flags matching what `-march=native` enables.
+
+    Asks the compiler for the macros it predefines for the local CPU, run
+    without a shell (no ``< /dev/null | egrep``). AVX-512 is not used.
+
+    Parameters
+    ----------
+    compiler
+        The C++ compiler, e.g. ``g++``.
+
+    Returns
+    -------
+    list[str]
+        E.g. ``["-mavx2", "-mfma"]``; empty on ARM or if the compiler
+        could not be run.
+    """
+    try:
+        ret = subprocess.run(
+            [compiler, "-march=native", "-dM", "-E", "-"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        print("Compiler auto-optimization did not work. Error: ", error)
+        return []
+    if "arm" in platform.machine():
+        return []
+    # "#define __AVX2__ 1" -> "AVX2"
+    macros = {
+        line.split()[1].strip("_")
+        for line in ret.stdout.splitlines()
+        if line.startswith("#define ")
+    }
+    if "AVX2" in macros:
+        flags = ["-mavx2"]
+    elif "AVX" in macros:
+        flags = ["-mavx"]
+    elif "SSE4_2" in macros or "SSE4_1" in macros:
+        flags = ["-msse4"]
+    elif "SSE3" in macros:
+        flags = ["-msse3"]
+    else:
+        flags = ["-msse"]
+    if "FMA" in macros:
+        flags += ["-mfma"]
+    return flags
+
+
 def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     # Check if we need to compile with FFTW
     with_fftw = (
@@ -266,55 +318,7 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
         if args["optimize"]:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
-            # Check compiler defined directives
-            # This is compatible with python3.6 - python 3.9
-            # The universal_newlines argument transforms output to text (from binary)
-            ret = subprocess.run(
-                [
-                    compiler
-                    + ' -march=native -dM -E - < /dev/null | egrep "SSE|AVX|FMA"'
-                ],
-                # shell=True, # legacy, because of HIGH VULNERABILITY:
-                # Improper neutralization of special elements used
-                # in an OS Command ('OS Command Injection')
-                shell=False,
-                # FIXME Probably broken by shell=False, rewrite `args` list
-                stdout=subprocess.PIPE,
-                universal_newlines=True,
-                check=False,
-            )
-
-            # If we have an error
-            if ret.returncode != 0:
-                print(
-                    "Compiler auto-optimization did not work. Error: ",
-                    ret.stdout,
-                )
-            else:
-                # Format the output list
-                stdout = (
-                    ret.stdout.replace("#define ", "")
-                    .replace("__ 1", "")
-                    .replace("__", "")
-                    .split("\n")
-                )
-                # following options exist only on x86 processors
-                if "arm" not in platform.machine():
-                    # Add the appropriate vectorization flag (not use avx512)
-                    if "AVX2" in stdout:
-                        cflags += ["-mavx2"]
-                    elif "AVX" in stdout:
-                        cflags += ["-mavx"]
-                    elif "SSE4_2" in stdout or "SSE4_1" in stdout:
-                        cflags += ["-msse4"]
-                    elif "SSE3" in stdout:
-                        cflags += ["-msse3"]
-                    else:
-                        cflags += ["-msse"]
-
-                    # Add FMA if supported
-                    if "FMA" in stdout:
-                        cflags += ["-mfma"]
+            cflags += native_vectorization_flags(compiler)
 
         root, ext = os.path.splitext(args["libname"])
         if not ext:
