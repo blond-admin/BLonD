@@ -22,6 +22,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
 
 #include "blond_common.h"
 #include "histogram_bin.h"
@@ -211,13 +212,21 @@ void apply_to_chunk(const DriftExactArgs &args, real_t *beam_dt,
 void apply_to_chunk(const KickInterpolatedArgs &args, const real_t *beam_dt,
                     real_t *beam_dE, index_t begin, index_t end);
 
-// Adds the chunk's dt to the calling thread's `counts`, binned like
-// `histogram` (histogram.cpp): the executor reduces the threads' counts
-// into `args.array_write` after the last chunk.
-BLOND_NOINLINE inline void bin_chunk(const HistogramArgs &args,
-                                     const real_t *__restrict__ beam_dt,
-                                     index_t *__restrict__ counts,
-                                     const index_t begin, const index_t end) {
+// A record that counts across particles (e.g. a histogram) has
+// `count_chunk` instead of `apply_to_chunk`: the executor hands it the
+// calling thread's row of zeroed counters (`KernelCallArgs.n_counters`)
+// with every chunk. After the last chunk, every thread of the parallel
+// region calls its `merge_counters`, with thread 0's row; thread t's
+// follows `t * row_length` later.
+// The histogram counts the dt of the chunk per bin, binned like the
+// eager `histogram` (histogram.cpp), with one counter per bin
+// (`HistogramArgs.n_counters`); index_t counters, so a bin can count
+// more than 2^31 - 1 particles.
+BLOND_NOINLINE inline void count_chunk(const HistogramArgs &args,
+                                       const real_t *__restrict__ beam_dt,
+                                       const real_t * /*beam_dE*/,
+                                       const index_t begin, const index_t end,
+                                       index_t *__restrict__ counters) {
   const index_t n_bins = args.array_write_length;
   const real_t inv_bin_width =
       static_cast<real_t>(n_bins) / (args.stop - args.start);
@@ -227,7 +236,21 @@ BLOND_NOINLINE inline void bin_chunk(const HistogramArgs &args,
     if (bin < 0.0 || bin >= static_cast<double>(n_bins)) {
       continue;
     }
-    counts[static_cast<index_t>(bin)] += 1;
+    counters[static_cast<index_t>(bin)] += 1;
+  }
+}
+
+inline void merge_counters(const HistogramArgs &args, const index_t *counters,
+                           const std::size_t row_length, const int n_threads) {
+  const index_t n_bins = args.array_write_length;
+#pragma omp for
+  for (index_t bin = 0; bin < n_bins; bin++) {
+    index_t count = 0;
+    for (int thread = 0; thread < n_threads; thread++) {
+      count += counters[static_cast<std::size_t>(thread) * row_length + bin];
+    }
+    // exact while a bin holds fewer than 2^53 particles
+    args.array_write[bin] = static_cast<real_t>(count);
   }
 }
 

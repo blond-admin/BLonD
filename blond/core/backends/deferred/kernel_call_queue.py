@@ -60,6 +60,7 @@ class KernelCallQueue:
         "n_bytes",
         "args_types",
         "record_sizes",
+        "n_counters",
         "keep_alive",
         "dt",
         "dE",
@@ -73,6 +74,7 @@ class KernelCallQueue:
         self.n_bytes = 0
         self.args_types: list[type[KernelCallArgs]] = []
         self.record_sizes: list[int] = []
+        self.n_counters = 0  # of the counting record, which ends a batch
         self.keep_alive: list[Any] = []
         self.dt: Any = None
         self.dE: Any = None
@@ -151,12 +153,15 @@ class KernelCallQueue:
         self.n_bytes = offset + size
         self.args_types.append(args_type)
         self.record_sizes.append(size)
+        if args_type.counts_across_particles:
+            self.n_counters = args_type.n_counters(*field_values)
 
     def clear(self) -> None:
         """Drop all records and array references; keep the buffer."""
         self.n_bytes = 0
         self.args_types = []
         self.record_sizes = []
+        self.n_counters = 0
         self.keep_alive = []
         self.dt = self.dE = None
 
@@ -194,10 +199,7 @@ class _CallingThreadQueue:
 
 def make_deferred_specials(
     eager_specials: type,
-    execute_batch: Callable[
-        [np.ndarray, int, list[type[KernelCallArgs]], list[int], Any, Any],
-        None,
-    ],
+    execute_batch: Callable[..., None],
 ) -> type:
     """
     Derive deferred specials from eager ones.
@@ -207,13 +209,16 @@ def make_deferred_specials(
     eager_specials
         The eager specials class, e.g. ``CppSpecials``.
     execute_batch
-        ``execute_batch(buffer, n_bytes, args_types, record_sizes, dt,
-        dE)`` applying the first ``n_bytes`` of the ``uint8`` array
-        ``buffer``, in one fused pass where possible, to the beam;
-        ``args_types`` and ``record_sizes`` hold the ``Args`` class and
-        byte size of every record. ``buffer`` is the queue's own array,
-        the same object from flush to flush until it grows, so a cached
-        pointer to it stays valid.
+        ``execute_batch(buffer, n_bytes, args_types, record_sizes,
+        counting_record, n_counters, dt, dE)`` applying the first
+        ``n_bytes`` of the ``uint8`` array ``buffer``, in one fused pass
+        where possible, to the beam; ``args_types`` and ``record_sizes``
+        hold the ``Args`` class and byte size of every record;
+        ``counting_record`` is the position of the record that counts
+        across particles (-1 for none), which gets ``n_counters``
+        counters (`KernelCallArgs.n_counters`). ``buffer`` is the
+        queue's own array, the same object from flush to flush until it
+        grows, so a cached pointer to it stays valid.
 
     Returns
     -------
@@ -233,12 +238,20 @@ def make_deferred_specials(
         n_bytes = queue.n_bytes
         if n_bytes == 0:
             return
+        args_types = queue.args_types
+        counting_record = (
+            len(args_types) - 1
+            if args_types[-1].counts_across_particles
+            else -1
+        )
         try:
             deferred_class._execute_batch(
                 queue.buffer,
                 n_bytes,
                 queue.args_types,
                 queue.record_sizes,
+                counting_record,
+                queue.n_counters,
                 queue.dt,
                 queue.dE,
             )
@@ -342,7 +355,7 @@ def _queuing_on_queued_dt_method(
             return eager_method(**arguments)
         for values in records:
             queue.append_record(args_type, packer, *values)
-        if args_type.ends_batch:
+        if args_type.counts_across_particles:
             flush()
         return None
 
@@ -458,7 +471,7 @@ def _queuing_method(
             "    for _values in _records:",
             "        _queue.append_record(_args_type, _packer, *_values)",
         ]
-    if args_type.ends_batch:
+    if args_type.counts_across_particles:
         body.append("    _flush()")
     name = eager_method.__name__
     source = "\n".join([f"def {name}({signature}):", *body])

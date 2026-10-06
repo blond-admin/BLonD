@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #ifdef __CUDACC__
 #define BLOND_HOST_DEVICE __host__ __device__
@@ -159,6 +160,11 @@ BLOND_CHECK_OFFSET(HistogramArgs, stop, 24);
 constexpr std::uint32_t KERNEL_CALL_ARGS_SIZES[KERNEL_COUNT] =
     KERNEL_CALL_ARGS_SIZES_INITIALIZER;
 // NOLINTEND(*-avoid-c-arrays)
+
+// `KernelCallArgs.counts_across_particles`.
+template <class Args>
+struct counts_across_particles : std::false_type {};
+template <> struct counts_across_particles<HistogramArgs> : std::true_type {};
 
 // The records are packed back to back in a byte buffer, hence the
 // casts from the header to its Args and to the next header.

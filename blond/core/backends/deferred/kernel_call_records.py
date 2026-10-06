@@ -41,7 +41,9 @@ To add a deferrable kernel:
    ...)`` in ``cpp/particle_kernels.h`` and ``apply_to_particle(const
    <Kernel>Args&, <Factors>, ...)`` in ``cuda/kernels.cu``, plus a
    ``prepare(const <Kernel>Args&)`` returning ``<Factors>`` if the kernel
-   has loop-invariant factors (``NoFactors`` otherwise). A missing
+   has loop-invariant factors (``NoFactors`` otherwise). A kernel that
+   `counts_across_particles` has ``count_chunk`` / ``count_particle``
+   instead, plus ``merge_counters``, see the comments there. A missing
    overload does not compile.
 """
 
@@ -493,9 +495,11 @@ class KernelCallArgs:
     """Whether the kernel modifies ``dt``; required on every subclass."""
     writes_dE: ClassVar[bool]
     """Whether the kernel modifies ``dE``; required on every subclass."""
-    ends_batch: ClassVar[bool] = False
-    """Whether queuing the kernel runs the batch right away, e.g. because
-    its output is read next."""
+    counts_across_particles: ClassVar[bool] = False
+    """Whether the kernel accumulates over particles, e.g. a histogram,
+    into counters of the executor (`n_counters`), and writes neither
+    coordinate. Queuing it runs the batch: its output is read next, and
+    a batch holds at most one."""
     reads_queued_dt_as: ClassVar[str | None] = None
     """For a kernel whose method takes no ``dt, dE``: the parameter that
     is queued only when it is the queued beam's ``dt``, else the call
@@ -533,6 +537,8 @@ class KernelCallArgs:
                     f"{cls.__name__} must set `{flag}` to True or False: "
                     "whether the kernel modifies that coordinate."
                 )
+        if cls.counts_across_particles and (cls.writes_dt or cls.writes_dE):
+            raise TypeError(f"{cls.__name__} counts, so it cannot write.")
 
     @classmethod
     def specials_method(cls) -> str:
@@ -736,6 +742,27 @@ class KernelCallArgs:
             each field from the argument of the same name.
         """
         return [tuple(arguments[name] for name, _ in cls.record_fields())]
+
+    @classmethod
+    def n_counters(cls, *field_values: Any) -> int:
+        """
+        Return the counters per thread (C++) or block (CUDA) of a record.
+
+        Only for kernels that `counts_across_particles`; the executors
+        size the counters from this alone. 0 is valid, e.g. for a kernel
+        that counts straight into its output.
+
+        Parameters
+        ----------
+        *field_values
+            The record's ``Args`` fields in order, as queued.
+
+        Returns
+        -------
+        int
+            The number of counters; none by default.
+        """
+        return 0
 
     @classmethod
     def from_specials_call(
@@ -996,7 +1023,7 @@ class HistogramArgs(KernelCallArgs):
 
     writes_dt = False
     writes_dE = False
-    ends_batch = True
+    counts_across_particles = True
     reads_queued_dt_as = "array_read"
 
     array_write: OutputArray
@@ -1020,7 +1047,7 @@ class HistogramArgs(KernelCallArgs):
         arguments
             The call's arguments by name.
         eager_specials
-            Provides ``_max_deferred_histogram_bins``.
+            Provides ``_max_deferred_counters``.
 
         Returns
         -------
@@ -1029,10 +1056,16 @@ class HistogramArgs(KernelCallArgs):
             cannot hold that many bins.
         """
         array_write = arguments["array_write"]
-        if array_write.size > eager_specials._max_deferred_histogram_bins():
+        if array_write.size > eager_specials._max_deferred_counters():
             return None
         array_write.fill(0)
         return [(array_write, arguments["start"], arguments["stop"])]
+
+    @classmethod
+    def n_counters(  # NOQA: D102
+        cls, array_write: Any, start: float, stop: float
+    ) -> int:
+        return array_write.size  # one per bin
 
 
 KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
@@ -1412,6 +1445,7 @@ def generate_header() -> str:
         "",
         "#include <cstddef>",
         "#include <cstdint>",
+        "#include <type_traits>",
         "",
         "#ifdef __CUDACC__",
         "#define BLOND_HOST_DEVICE __host__ __device__",
@@ -1485,6 +1519,16 @@ def generate_header() -> str:
         "constexpr std::uint32_t KERNEL_CALL_ARGS_SIZES[KERNEL_COUNT] =",
         "    KERNEL_CALL_ARGS_SIZES_INITIALIZER;",
         "// NOLINTEND(*-avoid-c-arrays)",
+        "",
+        "// `KernelCallArgs.counts_across_particles`.",
+        "template <class Args>",
+        "struct counts_across_particles : std::false_type {};",
+        *(
+            "template <> struct "
+            f"counts_across_particles<{args_type.__name__}> : std::true_type {{}};"
+            for args_type in KERNEL_CALL_ARGS
+            if args_type.counts_across_particles
+        ),
         "",
         "// The records are packed back to back in a byte buffer, hence the",
         "// casts from the header to its Args and to the next header.",

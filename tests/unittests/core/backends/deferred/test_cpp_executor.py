@@ -38,6 +38,8 @@ class TestCppExecutor(BLonDTestCase):
         self.library.execute_kernel_call_batch(
             ct.c_void_p(batch.ctypes.data),
             ct.c_size_t(batch.size),
+            ct.c_int(-1),  # no counting record
+            c_index_t(0),
             ct.c_void_p(dt.ctypes.data),
             ct.c_void_p(dE.ctypes.data),
             c_index_t(len(dt)),

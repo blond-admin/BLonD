@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 #include <vector>
 
 #include "blond_common.h"
@@ -26,65 +27,82 @@
 #include "scratch_buffer.h"
 
 namespace {
-// Visitor: forwards each record to the `apply_to_chunk` overload of its
-// Args type (particle_kernels.h).
+// Visitor: forwards each record to its `apply_to_chunk` overload
+// (particle_kernels.h), or the counting record to its `count_chunk`
+// with the calling thread's counters.
 struct ApplyToChunk {
   real_t *beam_dt;
   real_t *beam_dE;
   index_t begin;
   index_t end;
-
-  // The calling thread's histogram counts, if the batch bins dt.
   // Public like the members above: built as an aggregate.
   // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
-  index_t *histogram_counts;
+  index_t *counters;
 
   template <class Args> void operator()(const Args &args) const {
-    apply_to_chunk(args, beam_dt, beam_dE, begin, end);
+    apply(args, typename counts_across_particles<Args>::type{});
   }
-  void operator()(const HistogramArgs &args) const {
-    bin_chunk(args, beam_dt, histogram_counts, begin, end);
+  template <class Args>
+  void apply(const Args &args, std::true_type /*counting*/) const {
+    count_chunk(args, beam_dt, beam_dE, begin, end, counters);
+  }
+  template <class Args>
+  void apply(const Args &args, std::false_type /*counting*/) const {
+    apply_to_chunk(args, beam_dt, beam_dE, begin, end);
   }
 };
 
-// The batch's histogram record, or nullptr; queuing one runs the batch,
-// so a batch holds at most one, as its last record.
-const HistogramArgs *find_histogram(const KernelCallHeader *first,
-                                    const KernelCallHeader *last) {
-  const HistogramArgs *histogram = nullptr;
-  for (const KernelCallHeader *record = first; record != last;
-       record = next_record(record)) {
-    if (record->kernel_id == KernelId::Histogram) {
-      histogram = &record_args<HistogramArgs>(record);
-    }
+// Visitor: lets the counting record merge its counters of every thread
+// (`merge_counters`). Called by every thread of the parallel region,
+// after all chunks.
+struct MergeCounters {
+  const index_t *counters;
+  std::size_t row_length;
+  int n_threads;
+  template <class Args> void operator()(const Args &args) const {
+    merge(args, typename counts_across_particles<Args>::type{});
   }
-  return histogram;
+  template <class Args>
+  void merge(const Args &args, std::true_type /*counting*/) const {
+    merge_counters(args, counters, row_length, n_threads);
+  }
+  template <class Args>
+  void merge(const Args & /*args*/, std::false_type /*counting*/) const {}
+};
+
+const KernelCallHeader *record_at(const KernelCallHeader *record,
+                                  int position) {
+  for (; position > 0; --position) {
+    record = next_record(record);
+  }
+  return record;
 }
 } // namespace
 
-extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
-                                          const std::size_t n_bytes,
-                                          real_t *beam_dt, real_t *beam_dE,
-                                          const index_t n_macroparticles,
-                                          const index_t chunk_size) {
+// `counting_record` is the position of the record that counts across
+// particles (e.g. binning them), -1 for none; Python sizes its counters
+// (`KernelCallArgs.n_counters`). Each thread gets a zeroed row of
+// `n_counters`, and the record merges the rows after the last chunk.
+extern "C" void execute_kernel_call_batch(
+    const std::uint8_t *batch, const std::size_t n_bytes,
+    const int counting_record, const index_t n_counters, real_t *beam_dt,
+    real_t *beam_dE, const index_t n_macroparticles, const index_t chunk_size) {
   // NOLINTBEGIN(*-reinterpret-cast,*-pointer-arithmetic)
   const auto *first = reinterpret_cast<const KernelCallHeader *>(batch);
   const auto *last =
       reinterpret_cast<const KernelCallHeader *>(batch + n_bytes);
   // NOLINTEND(*-reinterpret-cast,*-pointer-arithmetic)
-  const HistogramArgs *const histogram = find_histogram(first, last);
-  const index_t n_bins =
-      histogram != nullptr ? histogram->array_write_length : 0;
-  // One row of counts per thread, summed into hist_y after the chunks;
-  // index_t, so a bin can count more than 2^31 - 1 particles.
-  static thread_local std::vector<index_t> counts_buffer;
-  index_t *const counts = reuse_scratch(
-      counts_buffer, static_cast<std::size_t>(omp_get_max_threads()) * n_bins);
+  const auto row_length = static_cast<std::size_t>(n_counters);
+  static thread_local std::vector<index_t> counters_buffer;
+  index_t *const counters = reuse_scratch(
+      counters_buffer,
+      static_cast<std::size_t>(omp_get_max_threads()) * row_length);
 #pragma omp parallel
   {
-    index_t *const thread_counts =
-        counts + static_cast<std::size_t>(omp_get_thread_num()) * n_bins;
-    std::memset(thread_counts, 0, n_bins * sizeof(index_t));
+    // NOLINTNEXTLINE(*-pointer-arithmetic)
+    index_t *const thread_counters =
+        counters + static_cast<std::size_t>(omp_get_thread_num()) * row_length;
+    std::memset(thread_counters, 0, row_length * sizeof(index_t));
     index_t thread_begin = 0;
     index_t thread_end = 0;
     this_thread_range(n_macroparticles, thread_begin, thread_end);
@@ -92,24 +110,17 @@ extern "C" void execute_kernel_call_batch(const std::uint8_t *batch,
          chunk_begin += chunk_size) {
       const ApplyToChunk apply = {
           beam_dt, beam_dE, chunk_begin,
-          std::min(chunk_begin + chunk_size, thread_end), thread_counts};
+          std::min(chunk_begin + chunk_size, thread_end), thread_counters};
       for (const KernelCallHeader *record = first; record != last;
            record = next_record(record)) {
         visit_kernel_call(record, apply);
       }
     }
-    if (histogram != nullptr) {
-      const int n_threads = omp_get_num_threads();
+    if (counting_record >= 0) {
 #pragma omp barrier
-#pragma omp for
-      for (index_t bin = 0; bin < n_bins; bin++) {
-        index_t count = 0;
-        for (int thread = 0; thread < n_threads; thread++) {
-          count += counts[static_cast<std::size_t>(thread) * n_bins + bin];
-        }
-        // exact while a bin holds fewer than 2^53 particles
-        histogram->array_write[bin] = static_cast<real_t>(count);
-      }
+      visit_kernel_call(
+          record_at(first, counting_record),
+          MergeCounters{counters, row_length, omp_get_num_threads()});
     }
   }
 }

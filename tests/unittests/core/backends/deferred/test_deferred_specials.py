@@ -555,7 +555,15 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
             self.deferred.kernel_call_queue.n_bytes,
             KERNEL_CALL_BATCH_CAPACITY_BYTES,
         )
-        self.deferred.flush()
+        # Binned in the last launch, the counting record's position
+        # counted from that launch's first record.
+        hist_y = backend.ones(64, dtype=backend.float)
+        expected = backend.zeros(64, dtype=backend.float)
+        self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
+        self.eager.histogram(array_read=dt_e, array_write=expected, **CUTS)
+        np.testing.assert_array_equal(
+            copy_to_cpu(hist_y), copy_to_cpu(expected)
+        )
         _close(dt, dt_e, rtol=1e-11, atol=0)
         _close(dE, dE_e, rtol=1e-11, atol=1e-6)
 

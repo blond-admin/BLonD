@@ -27,7 +27,6 @@ from blond.core.backends.deferred.kernel_call_records import (
     KERNEL_CALL_ARGS,
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
     MAX_HIGHER_ALPHA,
-    HistogramArgs,
     KernelCallArgs,
 )
 from blond.core.beam.flags import BeamFlags
@@ -123,6 +122,9 @@ block_size = (threads, 1, 1)
 # 64-bit counter would halve the number of bins that fit in shared memory
 # for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
 _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
+# Bytes per counter of the deferred executor's records that count across
+# particles (`record_counters` in kernels.cu), `int` like the histograms'.
+_COUNTER_ITEMSIZE = np.dtype(np.int32).itemsize
 # Per-harmonic RF parameters are passed to `kick_multi_harmonic` by value,
 # as a struct in the kernel's parameter space (`RFParamsBatch` in
 # kernels.cu): no host-to-device copy per turn. Both must match their
@@ -157,9 +159,11 @@ _KERNEL_CALL_BATCH_DTYPE = np.dtype(
 # (`EXECUTOR_BLOCK_SIZE`, `EXECUTOR_BLOCKS_PER_SM` in kernels.cu): the two
 # blocks per SM of `default_blocks` are resident at once.
 _deferred_block_size = (min(threads, 256), 1, 1)
-# Bits of its `store_flags`, as in kernels.cu.
+# Bits of its `launch_flags`, as in kernels.cu; from bit 8 on: the
+# position + 1 of the launch's counting record, 0 for none.
 STORE_DT = 1
 STORE_DE = 2
+COUNTING_RECORD_SHIFT = 8
 
 
 def _check_kernel_call_record_abi() -> None:
@@ -206,7 +210,7 @@ def _split_batch(
         The ``Args`` class of each record, in batch order.
     record_sizes
         The byte size of each record, which varies within a kernel with
-        a trailing array (``KickMultiHarmonicArgs``).
+        a trailing array (a multi-harmonic kick).
     capacity
         Largest byte range one launch accepts.
 
@@ -257,18 +261,19 @@ def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
 _launch_kernel_call_batch = _execute_kernel_call_batch_kernel.kernel
 
 
-def _max_histogram_bins_in_executor() -> int:
+def _max_counters_in_executor() -> int:
     """
-    Return how many histogram bins the executor holds in shared memory.
+    Return how many counters the executor holds in shared memory.
 
-    Its counters are dynamic shared memory on top of the static staged
-    batch, within the per-block default (no opt-in) and with
+    Records that count across particles (`KernelCallArgs.n_counters`)
+    get them as dynamic shared memory on top of the static staged batch,
+    within the per-block default (no opt-in) and with
     `EXECUTOR_BLOCKS_PER_SM` blocks still resident per SM.
 
     Returns
     -------
     int
-        The most bins a deferred `histogram` holds in shared memory.
+        The most counters a launch can give its counting record.
     """
     attributes = cp.cuda.Device(0).attributes
     static = _execute_kernel_call_batch_kernel.attributes["shared_size_bytes"]
@@ -279,46 +284,10 @@ def _max_histogram_bins_in_executor() -> int:
         max_shared_memory_per_block - static,
         per_sm // executor_blocks_per_sm - reserved - static,
     )
-    return max(dynamic, 0) // _HIST_COUNT_ITEMSIZE
+    return max(dynamic, 0) // _COUNTER_ITEMSIZE
 
 
-_MAX_DEFERRED_HISTOGRAM_BINS = _max_histogram_bins_in_executor()
-
-
-def _histogram_shared_memory(
-    buffer: NumpyArray,
-    start: int,
-    args_types: list[type[KernelCallArgs]],
-    record_sizes: list[int],
-) -> int:
-    """
-    Return the dynamic shared memory of a launch, for its histogram.
-
-    Parameters
-    ----------
-    buffer
-        The queue's records.
-    start
-        Byte offset of the launch's first record.
-    args_types, record_sizes
-        Kind and size of each of the launch's records.
-
-    Returns
-    -------
-    int
-        ``array_write_length`` counters if a record is the histogram, else 0.
-    """
-    position = start
-    for args_type, size in zip(args_types, record_sizes, strict=True):
-        if args_type is HistogramArgs:
-            record_dtype = HistogramArgs.record_dtype()
-            record = buffer[position : position + record_dtype.itemsize]
-            n_bins = int(
-                record.view(record_dtype)[0]["args"]["array_write_length"]
-            )
-            return _HIST_COUNT_ITEMSIZE * n_bins
-        position += size
-    return 0
+_MAX_DEFERRED_COUNTERS = _max_counters_in_executor()
 
 
 def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> NumpyArray:
@@ -358,6 +327,8 @@ def _execute_batch(
     n_bytes: int,
     args_types: list[type[KernelCallArgs]],
     record_sizes: list[int],
+    counting_record: int,
+    n_counters: int,
     dt: CupyArray,
     dE: CupyArray,
 ) -> None:
@@ -375,6 +346,9 @@ def _execute_batch(
         The ``Args`` class of each record of the batch.
     record_sizes
         The byte size of each record of the batch.
+    counting_record, n_counters
+        Position of the record that counts across particles (-1 for
+        none), and its counters, as dynamic shared memory of its launch.
     dt, dE
         Beam coordinates the records act on.
     """
@@ -385,11 +359,15 @@ def _execute_batch(
             args_types, record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
         )
     n_macroparticles = INDEX_DTYPE(dt.size)
-    first_record = 0
+    first_record = 0  # of the launch, in the batch
     for start, end, launch_args_types in launches:
-        launch_records = slice(
-            first_record, first_record + len(launch_args_types)
-        )
+        # The counting record ends the batch, so it is in the last launch.
+        launch_counting_record = counting_record - first_record
+        if 0 <= launch_counting_record < len(launch_args_types):
+            counters_bytes = _COUNTER_ITEMSIZE * n_counters
+        else:
+            launch_counting_record = -1
+            counters_bytes = 0
         first_record += len(launch_args_types)
         _launch_kernel_call_batch(
             grid_size,
@@ -397,17 +375,15 @@ def _execute_batch(
             (
                 _batch_parameter(buffer, start, end),
                 np.uint32(end - start),
-                np.uint32(_store_flags(set(launch_args_types))),
+                np.uint32(
+                    _store_flags(set(launch_args_types))
+                    | (launch_counting_record + 1) << COUNTING_RECORD_SHIFT
+                ),
                 dt,
                 dE,
                 n_macroparticles,
             ),
-            shared_mem=_histogram_shared_memory(
-                buffer,
-                start,
-                launch_args_types,
-                record_sizes[launch_records],
-            ),
+            shared_mem=counters_bytes,
         )
 
 
@@ -934,8 +910,8 @@ class CudaSpecials(Specials):  # NOQA: D101
             )
 
     @staticmethod
-    def _max_deferred_histogram_bins() -> int:
-        return _MAX_DEFERRED_HISTOGRAM_BINS
+    def _max_deferred_counters() -> int:
+        return _MAX_DEFERRED_COUNTERS
 
     @staticmethod
     def beam_phase(  # NOQA: D102
