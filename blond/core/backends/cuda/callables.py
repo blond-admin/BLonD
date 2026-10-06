@@ -27,6 +27,7 @@ from blond.core.backends.deferred.kernel_call_records import (
     KERNEL_CALL_ARGS,
     KERNEL_CALL_BATCH_CAPACITY_BYTES,
     MAX_HIGHER_ALPHA,
+    HistogramArgs,
     KernelCallArgs,
 )
 from blond.core.beam.flags import BeamFlags
@@ -256,6 +257,70 @@ def _store_flags(record_types: Iterable[type[KernelCallArgs]]) -> int:
 _launch_kernel_call_batch = _execute_kernel_call_batch_kernel.kernel
 
 
+def _max_histogram_bins_in_executor() -> int:
+    """
+    Return how many histogram bins the executor holds in shared memory.
+
+    Its counters are dynamic shared memory on top of the static staged
+    batch, within the per-block default (no opt-in) and with
+    `EXECUTOR_BLOCKS_PER_SM` blocks still resident per SM.
+
+    Returns
+    -------
+    int
+        The most bins a deferred `histogram` holds in shared memory.
+    """
+    attributes = cp.cuda.Device(0).attributes
+    static = _execute_kernel_call_batch_kernel.attributes["shared_size_bytes"]
+    reserved = attributes.get("ReservedSharedMemoryPerBlock", 1024)
+    per_sm = attributes["MaxSharedMemoryPerMultiprocessor"]
+    executor_blocks_per_sm = 2  # EXECUTOR_BLOCKS_PER_SM in kernels.cu
+    dynamic = min(
+        max_shared_memory_per_block - static,
+        per_sm // executor_blocks_per_sm - reserved - static,
+    )
+    return max(dynamic, 0) // _HIST_COUNT_ITEMSIZE
+
+
+_MAX_DEFERRED_HISTOGRAM_BINS = _max_histogram_bins_in_executor()
+
+
+def _histogram_shared_memory(
+    buffer: NumpyArray,
+    start: int,
+    args_types: list[type[KernelCallArgs]],
+    record_sizes: list[int],
+) -> int:
+    """
+    Return the dynamic shared memory of a launch, for its histogram.
+
+    Parameters
+    ----------
+    buffer
+        The queue's records.
+    start
+        Byte offset of the launch's first record.
+    args_types, record_sizes
+        Kind and size of each of the launch's records.
+
+    Returns
+    -------
+    int
+        ``array_write_length`` counters if a record is the histogram, else 0.
+    """
+    position = start
+    for args_type, size in zip(args_types, record_sizes, strict=True):
+        if args_type is HistogramArgs:
+            record_dtype = HistogramArgs.record_dtype()
+            record = buffer[position : position + record_dtype.itemsize]
+            n_bins = int(
+                record.view(record_dtype)[0]["args"]["array_write_length"]
+            )
+            return _HIST_COUNT_ITEMSIZE * n_bins
+        position += size
+    return 0
+
+
 def _batch_parameter(buffer: NumpyArray, start: int, end: int) -> NumpyArray:
     """
     Return the ``KernelCallBatch`` launch parameter of ``buffer[start:end]``.
@@ -320,7 +385,12 @@ def _execute_batch(
             args_types, record_sizes, KERNEL_CALL_BATCH_CAPACITY_BYTES
         )
     n_macroparticles = INDEX_DTYPE(dt.size)
+    first_record = 0
     for start, end, launch_args_types in launches:
+        launch_records = slice(
+            first_record, first_record + len(launch_args_types)
+        )
+        first_record += len(launch_args_types)
         _launch_kernel_call_batch(
             grid_size,
             _deferred_block_size,
@@ -331,6 +401,12 @@ def _execute_batch(
                 dt,
                 dE,
                 n_macroparticles,
+            ),
+            shared_mem=_histogram_shared_memory(
+                buffer,
+                start,
+                launch_args_types,
+                record_sizes[launch_records],
             ),
         )
 
@@ -856,6 +932,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                 block=block_size,
                 shared_mem=max_shared_memory_per_block,
             )
+
+    @staticmethod
+    def _max_deferred_histogram_bins() -> int:
+        return _MAX_DEFERRED_HISTOGRAM_BINS
 
     @staticmethod
     def beam_phase(  # NOQA: D102

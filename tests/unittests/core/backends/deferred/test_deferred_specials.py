@@ -36,6 +36,8 @@ KICK = dict(
     voltage=8e3, omega_rf=2e7, phi_rf=0.1, charge=1.0, acceleration_kick=12.0
 )
 DRIFT = dict(T=1e-6, eta_0=0.01, beta=0.9, energy=2e9)
+# Inside the ±1e-8 s of `_beam`, so some particles fall outside.
+CUTS = dict(start=-0.8e-8, stop=0.9e-8)
 
 
 def _turn(specials, dt, dE, n_rf=3, n_alpha=2, n_bins=64):
@@ -323,6 +325,188 @@ class TestCppDeferredSpecials(BLonDTestCase):
                 continue
             self.assertIn(name, vars(self.deferred_class), name)
 
+    # ----------------------------------------------------------- histogram
+
+    def _histogram_matches_eager(self, dt, dE, n_bins, calls=()) -> None:
+        """Run ``calls`` then ``histogram`` of dt eagerly and deferred."""
+        dt_eager, dE_eager = backend.copy(dt), backend.copy(dE)
+        results = []
+        for specials, dt_, dE_ in (
+            (self.eager, dt_eager, dE_eager),
+            (self.deferred, dt, dE),
+        ):
+            for method, kwargs in calls:
+                getattr(specials, method)(dt=dt_, dE=dE_, **kwargs)
+            hist_y = backend.ones(n_bins, dtype=backend.float)
+            specials.histogram(array_read=dt_, array_write=hist_y, **CUTS)
+            results.append(hist_y)
+        # Counts are integers: no tolerance.
+        np.testing.assert_array_equal(
+            copy_to_cpu(results[1]), copy_to_cpu(results[0])
+        )
+        _close(dt, dt_eager, rtol=1e-11, atol=0)
+        _close(dE, dE_eager, rtol=1e-11, atol=1e-6)
+
+    def test_histogram_matches_eager(self) -> None:
+        for n in (1, 7, 1000, 100003):
+            for n_bins in (1, 64, 1000):
+                with self.subTest(n=n, n_bins=n_bins):
+                    dt, dE = _beam(n)
+                    self._histogram_matches_eager(dt, dE, n_bins)
+
+    def test_histogram_after_a_turn_bins_the_final_dt(self) -> None:
+        dt, dE = _beam(100003)
+        calls = [
+            ("kick_single_harmonic", KICK),
+            ("drift_simple", DRIFT),
+            ("kick_single_harmonic", KICK),
+            ("drift_simple", DRIFT),
+        ]
+        self._histogram_matches_eager(dt, dE, 1000, calls)
+
+    def test_histogram_edges(self) -> None:
+        # Exactly cut_left and cut_right count in the first and last bin;
+        # values that scale to n_bins but lie below cut_right count in the
+        # last bin; values just outside either cut are dropped.
+        left, right = CUTS["start"], CUTS["stop"]
+        n_bins = 1000
+        width = (right - left) / n_bins
+        values = np.array(
+            [
+                left,
+                right,
+                np.nextafter(right, left),
+                np.nextafter(left, -1.0),
+                left - 0.5 * width,
+                np.nextafter(right, 1.0),
+                -1e30,
+                1e30,
+                0.0,
+            ]
+        )
+        dt = backend.array(np.tile(values, 1001), dtype=backend.float)
+        dE = backend.zeros(dt.size, dtype=backend.float)
+        self._histogram_matches_eager(
+            dt, dE, n_bins, [("kick_single_harmonic", KICK)]
+        )
+
+    def test_histogram_flushes_the_queue(self) -> None:
+        # The histogram is the last record of a batch: queuing it runs the
+        # batch, so whoever reads hist_y next sees the finished histogram.
+        dt, dE = _beam(1000)
+        before = backend.copy(dE)
+        hist_y = backend.ones(64, dtype=backend.float)
+        self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
+        self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
+        self.assertEqual(self.deferred.kernel_call_queue.n_bytes, 0)
+        self.assertFalse(_equal(dE, before))
+        self.assertEqual(
+            float(np.sum(copy_to_cpu(hist_y))),
+            float(
+                np.sum(
+                    (copy_to_cpu(dt) >= CUTS["start"])
+                    & (copy_to_cpu(dt) <= CUTS["stop"])
+                )
+            ),
+        )
+
+    def test_histogram_runs_in_the_batch_it_ends(self) -> None:
+        from blond.core.backends.deferred.kernel_call_records import (
+            DriftSimpleArgs,
+            HistogramArgs,
+            KickSingleHarmonicArgs,
+        )
+
+        dt, dE = _beam(1000)
+        hist_y = backend.ones(64, dtype=backend.float)
+        batches = []
+        original = self.deferred_class._execute_batch
+
+        def recording(buffer, n_bytes, args_types, *rest):
+            batches.append(list(args_types))
+            original(buffer, n_bytes, args_types, *rest)
+
+        self.deferred_class._execute_batch = staticmethod(recording)
+        try:
+            self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
+            self.deferred.drift_simple(dt=dt, dE=dE, **DRIFT)
+            self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
+        finally:
+            self.deferred_class._execute_batch = staticmethod(original)
+        self.assertEqual(
+            batches,
+            [[KickSingleHarmonicArgs, DriftSimpleArgs, HistogramArgs]],
+        )
+
+    def test_histogram_of_another_array_runs_after_the_batch(self) -> None:
+        # Only the queued dt is binned in the batch; any other array (dE,
+        # a copy of dt) is binned eagerly, after the batch has run.
+        from blond.core.backends.deferred.kernel_call_records import (
+            KickSingleHarmonicArgs,
+        )
+
+        dt, dE = _beam(1000)
+        dE_eager = backend.copy(dE)
+        self.eager.kick_single_harmonic(dt=dt, dE=dE_eager, **KICK)
+        energy_cuts = dict(start=-1e6, stop=1.5e6)
+        for array, eager_array in ((dE, dE_eager), (backend.copy(dt), dt)):
+            with self.subTest(array_is_dE=array is dE):
+                batches = []
+                original = self.deferred_class._execute_batch
+
+                def recording(buffer, n_bytes, args_types, *rest):
+                    batches.append(list(args_types))
+                    original(buffer, n_bytes, args_types, *rest)
+
+                self.deferred_class._execute_batch = staticmethod(recording)
+                try:
+                    if array is dE:
+                        self.deferred.kick_single_harmonic(
+                            dt=dt, dE=dE, **KICK
+                        )
+                    else:  # dt itself is unchanged by a kick
+                        self.deferred.kick_single_harmonic(
+                            dt=dt, dE=backend.copy(dE), **KICK
+                        )
+                    hist_y = backend.ones(64, dtype=backend.float)
+                    self.deferred.histogram(
+                        array_read=array, array_write=hist_y, **energy_cuts
+                    )
+                finally:
+                    self.deferred_class._execute_batch = staticmethod(original)
+                self.assertEqual(batches, [[KickSingleHarmonicArgs]])
+                expected = backend.zeros(64, dtype=backend.float)
+                self.eager.histogram(
+                    array_read=eager_array, array_write=expected, **energy_cuts
+                )
+                np.testing.assert_array_equal(
+                    copy_to_cpu(hist_y), copy_to_cpu(expected)
+                )
+
+    def test_histogram_of_another_beam(self) -> None:
+        # The histogram's beam is not the queued one: the queued batch
+        # runs first, on its own beam.
+        dt, dE = _beam(1000)
+        dt_other, dE_other = _beam(500)
+        dE_eager = backend.copy(dE)
+        self.deferred.kick_single_harmonic(dt=dt, dE=dE, **KICK)
+        self._histogram_matches_eager(dt_other, dE_other, 64)
+        self.eager.kick_single_harmonic(dt=dt, dE=dE_eager, **KICK)
+        _close(dE, dE_eager, rtol=1e-12)
+
+    def test_histogram_with_many_bins(self) -> None:
+        # More bins than the CUDA executor holds in shared memory.
+        dt, dE = _beam(100003)
+        self._histogram_matches_eager(
+            dt, dE, 20_000, [("drift_simple", DRIFT)]
+        )
+
+    def test_histogram_of_no_particles(self) -> None:
+        dt, dE = backend.zeros(0), backend.zeros(0)
+        hist_y = backend.ones(16, dtype=backend.float)
+        self.deferred.histogram(array_read=dt, array_write=hist_y, **CUTS)
+        np.testing.assert_array_equal(copy_to_cpu(hist_y), np.zeros(16))
+
     def test_switching_specials_flushes(self) -> None:
         dt, dE = _beam(10)
         before = backend.copy(dE)
@@ -545,3 +729,22 @@ class TestCudaDeferredSpecials(TestCppDeferredSpecials):
                 self.deferred.flush()
                 _close(dt, dt_eager, rtol=1e-11, atol=0)
                 _close(dE, dE_eager, rtol=1e-11, atol=1e-6)
+
+    def test_histogram_every_tail_tile_width(self) -> None:
+        # Lanes past the last particle hold padding (dt = 0, inside the
+        # cuts) and must not be counted.
+        from blond.core.backends.cuda.callables import (
+            _deferred_block_size,
+            grid_size,
+        )
+
+        n_threads = grid_size[0] * _deferred_block_size[0]
+        sweep = 8 * n_threads
+        sizes = [sweep + tail * n_threads - 5 for tail in range(1, 9)]
+        sizes += [2 * sweep, n_threads - 3, 1]
+        for n in sizes:
+            with self.subTest(n_macroparticles=n):
+                dt, dE = _beam(n)
+                self._histogram_matches_eager(
+                    dt, dE, 64, [("drift_simple", DRIFT)]
+                )

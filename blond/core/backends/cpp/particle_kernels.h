@@ -24,6 +24,7 @@
 #include <cmath>
 
 #include "blond_common.h"
+#include "histogram_bin.h"
 #include "kernel_call_records.h"
 #include "openmp.h"
 
@@ -209,6 +210,26 @@ void apply_to_chunk(const DriftExactArgs &args, real_t *beam_dt,
 // Defined in linear_interp_kick.cpp.
 void apply_to_chunk(const KickInterpolatedArgs &args, const real_t *beam_dt,
                     real_t *beam_dE, index_t begin, index_t end);
+
+// Adds the chunk's dt to the calling thread's `counts`, binned like
+// `histogram` (histogram.cpp): the executor reduces the threads' counts
+// into `args.array_write` after the last chunk.
+BLOND_NOINLINE inline void bin_chunk(const HistogramArgs &args,
+                                     const real_t *__restrict__ beam_dt,
+                                     index_t *__restrict__ counts,
+                                     const index_t begin, const index_t end) {
+  const index_t n_bins = args.array_write_length;
+  const real_t inv_bin_width =
+      static_cast<real_t>(n_bins) / (args.stop - args.start);
+  for (index_t i = begin; i < end; i++) {
+    const double bin = histogram_bin_position(beam_dt[i], args.start, args.stop,
+                                              inv_bin_width, n_bins);
+    if (bin < 0.0 || bin >= static_cast<double>(n_bins)) {
+      continue;
+    }
+    counts[static_cast<index_t>(bin)] += 1;
+  }
+}
 
 // Table read by the interpolated kick: `2 * n_slices` entries,
 // [bin_centers[0], inverse bin width, (slope, offset) per bin], with

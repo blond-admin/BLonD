@@ -261,6 +261,24 @@ class InputArrayField(RecordField):
 
 
 @dataclass(frozen=True)
+class OutputArrayField(InputArrayField):
+    """
+    A backend array the batch writes: pointer plus ``<name>_length``.
+
+    Kept alive until the flush like `InputArrayField`; nobody may read
+    it before the flush that fills it.
+    """
+
+    def members(  # NOQA: D102
+        self, name: str
+    ) -> list[tuple[str, str, np.dtype]]:
+        return [
+            (f"real_t *{name};", name, _POINTER),
+            (f"index_t {name}_length;", f"{name}_length", _INDEX),
+        ]
+
+
+@dataclass(frozen=True)
 class InlineRealArrayField(RecordField):
     """
     Up to ``max_length`` reals copied into the record.
@@ -445,6 +463,7 @@ Real = Annotated[float, RealField()]
 Int32 = Annotated[int, Int32Field()]
 Index = Annotated[int, IndexField()]
 InputArray = Annotated[Any, InputArrayField()]
+OutputArray = Annotated[Any, OutputArrayField()]
 RfHarmonics = Annotated[
     Any,
     TrailingColumnsField(
@@ -474,6 +493,13 @@ class KernelCallArgs:
     """Whether the kernel modifies ``dt``; required on every subclass."""
     writes_dE: ClassVar[bool]
     """Whether the kernel modifies ``dE``; required on every subclass."""
+    ends_batch: ClassVar[bool] = False
+    """Whether queuing the kernel runs the batch right away, e.g. because
+    its output is read next."""
+    reads_queued_dt_as: ClassVar[str | None] = None
+    """For a kernel whose method takes no ``dt, dE``: the parameter that
+    is queued only when it is the queued beam's ``dt``, else the call
+    runs eagerly."""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """
@@ -955,6 +981,60 @@ class KickInterpolatedArgs(KernelCallArgs):
         return [(table, acceleration_kick)]
 
 
+@dataclass(frozen=True, eq=False)
+class HistogramArgs(KernelCallArgs):
+    """
+    `Specials.histogram` of the queued ``dt``, binned in the batch.
+
+    Bins the batch's final ``dt`` in the same pass over the particles as
+    its other kernels. Only a histogram of the queued beam's ``dt`` is a
+    record (`reads_queued_dt_as`); any other array is binned eagerly.
+    Ends its batch: the caller reads ``array_write`` next (the induced
+    voltage, observables), so the flush that fills it comes right away
+    and nobody sees a half-filled histogram.
+    """
+
+    writes_dt = False
+    writes_dE = False
+    ends_batch = True
+    reads_queued_dt_as = "array_read"
+
+    array_write: OutputArray
+    start: Real
+    stop: Real
+
+    @classmethod
+    def field_values_from_specials_call(
+        cls, arguments: Mapping[str, Any], eager_specials: Any
+    ) -> list[tuple] | None:
+        """
+        Zero the histogram when the call is queued.
+
+        The executors add their counts into it. Nothing queued before
+        reads ``array_write``, so zeroing it ahead of the flush is exact.
+        On the GPU the fill and the batch run on the same stream, in that
+        order.
+
+        Parameters
+        ----------
+        arguments
+            The call's arguments by name.
+        eager_specials
+            Provides ``_max_deferred_histogram_bins``.
+
+        Returns
+        -------
+        list or None
+            The field values of one record, or None if the executor
+            cannot hold that many bins.
+        """
+        array_write = arguments["array_write"]
+        if array_write.size > eager_specials._max_deferred_histogram_bins():
+            return None
+        array_write.fill(0)
+        return [(array_write, arguments["start"], arguments["stop"])]
+
+
 KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
     KickSingleHarmonicArgs,
     KickMultiHarmonicArgs,
@@ -962,6 +1042,7 @@ KERNEL_CALL_ARGS: tuple[type[KernelCallArgs], ...] = (
     DriftLikeLineSegmentArgs,
     DriftExactArgs,
     KickInterpolatedArgs,
+    HistogramArgs,
 )
 ARGS_BY_SPECIALS_METHOD = {
     args_type.specials_method(): args_type for args_type in KERNEL_CALL_ARGS

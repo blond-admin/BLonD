@@ -624,3 +624,55 @@ class TestDynamicProfile(BLonDTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.backend_mutation
+class TestProfileTrackDeferred(BLonDTestCase):
+    """With deferred specials the histogram ends the queued batch."""
+
+    def setUp(self):
+        self.previous_specials = backend.specials_mode
+        backend.set_specials("cpp_deferred")
+
+    def tearDown(self):
+        backend.specials.flush()
+        backend.set_specials(self.previous_specials)
+
+    def test_histogram_ends_the_queued_batch(self):
+        from blond.core.backends.deferred.kernel_call_records import (
+            DriftSimpleArgs,
+            HistogramArgs,
+        )
+
+        dt = np.linspace(-4, 4, 1000)
+        beam = _beam_with_dt(dt)
+        profile = StaticProfile(cut_left=-5.5, cut_right=5.5, n_bins=11)
+        specials = backend.specials
+        specials_class = (
+            specials if isinstance(specials, type) else type(specials)
+        )
+        batches = []
+        original = specials_class._execute_batch
+
+        def recording(buffer, n_bytes, args_types, *rest):
+            batches.append(list(args_types))
+            original(buffer, n_bytes, args_types, *rest)
+
+        specials_class._execute_batch = staticmethod(recording)
+        try:
+            # dE = 0: the drift leaves dt unchanged.
+            specials.drift_simple(
+                dt=beam.kernel_call_dt,
+                dE=beam.kernel_call_dE,
+                T=1.0,
+                eta_0=0.01,
+                beta=0.9,
+                energy=1e9,
+            )
+            profile.track(beam=beam)
+        finally:
+            specials_class._execute_batch = staticmethod(original)
+
+        self.assertEqual(batches, [[DriftSimpleArgs, HistogramArgs]])
+        expected, _ = np.histogram(dt, bins=11, range=(-5.5, 5.5))
+        np.testing.assert_array_equal(copy_to_cpu(profile.hist_y), expected)

@@ -610,6 +610,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
+        def _max_deferred_histogram_bins() -> int:
+            # The deferred executor keeps one row of counts per thread on
+            # the heap, so any profile fits.
+            return sys.maxsize
+
+        @staticmethod
         def _build_voltage_kick_table(
             voltage: NumpyArray,
             bin_centers: NumpyArray,

@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "blond_common.h"
+#include "histogram_bin.h"
 #include "openmp.h"
 #include "scratch_buffer.h"
 
@@ -50,14 +51,8 @@ extern "C" void histogram(const real_t *__restrict__ input,
 
       // First calculate the index to update
       for (index_t j = 0; j < loop_count; j++) {
-        fbin[j] = std::floor((input[i + j] - cut_left) * inv_bin_width);
-
-        // Scaling is not exact: a value at or just below cut_right can
-        // land on n_slices. Fold it back into the last bin, as
-        // np.histogram does, instead of dropping the particle.
-        if (fbin[j] >= (double)n_slices && input[i + j] <= cut_right) {
-          fbin[j] = n_slices - 1;
-        }
+        fbin[j] = histogram_bin_position(input[i + j], cut_left, cut_right,
+                                         inv_bin_width, n_slices);
       }
       // Then update the corresponding bins
       for (index_t j = 0; j < loop_count; j++) {
