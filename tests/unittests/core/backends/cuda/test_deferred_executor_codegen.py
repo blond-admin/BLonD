@@ -314,8 +314,9 @@ class TestDeferredRecordArithmetic(BLonDTestCase):
         """
         single = _probe_tile_loop("KickSingleHarmonicArgs")
         multi = _probe_tile_loop("KickMultiHarmonicArgs")
-        single_sines = _count(single, "CALL")
-        multi_sines = _count(multi, "CALL")
+        # one float-to-int conversion (the quadrant) per `fast_sin`
+        single_sines = _count(single, "F2I")
+        multi_sines = _count(multi, "F2I")
         self.assertEqual(single_sines, _PROBE_TILE)
         self.assertGreater(multi_sines, 0)
         self.assertLessEqual(

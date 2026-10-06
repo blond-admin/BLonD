@@ -102,6 +102,51 @@ __device__ __forceinline__ NoFactors prepare(const Args & /*args*/) {
   return {};
 }
 
+// vdt's polynomials (cpp/sincos.h) for sin(z) and cos(z), |z| <= pi/4,
+// in zz = z * z.
+__device__ __forceinline__ double sine_polynomial(const double z,
+                                                  const double zz) {
+  double poly = 1.58962301576546568060E-10;
+  poly = fma(poly, zz, -2.50507477628578072866E-8);
+  poly = fma(poly, zz, 2.75573136213857245213E-6);
+  poly = fma(poly, zz, -1.98412698295895385996E-4);
+  poly = fma(poly, zz, 8.33333333332211858878E-3);
+  poly = fma(poly, zz, -1.66666666666666307295E-1);
+  return fma(z * zz, poly, z);
+}
+
+__device__ __forceinline__ double cosine_polynomial(const double zz) {
+  double poly = -1.13585365213876817300E-11;
+  poly = fma(poly, zz, 2.08757008419747316778E-9);
+  poly = fma(poly, zz, -2.75573141792967388112E-7);
+  poly = fma(poly, zz, 2.48015872888517045348E-5);
+  poly = fma(poly, zz, -1.38888888888730564116E-3);
+  poly = fma(poly, zz, 4.16666666666665929218E-2);
+  return fma(zz * zz, poly, fma(zz, -0.5, 1.0));
+}
+
+// The FP64 sine of the CPU backends (vdt's `fast_sin`): Cody-Waite
+// reduction to [-pi/4, pi/4], then the sine's or the cosine's
+// polynomial. About half the instructions of libdevice's `sin`, which
+// loads its coefficients from a table and keeps a path for huge
+// arguments. Single precision keeps `sin` (`__sinf` under
+// --use_fast_math).
+__device__ __forceinline__ real_t fast_sin(const real_t x) {
+  if constexpr (std::is_same_v<real_t, float>) {
+    return sin(x);
+  }
+  const double abs_x = fabs(x);
+  const int quadrant = (static_cast<int>(abs_x * (4.0 / M_PI)) + 1) & ~1;
+  const double y = quadrant;
+  const double z = ((abs_x - y * 7.853981554508209228515625E-1) -
+                    y * 7.94662735614792836714E-9) -
+                   y * 3.06161699786838294307E-17;
+  const double zz = z * z;
+  const double sine = ((quadrant - 2) & 2) == 0 ? cosine_polynomial(zz)
+                                                : sine_polynomial(z, zz);
+  return ((quadrant & 4) != 0) != (x < 0) ? -sine : sine;
+}
+
 struct KickSingleHarmonicFactors {
   real_t charge_voltage; // charge * voltage
 };
@@ -115,7 +160,7 @@ __device__ __forceinline__ void
 apply_to_particle(const KickSingleHarmonicArgs &args,
                   const KickSingleHarmonicFactors &factors, const real_t &dt,
                   real_t &dE) {
-  dE += factors.charge_voltage * sin(args.omega_rf * dt + args.phi_rf) +
+  dE += factors.charge_voltage * fast_sin(args.omega_rf * dt + args.phi_rf) +
         args.acceleration_kick;
 }
 
@@ -150,7 +195,7 @@ __device__ __forceinline__ void kick_multi_harmonic_particle(
   real_t dE_sum = acc_kick;
   for (int j = 0; j < n_rf; j++) {
     dE_sum += charge_times(rf_params.voltage[j]) *
-              sin(rf_params.omega_rf[j] * dt + rf_params.phi_rf[j]);
+              fast_sin(rf_params.omega_rf[j] * dt + rf_params.phi_rf[j]);
   }
   dE += dE_sum;
 }
