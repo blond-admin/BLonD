@@ -14,6 +14,9 @@ variables:
   # test the newest releases and notice breakage early. Only the wheel
   # *files* are reused from the cache, not a pinned set of versions.
   UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv_cache"
+  # pytest-xdist workers for every non-MPI test run. The workers share
+  # the runner's CPUs (see `ci_omp_threads.py --divide`) and its GPU.
+  BLOND_XDIST_WORKERS: "4"
   # Always use the interpreter shipped in the CI image, never let uv download
   # a managed Python of its own.
   UV_PYTHON_DOWNLOADS: "never"
@@ -219,7 +222,10 @@ workflow:
     # just that rank, which then deadlocks the other rank's next MPI
     # collective. Compiling once, single-process, first (mirroring the cpp
     # /cuda compile steps in `.before`) avoids the race.
-    - python3 -m pytest -v -m "not mpi" tests/unittests/core/backends/test_backend.py
+    - &numba_warmup python3 -m pytest -v -m "not mpi"
+      tests/unittests/core/backends/test_backend.py
+      tests/unittests/acc_math/analytic/test_simple_math.py
+      tests/unittests/core/reference_clock/test_reference_clock_numba.py
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order. Random
     # ordering can desync the ranks (one rank enters a collective while the
@@ -235,9 +241,17 @@ workflow:
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
     - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    # The following pytest runs use pytest-xdist workers. `--dist loadfile`
+    # keeps each test module on one worker, so module-level fixtures and
+    # backend state behave as in a serial run. The thread pools are split
+    # between the workers, so they do not oversubscribe the entitled CPUs.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     - python3 -m pytest
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       -v
       --randomly-seed=$CI_PIPELINE_ID
 
@@ -252,7 +266,18 @@ workflow:
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
     - uv pip list
     - cd ${project_root}
+    # Warm the numba JIT cache single-process before the xdist workers
+    # start (see the numba cache race described in `.main`).
+    - *numba_warmup
+    # The following pytest runs use pytest-xdist workers. `--dist loadfile`
+    # keeps each test module on one worker, so module-level fixtures and
+    # backend state behave as in a serial run. The thread pools are split
+    # between the workers, so they do not oversubscribe the entitled CPUs.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - python3 -m pytest
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       -m "not backend_mutation and not mpi"
       -v
       --randomly-seed=$CI_PIPELINE_ID
@@ -276,7 +301,18 @@ workflow:
     - uv pip uninstall cupy-cuda12x
     - uv pip list
     - cd ${project_root}
+    # Warm the numba JIT cache single-process before the xdist workers
+    # start (see the numba cache race described in `.main`).
+    - *numba_warmup
+    # The following pytest runs use pytest-xdist workers. `--dist loadfile`
+    # keeps each test module on one worker, so module-level fixtures and
+    # backend state behave as in a serial run. The thread pools are split
+    # between the workers, so they do not oversubscribe the entitled CPUs.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - python3 -m pytest
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       tests/integration/examples
       -v
       --randomly-seed=$CI_PIPELINE_ID
@@ -286,7 +322,6 @@ workflow:
     BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
     BLOND_FORCE_TEST_ALL_BACKENDS: "True"     # Force backend scanning unittests to use all available backends
     MPLBACKEND: "Agg"     # Set the matplotlib backend to non-interactive. Test should run faster and MPI-test is not deadlocked.
-    BLOND_XDIST_WORKERS: "4"     # pytest-xdist workers for the CuPy-free run
   script:
     - export PATH="${HOME}/.local/bin:${PATH}"  # uv (script runs in a new shell)
     - source ./.venv/bin/activate  # For Linux/macOS, use `source venv/bin/activate`
@@ -301,7 +336,7 @@ workflow:
     # just that rank, which then deadlocks the other rank's next MPI
     # collective. Compiling once, single-process, first (mirroring the cpp
     # /cuda compile steps in `.before`) avoids the race.
-    - python3 -m pytest -v -m "not mpi" tests/unittests/core/backends/test_backend.py
+    - *numba_warmup
     # Run only MPI unittests. Only the main thread should report.
     # `-p no:randomly`: both ranks MUST run tests in identical order. Random
     # ordering can desync the ranks (one rank enters a collective while the
@@ -317,9 +352,17 @@ workflow:
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
     - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread --cov --cov-config=.coveragerc; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    # The following pytest runs use pytest-xdist workers. `--dist loadfile`
+    # keeps each test module on one worker, so module-level fixtures and
+    # backend state behave as in a serial run. The thread pools are split
+    # between the workers, so they do not oversubscribe the entitled CPUs.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     # Run all unittests + the examples
     - uv pip uninstall mpi4py
     - python3 -m pytest
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       -v
       --cov-append
       --cov
@@ -327,6 +370,8 @@ workflow:
       --junitxml=junit-reports/junit-report-numba.xml
     - export BLOND_BACKEND_MODE="cuda"
     - python3 -m pytest
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       -v
       -m "not mpi and not backend_mutation"
       --cov-append
@@ -336,17 +381,10 @@ workflow:
     - export BLOND_BACKEND_MODE="numba"
     - uv pip uninstall cupy-cuda12x
     - export BLOND_FORCE_TEST_ALL_BACKENDS="False"
-    # CuPy is gone, so this run can use pytest-xdist workers without any
-    # CUDA context. `--dist loadfile` keeps each test module on one worker
-    # (module-level fixtures and backend state stay as in a serial run).
-    # The thread pools are split between the workers like the MPI ranks
-    # above, so they do not oversubscribe the entitled CPUs.
-    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
-    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     - python3 -m pytest
-      -v
       -n $BLOND_XDIST_WORKERS
       --dist loadfile
+      -v
       --randomly-seed=$CI_PIPELINE_ID
       --cov-append
       --cov
@@ -549,8 +587,19 @@ test_minimum:
     - source ./.venv/bin/activate
     - uv pip list
     - cd ${project_root}
+    # Warm the numba JIT cache single-process before the xdist workers
+    # start (see the numba cache race described in `.main`).
+    - *numba_warmup
+    # The following pytest runs use pytest-xdist workers. `--dist loadfile`
+    # keeps each test module on one worker, so module-level fixtures and
+    # backend state behave as in a serial run. The thread pools are split
+    # between the workers, so they do not oversubscribe the entitled CPUs.
+    - export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide $BLOND_XDIST_WORKERS)
+    - export NUMBA_NUM_THREADS=$OMP_NUM_THREADS
     # Run all unittests + the examples
     - python -m pytest
+      -n $BLOND_XDIST_WORKERS
+      --dist loadfile
       -v
       --import-mode=importlib
   tags:
