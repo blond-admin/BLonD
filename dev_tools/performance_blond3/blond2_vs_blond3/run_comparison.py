@@ -19,7 +19,8 @@ Usage::
 
 ``cpp_deferred`` and ``cuda_deferred`` run BLonD 3 with the queued
 C++ / CUDA kernels (CPU chunk size from ``BLOND_DEFERRED_CHUNK_SIZE``).
-BLonD 2 has no deferred mode, so it runs its plain C++ / GPU code there.
+BLonD 2 has no deferred mode: its runtime there is NaN, so it gets no
+bar.
 
 Without ``--backends``, numba and cpp are run, plus cuda if a GPU is
 available. The C++ backends must be compiled first
@@ -243,13 +244,10 @@ def set_backends(target: str) -> None:
     backend.set_specials(target)
     {
         "cpp": bm.use_cpp,
-        # BLonD 2 has no deferred mode; its plain C++ is the reference
-        "cpp_deferred": bm.use_cpp,
         "cuda": bm.use_gpu,
-        "cuda_deferred": bm.use_gpu,
         "numba": bm.use_numba,
         "python": bm.use_py,
-    }[target]()
+    }.get(target, lambda: None)()  # BLonD 2 has no deferred mode
 
 
 def measure(
@@ -263,6 +261,9 @@ def measure(
     for target in targets:
         use_gpu = target in GPU_TARGETS
         for code, runner in runners.items():
+            if code == "BLonD 2" and target.endswith("_deferred"):
+                runtimes[code][target] = [float("nan")] * n_runs  # no bar
+                continue
             set_backends(target)
             runner(params, N_TURNS_WARMUP, use_gpu)
             runtimes[code][target] = []
@@ -300,7 +301,8 @@ def plot(
         ax.bar_label(
             bars,
             labels=[
-                f"{m:.2f}\n±{s:.2f}" for m, s in zip(means, stds, strict=True)
+                "" if np.isnan(m) else f"{m:.2f}\n±{s:.2f}"
+                for m, s in zip(means, stds, strict=True)
             ],
             fontsize=7,
         )
