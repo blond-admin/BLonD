@@ -1151,6 +1151,10 @@ class Simulation(Preparable):
             If ``n_turns`` is None and the magnetic cycle has unlimited turns.
         NotImplementedError
             If more than two beams are provided (currently unsupported).
+        NotImplementedError
+            If turns were already tracked. Resuming a simulation is not
+            supported yet; to interrupt a run, call ``finalize`` once for
+            all turns and then ``mainloop`` repeatedly.
 
         See Also
         --------
@@ -1226,6 +1230,7 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
+        self._raise_if_resuming()
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
         if callbacks is not None:
@@ -1256,6 +1261,16 @@ class Simulation(Preparable):
             callbacks=callbacks,
             until_section_index=until_section_index,
         )
+
+    def _raise_if_resuming(self) -> None:
+        """Refuse to continue a simulation that already tracked turns."""
+        if self.turn_counter.value != 0:
+            raise NotImplementedError(
+                f"Resuming a simulation is not supported yet, but"
+                f" {self.turn_counter.value} turns were already tracked."
+                f" To interrupt a run, call `finalize` once with the total"
+                f" `n_turns` and then `mainloop` repeatedly."
+            )
 
     def finalize(
         self,
