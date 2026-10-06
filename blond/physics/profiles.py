@@ -417,6 +417,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
                 start=geometry.cut_left,  # type: ignore
                 stop=geometry.cut_right,  # type: ignore
             )
+            beam.dt.sum_over_ranks(geometry.hist_y)  # type: ignore
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
             self.hist_y_to_density_factor = 1.0 / beam.common_array_size

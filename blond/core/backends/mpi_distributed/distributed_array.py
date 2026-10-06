@@ -349,13 +349,21 @@ class DistributedArray:
             stop=range[1],
         )
 
-        # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
+        self.sum_over_ranks(array_write_local)
+        return array_write_local
 
-            return array_write_local
-        else:
-            return array_write_local
+    def sum_over_ranks(self, array: NumpyArray | CupyArray) -> None:
+        """
+        Sum ``array`` element-wise over all processes, in place.
+
+        Parameters
+        ----------
+        array
+            Per-process result, e.g. a histogram of `array_local`; holds
+            the sum of all processes' afterwards.
+        """
+        if self._is_distributed:
+            self._comm.Allreduce(MPI.IN_PLACE, array, op=MPI.SUM)
 
     def histogram_sparse(
         self,
@@ -416,13 +424,21 @@ class DistributedArray:
             bucket_index_to_memory_index=bucket_index_to_memory_index,
         )
 
-        # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
+        self.sum_over_ranks(array_write_local)
+        return array_write_local
 
-            return array_write_local
-        else:
-            return array_write_local
+    def sum_over_ranks(self, array: NumpyArray | CupyArray) -> None:
+        """
+        Sum ``array`` element-wise over all processes, in place.
+
+        Parameters
+        ----------
+        array
+            Per-process result, e.g. a histogram of `array_local`; holds
+            the sum of all processes' afterwards.
+        """
+        if self._is_distributed:
+            self._comm.Allreduce(MPI.IN_PLACE, array, op=MPI.SUM)
 
 
 def concatenate(

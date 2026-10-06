@@ -20,6 +20,7 @@ from blond import (
     uranium_29,
 )
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
+from blond.core.backends.mpi_distributed.helpers import MPI_SIZE
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
@@ -622,10 +623,6 @@ class TestDynamicProfile(BLonDTestCase):
                     )
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 @pytest.mark.backend_mutation
 class TestProfileTrackDeferred(BLonDTestCase):
     """With deferred specials the histogram ends the queued batch."""
@@ -676,3 +673,27 @@ class TestProfileTrackDeferred(BLonDTestCase):
         self.assertEqual(batches, [[DriftSimpleArgs, HistogramArgs]])
         expected, _ = np.histogram(dt, bins=11, range=(-5.5, 5.5))
         np.testing.assert_array_equal(copy_to_cpu(profile.hist_y), expected)
+
+
+@pytest.mark.mpi
+class TestProfileTrackMpi(BLonDTestCase):
+    def test_histogram_counts_the_particles_of_every_rank(self):
+        if MPI_SIZE < 2:
+            self.skipTest("Only with `mpirun -n 2`")
+        dt = np.linspace(0, 1e-9, 12)
+        beam = Beam(intensity=1, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=dt,
+            dE=np.zeros_like(dt),
+            reference_time=0,
+            reference_total_energy=450e9,
+            mpi_mode="root-distributes",
+        )
+        profile = StaticProfile(cut_left=-1e-10, cut_right=1.1e-9, n_bins=4)
+        profile.track(beam=beam)
+        expected, _ = np.histogram(dt, bins=4, range=(-1e-10, 1.1e-9))
+        np.testing.assert_array_equal(copy_to_cpu(profile.hist_y), expected)
+
+
+if __name__ == "__main__":
+    unittest.main()
