@@ -1,10 +1,20 @@
 import unittest
+from pathlib import Path
 
 import numpy as np
 
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_blond2_reference_file
 
 DEBUG_PLOTTING = False
+
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
+_BLOND2_REFERENCE_PATH = (
+    Path(__file__).parent
+    / "resources"
+    / "lhc_beam_control_single_bunch_injection_blond2.npz"
+)
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -28,9 +38,20 @@ class TestSingleBunchInjectionWithPhaseLoop(BLonDTestCase):
         """
         Initialize the simulations for the integration tests.
         """
-        cls.pl_error_b2, cls.sl_error_b2, cls.omega_rf_b2, cls.phi_rf_b2 = (
-            cls.setup_blond2()
-        )
+        if REWRITE_BLOND2_REFERENCE_FILE:
+            pl_error, sl_error, omega_rf, phi_rf = cls.setup_blond2()
+            save_blond2_reference_file(
+                _BLOND2_REFERENCE_PATH,
+                pl_error=pl_error,
+                sl_error=sl_error,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+            )
+        with np.load(_BLOND2_REFERENCE_PATH) as blond2_reference:
+            cls.pl_error_b2 = blond2_reference["pl_error"]
+            cls.sl_error_b2 = blond2_reference["sl_error"]
+            cls.omega_rf_b2 = blond2_reference["omega_rf"]
+            cls.phi_rf_b2 = blond2_reference["phi_rf"]
         cls.pl_error_b3, cls.sl_error_b3, cls.omega_rf_b3, cls.phi_rf_b3 = (
             cls.setup_blond3()
         )

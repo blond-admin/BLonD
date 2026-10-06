@@ -42,3 +42,57 @@ class TestPytestActiveTracksTheSession(BLonDTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSaveBlond2ReferenceFile(BLonDTestCase):
+    """`save_blond2_reference_file` stores arrays plus the producing environment."""
+
+    def setUp(self):
+        import tempfile
+
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.tmp_dir.name, "blond2_reference.npz")
+
+    def tearDown(self):
+        self.tmp_dir.cleanup()
+
+    def test_arrays_round_trip(self):
+        import numpy as np
+
+        from blond.testing.helpers import save_blond2_reference_file
+
+        save_blond2_reference_file(self.path, dt=np.arange(3.0), dE=np.ones(2))
+
+        with np.load(self.path) as blond2_reference:
+            np.testing.assert_array_equal(
+                blond2_reference["dt"], np.arange(3.0)
+            )
+            np.testing.assert_array_equal(blond2_reference["dE"], np.ones(2))
+
+    def test_environment_is_stored_without_pickle(self):
+        import json
+
+        import numpy as np
+
+        from blond.testing.helpers import save_blond2_reference_file
+
+        save_blond2_reference_file(self.path, dt=np.arange(3.0))
+
+        with np.load(self.path, allow_pickle=False) as blond2_reference:
+            environment = json.loads(
+                str(blond2_reference["blond2_reference_environment"])
+            )
+        self.assertIn(f"numpy=={np.__version__}", environment["pip_list"])
+        self.assertEqual(environment["python"], sys.version)
+        for key in ("platform", "git_commit", "created"):
+            self.assertIn(key, environment)
+
+    def test_refuses_reserved_key(self):
+        import numpy as np
+
+        from blond.testing.helpers import save_blond2_reference_file
+
+        with self.assertRaises(ValueError):
+            save_blond2_reference_file(
+                self.path, blond2_reference_environment=np.ones(1)
+            )

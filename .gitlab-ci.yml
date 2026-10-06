@@ -64,7 +64,7 @@ workflow:
 # templates that each define `cache:` (or `after_script:`) do not add up --
 # the last one listed in `extends` wins. Every cache a job needs therefore
 # has to be listed in ONE template. `.cache_uv` is for the pure-install
-# jobs (docs, pre-commit); `.cache_test` bundles uv + numba + compiled
+# jobs (docs, pre-commit); `.cache_test` bundles uv + compiled
 # backends for the test jobs.
 
 .cache_uv:
