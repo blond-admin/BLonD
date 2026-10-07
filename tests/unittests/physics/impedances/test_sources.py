@@ -549,7 +549,7 @@ class TestResonators(BLonDTestCase):
             plt.show()
         assert np.allclose(
             self.resonators._center_frequencies,
-            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y))[0]]),
+            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y).real)[0]]),
             atol=(max_freq - min_freq) / num / 2,
         )  # closeness of peaks to centre frequency
         for freq_ind in range(
@@ -575,7 +575,7 @@ class TestResonators(BLonDTestCase):
             assert np.allclose(
                 copy_to_cpu(self.resonators._shunt_impedances[freq_ind]),
                 copy_to_cpu(
-                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y))[0]])
+                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y).real)[0]])
                 ),
             )
             assert np.isclose(
