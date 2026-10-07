@@ -293,6 +293,26 @@ def _backend_state() -> tuple[str, str]:
     return backend.backend.__class__.__name__, backend.backend.specials_mode
 
 
+def _attribute_subject(obj: object) -> str:
+    """
+    Describe an object for an attribute assertion failure message.
+
+    Parameters
+    ----------
+    obj
+        Object the attribute was looked up on.
+
+    Returns
+    -------
+    str
+        Description naming the object's class. The object itself is
+        never rendered, so a large array cannot bloat the message.
+    """
+    if isinstance(obj, type):
+        return f"type object {obj.__name__!r}"
+    return f"{type(obj).__name__!r} object"
+
+
 class BLonDTestCase(unittest.TestCase):
     """
     `TestCase` base class that reports the active backend on failure.
@@ -356,3 +376,54 @@ class BLonDTestCase(unittest.TestCase):
             else:
                 exc.args = (note,)
             raise
+
+    if not hasattr(unittest.TestCase, "assertHasAttr"):
+        # Python 3.14 added both assertions; define them while the
+        # supported floor is below that, and inherit the stdlib
+        # versions once it is not.
+        def assertHasAttr(
+            self, obj: object, name: str, msg: str | None = None
+        ) -> None:
+            """
+            Fail unless ``obj`` has an attribute called ``name``.
+
+            Parameters
+            ----------
+            obj
+                Object to inspect.
+            name
+                Name of the attribute that must be present.
+            msg
+                Message replacing the default one on failure.
+            """
+            if not hasattr(obj, name):
+                self.fail(
+                    self._formatMessage(
+                        msg,
+                        f"{_attribute_subject(obj)} has no attribute {name!r}",
+                    )
+                )
+
+        def assertNotHasAttr(
+            self, obj: object, name: str, msg: str | None = None
+        ) -> None:
+            """
+            Fail if ``obj`` has an attribute called ``name``.
+
+            Parameters
+            ----------
+            obj
+                Object to inspect.
+            name
+                Name of the attribute that must be absent.
+            msg
+                Message replacing the default one on failure.
+            """
+            if hasattr(obj, name):
+                self.fail(
+                    self._formatMessage(
+                        msg,
+                        f"{_attribute_subject(obj)} has unexpected "
+                        f"attribute {name!r}",
+                    )
+                )

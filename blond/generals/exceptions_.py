@@ -56,3 +56,12 @@ class InvalidParticleAttributeError(BLonDException, ValueError):
     """Exception raised when attempting to create unphysical particle."""
 
     pass
+
+
+class NotInitialisedError(BLonDException, AttributeError):
+    """
+    A late-initialised attribute was read before it was filled.
+
+    Subclasses `AttributeError`, so ``hasattr`` reports `False` for an
+    attribute that is not filled yet.
+    """
