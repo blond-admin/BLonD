@@ -150,7 +150,6 @@ class TestBeamLoadingSignVsDesignRfPhase(unittest.TestCase):
             phi_rf=phi_rf_design,
             harmonic=HARMONIC,
             cavity_feedback=feedback,
-            profile=profile,
         )
         # Drift first so the feedback's RF station is not the first
         # reference-altering element (otherwise the first-turn reverse
@@ -677,7 +676,6 @@ class TestFirstPassageDemodulationFrame(unittest.TestCase):
             phi_rf=0.0,
             harmonic=HARMONIC,
             cavity_feedback=feedback,
-            profile=profile,
         )
         # The RF station opens the ring: the case the backfill walk
         # cannot supply a tail for.

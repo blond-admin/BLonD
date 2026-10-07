@@ -130,7 +130,7 @@ def make_noisy_profile(
     hist_y[:5] = 0.0
     hist_y[-5:] = 0.0
 
-    profile._hist_y = backend.array(hist_y, dtype=backend.float)
+    profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
     profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
     return profile
 
@@ -691,7 +691,6 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                     phi_rf=0.0,
                     harmonic=harmonic,
                     local_wakefield=local_wf,
-                    profile=profile,
                     section_index=section_index,
                 )
                 ind_volt_elements.append(local_wf)
@@ -715,7 +714,6 @@ class TestMultiTurnFeedbackVsConvolution(unittest.TestCase):
                     phi_rf=0.0,
                     harmonic=harmonic,
                     cavity_feedback=feedback,
-                    profile=profile,
                     section_index=section_index,
                 )
                 ind_volt_elements.append(rf_station)

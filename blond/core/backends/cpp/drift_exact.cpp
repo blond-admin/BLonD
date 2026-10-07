@@ -76,7 +76,7 @@ static inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
 // because the alpha loop keeps its run-time trip count here.
 static void drift_exact_generic(real_t *__restrict__ beam_dt,
                                 const real_t *__restrict__ beam_dE,
-                                const real_t T, const real_talpha_zero,
+                                const real_t T, const real_t alpha_zero,
                                 const real_t *__restrict__ higher_alpha,
                                 const int n_alpha, const real_t beta,
                                 const real_t energy,

@@ -244,7 +244,6 @@ class TestFeedbackPhaseUnderAcceleration(unittest.TestCase):
             voltage=cls.V_DESIGN,
             phi_rf=0.0,
             harmonic=cls.HARMONIC,
-            profile=profile,
         )
         ring.add_elements(
             [
@@ -330,7 +329,6 @@ class TestFeedbackPhaseUnderAcceleration(unittest.TestCase):
             phi_rf=0.0,
             harmonic=cls.HARMONIC,
             cavity_feedback=feedback,
-            profile=profile,
         )
         ring = Ring(
             circumference=cls.CIRCUMFERENCE, check_section_indices=False
@@ -621,7 +619,6 @@ class TestSolverPhaseUnderAcceleration(unittest.TestCase):
             phi_rf=0.0,
             harmonic=base.HARMONIC,
             local_wakefield=wakefield,
-            profile=profile,
         )
         ring = Ring(
             circumference=base.CIRCUMFERENCE, check_section_indices=False
@@ -758,7 +755,7 @@ class TestFixedFrequencyWakeWithSubsteppedFrame(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((t - t0) / (0.08 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 

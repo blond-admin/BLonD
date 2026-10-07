@@ -3958,7 +3958,7 @@ class TestCounterRotatingBeamKickSymmetry(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.T_RF)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile.hist_y[:] = hist_y
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile, t0
 
@@ -4350,7 +4350,7 @@ class TestCounterRotatingTwoBeamMatrix(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.T_RF)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = hist_y
+        profile.hist_y[:] = hist_y
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile, t0
 

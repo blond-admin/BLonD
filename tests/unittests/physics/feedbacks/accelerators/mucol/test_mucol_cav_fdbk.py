@@ -520,7 +520,6 @@ class TestCavityPrefill(unittest.TestCase):
             phi_rf=0.0,
             harmonic=25900,
             cavity_feedback=feedback,
-            profile=profile,
         )
         return feedback, rf
 

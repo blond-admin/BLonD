@@ -190,7 +190,6 @@ class TestCavityFeedbackNumbaVsCudaEquivalence(unittest.TestCase):
             phi_rf=0.0,
             harmonic=HARMONIC,
             cavity_feedback=feedback,
-            profile=profile,
         )
         ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
         drift = DriftSimple(

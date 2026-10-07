@@ -162,7 +162,6 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=self.harmonic,
                 local_wakefield=wakefield,
-                profile=profile,
             )
         else:
             # Operating-point cavity: V_init = V_design held steady by the
@@ -190,7 +189,6 @@ class TestEnergyGainMTWvsNonDrivenFeedback(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=self.harmonic,
                 cavity_feedback=feedback,
-                profile=profile,
             )
         # Drift first so the feedback's RF station is not the first
         # reference-altering element (otherwise the first-turn reverse

@@ -1425,7 +1425,6 @@ class TestIQCavityFeedbackObservationTracked(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=harmonic,
                 cavity_feedback=feedback,
-                profile=profile,
                 section_index=section_index,
             )
             feedbacks.append(feedback)

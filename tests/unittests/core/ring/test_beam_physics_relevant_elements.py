@@ -53,7 +53,6 @@ class TestFunctions(unittest.TestCase):
             phi_rf=0.0,
             harmonic=harmonic,
             cavity_feedback=feedback,
-            profile=profile,
         )
         drift = DriftSimple(
             orbit_length=26658.883,

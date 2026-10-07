@@ -82,7 +82,7 @@ class TestCavityResponseSolverConvergence(unittest.TestCase):
         # zero edges
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -466,7 +466,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -803,7 +803,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             )
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -901,7 +901,7 @@ class TestRfBeamCurrentDownsampling(unittest.TestCase):
             -0.5
             * ((t - center_trf * self.t_rf) / (width_trf * self.t_rf)) ** 2
         )
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         return profile
 
@@ -1025,7 +1025,7 @@ class TestRfBeamCurrentDemodulationPhase(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((times - centre) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         self.profile = profile
 
@@ -1125,7 +1125,7 @@ class TestRfBeamCurrentCounterRotating(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         self.profile = profile
 
@@ -1293,7 +1293,7 @@ class TestUnifiedRfBeamCurrentMigrationPin(unittest.TestCase):
         hist_y = np.exp(-0.5 * ((t - t0) / (0.02 * self.t_rf)) ** 2)
         hist_y[:5] = 0.0
         hist_y[-5:] = 0.0
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
         self.profile = profile
 

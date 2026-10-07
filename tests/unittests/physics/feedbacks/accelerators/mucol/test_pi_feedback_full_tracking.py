@@ -249,7 +249,6 @@ def _run_config(
             phi_rf=0.0,
             harmonic=harmonic,
             cavity_feedback=feedback,
-            profile=profile,
             section_index=section_index,
         )
         if delta_omega_rf != 0.0:

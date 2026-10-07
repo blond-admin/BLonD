@@ -200,7 +200,6 @@ def _build_two_beam_simulation(
                 phi_rf=0.0,
                 harmonic=harmonic,
                 local_wakefield=wakefield,
-                profile=profile,
                 section_index=sec,
             )
             collected.append(wakefield)
@@ -220,7 +219,6 @@ def _build_two_beam_simulation(
                 phi_rf=0.0,
                 harmonic=harmonic,
                 cavity_feedback=feedback,
-                profile=profile,
                 section_index=sec,
             )
             # RF-frequency offset on every feedback station, before the run so

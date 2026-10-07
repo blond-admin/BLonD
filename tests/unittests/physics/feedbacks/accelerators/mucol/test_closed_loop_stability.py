@@ -293,7 +293,6 @@ def _run_closed_loop(delta_omega: float) -> dict:
         phi_rf=0.0,
         harmonic=HARMONIC,
         cavity_feedback=feedback,
-        profile=profile,
     )
     ring = Ring(circumference=CIRCUMFERENCE, check_section_indices=False)
     ring.add_elements(

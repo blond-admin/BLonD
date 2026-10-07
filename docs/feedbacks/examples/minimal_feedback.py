@@ -154,7 +154,6 @@ def run_example(
             phi_rf=0.0,
             harmonic=harmonic,
             cavity_feedback=feedback,
-            profile=profile,
             section_index=section_index,
         )
         drift_kwargs = {

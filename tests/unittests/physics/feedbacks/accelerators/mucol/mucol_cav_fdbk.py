@@ -385,7 +385,6 @@ def setup_and_run(  # noqa: PLR0915
                 harmonic=harmonic,
                 cavity_feedback=cav_fdbk,
                 local_wakefield=wf,
-                profile=profile_list[-1],
                 section_index=cavity_i,
             )
         )

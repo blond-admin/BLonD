@@ -248,7 +248,6 @@ class TestWakeVsFeedbackDynamics(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=cls.HARMONIC,
                 local_wakefield=wakefield,
-                profile=profile,
             )
         elif mode == "feedback":
             feedback = IQCavityFeedbackCoarseGrid(
@@ -267,7 +266,6 @@ class TestWakeVsFeedbackDynamics(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=cls.HARMONIC,
                 cavity_feedback=feedback,
-                profile=profile,
             )
         else:  # pragma: no cover - guard against typos
             raise ValueError(f"unknown mode {mode!r}")

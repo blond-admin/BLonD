@@ -156,7 +156,7 @@ def make_multibunch_profile(
     hist_y[t < ZERO_BELOW_TRF * t_rf] = 0.0
     hist_y[-5:] = 0.0
 
-    profile._hist_y = backend.array(hist_y, dtype=backend.float)
+    profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
     profile.hist_y_to_density_factor = 1.0 / np.sum(hist_y)
     return profile
 
@@ -515,7 +515,6 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=harmonic,
                 local_wakefield=local_wf,
-                profile=profile,
                 section_index=0,
             )
             collected = local_wf
@@ -538,7 +537,6 @@ class TestMultiBunchMultiTurn(unittest.TestCase):
                 phi_rf=0.0,
                 harmonic=harmonic,
                 cavity_feedback=feedback,
-                profile=profile,
                 section_index=0,
             )
             collected = rf_station
