@@ -78,6 +78,7 @@ def _compile_probe_to_asm(macro, extra_flags=()):
                 "-ffast-math",
                 "-ftree-vectorize",
                 "-Werror=attributes",
+                "-D_USE_MATH_DEFINES",
                 *extra_flags,
                 "-I",
                 _CPP_DIR,
