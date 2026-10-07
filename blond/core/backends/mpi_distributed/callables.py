@@ -83,5 +83,8 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     sigma_dE_squared = dE_dE_sum * over_n - (dE_sum * over_n) ** 2
     sigma_dE_dt = dt_dE_sum * over_n - dt_sum * dE_sum * over_n**2
 
-    rms = np.sqrt(sigma_dt_squared * sigma_dE_squared - sigma_dE_dt**2)
+    # The determinant is >= 0 (Cauchy-Schwarz); the one-pass sums above
+    # can round it slightly negative for a (near) zero emittance beam.
+    determinant = sigma_dt_squared * sigma_dE_squared - sigma_dE_dt**2
+    rms = np.sqrt(max(determinant, 0.0))
     return float(rms)

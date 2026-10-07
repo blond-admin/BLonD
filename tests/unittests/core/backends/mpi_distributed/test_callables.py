@@ -89,3 +89,34 @@ class TestCallables(BLonDTestCase):
         self.assertLess(dt.local_size, 512)
         rms = rms_emittance(dt=dt, dE=dE)
         self.assertAlmostEqual(float(copy_to_cpu(rms_expected)), rms)
+
+
+class TestRmsEmittanceRounding(BLonDTestCase):
+    def test_zero_emittance_beam_is_not_nan(self):
+        import warnings
+
+        dt_host = np.linspace(1e-9, 2e-9, 1001)
+        for slope in np.linspace(0.5, 10, 96):
+            for offset in (0.0, 1e6):
+                dt = DistributedArray(
+                    backend.array(dt_host, dtype=backend.float)
+                )
+                dE = DistributedArray(
+                    backend.array(
+                        slope * dt_host + offset, dtype=backend.float
+                    )
+                )
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    emittance = rms_emittance(dt, dE)
+
+                self.assertFalse(np.isnan(emittance), (slope, offset))
+                self.assertGreaterEqual(emittance, 0.0)
+                self.assertEqual(
+                    [
+                        w
+                        for w in caught
+                        if issubclass(w.category, RuntimeWarning)
+                    ],
+                    [],
+                )
