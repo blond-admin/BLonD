@@ -1125,6 +1125,26 @@ class TestTravelingWaveCavity(BLonDTestCase):
         self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
         self.twc_floats = TravelingWaveCavity(3.0, 3.0, 3.0)
 
+    def test_get_impedance_at_resonance_is_finite_without_warning(self):
+        import warnings
+
+        # Grid hits +f_R and -f_R, where (x - sin x) / x**2 is 0/0.
+        freq_x = backend.array([-3.0, -1.0, 0.5, 1.0, 2.0, 3.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            impedance = copy_to_cpu(
+                self.twc.get_impedance(
+                    freq_x=freq_x,
+                    simulation=Mock(Simulation),
+                    beam=Mock(BeamBaseClass),
+                )
+            )
+
+        self.assertTrue(np.all(np.isfinite(impedance)))
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
