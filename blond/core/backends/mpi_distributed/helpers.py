@@ -56,6 +56,10 @@ def mpi_launched() -> bool:
     ValueError
         If `BLOND_USE_MPI` is set to anything but ``True`` or ``False``.
     """
+    # Normally `BLOND_USE_MPI` is unset and the launcher variables decide.
+    # It is an escape hatch: `True` for a launcher whose variables are not
+    # in `MPI_LAUNCHER_ENV_KEYS` (otherwise every rank would silently run
+    # as its own serial simulation), `False` to stay serial under one.
     override = os.environ.get("BLOND_USE_MPI")
     if override is not None:
         if override not in ("True", "False"):
