@@ -2,7 +2,7 @@ import copy
 import unittest
 
 from blond.generals.exceptions_ import NotInitialisedError
-from blond.generals.late_init import _LateInit
+from blond.generals.late_init import _LateInit, late_init_attributes
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -17,6 +17,22 @@ class _Owner:
 
 class _Child(_Owner):
     extra: _LateInit[int] = _LateInit("_Child.setup()")
+
+
+class _Mixin:
+    offset: _LateInit[float] = _LateInit("_Mixin.setup()")
+
+
+class _MultiOwner(_Owner, _Mixin):
+    pass
+
+
+class _Redeclarer(_Owner):
+    energy: _LateInit[float] = _LateInit("_Redeclarer.setup()")
+
+
+class _NoLateInit:
+    plain = 0.0
 
 
 class _ExplodingLateInit(_LateInit):
@@ -102,6 +118,41 @@ class TestLateInit(BLonDTestCase):
         self.assertNotHasAttr(copy.deepcopy(owner), "energy")
         owner.setup(3.0)
         self.assertEqual(copy.deepcopy(owner).energy, 3.0)
+
+
+class TestLateInitAttributes(BLonDTestCase):
+    def test_lists_declared_names_in_declaration_order(self):
+        self.assertEqual(late_init_attributes(_Owner), ("energy", "time"))
+
+    def test_accepts_an_instance(self):
+        self.assertEqual(late_init_attributes(_Owner()), ("energy", "time"))
+
+    def test_empty_without_declarations(self):
+        self.assertEqual(late_init_attributes(_NoLateInit), ())
+
+    def test_includes_inherited(self):
+        self.assertEqual(
+            sorted(late_init_attributes(_Child)),
+            ["energy", "extra", "time"],
+        )
+
+    def test_includes_every_base_under_multiple_inheritance(self):
+        self.assertEqual(
+            sorted(late_init_attributes(_MultiOwner)),
+            ["energy", "offset", "time"],
+        )
+
+    def test_redeclaring_an_inherited_name_does_not_duplicate(self):
+        self.assertEqual(
+            sorted(late_init_attributes(_Redeclarer)),
+            ["energy", "time"],
+        )
+
+    def test_independent_of_fill_state(self):
+        owner = _Owner()
+        declared = late_init_attributes(owner)
+        owner.setup(1.0)
+        self.assertEqual(late_init_attributes(owner), declared)
 
 
 if __name__ == "__main__":

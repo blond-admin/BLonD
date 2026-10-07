@@ -23,15 +23,21 @@ attribute that may legitimately stay absent stays ``T | None``.
 
 from __future__ import annotations
 
+import weakref
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, overload
 
 from .exceptions_ import NotInitialisedError
 
-from typing import TYPE_CHECKING,TypeVar,  Generic, overload, Any, Self
-
 _T = TypeVar("_T")
 
-class _LateInit(Generic[_T]):
+# Names declared on each class, in declaration order.  Weakly keyed so
+# dynamically created classes are not kept alive by the registry.
+_declared: weakref.WeakKeyDictionary[type, tuple[str, ...]] = (
+    weakref.WeakKeyDictionary()
+)
 
+
+class _LateInit(Generic[_T]):
     def __init__(self, set_by: str) -> None:
         self._set_by = set_by
         # ``None`` in the instance ``__dict__`` shadows any class
@@ -41,7 +47,7 @@ class _LateInit(Generic[_T]):
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         """
-        Remember the attribute name the descriptor is assigned to.
+        Remember the attribute name and register it on the owner.
 
         Parameters
         ----------
@@ -51,6 +57,7 @@ class _LateInit(Generic[_T]):
             Name of the attribute.
         """
         self._pub_name = name
+        _declared[owner] = (*_declared.get(owner, ()), name)
 
     # The overloads make instance reads plain ``T``; without them type
     # checkers see ``T | _LateInit[T]``.
@@ -119,3 +126,29 @@ class _LateInit(Generic[_T]):
             instance
                 Object owning the attribute.
             """
+
+
+def late_init_attributes(obj: object) -> tuple[str, ...]:
+    """
+    List the attributes an object declares as late-initialised.
+
+    Parameters
+    ----------
+    obj
+        Object or class to inspect.
+
+    Returns
+    -------
+    tuple of str
+        Attribute names, least-derived class first and in declaration
+        order within each class, with no duplicates. Empty if nothing
+        is declared.
+    """
+    owner = obj if isinstance(obj, type) else type(obj)
+    return tuple(
+        dict.fromkeys(
+            name
+            for base in reversed(owner.__mro__)
+            for name in _declared.get(base, ())
+        )
+    )
