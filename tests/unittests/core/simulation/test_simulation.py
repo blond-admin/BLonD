@@ -451,6 +451,20 @@ class TestSimulation(BLonDTestCase):
         )
         mock_func.assert_called()
 
+    def test_run_simulation_twice_raises(self):
+        """Resuming is not implemented, so a second ``run_simulation`` must
+        fail loudly instead of silently re-initialising observables."""
+        self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+        with self.assertRaisesRegex(NotImplementedError, "mainloop"):
+            self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+
+    def test_run_simulation_after_finalize(self):
+        """``load_results`` finalizes before falling back to
+        ``run_simulation``; no turn was tracked yet, so this must work."""
+        self.simulation.finalize(beams=(self.beam,), n_turns=2)
+        self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+        self.assertEqual(self.simulation.turn_counter.value, 2)
+
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
             SingleHarmonicRFStation, recursive=False
