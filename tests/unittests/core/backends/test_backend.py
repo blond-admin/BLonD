@@ -22,6 +22,7 @@ from blond.core.backends.backend import (
 from blond.core.backends.cpp.callables import _get_len, check_index_abi
 from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
+from blond.generals.warnings_ import PrecisionWarning
 from blond.testing.backend_testing import (
     BLonDTestCase,
     multi_backend_testcase,
@@ -4689,3 +4690,37 @@ class TestCppGetLen(BLonDTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCastPrecisionWarning(BLonDTestCase):
+    """`PrecisionWarning` only for casts that can lose information."""
+
+    def _precision_warnings(self, function):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            function()
+        return [
+            warning
+            for warning in caught
+            if issubclass(warning.category, PrecisionWarning)
+        ]
+
+    def test_lossless_casts_do_not_warn(self):
+        for cast, values in (
+            (backend.cast_arr_float_if_needed, np.array([1, 2], np.int64)),
+            (backend.cast_arr_float_if_needed, [1, 2]),
+            (backend.cast_arr_complex_if_needed, np.array([1, 2], np.int64)),
+            (backend.cast_arr_complex_if_needed, np.array([1.0, 2.0])),
+        ):
+            with self.subTest(cast=cast.__name__, values=values):
+                self.assertEqual(
+                    self._precision_warnings(lambda: cast(values)), []
+                )
+
+    def test_lossy_cast_warns_at_the_caller(self):
+        values = np.array([1 + 1j, 2 + 0j], dtype=np.complex128)
+        caught = self._precision_warnings(
+            lambda: backend.cast_arr_float_if_needed(values)
+        )
+        self.assertEqual(len(caught), 1)
+        self.assertEqual(caught[0].filename, __file__)
