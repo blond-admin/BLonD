@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, TypeVar
 import numpy as np
 
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -35,12 +35,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         RFStationBaseClass,
         SingleHarmonicRFStation,
     )
-    from blond.physics.profiles import ProfileBaseClass
 
 T = TypeVar("T")
 
@@ -55,14 +55,18 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
         Section index of the feedback.
     name
         Name of the feedback.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ):
-        super().__init__(section_index=section_index, name=name)
+        super().__init__(section_index=section_index, name=name, **kwargs)
 
 
 class LocalFeedback(FeedbackBaseClass):
@@ -125,7 +129,7 @@ class LocalFeedback(FeedbackBaseClass):
         rf_station
             Cavity to be the parent rf station.
         """
-        from blond.physics.cavities import (  # no cyclic import
+        from blond.physics.rf_station import (  # no cyclic import
             MultiHarmonicRFStation,
             SingleHarmonicRFStation,
         )
@@ -168,6 +172,9 @@ class GlobalFeedback(FeedbackBaseClass):
         Section index of the feedback.
     name
         Name of the feedback.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -175,10 +182,12 @@ class GlobalFeedback(FeedbackBaseClass):
         profile: ProfileBaseClass,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
+            **kwargs,
         )
         self.profile = profile
         self.cavities: list[RFStationBaseClass] | None = None
@@ -197,7 +206,7 @@ class GlobalFeedback(FeedbackBaseClass):
         **kwargs
             Configure parameters collected by the MRO chain.
         """
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         super().on_init_simulation(
             simulation,

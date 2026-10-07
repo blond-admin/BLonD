@@ -8,9 +8,10 @@ from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_de
     ProfileMatcherAddon,
 )
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestProfileMatcherAddon(unittest.TestCase):
+class TestProfileMatcherAddon(BLonDTestCase):
     def test__solve_for_density(self):
         mock = Mock(ProfileMatcherAddon)
         mock.maxiter = 10

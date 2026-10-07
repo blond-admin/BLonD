@@ -2,7 +2,7 @@
 <img src="BLonD2_centered.png" alt="drawing" width="300"/>
 </div>
 
-[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
+[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
 
 # Developer Guide for BLonD
@@ -56,22 +56,29 @@ blond/                        BLonD beam dynamics software.
 ├────────── lhc/              Functions to define the CERN Large Hadron Collider feedback systems.
 ├────────── psb/              Functions to define the CERN Proton Synchrotron Booster feedback systems.
 ├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
+├──── simulation/             Experimental extensions to :class:`~blond.core.simulation.simulation.Simulation`.
 ├── generals/                 Function definitions that are useful outside the beam physics context.
-├──── cupy/                   Scripts that are useful to work with Cupy.
-├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
+├──── cupy_/                  Scripts that are useful to work with Cupy.
 ├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.ObservablesBaseClass`.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
 ├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├────── physics/              Beam physics classes for interfacing XSuite.
+├──── rf_noise_cpp/           Python ctypes interface to CERN's external ``rf-noise-cpp`` library.
 ├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
 ├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
-├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
+├──── feedbacks/              Module to manage and describe rf feedback systems.
+├────── accelerators/         Module to manage and describe rf feedback systems for specific accelerators.
+├──────── lhc/                Module to manage and describe rf feedback systems for the Large Hadron Collider.
+├──────── ps/                 Module to manage and describe rf feedback systems for the Proton Synchrotron.
+├──────── psb/                Module to manage and describe rf feedback systems for the Proton Synchrotron Booster.
+├──────── sps/                Module to manage and describe rf feedback systems for the Super Proton Synchrotron.
 ├──── impedances/             Module to handle the interaction of impedance sources with the beam.
 ├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
 ├── specifics/                Utility functions for specific accelerators.
 ├──── cern/                   Utility functions for CERN synchrotrons.
 ├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
+├──────── varinoise/          LHC VariNoise data (spectral-shape ``gain_y`` for band-limited RF noise).
 ├────── ps/                   Utility functions for the CERN Proton Synchrotron.
 ├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
 ├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
@@ -81,6 +88,7 @@ blond/                        BLonD beam dynamics software.
 ├── utilities/                Module contains various utilities used throughout the library.
 ├──── separatrix/             Package which contains utilities for working with separatrix.
 ```
+
 
 **Where to start reading:**
 
@@ -95,7 +103,7 @@ blond/                        BLonD beam dynamics software.
 
 Ensure the following tools are installed:
 
-* [Python 3.10+](https://www.python.org/downloads/)
+* [Python 3.11+](https://www.python.org/downloads/)
 * [Git](https://git-scm.com/)
 * [Pre-Commit](https://pre-commit.com/)
 
@@ -111,11 +119,18 @@ Ensure the following tools are installed:
 * **GPU Support:**
 
   * [CUDA Compiler Driver (NVCC)](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
-* **MPI Support** (required to build `mpi4py`):
+* **MPI Support** (only for the optional `mpi` extra; `mpi4py` installs
+  from a wheel, but needs an MPI runtime on the system to import):
 
   * Linux: `libopenmpi-dev` / `openmpi` (or your distribution's equivalent)
   * macOS: `brew install open-mpi`
   * Windows: [Microsoft MPI](https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
+* **Documentation build** (not installable via pip, must be on `PATH`):
+
+  * [Pandoc](https://pandoc.org/installing.html) — used by `nbsphinx` for the example notebooks
+    (Linux: `apt install pandoc`, macOS: `brew install pandoc`, Windows: `winget install JohnMacFarlane.Pandoc`)
+  * [Graphviz](https://graphviz.org/download/) (`dot`) — used for the inheritance diagrams
+    (Linux: `apt install graphviz`, macOS: `brew install graphviz`, Windows: `winget install Graphviz.Graphviz`)
 
 ---
 
@@ -267,6 +282,13 @@ To run hooks on **all files**:
 ```bash
 pre-commit run --all-files
 ```
+C/C++ and CUDA sources are formatted by `clang-format` (style in
+[`.clang-format`](.clang-format)). The hook installs a pinned `clang-format`
+wheel into pre-commit's own environment, so no system clang installation is
+needed, and the version is identical on Linux, macOS and Windows. When editing
+C++/CUDA in an IDE, point it at that same version (`pip install
+clang-format==<rev in .pre-commit-config.yaml>`) to avoid format ping-pong.
+
 An optional check of the code can be done using the command
 ```bash
 ruff check
@@ -291,7 +313,8 @@ python3 dev_tools/copy_copyright_to_all_files.py
 ## Documentation
 > Automatically done in GitLab CI Pipeline
 
-To build the documentation locally:
+To build the documentation locally (requires [Pandoc and Graphviz](#dependencies)
+on `PATH`; `docs/conf.py` aborts with install hints if either is missing):
 
 ```bash
 python -m pip install .[doc]

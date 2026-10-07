@@ -6,20 +6,23 @@ import numpy as np
 import pytest
 
 from blond import backend, copy_to_cpu
-from blond.generals.cupy_.no_cupy_import import is_cupy_array
-from blond.generals.distributed.distributed_array import (
+from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
     concatenate,
 )
-from blond.generals.distributed.helpers import mpi_barrier, mpi_is_distributed
+from blond.core.backends.mpi_distributed.helpers import (
+    mpi_barrier,
+    mpi_is_distributed,
+)
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 from blond.generals.exceptions_ import ArrayPrecisionError
-from blond.testing.backend_testing import skip_if_no_cupy
+from blond.testing.backend_testing import BLonDTestCase, skip_if_no_cupy
 
 
 @pytest.mark.mpi
-class TestDistributedArray(unittest.TestCase):
+class TestDistributedArray(BLonDTestCase):
     def setUp(self):
-        from blond.generals.distributed.distributed_array import (
+        from blond.core.backends.mpi_distributed.distributed_array import (
             DistributedArray,
         )
 
@@ -242,14 +245,14 @@ class TestDistributedArray(unittest.TestCase):
 
 
 @pytest.mark.mpi
-class TestDistributedArrayNoMPI(unittest.TestCase):
+class TestDistributedArrayNoMPI(BLonDTestCase):
     def test_no_mpi(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
             # trigger new import
             sys.modules.pop(
-                "blond.generals.distributed.distributed_array", None
+                "blond.core.backends.mpi_distributed.distributed_array", None
             )
-            from blond.generals.distributed.distributed_array import (
+            from blond.core.backends.mpi_distributed.distributed_array import (
                 DistributedArray,
             )
 
@@ -266,7 +269,7 @@ if __name__ == "__main__":
 
 
 @pytest.mark.mpi
-class TestScatterRootFailure(unittest.TestCase):
+class TestScatterRootFailure(BLonDTestCase):
     """A failure on rank 0 must not strand the other ranks.
 
     `mpi_scatter` prepares the chunks inside an ``if rank == 0`` block. If

@@ -6,10 +6,14 @@ from blond import backend
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
 from blond.experimental import PooledInterpolationKick
+from blond.experimental.physics.kick_pooling import (
+    SupportsPooledInterpolationKickMixIn,
+)
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestPooledInterpolationKick(unittest.TestCase):
+class TestPooledInterpolationKick(BLonDTestCase):
     def setUp(self):
         self.pooled_kick = PooledInterpolationKick(maxsize=3)
 
@@ -138,6 +142,20 @@ class TestPooledInterpolationKick(unittest.TestCase):
             self.pooled_kick._buffer_sparse_metadata[key],
             second_sparse_metadata,
         )
+
+
+class TestSupportsPooledInterpolationKickMixIn(BLonDTestCase):
+    def test___init___rejects_unknown_kwargs(self):
+        # Unconsumed kwargs must travel up the MRO to `object.__init__`,
+        # which rejects them, instead of being silently dropped here.
+        with self.assertRaises(TypeError):
+            SupportsPooledInterpolationKickMixIn(not_a_parameter=0)
+
+
+class TestPooledInterpolationKickUnknownKwargs(BLonDTestCase):
+    def test___init___rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            PooledInterpolationKick(max_size=5)  # typo of `maxsize`
 
 
 if __name__ == "__main__":

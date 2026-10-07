@@ -3,9 +3,10 @@ import unittest
 import numpy as np
 
 from blond.core.backends.numba.fastmath import fast_sin
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_sin(self):
         xs = np.linspace(-10, 10, 100)
         ys1 = np.sin(xs)

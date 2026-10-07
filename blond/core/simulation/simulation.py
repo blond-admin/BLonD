@@ -40,8 +40,8 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.ordering import filter_elements, get_required_order
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
@@ -60,8 +60,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from matplotlib.lines import Line2D
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
+    from blond.beam_preparation.bigaussian import BiGaussian
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
     from blond.core.ring.ring import Ring
@@ -655,22 +655,22 @@ class Simulation(Preparable):
         **kwargs
             Extra keyword arguments.
         """
-        logger.debug(f"Calling all {method}({kwargs}) in {self}")
+        logger.debug("Calling all %s(%s) in %s", method, kwargs, self)
         instances = find_instances_with_method(self, f"{method}")
-        logger.debug(f"Found {instances} to be initialized")
+        logger.debug("Found %s to be initialized", instances)
         ordered_classes = get_required_order(instances, f"{method}.requires")
 
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
 
-        logger.info(f"Execution order for `{method}` is {ordered_classes}")
+        logger.info("Execution order for `%s` is %s", method, ordered_classes)
 
         for cls in ordered_classes:
             for element in instances:
                 if type(element).__name__ != cls:
                     continue
-                logger.info(f"Running `{method}` of {element}")
+                logger.info("Running `%s` of %s", method, element)
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self) -> None:
@@ -712,7 +712,8 @@ class Simulation(Preparable):
 
     @staticmethod
     def from_locals(
-        locals: dict[str, Any], verbose: bool = False
+        locals: dict[str, Any],  # noqa: A002 (public keyword)
+        verbose: bool = False,
     ) -> Simulation:
         """
         Automatically create a Simulation by discovering components in the current scope.
@@ -813,9 +814,9 @@ class Simulation(Preparable):
             SRM[0].prepare_ring_for_synchrotron_radiation_tracking(
                 ring=ring,
             )
-        logger.debug(f"{ring=}")
-        logger.debug(f"{beams=}")
-        logger.debug(f"{elements=}")
+        logger.debug("ring=%s", ring)
+        logger.debug("beams=%s", beams)
+        logger.debug("elements=%s", elements)
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         order_info = sim.ring.elements.get_order_info()
@@ -1151,6 +1152,10 @@ class Simulation(Preparable):
             If ``n_turns`` is None and the magnetic cycle has unlimited turns.
         NotImplementedError
             If more than two beams are provided (currently unsupported).
+        NotImplementedError
+            If turns were already tracked. Resuming a simulation is not
+            supported yet; to interrupt a run, call ``finalize`` once for
+            all turns and then ``mainloop`` repeatedly.
 
         See Also
         --------
@@ -1226,12 +1231,13 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
+        self._raise_if_resuming()
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
         if callbacks is not None:
             callbacks = _as_tuple(callbacks)
 
-        logger.info(f"Running `run_simulation` with {locals()}")
+        logger.info("Running `run_simulation` with %s", locals())
         n_turns = (
             int_from_float_with_warning(n_turns, warning_stacklevel=2)
             if n_turns is not None
@@ -1256,6 +1262,16 @@ class Simulation(Preparable):
             callbacks=callbacks,
             until_section_index=until_section_index,
         )
+
+    def _raise_if_resuming(self) -> None:
+        """Refuse to continue a simulation that already tracked turns."""
+        if self.turn_counter.value != 0:
+            raise NotImplementedError(
+                f"Resuming a simulation is not supported yet, but"
+                f" {self.turn_counter.value} turns were already tracked."
+                f" To interrupt a run, call `finalize` once with the total"
+                f" `n_turns` and then `mainloop` repeatedly."
+            )
 
     def finalize(
         self,

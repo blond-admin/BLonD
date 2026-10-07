@@ -24,13 +24,14 @@ from scipy.constants import (  # type: ignore[import-untyped]
     physical_constants,
 )
 
-import blond.generals.formatting_ as format
+import blond.generals.formatting_ as formatting
+from blond.generals.exceptions_ import InvalidParticleAttributeError
 
 m_mu = physical_constants["muon mass"][0]
 
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 
 class ParticleType:
@@ -64,6 +65,21 @@ class ParticleType:
         user_decay_rate: float = 0.0,
         decay_active: bool = False,
     ):
+
+        if mass <= 0:
+            raise InvalidParticleAttributeError(
+                f"Particle mass must be greater than 0, got {mass}"
+            )
+        if charge == 0:
+            raise InvalidParticleAttributeError(
+                f"Particle charge must not be 0, got {charge}"
+            )
+        if user_decay_rate < 0:
+            raise InvalidParticleAttributeError(
+                "Particle decay rate must not be negative, got "
+                f"{user_decay_rate}"
+            )
+
         self._mass = float(mass)
         self._charge = float(charge)
         self._user_decay_rate = float(user_decay_rate)
@@ -93,7 +109,7 @@ class ParticleType:
             The string representation.
         """
         string = (
-            f"Mass: {format.si_format(self._mass)}eV, charge: {self._charge}e, "
+            f"Mass: {formatting.si_format(self._mass)}eV, charge: {self._charge}e, "
             f"decay rate: {self._user_decay_rate}s^-1"
             f" ({'active' if self._decay_active else 'inactive'})"
         )
@@ -148,15 +164,20 @@ class ParticleType:
         hash
             The computed hash value.
         """
-        return hash(
-            (
-                self._mass,
-                self._charge,
-                self._user_decay_rate,
-                self._decay_active,
-                self._classical_particle_radius,
+        # cached: looked up per turn, and the hashed fields are read-only
+        try:
+            return self._hash
+        except AttributeError:
+            self._hash = hash(
+                (
+                    self._mass,
+                    self._charge,
+                    self._user_decay_rate,
+                    self._decay_active,
+                    self._classical_particle_radius,
+                )
             )
-        )
+        return self._hash
 
     @property
     def mass(self) -> float:

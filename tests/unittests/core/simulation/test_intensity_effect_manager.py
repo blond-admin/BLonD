@@ -7,6 +7,7 @@ from blond.core.ring.beam_physics_relevant_elements import (
 from blond.core.simulation.intensity_effect_manager import (
     IntensityEffectManager,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import (
     simulation_mock,
     static_profile_mock,
@@ -14,7 +15,7 @@ from blond.testing.mocks import (
 )
 
 
-class TestIntensityEffectManager(unittest.TestCase):
+class TestIntensityEffectManager(BLonDTestCase):
     def setUp(self):
         self.wake = wakefield_profile_mock
         self.profile = static_profile_mock

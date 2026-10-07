@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
+import numpy as np
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
@@ -28,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def int_from_float_with_warning(
-    value: float | int, warning_stacklevel: int
+    value: float | int | np.integer | np.floating, warning_stacklevel: int
 ) -> int:
     """
     Make int from float, warn if there are fractional digits.
@@ -36,7 +38,8 @@ def int_from_float_with_warning(
     Parameters
     ----------
     value
-        Some float value, potentially with fractional values.
+        Some float value, potentially with fractional values. NumPy scalars
+        are accepted as well.
     warning_stacklevel
         `warnings.warn` parameter.
 
@@ -45,9 +48,12 @@ def int_from_float_with_warning(
     int_value
         Integer value converted from input.
     """
-    if isinstance(value, int):
-        return value
-    elif isinstance(value, float):
+    # NumPy scalars are accepted alongside the built-in types: they arrive
+    # whenever a value comes from an array or a file. `np.bool_` is not
+    # `np.integer` and stays rejected.
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    elif isinstance(value, (float, np.floating)):
         return_value = int(value)
         if value != return_value:
             warnings.warn(
@@ -60,6 +66,42 @@ def int_from_float_with_warning(
         return return_value
     else:
         raise TypeError(type(value))
+
+
+class _DictKey:
+    """
+    Path segment of `_find` for a dict key, formatted only on demand.
+
+    Parameters
+    ----------
+    key
+        Dictionary key leading to the next object of the walk.
+    """
+
+    __slots__ = ("key",)
+
+    def __init__(self, key: Any) -> None:
+        self.key = key
+
+    def __str__(self) -> str:
+        return f"[{self.key!r}]"
+
+
+def _format_path(where: tuple) -> str:
+    """
+    Join the path segments collected by `_find` into one string.
+
+    Parameters
+    ----------
+    where
+        Path segments, from the root of the walk to the current object.
+
+    Returns
+    -------
+    path
+        Path such as ``.items[1]['key']``.
+    """
+    return "".join(str(segment) for segment in where)
 
 
 def _find(
@@ -140,29 +182,24 @@ def _find(
 
         # Check if object has the desired method
         if is_wanted(obj):
-            # Lazy %-args, not an f-string: the message is only rendered
-            # if INFO is actually enabled, and ``obj`` here can be a
-            # whole beam or profile.
-            logger.info("Found %s at %s", obj, where)
+            if logger.isEnabledFor(logging.INFO):
+                logger.info("Found %s at %s", obj, _format_path(where))
             found.add(obj)
 
-        # Recurse into object attributes or container elements.
-        #
-        # The breadcrumb is built from NAMES -- keys, indices, attribute
-        # names -- and never from the values being walked.  Interpolating
-        # the value instead made every numpy array in the tree render
-        # itself to text on every visit, to build a string for a log line
-        # that is almost never emitted: ~0.9 s of a 5-turn two-beam RCS
-        # run, a third of it inside ``numpy.arrayprint``.  Names are also
-        # the more useful path ("root.profile.hist_y" over a wall of
-        # digits).
+        # Recurse into object attributes or container elements
+        # `where` holds the path as segments and is only formatted when a
+        # match is logged: stringifying every visited value (arrays
+        # included) on each step would dominate the walk.
         if isinstance(obj, dict):
             for key, value in obj.items():
-                _walk(key, skip_list, f"{where}[key]")
-                _walk(value, skip_list, f"{where}[{key!s:.40}]")
-        elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
+                _walk(key, skip_list, where)
+                _walk(value, skip_list, (*where, _DictKey(key)))
+        elif isinstance(obj, (list, tuple)):  # NOQA: UP038
             for index, item in enumerate(obj):
-                _walk(item, skip_list, f"{where}[{index}]")
+                _walk(item, skip_list, (*where, f"[{index}]"))
+        elif isinstance(obj, set):
+            for item in obj:
+                _walk(item, skip_list, (*where, "{...}"))
         elif hasattr(obj, "__dict__"):
             # checks if is python class
             for attr_name in obj.__dict__ if skip_properties else dir(obj):
@@ -178,7 +215,7 @@ def _find(
                     attr = getattr(obj, attr_name)
                 except Exception:
                     continue  # Skip attributes that raise errors on access
-                _walk(attr, skip_list, f"{where}.{attr_name}")
+                _walk(attr, skip_list, (*where, f".{attr_name}"))
 
     _walk(
         root,
@@ -186,7 +223,7 @@ def _find(
             "_mock_children",  # prevent infinite recursion in mock object
             "return_value",  # prevent infinite recursion in mock object
         ],
-        where="",
+        where=(),
     )
 
     return found

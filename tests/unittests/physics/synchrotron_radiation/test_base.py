@@ -17,16 +17,19 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.core.backends.backend import INDEX_DTYPE, backend
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import DynamicParameter, SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -134,7 +137,7 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
 
-class TestSynchrotronRadiationBaseClass(unittest.TestCase):
+class TestSynchrotronRadiationBaseClass(BLonDTestCase):
     def setUp(self) -> None:
         self.radiation_integrals = np.array(
             [
@@ -352,7 +355,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
 
 class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
-    unittest.TestCase
+    BLonDTestCase
 ):
     def setUp(self) -> None:
         self.number_of_turns = 100

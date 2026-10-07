@@ -15,17 +15,20 @@ from blond import (
     WakeField,
     mu_plus,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_int_from_float_with_warning(self):
         with self.assertWarns(Warning):
             int_from_float_with_warning(1.2, 2)
@@ -184,6 +187,58 @@ class TestFunctions(unittest.TestCase):
         )
         self.assertEqual(found, {holder})
 
+    def test_find_instances_does_not_stringify_visited_objects(self):
+        # The walk visits every object of a simulation tree, including
+        # large arrays. Converting those to text on each step dominated
+        # `Simulation` setup time, so no visited object may be stringified.
+        class CountsStringification:
+            n_calls = 0
+
+            def __str__(self):
+                CountsStringification.n_calls += 1
+                return "counted"
+
+            __repr__ = __str__
+
+            def __hash__(self):
+                return 0
+
+        class Holder:
+            def __init__(self):
+                self.attribute = CountsStringification()
+                self.sequence = [CountsStringification()]
+                self.mapping = {
+                    CountsStringification(): CountsStringification()
+                }
+
+            def to_be_found(self):
+                pass
+
+        holder = Holder()
+        find_instances_with_method(root=holder, method_name="to_be_found")
+        self.assertEqual(CountsStringification.n_calls, 0)
+
+    def test_find_instances_logs_path_of_names(self):
+        # The logged location must be the path of attribute names, indices
+        # and keys leading to the match, not the text of the values on it.
+        class Target:
+            def to_be_found(self):
+                pass
+
+        class Holder:
+            def __init__(self):
+                self.items = [None, {"key": Target()}]
+
+        with self.assertLogs("blond.core.helpers", level="INFO") as logs:
+            find_instances_with_method(
+                root=Holder(), method_name="to_be_found"
+            )
+        self.assertEqual(len(logs.records), 1)
+        self.assertTrue(
+            logs.output[0].endswith(" at .items[1]['key']"),
+            logs.output[0],
+        )
+
     @unittest.skip
     def test_float_or_array_typesafe(self):
         # TODO: implement test for `float_or_array_typesafe`
@@ -200,7 +255,7 @@ class TestFunctions(unittest.TestCase):
         walk(obj=None)
 
 
-class TestNestedMocksHashingBug(unittest.TestCase):
+class TestNestedMocksHashingBug(BLonDTestCase):
     def test_hashing_bug(self):
         profile = Mock(StaticProfile)
         profile.active = True

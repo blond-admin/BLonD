@@ -16,7 +16,7 @@ from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation
+    from blond.core.simulation.simulation import Simulation
 
 
 class IntensityEffectManager:

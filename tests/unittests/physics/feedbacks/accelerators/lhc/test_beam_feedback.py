@@ -24,6 +24,7 @@ from blond.physics.feedbacks.accelerators.lhc import (
 from blond.physics.feedbacks.base import (
     LocalFeedback,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -40,7 +41,7 @@ injection_offset_phase = 20
 reference = -20
 
 
-class TestLHCBeamFeedback(unittest.TestCase):
+class TestLHCBeamFeedback(BLonDTestCase):
     def create_scenario(
         self,
         open_synchro: bool = False,

@@ -1,13 +1,14 @@
 import random
 import unittest
 
-from blond.core.ring.helpers import (
+from blond.core.ordering import (
     _build_dependency_graph,
     filter_elements,
     get_dependencies,
     get_required_order,
     requires,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class A:
@@ -50,7 +51,7 @@ class AD(A, D):
         super().__init__()
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_requires_raises(self):
         with self.assertRaisesRegex(
             TypeError, "All dependencies must be strings."
@@ -275,6 +276,16 @@ class TestFunctions(unittest.TestCase):
             self.assertEqual(
                 ordered_classes, ["First", "AlsoFirst", "Second", "Third"]
             )
+
+
+class TestRingHelpersReexport(BLonDTestCase):
+    def test_old_import_path_still_works(self):
+        from blond.core import ordering
+        from blond.core.ring import helpers
+
+        for name in ("requires", "filter_elements", "get_required_order"):
+            with self.subTest(name=name):
+                self.assertIs(getattr(helpers, name), getattr(ordering, name))
 
 
 if __name__ == "__main__":

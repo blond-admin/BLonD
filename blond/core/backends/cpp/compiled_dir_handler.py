@@ -22,8 +22,9 @@ of input are captured:
 * **Source-defined flags** need not be listed here: ``compile.py`` and this
   module both live in the hashed folder, so any change to the flag logic
   already changes the digest.
-* **Caller-supplied build parameters** (compiler, ``optimize``, ``flags``,
-  ``libs``, FFTW/Boost options) *are* folded in, with defaults that mirror
+* **Caller-supplied build parameters** (compiler,
+  ``optimize_for_local_cpu``, ``flags``, ``libs``, FFTW/Boost options)
+  *are* folded in, with defaults that mirror
   :func:`blond.core.backends.cpp.compile.compile_cpp_library`. The loader has
   no access to these, so it relies on those defaults; a *default* build (what
   CI produces) therefore rendezvouses, while a build with custom parameters
@@ -64,7 +65,7 @@ def cpp_compiled_dir(
     folder: str,
     *,
     compiler: str = DEFAULT_COMPILER,
-    optimize: bool = True,
+    optimize_for_local_cpu: bool = True,
     flags: str = "",
     libs: str = "",
     with_fftw: bool = False,
@@ -91,8 +92,8 @@ def cpp_compiled_dir(
         The C++ compiler whose identity and target CPU instruction set (the
         instructions ``-march=native`` enables, e.g. AVX2) are folded into the
         hash. Must match between compile time and load time.
-    optimize
-        Whether the optimised (``-march=native``) build is requested. When
+    optimize_for_local_cpu
+        Whether the natively tuned (``-march=native``) build is requested. When
         true the host CPU's instruction set is folded in (so a native binary
         is never reused on a CPU lacking those instructions); when false it is
         not, so a portable build can be shared across CPUs.
@@ -113,7 +114,7 @@ def cpp_compiled_dir(
         # ABI-incompatible binary.
         [compiler, "--version"],
     ]
-    if optimize:
+    if optimize_for_local_cpu:
         # Target CPU instruction set: `-march=native` enables different
         # instructions per host; this dump records exactly which ones are
         # enabled so the binary is never reused on a CPU lacking them.
@@ -126,7 +127,7 @@ def cpp_compiled_dir(
         recursive=False,
         probe_commands=probe_commands,
         extra=(
-            f"optimize={optimize}",
+            f"optimize_for_local_cpu={optimize_for_local_cpu}",
             f"flags={flags}",
             f"libs={libs}",
             f"fftw={with_fftw}/{with_fftw_threads}/{with_fftw_omp}"
@@ -223,9 +224,10 @@ def build_options_valid(options: dict, expected_keys: Sequence[str]) -> bool:
        n.b.: The currently applicable options are hard coded, they are
              "with_fftw_lib", "with_fftw_header", "boost".
     3. A syntax-only dry-run compile (``_check_dry_run_compile``) of
-       the saved compiler with the saved ``optimize``/``flags`` options,
-       which catches a flag the compiler no longer accepts (e.g. after a
-       toolchain upgrade/downgrade) without a real build.
+       the saved compiler with the saved ``optimize_for_local_cpu`` /
+       ``flags`` options, which catches a flag the compiler no longer
+       accepts (e.g. after a toolchain upgrade/downgrade) without a real
+       build.
 
     This still cannot catch every way a build might now fail (e.g. a
     system header removed, or an FFTW/Boost include that only breaks
@@ -256,7 +258,7 @@ def build_options_valid(options: dict, expected_keys: Sequence[str]) -> bool:
     path_flags = ("with_fftw_lib", "with_fftw_header", "boost")
 
     dry_run_flags = []
-    if options.get("optimize", True):
+    if options.get("optimize_for_local_cpu", True):
         dry_run_flags += ["-march=native", "-ffast-math"]
     dry_run_flags += (options.get("flags") or "").split()
 

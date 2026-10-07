@@ -8,7 +8,15 @@
 
 """Helpers for string formatting."""
 
+from __future__ import annotations
+
 import math
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
+    from numpy.typing import NDArray as NumpyArray
 
 
 def si_format(num, decimals=2) -> str:
@@ -55,3 +63,23 @@ def si_format(num, decimals=2) -> str:
 
     value = num / (10**exponent)
     return f"{value:.{decimals}f}{prefixes[exponent]}"
+
+
+def pretty_string(v: NumpyArray | Any) -> Any:
+    """
+    Pretty print an array.
+
+    Parameters
+    ----------
+    v
+        Value to format (array or other type).
+
+    Returns
+    -------
+    formatted_string
+        Formatted string representation of the input value.
+    """
+    try:  # handles NumPy and CuPy without import
+        return f"{type(v)}(min={v.min()}, max={v.max()}, shape={v.shape})"
+    except AttributeError:
+        return v

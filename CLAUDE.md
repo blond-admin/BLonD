@@ -10,7 +10,7 @@ Edit the skill, then commit; this file is rewritten automatically.
 CERN Python code for simulating longitudinal beam dynamics in synchrotrons
 (macroparticle tracking through RF systems, magnetic ramps, and collective
 effects). Active dev branch is `blonder` (NOT `develop`/`master`).
-Python ≥3.10, line length 79.
+Python ≥3.11, line length 79.
 
 **Stay critical — the code can be wrong.** BLonD is under active development and
 still has bugs. Don't assume existing code (or its comments/docstrings) is correct
@@ -68,7 +68,7 @@ Extras are defined in `pyproject.toml` `[project.optional-dependencies]`:
 | Everything | `".[all_no_cuda]"` / `".[all_cuda12]"` / `".[all_cuda13]"` |
 
 `gpu_cuda12` vs `gpu_cuda13` must match the installed CUDA toolkit. After install,
-`pre-commit install`. Native backends are optional: `blond-compile-cpp --parallel`,
+`pre-commit install`. Native backends are optional: `blond-compile-cpp`,
 `blond-compile-cuda` (CI does this before tests).
 
 ## Test
@@ -80,12 +80,23 @@ python -m pytest -v tests/unittests/
 Backend-relevant env vars and markers:
 - `BLOND_BACKEND_MODE` (`numba`/`cpp`/`cuda`/`python`); `BLOND_BACKEND_BITS` (the env var
   currently validates to `64` only — see precision note below).
-- `BLOND_FORCE_TEST_ALL_BACKENDS=True` — fan a backend-aware test out over **every**
-  available backend instead of just the selected one. **Set this whenever you touch
-  backend code.**
+- `BLOND_FORCE_TEST_ALL_BACKENDS=True` — fan a backend-aware test out over **every
+  registered** backend instead of just the available ones. **Set this whenever you
+  touch backend code.** Registered backends that cannot be initialised *fail* rather
+  than skip, so without CuPy/a GPU every `Cupy64Bit` run errors with
+  `ModuleNotFoundError: No module named 'cupy'` — expected, not a bug. CI only forces
+  it on GPU runners; on a CPU-only machine read those CUDA failures as noise.
 - Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`.
   Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`.
 - `pytest-randomly` randomizes order; reproduce a failure with `--randomly-seed=<N>`.
+- **The test suite does not run BLonD 2.** Legacy regression tests compare BLonD 3
+  against BLonD 2 outputs frozen in `resources/*_blond2.npz` reference files (each
+  `resources/README.md` lists them). BLonD 2 runs only when a module sets
+  `REWRITE_BLOND2_REFERENCE_FILE = True`, in the pinned environment from
+  `tests/blond2-reference-requirements.txt`. **Never add legacy version caps to
+  `pyproject.toml`:** uv resolves one lock across all extras, so a cap in any
+  extra downgrades everyone's `uv sync`. A missing BLonD 2 reference file makes its test fail
+  with `FileNotFoundError` on purpose. Don't add a fallback that runs BLonD 2.
 - **Tests run in random order *and* `backend_mutation` tests flip the global
   active backend (`set_specials`) mid-run.** So both the tests and the BLonD
   code they exercise must be **backend-agnostic**: never assume which backend is
@@ -93,6 +104,39 @@ Backend-relevant env vars and markers:
   backend-dependent test that passes on one seed will fail on another — if a
   failure only reproduces under some seeds, suspect leaked global state, not a
   flaky test.
+
+**Test classes inherit `BLonDTestCase`, not `unittest.TestCase`**
+(`from blond.testing.backend_testing import BLonDTestCase`). It behaves like
+`unittest.TestCase` on a passing test, but annotates a failure with the backend class and
+specials mode active **at the start of the test** and **at the point of failure**:
+
+```
+[backend at start: Numpy64Bit, at failure: LeakedBackend]
+[specials at start: python, at failure: numba]
+```
+
+Differing start/failure states mean an earlier `backend_mutation` test leaked global
+state, rather than a genuine per-backend bug — making that distinction cheap is why the
+base class exists. The only classes left on plain `unittest.TestCase` are the throwaway
+fixtures inside `tests/unittests/testing/test_backend_testing.py`, which are what this
+machinery is tested against.
+
+**`@multi_backend_testcase` runs each backend as its own `TestCase.subTest`.** Every
+backend is tried even after an earlier one fails, and each failure is recorded against
+`subTest(backend=<ClassName>)` keeping its original exception type and traceback — the
+test no longer aborts on the first failing backend. What that changes when writing or
+reading these tests:
+- **Nothing propagates out of the decorated method.** A failing backend leaves a recorded
+  subtest result, not a raised exception, so `assertRaises` around such a call will not
+  see it — inspect a `unittest.TestResult` instead.
+- `subTest` files an `AssertionError` under `result.failures` and **everything else under
+  `result.errors`**. Entries unpack as `(test, traceback_str)`, with the backend name in
+  `test.params["backend"]`.
+- `setUp`/`tearDown` run **once per backend** (with that backend active), on top of the
+  single outer pair `unittest` itself runs — N+1 in total, so keep those fixtures cheap.
+- The `BLonDTestCase` annotation above does **not** apply to these failures: `subTest`
+  catches the exception before it can reach the annotating hook. Nothing is lost, since
+  each subtest is already labelled with the backend it ran under.
 
 ## Backend conventions
 
@@ -235,7 +279,7 @@ One GitLab MR per item, each on its own branch off `blonder`
 - **Strict TDD with visible RED:** write the failing test, run it, show it failing,
   *then* implement. (User explicitly requires seeing RED.)
 - Tests mirror the `blond/` tree under `tests/unittests/`.
-- **Every test class must inherit from `unittest.TestCase` and use its
+- **Every test class must inherit from `BLonDTestCase` and use the `TestCase`
   assertions (`assertEqual`, `assertTrue`, `assertRaises`, …) — never a bare
   `assert` statement.** This is a different `assert` than the one in *Backend
   conventions* above: that note is about production wrapper code, where a
@@ -243,8 +287,11 @@ One GitLab MR per item, each on its own branch off `blonder`
   bare `assert` is a bug risk, not a convention — it gives no diagnostic on
   failure (no expected-vs-actual) and is *also* silently stripped under
   `python -O`, which can turn a failing test into a silent pass. Write
-  `class TestFoo(unittest.TestCase):` with `test_*` methods, not
-  module-level `def test_...():` functions with bare `assert`.
+  `class TestFoo(BLonDTestCase):` with `test_*` methods, not module-level
+  `def test_...():` functions with bare `assert`. `BLonDTestCase` is a
+  `unittest.TestCase` subclass (see *Test* above), so everything `unittest`
+  offers still applies; inheriting `unittest.TestCase` directly just loses the
+  backend annotation on failure.
 - **Pre-commit before every `git commit`** — see the callout above; this is not
   optional.
 - Commit messages: past tense ("Fixed …", "Added …"), body explains *why*.

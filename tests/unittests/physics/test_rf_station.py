@@ -42,17 +42,17 @@ from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.cavities import (
-    MultiHarmonicRFStation,
-    SingleHarmonicRFStation,
-)
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 from blond.testing.helpers import allclose_tolerances
 
 
@@ -68,7 +68,7 @@ def _fixed_total_energy_cycle(total_energy: float):
     return SimpleNamespace(get_target_total_energy=lambda **_: total_energy)
 
 
-class TestRFStationBaseClass(unittest.TestCase):
+class TestRFStationBaseClass(BLonDTestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
         self.beam.reference = Mock(ReferenceCoordinates)
@@ -956,7 +956,7 @@ class TestAttachCavityFeedbackIndexValidation(unittest.TestCase):
         self.assertIs(station.cavity_feedback_list[1], feedback)
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_valid_purely_real_or_imaginary(self):
         """Test that purely real, purely imaginary, and zero pass."""
         for val in [5 + 0j, 0 + 3j, 0j]:
@@ -991,7 +991,7 @@ class TestCallables(unittest.TestCase):
             )  # Should  raise
 
 
-class TestMultiHarmonicCavity(unittest.TestCase):
+class TestMultiHarmonicCavity(BLonDTestCase):
     def setUp(self) -> None:
         from blond.core.beam.base import BeamBaseClass
 
@@ -1577,7 +1577,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
 
-class TestSingleHarmonicRFStation(unittest.TestCase):
+class TestSingleHarmonicRFStation(BLonDTestCase):
     def setUp(self) -> None:
         from blond.core.beam.base import BeamBaseClass
 
@@ -2034,7 +2034,7 @@ class TestSingleHarmonicRFStation(unittest.TestCase):
         self.assertEqual(sympy.simplify(resubstituted - ham_num), 0)
 
 
-class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
+class TestCavityFeedbackSparseProfileIntegration(BLonDTestCase):
     @pytest.mark.skip
     @pytest.mark.backend_mutation
     @multi_backend_testcase("Numpy64Bit")
@@ -2147,6 +2147,36 @@ class TestCavityFeedbackSparseProfileIntegration(unittest.TestCase):
             "Expected the sparse-aware cavity feedback kick to change "
             "dE, but dE was unchanged.",
         )
+
+
+class TestRFStationUnknownKwargs(BLonDTestCase):
+    def test_single_harmonic_rejects_misspelled_kwarg(self):
+        # `phi_rf_design` is the attribute name, the argument is `phi_rf`.
+        # It used to be swallowed silently, leaving `phi_rf_design=None`.
+        with self.assertRaises(TypeError):
+            SingleHarmonicRFStation(
+                harmonic=35640, voltage=6e6, phi_rf_design=0.0
+            )
+
+    def test_multi_harmonic_rejects_misspelled_kwarg(self):
+        with self.assertRaises(TypeError):
+            MultiHarmonicRFStation(
+                n_harmonics=2,
+                main_harmonic_idx=0,
+                harmonic=np.array([1.0, 2.0]),
+                voltage=np.array([1e6, 0.5e6]),
+                phi_rf_design=np.array([0.0, np.pi]),
+            )
+
+    def test_multi_harmonic_accepts_valid_kwargs(self):
+        rf_station = MultiHarmonicRFStation(
+            n_harmonics=2,
+            main_harmonic_idx=1,
+            harmonic=np.array([1.0, 2.0]),
+            voltage=np.array([1e6, 0.5e6]),
+            phi_rf=np.array([0.0, np.pi]),
+        )
+        self.assertEqual(rf_station.main_harmonic_idx, 1)
 
 
 class TestCounterRotatingSynchronousPhase(unittest.TestCase):

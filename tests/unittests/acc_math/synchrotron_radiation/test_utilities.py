@@ -7,9 +7,10 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
+class TestSynchrotronRadiationMaths_float_inputs(BLonDTestCase):
     def setUp(self):
         # FCC-ee high-energy booster at injection energy
         self.particle_type = electron

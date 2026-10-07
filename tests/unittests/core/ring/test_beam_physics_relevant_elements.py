@@ -1,8 +1,6 @@
 import unittest
 from unittest.mock import Mock
 
-import numpy as np
-
 from blond import (
     ConstantMagneticCycle,
     DriftSimple,
@@ -16,13 +14,13 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
-    pretty_string,
 )
-from blond.physics.cavities import RFStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackCoarseGrid,
 )
+from blond.physics.rf_station import RFStationBaseClass
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class TestFunctions(unittest.TestCase):
@@ -71,7 +69,7 @@ class TestFunctions(unittest.TestCase):
         simulation.print_one_turn_execution_order()
 
 
-class TestBeamPhysicsRelevantElements(unittest.TestCase):
+class TestBeamPhysicsRelevantElements(BLonDTestCase):
     def setUp(self):
         self.beam_physics_relevant_elements = BeamPhysicsRelevantElements()
         element1 = Mock(spec=DriftBaseClass)

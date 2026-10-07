@@ -27,6 +27,7 @@ from blond.core.backends.cpp.compiled_dir_handler import (
     cpp_compiled_dir,
     load_build_options,
 )
+from blond.core.beam.flags import BeamFlags
 from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -40,6 +41,94 @@ _PTR_CACHE_MAX_SIZE = 4096
 
 # ctypes twin of `INDEX_DTYPE`, matching `index_t` in `blond_common.h`.
 c_index_t = np.ctypeslib.as_ctypes_type(INDEX_DTYPE)
+
+
+def check_index_abi(library: CDLL) -> None:
+    """
+    Assert the compiled ``index_t`` matches Python's ``INDEX_DTYPE``.
+
+    ``blond_common.h`` and
+    :data:`~blond.core.backends.backend.INDEX_DTYPE` declare the
+    macro-particle index type independently of one another, and ctypes
+    validates nothing about the widths it passes. A mismatch therefore
+    does not raise: the kernel reads or writes adjacent memory and the
+    damage surfaces later as corrupted particle data. Comparing both
+    declarations once, when the library is loaded, turns that into a loud
+    failure at a point where the cause is still obvious.
+
+    Parameters
+    ----------
+    library
+        The freshly loaded ``libblond``, with its ``restype`` already set.
+
+    Raises
+    ------
+    RuntimeError
+        If the library predates the ABI exports, which means it was built
+        before the 64-bit index change and cannot be checked at all.
+    AssertionError
+        If the width or the signedness of the two declarations disagree.
+    """
+    try:
+        cpp_size = int(library.blond_index_t_size())
+        cpp_is_signed = bool(library.blond_index_t_is_signed())
+    except AttributeError as exc:  # pragma: no cover - stale library
+        raise RuntimeError(
+            "libblond exports no blond_index_t_size/blond_index_t_is_signed,"
+            " so its index_t ABI cannot be verified against INDEX_DTYPE."
+            " The library predates the 64-bit index change; rebuild it with"
+            " `blond-compile-cpp`."
+        ) from exc
+
+    python_dtype = np.dtype(INDEX_DTYPE)
+    assert cpp_size == python_dtype.itemsize == ct.sizeof(c_index_t), (
+        f"index_t ABI mismatch: libblond was compiled with a {cpp_size}-byte"
+        f" index_t, but Python passes {python_dtype.itemsize}-byte"
+        f" {python_dtype.name} (ctypes {ct.sizeof(c_index_t)} bytes)."
+        " Rebuild the C++ backend with `blond-compile-cpp` after changing"
+        " INDEX_DTYPE in blond/core/backends/backend.py."
+    )
+    assert cpp_is_signed == (python_dtype.kind == "i"), (
+        "index_t ABI mismatch: libblond's index_t is"
+        f" {'signed' if cpp_is_signed else 'unsigned'} but INDEX_DTYPE is"
+        f" {python_dtype.name}. Width alone is not enough -- the two must"
+        " also agree in signedness, or negative sentinels and loop counters"
+        " are reinterpreted."
+    )
+
+
+# Largest length a C ``int`` can hold; see `_get_len`.
+_C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
+
+
+def _get_len(x: NumpyArray) -> ct.c_int:
+    """
+    Return the length of ``x`` as a ``c_int``.
+
+    Only for short arrays (bins, harmonics, poles); arrays that scale
+    with the number of macroparticles use ``_get_beam_len``.
+
+    ctypes does no overflow checking, so a too long array would silently
+    wrap to a negative count. Uses ``assert`` on purpose so ``python -O``
+    strips the check.
+
+    Parameters
+    ----------
+    x
+        Array whose length is passed to the C++ kernel.
+
+    Returns
+    -------
+    ct.c_int
+        ``len(x)`` wrapped as a ctypes ``c_int``.
+    """
+    len_ = len(x)
+    assert len_ <= _C_INT_MAX, (
+        f"Array length {len_} overflows the C int (max {_C_INT_MAX}) this"
+        " kernel argument is declared as. Particle counts must be passed"
+        " with `_get_beam_len` (index_t) instead."
+    )
+    return ct.c_int(len_)
 
 
 def c_real(
@@ -340,26 +429,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
             _pointer_cache[_id] = (weakref.ref(x), pointer)
         return pointer
 
-    def _get_len(x: NumpyArray) -> ct.c_int:
-        """
-        Return the length of ``x`` as a ``c_int``.
-
-        Only for short arrays (bins, harmonics, poles); arrays that scale
-        with the number of macroparticles use `_get_index_len`.
-
-        Parameters
-        ----------
-        x
-            Array whose length is passed to the C++ kernel.
-
-        Returns
-        -------
-        ct.c_int
-            ``len(x)`` wrapped as a ctypes ``c_int``.
-        """
-        return ct.c_int(len(x))
-
-    def _get_index_len(x: NumpyArray) -> ct.c_int64:
+    def _get_beam_len(x: NumpyArray) -> ct.c_int64:
         """
         Return the length of ``x`` as the C++ ``index_t``.
 
@@ -404,6 +474,16 @@ def reload_cpp_backend(  # NOQA: PLR0915
     _LIBBLOND.move_flagged_elements_to_end.restype = c_index_t
     _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
     _LIBBLOND.blond_omp_get_max_threads.argtypes = []
+    _LIBBLOND.blond_index_t_size.restype = ct.c_int
+    _LIBBLOND.blond_index_t_size.argtypes = []
+    _LIBBLOND.blond_index_t_is_signed.restype = ct.c_int
+    _LIBBLOND.blond_index_t_is_signed.argtypes = []
+
+    # Before any kernel is handed an index, confirm the library agrees with
+    # INDEX_DTYPE about what an index is. Cheap (two calls, once per load)
+    # and the only thing standing between a stale .dll and silent memory
+    # corruption inside the particle loops.
+    check_index_abi(_LIBBLOND)
 
     # The array pointers are cached by the shared `_get_pointer` above; like every
     # other callable here we pass already-typed ctypes objects, so no `argtypes`
@@ -435,19 +515,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
             bin_size: float,
         ) -> float:
             assert _is_valid((hist_x, floattype), (hist_y, floattype))
+            assert len(hist_x) >= 2, (  # noqa: PLR2004
+                "beam_phase requires at least two bins for the trapezoidal "
+                f"rule, got {len(hist_x)}"
+            )
 
-            # Cast Python floats to backend floattype
-            alpha = floattype(alpha)
-            omega_rf = floattype(omega_rf)
-            phi_rf = floattype(phi_rf)
-            bin_size = floattype(bin_size)
-
-            # requires setting of _LIBBLOND.beam_phase.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.beam_phase.restype` set above; without it
+            # the C double is read as an int. The cast only matches the
+            # `floattype` scalar the other backends return.
             return floattype(
                 _LIBBLOND.beam_phase(
-                    hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
-                    hist_y.ctypes.data_as(ct.c_void_p),  # profile
+                    _get_pointer(hist_x),  # bin_centers
+                    _get_pointer(hist_y),  # profile
                     c_real(alpha, floattype),  # alpha
                     c_real(omega_rf, floattype),  # omega_rf
                     c_real(phi_rf, floattype),  # phi_rf
@@ -470,12 +549,12 @@ def reload_cpp_backend(  # NOQA: PLR0915
             stop = floattype(stop)
 
             _LIBBLOND.histogram(
-                array_read.ctypes.data_as(ct.c_void_p),
-                array_write.ctypes.data_as(ct.c_void_p),
+                _get_pointer(array_read),
+                _get_pointer(array_write),
                 c_real(start, floattype),
                 c_real(stop, floattype),
                 ct.c_int(len(array_write)),
-                _get_index_len(array_read),
+                _get_beam_len(array_read),
             )
 
         @staticmethod
@@ -505,30 +584,18 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             if first_left_cut is None:
                 n_slices = len(bin_centers)
-                if n_slices >= 2:  # noqa: PLR2004
-                    diffs = np.diff(bin_centers)
-                    if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
-                        raise ValueError(
-                            "bin_centers is not uniformly spaced (looks "
-                            "like a sparse/multi-island "
-                            "EquidistantMultiProfile.hist_x). Either "
-                            "pass this profile's sparse metadata "
-                            "(first_left_cut, left_cut_distance, "
-                            "cut_width, bins_per_profile, "
-                            "filling_pattern, "
-                            "bucket_index_to_memory_index), e.g. via "
-                            "`profile.sparse_kick_metadata`, or use "
-                            "EquidistantMultiProfile.profiles[i].hist_x "
-                            "for a single bucket."
-                        )
+                assert n_slices >= 2, (  # noqa: PLR2004
+                    "kick_interpolated needs at least 2 bins to "
+                    f"interpolate across, got {n_slices}"
+                )
                 _LIBBLOND.linear_interp_kick(
-                    dt.ctypes.data_as(ct.c_void_p),
-                    dE.ctypes.data_as(ct.c_void_p),
-                    voltage.ctypes.data_as(ct.c_void_p),
-                    bin_centers.ctypes.data_as(ct.c_void_p),
+                    _get_pointer(dt),
+                    _get_pointer(dE),
+                    _get_pointer(voltage),
+                    _get_pointer(bin_centers),
                     c_real(charge, floattype),
                     ct.c_int(len(bin_centers)),
-                    _get_index_len(dt),
+                    _get_beam_len(dt),
                     c_real(acceleration_kick, floattype),
                 )
                 return
@@ -539,21 +606,21 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert bucket_index_to_memory_index.flags.c_contiguous
 
             _LIBBLOND.linear_interp_kick_sparse(
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
-                voltage.ctypes.data_as(ct.c_void_p),
-                bin_centers.ctypes.data_as(ct.c_void_p),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(voltage),
+                _get_pointer(bin_centers),
                 c_real(charge, floattype),
                 ct.c_int(len(bin_centers)),
-                _get_index_len(dt),
+                _get_beam_len(dt),
                 c_real(acceleration_kick, floattype),
                 c_real(floattype(first_left_cut), floattype),
                 c_real(floattype(left_cut_distance), floattype),
                 c_real(floattype(cut_width), floattype),
                 ct.c_int(bins_per_profile),
                 ct.c_int(len(filling_pattern)),
-                filling_pattern.ctypes.data_as(ct.c_void_p),
-                bucket_index_to_memory_index.ctypes.data_as(ct.c_void_p),
+                _get_pointer(filling_pattern),
+                _get_pointer(bucket_index_to_memory_index),
             )
 
         @staticmethod
@@ -580,7 +647,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(dt),
                 _get_pointer(dE),
                 _get_pointer(flags),
-                _get_index_len(dt),
+                ct.c_int(BeamFlags.LOST.value),
+                _get_beam_len(dt),
             )
 
         @staticmethod
@@ -603,13 +671,13 @@ def reload_cpp_backend(  # NOQA: PLR0915
             acceleration_kick = floattype(acceleration_kick)
 
             _LIBBLOND.kick_single_harmonic(
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
+                _get_pointer(dt),
+                _get_pointer(dE),
                 c_real(charge, floattype),
                 c_real(voltage, floattype),
                 c_real(omega_rf, floattype),
                 c_real(phi_rf, floattype),
-                _get_index_len(dt),
+                _get_beam_len(dt),
                 c_real(acceleration_kick, floattype),
             )
 
@@ -644,18 +712,17 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(voltage),
                 _get_pointer(omega_rf),
                 _get_pointer(phi_rf),
-                _get_index_len(dt),
+                _get_beam_len(dt),
                 c_real(acceleration_kick, floattype),
             )
 
         @staticmethod
         def sum_1d_array(array: NumpyArray) -> float:
             assert _is_valid((array, floattype))
-            # requires setting of _LIBBLOND.sum_1d_array.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.sum_1d_array.restype` set above.
             return floattype(
                 _LIBBLOND.sum_1d_array(
-                    _get_pointer(array), _get_index_len(array)
+                    _get_pointer(array), _get_beam_len(array)
                 )
             )
 
@@ -667,32 +734,14 @@ def reload_cpp_backend(  # NOQA: PLR0915
             assert _is_valid((array_1, floattype), (array_2, floattype))
             assert len(array_1) == len(array_2)
 
-            # requires setting of _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype) in
-            # reload function
+            # Relies on `_LIBBLOND.dot_product_1d_array.restype` set above.
             return floattype(
                 _LIBBLOND.dot_product_1d_array(
                     _get_pointer(array_1),
                     _get_pointer(array_2),
-                    _get_index_len(array_2),
+                    _get_beam_len(array_2),
                 )
             )
-
-        @staticmethod
-        def phase_space_sums(
-            dt: NumpyArray,
-            dE: NumpyArray,
-        ) -> tuple[float, float, float, float, float]:
-            assert _is_valid((dt, floattype), (dE, floattype))
-            assert len(dt) == len(dE)
-
-            sums = np.empty(5, dtype=floattype)
-            _LIBBLOND.phase_space_sums(
-                _get_pointer(dt),
-                _get_pointer(dE),
-                _get_index_len(dt),
-                _get_pointer(sums),
-            )
-            return tuple(float(value) for value in sums)
 
         @staticmethod
         def drift_simple(
@@ -718,7 +767,38 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 c_real(eta_0, floattype),
                 c_real(beta, floattype),
                 c_real(energy, floattype),
-                _get_index_len(dt),
+                _get_beam_len(dt),
+            )
+
+        @staticmethod
+        def drift_like_line_segment(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
+        ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
+            _LIBBLOND.drift_like_line_segment(
+                _get_pointer(dt),
+                _get_pointer(dE),
+                c_real(T, floattype),
+                c_real(eta_0, floattype),
+                c_real(beta, floattype),
+                c_real(energy, floattype),
+                _get_beam_len(dt),
             )
 
         @staticmethod
@@ -754,7 +834,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_len(higher_alpha),  # const int n_alpha
                 c_real(beta, floattype),  # const real_t beta
                 c_real(energy, floattype),  # const real_t energy
-                _get_index_len(dt),  # const index_t n_macroparticles
+                _get_beam_len(dt),  # const index_t n_macroparticles
             )
 
         @staticmethod
@@ -777,7 +857,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     _get_pointer(beam_dE),
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
-                    _get_index_len(beam_dE),
+                    _get_beam_len(beam_dE),
                 )
             else:
                 noise_scale = floattype(
@@ -791,7 +871,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     c_real(damping_factor, floattype),
                     c_real(energy_lost_typed, floattype),
                     c_real(noise_scale, floattype),
-                    _get_index_len(beam_dE),
+                    _get_beam_len(beam_dE),
                 )
 
         @staticmethod
@@ -811,11 +891,11 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
             n_new = _LIBBLOND.move_flagged_elements_to_end(
                 ct.c_int32(np.int32(flag)),
-                flags.ctypes.data_as(ct.c_void_p),
-                dt.ctypes.data_as(ct.c_void_p),
-                dE.ctypes.data_as(ct.c_void_p),
-                ids.ctypes.data_as(ct.c_void_p),
-                _get_index_len(dt),  # n_macroparticles
+                _get_pointer(flags),
+                _get_pointer(dt),
+                _get_pointer(dE),
+                _get_pointer(ids),
+                _get_beam_len(dt),  # n_macroparticles
             )
             n_new = int(n_new)
             return n_new
@@ -877,7 +957,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 ct.c_int(bins_per_profile),  # bins_per_profile
                 ct.c_int(n_active_profiles),  # n_profiles
                 ct.c_int(len(filling_pattern)),  # n_buckets
-                _get_index_len(x),  # n_macroparticles
+                _get_beam_len(x),  # n_macroparticles
                 _get_pointer(filling_pattern),  # filling_pattern
                 _get_pointer(
                     bucket_index_to_memory_index
@@ -995,7 +1075,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 _get_pointer(beam_dE),
                 _get_pointer(induced_voltage),
                 _get_pointer(parameter_array),
-                _get_index_len(beam_dt),
+                _get_beam_len(beam_dt),
                 c_real(alpha, floattype),
                 c_real(omega_bar, floattype),
                 c_real(const, floattype),

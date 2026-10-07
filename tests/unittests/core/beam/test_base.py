@@ -9,16 +9,19 @@ import pytest
 
 from blond import Simulation, mu_plus, proton
 from blond.core.backends.backend import INDEX_DTYPE, backend
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
-from blond.core.beam.particle_types import ParticleType, mu_minus
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
     mpi_barrier,
     mpi_is_distributed,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
+from blond.core.beam.particle_types import ParticleType, mu_minus
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import BLonDTestCase
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -110,7 +113,7 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
 
-class TestBeamBaseClass(unittest.TestCase):
+class TestBeamBaseClass(BLonDTestCase):
     def setUp(self):
         self.beam_base_class = BeamBaseClassTester(
             intensity=1e12,
@@ -294,8 +297,8 @@ class TestBeamBaseClass(unittest.TestCase):
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
         ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
-        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
-        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        dt_2 = backend.linspace(1e-6, 2e-6, 3, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 3, dtype=backend.float)
         flags_2 = (
             backend.zeros_like(dE_2, dtype=np.int32) + BeamFlags.ACTIVE.value
         )
@@ -335,7 +338,7 @@ class TestBeamBaseClass(unittest.TestCase):
             copy_to_cpu(np.concatenate((ids_1, ids_2))),
         )
 
-        self.assertEqual(beam_1.intensity, 2e12)
+        self.assertEqual(beam_1.intensity, 1.3e12)
 
         dist_dt = DistributedArray(dt_2[1:])
         dist_dE = DistributedArray(dE_2)
@@ -598,7 +601,7 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
 
-class TestSortByDt(unittest.TestCase):
+class TestSortByDt(BLonDTestCase):
     def _beam(self, dt, dE, ids, flags, is_distributed=False):
         beam = BeamBaseClassTester(
             intensity=1e12,

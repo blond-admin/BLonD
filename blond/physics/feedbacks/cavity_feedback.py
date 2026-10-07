@@ -61,8 +61,8 @@ SEGMENT_UNIFORMITY_RTOL = 1.0e-9
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.feedbacks.feedforward_table import FeedforwardTable
     from blond.physics.feedbacks.generator_current_controller import (
         GeneratorCurrentController,

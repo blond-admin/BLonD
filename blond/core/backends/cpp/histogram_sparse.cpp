@@ -61,9 +61,13 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
     for (index_t i = 0; i < n_macroparticles; ++i) {
       const real_t dt = input[i];
 
-      const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
-      if (bucket_i >= n_buckets || bucket_i < 0)
+      // Range-check in floating point *before* the conversion:
+      // converting an out-of-range value to `int` is undefined
+      // behaviour.
+      const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
+      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
         continue;
+      const int bucket_i = (int)bucket_real;
       if (!filling_pattern[bucket_i]) {
         continue;
       }

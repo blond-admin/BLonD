@@ -5,9 +5,10 @@ from scipy.constants import speed_of_light as c0
 
 from blond import uranium_29
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestReferenceCoordinates(unittest.TestCase):
+class TestReferenceCoordinates(BLonDTestCase):
     def setUp(self):
         # https://fr.wikipedia.org/wiki/Facteur_de_Lorentz
 

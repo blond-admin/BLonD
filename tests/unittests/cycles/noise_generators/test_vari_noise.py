@@ -20,6 +20,7 @@ from blond.cycles.noise_generators import VariNoise
 from blond.interfaces.rf_noise_cpp.wrap_rf_noise import (
     rf_noise_library_available,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 # In CI the rf-noise-cpp library is provided, so library-backed tests must run
 # (and fail loudly if it is missing) rather than silently skip. Locally, skip
@@ -36,7 +37,7 @@ def _flat_spectrum(n: int = 16) -> np.ndarray:
     return np.ones(n, dtype=np.double)
 
 
-class TestVariNoiseConfig(unittest.TestCase):
+class TestVariNoiseConfig(BLonDTestCase):
     """Configuration/validation behaviour that does not need the C++ library."""
 
     def _make(self, n_turns, **kwargs):
@@ -108,7 +109,7 @@ class TestVariNoiseConfig(unittest.TestCase):
             noise.get_noise(n_turns=n_turns)
 
 
-class TestVariNoiseLibrary(unittest.TestCase):
+class TestVariNoiseLibrary(BLonDTestCase):
     """Behaviour that depends on the external C++ library."""
 
     def test_missing_library_raises_actionable_error(self):

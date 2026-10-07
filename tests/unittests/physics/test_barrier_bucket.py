@@ -5,16 +5,21 @@ from unittest.mock import Mock
 import numpy as np
 import numpy.testing as nptest
 
-# BLonD imports
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayShapeError
-from blond.testing.backend_testing import ArrayLikeScan, multi_backend_testcase
+
+# BLonD imports
+from blond.testing.backend_testing import (
+    ArrayLikeScan,
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 
 
-class TestBarrierBucketFunctions(unittest.TestCase):
+class TestBarrierBucketFunctions(BLonDTestCase):
     @multi_backend_testcase
     def test_simple_barrier(self):
         cent = 500e-9
@@ -336,7 +341,7 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         nptest.assert_array_almost_equal(precreated, -nrecreated, decimal=3)
 
 
-class TestBarrierBucketGenerator(unittest.TestCase):
+class TestBarrierBucketGenerator(BLonDTestCase):
     @multi_backend_testcase
     def test_fixed_barrier(self):
         cent = 500e-9

@@ -10,9 +10,10 @@ from blond.physics.impedances.readers import (
     ModesExampleReader2,
 )
 from blond.physics.impedances.sources import ImpedanceTableFreq
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestExampleReader2(unittest.TestCase):
+class TestExampleReader2(BLonDTestCase):
     def test_reader(self):
         reader = ExampleImpedanceReader2(mode=ModesExampleReader2.SHORTED)
         freq_table_short = ImpedanceTableFreq.from_file(

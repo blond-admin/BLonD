@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,8 +18,11 @@ from blond import (
     proton,
 )
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_blond2_reference_file
 
 R_shunt = np.array(
     [
@@ -191,88 +195,110 @@ Q_factor = np.array(
 
 DEV_PLOT = False
 
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
-class Blond2:
-    def __init__(self):
-        import numpy as np
 
-        from blond.legacy.blond2.beam.beam import Beam, Proton
-        from blond.legacy.blond2.beam.distributions import bigaussian
-        from blond.legacy.blond2.beam.profile import CutOptions, Profile
-        from blond.legacy.blond2.impedances.impedance import (
-            InducedVoltageFreq,
-            InducedVoltageResonator,
-            InducedVoltageTime,
-            TotalInducedVoltage,
+def _run_blond2():
+    """Run BLonD 2 and return the arrays stored in the reference file."""
+    from blond.legacy.blond2.beam.beam import Beam, Proton
+    from blond.legacy.blond2.beam.distributions import bigaussian
+    from blond.legacy.blond2.beam.profile import CutOptions, Profile
+    from blond.legacy.blond2.impedances.impedance import (
+        InducedVoltageFreq,
+        InducedVoltageResonator,
+        InducedVoltageTime,
+        TotalInducedVoltage,
+    )
+    from blond.legacy.blond2.impedances.impedance_sources import (
+        Resonators,
+    )
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring
+
+    induced_voltage = []
+    for solver in (
+        # InducedVoltageTime,
+        InducedVoltageFreq,
+        # InducedVoltageResonator,  # TODO: fix this
+    ):
+        ring = Ring(
+            6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10
         )
-        from blond.legacy.blond2.impedances.impedance_sources import (
-            Resonators,
+        rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
+        beam = Beam(ring, 1001, 1e10)
+        bigaussian(ring, rf_station, beam, 2e-9 / 4, seed=1)
+
+        cut_options = CutOptions(
+            cut_left=0,
+            cut_right=2 * np.pi,
+            n_slices=256,
+            rf_station=rf_station,
+            cuts_unit="rad",
         )
-        from blond.legacy.blond2.input_parameters.rf_parameters import (
-            RFStation,
+        profile = Profile(beam, cut_options)
+
+        profile.track()
+
+        resonator = Resonators(R_shunt, f_res, Q_factor)
+
+        if solver == InducedVoltageTime:
+            ind_volt = InducedVoltageTime(beam, profile, [resonator])
+        elif solver == InducedVoltageFreq:
+            ind_volt = InducedVoltageFreq(beam, profile, [resonator], 1e5)
+        elif solver == InducedVoltageResonator:
+            ind_volt = InducedVoltageResonator(beam, profile, resonator)
+        else:
+            raise Exception
+        tot_vol = TotalInducedVoltage(beam, profile, [ind_volt])
+
+        tot_vol.induced_voltage_sum()
+        induced_voltage.append(tot_vol.induced_voltage)
+
+        if DEV_PLOT:
+            plt.figure(1)
+            sname = str(solver)[
+                str(solver).rfind(".") + 1 : str(solver).rfind("'")
+            ]
+            plt.plot(tot_vol.induced_voltage, label=f"solver = {sname}")
+            if not solver == InducedVoltageResonator:
+                plt.figure(2)
+                plt.plot(ind_volt.total_impedance, label=f"solver = {sname}")
+    return dict(
+        dt=beam.dt,
+        dE=beam.dE,
+        cut_left=np.asarray(profile.cut_left),
+        cut_right=np.asarray(profile.cut_right),
+        n_slices=np.asarray(profile.n_slices),
+        induced_voltage=np.asarray(induced_voltage),
+    )
+
+
+def load_blond2():
+    """BLonD 2 results, loaded from the reference file."""
+    blond2_reference_path = callers_relative_path(
+        "resources/induced_voltage_freq_blond2.npz", stacklevel=1
+    )
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(blond2_reference_path, **_run_blond2())
+    with np.load(blond2_reference_path) as blond2_reference:
+        return SimpleNamespace(
+            dt=blond2_reference["dt"],
+            dE=blond2_reference["dE"],
+            profile=SimpleNamespace(
+                cut_left=blond2_reference["cut_left"].item(),
+                cut_right=blond2_reference["cut_right"].item(),
+                n_slices=blond2_reference["n_slices"].item(),
+            ),
+            induced_voltage=blond2_reference["induced_voltage"],
         )
-        from blond.legacy.blond2.input_parameters.ring import Ring
-
-        for solver in (
-            # InducedVoltageTime,
-            InducedVoltageFreq,
-            # InducedVoltageResonator,  # TODO: fix this
-        ):
-            ring = Ring(
-                6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10
-            )
-            rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
-            beam = Beam(ring, 1001, 1e10)
-            bigaussian(ring, rf_station, beam, 2e-9 / 4, seed=1)
-            self.dt = beam.dt
-            self.dE = beam.dE
-
-            cut_options = CutOptions(
-                cut_left=0,
-                cut_right=2 * np.pi,
-                n_slices=256,
-                rf_station=rf_station,
-                cuts_unit="rad",
-            )
-            profile = Profile(beam, cut_options)
-            self.profile = profile
-
-            profile.track()
-
-            resonator = Resonators(R_shunt, f_res, Q_factor)
-            self.resonator = resonator
-
-            if solver == InducedVoltageTime:
-                ind_volt = InducedVoltageTime(beam, profile, [resonator])
-            elif solver == InducedVoltageFreq:
-                ind_volt = InducedVoltageFreq(beam, profile, [resonator], 1e5)
-            elif solver == InducedVoltageResonator:
-                ind_volt = InducedVoltageResonator(beam, profile, resonator)
-            else:
-                raise Exception
-            tot_vol = TotalInducedVoltage(beam, profile, [ind_volt])
-
-            tot_vol.induced_voltage_sum()
-            if not hasattr(self, "induced_voltage"):
-                self.induced_voltage = []
-            self.induced_voltage.append(tot_vol.induced_voltage)
-
-            if DEV_PLOT:
-                plt.figure(1)
-                sname = str(solver)[
-                    str(solver).rfind(".") + 1 : str(solver).rfind("'")
-                ]
-                plt.plot(tot_vol.induced_voltage, label=f"solver = {sname}")
-                if not solver == InducedVoltageResonator:
-                    plt.figure(2)
-                    plt.plot(
-                        ind_volt.total_impedance, label=f"solver = {sname}"
-                    )
 
 
 class Blond3:
     def __init__(self):
-        blond2 = Blond2()
+        blond2 = load_blond2()
         self.blond2 = blond2
         circumference = 6911.56
         ring = Ring(circumference=circumference)
@@ -323,7 +349,7 @@ class Blond3:
         self.induced_voltage = induced_voltage
 
 
-class TestBothBlonds(unittest.TestCase):
+class TestBothBlonds(BLonDTestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()

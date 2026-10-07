@@ -5,9 +5,10 @@ import numpy as np
 from blond.examples.scripts.EX_28_Multiturn_sparse_sps import (
     VectorFittedModel,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestVectorFittedModelPlot(unittest.TestCase):
+class TestVectorFittedModelPlot(BLonDTestCase):
     """A real pole has no implicit complex conjugate (vector-fitting
     convention): `VectorFittedModel.plot` must reconstruct its frequency
     response without doubling it via a conjugate term."""

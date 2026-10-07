@@ -14,23 +14,20 @@
 
 #include "blond_common.h"
 
-extern "C" void loss_box(
-                     const real_t e_max,
-                     const real_t e_min,
-                     const real_t t_min,
-                     const real_t t_max,
-                     const real_t * dt,
-                     const real_t * dE,
-                     int * __restrict__ flags,
-                     const index_t n_macroparticles
-                     )
-{
+// `flag_lost` is `BeamFlags.LOST` (blond/core/beam/flags.py), passed in by
+// the Python wrapper so the enum stays the single source of truth.
+extern "C" void loss_box(const real_t e_max, const real_t e_min,
+                         const real_t t_min, const real_t t_max,
+                         const real_t *dt, const real_t *dE,
+                         int *__restrict__ flags, const int flag_lost,
+                         const index_t n_macroparticles) {
 
-    #pragma omp parallel for
-    for (index_t i = 0; i < n_macroparticles; i++) {
-        const bool outside = (dE[i] > e_max) || (dE[i] < e_min) || (dt[i] < t_min) || (dt[i] > t_max);
-        if (outside){
-            flags[i] =  -500; // assume (BeamFlags.LOST.value)
-        }
+#pragma omp parallel for
+  for (index_t i = 0; i < n_macroparticles; i++) {
+    const bool outside = (dE[i] > e_max) || (dE[i] < e_min) ||
+                         (dt[i] < t_min) || (dt[i] > t_max);
+    if (outside) {
+      flags[i] = flag_lost;
     }
+  }
 }

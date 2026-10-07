@@ -18,7 +18,9 @@ import numpy as np
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.random import Generator as NumpyGenerator
 
-    from blond.generals.distributed.distributed_array import DistributedArray
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
 
 try:
     from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
@@ -89,7 +91,7 @@ def mpi_aware_random_generator_cpu(
     Examples
     --------
     >>> from blond.core.helpers import int_from_float_with_warning
-    >>> from blond.generals.distributed.helpers import (
+    >>> from blond.core.backends.mpi_distributed.helpers import (
     ...     mpi_local_size,
     ...     mpi_aware_random_generator_cpu,
     ... )
@@ -141,8 +143,10 @@ def distributed_arange(
             rank 0: [0, 1, 2]
             rank 1: [3, 4, 5]
     """
-    from blond import backend
-    from blond.generals.distributed.distributed_array import DistributedArray
+    from blond.core.backends.backend import backend
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
 
     # Compute starting offset for this rank
     if MPI_COMM_WORLD is None:
@@ -184,15 +188,17 @@ def distributed_zeros(
             rank 0: [0, 0, 0]
             rank 1: [0, 0, 0]
     """
-    from blond import backend
-    from blond.generals.distributed.distributed_array import DistributedArray
+    from blond.core.backends.backend import backend
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
 
     local_ids = backend.zeros(local_n, dtype=dtype)
 
     return DistributedArray(local_ids)
 
 
-def mpi_is_distributed():
+def mpi_is_distributed() -> bool:
     """
     Whether the software runs with a MPI size > 1 or not.
 
@@ -201,13 +207,10 @@ def mpi_is_distributed():
     is_distributed
         Whether the software runs with a MPI size > 1 or not.
     """
-    if MPI_COMM_WORLD is None:
-        return False
-    if MPI_COMM_WORLD.Get_size() > 1:
-        return True
+    return MPI_SIZE > 1
 
 
-def mpi_barrier():
+def mpi_barrier() -> None:
     """
     Synchronize all processes.
 
@@ -231,7 +234,4 @@ def mpi_is_root() -> bool:
     bool
         Whether the current worker is the root worker.
     """
-    if MPI_COMM_WORLD is None:
-        return True
-    else:
-        return MPI_COMM_WORLD.Get_rank() == 0
+    return MPI_RANK == 0

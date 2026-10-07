@@ -30,6 +30,7 @@ from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedanceSolver,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -43,7 +44,7 @@ F_RES = resonator_data[:, 0] * 10**9
 Q_FACTOR = resonator_data[:, 1] * 100
 
 
-class TestWarmup(unittest.TestCase):
+class TestWarmup(BLonDTestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
@@ -247,7 +248,7 @@ class TestWarmup(unittest.TestCase):
         self.assertEqual(self.simulation.turn_counter.value, turn_before)
 
 
-class TestWarmupEquilibratesSolverState(unittest.TestCase):
+class TestWarmupEquilibratesSolverState(BLonDTestCase):
     """Warmup should fill up a multi-turn wakefield solver's memory."""
 
     def setUp(self):

@@ -10,9 +10,10 @@ from blond.acc_math.analytic.hamilton import (
     phase_modulo_below_transition,
     single_rf_sin_hamiltonian,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestPhaseModuloBelowTransition(unittest.TestCase):
+class TestPhaseModuloBelowTransition(BLonDTestCase):
     def test_scalar_values(self):
         self.assertAlmostEqual(phase_modulo_below_transition(0.5), 0.5)
         self.assertAlmostEqual(
@@ -37,7 +38,7 @@ class TestPhaseModuloBelowTransition(unittest.TestCase):
         self.assertTrue(np.all(result >= -np.pi))
 
 
-class TestPhaseModuloAboveTransition(unittest.TestCase):
+class TestPhaseModuloAboveTransition(BLonDTestCase):
     def test_scalar_values(self):
         # 0 stays 0
         self.assertAlmostEqual(phase_modulo_above_transition(0.0), 0.0)
@@ -74,7 +75,7 @@ class TestPhaseModuloAboveTransition(unittest.TestCase):
         )
 
 
-class TestSynchrotronTune(unittest.TestCase):
+class TestSynchrotronTune(BLonDTestCase):
     def test_tune(self):
         assert calc_synchrotron_tune_single_harmonic(
             2, 2 * np.pi * 1e6, 1, 1e6, 0, 1, 1
@@ -98,7 +99,7 @@ class TestSynchrotronTune(unittest.TestCase):
         )
 
 
-class TestSingleRfSinHamiltonian(unittest.TestCase):
+class TestSingleRfSinHamiltonian(BLonDTestCase):
     def test_eta0_zero_skips_phase_modulo(self):
         # When etas[0] == 0, neither phase_modulo branch is entered.
         # Result should still be a finite number.

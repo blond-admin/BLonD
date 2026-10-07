@@ -6,7 +6,20 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `NumbaSpecials` and helper functions."""
+"""Holds `NumbaSpecials` and helper functions.
+
+Precondition for every kernel in this module: coordinates are finite.
+The beam coordinates (`dt`, `dE`) and the profile coordinates
+(`bin_centers`, cut edges) must contain neither NaN nor +/-Inf. Nothing
+here checks for it -- the check would not be free in a per-particle
+loop, and the kernels are compiled with ``fastmath=True``, which already
+licenses the compiler to assume no non-finite values. Note that the
+guards protecting the conversion of a bin index to `int` are written as
+``index < lo or index >= hi``: a NaN index compares False against both
+bounds, passes the guard and reaches the conversion. The caller must not
+produce non-finite coordinates. See `Specials` in
+`blond/core/backends/backend.py`.
+"""
 # pragma: no cover
 
 from __future__ import annotations
@@ -293,12 +306,14 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
 ) -> None:
     if len(bin_centers) < 2:  # noqa: PLR2004
         # A single-bin (or empty) `bin_centers` has no width to
-        # interpolate across -- nothing can be kicked. Bail out before the
-        # `len(bin_centers) - 1` division below, which would otherwise
-        # raise `ZeroDivisionError` (unlike the float division the
-        # python/cpp backends perform, which quietly yields `nan` and
-        # skips every particle via the range check).
-        return
+        # interpolate across. The wrapper asserts this, so it is reached
+        # only under `python -O`; refuse outright rather than apply
+        # `acceleration_kick` alone, which would be only part of the kick
+        # (and rather than the bare `ZeroDivisionError` of the
+        # `len(bin_centers) - 1` division below).
+        raise ValueError(
+            "kick_interpolated needs at least 2 bins to interpolate across"
+        )
     dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
     inv_dx = 1 / dx
     x_min = bin_centers[0]
@@ -306,7 +321,13 @@ def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
     for i in prange(len(dE)):
         x = dt[i]
 
+        # Range-check the coordinate before `int()` turns it into an
+        # index: a far-out particle scales past the integer range, where
+        # the conversion is undefined and would index out of bounds.
         if x < x_min or x >= x_max:
+            # Only the interpolated voltage is undefined out of range;
+            # the reference energy change still applies.
+            dE[i] += acceleration_kick
             continue
         else:
             idx = int((x - x_min) * inv_dx)
@@ -344,16 +365,26 @@ def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     bin_width = cut_width / bins_per_profile
     for i in prange(len(dE)):
         x = dt[i]
-        bucket_i = int(np.floor((x - first_left_cut) * inv_hist_dist))
-        if bucket_i < 0 or bucket_i >= n_buckets:
+        # Range-check in floating point *before* the conversion -- see
+        # `_kick_interpolated_dense_nb`.
+        bucket_real = np.floor((x - first_left_cut) * inv_hist_dist)
+        # A particle with no interpolated voltage still receives
+        # `acceleration_kick` -- in particular one in an *unfilled* bucket,
+        # which is fully inside the turn.
+        if bucket_real < 0.0 or bucket_real >= n_buckets:
+            dE[i] += acceleration_kick
             continue
+        bucket_i = int(bucket_real)
         if not filling_pattern[bucket_i]:
+            dE[i] += acceleration_kick
             continue
         cut_left = first_left_cut + bucket_i * left_cut_distance
         bucket_bin_center0 = cut_left + bin_width / 2.0
-        local_bin = int(np.floor((x - bucket_bin_center0) * inv_bin_width))
-        if local_bin < 0 or local_bin >= bins_per_profile - 1:
+        local_bin_real = np.floor((x - bucket_bin_center0) * inv_bin_width)
+        if local_bin_real < 0.0 or local_bin_real >= bins_per_profile - 1:
+            dE[i] += acceleration_kick
             continue
+        local_bin = int(local_bin_real)
         idx = bucket_index_to_memory_index[bucket_i] + local_bin
         v = voltage[idx] + (
             voltage[idx + 1] - voltage[idx]
@@ -435,6 +466,9 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         bin_size: float,
     ) -> float:
         n = len(hist_x)
+        assert n >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule"
+        )
 
         f_sin = np.zeros_like(hist_x)
         f_cos = np.zeros_like(hist_x)
@@ -483,11 +517,16 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         array_write[:] = 0
         for i in prange(len(array_read)):
             curr_thread = numba.get_thread_id()
-            if array_read[i] == stop:
-                array_tmp[curr_thread, -1] += 1
-                continue
             idx = (array_read[i] - start) * inv_bin_step
-            if idx < 0 or idx >= n_bins:
+            # Scaling is not exact: a value at or just below `stop` can
+            # land on `n_bins`. Fold it back into the last bin, as
+            # `np.histogram` does, instead of dropping the particle.
+            if idx >= n_bins and array_read[i] <= stop:
+                idx = n_bins - 1
+            # Range-check before `int()` turns the index into an
+            # integer: a far-out particle scales past the integer range,
+            # where the conversion is undefined.
+            if idx < 0.0 or idx >= n_bins:
                 continue
             else:
                 array_tmp[curr_thread, int(idx)] += 1
@@ -566,6 +605,40 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         coeff = T * eta_0 / (beta * beta * energy)
         for i in prange(len(dt)):
             dt[i] += coeff * dE[i]
+
+    @staticmethod
+    @enforce_precision(FLOAT)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def drift_like_line_segment(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        """Drift with linear slip factor and exact relativistic delta."""
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        for i in prange(len(dt)):
+            dEi = dE[i]
+            delta = (
+                np.sqrt(
+                    1.0
+                    + inv_beta_sq
+                    * (
+                        dEi * dEi * inv_energy * inv_energy
+                        + 2.0 * dEi * inv_energy
+                    )
+                )
+                - 1.0
+            )
+            dt[i] += T * eta_0 * delta
 
     @staticmethod
     @enforce_precision(FLOAT)
@@ -684,20 +757,10 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
     ) -> None:
         if first_left_cut is None:
             n_slices = len(bin_centers)
-            if n_slices >= 2:  # noqa: PLR2004
-                diffs = np.diff(bin_centers)
-                if not np.allclose(diffs, diffs[0], rtol=1e-6, atol=0.0):
-                    raise ValueError(
-                        "bin_centers is not uniformly spaced (looks like "
-                        "a sparse/multi-island "
-                        "EquidistantMultiProfile.hist_x). Either pass "
-                        "this profile's sparse metadata (first_left_cut, "
-                        "left_cut_distance, cut_width, bins_per_profile, "
-                        "filling_pattern, bucket_index_to_memory_index), "
-                        "e.g. via `profile.sparse_kick_metadata`, or use "
-                        "EquidistantMultiProfile.profiles[i].hist_x for "
-                        "a single bucket."
-                    )
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
             _kick_interpolated_dense_nb(
                 dt, dE, voltage, bin_centers, charge, acceleration_kick
             )
@@ -795,10 +858,12 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
             xi = x[i]
 
-            bucket_i = int((xi - first_left_cut) * ive_profile_dist)
-
-            if bucket_i < 0 or bucket_i >= n_buckets:
+            # Range-check in floating point *before* the conversion --
+            # see `histogram`.
+            bucket_real = (xi - first_left_cut) * ive_profile_dist
+            if bucket_real < 0.0 or bucket_real >= n_buckets:
                 continue
+            bucket_i = int(bucket_real)
             if not filling_pattern[bucket_i]:
                 continue
 
@@ -820,10 +885,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             if xi < start_loc or xi >= stop_loc:
                 continue
 
-            idx = int((xi - start_loc) * inv_bin_step)
-            if idx < 0 or idx >= bins_per_profile:
+            idx_real = (xi - start_loc) * inv_bin_step
+            if idx_real < 0.0 or idx_real >= bins_per_profile:
                 continue
             else:
+                idx = int(idx_real)
                 write_idx = int(bucket_index_to_memory_index[bucket_i] + idx)
                 array_tmp[thread_i, write_idx] += 1
 

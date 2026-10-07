@@ -20,9 +20,11 @@ from blond.core.beam.particle_types import (
     mu_minus,
     mu_plus,
 )
+from blond.generals.exceptions_ import InvalidParticleAttributeError
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestParticleType(unittest.TestCase):
+class TestParticleType(BLonDTestCase):
     def setUp(self):
         self.mass = 1e-10
         self.user_decay_rate = 1e-5
@@ -55,6 +57,22 @@ class TestParticleType(unittest.TestCase):
             self.particle_type.quantum_radiation_constant,
             55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e),
         )
+
+    def test_invalid_inputs(self):
+        invalid_inputs = (
+            ({"mass": 0, "charge": 1}, "mass must be greater than 0"),
+            ({"mass": -1, "charge": 1}, "mass must be greater than 0"),
+            ({"mass": 1, "charge": 0}, "charge must not be 0"),
+            (
+                {"mass": 1, "charge": 1, "user_decay_rate": -1},
+                "decay rate must not be negative",
+            ),
+        )
+        for kwargs, message in invalid_inputs:
+            with self.assertRaisesRegex(
+                InvalidParticleAttributeError, message
+            ):
+                ParticleType(**kwargs)
 
     def test_particle_library(self):
         # Electron

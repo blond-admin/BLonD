@@ -27,20 +27,21 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import Simulation, backend
+from blond.core.backends.backend import backend
 from blond.core.base import (
     DynamicParameter,
     Schedulable,
 )
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import RFStationBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import RFStationBaseClass
 
 
 class BeamFeedbackBase(GlobalFeedback, Schedulable):
@@ -57,18 +58,21 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         Any Profile object which exposes the x- and y-axis of the beam line density.
     phase_noise
         Option to add phase noise through the beam control.
+    delay
+        Delay (in units of turns) of the initial correction of the
+        feedback system.
+    window_coefficient
+        Window coefficient for the calculation of the beam phase.
+        This parameter will reduce the weight of later samples of the
+        beam profile.
+    time_offset
+        Time offset for the calculation of the beam phase, in [s].
+    sample_de
+        Determines downsampling of macroparticles for mean energy
+        calculation. Every `sample_de` particle is sampled.
     **kwargs
-        Additional variable keyword arguments for the class. These are
-
-        * delay: Delay (in units of turns) of the initial correction of the feedback system.
-
-        * window_coefficient: Window coefficient for the calculation of the beam phase.
-          This parameter will reduce the weight of later samples of the beam profile.
-
-        * time_offset: Time offset [s] for the calculation of the beam phase.
-
-        * sample_de: Determines downsampling of macroparticles for mean energy calculation.
-          Every `sample_de` particle is sampled.
+        Additional keyword arguments for method resolution order of
+        inheriting elements, e.g. `section_index` and `name`.
 
     Attributes
     ----------
@@ -90,13 +94,17 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         self,
         profile: ProfileBaseClass,
         phase_noise=None,
+        delay: int = 0,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        sample_de: int = 1,
         **kwargs,
     ):
-        super().__init__(profile=profile)
-        self._delay = kwargs.get("delay", 0)
-        self.window_coefficient = kwargs.get("window_coefficient", 0.0)
-        self.time_offset = kwargs.get("time_offset")
-        self.sample_de = kwargs.get("sample_de", 1)
+        super().__init__(profile=profile, **kwargs)
+        self._delay = delay
+        self.window_coefficient = window_coefficient
+        self.time_offset = time_offset
+        self.sample_de = sample_de
         self.phase_noise = phase_noise
 
         self.delta_omega_rf = 0.0

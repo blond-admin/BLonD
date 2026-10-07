@@ -30,7 +30,7 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.core.base import ScheduledArray
+from blond.core.scheduling import ScheduledArray
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )

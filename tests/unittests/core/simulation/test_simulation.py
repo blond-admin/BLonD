@@ -42,13 +42,14 @@ from blond.handle_results.observables import (
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import beam_mock
 
 if TYPE_CHECKING:  # pragma: no cover
     pass  # type: ignore
 
 
-class TestSimulation(unittest.TestCase):
+class TestSimulation(BLonDTestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
@@ -450,6 +451,20 @@ class TestSimulation(unittest.TestCase):
         )
         mock_func.assert_called()
 
+    def test_run_simulation_twice_raises(self):
+        """Resuming is not implemented, so a second ``run_simulation`` must
+        fail loudly instead of silently re-initialising observables."""
+        self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+        with self.assertRaisesRegex(NotImplementedError, "mainloop"):
+            self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+
+    def test_run_simulation_after_finalize(self):
+        """``load_results`` finalizes before falling back to
+        ``run_simulation``; no turn was tracked yet, so this must work."""
+        self.simulation.finalize(beams=(self.beam,), n_turns=2)
+        self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+        self.assertEqual(self.simulation.turn_counter.value, 2)
+
     def test_get_t_rev_init_returns_a_plain_float(self):
         """
         The initial revolution period is a scalar float, never an array.
@@ -755,8 +770,8 @@ class TestSimulation(unittest.TestCase):
                 callers_relative_path("hist_y_override.txt", stacklevel=1),
             )
             wakefield = sim.simulation.ring.elements.get_element(WakeField)
-            wakefield.profile._hist_y = backend.array(
-                hist_y_override, dtype=wakefield.profile._hist_y.dtype
+            wakefield.profile.hist_y[:] = backend.array(
+                hist_y_override, dtype=wakefield.profile.hist_y.dtype
             )
             wakefield.profile.hist_y_to_density_factor = 1e-05
             sim.simulation.intensity_effect_manager.set_profiles(False)

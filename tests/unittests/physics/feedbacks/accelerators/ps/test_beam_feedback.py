@@ -17,6 +17,7 @@ from blond.core.backends.backend import Numpy64Bit
 from blond.physics.feedbacks.accelerators.ps import (
     PSBeamControl,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 circumference = 2 * np.pi * 100.0  # [m]
 intensity = 1.6e11
@@ -37,7 +38,7 @@ PL_gain = 0.01924
 RL_gain = 155.05
 
 
-class TestPSBeamFeedback(unittest.TestCase):
+class TestPSBeamFeedback(BLonDTestCase):
     def create_scenario(
         self,
         pl_gain,
@@ -54,8 +55,6 @@ class TestPSBeamFeedback(unittest.TestCase):
         energy = np.sqrt(momentum**2 + proton.mass**2)
         rel_gamma = energy / proton.mass
         rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
-
-        bl_transition = [rel_gamma < gamma_t] * n_turns
 
         if rel_gamma > gamma_t:
             phase = 0
@@ -93,7 +92,6 @@ class TestPSBeamFeedback(unittest.TestCase):
             profile=self.profile,
             pl_gain=pl_gain / t_rev,
             rl_gain=rl_gain / t_rev / bending_radius,
-            below_transition=np.array(bl_transition, dtype=bool),
             sample_de=50,
             gd_pl=5.704,
             gi_pl=1 - 8.66e-5,
