@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping
     from types import ModuleType
 
     from numpy.random import Generator as NumpyGenerator
@@ -38,18 +37,13 @@ MPI_LAUNCHER_ENV_KEYS = (
 )
 
 
-def mpi_launched(environ: Mapping[str, str] | None = None) -> bool:
+def mpi_launched() -> bool:
     """
     Whether this process was started by an MPI launcher (e.g. `mpirun`).
 
     BLonD only initialises MPI in that case. Importing `mpi4py.MPI` calls
     `MPI_Init`, which would otherwise slow down every `import blond` and
     set up the MPI runtime (e.g. UCX) in processes that never use MPI.
-
-    Parameters
-    ----------
-    environ
-        Environment to inspect. Defaults to `os.environ`.
 
     Returns
     -------
@@ -62,9 +56,7 @@ def mpi_launched(environ: Mapping[str, str] | None = None) -> bool:
     ValueError
         If `BLOND_USE_MPI` is set to anything but ``True`` or ``False``.
     """
-    if environ is None:
-        environ = os.environ
-    override = environ.get("BLOND_USE_MPI")
+    override = os.environ.get("BLOND_USE_MPI")
     if override is not None:
         if override not in ("True", "False"):
             raise ValueError(
@@ -72,7 +64,7 @@ def mpi_launched(environ: Mapping[str, str] | None = None) -> bool:
                 f" or False, not {override}"
             )
         return override == "True"
-    return any(key in environ for key in MPI_LAUNCHER_ENV_KEYS)
+    return any(key in os.environ for key in MPI_LAUNCHER_ENV_KEYS)
 
 
 def _import_mpi() -> ModuleType | None:
@@ -85,13 +77,12 @@ def _import_mpi() -> ModuleType | None:
         The `mpi4py.MPI` module, or None when not launched by MPI or
         `mpi4py` cannot be imported.
     """
-    if not mpi_launched():
-        return None
-    try:
-        from mpi4py import MPI as mpi_module
-    except Exception as exc:
-        warnings.warn(str(exc), ImportWarning, stacklevel=1)
-        return None
+    mpi_module = None
+    if mpi_launched():
+        try:
+            from mpi4py import MPI as mpi_module
+        except Exception as exc:
+            warnings.warn(str(exc), ImportWarning, stacklevel=1)
     return mpi_module
 
 

@@ -178,34 +178,35 @@ _LAUNCHER_ENV_KEYS = (
 class TestMpiLaunched(BLonDTestCase):
     """`mpi_launched` decides whether MPI is initialised at all."""
 
-    def test_plain_python_is_not_launched(self):
+    def _mpi_launched(self, environ):
+        """Call `mpi_launched` with `environ` as the whole environment.
+
+        `clear=True` matters: under `mpirun` the real environment already
+        holds launcher variables.
+        """
         from blond.core.backends.mpi_distributed.helpers import mpi_launched
 
-        self.assertIs(mpi_launched(environ={}), False)
+        with patch.dict(os.environ, environ, clear=True):
+            return mpi_launched()
+
+    def test_plain_python_is_not_launched(self):
+        self.assertIs(self._mpi_launched({}), False)
 
     def test_launcher_variables_are_detected(self):
-        from blond.core.backends.mpi_distributed.helpers import mpi_launched
-
         for key in _LAUNCHER_ENV_KEYS:
             with self.subTest(key=key):
-                self.assertIs(mpi_launched(environ={key: "0"}), True)
+                self.assertIs(self._mpi_launched({key: "0"}), True)
 
     def test_override_forces_mpi_on(self):
-        from blond.core.backends.mpi_distributed.helpers import mpi_launched
-
-        self.assertIs(mpi_launched(environ={"BLOND_USE_MPI": "True"}), True)
+        self.assertIs(self._mpi_launched({"BLOND_USE_MPI": "True"}), True)
 
     def test_override_forces_mpi_off_under_launcher(self):
-        from blond.core.backends.mpi_distributed.helpers import mpi_launched
-
         environ = {"BLOND_USE_MPI": "False", "OMPI_COMM_WORLD_SIZE": "2"}
-        self.assertIs(mpi_launched(environ=environ), False)
+        self.assertIs(self._mpi_launched(environ), False)
 
     def test_invalid_override_raises(self):
-        from blond.core.backends.mpi_distributed.helpers import mpi_launched
-
         with self.assertRaises(ValueError):
-            mpi_launched(environ={"BLOND_USE_MPI": "yes"})
+            self._mpi_launched({"BLOND_USE_MPI": "yes"})
 
 
 class TestImportDoesNotInitialiseMpi(BLonDTestCase):
