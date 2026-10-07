@@ -97,9 +97,9 @@ class BoxLosses(LossesBaseClass, Schedulable):
     t_max
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
     e_min
-        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
+        Macro-particles with ``dE < e_min`` will be labeled/removed, in [eV].
     e_max
-        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
+        Macro-particles with ``dE > e_max`` will be labeled/removed, in [eV].
 
     Attributes
     ----------
@@ -108,9 +108,9 @@ class BoxLosses(LossesBaseClass, Schedulable):
     t_max
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
     e_min
-        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
+        Macro-particles with ``dE < e_min`` will be labeled/removed, in [eV].
     e_max
-        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
+        Macro-particles with ``dE > e_max`` will be labeled/removed, in [eV].
     """
 
     def __init__(

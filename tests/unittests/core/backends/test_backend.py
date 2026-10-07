@@ -3752,6 +3752,37 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_phase_space_sums_is_reproducible(self) -> None:
+        """Repeated calls on the same beam give bit-identical sums.
+
+        The emittance is a difference of large sums (mean / sigma ~ 70
+        for a bunch), so a reduction that combines its partial sums in a
+        varying order turns rounding noise into ~1e-12 of run-to-run
+        jitter in the emittance.
+        """
+        dtype = np.float64
+        rng = np.random.default_rng(2026)
+        dt = rng.normal(2.0e-9, 3.0e-11, 200_000).astype(dtype)
+        dE = (
+            1.0e16 * (dt - 2.0e-9) + rng.normal(1.0e5, 2.0e6, 200_000)
+        ).astype(dtype)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt_backend = backend.array(dt)
+            dE_backend = backend.array(dE)
+            first = backend.specials.phase_space_sums(dt_backend, dE_backend)
+            for _ in range(200):
+                self.assertEqual(
+                    backend.specials.phase_space_sums(dt_backend, dE_backend),
+                    first,
+                    msg=f"{special=}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_phase_space_sums_zero_macroparticles(self) -> None:
         """An empty beam sums to exactly zero on every backend."""
         dtype = np.float64

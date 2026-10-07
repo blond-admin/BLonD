@@ -159,6 +159,70 @@ extern "C" __global__ void beam_phase(const real_t *__restrict__ hist_x,
   }
 }
 
+// Number of sums `phase_space_sums` accumulates; must match
+// `_N_PHASE_SPACE_SUMS` in callables.py.
+#define N_PHASE_SPACE_SUMS 5
+
+// The five phase-space sums of a beam in ONE pass over dt and dE:
+// {sum(dt), sum(dE), sum(dt^2), sum(dE^2), sum(dt * dE)}, as
+// `phase_space_sums` in cpp/blondmath_new.cpp. Each thread strides over
+// the particles like the other per-particle kernels, each block reduces
+// its threads in shared memory (N_PHASE_SPACE_SUMS * blockDim.x reals)
+// and writes its partial sums to block_sums[blockIdx.x][0..4]; the caller
+// adds the blocks. No atomics, so the result does not depend on the
+// order in which the blocks finish.
+extern "C" __global__ void phase_space_sums(const real_t *__restrict__ beam_dt,
+                                            const real_t *__restrict__ beam_dE,
+                                            real_t *__restrict__ block_sums,
+                                            const index_t n_macroparticles) {
+  extern __shared__ real_t shared[];
+
+  real_t dt_sum = 0.0;
+  real_t dE_sum = 0.0;
+  real_t dt_dt_sum = 0.0;
+  real_t dE_dE_sum = 0.0;
+  real_t dt_dE_sum = 0.0;
+
+  index_t const tid = threadIdx.x + (index_t)blockDim.x * blockIdx.x;
+  index_t const stride = (index_t)blockDim.x * gridDim.x;
+  for (index_t i = tid; i < n_macroparticles; i += stride) {
+    real_t const dt_i = beam_dt[i];
+    real_t const dE_i = beam_dE[i];
+    dt_sum += dt_i;
+    dE_sum += dE_i;
+    dt_dt_sum += dt_i * dt_i;
+    dE_dE_sum += dE_i * dE_i;
+    dt_dE_sum += dt_i * dE_i;
+  }
+
+  shared[0 * blockDim.x + threadIdx.x] = dt_sum;
+  shared[1 * blockDim.x + threadIdx.x] = dE_sum;
+  shared[2 * blockDim.x + threadIdx.x] = dt_dt_sum;
+  shared[3 * blockDim.x + threadIdx.x] = dE_dE_sum;
+  shared[4 * blockDim.x + threadIdx.x] = dt_dE_sum;
+  __syncthreads();
+
+  // Halving from the next power of two, as in `beam_phase`, so a
+  // `GPU_THREADS` that is not a power of two keeps every slot.
+  int reduction_width = 1;
+  while (reduction_width < blockDim.x)
+    reduction_width <<= 1;
+  for (int s = reduction_width / 2; s > 0; s >>= 1) {
+    if (threadIdx.x < s && threadIdx.x + s < blockDim.x) {
+      for (int k = 0; k < N_PHASE_SPACE_SUMS; ++k)
+        shared[k * blockDim.x + threadIdx.x] +=
+            shared[k * blockDim.x + threadIdx.x + s];
+    }
+    __syncthreads();
+  }
+
+  if (threadIdx.x == 0) {
+    for (int k = 0; k < N_PHASE_SPACE_SUMS; ++k)
+      block_sums[(index_t)blockIdx.x * N_PHASE_SPACE_SUMS + k] =
+          shared[k * blockDim.x];
+  }
+}
+
 // floor(x) as an `int`, in one saturating instruction (cvt.rmi): an
 // out-of-range result clamps to INT_MIN/INT_MAX instead of being
 // undefined behaviour, so callers range-check the integer afterwards.

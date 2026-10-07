@@ -65,6 +65,7 @@ _drift_simple = gpu_module.get_function("drift_simple")
 _drift_like_line_segment = gpu_module.get_function("drift_like_line_segment")
 _drift_exact = gpu_module.get_function("drift_exact")
 _beam_phase = gpu_module.get_function("beam_phase")
+_phase_space_sums = gpu_module.get_function("phase_space_sums")
 _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
 _kick_single_harmonic = gpu_module.get_function("kick_single_harmonic")
 _sm_histogram = gpu_module.get_function("sm_histogram")
@@ -111,6 +112,17 @@ _HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
 # 64 bit; 32 keeps the struct small (768 B) while still covering any
 # realistic RF system in a single launch.
 MAX_RF_HARMONICS_PER_LAUNCH = 32
+# Sums per block of `phase_space_sums`; must match `N_PHASE_SPACE_SUMS` in
+# kernels.cu.
+_N_PHASE_SPACE_SUMS = 5
+# Its block reduces `_N_PHASE_SPACE_SUMS` reals per thread in shared
+# memory (40 KiB at 1024 double threads), so it caps its own block size to
+# what fits.
+_phase_space_sums_threads = min(
+    threads,
+    max_shared_memory_per_block
+    // (_N_PHASE_SPACE_SUMS * np.dtype(FLOAT).itemsize),
+)
 _RF_PARAMS_BATCH_DTYPE = np.dtype(
     [
         ("voltage", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
@@ -275,6 +287,37 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         """Return the sum of dot product of two 1d arrays."""
         return cp.dot(array_1, array_2)
+
+    @staticmethod
+    def phase_space_sums(  # NOQA: D102
+        dt: CupyArray, dE: CupyArray
+    ) -> tuple[float, float, float, float, float]:
+        assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
+        assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
+        assert dt.dtype == FLOAT
+        assert dE.dtype == FLOAT
+        assert dt.flags.c_contiguous
+        assert dE.flags.c_contiguous
+        assert len(dt) == len(dE)
+
+        # One pass of the kernel leaves one row of partial sums per block;
+        # adding the rows on the device leaves five numbers to copy back,
+        # the one transfer a statistic read on the host needs anyway.
+        block_sums = cp.zeros((blocks, _N_PHASE_SPACE_SUMS), dtype=FLOAT)
+        _phase_space_sums(
+            args=(
+                dt,  # beam_dt
+                dE,  # beam_dE
+                block_sums,  # block_sums
+                INDEX_DTYPE(len(dt)),  # n_macroparticles
+            ),
+            block=(_phase_space_sums_threads, 1, 1),
+            grid=grid_size,
+            shared_mem=_N_PHASE_SPACE_SUMS
+            * _phase_space_sums_threads
+            * np.dtype(FLOAT).itemsize,
+        )
+        return tuple(float(value) for value in block_sums.sum(axis=0).get())
 
     @staticmethod
     def drift_simple(  # NOQA: D102
