@@ -712,7 +712,8 @@ class Simulation(Preparable):
 
     @staticmethod
     def from_locals(
-        locals: dict[str, Any], verbose: bool = False
+        locals: dict[str, Any],  # noqa: A002 (public keyword)
+        verbose: bool = False,
     ) -> Simulation:
         """
         Automatically create a Simulation by discovering components in the current scope.
