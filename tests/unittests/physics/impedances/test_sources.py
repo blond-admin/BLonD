@@ -425,6 +425,23 @@ class TestResonators(BLonDTestCase):
                 quality_factors=np.array([0.49]),
             )
 
+    def test___init__small_Q_raises_before_computing_nan(self):
+        import warnings
+
+        with (
+            warnings.catch_warnings(record=True) as caught,
+            self.assertRaises(RuntimeError),
+        ):
+            warnings.simplefilter("always")
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.49]),
+            )
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
+
     def test___init__float_values(self):
         with self.assertRaises(RuntimeError):
             self.resonators = Resonators(

@@ -378,16 +378,17 @@ class Resonators(
                     "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
                 )
 
-        # secondary quantities for wake calculation
-        self._omega = 2 * np.pi * self._center_frequencies
-        self._alpha = self._omega / (2 * self._quality_factors)
-        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
-
         # Test if one or more quality factors is smaller than 0.5.
         if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
                 "All quality factors Q must be greater or equal 0.5"
             )
+
+        # secondary quantities for wake calculation
+        self._omega = 2 * np.pi * self._center_frequencies
+        self._alpha = self._omega / (2 * self._quality_factors)
+        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
+
         if backend.sum(self._center_frequencies < 0) > 0:
             raise RuntimeError(
                 "All center frequencies must be greater or equal 0"
