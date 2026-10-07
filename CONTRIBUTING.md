@@ -259,6 +259,12 @@ export BLOND_FORCE_TEST_ALL_BACKENDS=True
 python3 -m pytest -v tests/unittests/
 ```
 
+All `BLOND_*` environment variables that BLonD reads are listed with a short
+description in `pyproject.toml` under `[tool.blond] env-vars`. When you add,
+rename or remove one, update that list: the `check-env-vars` pre-commit hook
+fails if a variable used in `blond/` is missing there, or a listed one is no
+longer used.
+
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
