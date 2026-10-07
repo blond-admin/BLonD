@@ -79,6 +79,7 @@ def _compile_probe_to_asm(macro, extra_flags=()):
                 "-ftree-vectorize",
                 "-Werror=attributes",
                 "-D_USE_MATH_DEFINES",
+                # This is necessary under windows to have PI defined
                 *extra_flags,
                 "-I",
                 _CPP_DIR,
