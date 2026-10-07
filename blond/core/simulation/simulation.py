@@ -139,6 +139,9 @@ class Simulation(Preparable):
     >>> sim = Simulation.from_locals(locals())
     """
 
+    # Deprecated alias; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["turn_i"]
+
     def __init__(
         self,
         ring: Ring,
@@ -172,7 +175,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         return self.turn_counter
 
@@ -181,7 +184,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         self.turn_counter = value
 
