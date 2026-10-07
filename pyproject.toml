@@ -128,6 +128,7 @@ select = [
   "NPY", # numpy-specific rules
   "PL",  # pylint rules
   "G",   # flake8-logging-format (no eager f-string log messages)
+  "A",   # flake8-builtins (no shadowing of Python builtins)
 ]
 
 ignore = [
@@ -146,6 +147,7 @@ convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"
+strict_markers = true
 testpaths = ["tests/unittests", "tests/integration"]
 markers = [
   "mpi: Tests that require MPI.",
