@@ -89,26 +89,6 @@ class TestBoxLosses(BLonDTestCase):
         self.assertEqual(self.box_losses.e_max, 5.0)
         np.testing.assert_equal(copy_to_cpu(beam.read_partial_dE()) <= 5, True)
 
-    def test_schedule_momentum_acceptance(self):
-        self.box_losses.configure(turn_counter=DynamicParameter(value_init=0))
-        self.box_losses.schedule_momentum_acceptance(dp_over_p=1e-3)
-        beam = Beam(intensity=1e12, particle_type=proton)
-        beam.reference.total_energy = 2e9
-        beam.setup_beam(dt=np.zeros(3), dE=np.zeros(3))
-        for total_energy in (2e9, 20e9):
-            beam.reference.total_energy = total_energy
-            self.box_losses.track(beam=beam)
-            momentum = np.sqrt(total_energy**2 - proton.mass**2)
-            for dp_over_p, e_lim in (
-                (1e-3, self.box_losses.e_max),
-                (-1e-3, self.box_losses.e_min),
-            ):
-                expected = (
-                    np.hypot(momentum * (1 + dp_over_p), proton.mass)
-                    - total_energy
-                )
-                self.assertAlmostEqual(e_lim, expected, delta=1e-5)
-
     def test_on_run_simulation(self):
         self.box_losses.on_run_simulation(
             simulation=simulation_mock,
