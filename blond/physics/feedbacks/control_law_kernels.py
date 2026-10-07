@@ -167,7 +167,7 @@ def klystron_cell(previous_output, command, delta_t, time_constant):
     )
 
 
-#: Integer code of the directional anti-windup: its index in
+#: Integer code of the directional anti-windup, its index in
 #: :data:`~blond.physics.feedbacks.generator_current_controller.ANTI_WINDUP_SCHEMES`.
 DIRECTIONAL_ANTI_WINDUP = 1
 

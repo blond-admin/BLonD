@@ -228,7 +228,7 @@ class StationPhaseLoopRecord:
     corrections: list[float] = field(default_factory=list)
     """RF phase offset in force at each passage's kick [rad]."""
     integrals: list[float] = field(default_factory=list)
-    """Integral term after each passage [rad]: the running sum, in the order
+    """Integral term after each passage [rad], the running sum, in the order
     the passages were measured, of each error times the integral gain in
     force at its cell. A record shared by several loops sums over all of
     them, which pools their integral."""

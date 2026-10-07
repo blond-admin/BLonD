@@ -40,29 +40,20 @@ class PhaseSpaceMoments(NamedTuple):
     so :func:`phase_space_moments` computes them once and every statistic
     reads them from here -- no statistic needs its own pass over the
     particles.
-
-    Attributes
-    ----------
-    n_macroparticles
-        Number of macro-particles summed over (all processes).
-    dt_sum
-        Sum of ``dt`` [s].
-    dE_sum
-        Sum of ``dE`` [eV].
-    dt_dt_sum
-        Sum of ``dt**2`` [s^2].
-    dE_dE_sum
-        Sum of ``dE**2`` [eV^2].
-    dt_dE_sum
-        Sum of ``dt * dE`` [s eV].
     """
 
     n_macroparticles: int
+    """Number of macro-particles summed over (all processes)."""
     dt_sum: float
+    """Sum of ``dt`` [s]."""
     dE_sum: float
+    """Sum of ``dE`` [eV]."""
     dt_dt_sum: float
+    """Sum of ``dt**2`` [s^2]."""
     dE_dE_sum: float
+    """Sum of ``dE**2`` [eV^2]."""
     dt_dE_sum: float
+    """Sum of ``dt * dE`` [s eV]."""
 
     @property
     def mean_dt(self) -> float:
@@ -72,7 +63,7 @@ class PhaseSpaceMoments(NamedTuple):
         Returns
         -------
         mean_dt
-            ``dt_sum / n``, as :meth:`DistributedArray.mean` forms it.
+            ``dt_sum / n``, as :meth:`~.DistributedArray.mean` forms it.
         """
         return self.dt_sum / self.n_macroparticles
 
@@ -84,7 +75,7 @@ class PhaseSpaceMoments(NamedTuple):
         Returns
         -------
         mean_dE
-            ``dE_sum / n``, as :meth:`DistributedArray.mean` forms it.
+            ``dE_sum / n``, as :meth:`~.DistributedArray.mean` forms it.
         """
         return self.dE_sum / self.n_macroparticles
 
@@ -96,7 +87,7 @@ class PhaseSpaceMoments(NamedTuple):
         Returns
         -------
         sigma_dt
-            ``sqrt(<dt^2> - <dt>^2)``, as :meth:`DistributedArray.std`
+            ``sqrt(<dt^2> - <dt>^2)``, as :meth:`~.DistributedArray.std`
             forms it.
         """
         mean_dt = self.mean_dt
@@ -110,7 +101,7 @@ class PhaseSpaceMoments(NamedTuple):
         Returns
         -------
         sigma_dE
-            ``sqrt(<dE^2> - <dE>^2)``, as :meth:`DistributedArray.std`
+            ``sqrt(<dE^2> - <dE>^2)``, as :meth:`~.DistributedArray.std`
             forms it.
         """
         mean_dE = self.mean_dE

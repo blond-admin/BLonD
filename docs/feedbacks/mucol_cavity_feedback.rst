@@ -1215,7 +1215,7 @@ Multi-harmonic stations
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 The feedback is not restricted to the main harmonic: it can be attached
-to a :class:`~blond.physics.cavities.MultiHarmonicRFStation`, and the
+to a :class:`~blond.physics.rf_station.MultiHarmonicRFStation`, and the
 constructor argument ``harmonic_index`` (default ``0``) selects which
 harmonic it regulates. Every RF parameter it reads -- ``omega_rf``,
 ``phi_rf``, ``delta_omega_rf``, the harmonic number, the station voltage --
