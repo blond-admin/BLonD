@@ -32,8 +32,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.physics.kick_pooling import (
         PooledInterpolationKick,
     )
-    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import RFStationBaseClass
 
 
 class WakeFieldSolver:

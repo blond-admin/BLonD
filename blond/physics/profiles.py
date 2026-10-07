@@ -575,7 +575,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         factor = self.hist_y_to_density_factor
         if factor is None or factor == 0.0:
             return
-        captured_fraction = float(backend.sum(self._hist_y)) * factor
+        captured_fraction = float(backend.sum(self.hist_y)) * factor
         if np.isclose(captured_fraction, 1.0, rtol=0, atol=1e-6):
             return
         self._beam_capture_warning_emitted = True

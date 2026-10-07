@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.physics.feedbacks.beam_current import low_pass_filter
 from blond.physics.feedbacks.cavity_solvers import (

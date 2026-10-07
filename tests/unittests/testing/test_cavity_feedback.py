@@ -33,7 +33,9 @@ from blond import (
     backend,
     mu_plus,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.testing.cavity_feedback import (
     DiagnosticIQCavityFeedbackCoarseGrid,

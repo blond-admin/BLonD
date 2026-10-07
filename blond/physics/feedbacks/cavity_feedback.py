@@ -24,12 +24,6 @@ from blond.core.base import AltersReference
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.cavities import (
-    MultiHarmonicRFStation,
-    RFStationBaseClass,
-    SingleHarmonicRFStation,
-    _coerce_harmonic_index,
-)
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.feedbacks.beam_current import rf_beam_current
 from blond.physics.feedbacks.cavity_solvers import (
@@ -53,6 +47,12 @@ from blond.physics.feedbacks.rf_center_segment import (
     RFCenterSegment,
 )
 from blond.physics.profiles import StaticProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    RFStationBaseClass,
+    SingleHarmonicRFStation,
+    _coerce_harmonic_index,
+)
 
 #: Relative tolerance to which a coarse-grid segment's centres must be
 #: equally spaced. ``np.arange`` centres deviate by rounding only (~1e-16).
@@ -1383,7 +1383,7 @@ class IQCavityFeedbackCoarseGrid(
         ------
         ValueError
             If the parent RF station is a
-            :class:`~blond.physics.cavities.MultiHarmonicRFStation` and
+            :class:`~blond.physics.rf_station.MultiHarmonicRFStation` and
             this feedback's ``harmonic_index`` disagrees with its slot in
             the parent's ``cavity_feedback_list``; see
             ``_validate_multi_harmonic_slot``.
@@ -2843,7 +2843,7 @@ class IQCavityFeedbackCoarseGrid(
 
         This method is the per-turn call-order declaration of this element
         (the idiom of
-        :meth:`~blond.physics.cavities.SingleHarmonicRFStation._track`): it
+        :meth:`~blond.physics.rf_station.SingleHarmonicRFStation._track`): it
         does no work itself, it only names the phases in order. Where a
         phase depends on a value another phase produced, that value is
         *returned* and *passed*, not left on ``self`` -- so the argument

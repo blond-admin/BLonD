@@ -25,7 +25,7 @@ whole grid, the empty tail of a profile window included: the RF reference
 steps at the sample where a measurement becomes old enough, wherever that
 falls between passages, and the cavity feedback keeps the field in place
 across each step (its per-cell beam step rotations). The station's
-:attr:`~blond.physics.cavities.RFStationBaseClass.phi_rf_loop` is the
+:attr:`~blond.physics.rf_station.RFStationBaseClass.phi_rf_loop` is the
 offset in force at the bunch's own cell, which its kick, readout and
 demodulation run in. A measurement cannot reach its own kick: the field
 has no time to move. Nothing old enough writes ``0``.
@@ -69,9 +69,9 @@ import numpy as np
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NumpyArray
 
-    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackBase
     from blond.physics.feedbacks.feedforward_table import FeedforwardTable
+    from blond.physics.rf_station import RFStationBaseClass
 
 
 def wrap_phase(phase: float) -> float:

@@ -28,8 +28,10 @@ from blond import (
     StaticProfile,
     mu_plus,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.feedbacks import cavity_feedback as cavity_feedback_module
 from blond.physics.feedbacks.cavity_feedback import IQCavityFeedbackCoarseGrid
 from blond.physics.feedbacks.generator_regulation import (

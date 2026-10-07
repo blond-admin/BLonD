@@ -94,12 +94,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.base import AltersReference
-from blond.physics.cavities import RFStationBaseClass
 from blond.physics.feedbacks.rf_center_segment import (
     RFCenterSegment,
     accumulated_phases,
     accumulated_phases_at_centers,
 )
+from blond.physics.rf_station import RFStationBaseClass
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray

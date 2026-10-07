@@ -146,7 +146,7 @@ class TestMultipleFeedbackGridWarning(unittest.TestCase):
     @staticmethod
     def _warnings_for(second_profile, first_profile):
         """Warnings raised by repeated lookups on a two-feedback station."""
-        from blond.physics.cavities import MultiHarmonicRFStation
+        from blond.physics.rf_station import MultiHarmonicRFStation
 
         station = Mock()
         station.section_index = 0
@@ -178,7 +178,7 @@ class TestMultipleFeedbackGridWarning(unittest.TestCase):
 
     def test_single_feedback_is_silent(self):
         """One feedback cannot disagree with itself."""
-        from blond.physics.cavities import MultiHarmonicRFStation
+        from blond.physics.rf_station import MultiHarmonicRFStation
 
         _, _, profile = _tracked()
         station = Mock()

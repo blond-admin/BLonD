@@ -30,9 +30,6 @@ from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
-from blond.physics.cavities import (
-    SingleHarmonicRFStation,
-)
 from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackBase,

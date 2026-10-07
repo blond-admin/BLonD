@@ -236,7 +236,7 @@ class TestRFStationBaseClass(BLonDTestCase):
 
     def test_on_run_simulation_detects_cavity_feedback_in_ring(self):
         """The guard arms off the ring's cavity feedbacks, not the count."""
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         plain = SingleHarmonicRFStation(
             section_index=1,
@@ -269,7 +269,7 @@ class TestRFStationBaseClass(BLonDTestCase):
         self.assertTrue(plain._cavity_feedback_in_ring)
 
     def test_on_run_simulation_counts_rf_stations_in_ring(self):
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         shc = SingleHarmonicRFStation(
             section_index=1,
@@ -292,10 +292,10 @@ class TestRFStationBaseClass(BLonDTestCase):
         )
 
     def test_beam_feedback_presence_detection(self):
-        from blond.physics.cavities import RFStationBaseClass
         from blond.physics.feedbacks.beam_feedback import (
             BeamFeedbackBase,
         )
+        from blond.physics.rf_station import RFStationBaseClass
 
         shc = SingleHarmonicRFStation(
             section_index=1,

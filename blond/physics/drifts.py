@@ -735,7 +735,7 @@ class DriftSubstepped(DriftSimple):
     Because this element moves the reference energy itself, the RF station
     downstream sees a reference move of zero. The design gain the RF still owes
     is handed on via ``reference.pending_rf_energy_gain`` and read back as
-    :attr:`~blond.physics.cavities.RFStationBaseClass.design_energy_gain`, so
+    :attr:`~blond.physics.rf_station.RFStationBaseClass.design_energy_gain`, so
     ``phi_s``, the synchrotron tune and the symbolic Hamiltonian keep describing
     an accelerating machine. Only the *kick* uses the reference move directly.
 

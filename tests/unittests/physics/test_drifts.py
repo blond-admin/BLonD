@@ -979,7 +979,7 @@ class TestDriftSubstepped(unittest.TestCase):
 
     def _station(self, voltage=50e6):
         """Headless single-harmonic station on the same ramping cycle."""
-        from blond.physics.cavities import SingleHarmonicRFStation
+        from blond.physics.rf_station import SingleHarmonicRFStation
 
         station = SingleHarmonicRFStation.headless(
             section_index=0,
@@ -1283,7 +1283,7 @@ class TestDriftSubstepped(unittest.TestCase):
         design gain before any real station could report it.
         """
         from blond.core.beam.beams import ProbeBeam
-        from blond.physics.cavities import RFManipulationBaseClass
+        from blond.physics.rf_station import RFManipulationBaseClass
 
         turn_counter = SimpleNamespace(value=0)
         drift, manipulation = self._ramping_pair(turn_counter)

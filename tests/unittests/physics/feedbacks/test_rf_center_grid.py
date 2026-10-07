@@ -29,8 +29,9 @@ from blond import (
     mu_minus,
     mu_plus,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.physics.cavities import RFStationBaseClass
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackCoarseGrid,
     RFCenterSegment,
@@ -39,6 +40,7 @@ from blond.physics.feedbacks.rf_center_grid import RFCenterGridMixin
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
+from blond.physics.rf_station import RFStationBaseClass
 from blond.testing.cavity_feedback import (
     DiagnosticIQCavityFeedbackCoarseGrid,
 )
