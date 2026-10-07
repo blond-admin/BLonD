@@ -2405,7 +2405,16 @@ per-passage jump falls from 41-47 deg (max 128) to 12-14 deg per sample
 against no pole (directional margin 2; conditional and margin 8 alike):
 10 / 5 / 2 / 1 / 0.5 / 0.25 / 0.1 MHz -> +0.3 / +0.6 / +1.4 / +2.8 /
 +5.6 / +13 / +39 % -- it starts to matter once tau is a sizeable part of
-the 1 us loop delay. Near the stability boundary (RCS1 unclamped,
+the 1 us loop delay. With RCS1's phase-loop gain tables (the chain's
+tracked table, the integrator study's and the per-station study's
+optima, +-2 deg launches) nothing changes: the station loop's own
+reference steps are <= 0.9 deg a passage (chain table) to 2.6 deg
+(integral tables) against the beam's 46 deg drive jumps, they add <= 8 %
+more drive steps faster than a 5 MHz klystron slews, and 5 MHz moves the
+centroid <= 0.007 deg per turn, the loop's correction <= 0.003 deg and
+the dipole <= 1.4 %; the rough integral tables are the most sensitive to
+a slower klystron (+32-38 % at 0.25 MHz from -2 deg, +17 % without a
+loop). Near the stability boundary (RCS1 unclamped,
 `llrf="idealised"`): margin 1.02 stays bounded without the pole and runs
 away with 5 MHz (277 % error in the last turn), 1.04 stays bounded --
 the 2-4 % of gain margin that 32 ns of extra delay predicts
