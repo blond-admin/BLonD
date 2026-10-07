@@ -267,7 +267,7 @@ mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 
 BLonD only initialises MPI when it detects an MPI launcher (Open MPI,
 PMIx, PMI/PMI2 or MVAPICH environment variables). If your launcher is not
-detected, set `BLOND_USE_MPI=True`; `BLOND_USE_MPI=False` disables MPI.
+detected, set `BLOND_LOAD_MPI=True`; `BLOND_LOAD_MPI=False` disables MPI.
 
 ---
 

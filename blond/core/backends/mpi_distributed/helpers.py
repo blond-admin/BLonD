@@ -49,26 +49,28 @@ def mpi_launched() -> bool:
     -------
     launched
         True if an MPI launcher variable is set, unless overridden by the
-        `BLOND_USE_MPI` environment variable (``True`` or ``False``).
+        `BLOND_LOAD_MPI` environment variable (``True`` or ``False``).
 
     Raises
     ------
     ValueError
-        If `BLOND_USE_MPI` is set to anything but ``True`` or ``False``.
+        If `BLOND_LOAD_MPI` is set to anything but ``True`` or ``False``.
     """
-    # Normally `BLOND_USE_MPI` is unset and the launcher variables decide.
+    # Normally `BLOND_LOAD_MPI` is unset and the launcher variables decide.
     # It is an escape hatch: `True` for a launcher whose variables are not
     # in `MPI_LAUNCHER_ENV_KEYS` (otherwise every rank would silently run
     # as its own serial simulation), `False` to stay serial under one.
-    override = os.environ.get("BLOND_USE_MPI")
-    if override is not None:
-        if override not in ("True", "False"):
-            raise ValueError(
-                "BLOND_USE_MPI environment variable must be either True"
-                f" or False, not {override}"
-            )
-        return override == "True"
-    return any(key in os.environ for key in MPI_LAUNCHER_ENV_KEYS)
+    override = os.environ.get("BLOND_LOAD_MPI")
+    if override is None:
+        launched = any(key in os.environ for key in MPI_LAUNCHER_ENV_KEYS)
+    elif override in ("True", "False"):
+        launched = override == "True"
+    else:
+        raise ValueError(
+            "BLOND_LOAD_MPI environment variable must be either True"
+            f" or False, not {override}"
+        )
+    return launched
 
 
 def _import_mpi() -> ModuleType | None:

@@ -198,15 +198,15 @@ class TestMpiLaunched(BLonDTestCase):
                 self.assertIs(self._mpi_launched({key: "0"}), True)
 
     def test_override_forces_mpi_on(self):
-        self.assertIs(self._mpi_launched({"BLOND_USE_MPI": "True"}), True)
+        self.assertIs(self._mpi_launched({"BLOND_LOAD_MPI": "True"}), True)
 
     def test_override_forces_mpi_off_under_launcher(self):
-        environ = {"BLOND_USE_MPI": "False", "OMPI_COMM_WORLD_SIZE": "2"}
+        environ = {"BLOND_LOAD_MPI": "False", "OMPI_COMM_WORLD_SIZE": "2"}
         self.assertIs(self._mpi_launched(environ), False)
 
     def test_invalid_override_raises(self):
         with self.assertRaises(ValueError):
-            self._mpi_launched({"BLOND_USE_MPI": "yes"})
+            self._mpi_launched({"BLOND_LOAD_MPI": "yes"})
 
 
 class TestImportDoesNotInitialiseMpi(BLonDTestCase):
@@ -218,7 +218,7 @@ class TestImportDoesNotInitialiseMpi(BLonDTestCase):
 
     def test_import_blond_does_not_import_mpi4py_mpi(self):
         env = os.environ.copy()
-        for key in (*_LAUNCHER_ENV_KEYS, "BLOND_USE_MPI", "PYCHARM_HOSTED"):
+        for key in (*_LAUNCHER_ENV_KEYS, "BLOND_LOAD_MPI", "PYCHARM_HOSTED"):
             env.pop(key, None)
         result = subprocess.run(
             [
@@ -247,7 +247,7 @@ class TestImportMpiUnderLauncher(BLonDTestCase):
 
     def _import_fresh_helpers(self, mpi4py_module):
         with (
-            patch.dict(os.environ, {"BLOND_USE_MPI": "True"}),
+            patch.dict(os.environ, {"BLOND_LOAD_MPI": "True"}),
             patch.dict(sys.modules, {"mpi4py": mpi4py_module}),
         ):
             sys.modules.pop(self._HELPERS, None)
