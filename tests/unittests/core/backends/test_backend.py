@@ -1,3 +1,4 @@
+import contextlib
 import ctypes as ct
 import os
 import subprocess
@@ -3519,6 +3520,20 @@ class TestSpecials(BLonDTestCase):
             update_on_bin_np=np.array([], dtype=np.int32),
         )
 
+    @contextlib.contextmanager
+    def _expect_precision_warning(self, in_dtype):
+        """Assert a `PrecisionWarning` for complex -> float casts only."""
+        if not np.issubdtype(in_dtype, np.complexfloating):
+            yield
+            return
+        # The cast also emits NumPy's ComplexWarning; record both.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            yield
+        self.assertTrue(
+            any(issubclass(w.category, PrecisionWarning) for w in caught)
+        )
+
     @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):
@@ -3537,7 +3552,10 @@ class TestSpecials(BLonDTestCase):
             np.complex64,
             np.complex128,
         ):
-            cast = backend.cast_arr_float_if_needed(target.astype(in_dtype))
+            with self._expect_precision_warning(in_dtype):
+                cast = backend.cast_arr_float_if_needed(
+                    target.astype(in_dtype)
+                )
             self.assertTrue(cast.dtype == backend.float)
             self.assertIsInstance(cast, backend.ndarray)
             np.testing.assert_array_equal(cast, target)
@@ -3577,7 +3595,8 @@ class TestSpecials(BLonDTestCase):
             # transferring back and forth between cupy and numpy.
             target = backend.array([1, 2, 3], dtype=backend.float)
             to_cast = target.astype(in_dtype)
-            cast = backend.cast_arr_float_if_needed(to_cast)
+            with self._expect_precision_warning(in_dtype):
+                cast = backend.cast_arr_float_if_needed(to_cast)
             self.assertTrue(cast.dtype == backend.float)
             self.assertIsInstance(cast, backend.ndarray)
 
@@ -3608,7 +3627,11 @@ class TestSpecials(BLonDTestCase):
             np.complex64,
             np.complex128,
         ):
-            cast = backend.cast_arr_complex_if_needed(target.astype(in_dtype))
+            # Discard the (zero) imaginary part explicitly, as the cupy
+            # variant of this test does, instead of a lossy astype.
+            cast = backend.cast_arr_complex_if_needed(
+                target.real.astype(in_dtype)
+            )
             self.assertTrue(cast.dtype == backend.complex)
             self.assertIsInstance(cast, backend.ndarray)
             np.testing.assert_array_equal(cast, target)
@@ -4568,10 +4591,16 @@ class TestSpecials(BLonDTestCase):
     @multi_backend_testcase
     @pytest.mark.backend_mutation
     def test_cast_exceptions(self):
-        with self.assertRaises(ArrayCastingError):
+        with (
+            self.assertRaises(ArrayCastingError),
+            self.assertWarns(PrecisionWarning),
+        ):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
 
-        with self.assertRaises(ArrayCastingError):
+        with (
+            self.assertRaises(ArrayCastingError),
+            self.assertWarns(PrecisionWarning),
+        ):
             backend.cast_arr_float_if_needed({1, 2, 3})
 
         with self.assertRaises(ArrayCastingError):
