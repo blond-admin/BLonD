@@ -146,7 +146,12 @@ def export_marimo_notebooks(notebooks):
 
 # notebook path (relative to docs/) -> hide_code
 export_marimo_notebooks(
-    {"models_new/pole-residue/bin_averaged_wake_derivation.py": True}
+    {
+        "models_new/pole-residue/bin_averaged_wake_derivation.py": True,
+        "models_new/pole-residue/explain_nearfield_farfield_model.py": False,
+        "models_new/pole-residue/"
+        "explain_nearfield_farfield_model_rechenbuch.py": False,
+    }
 )
 
 sys.path.insert(0, os.path.abspath(".."))
