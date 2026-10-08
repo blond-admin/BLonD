@@ -4,7 +4,7 @@ import unittest
 from blond.generals.exceptions_ import NotInitialisedError
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
     ToBeDefined,
     _LateInit,
@@ -16,10 +16,10 @@ from blond.testing.backend_testing import BLonDTestCase
 
 
 class _Owner:
-    energy: InitalisedInternally[float] = InitalisedInternally(
+    energy: InitialisedInternally[float] = InitialisedInternally(
         "`_Owner.setup()`"
     )
-    time: InitalisedInternally[float] = InitalisedInternally(
+    time: InitialisedInternally[float] = InitialisedInternally(
         "`_Owner.setup()`"
     )
     plain = 0.0
@@ -29,11 +29,13 @@ class _Owner:
 
 
 class _Child(_Owner):
-    extra: InitalisedInternally[int] = InitalisedInternally("`_Child.setup()`")
+    extra: InitialisedInternally[int] = InitialisedInternally(
+        "`_Child.setup()`"
+    )
 
 
 class _Mixin:
-    offset: InitalisedInternally[float] = InitalisedInternally(
+    offset: InitialisedInternally[float] = InitialisedInternally(
         "`_Mixin.setup()`"
     )
 
@@ -43,7 +45,7 @@ class _MultiOwner(_Owner, _Mixin):
 
 
 class _Redeclarer(_Owner):
-    energy: InitalisedInternally[float] = InitalisedInternally(
+    energy: InitialisedInternally[float] = InitialisedInternally(
         "`_Redeclarer.setup()`"
     )
 
@@ -53,7 +55,7 @@ class _NoLateInit:
 
 
 class _Categorised:
-    by_framework: InitalisedInternally[float] = InitalisedInternally(
+    by_framework: InitialisedInternally[float] = InitialisedInternally(
         "a setup hook"
     )
     by_tracking: AssignedDuringTracking[float] = AssignedDuringTracking(
@@ -186,7 +188,7 @@ class TestLateInitAttributes(BLonDTestCase):
 class TestLateInitSubclasses(BLonDTestCase):
     def test_each_category_is_a_late_init(self):
         for category in (
-            InitalisedInternally,
+            InitialisedInternally,
             AssignedDuringTracking,
             ToBeDefined,
         ):
@@ -220,7 +222,7 @@ class _Routed:
     by_argument: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT)
     by_schedule: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
     by_update: ToBeDefined[float] = ToBeDefined(SetBy.UPDATE_ATTRIBUTES)
-    by_run: InitalisedInternally[float] = InitalisedInternally(
+    by_run: InitialisedInternally[float] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
 
@@ -341,7 +343,7 @@ class TestUnfilled(BLonDTestCase):
     def test_each_category_selects_its_own(self):
         owner = _Categorised()
         for category, expected in (
-            (InitalisedInternally, ("by_framework",)),
+            (InitialisedInternally, ("by_framework",)),
             (AssignedDuringTracking, ("by_tracking",)),
             (ToBeDefined, ("by_user",)),
         ):
@@ -361,13 +363,13 @@ class TestUnfilled(BLonDTestCase):
 
     def test_resolves_a_category_declared_on_a_base_class(self):
         self.assertEqual(
-            unfilled(_Child(), InitalisedInternally),
+            unfilled(_Child(), InitialisedInternally),
             late_init_attributes(_Child),
         )
 
     def test_keeps_declaration_order(self):
         self.assertEqual(
-            unfilled(_Owner(), InitalisedInternally), ("energy", "time")
+            unfilled(_Owner(), InitialisedInternally), ("energy", "time")
         )
 
 

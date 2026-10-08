@@ -25,7 +25,7 @@ from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
     check_filled,
 )
@@ -89,7 +89,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
     # Set as a whole by `_set_window`, see `ProfileGeometry`.  A
     # `StaticProfile` fills it in `__init__`; a `DynamicProfile`
     # only once the beam is known.
-    _geometry: InitalisedInternally[ProfileGeometry] = InitalisedInternally(
+    _geometry: InitialisedInternally[ProfileGeometry] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
 

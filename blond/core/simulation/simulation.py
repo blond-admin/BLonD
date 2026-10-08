@@ -46,7 +46,7 @@ from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
-from blond.generals.late_init import InitalisedInternally, SetBy
+from blond.generals.late_init import InitialisedInternally, SetBy
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
@@ -144,8 +144,8 @@ class Simulation(Preparable):
     >>> sim = Simulation.from_locals(locals())
     """
 
-    execution_model: InitalisedInternally[ExecutionModel] = (
-        InitalisedInternally(SetBy.RUN_SIMULATION)
+    execution_model: InitialisedInternally[ExecutionModel] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
     )
 
     def __init__(

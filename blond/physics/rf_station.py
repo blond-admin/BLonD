@@ -42,7 +42,7 @@ from blond.experimental.physics.kick_pooling import (
 )
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
     ToBeDefined,
 )
@@ -89,7 +89,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         resolution order of inheriting elements.
     """
 
-    _ring: InitalisedInternally[Ring] = InitalisedInternally(SetBy.SIMULATION)
+    _ring: InitialisedInternally[Ring] = InitialisedInternally(SetBy.SIMULATION)
 
     def __init__(
         self,
@@ -270,8 +270,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         revolution frequency.
     """
 
-    omega_rf_design: InitalisedInternally[NumpyArray | float] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    omega_rf_design: InitialisedInternally[NumpyArray | float] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
     voltage: ToBeDefined[NumpyArray | float] = ToBeDefined(
         SetBy.ARGUMENT_OR_SCHEDULE

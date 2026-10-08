@@ -24,7 +24,7 @@ from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 from blond.core.base import BeamPhysicsRelevant
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
 )
 
@@ -104,7 +104,7 @@ class Music(BeamPhysicsRelevant):
 
     # MuSiC prefactor [V]; depends on the beam, so computed in
     # `configure_run` once the beam is known.
-    _const: InitalisedInternally[float] = InitalisedInternally(
+    _const: InitialisedInternally[float] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
     # Running state carried across turns, layout
@@ -113,7 +113,7 @@ class Music(BeamPhysicsRelevant):
     #     recurrence after the last processed particle,
     #   - last_dt: dt of the last (largest-dt) particle of the
     #     previous turn, used to span the gap to this turn's first.
-    _parameter_array: InitalisedInternally[NumpyArray] = InitalisedInternally(
+    _parameter_array: InitialisedInternally[NumpyArray] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
     # Reference clock time [s] at the previous track; the difference

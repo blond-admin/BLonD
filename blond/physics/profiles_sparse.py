@@ -21,7 +21,7 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
 )
 from blond.physics.profiles import StaticProfile
@@ -130,14 +130,14 @@ class EquidistantMultiProfile(MultiProfile):
         Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
 
-    _left_cut_distance: InitalisedInternally[float] = InitalisedInternally(
+    _left_cut_distance: InitialisedInternally[float] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _first_left_cut: InitalisedInternally[float] = InitalisedInternally(
+    _first_left_cut: InitialisedInternally[float] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    profiles: InitalisedInternally[tuple[StaticProfile, ...]] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    profiles: InitialisedInternally[tuple[StaticProfile, ...]] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
     hist_y_to_density_factor: AssignedDuringTracking[float] = (
         AssignedDuringTracking(SetBy.RUN_SIMULATION)

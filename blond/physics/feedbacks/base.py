@@ -29,7 +29,7 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
 )
 
@@ -109,9 +109,9 @@ class LocalFeedback(FeedbackBaseClass):
     phase_correction: AssignedDuringTracking[NumpyArray] = (
         AssignedDuringTracking(SetBy.RUN_SIMULATION)
     )
-    _parent_rf_station: InitalisedInternally[
+    _parent_rf_station: InitialisedInternally[
         SingleHarmonicRFStation | MultiHarmonicRFStation
-    ] = InitalisedInternally(_BY_ATTACH)
+    ] = InitialisedInternally(_BY_ATTACH)
 
     def __init__(
         self,
@@ -182,8 +182,8 @@ class GlobalFeedback(FeedbackBaseClass):
         resolution order of inheriting elements.
     """
 
-    cavities: InitalisedInternally[list[RFStationBaseClass]] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    cavities: InitialisedInternally[list[RFStationBaseClass]] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
 
     def __init__(

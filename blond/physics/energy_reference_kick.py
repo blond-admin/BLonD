@@ -20,7 +20,7 @@ from blond.core.base import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
-from blond.generals.late_init import InitalisedInternally, SetBy
+from blond.generals.late_init import InitialisedInternally, SetBy
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -56,11 +56,11 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
     >>> # Add to element map before simulation
     """
 
-    _turn_counter: InitalisedInternally[DynamicParameter] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _turn_counter: InitialisedInternally[DynamicParameter] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
-    _magnetic_cycle: InitalisedInternally[MagneticCycleBase] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _magnetic_cycle: InitialisedInternally[MagneticCycleBase] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
 
     def __init__(

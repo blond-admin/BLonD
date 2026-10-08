@@ -36,7 +36,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.ordering import requires
 from blond.generals.late_init import (
     AssignedDuringTracking,
-    InitalisedInternally,
+    InitialisedInternally,
     SetBy,
 )
 from blond.generals.warnings_ import PerformanceWarning
@@ -68,16 +68,16 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     _beam: AssignedDuringTracking[BeamBaseClass] = AssignedDuringTracking(
         SetBy.RUN_SIMULATION
     )
-    _Z_over_n: InitalisedInternally[float] = InitalisedInternally(
+    _Z_over_n: InitialisedInternally[float] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _turn_counter: InitalisedInternally[DynamicParameter] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _turn_counter: InitialisedInternally[DynamicParameter] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
         SetBy.SIMULATION
     )
 
@@ -173,17 +173,17 @@ class PeriodicFreqSolver(WakeFieldSolver):
     around the synchrotron takes ( long profiles).
     """
 
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _n_time: InitalisedInternally[int] = InitalisedInternally(SetBy.SIMULATION)
-    _freq_x: InitalisedInternally[NumpyArray] = InitalisedInternally(
+    _n_time: InitialisedInternally[int] = InitialisedInternally(SetBy.SIMULATION)
+    _freq_x: InitialisedInternally[NumpyArray] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _freq_y: InitalisedInternally[NumpyArray] = InitalisedInternally(
+    _freq_y: InitialisedInternally[NumpyArray] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
-    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
         SetBy.SIMULATION
     )
 
@@ -465,13 +465,13 @@ class TimeDomainFftSolver(WakeFieldSolver):
     the synchrotron revolution time (short profiles).
     """
 
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _impedance_from_wake_y: InitalisedInternally[NumpyArray] = (
-        InitalisedInternally(SetBy.RUN_SIMULATION)
+    _impedance_from_wake_y: InitialisedInternally[NumpyArray] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
     )
-    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
         SetBy.SIMULATION
     )
 
@@ -648,16 +648,16 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     :class:`~blond.physics.impedances.sources.Resonators` sources.
     """
 
-    _wake_function_vals: InitalisedInternally[NumpyArray] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _wake_function_vals: InitialisedInternally[NumpyArray] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
-    _wake_function_time: InitalisedInternally[NumpyArray] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _wake_function_time: InitialisedInternally[NumpyArray] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
-    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
 
@@ -808,16 +808,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         time axes corresponding to _past_profiles.
     """
 
-    _last_reference_time: InitalisedInternally[float] = InitalisedInternally(
+    _last_reference_time: InitialisedInternally[float] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _maximum_storage_time: InitalisedInternally[float] = InitalisedInternally(
+    _maximum_storage_time: InitialisedInternally[float] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
 
@@ -1146,13 +1146,13 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     representation of the last turn.
     """
 
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _wake_kernel: InitalisedInternally[NumpyArray | CupyArray] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _wake_kernel: InitialisedInternally[NumpyArray | CupyArray] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
-    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
         SetBy.SIMULATION
     )
 
@@ -1311,20 +1311,20 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
     """
 
-    _poles: InitalisedInternally[NumpyArray | CupyArray] = (
-        InitalisedInternally(SetBy.RUN_SIMULATION)
+    _poles: InitialisedInternally[NumpyArray | CupyArray] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
     )
-    _residues: InitalisedInternally[NumpyArray | CupyArray] = (
-        InitalisedInternally(SetBy.RUN_SIMULATION)
+    _residues: InitialisedInternally[NumpyArray | CupyArray] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
     )
-    _profile: InitalisedInternally[EquidistantMultiProfile | StaticProfile] = (
-        InitalisedInternally(SetBy.SIMULATION)
+    _profile: InitialisedInternally[EquidistantMultiProfile | StaticProfile] = (
+        InitialisedInternally(SetBy.SIMULATION)
     )
-    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+    _parent_wakefield: InitialisedInternally[WakeField] = InitialisedInternally(
         SetBy.SIMULATION
     )
-    _voltage: InitalisedInternally[NumpyArray | CupyArray] = (
-        InitalisedInternally(SetBy.RUN_SIMULATION)
+    _voltage: InitialisedInternally[NumpyArray | CupyArray] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
     )
     last_reference_time: AssignedDuringTracking[float] = (
         AssignedDuringTracking(SetBy.RUN_SIMULATION)
@@ -1334,9 +1334,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         AssignedDuringTracking(SetBy.RUN_SIMULATION)
     )
     # Counter rotation feature for muon collider.
-    _counterrotating_pole_signs: InitalisedInternally[
+    _counterrotating_pole_signs: InitialisedInternally[
         NumpyArray | CupyArray
-    ] = InitalisedInternally(SetBy.RUN_SIMULATION)
+    ] = InitialisedInternally(SetBy.RUN_SIMULATION)
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField

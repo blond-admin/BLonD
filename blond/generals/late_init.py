@@ -142,7 +142,7 @@ class _LateInit(Generic[_T], ABC):
             """
 
 
-class InitalisedInternally(_LateInit[_T]):
+class InitialisedInternally(_LateInit[_T]):
     """
     Attribute BLonD fills while setting up or starting a run.
 
