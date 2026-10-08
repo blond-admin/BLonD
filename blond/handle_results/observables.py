@@ -31,7 +31,6 @@ from blond.generals.late_init import (
     InitialisedInternally,
     SetBy,
     check_filled,
-    late_init_attributes,
 )
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
@@ -225,7 +224,7 @@ class ObservablesBaseClass(MainLoopRelevant):
         NotInitialisedError
             If any declared attribute has not been filled yet.
         """
-        check_filled(self, *late_init_attributes(self))
+        check_filled(self)
 
 
 class ObservablesOncePerTurnBase(ObservablesBaseClass):

@@ -299,6 +299,7 @@ def check_filled(obj: object, *names: str) -> None:
         Object owning the attributes.
     *names
         Names of the attributes to check, in the order to report them.
+        Every declared attribute is checked if no name is given.
 
     Raises
     ------
@@ -307,6 +308,9 @@ def check_filled(obj: object, *names: str) -> None:
         raises the descriptor's own error; several are combined into a
         single error naming each attribute and what fills it.
     """
+    if len(names) == 0:
+        names = late_init_attributes(obj)
+
     errors = []
     for name in names:
         try:

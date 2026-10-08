@@ -371,7 +371,7 @@ class BeamBaseClass(Preparable, ABC):
             Passed to the next level in the MRO chain.
         """
         super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
-        check_filled(self, "_dt", "_dE", "_flags", "_ids")
+        check_filled(self)
         # Display a warning when the reference energy is overwritten,
         # but not when None is overwritten.
         if (
