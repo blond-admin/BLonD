@@ -63,6 +63,11 @@ if TYPE_CHECKING:  # pragma: no cover
 _PHI3_SERIES_TERMS = 20
 _FACTORIAL_3 = 6.0
 
+# Knots of the quadratic B-spline `box * box * box`, in units of the bin
+# width: it is a different quadratic on each of (-3/2, -1/2), (-1/2, 1/2)
+# and (1/2, 3/2), and zero outside.
+_BSPLINE_KNOTS = (-1.5, -0.5, 0.5, 1.5)
+
 
 def causal_third_antiderivative_factor(
     t: NumpyArray | CupyArray, pole: complex
@@ -222,3 +227,94 @@ def triple_box_average_poles(
             t, poles[pole_i : pole_i + 1], residues[pole_i : pole_i + 1], dt
         )
     return out
+
+
+def quadratic_bspline(x: float) -> float:
+    r"""
+    Quadratic B-spline :math:`box * box * box` of unit width, at ``x``.
+
+    The kernel every time-domain source is bin-averaged with (see
+    :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`),
+    normalised to unit integral and expressed in units of the bin width, so
+    that its support is :math:`(-3/2,\, 3/2)`.
+
+    Parameters
+    ----------
+    x
+        Position in units of the bin width.
+
+    Returns
+    -------
+    weight
+        :math:`B_2(x)`, in units of one over the bin width.
+    """
+    abs_x = abs(x)
+    if abs_x >= 1.5:  # NOQA PLR2004
+        return 0.0
+    if abs_x <= 0.5:  # NOQA PLR2004
+        return 0.75 - x * x
+    return 0.5 * (1.5 - abs_x) ** 2
+
+
+def bspline_window_moments(offset: float, width: float) -> tuple[float, float]:
+    r"""
+    The two B-spline moments over a window of ``width`` bins.
+
+    The moments are
+
+    .. math::
+        I_0 = \int_0^{w} B_2(v + \eta) \,\mathrm{d}\eta , \qquad
+        I_1 = \int_0^{w} (w - \eta) B_2(v + \eta) \,\mathrm{d}\eta
+
+    with :math:`v` = ``offset`` and :math:`w` = ``width``, both in units of
+    the bin width. :math:`I_0` is the B-spline average of the box that spans
+    the window, and :math:`I_1 / w` is the B-spline average of the ramp that
+    rises linearly from 0 to 1 across it, both evaluated at ``offset`` past
+    the window's upper end.
+
+    The integrands are a quadratic and a cubic, so splitting the window at
+    the B-spline's knots and applying Simpson's rule -- exact up to cubics --
+    on each piece evaluates them exactly. Written as an integral of a
+    non-negative integrand there is no cancellation, which a divided
+    difference of the B-spline's antiderivatives would suffer from as
+    ``width`` goes to zero.
+
+    Parameters
+    ----------
+    offset
+        Lower end of the integration window, in units of the bin width.
+    width
+        Width of the integration window, in units of the bin width.
+
+    Returns
+    -------
+    moments
+        The pair :math:`(I_0,\, I_1)`, dimensionless.
+    """
+    if width <= 0.0:
+        return 0.0, 0.0
+    edges = [0.0]
+    edges += [
+        knot - offset for knot in _BSPLINE_KNOTS if 0.0 < knot - offset < width
+    ]
+    edges += [width]
+    zeroth = first = 0.0
+    for lower, upper in zip(edges[:-1], edges[1:], strict=True):
+        middle = 0.5 * (lower + upper)
+        span = upper - lower
+        weight_lower = quadratic_bspline(offset + lower)
+        weight_middle = quadratic_bspline(offset + middle)
+        weight_upper = quadratic_bspline(offset + upper)
+        zeroth += (
+            span / 6.0 * (weight_lower + 4.0 * weight_middle + weight_upper)
+        )
+        first += (
+            span
+            / 6.0
+            * (
+                (width - lower) * weight_lower
+                + 4.0 * (width - middle) * weight_middle
+                + (width - upper) * weight_upper
+            )
+        )
+    return zeroth, first
