@@ -23,6 +23,12 @@ from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    InitalisedInternally,
+    SetBy,
+    check_filled,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -77,6 +83,16 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
 
+    hist_y_to_density_factor: AssignedDuringTracking[float] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+    # Set as a whole by `_set_window`, see `ProfileGeometry`.  A
+    # `StaticProfile` fills it in `__init__`; a `DynamicProfile`
+    # only once the beam is known.
+    _geometry: InitalisedInternally[ProfileGeometry] = InitalisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self, section_index: int = 0, name: str | None = None
     ) -> None:
@@ -84,12 +100,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             section_index=section_index,
             name=name,
         )
-        self.hist_y_to_density_factor: float | None = None
-
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
-
-        # Set by `_set_window`, see `ProfileGeometry`.
-        self._geometry: ProfileGeometry | None = None
 
     def _set_window(
         self, cut_left: float, cut_right: float, n_bins: int
@@ -182,7 +193,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Simulation-extracted values; passed to the next MRO level.
         """
         super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
-        assert self._geometry is not None
+        check_filled(self, "_geometry")
 
     def plot(self, **kwargs_plot: dict[str, Any]) -> list[Any]:
         """
@@ -214,7 +225,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         hist_x
             X-axis of histogram, in [s], i.e. `bin_centers`.
         """
-        return self._geometry.hist_x  # type: ignore
+        return self._geometry.hist_x
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray | CupyArray:
@@ -226,7 +237,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         hist_y
             Y-axis of histogram.
         """
-        return self._geometry.hist_y  # type: ignore
+        return self._geometry.hist_y
 
     @property  # as readonly attributes
     def n_bins(self) -> int:
@@ -238,7 +249,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         n_bins
             Number of bins in the histogram.
         """
-        return self._geometry.n_bins  # type: ignore
+        return self._geometry.n_bins
 
     @property  # not cached, `hist_y` is written in place from outside
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
@@ -252,8 +263,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         """
         geometry = self._geometry
         return backend.gradient(
-            geometry.hist_y,  # type: ignore
-            geometry.hist_step,  # type: ignore
+            geometry.hist_y,
+            geometry.hist_step,
             edge_order=2,
         )
 
@@ -267,7 +278,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         hist_step
             Size of a single histogram bin.
         """
-        return self._geometry.hist_step  # type: ignore
+        return self._geometry.hist_step
 
     @property  # as readonly attributes
     def cut_left(self) -> float:
@@ -279,7 +290,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         cut_left
             Left outer edge of the histogram.
         """
-        return self._geometry.cut_left  # type: ignore
+        return self._geometry.cut_left
 
     @property  # as readonly attributes
     def cut_right(self) -> float:
@@ -291,7 +302,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         cut_right
             Right outer edge of the histogram.
         """
-        return self._geometry.cut_right  # type: ignore
+        return self._geometry.cut_right
 
     @property  # as readonly attributes
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -303,7 +314,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         bin_edges
             Edges from cut_left to cut_right of the histogram.
         """
-        return self._geometry.bin_edges  # type: ignore
+        return self._geometry.bin_edges
 
     def weighted_avg_dt(self) -> float:
         """
@@ -320,8 +331,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         """
         geometry = self._geometry
         return backend.average(
-            geometry.hist_x,  # type: ignore
-            weights=geometry.hist_y,  # type: ignore
+            geometry.hist_x,
+            weights=geometry.hist_y,
         )
 
     def sigma_weighted_avg_dt(self) -> float:
@@ -337,8 +348,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         sigma_weighted_avg_dt
             Bunch length (:math:`1 \sigma`), in [s].
         """
-        hist_x = self._geometry.hist_x  # type: ignore
-        hist_y = self._geometry.hist_y  # type: ignore
+        hist_x = self._geometry.hist_x
+        hist_y = self._geometry.hist_y
         average = backend.average(hist_x, weights=hist_y)
         variance = backend.average(
             backend.square(hist_x - average), weights=hist_y
@@ -357,8 +368,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         params
             Amplitude, mean and standard deviation the bunch.
         """
-        _hist_x = self._geometry.hist_x  # type: ignore
-        _hist_y = self._geometry.hist_y  # type: ignore
+        _hist_x = self._geometry.hist_x
+        _hist_y = self._geometry.hist_y
 
         if is_cupy_array(_hist_x):
             _hist_x = _hist_x.get()
@@ -384,8 +395,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Amplitude, mean and standard deviation for each bunch.
             Shape (n_bunches, 3).
         """
-        _hist_x = self._geometry.hist_x  # type: ignore
-        _hist_y = self._geometry.hist_y  # type: ignore
+        _hist_x = self._geometry.hist_x
+        _hist_y = self._geometry.hist_y
 
         if is_cupy_array(_hist_x):
             _hist_x = _hist_x.get()
@@ -409,18 +420,18 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         geometry = self._geometry
         if beam.common_array_size > 0:
             beam._dt.histogram(  # MPI aware histogram calculation
-                geometry.n_bins,  # type: ignore
+                geometry.n_bins,
                 range=(
-                    geometry.cut_left,  # type: ignore
-                    geometry.cut_right,  # type: ignore
+                    geometry.cut_left,
+                    geometry.cut_right,
                 ),
-                out=geometry.hist_y,  # type: ignore
+                out=geometry.hist_y,
             )
             # this factor is used to reproduce the behaviour
             # of np.hist(..., density=True)
             self.hist_y_to_density_factor = 1.0 / beam.common_array_size
         else:
-            geometry.hist_y[:] = 0  # type: ignore
+            geometry.hist_y[:] = 0
             self.hist_y_to_density_factor = 0.0
 
     @staticmethod
@@ -464,7 +475,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         cutoff_frequency
             Cutoff frequency if the profile is fourier transformed, in [Hz].
         """
-        return 1 / (2 * self._geometry.hist_step)  # type: ignore
+        return 1 / (2 * self._geometry.hist_step)
 
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray | CupyArray:
         """
@@ -480,7 +491,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         spectrum
             Fourier transform of the profile.
         """
-        hist_y = self._geometry.hist_y  # type: ignore
+        hist_y = self._geometry.hist_y
         no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(

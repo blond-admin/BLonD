@@ -890,8 +890,8 @@ class TestMultiHarmonicCavity(BLonDTestCase):
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
+        del self.multi_harmonic_cavity.voltage
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.voltage = None
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -938,8 +938,8 @@ class TestMultiHarmonicCavity(BLonDTestCase):
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
+        del self.multi_harmonic_cavity.phi_rf_design
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.phi_rf_design = None
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -947,8 +947,8 @@ class TestMultiHarmonicCavity(BLonDTestCase):
     def test_on_init_simulation_fails3(self) -> None:
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
+        del self.multi_harmonic_cavity.harmonic
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.harmonic = None
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -1372,8 +1372,8 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
+        del self.single_harmonic_cavity.voltage
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.voltage = None
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -1381,8 +1381,8 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
+        del self.single_harmonic_cavity.phi_rf_design
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.phi_rf_design = None
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
@@ -1390,8 +1390,8 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
     def test_on_init_simulation_fails3(self) -> None:
         simulation = Mock(Simulation)
         simulation.turn_counter = DynamicParameter(0)
+        del self.single_harmonic_cavity.harmonic
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.harmonic = None
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )

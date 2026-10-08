@@ -26,7 +26,11 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.late_init import AssignedDuringTracking, SetBy
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    SetBy,
+    ToBeDefined,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -185,6 +189,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     _last_eta_0: AssignedDuringTracking[float] = AssignedDuringTracking(
         SetBy.RUN_SIMULATION
     )
+    momentum_compaction_factor: ToBeDefined[float] = ToBeDefined(
+        SetBy.ARGUMENT_OR_SCHEDULE
+    )
 
     def __init__(
         self,
@@ -235,9 +242,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         self._register_schedulable_variables("momentum_compaction_factor")
 
-        self.momentum_compaction_factor: float | None = (
-            momentum_compaction_factor
-        )
+        if momentum_compaction_factor is not None:
+            self.momentum_compaction_factor = momentum_compaction_factor
 
     @staticmethod
     def headless(
@@ -296,9 +302,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super().on_init_simulation(
             simulation, turn_counter=simulation.turn_counter, **kwargs
         )
-        if (
-            self.momentum_compaction_factor is None
-        ) and "momentum_compaction_factor" not in self.schedules:
+        if not hasattr(self, "momentum_compaction_factor") and (
+            "momentum_compaction_factor" not in self.schedules
+        ):
             raise ValueError(
                 "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
                 "or `.schedule(attribute='momentum_compaction_factor', value=...)`"

@@ -19,9 +19,15 @@ import numpy as np
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    InitalisedInternally,
+    SetBy,
+)
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -113,7 +119,36 @@ class EquidistantMultiProfile(MultiProfile):
         automatically generated.
     **kwargs
         Additional keyword arguments passed to the parent.
+
+    Attributes
+    ----------
+    profiles
+        One `StaticProfile` per bucket of the filling pattern, in
+        bucket order.
+    hist_y_to_density_factor
+        Factor reproducing ``np.hist(..., density=True)``.
+        Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
+
+    _left_cut_distance: InitalisedInternally[float] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _first_left_cut: InitalisedInternally[float] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    profiles: InitalisedInternally[tuple[StaticProfile, ...]] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    hist_y_to_density_factor: AssignedDuringTracking[float] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+
+    _continuous_memory_hist_x: InitialisedInternally[
+        NumpyArray | CupyArray
+    ] = InitialisedInternally(SetBy.SIMULATION)
+    _continuous_memory_hist_y: InitialisedInternally[
+        NumpyArray | CupyArray
+    ] = InitialisedInternally(SetBy.SIMULATION)
 
     def __init__(
         self,
@@ -143,15 +178,6 @@ class EquidistantMultiProfile(MultiProfile):
         )
 
         self._offset = offset
-
-        self._left_cut_distance: float | None = None
-        self._first_left_cut: float | None = None
-        self.profiles: tuple[StaticProfile, ...] | None = None
-
-        self._continuous_memory_hist_x = None
-        self._continuous_memory_hist_y = None
-
-        self.hist_y_to_density_factor: float | None = None
 
     @staticmethod
     def init_from_padded_filling_pattern(

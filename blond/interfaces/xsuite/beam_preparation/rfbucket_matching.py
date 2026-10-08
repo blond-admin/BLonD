@@ -152,11 +152,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             )
         )
 
-        if drift.momentum_compaction_factor is None:
-            raise ValueError(
-                "`momentum_compaction_factor` is not set in the first drift element."
-            )
-
         alpha_c = drift.momentum_compaction_factor
         mass_kg = beam.particle_type.mass * e / c**2
         charge_coulomb = beam.particle_type.charge * e

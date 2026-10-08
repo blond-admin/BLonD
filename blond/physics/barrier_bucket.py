@@ -17,6 +17,7 @@ import scipy.constants as cont
 
 from blond.core.backends.backend import backend
 from blond.generals.exceptions_ import ArrayShapeError
+from blond.generals.late_init import SetBy, ToBeDefined
 from blond.physics.rf_station import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -56,6 +57,11 @@ class BarrierRF(RFManipulationBaseClass):
     CERN PS", https://cds.cern.ch/record/2694233/files/mopts107.pdf
     """
 
+    t_center: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
+    t_width: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
+    peak_voltage: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
+    n_bins: ToBeDefined[int] = ToBeDefined(SetBy.ARGUMENT)
+
     def __init__(
         self,
         t_center: float | None = None,
@@ -66,10 +72,14 @@ class BarrierRF(RFManipulationBaseClass):
     ):
         super().__init__(section_index=section_index)
 
-        self.t_center: float = t_center
-        self.t_width: float = t_width
-        self.peak_voltage: float = peak_voltage
-        self.n_bins = n_bins
+        if t_center is not None:
+            self.t_center = t_center
+        if t_width is not None:
+            self.t_width = t_width
+        if peak_voltage is not None:
+            self.peak_voltage = peak_voltage
+        if n_bins is not None:
+            self.n_bins = n_bins
 
         self._register_schedulable_variables(
             "t_center", "t_width", "peak_voltage"

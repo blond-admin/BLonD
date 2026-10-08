@@ -7,6 +7,7 @@ from numpy import random
 
 from blond import DriftSimple, SingleHarmonicRFStation
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.exceptions_ import NotInitialisedError
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import ExampleSimulation01
@@ -40,9 +41,12 @@ class TestXsuiteRFBucketMatcher(BLonDTestCase):
         )
 
         drift = self.example.simulation.ring.elements.get_element(DriftSimple)
-        drift.momentum_compaction_factor = None
+        # Absence, not `None`, is what "not defined" means now
+        # that the attribute is a `_LateInit`; the descriptor
+        # raises in place of the matcher's own guard.
+        del drift.momentum_compaction_factor
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotInitialisedError):
             simulation.prepare_beam(
                 beam=self.example.beam1,
                 preparation_routine=XsuiteRFBucketMatcher(
