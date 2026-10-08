@@ -393,8 +393,9 @@ def skip_specific_functions(app, what, name, obj, skip, options):
     This function is used as a callback for the
     ``autodoc-skip-member`` event in Sphinx. It allows selectively
     skipping members during the autodoc process. In this case, the
-    function skips the internal member ``_abc_impl`` while deferring
-    to Sphinx’s default behavior for all other members.
+    function skips the internal member ``_abc_impl`` and ``LateInit``
+    attributes, while deferring to Sphinx’s default behavior for all
+    other members.
 
     Parameters
     ----------
@@ -417,10 +418,19 @@ def skip_specific_functions(app, what, name, obj, skip, options):
     -------
     bool
         ``True`` if the member should be skipped,
-        ``False`` otherwise. Members named ``"_abc_impl"`` are always
-        skipped.
+        ``False`` otherwise. Members named ``"_abc_impl"`` and
+        ``LateInit`` attributes are always skipped.
     """
+    # Imported lazily: ``conf.py`` is read before autodoc installs the
+    # mocks from ``autodoc_mock_imports``.
+    from blond.generals.late_init import _LateInit
+
     if name == "_abc_impl":
+        return True
+    # ``LateInit`` attributes are documented in their owner's
+    # ``Attributes`` section; an autodoc entry would only repeat the
+    # name with the descriptor's own type.
+    if isinstance(obj, _LateInit):
         return True
     # Skip private members (single leading underscore, not dunder).
     if name.startswith("_") and not name.startswith("__"):
