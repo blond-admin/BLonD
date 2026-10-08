@@ -40,6 +40,11 @@ from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    InitalisedInternally,
+    SetBy,
+)
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -83,6 +88,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         resolution order of inheriting elements.
     """
 
+    _ring: InitalisedInternally[Ring] = InitalisedInternally(SetBy.SIMULATION)
+
     def __init__(
         self,
         section_index: int,
@@ -94,11 +101,8 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        self._ring: Ring | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._turn_counter: DynamicParameter | None = None
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -250,7 +254,22 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
+
+    Attributes
+    ----------
+    omega_rf_design
+        Design angular frequency relating to the harmonic numbers,
+        in [rad/s].  Recomputed from the reference each turn.
     """
+
+    omega_rf_design: InitalisedInternally[NumpyArray | float] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    # Reference-energy change from the most recent ``_track`` call,
+    # used by ``get_hamilton_symbolic`` for the acceleration term.
+    _last_reference_energy_change: AssignedDuringTracking[float] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
 
     def __init__(
         self,
@@ -303,12 +322,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
 
         self._local_wakefield = local_wakefield
 
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
-
-        self.omega_rf_design: NumpyArray | float | None = None
-        """Design angular frequency relating to the harmonic numbers, in [rad/s]."""
-
         self.delta_omega_rf: NumpyArray | float | None = None
         """Correction term to omega_rf_design, used by feedbacks, in [rad/s]."""
 
@@ -333,10 +346,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if self._delayed_kick is not None and not self.any_feedback_not_none:
             assert delayed_kick_time_axis is not None
         self._delayed_kick_time_axis = delayed_kick_time_axis
-
-        # Cached reference-energy change from the most recent _track call.
-        # Used by get_hamilton_symbolic to include the acceleration term.
-        self._last_reference_energy_change: float | None = None
 
     @property
     def any_feedback_not_none(self) -> bool:
@@ -888,9 +897,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         reference
             Reference to update the attributes from.
         """
-        assert self._ring is not None, (
-            "Not available before instancing ``Simulation(...)``"
-        )
         self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=reference.beta,
             ring_circumference=self._ring.circumference,
@@ -1554,7 +1560,6 @@ class SingleHarmonicRFStation(
         q = sympy.Symbol("q", real=True)
         if replace_symbols:
             assert self.voltage is not None
-            assert self.omega_rf_design is not None
             assert self.phi_rf_design is not None
 
             V = float(self.voltage)
@@ -2125,7 +2130,6 @@ class MultiHarmonicRFStation(
         for rf_idx in range(self.n_rf):
             if replace_symbols:
                 assert self.voltage is not None
-                assert self.omega_rf_design is not None
                 assert self.phi_rf_design is not None
 
                 V_j = float(self.voltage[rf_idx])

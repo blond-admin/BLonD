@@ -469,7 +469,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         assert self._intensity is not None
         assert self._yedges is not None
         assert self._beam is not None
-        assert self._beam._dt is not None
         assert self._reference_time is not None
         assert self._reference_total_energy is not None
 

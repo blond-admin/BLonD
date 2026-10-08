@@ -245,6 +245,30 @@ class Schedulable:
         for name in names:
             self.intended_for_scheduling.add(str(name))
 
+    def _assert_attribute_declared(self, attribute: str) -> None:
+        """
+        Check that an attribute name is known before scheduling it.
+
+        Tests that the name is declared, not that it currently holds
+        a value, so a late-initialised attribute can be scheduled
+        before anything has filled it -- a schedule is one of the
+        ways it gets filled.
+
+        Parameters
+        ----------
+        attribute
+            Name of the attribute to schedule.
+
+        Raises
+        ------
+        AssertionError
+            If no attribute of that name is declared on the class
+            or present on the instance.
+        """
+        assert hasattr(type(self), attribute) or attribute in vars(self), (
+            f"{type(self).__name__} has no attribute {attribute!r} to schedule"
+        )
+
     def schedule(
         self,
         attribute: str,
@@ -297,9 +321,7 @@ class Schedulable:
                 UserWarning,
                 stacklevel=2,
             )
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        self._assert_attribute_declared(attribute)
         if isinstance(value, ScheduledBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
@@ -332,9 +354,7 @@ class Schedulable:
         -----
         Can be constant, per turn or interpolated in time.
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        self._assert_attribute_declared(attribute)
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values)
         self.schedule_active = True

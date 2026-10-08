@@ -17,6 +17,7 @@ from blond.core.base import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.core.scheduling import ScheduledArray, ScheduledInterpolation
+from blond.generals.late_init import SetBy, ToBeDefined
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -232,11 +233,24 @@ class TestPreparable(BLonDTestCase):
             self.preparable.configure_run(beam=None, n_turns=10, typo=1)
 
 
+class _LateVoltage(Schedulable):
+    voltage: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
+
+
+class TestSchedulableLateInit(BLonDTestCase):
+    def test_schedule_accepts_unfilled_late_init(self):
+        schedulable = _LateVoltage()
+        schedulable._register_schedulable_variables("voltage")
+        schedulable.schedule("voltage", np.arange(10.0))
+        schedulable.apply_schedules(turn_i=3, reference_time=0.0)
+        self.assertEqual(schedulable.voltage, 3.0)
+
+
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
         self.schedulable = Schedulable()
         self.schedulable._register_schedulable_variables("voltage")
-        with self.assertRaisesRegex(AssertionError, "doesnt exist"):
+        with self.assertRaisesRegex(AssertionError, "has no attribute"):
             self.schedulable.schedule_from_file(
                 attribute="voltage",
                 filename=callers_relative_path(

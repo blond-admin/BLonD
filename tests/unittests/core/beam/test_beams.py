@@ -19,6 +19,7 @@ from blond.core.backends.mpi_distributed.helpers import (
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
+from blond.generals.exceptions_ import NotInitialisedError
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -61,21 +62,13 @@ class TestBeam(BLonDTestCase):
         self.beam.ids  # NOQA
 
         beam = Beam(intensity=123, particle_type=lead_82)
-        with self.assertRaisesRegex(
-            AttributeError, "not properly initialized"
-        ):
+        with self.assertRaisesRegex(AttributeError, "has not been defined"):
             beam.dt  # NOQA
-        with self.assertRaisesRegex(
-            AttributeError, "not properly initialized"
-        ):
+        with self.assertRaisesRegex(AttributeError, "has not been defined"):
             beam.dE  # NOQA
-        with self.assertRaisesRegex(
-            AttributeError, "not properly initialized"
-        ):
+        with self.assertRaisesRegex(AttributeError, "has not been defined"):
             beam.ids  # NOQA
-        with self.assertRaisesRegex(
-            AttributeError, "not properly initialized"
-        ):
+        with self.assertRaisesRegex(AttributeError, "has not been defined"):
             beam.flags  # NOQA
 
     def test_common_array_size(self) -> None:
@@ -109,9 +102,9 @@ class TestBeam(BLonDTestCase):
         )
 
     def test_plot_hist2d_fails(self) -> None:
-        self.beam._dt = None
-        self.beam._dE = None
-        with self.assertRaises(ValueError):
+        del self.beam._dt
+        del self.beam._dE
+        with self.assertRaises(NotInitialisedError):
             self.beam.plot_hist2d()
 
     def test_plot_hist2d_executes(self) -> None:
@@ -141,11 +134,9 @@ class TestBeam(BLonDTestCase):
         plt.gcf().clf()
 
     def test_plot_scatter_raises(self) -> None:
-        beam = Mock(Beam)
-        beam._dE = None
-        beam._dt = None
-        with self.assertRaises(ValueError):
-            Beam.plot_scatter(beam)
+        beam = Beam(intensity=123, particle_type=lead_82)
+        with self.assertRaises(NotInitialisedError):
+            beam.plot_scatter()
 
     def test_plot_scatter_executes_cpu(self) -> None:
         beam = Mock(Beam)
@@ -175,11 +166,9 @@ class TestBeam(BLonDTestCase):
         plt.close(fig)
 
     def test_plot_hist_raises(self) -> None:
-        beam = Mock(Beam)
-        beam._dE = None
-        beam._dt = None
-        with self.assertRaises(ValueError):
-            Beam.plot_hist(beam, axis=1)
+        beam = Beam(intensity=123, particle_type=lead_82)
+        with self.assertRaises(NotInitialisedError):
+            beam.plot_hist(axis=1)
 
     @pytest.mark.cupy
     def test_plot_hist_executes_gpu(self) -> None:

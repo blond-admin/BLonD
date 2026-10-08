@@ -46,6 +46,7 @@ from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
+from blond.generals.late_init import InitalisedInternally, SetBy
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
@@ -120,6 +121,10 @@ class Simulation(Preparable):
         The synchrotron ring (read-only property).
     _magnetic_cycle
         The energy evolution program (read-only property).
+    execution_model
+        Strategy driving the per-turn main loop.  Selected from the
+        beams passed to `run_simulation`; assign one to override
+        that choice.
 
     See Also
     --------
@@ -138,6 +143,10 @@ class Simulation(Preparable):
     >>> drift1 = DriftSimple(orbit_length=26658.883)
     >>> sim = Simulation.from_locals(locals())
     """
+
+    execution_model: InitalisedInternally[ExecutionModel] = (
+        InitalisedInternally(SetBy.RUN_SIMULATION)
+    )
 
     def __init__(
         self,
@@ -163,7 +172,6 @@ class Simulation(Preparable):
         self._current_t_rev = None
         self._current_turn_dE_tot = None
         self._particle_performance_waning_threshold = int(1e3)
-        self.execution_model: ExecutionModel | None = None
         self._exec_on_init_simulation()
         self._exec_track_reference()
 
@@ -1331,7 +1339,7 @@ class Simulation(Preparable):
         """
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
-        if self.execution_model is None:
+        if not hasattr(self, "execution_model"):
             self._autoselect_execution_model(beams)
 
         if self.check_circumference == "raise":

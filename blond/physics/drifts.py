@@ -26,6 +26,7 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.late_init import AssignedDuringTracking, SetBy
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -179,6 +180,12 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     DriftBaseClass : Overview of the three solvers and their accuracy choices.
     """
 
+    # Linear slip factor from the most recent ``_track`` call,
+    # recorded for observations only.
+    _last_eta_0: AssignedDuringTracking[float] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         orbit_length: float,
@@ -227,8 +234,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         self._turn_counter: DynamicParameter | None = None
 
         self._register_schedulable_variables("momentum_compaction_factor")
-
-        self._last_eta_0: float | None = None
 
         self.momentum_compaction_factor: float | None = (
             momentum_compaction_factor
@@ -669,6 +674,9 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         """
         # Apply schedules if active
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,

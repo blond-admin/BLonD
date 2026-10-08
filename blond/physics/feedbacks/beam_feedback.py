@@ -441,6 +441,9 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             The beam object used in the simulation.
         """
         if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
             self.apply_schedules(
                 turn_i=self._turn_counter.value,
                 reference_time=float(beam.reference.time),

@@ -31,6 +31,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import AllowPlotting
+from blond.generals.late_init import check_filled, unfilled
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -81,21 +82,16 @@ class Beam(BeamBaseClass):
 
     def is_set_up(self) -> bool:
         """
-        ``True`` of all required arrays are initialized.
+        Check that every late-initialised attribute is filled.
 
         Returns
         -------
         is_set_up
-            ``True`` of all required arrays are initialized.
+            ``True`` if nothing declared as late-initialised, the
+            particle coordinate arrays among them, is still
+            missing.
         """
-        return all(
-            (
-                self._dE is not None,
-                self._dt is not None,
-                self._flags is not None,
-                self._ids is not None,
-            )
-        )
+        return len(unfilled(self)) == 0
 
     def setup_beam(
         self,
@@ -326,10 +322,7 @@ class Beam(BeamBaseClass):
         -----
         The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
-        if self._dt is None or self._dE is None:
-            raise ValueError(
-                "Beam `dt` and `dE` coordinates are not initialized!"
-            )
+        check_filled(self, "_dt", "_dE")
         if "cmap" not in kwargs:
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
@@ -362,12 +355,9 @@ class Beam(BeamBaseClass):
         scatter_path_collection
             The `PathCollection` of the scatter plot.
         """
+        check_filled(self, "_dt", "_dE")
         if ax is None:
             ax = plt.gca()
-        if self._dt is None or self._dE is None:
-            raise ValueError(
-                "Beam `dt` and `dE` coordinates are not initialized!"
-            )
         if mpi_is_distributed():
             warnings.warn(
                 "Plotting MPI single node distribution only.",
@@ -402,10 +392,7 @@ class Beam(BeamBaseClass):
             - range: data range (min, max)
             - density: if True, normalize to form a probability density
         """
-        if self._dt is None or self._dE is None:
-            raise ValueError(
-                "Beam `dt` and `dE` coordinates are not initialized!"
-            )
+        check_filled(self, "_dt", "_dE")
         if "bins" not in kwargs:
             kwargs["bins"] = 256
         if mpi_is_distributed():
