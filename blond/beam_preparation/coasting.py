@@ -96,7 +96,9 @@ class Coasting(base.BeamPreparationRoutine):
 
         # Automatically cast energy profile to numpy array, delay moving
         # to CPU until calling setup_beam.
-        energy_profile = np.array(no_cupy_import.copy_to_cpu(energy_profile))
+        energy_profile = np.array(
+            no_cupy_import.copy_to_cpu(energy_profile), dtype=float
+        )
         profile_sum = np.sum(energy_profile)
 
         if not np.isclose(profile_sum, 1):
@@ -105,9 +107,9 @@ class Coasting(base.BeamPreparationRoutine):
                 " automatically normalised.",
                 stacklevel=2,
             )
-            energy_profile /= profile_sum
-
-        self.energy_profile = energy_profile
+        # Normalise even a profile that is close to 1: `Generator.choice`
+        # accepts a much smaller deviation than `np.isclose`.
+        self.energy_profile = energy_profile / profile_sum
 
         self.start_time = start_time
         self.stop_time = stop_time

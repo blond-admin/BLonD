@@ -80,6 +80,27 @@ class TestCoasting(BLonDTestCase):
             coast = coasting.Coasting(1 << 10, bins, density, seed=0)
         self.assertAlmostEqual(float(np.sum(coast.energy_profile)), 1.0)
 
+    def test_nearly_normalised_profile_is_normalised_for_sampling(self):
+        bins = np.linspace(-1, 1, 1000)
+        density = -(bins**2) + 1
+        # Close enough to 1 not to warn, but further from 1 than
+        # `Generator.choice` accepts.
+        density *= (1 + 1e-6) / density.sum()
+
+        coast = coasting.Coasting(1 << 10, bins, density, seed=0)
+        coast.prepare_beam(self.simulation, self.beam)
+
+        self.assertAlmostEqual(
+            float(np.sum(coast.energy_profile)), 1.0, places=12
+        )
+
+    def test_integer_profile_is_normalised(self):
+        with self.assertWarns(UserWarning):
+            coast = coasting.Coasting(
+                1 << 10, [-1.0, 0.0, 1.0], [1, 2, 1], seed=0
+            )
+        np.testing.assert_allclose(coast.energy_profile, [0.25, 0.5, 0.25])
+
     def test_invalid_times_raise_before_profile_warning(self):
         import warnings
 
