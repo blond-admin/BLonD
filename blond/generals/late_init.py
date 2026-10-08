@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import weakref
 from abc import ABC, abstractmethod
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, overload
 
 from .exceptions_ import NotInitialisedError
@@ -38,12 +39,54 @@ _declared: weakref.WeakKeyDictionary[type, tuple[str, ...]] = (
 )
 
 
+class SetBy(StrEnum):
+    """
+    Routes by which a late-initialised attribute gets its value.
+
+    Used as the ``set_by`` of a `_LateInit` subclass. Each names the
+    route a user is most likely to take, first, and any alternatives
+    after it. ``{owner}`` is replaced by the class of the object being
+    read and ``{attribute}`` by the attribute name, both when the error
+    is raised. A route none of these describe takes a plain `str`.
+    """
+
+    SIMULATION = "`Simulation(...)`"
+    RUN_SIMULATION = "`Simulation.run_simulation(...)`"
+    SETUP_BEAM = "`Simulation.prepare_beam(...)` or `Beam.setup_beam(...)`"
+    UPDATE_ATTRIBUTES = "`{owner}.update_attributes(...)`"
+    ARGUMENT = "the `{attribute}` argument of `{owner}(...)`"
+    ARGUMENT_OR_SCHEDULE = (
+        "the `{attribute}` argument of `{owner}(...)`, assigning "
+        "`{owner}.{attribute}`, or "
+        "`{owner}.schedule(attribute={attribute!r}, ...)`"
+    )
+
+
 class _LateInit(Generic[_T], ABC):
-    def __init__(self) -> None:
+    def __init__(self, set_by: SetBy | str) -> None:
+        self._set_by = set_by
         # ``None`` in the instance ``__dict__`` shadows any class
         # docstring, so Sphinx does not repeat it on every attribute;
         # describe attributes in the owner's ``Attributes`` section.
         self.__doc__ = None
+
+    def _filler(self, owner_name: str) -> str:
+        """
+        Render ``set_by`` for the object the attribute was read on.
+
+        Parameters
+        ----------
+        owner_name
+            Name of the class of the object being read.
+
+        Returns
+        -------
+        str
+            The text naming what fills the attribute.
+        """
+        return str(self._set_by).format(
+            owner=owner_name, attribute=self._pub_name
+        )
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         """
@@ -107,16 +150,7 @@ class InitalisedInternally(_LateInit[_T]):
     value before the first turn, so reading one unfilled is a
     sequencing fault in BLonD rather than a mistake in the input
     script.
-
-    Parameters
-    ----------
-    set_by
-        What fills the attribute, for the error message.
     """
-
-    def __init__(self, set_by: str) -> None:
-        super().__init__()
-        self._set_by = set_by
 
     # Repeated from `_LateInit`: an override without them makes an
     # instance read type as ``T | Self`` instead of plain ``T``.
@@ -155,9 +189,8 @@ class InitalisedInternally(_LateInit[_T]):
         # Only reached while the instance ``__dict__`` lacks the name.
         inst_class = type(instance).__name__
         raise NotInitialisedError(
-            f"{inst_class}.{self._pub_name} is not "
-            f"initialised yet; it will be initialised when "
-            f"{inst_class}.{self._set_by} is called.",
+            f"{inst_class}.{self._pub_name} is not initialised yet; "
+            f"it is filled by {self._filler(inst_class)}.",
             name=self._pub_name,
             obj=instance,
         )
@@ -211,7 +244,7 @@ class AssignedDuringTracking(_LateInit[_T]):
         inst_class = type(instance).__name__
         raise NotInitialisedError(
             f"{inst_class}.{self._pub_name} is only assigned while "
-            f"tracking; it has no value until the simulation has run.",
+            f"tracking; {self._filler(inst_class)} has not run yet.",
             name=self._pub_name,
             obj=instance,
         )
@@ -221,9 +254,9 @@ class ToBeDefined(_LateInit[_T]):
     """
     Attribute supplied from the input script.
 
-    Must hold a value before the first turn, but is assigned from
-    outside BLonD and is never cleared. Reading one unfilled means the
-    input script left it out.
+    Must hold a value before the first turn, and is never cleared.
+    Nothing fills it unless the input script asks for it, so reading
+    one unfilled means the script left it out.
     """
 
     # Repeated from `_LateInit`: an override without them makes an
@@ -264,8 +297,7 @@ class ToBeDefined(_LateInit[_T]):
         inst_class = type(instance).__name__
         raise NotInitialisedError(
             f"{inst_class}.{self._pub_name} has not been defined. "
-            f"Use '{inst_class}.schedule(attribute={self._pub_name!r}, [..])' "
-            "to assign it a value.",
+            f"Set it via {self._filler(inst_class)}.",
             name=self._pub_name,
             obj=instance,
         )
