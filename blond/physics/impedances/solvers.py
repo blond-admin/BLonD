@@ -40,6 +40,7 @@ from blond.physics.impedances.base import (
     FreqDomain,
     SupportsVectorFittedModel,
     TimeDomain,
+    VectorFit,
     WakeField,
     WakeFieldSolver,
 )
@@ -1312,6 +1313,34 @@ def _check_whole_bin_gaps(
         )
 
 
+def _vector_fit_of(source: SupportsVectorFittedModel) -> VectorFit:
+    """
+    The vector fit of a source, from either return form.
+
+    Parameters
+    ----------
+    source
+        Source implementing `SupportsVectorFittedModel`.
+
+    Returns
+    -------
+    vector_fit
+        The vector fit, with zero direct and inductive term if the source
+        returns the plain ``(poles, residues, counterrotation_signs)``.
+
+    Raises
+    ------
+    TypeError
+        If the source does not provide a vector fit.
+    """
+    if not hasattr(source, "get_vectorfit"):
+        raise TypeError(
+            "`MultiPoleSparseSolve` needs sources implementing "
+            f"`SupportsVectorFittedModel`, but got {type(source)=}."
+        )
+    return VectorFit(*source.get_vectorfit())
+
+
 class MultiPoleSparseSolve(WakeFieldSolver):
     r"""
     Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
@@ -1329,6 +1358,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     Steps 61-71 of ``docs/models_new/pole-residue/
     bin_averaged_wake_derivation.py``.
 
+    The direct term :math:`d` and the inductive term :math:`e` of the
+    vector fit have the wakes :math:`d\,\delta(t)` and
+    :math:`e\,\delta'(t)`, so they act on the binned profile directly:
+    as :math:`d I` and as :math:`e\,dI/dt` by a central difference, the
+    stencil `InductiveImpedance` uses for the frequency-domain solvers. A
+    bin next to a gap sees the empty bins beyond it.
+
     Between calls the kernel hands its state over one bin before the last
     bin, and the last bin's charge is carried separately: it enters the
     state after the next call's first read-out, and its whole contribution
@@ -1345,6 +1381,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._poles: NumpyArray | CupyArray | None = None
         self._residues: NumpyArray | CupyArray | None = None
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+        self._direct_term: float = 0.0  # in [Ohm]
+        self._inductive_term: float = 0.0  # in [Ohm s]
         # Read once at the first call, so no device transfer per turn.
         self._bin_dt: float | None = None
         self._span_dt: float | None = None  # first to last bin centre
@@ -1397,11 +1435,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         assert self._parent_wakefield is not None
 
         for source in self._parent_wakefield.sources:
-            source: SupportsVectorFittedModel
-            poles_, residues_, signs_ = source.get_vectorfit()
-            poles.extend(poles_)
-            residues.extend(residues_)
-            signs.extend(signs_)
+            vector_fit = _vector_fit_of(source)
+            poles.extend(vector_fit.poles)
+            residues.extend(vector_fit.residues)
+            signs.extend(vector_fit.counterrotation_signs)
+            self._direct_term += float(vector_fit.direct_term)
+            self._inductive_term += float(vector_fit.inductive_term)
         self._poles = backend.array(poles, dtype=backend.complex)
         self._residues = backend.array(residues, dtype=backend.complex)
         self._counterrotating_pole_signs = backend.array(
@@ -1437,6 +1476,29 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             dtype=backend.float,
         )
         self._carried_charge = backend.zeros(1, dtype=backend.float)
+
+    def _central_difference(
+        self, hist_y: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Central difference of the profile, per bin.
+
+        A neighbour across a gap, or beyond either end, is an empty bin.
+
+        Parameters
+        ----------
+        hist_y
+            Histogram of the profile.
+
+        Returns
+        -------
+        difference
+            ``(hist_y[i + 1] - hist_y[i - 1]) / 2``.
+        """
+        difference = backend.zeros_like(hist_y)
+        difference[:-1] += self._adjacent * hist_y[1:]
+        difference[1:] -= self._adjacent * hist_y[:-1]
+        return 0.5 * difference
 
     def _thread_scratch(self) -> NumpyArray | CupyArray:
         """
@@ -1612,6 +1674,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         voltage += (factor * taps[1]) * hist_y
         voltage[1:] += factor * taps[0] * adjacent * hist_y[:-1]
         voltage[:-1] += factor * taps[2] * adjacent * hist_y[1:]
+
+        # The direct and inductive terms act on the profile directly, never
+        # through the taps, which are the poles' bin-averaged wake.
+        if self._direct_term != 0.0:
+            voltage += (factor * self._direct_term / bin_dt) * hist_y
+        if self._inductive_term != 0.0:
+            voltage += (
+                factor * self._inductive_term / bin_dt**2
+            ) * self._central_difference(hist_y)
 
         # The carried charge's whole contribution to the first bin, at the
         # true lag. A pole's sign enters once if the two calls rotate

@@ -1172,7 +1172,7 @@ class TestResonators(BLonDTestCase):
         imp = copy_to_cpu(
             resonators.get_impedance(backend.array(freq), None, None, False)
         )
-        poles, residues, _ = resonators.get_vectorfit()
+        poles, residues, _, *_ = resonators.get_vectorfit()
         imp2 = residues[0] / (1j * 2 * np.pi * freq - poles[0])
         imp2 += np.conjugate(residues[0]) / (
             1j * 2 * np.pi * freq - np.conjugate(poles[0])

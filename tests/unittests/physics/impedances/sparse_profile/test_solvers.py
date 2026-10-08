@@ -468,7 +468,7 @@ class TestMultiPoleSparseInitialise(BLonDTestCase):
         solver, beam = self._make_solver([5.0])
         voltage = copy_to_cpu(solver.calc_induced_voltage(beam=beam))
         source = solver._parent_wakefield.sources[0]
-        poles, residues, _ = source.get_vectorfit()
+        poles, residues, _, *_ = source.get_vectorfit()
         tap_0 = copy_to_cpu(
             triple_box_average_poles(
                 backend.array([0.0], dtype=backend.float),

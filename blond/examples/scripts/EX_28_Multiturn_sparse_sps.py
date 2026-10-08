@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,14 +34,12 @@ from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.base import (
     SupportsVectorFittedModel,
+    VectorFit,
     WakeFieldSource,
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing import pytest_active
-
-if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
 
 if not pytest_active():  # pragma: no cover
     setup_backend("auto")
@@ -148,24 +144,22 @@ class VectorFittedModel(WakeFieldSource, SupportsVectorFittedModel):
         plt.plot(freq, np.imag(h))
         return h
 
-    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+    def get_vectorfit(self) -> VectorFit:
         """
         Derive the poles and residues as in vector-fitting.
 
         Returns
         -------
-        poles
-            The complex poles.
-        residues
-            The complex residues.
-        counterrotation_signs
-            Signs of the poles to deal with higher order oscillators
-            in counterrotation. Default is ``1``.
+        vector_fit
+            The poles and residues, with signs of ``1``; this model has no
+            direct and no inductive term.
         """
-        return (
-            self.poles,
-            self.residues,
-            np.ones(len(self.poles), dtype=backend.float),
+        return VectorFit(
+            poles=self.poles,
+            residues=self.residues,
+            counterrotation_signs=np.ones(
+                len(self.poles), dtype=backend.float
+            ),
         )
 
 

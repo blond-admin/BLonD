@@ -255,7 +255,7 @@ class TestUnresolvablePole(unittest.TestCase):
         sigma_dt = t_rf / 10.0
 
         resonator = Resonators(RS, FR, QUALITY_FACTOR)
-        poles, _residues, _cr = resonator.get_vectorfit()
+        poles, _residues, _cr, *_ = resonator.get_vectorfit()
         pole_rate = float(np.max(np.abs(poles)))
         resolvability = pole_rate * bin_dt
         # Sanity check on the scenario itself: this resonator must actually be

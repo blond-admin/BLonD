@@ -39,6 +39,7 @@ from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
     TimeDomainCounterRotation,
+    VectorFit,
     WakeFieldSource,
 )
 from blond.physics.impedances.bin_average import triple_box_average_poles
@@ -751,19 +752,16 @@ class Resonators(
         self._cache_impedance = impedance
         return impedance
 
-    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+    def get_vectorfit(self) -> VectorFit:
         """
         Derive the poles and residues as in vector-fitting.
 
         Returns
         -------
-        poles
-            The complex poles.
-        residues
-            The complex residues.
-        counterrotation_signs
-            Signs of the poles to deal with higher order oscillators
-            in counterrotation. Default is ``1``.
+        vector_fit
+            The poles and residues, with signs of ``1`` unless counter-
+            rotating shunt impedances are given. Resonators have no direct
+            and no inductive term.
         """
         Q = self._quality_factors
         omega = self._omega
@@ -791,7 +789,9 @@ class Resonators(
                 "well-defined sign."
             )
             cr_signs = np.sign(self._shunt_impedances_counter_rotating)
-        return poles1, residues1, cr_signs
+        return VectorFit(
+            poles=poles1, residues=residues1, counterrotation_signs=cr_signs
+        )
 
 
 class ImpedanceTable(WakeFieldSource):

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from scipy.constants import elementary_charge as e
 
@@ -771,6 +771,39 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         return wf
 
 
+class VectorFit(NamedTuple):
+    r"""
+    A vector-fitted impedance model.
+
+    The impedance is :math:`Z(s) = \sum_k \rho_k / (s - p_k) + d + e\,s`
+    with :math:`s = 2\pi i f`, where each complex pole stands in for its
+    conjugate partner. The constant term :math:`d` and the inductive term
+    :math:`e` have no pole-residue representation; their wakes are
+    :math:`d\,\delta(t)` and :math:`e\,\delta'(t)`.
+
+    Attributes
+    ----------
+    poles
+        Complex poles :math:`p_k`, in [rad/s].
+    residues
+        Complex residues :math:`\rho_k`, in [Ohm/s].
+    counterrotation_signs
+        Signs of the poles to deal with higher order oscillators
+        in counterrotation, ``1`` for none.
+    direct_term
+        Constant term :math:`d`, in [Ohm].
+    inductive_term
+        Inductive term :math:`e`, i.e. the inductance :math:`L` in
+        :math:`Z = 2\pi i f L`, in [Ohm s].
+    """
+
+    poles: NumpyArray
+    residues: NumpyArray
+    counterrotation_signs: NumpyArray
+    direct_term: float = 0.0
+    inductive_term: float = 0.0
+
+
 class SupportsVectorFittedModel(ABC):
     """
     Mixin to define sources with poles.
@@ -781,18 +814,17 @@ class SupportsVectorFittedModel(ABC):
     """
 
     @abstractmethod  # pragma: no cover
-    def get_vectorfit(self) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
+    def get_vectorfit(self) -> VectorFit:
         """
-        Derive the poles and residues as in vector-fitting.
+        Derive the poles, residues and the direct and inductive terms.
+
+        A plain tuple of the first three fields, ``(poles, residues,
+        counterrotation_signs)``, is accepted too, for no direct and no
+        inductive term.
 
         Returns
         -------
-        poles
-            Complex poles of an equivalent circuit model.
-        residues
-            Complex residues of an equivalent circuit model.
-        counterrotation_signs
-            Signs of the poles to deal with higher order oscillators
-            in counterrotation. Default is ``1``.
+        vector_fit
+            The vector-fitted model.
         """
         pass

@@ -367,7 +367,7 @@ def _run_solver_and_reference(
     factor = -(1 * beam.particle_type.charge * e) * (
         beam.intensity * wakefield.profile.hist_y_to_density_factor
     )
-    poles, residues, _ = source.get_vectorfit()
+    poles, residues, _, *_ = source.get_vectorfit()
 
     expected = []
     accumulated_times = np.empty(0)
@@ -540,7 +540,7 @@ def _run_varying_call_gap_case(
     factor = -(1 * beam.particle_type.charge * e) * (
         beam.intensity * wakefield.profile.hist_y_to_density_factor
     )
-    poles, residues, _ = source.get_vectorfit()
+    poles, residues, _, *_ = source.get_vectorfit()
 
     expected = []
     accumulated_times = np.empty(0)
@@ -769,7 +769,7 @@ def _run_structural_gap_case(n_calls, resonator_params, source=None):
     factor = -(1 * beam.particle_type.charge * e) * (
         beam.intensity * wakefield.profile.hist_y_to_density_factor
     )
-    poles, residues, _ = source.get_vectorfit()
+    poles, residues, _, *_ = source.get_vectorfit()
 
     expected = []
     accumulated_times = np.empty(0)
@@ -999,7 +999,7 @@ def _run_two_beam_shared_solver(call_gaps, n_calls=6, beam_order=(0, 1)):
     hist_y = copy_to_cpu(profile.hist_y)
     self_hist_x = copy_to_cpu(profile.hist_x)
     span_dt = (n_bins_profile - 1) * bin_dt
-    poles, residues, pole_signs = source.get_vectorfit()
+    poles, residues, pole_signs, *_ = source.get_vectorfit()
     counter_rotating_sign = float(copy_to_cpu(pole_signs)[0])
 
     # The tracked turn is the sequence's first call, by the co-rotating
@@ -1297,7 +1297,7 @@ def _real_pole_models(bin_dt):
     """
     slow_pole, slow_residue = _real_pole(0.15, bin_dt)
     fast_pole, fast_residue = _real_pole(1.2, bin_dt)
-    complex_poles, complex_residues, _ = Resonators(
+    complex_poles, complex_residues, *_ = Resonators(
         *RESONATOR_PARAMS["slow_decay"]
     ).get_vectorfit()
     return {
@@ -1348,7 +1348,7 @@ class TestRealPolesAgainstConvolution(BLonDTestCase):
     def test_models_contain_a_real_pole(self) -> None:
         for name, source in _real_pole_models(BIN_DT).items():
             with self.subTest(model=name):
-                poles, _, _ = source.get_vectorfit()
+                poles, _, _, *_ = source.get_vectorfit()
                 self.assertTrue(
                     np.any(poles.imag == 0),
                     "fixture bug: the model has no exactly real pole",
