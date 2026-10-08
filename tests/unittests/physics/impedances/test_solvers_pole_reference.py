@@ -34,9 +34,14 @@ from blond import (
     proton,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.physics.impedances.base import (
+    SupportsVectorFittedModel,
+    WakeFieldSource,
+)
 from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.testing.backend_testing import BLonDTestCase
 
 # LHC-like machine, matching
 # `test_solvers_multiturn_boundary.py`'s `_make_simulation` fixture.
@@ -257,6 +262,7 @@ def _run_solver_and_reference(
     call_gap_bins=1,
     resonator_params=(SHUNT_IMPEDANCE, CENTER_FREQUENCY, QUALITY_FACTOR),
     counter_rotating=False,
+    source=None,
 ):
     """
     Run `MultiPoleSparseSolve` over `n_calls` turns and build its reference.
@@ -296,6 +302,9 @@ def _run_solver_and_reference(
         which is why `expected` below is valid for either case, and what a
         charge carried across a call boundary with the wrong call's flip
         would break.
+    source
+        A pole-residue source to use instead of a `Resonators` built from
+        ``resonator_params``; ``counter_rotating`` must be false with it.
 
     Returns
     -------
@@ -310,12 +319,13 @@ def _run_solver_and_reference(
     """
     n_bins_profile = N_BINS_FULL_TURN - (call_gap_bins - 1)
     cut_right = n_bins_profile * BIN_DT
-    source = Resonators(
-        *resonator_params,
-        shunt_impedances_counter_rotating=(
-            np.array([-resonator_params[0]]) if counter_rotating else None
-        ),
-    )
+    if source is None:
+        source = Resonators(
+            *resonator_params,
+            shunt_impedances_counter_rotating=(
+                np.array([-resonator_params[0]]) if counter_rotating else None
+            ),
+        )
     simulation, wakefield, drift, rf_station = _make_simulation(
         solver=MultiPoleSparseSolve(),
         sources=(source,),
@@ -384,7 +394,11 @@ def _run_solver_and_reference(
 
 
 def _run_fractional_call_gap_case(
-    call_gap, n_calls=3, resonator_params=None, counter_rotating=False
+    call_gap,
+    n_calls=3,
+    resonator_params=None,
+    counter_rotating=False,
+    source=None,
 ):
     """Single-gap shorthand for `_run_varying_call_gap_case`.
 
@@ -401,6 +415,8 @@ def _run_fractional_call_gap_case(
     counter_rotating
         If true, the resonator gets a sign-flipped counter-rotating shunt
         impedance and the beam is marked counter-rotating.
+    source
+        A pole-residue source to use instead of a `Resonators`.
 
     Returns
     -------
@@ -414,11 +430,16 @@ def _run_fractional_call_gap_case(
         n_calls=n_calls,
         resonator_params=resonator_params,
         counter_rotating=counter_rotating,
+        source=source,
     )
 
 
 def _run_varying_call_gap_case(
-    call_gaps, n_calls=3, resonator_params=None, counter_rotating=False
+    call_gaps,
+    n_calls=3,
+    resonator_params=None,
+    counter_rotating=False,
+    source=None,
 ):
     """
     Run the solver with inter-call gaps cycling through `call_gaps`.
@@ -455,6 +476,9 @@ def _run_varying_call_gap_case(
         impedance and the beam is marked counter-rotating; see
         `_run_solver_and_reference` for why the reference is unchanged by
         that.
+    source
+        A pole-residue source to use instead of a `Resonators` built from
+        ``resonator_params``.
 
     Returns
     -------
@@ -467,12 +491,13 @@ def _run_varying_call_gap_case(
         resonator_params = RESONATOR_PARAMS["slow_decay"]
     n_bins_profile = N_BINS_FULL_TURN
     bin_dt = _T_REV / (n_bins_profile - 1 + call_gaps[0])
-    source = Resonators(
-        *resonator_params,
-        shunt_impedances_counter_rotating=(
-            np.array([-resonator_params[0]]) if counter_rotating else None
-        ),
-    )
+    if source is None:
+        source = Resonators(
+            *resonator_params,
+            shunt_impedances_counter_rotating=(
+                np.array([-resonator_params[0]]) if counter_rotating else None
+            ),
+        )
     simulation, wakefield, drift, rf_station = _make_simulation(
         solver=MultiPoleSparseSolve(),
         sources=(source,),
@@ -695,11 +720,12 @@ def _prepare_sparse_gap_beam(simulation):
     return beam
 
 
-def _run_structural_gap_case(n_calls, resonator_params):
+def _run_structural_gap_case(n_calls, resonator_params, source=None):
     """
     Run `MultiPoleSparseSolve` on the structural-gap fixture and its
     reference, following the same sequential-per-call accumulation as
-    `_run_solver_and_reference` (see its docstring for why).
+    `_run_solver_and_reference` (see its docstring for why). ``source``
+    replaces the `Resonators` built from ``resonator_params``.
 
     Returns
     -------
@@ -712,7 +738,8 @@ def _run_structural_gap_case(n_calls, resonator_params):
     expected
         List of length `n_calls`, the reference voltage per call.
     """
-    source = Resonators(*resonator_params)
+    if source is None:
+        source = Resonators(*resonator_params)
     simulation, wakefield, drift, rf_station = _make_sparse_profile_simulation(
         solver=MultiPoleSparseSolve(), sources=(source,)
     )
@@ -1187,6 +1214,174 @@ class TestTwoBeamsSharingOneSolver(unittest.TestCase):
                     "the hand-over alike"
                 ),
             )
+
+
+class _PoleResidueSource(WakeFieldSource, SupportsVectorFittedModel):
+    """A source given directly by its poles and residues."""
+
+    def __init__(self, poles, residues):
+        super().__init__(is_dynamic=False)
+        self._poles = np.asarray(poles, dtype=complex)
+        self._residues = np.asarray(residues, dtype=complex)
+
+    def get_vectorfit(self):
+        return (
+            self._poles,
+            self._residues,
+            np.ones(len(self._poles), dtype=backend.float),
+        )
+
+
+def _real_pole(decay_per_bin, bin_dt):
+    """
+    A real pole and residue with a DC impedance of 1 MOhm.
+
+    Parameters
+    ----------
+    decay_per_bin
+        :math:`|p| \\Delta t`, the wake's decay over one bin.
+    bin_dt
+        Bin width, in [s].
+
+    Returns
+    -------
+    pole
+        The real pole, in [rad/s], with an imaginary part of exactly zero.
+    residue
+        The real residue, chosen so that ``Z(0) = -residue / pole = 1e6``.
+    """
+    pole = -decay_per_bin / bin_dt + 0.0j
+    return pole, -1e6 * pole
+
+
+def _real_pole_models(bin_dt):
+    """
+    The pole-residue models the real-pole tests run, by name.
+
+    A slowly decaying real pole loads the far-field recursion, a fast one
+    lives almost entirely in the near-field taps, and the mixed model puts
+    a real pole next to a resonator's complex one, so the two pair factors
+    must differ inside a single call.
+
+    Parameters
+    ----------
+    bin_dt
+        Bin width of the profile, in [s].
+
+    Returns
+    -------
+    models
+        Mapping from name to a `_PoleResidueSource`.
+    """
+    slow_pole, slow_residue = _real_pole(0.15, bin_dt)
+    fast_pole, fast_residue = _real_pole(1.2, bin_dt)
+    complex_poles, complex_residues, _ = Resonators(
+        *RESONATOR_PARAMS["slow_decay"]
+    ).get_vectorfit()
+    return {
+        "slow real pole": _PoleResidueSource([slow_pole], [slow_residue]),
+        "fast real pole": _PoleResidueSource([fast_pole], [fast_residue]),
+        "real and complex poles": _PoleResidueSource(
+            [slow_pole, *copy_to_cpu(complex_poles)],
+            [slow_residue, *copy_to_cpu(complex_residues)],
+        ),
+    }
+
+
+class TestRealPolesAgainstConvolution(BLonDTestCase):
+    """A real pole is counted once, end to end through the solver.
+
+    A complex pole stands in for its unstored conjugate partner and is
+    doubled; a real pole has no partner and must not be. The near-field
+    taps, the far-field recursion and the carried charge each apply that
+    factor on their own, so a solver that gets it wrong in any one of them
+    disagrees with the direct sum. The direct sum's own factor is pinned
+    against a quadrature in `test_bin_average.py`.
+    """
+
+    def _assert_all_calls_match(self, voltages, expected, message):
+        """
+        Compare every call's voltage with its reference.
+
+        Parameters
+        ----------
+        voltages
+            The solver's induced voltage per call.
+        expected
+            The reference voltage per call.
+        message
+            Added to the failure message.
+        """
+        for call_index in range(len(voltages)):
+            scale = float(np.max(np.abs(expected[call_index])))
+            self.assertGreater(scale, 0.0, "fixture bug: no wake at all")
+            np.testing.assert_allclose(
+                voltages[call_index],
+                expected[call_index],
+                rtol=1e-9,
+                atol=1e-9 * scale,
+                err_msg=f"call {call_index} of {message}",
+            )
+
+    def test_models_contain_a_real_pole(self) -> None:
+        for name, source in _real_pole_models(BIN_DT).items():
+            with self.subTest(model=name):
+                poles, _, _ = source.get_vectorfit()
+                self.assertTrue(
+                    np.any(poles.imag == 0),
+                    "fixture bug: the model has no exactly real pole",
+                )
+
+    def test_whole_bin_gaps_match_reference(self) -> None:
+        for name, source in _real_pole_models(BIN_DT).items():
+            for gap_bins, n_calls, call_gap_bins in (
+                (0, 1, 1),
+                (0, 3, 1),
+                (5, 3, 1),
+                (0, 3, 3),
+            ):
+                with self.subTest(
+                    model=name,
+                    gap_bins=gap_bins,
+                    n_calls=n_calls,
+                    call_gap_bins=call_gap_bins,
+                ):
+                    voltages, expected = _run_solver_and_reference(
+                        gap_bins=gap_bins,
+                        n_calls=n_calls,
+                        call_gap_bins=call_gap_bins,
+                        source=source,
+                    )
+                    self._assert_all_calls_match(
+                        voltages,
+                        expected,
+                        f"{name} with {gap_bins=}, {call_gap_bins=}",
+                    )
+
+    def test_fractional_call_gaps_match_reference(self) -> None:
+        # 1.05 and 1.5 bin widths put the carried charge's first-bin term
+        # on either side of the near-field onset, 2.0 and 3.0 hand it to
+        # the recursion.
+        for call_gap in (1.05, 1.5, 2.0, 3.0):
+            bin_dt = _T_REV / (N_BINS_FULL_TURN - 1 + call_gap)
+            for name, source in _real_pole_models(bin_dt).items():
+                with self.subTest(model=name, call_gap=call_gap):
+                    voltages, expected = _run_fractional_call_gap_case(
+                        call_gap, source=source
+                    )
+                    self._assert_all_calls_match(
+                        voltages, expected, f"{name} with {call_gap=}"
+                    )
+
+    def test_structural_gap_matches_reference(self) -> None:
+        for name, source in _real_pole_models(
+            _sparse_profile_bin_dt()
+        ).items():
+            with self.subTest(model=name):
+                _, _, voltages, expected = _run_structural_gap_case(
+                    n_calls=3, resonator_params=None, source=source
+                )
+                self._assert_all_calls_match(voltages, expected, name)
 
 
 if __name__ == "__main__":
