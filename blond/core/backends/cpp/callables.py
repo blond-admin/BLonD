@@ -965,6 +965,82 @@ def reload_cpp_backend(  # NOQA: PLR0915
             )
 
         @staticmethod
+        def wake_from_twc_fir(
+            # read
+            profile: NumpyArray,
+            grid_index: NumpyArray,
+            r_shunt: NumpyArray,
+            a_tilde: NumpyArray,
+            omega_r: NumpyArray,
+            bin_dt: float,
+            factor: float,
+            # write
+            voltage: NumpyArray,
+            voltage_threaded: NumpyArray,
+        ) -> None:
+            """
+            Travelling-wave-cavity wake via a phasor FIR recursion.
+
+            See the ``Specials`` ABC for the full description of the
+            algorithm and its lattice-grid convention.
+
+            Parameters
+            ----------
+            profile
+                Beam profile histogram (occupied lattice sites only).
+            grid_index
+                Lattice site of each profile bin, strictly increasing.
+            r_shunt
+                Shunt impedance per TWC mode, in [Ohm].
+            a_tilde
+                Wake support (filling) time per mode, in [s].
+            omega_r
+                Angular resonant frequency per mode, in [rad/s].
+            bin_dt
+                Spacing of the underlying equidistant lattice, in [s].
+            factor
+                To convert `profile` to current per bin [A].
+            voltage
+                Output voltage, in [V]. Overwritten.
+            voltage_threaded
+                Cached `voltage` array per thread. For speedup.
+            """
+            assert profile.dtype == floattype
+            assert grid_index.dtype == np.int32
+            assert r_shunt.dtype == floattype
+            assert a_tilde.dtype == floattype
+            assert omega_r.dtype == floattype
+            assert voltage.dtype == floattype
+            assert voltage_threaded.dtype == floattype
+
+            assert profile.flags.c_contiguous
+            assert grid_index.flags.c_contiguous
+            assert r_shunt.flags.c_contiguous
+            assert a_tilde.flags.c_contiguous
+            assert omega_r.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert voltage_threaded.flags.c_contiguous
+
+            assert len(grid_index) == len(profile)
+            assert len(r_shunt) == len(a_tilde)
+            assert len(r_shunt) == len(omega_r)
+
+            _LIBBLOND.wake_from_twc_fir(
+                _get_pointer(profile),
+                _get_pointer(grid_index),
+                _get_pointer(r_shunt),
+                _get_pointer(a_tilde),
+                _get_pointer(omega_r),
+                c_real(bin_dt, floattype),
+                c_real(factor, floattype),
+                _get_pointer(voltage),
+                _get_pointer(voltage_threaded),
+                ct.c_int(len(profile)),  # n_bins
+                ct.c_int(len(r_shunt)),  # n_modes
+                ct.c_int(voltage_threaded.shape[0]),  # n_threads
+            )
+
+        @staticmethod
         def wake_from_pole_residue(
             # read
             profile_time: NumpyArray,

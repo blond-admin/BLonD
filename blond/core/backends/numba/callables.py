@@ -25,6 +25,7 @@ produce non-finite coordinates. See `Specials` in
 from __future__ import annotations
 
 import logging
+import types
 from functools import wraps
 from typing import TYPE_CHECKING
 
@@ -35,6 +36,8 @@ from numba import boolean, complex128, njit, prange, void
 from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
+    _twc_fir_advance_gap,
+    _twc_fir_one_mode,
 )
 from blond.core.beam.flags import BeamFlags
 
@@ -252,6 +255,20 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
     _move_flagged_elements_to_end_py
 )
 _lost = BeamFlags.LOST.value
+
+# The TWC FIR recursion is the python reference, compiled. Its per-mode
+# routine calls the gap advance by its global name, so it is compiled
+# against a copy of its globals in which that name is the compiled one.
+_twc_fir_advance_gap_nb = njit(cache=False)(_twc_fir_advance_gap)
+_twc_fir_one_mode_nb = njit(cache=False)(
+    types.FunctionType(
+        _twc_fir_one_mode.__code__,
+        {
+            **_twc_fir_one_mode.__globals__,
+            "_twc_fir_advance_gap": _twc_fir_advance_gap_nb,
+        },
+    )
+)
 
 
 @njit(
@@ -892,6 +909,35 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 array_tmp[thread_i, write_idx] += 1
 
         out[:] = np.sum(array_tmp, axis=0)
+
+    @staticmethod
+    def wake_from_twc_fir(
+        # read
+        profile,
+        grid_index,
+        r_shunt,
+        a_tilde,
+        omega_r,
+        bin_dt,
+        factor,
+        # write
+        voltage,
+        voltage_threaded,
+    ) -> None:
+        """See `Specials.wake_from_twc_fir`. Numba-jitted mirror of `PythonSpecials.wake_from_twc_fir`."""
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+        for mode_i in range(len(r_shunt)):
+            _twc_fir_one_mode_nb(
+                profile,
+                grid_index,
+                float(r_shunt[mode_i]),
+                float(a_tilde[mode_i]),
+                float(omega_r[mode_i]),
+                float(bin_dt),
+                2.0 * float(factor),
+                voltage,
+            )
 
     @staticmethod
     @njit(

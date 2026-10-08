@@ -802,6 +802,23 @@ class CudaSpecials(Specials):  # NOQA: D101
         )
 
     @staticmethod
+    def wake_from_twc_fir(  # NOQA: D102
+        profile: CupyArray,
+        grid_index: CupyArray,
+        r_shunt: CupyArray,
+        a_tilde: CupyArray,
+        omega_r: CupyArray,
+        bin_dt: float,
+        factor: float,
+        voltage: CupyArray,
+        voltage_threaded: CupyArray,
+    ) -> None:
+        raise NotImplementedError(
+            "`wake_from_twc_fir` is not implemented for the cuda backend "
+            "yet; use the cpp or python backend."
+        )
+
+    @staticmethod
     def wake_from_pole_residue(
         # read
         profile_time: CupyArray,

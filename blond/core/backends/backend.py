@@ -427,6 +427,74 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def wake_from_twc_fir(
+        # read
+        profile: NumpyArray | CupyArray,
+        grid_index: NumpyArray | CupyArray,
+        r_shunt: NumpyArray | CupyArray,
+        a_tilde: NumpyArray | CupyArray,
+        omega_r: NumpyArray | CupyArray,
+        bin_dt: float,
+        factor: float,
+        # write
+        voltage: NumpyArray | CupyArray,
+        voltage_threaded: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        Travelling-wave-cavity wake via a phasor FIR recursion.
+
+        Convolves `profile` with the finite-support TWC wake
+        ``W(t) = (4 R / a_tilde) (1 - t / a_tilde) cos(omega_r t)`` for
+        ``0 < t < a_tilde`` (half amplitude at ``t = 0``) of every mode and
+        accumulates the result into `voltage`. One rotating phasor per mode
+        carries the cosine; a sliding-window subtraction (FIR part) builds
+        the linear taper and terminates the wake after ``a_tilde``.
+
+        The profile bins sit on a common *equidistant lattice* of spacing
+        `bin_dt`, at the strictly increasing integer positions
+        `grid_index`. Gaps between consecutive bins — e.g. the empty
+        buckets of a partially filled ring in an
+        ``EquidistantMultiProfile`` — carry no charge and produce no
+        output; the recursion advances across them in closed form and
+        removes each taper term at its exact lattice expiry site (the
+        same elapsed-time bookkeeping ``wake_from_pole_residue`` uses for
+        its ``t_jump``), so gapped and gap-free grids give identical
+        physics. On a gap-free grid pass ``grid_index = arange(n_bins)``.
+
+        There is no state across calls: the wake has finite support, so
+        this is exact as long as consecutive profiles are more than
+        ``max(a_tilde)`` apart in time (e.g. single-turn use with
+        ``a_tilde`` shorter than one revolution period).
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram (occupied lattice sites only).
+        grid_index
+            Lattice site of each profile bin, strictly increasing,
+            ``int32``.
+        r_shunt
+            Shunt impedance per TWC mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s]. This is the
+            ``TravelingWaveCavity`` ``a_factor / (2 pi)``.
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        bin_dt
+            Spacing of the underlying equidistant lattice, in [s].
+        factor
+            To convert `profile` to current per bin [A].
+        voltage
+            Output voltage, in [V]. Overwritten.
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        raise NotImplementedError(
+            "The backend for `wake_from_twc_fir` is missing."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def wake_from_pole_residue(
         # read
         profile_time: NumpyArray | CupyArray,

@@ -38,6 +38,7 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsTWCFIRModel,
     SupportsVectorFittedModel,
     TimeDomain,
     VectorFit,
@@ -1336,7 +1337,8 @@ def _vector_fit_of(source: SupportsVectorFittedModel) -> VectorFit:
     if not hasattr(source, "get_vectorfit"):
         raise TypeError(
             "`MultiPoleSparseSolve` needs sources implementing "
-            f"`SupportsVectorFittedModel`, but got {type(source)=}."
+            "`SupportsVectorFittedModel` or `SupportsTWCFIRModel`, but got "
+            f"{type(source)=}."
         )
     return VectorFit(*source.get_vectorfit())
 
@@ -1365,6 +1367,15 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     stencil `InductiveImpedance` uses for the frequency-domain solvers. A
     bin next to a gap sees the empty bins beyond it.
 
+    Sources implementing `SupportsTWCFIRModel` (travelling-wave cavities)
+    have a finite-support wake without a pole-residue representation and
+    are applied by `Specials.wake_from_twc_fir` instead, CPU backends only.
+    That recursion keeps no state across calls, so consecutive calls must
+    be further apart than the longest filling time. It point-samples the
+    wake rather than bin-averaging it like the other time-domain solvers,
+    which differs from them at the onset and at the end of the wake by an
+    amount that vanishes for bins much shorter than the filling time.
+
     Between calls the kernel hands its state over one bin before the last
     bin, and the last bin's charge is carried separately: it enters the
     state after the next call's first read-out, and its whole contribution
@@ -1383,6 +1394,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
         self._direct_term: float = 0.0  # in [Ohm]
         self._inductive_term: float = 0.0  # in [Ohm s]
+        # Travelling-wave cavities, by `Specials.wake_from_twc_fir`.
+        self._twc_r_shunt: NumpyArray | CupyArray | None = None
+        self._twc_a_tilde: NumpyArray | CupyArray | None = None
+        self._twc_omega_r: NumpyArray | CupyArray | None = None
+        self._twc_grid_index: NumpyArray | CupyArray | None = None
+        self._twc_longest_support: float = 0.0  # in [s]
         # Read once at the first call, so no device transfer per turn.
         self._bin_dt: float | None = None
         self._span_dt: float | None = None  # first to last bin centre
@@ -1432,9 +1449,16 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     def _initialise(self) -> None:
         """Collect the model and allocate the state, once."""
         poles, residues, signs = [], [], []
+        twc_r_shunt, twc_a_tilde, twc_omega_r = [], [], []
         assert self._parent_wakefield is not None
 
         for source in self._parent_wakefield.sources:
+            if isinstance(source, SupportsTWCFIRModel):
+                r_shunt, a_tilde, omega_r = source.get_twc_fir()
+                twc_r_shunt.extend(copy_to_cpu(r_shunt))
+                twc_a_tilde.extend(copy_to_cpu(a_tilde))
+                twc_omega_r.extend(copy_to_cpu(omega_r))
+                continue
             vector_fit = _vector_fit_of(source)
             poles.extend(vector_fit.poles)
             residues.extend(vector_fit.residues)
@@ -1476,6 +1500,86 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             dtype=backend.float,
         )
         self._carried_charge = backend.zeros(1, dtype=backend.float)
+        if twc_r_shunt:
+            self._initialise_twc(
+                twc_r_shunt, twc_a_tilde, twc_omega_r, hist_x, bin_dt
+            )
+
+    def _initialise_twc(
+        self,
+        r_shunt: list[float],
+        a_tilde: list[float],
+        omega_r: list[float],
+        hist_x: NumpyArray | CupyArray,
+        bin_dt: float,
+    ) -> None:
+        """
+        Set up the travelling-wave cavities for `wake_from_twc_fir`, once.
+
+        Parameters
+        ----------
+        r_shunt
+            Shunt impedance per mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s].
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        hist_x
+            Bin centres of the profile, in [s].
+        bin_dt
+            Bin width, in [s].
+        """
+        # TODO: bin-average the TWC wake like every other time-domain
+        #  solver does, instead of point-sampling it
+        warnings.warn(
+            "MultiPoleSparseSolve applies the travelling-wave-cavity wake "
+            "point-sampled, not bin-averaged like the other time-domain "
+            "solvers; they differ at the onset and at the end of the wake "
+            "by an amount that vanishes for bins much shorter than the "
+            f"filling time (here {bin_dt / min(a_tilde):.2g} of it).",
+            stacklevel=2,
+        )
+        self._twc_r_shunt = backend.array(r_shunt, dtype=backend.float)
+        self._twc_a_tilde = backend.array(a_tilde, dtype=backend.float)
+        self._twc_omega_r = backend.array(omega_r, dtype=backend.float)
+        self._twc_longest_support = max(a_tilde)
+        # whole bins apart, checked by `_check_whole_bin_gaps`
+        self._twc_grid_index = backend.array(
+            np.rint(copy_to_cpu(hist_x - hist_x[0]) / bin_dt),
+            dtype=np.int32,
+        )
+
+    def _twc_voltage(
+        self, hist_y: NumpyArray | CupyArray, factor: float
+    ) -> NumpyArray | CupyArray:
+        """
+        Induced voltage of the travelling-wave cavities.
+
+        Parameters
+        ----------
+        hist_y
+            Histogram of the profile.
+        factor
+            Conversion of `hist_y` to the charge per bin, in [C].
+
+        Returns
+        -------
+        voltage
+            Induced voltage, in [V].
+        """
+        voltage = backend.zeros(len(hist_y), dtype=backend.float)
+        backend.specials.wake_from_twc_fir(
+            profile=hist_y,
+            grid_index=self._twc_grid_index,
+            r_shunt=self._twc_r_shunt,
+            a_tilde=self._twc_a_tilde,
+            omega_r=self._twc_omega_r,
+            bin_dt=self._bin_dt,
+            factor=factor,
+            voltage=voltage,
+            voltage_threaded=self._thread_scratch(),
+        )
+        return voltage
 
     def _central_difference(
         self, hist_y: NumpyArray | CupyArray
@@ -1683,6 +1787,19 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage += (
                 factor * self._inductive_term / bin_dt**2
             ) * self._central_difference(hist_y)
+        if self._twc_r_shunt is not None:
+            if (
+                self.last_reference_time is not None
+                and carried_lag_dt < self._twc_longest_support
+            ):
+                warnings.warn(
+                    "MultiPoleSparseSolve: the travelling-wave-cavity wake "
+                    "of the previous call still reaches into this one, but "
+                    "`wake_from_twc_fir` keeps no state across calls; it is "
+                    "missing from the induced voltage.",
+                    stacklevel=2,
+                )
+            voltage += self._twc_voltage(hist_y, factor)
 
         # The carried charge's whole contribution to the first bin, at the
         # true lag. A pole's sign enters once if the two calls rotate

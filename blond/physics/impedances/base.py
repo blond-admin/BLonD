@@ -828,3 +828,38 @@ class SupportsVectorFittedModel(ABC):
             The vector-fitted model.
         """
         pass
+
+
+class SupportsTWCFIRModel(ABC):
+    r"""
+    Mixin for sources with a finite-support travelling-wave-cavity wake.
+
+    The wake :math:`W(t) = (4 R / \tilde a)(1 - t / \tilde a)
+    \cos(\omega_r t)` for :math:`0 < t < \tilde a` has no pole-residue
+    representation; `MultiPoleSparseSolve` applies it with the
+    `Specials.wake_from_twc_fir` recursion instead.
+
+    See Also
+    --------
+    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    """
+
+    @abstractmethod  # pragma: no cover
+    def get_twc_fir(
+        self,
+    ) -> tuple[
+        NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray
+    ]:
+        """
+        Provide the travelling-wave-cavity wake parameters per mode.
+
+        Returns
+        -------
+        r_shunt
+            Shunt impedance per mode, in [Ohm].
+        a_tilde
+            Wake support (filling) time per mode, in [s].
+        omega_r
+            Angular resonant frequency per mode, in [rad/s].
+        """
+        pass
