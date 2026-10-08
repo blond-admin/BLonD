@@ -69,7 +69,6 @@ doc = [
   "sphinx-copybutton",           # for the copy button of code on the website
   "marimo",                      # marimo notebooks exported for the docs
   "nbformat",                    # needed by `marimo export ipynb`
-  "algebra_with_sympy",          # used by the pole-residue notebook
 ]
 mpi = [
   # Distributed computing. Optional: the wheel needs an MPI runtime
