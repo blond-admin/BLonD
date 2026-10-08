@@ -28,6 +28,7 @@ from blond.experimental.beam_preparation.bucket_filler_functions import (
 )
 from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
+from blond.generals.late_init import AssignedDuringTracking, SetBy
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -224,6 +225,14 @@ class SemiEmpiricMatcher(MatchingRoutine):
     the potential well and intensity effects are both considered analytically.
     """
 
+    # For error calculation and plotting during `prepare_beam`.
+    _last_potential_well: AssignedDuringTracking[NumpyArray | CupyArray] = (
+        AssignedDuringTracking(SetBy.SETUP_BEAM)
+    )
+    _prelast_potential_well: AssignedDuringTracking[NumpyArray | CupyArray] = (
+        AssignedDuringTracking(SetBy.SETUP_BEAM)
+    )
+
     def __init__(
         self,
         time_limit: tuple[float, float],
@@ -286,9 +295,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
 
-        # For error calculation and plotting during `prepare_beam`
-        self._last_potential_well: NumpyArray | CupyArray | None = None
-        self._prelast_potential_well: NumpyArray | CupyArray | None = None
         self.debug_helper: DebuggingEndpoints | None = None
 
         # Can be potentially replaced like `hamilton_to_density_function`,
@@ -434,10 +440,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     plt.draw()
                     plt.pause(0.1)
 
-                error_calculable = (
-                    self._last_potential_well is not None
-                    and self._prelast_potential_well is not None
-                )
+                error_calculable = hasattr(
+                    self, "_last_potential_well"
+                ) and hasattr(self, "_prelast_potential_well")
                 # calculate errors on wakes (not on beam profiles)
                 # because this will more stable as noise is smoothed out
                 if error_calculable and i_intensity > 1:
@@ -688,9 +693,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
             potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
 
-        self._prelast_potential_well = self._last_potential_well
+        # Skipped on the first iteration, which has no previous well.
+        if hasattr(self, "_last_potential_well"):
+            self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
-        if self._prelast_potential_well is None:
+        if not hasattr(self, "_prelast_potential_well"):
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
@@ -746,9 +753,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.ylabel("Density (arb. unit)")
 
             plt.subplot(2, 1, 2)
-            if self._last_potential_well is not None:
+            if hasattr(self, "_last_potential_well"):
                 plt.plot(ts, self._last_potential_well)
-            if self._prelast_potential_well is not None:
+            if hasattr(self, "_prelast_potential_well"):
                 plt.plot(ts, self._prelast_potential_well)
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")

@@ -13,6 +13,10 @@ from typing import TYPE_CHECKING
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
+from blond.generals.late_init import InitialisedInternally, SetBy
+
+# Shared with the `blond.physics` feedbacks this module duplicates.
+from blond.physics.feedbacks.base import _BY_ATTACH
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
@@ -35,6 +39,10 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
 
 
 class LocalFeedback(FeedbackBaseClass):
+    _parent_rf_station: InitialisedInternally[
+        SingleHarmonicRFStation | MultiHarmonicRFStation
+    ] = InitialisedInternally(_BY_ATTACH)
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -45,13 +53,10 @@ class LocalFeedback(FeedbackBaseClass):
             section_index=section_index,
             name=name,
         )
-        self._parent_rf_station: (
-            SingleHarmonicRFStation | MultiHarmonicRFStation | None
-        ) = None
         self.profile = profile
 
     def set_parent_rf_station(self, rf_station: RFStationBaseClass):
-        assert self._parent_rf_station is None, (
+        assert not hasattr(self, "_parent_rf_station"), (
             "This feedback has already one owner!"
         )
         self._parent_rf_station = rf_station
@@ -73,6 +78,10 @@ RFFeedback = LocalFeedback  # just an alias name
 
 
 class GlobalFeedback(FeedbackBaseClass):
+    cavities: InitialisedInternally[list[RFStationBaseClass]] = (
+        InitialisedInternally(SetBy.SIMULATION)
+    )
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -84,7 +93,6 @@ class GlobalFeedback(FeedbackBaseClass):
             name=name,
         )
         self.profile = profile
-        self.cavities: list[RFStationBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements

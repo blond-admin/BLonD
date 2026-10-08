@@ -19,12 +19,17 @@ from blond.core.backends.mpi_distributed.distributed_array import (
 )
 from blond.core.beam.beams import Beam
 from blond.core.beam.particle_types import ParticleType
+from blond.generals.late_init import ToBeDefined
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
 
 class WeightenedBeam(Beam):
+    _weights: ToBeDefined[DistributedArray] = ToBeDefined(
+        "the `weights` argument of `WeightenedBeam.setup_beam(...)`"
+    )
+
     def __init__(
         self,
         intensity: int | float,
@@ -32,7 +37,6 @@ class WeightenedBeam(Beam):
     ) -> None:
         raise NotImplementedError  # todo
         super().__init__(intensity, particle_type)
-        self._weights: DistributedArray | None = None
 
     def setup_beam(
         self,

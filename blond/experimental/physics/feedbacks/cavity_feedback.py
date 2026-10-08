@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from blond.generals.late_init import AssignedDuringTracking, SetBy
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles import StaticProfile
 
@@ -93,6 +94,19 @@ class IQCavityFeedback(LocalFeedback):
 
     # TODO docstring
 
+    V_corr: AssignedDuringTracking[NumpyArray] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    alpha_sum: AssignedDuringTracking[NumpyArray] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    phi_corr: AssignedDuringTracking[NumpyArray] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    gap_voltage_phase: AssignedDuringTracking[NumpyArray] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         profile: StaticProfile,
@@ -126,12 +140,6 @@ class IQCavityFeedback(LocalFeedback):
             profile=profile,
             name=name,
         )
-
-        self.V_corr: NumpyArray | None = None
-        self.alpha_sum: NumpyArray | None = None
-        self.phi_corr: NumpyArray | None = None
-
-        self.gap_voltage_phase: NumpyArray | None = None
 
     def _track(self, beam: BeamBaseClass) -> None:
         r"""
