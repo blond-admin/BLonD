@@ -50,7 +50,8 @@ pip install blond[gpu_cuda13]
 
 ## Installation + Editable BLonD
 
-Use the [Getting-Started-Blond3 Project](https://gitlab.cern.ch/blond/future/getting-started-blond3) to setup and start using/editing BLonD 3 in a new virtual environment.
+Start your own simulation study from the [BLonD 3 Simulation Template](https://gitlab.cern.ch/blond/blond3-simulation-template).
+It installs BLonD 3 with uv, contains an example study with tests, explains how to edit BLonD itself alongside your study, and, at CERN, how to run simulations on LXPlus/HTCondor.
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp` or `blond-compile-cuda`
