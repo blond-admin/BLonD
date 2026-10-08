@@ -172,7 +172,7 @@ class TestBeamLoadingCompensationSustainsSetpoint(unittest.TestCase):
         for delta in DETUNINGS:
             i_ff = feedforward_current(V_SET, delta)
             for i_beam in BEAM_PHASORS:
-                with self.subTest(delta=delta, i_beam=i_beam):
+                with self.subTest(delta=float(delta), i_beam=str(i_beam)):
                     voltage = settled_voltage(
                         i_ff + i_beam / 2.0, i_beam, delta
                     )
@@ -266,7 +266,7 @@ class TestGeneratorPowerBeamPowerBalance(unittest.TestCase):
         """
         i_ff = feedforward_current(V_SET, 0.0)
         for i_beam in BEAM_PHASORS:
-            with self.subTest(i_beam=i_beam):
+            with self.subTest(i_beam=str(i_beam)):
                 delivered = self._delivered_to_beam(i_ff, i_beam)
                 p_beam = 0.5 * np.real(V_SET * np.conj(i_beam / 2.0))
                 self.assertAlmostEqual(delivered / p_beam, 1.0, places=12)
@@ -283,7 +283,7 @@ class TestGeneratorPowerBeamPowerBalance(unittest.TestCase):
         """
         i_ff = feedforward_current(V_SET, 0.0)
         for i_beam in BEAM_PHASORS:
-            with self.subTest(i_beam=i_beam):
+            with self.subTest(i_beam=str(i_beam)):
                 delivered = self._delivered_to_beam(i_ff, i_beam)
                 p_beam_naive = 0.5 * np.real(V_SET * np.conj(i_beam))
                 self.assertAlmostEqual(
@@ -308,7 +308,7 @@ class TestGeneratorPowerBeamPowerBalance(unittest.TestCase):
         """
         i_beam = 0.05 - 0.01j
         for delta in (2.0e-6, -5.0e-6):
-            with self.subTest(delta=delta):
+            with self.subTest(delta=float(delta)):
                 i_ff = feedforward_current(V_SET, delta)
                 delivered = self._delivered_to_beam(i_ff, i_beam)
                 p_beam = 0.5 * np.real(V_SET * np.conj(i_beam / 2.0))

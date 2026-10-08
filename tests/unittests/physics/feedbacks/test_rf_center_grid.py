@@ -148,7 +148,15 @@ class TestIQCavityFeedbackCoarseGrid:
         self.beam = Beam(
             intensity=1, particle_type=mu_plus, is_counter_rotating=False
         )
-        self.beam.setup_beam(dt=np.zeros(5), dE=np.zeros(5))
+        # These are grid-geometry and generator-fixed-point tests: the bunch
+        # must not be histogrammed. It is placed before the profile window
+        # on purpose. (It used to sit at dt = 0, which the old roundoff
+        # ``cut_left`` of 6e-27 s happened to exclude; with the exact window
+        # a bunch at the edge is histogrammed, and the feedback's own guards
+        # then rightly reject the omega-doubling per-turn ramp -- the
+        # demodulation frame goes stale by ~pi a turn and the two-cell turn
+        # at n = 3 puts charge into the last coarse cell.)
+        self.beam.setup_beam(dt=np.full(5, -2e-9), dE=np.zeros(5))
 
     def _make_timing_feedback(self, n_rf_periods_per_coarse_grid, **kwargs):
         self.profile = StaticProfile.from_cutoff(0, 1e-9, 5e9)

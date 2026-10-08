@@ -1411,7 +1411,9 @@ configuration, so the bias was latent, never observed.
    the fine-grid interpolation consume.
 4. `_check_fine_grid_initial_condition_is_causal` is deleted: the seed
    centre is at or before the passage origin while `cut_left` is asserted
-   positive, so it could never fire again.
+   non-negative (`>= 0` since 2026-10-08; the exact profile window of the
+   merged-in upstream makes `from_cutoff(0, ...)` an exact 0.0 where the
+   old roundoff gave 6e-27 s), so it could never fire again.
 5. New helper `_step_into_first_cell`, shared by `_coarse_step_sizes` and
    the seed, so the step into a segment's first cell has one spelling.
 

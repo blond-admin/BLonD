@@ -3677,7 +3677,7 @@ class IQCavityFeedbackCoarseGrid(
         used to be constrained to start at or after it with a charge-free
         first cell. The seed centre is never later than ``cut_left`` -- it
         lies at or before the passage origin, which ``cut_left`` is
-        asserted to be past -- so the propagation always runs forward, and
+        asserted to be at or past -- so the propagation never runs backwards, and
         no later coarse voltage enters the seed.
 
         Writes ``generator_current_fine_grid`` (the interpolation) and, via
@@ -3690,9 +3690,12 @@ class IQCavityFeedbackCoarseGrid(
             fine-grid step phase ``omega * profile.hist_step`` and the
             normalisation of the cavity detuning.
         """
+        # The seed centre lies at or before the passage origin (time 0),
+        # so the profile window may start exactly there: the propagation
+        # to ``cut_left`` is then of zero length, never backwards.
         init_beam_time = self.profile.cut_left
-        assert init_beam_time > 0, (
-            f"{init_beam_time=} has to be > 0, shift profile."
+        assert init_beam_time >= 0, (
+            f"{init_beam_time=} has to be >= 0, shift profile."
         )
 
         forward_start = len(self._rf_centers) - self._rf_centers_lengths[-1]

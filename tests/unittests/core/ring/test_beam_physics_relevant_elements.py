@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import Mock
 
+import numpy as np
+
 from blond import (
     ConstantMagneticCycle,
     DriftSimple,
@@ -15,6 +17,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
 )
+from blond.generals.formatting_ import pretty_string
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedbackCoarseGrid,
