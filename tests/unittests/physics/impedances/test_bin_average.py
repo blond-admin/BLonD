@@ -114,7 +114,7 @@ def reference_triple_box_average(
     return out
 
 
-class TestTripleBoxAveragePole(unittest.TestCase):
+class TestTripleBoxAveragePole(BLonDTestCase):
     """The bin-averaged wake of one pole, against a fine-grid convolution."""
 
     def setUp(self):
@@ -204,7 +204,7 @@ class TestTripleBoxAveragePole(unittest.TestCase):
         np.testing.assert_allclose(result, expected, rtol=1e-12)
 
 
-class TestTripleBoxAverageContinuumLimit(unittest.TestCase):
+class TestTripleBoxAverageContinuumLimit(BLonDTestCase):
     """As the bin shrinks, the bin-averaged wake tends to the point wake."""
 
     def setUp(self):
@@ -311,7 +311,7 @@ def reference_loss_factor(
         )
 
 
-class TestTripleBoxAverageLossFactor(unittest.TestCase):
+class TestTripleBoxAverageLossFactor(BLonDTestCase):
     """The loss factor of a coarsely-binned, high-Q pole."""
 
     def setUp(self):

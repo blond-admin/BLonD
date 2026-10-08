@@ -562,7 +562,7 @@ def _run_varying_call_gap_case(
     return recorded_voltages, expected
 
 
-class TestDenseProfileAgainstConvolution(unittest.TestCase):
+class TestDenseProfileAgainstConvolution(BLonDTestCase):
     """`MultiPoleSparseSolve` on a gap-free profile equals the direct sum."""
 
     def test_single_call_matches_reference(self) -> None:
@@ -587,7 +587,7 @@ class TestDenseProfileAgainstConvolution(unittest.TestCase):
                 )
 
 
-class TestSparseAndMultiCallAgainstConvolution(unittest.TestCase):
+class TestSparseAndMultiCallAgainstConvolution(BLonDTestCase):
     """`MultiPoleSparseSolve` matches the direct sum with gaps and calls.
 
     Covers charge-free bins within a `StaticProfile` (``gap_bins`` -- a
@@ -795,7 +795,7 @@ def _run_structural_gap_case(n_calls, resonator_params, source=None):
     return hist_x, bin_dt, recorded_voltages, expected
 
 
-class TestStructuralGapAgainstConvolution(unittest.TestCase):
+class TestStructuralGapAgainstConvolution(BLonDTestCase):
     """`MultiPoleSparseSolve` on a profile with a real hole in its axis.
 
     `EquidistantMultiProfile` packs only filled buckets into memory, so
@@ -855,7 +855,7 @@ class TestStructuralGapAgainstConvolution(unittest.TestCase):
                     )
 
 
-class TestGapHandoverIsNotDoubleCounted(unittest.TestCase):
+class TestGapHandoverIsNotDoubleCounted(BLonDTestCase):
     """A bin reached across a gap is claimed by exactly one of two paths."""
 
     def test_first_bin_after_a_gap_matches_reference(self) -> None:
@@ -884,7 +884,7 @@ class TestGapHandoverIsNotDoubleCounted(unittest.TestCase):
         )
 
 
-class TestCounterRotatingChargeAcrossACallBoundary(unittest.TestCase):
+class TestCounterRotatingChargeAcrossACallBoundary(BLonDTestCase):
     """A carried charge keeps the flip of the call that produced it."""
 
     def test_counter_rotating_beam_matches_reference(self) -> None:
@@ -1056,7 +1056,7 @@ def _run_two_beam_shared_solver(call_gaps, n_calls=6, beam_order=(0, 1)):
     return voltages, expected
 
 
-class TestFractionalCallGap(unittest.TestCase):
+class TestFractionalCallGap(BLonDTestCase):
     """The gap between two calls is a time, not a whole number of bins.
 
     A profile that covers slightly less than a full revolution period
@@ -1145,7 +1145,7 @@ class TestFractionalCallGap(unittest.TestCase):
                 self._assert_matches_reference(call_gap, counter_rotating=True)
 
 
-class TestTwoBeamsSharingOneSolver(unittest.TestCase):
+class TestTwoBeamsSharingOneSolver(BLonDTestCase):
     """One solver, a co-rotating and a counter-rotating beam, in turn.
 
     The case `MultiPoleSparseSolve`'s carry is written for, and the only
