@@ -110,10 +110,53 @@ class _LateInit(Generic[_T], ABC):
     @overload
     def __get__(self, instance: object, owner: type[Any] | None) -> _T: ...
 
-    @abstractmethod
     def __get__(
         self, instance: object | None, owner: type[Any] | None = None
-    ) -> _T | Self: ...
+    ) -> _T | Self:
+        """
+        Read the attribute.
+
+        Parameters
+        ----------
+        instance
+            Object owning the attribute, or `None` for class access.
+        owner
+            Class owning the attribute.
+
+        Returns
+        -------
+        value
+            The descriptor itself on class access.  An instance only
+            reaches this while the attribute is unfilled, and raises.
+
+        Raises
+        ------
+        NotInitialisedError
+            If the attribute has not been filled yet.
+        """
+        if instance is None:
+            return self
+        owner_name = type(instance).__name__
+        raise NotInitialisedError(
+            self._message(owner_name), name=self._pub_name, obj=instance
+        )
+
+    @abstractmethod
+    def _message(self, owner_name: str) -> str:
+        """
+        Say that the attribute is not initialised yet.
+
+        Parameters
+        ----------
+        owner_name
+            Name of the class of the object being read.
+
+        Returns
+        -------
+        str
+            The message of the `NotInitialisedError`, naming what
+            fills the attribute.
+        """
 
     if TYPE_CHECKING:
         # Checker-only stubs.  Defining these at runtime would make this
@@ -152,47 +195,10 @@ class InitialisedInternally(_LateInit[_T]):
     script.
     """
 
-    # Repeated from `_LateInit`: an override without them makes an
-    # instance read type as ``T | Self`` instead of plain ``T``.
-    @overload
-    def __get__(self, instance: None, owner: type[Any]) -> Self: ...
-
-    @overload
-    def __get__(self, instance: object, owner: type[Any] | None) -> _T: ...
-
-    def __get__(
-        self, instance: object | None, owner: type[Any] | None = None
-    ) -> _T | Self:
-        """
-        Read the attribute.
-
-        Parameters
-        ----------
-        instance
-            Object owning the attribute, or `None` for class access.
-        owner
-            Class owning the attribute.
-
-        Returns
-        -------
-        value
-            The attribute value, or the descriptor itself on class
-            access.
-
-        Raises
-        ------
-        NotInitialisedError
-            If the attribute has not been filled yet.
-        """
-        if instance is None:
-            return self
-        # Only reached while the instance ``__dict__`` lacks the name.
-        inst_class = type(instance).__name__
-        raise NotInitialisedError(
-            f"{inst_class}.{self._pub_name} is not initialised yet; "
-            f"it is filled by {self._filler(inst_class)}.",
-            name=self._pub_name,
-            obj=instance,
+    def _message(self, owner_name: str) -> str:
+        return (
+            f"{owner_name}.{self._pub_name} is not initialised yet; "
+            f"it is filled by {self._filler(owner_name)}."
         )
 
 
@@ -206,47 +212,10 @@ class AssignedDuringTracking(_LateInit[_T]):
     would otherwise persist into the next one.
     """
 
-    # Repeated from `_LateInit`: an override without them makes an
-    # instance read type as ``T | Self`` instead of plain ``T``.
-    @overload
-    def __get__(self, instance: None, owner: type[Any]) -> Self: ...
-
-    @overload
-    def __get__(self, instance: object, owner: type[Any] | None) -> _T: ...
-
-    def __get__(
-        self, instance: object | None, owner: type[Any] | None = None
-    ) -> _T | Self:
-        """
-        Read the attribute.
-
-        Parameters
-        ----------
-        instance
-            Object owning the attribute, or `None` for class access.
-        owner
-            Class owning the attribute.
-
-        Returns
-        -------
-        value
-            The attribute value, or the descriptor itself on class
-            access.
-
-        Raises
-        ------
-        NotInitialisedError
-            If the attribute has not been filled yet.
-        """
-        if instance is None:
-            return self
-        # Only reached while the instance ``__dict__`` lacks the name.
-        inst_class = type(instance).__name__
-        raise NotInitialisedError(
-            f"{inst_class}.{self._pub_name} is only assigned while "
-            f"tracking; {self._filler(inst_class)} has not run yet.",
-            name=self._pub_name,
-            obj=instance,
+    def _message(self, owner_name: str) -> str:
+        return (
+            f"{owner_name}.{self._pub_name} is only assigned while "
+            f"tracking; {self._filler(owner_name)} has not run yet."
         )
 
 
@@ -259,47 +228,10 @@ class ToBeDefined(_LateInit[_T]):
     one unfilled means the script left it out.
     """
 
-    # Repeated from `_LateInit`: an override without them makes an
-    # instance read type as ``T | Self`` instead of plain ``T``.
-    @overload
-    def __get__(self, instance: None, owner: type[Any]) -> Self: ...
-
-    @overload
-    def __get__(self, instance: object, owner: type[Any] | None) -> _T: ...
-
-    def __get__(
-        self, instance: object | None, owner: type[Any] | None = None
-    ) -> _T | Self:
-        """
-        Read the attribute.
-
-        Parameters
-        ----------
-        instance
-            Object owning the attribute, or `None` for class access.
-        owner
-            Class owning the attribute.
-
-        Returns
-        -------
-        value
-            The attribute value, or the descriptor itself on class
-            access.
-
-        Raises
-        ------
-        NotInitialisedError
-            If the attribute has not been filled yet.
-        """
-        if instance is None:
-            return self
-        # Only reached while the instance ``__dict__`` lacks the name.
-        inst_class = type(instance).__name__
-        raise NotInitialisedError(
-            f"{inst_class}.{self._pub_name} has not been defined. "
-            f"Set it via {self._filler(inst_class)}.",
-            name=self._pub_name,
-            obj=instance,
+    def _message(self, owner_name: str) -> str:
+        return (
+            f"{owner_name}.{self._pub_name} has not been defined. "
+            f"Set it via {self._filler(owner_name)}."
         )
 
 
