@@ -11,23 +11,17 @@
 
 from __future__ import annotations
 
-import warnings
 from math import sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.helpers import MPI
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
-
-try:
-    from mpi4py import MPI
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
-    MPI = None
 
 
 class DistributedArray:

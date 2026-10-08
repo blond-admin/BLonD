@@ -10,18 +10,14 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-try:
-    from mpi4py import MPI
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
-    MPI = None
-
-from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
+from blond.core.backends.mpi_distributed.helpers import (
+    MPI,
+    mpi_is_distributed,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.backends.mpi_distributed.distributed_array import (

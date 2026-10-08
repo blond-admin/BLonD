@@ -248,10 +248,11 @@ class TestDistributedArray(BLonDTestCase):
 class TestDistributedArrayNoMPI(BLonDTestCase):
     def test_no_mpi(self):
         with patch.dict(sys.modules, {"mpi4py": None}):
-            # trigger new import
-            sys.modules.pop(
-                "blond.core.backends.mpi_distributed.distributed_array", None
-            )
+            # trigger new import; `distributed_array` takes MPI from `helpers`
+            for module in ("helpers", "distributed_array"):
+                sys.modules.pop(
+                    f"blond.core.backends.mpi_distributed.{module}", None
+                )
             from blond.core.backends.mpi_distributed.distributed_array import (
                 DistributedArray,
             )
