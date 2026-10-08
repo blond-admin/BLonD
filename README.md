@@ -32,26 +32,30 @@ It also ships with the [**BLonD Assistant**](#blond-assistant-ai-helper), an AI 
     * CUDA Compiler Driver - [NVCC](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
 
 ## Installation
-> [!WARNING]
-> This does not work until BLonD3 is the main version!
->
-> Follow the [Developer Guide](CONTRIBUTING.md) to get BLonD3.
-```bash
-pip install blond
-```
-or if a GPU is available, either CUDA12 or CUDA13 can be used
-```bash
-pip install blond[gpu_cuda12]
-```
-```bash
-pip install blond[gpu_cuda13]
-```
 
+### Your own simulation study (recommended)
 
-## Installation + Editable BLonD
-
-Start your own simulation study from the [BLonD 3 Simulation Template](https://gitlab.cern.ch/blond/blond3-simulation-template).
+Start from the [BLonD 3 Simulation Template](https://gitlab.cern.ch/blond/blond3-simulation-template).
 It installs BLonD 3 with uv, contains an example study with tests, explains how to edit BLonD itself alongside your study, and, at CERN, how to run simulations on LXPlus/HTCondor.
+
+### Into an existing environment
+
+BLonD 3 is not on PyPI yet: `pip install blond` still installs BLonD 2. Install BLonD 3 from GitLab instead:
+```bash
+pip install "blond @ git+https://gitlab.cern.ch/blond/BLonD.git@blonder"
+```
+or, if a GPU is available, with CUDA 12 or CUDA 13:
+```bash
+pip install "blond[gpu_cuda12] @ git+https://gitlab.cern.ch/blond/BLonD.git@blonder"
+```
+```bash
+pip install "blond[gpu_cuda13] @ git+https://gitlab.cern.ch/blond/BLonD.git@blonder"
+```
+With uv, use `uv add` with the same argument.
+
+### Developing BLonD
+
+Follow the [Developer Guide](CONTRIBUTING.md) for an editable installation of BLonD itself.
 
 ### Configuration
 Optional backends can be compiled after installation using the commands `blond-compile-cpp` or `blond-compile-cuda`
