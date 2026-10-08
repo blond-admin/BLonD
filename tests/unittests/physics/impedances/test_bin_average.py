@@ -359,6 +359,57 @@ class TestTripleBoxAverageLossFactor(BLonDTestCase):
         )
 
 
+class TestTripleBoxAverageSumRule(BLonDTestCase):
+    r"""The bin-averaged wake carries the wake's whole integral, at any dt.
+
+    The B-spline has unit area, so summing the averaged wake over every
+    whole-bin lag gives :math:`\int W\,dt = \kappa\,\mathrm{Re}(-\rho / p)`,
+    with :math:`\kappa = 2` for a complex pole and 1 for a real one. That
+    holds whether the wake decays within a fraction of a bin or over
+    thousands, so it pins the near-field taps -- series and direct branch
+    alike -- without relying on the closed form they are built from.
+    """
+
+    def test_sum_matches_wake_integral_across_bin_widths(self):
+        dt = 1e-9  # [s]
+        # Pole direction in the complex plane, by name; the magnitude is
+        # set per case through |pole * dt|.
+        pole_directions = {
+            "real": -1.0 + 0.0j,
+            "Q=0.6": -0.83 + 0.55j,
+            "Q~2": -0.25 + 0.97j,
+            "Q~100": -5e-3 + 1.0j,
+        }
+        for name, direction in pole_directions.items():
+            for pole_dt in (10.0 ** np.arange(-3.0, 3.5, 0.5)).tolist():
+                pole = pole_dt * direction / dt
+                if name == "real":
+                    pole = complex(pole.real, 0.0)
+                residue = 1.3 - 0.4j if pole.imag else 1.3 + 0.0j
+                # Forty decay lengths leave a tail below 1e-17.
+                decay_bins = 1.0 / (pole_dt * abs(direction.real))
+                n_bins = int(40 * decay_bins) + 10
+                if n_bins > 2_000_000:
+                    continue
+                with self.subTest(pole=name, pole_dt=pole_dt):
+                    lags = np.arange(-2, n_bins) * dt
+                    wake = copy_to_cpu(
+                        triple_box_average_pole(
+                            backend.array(lags, dtype=backend.float),
+                            pole,
+                            residue,
+                            dt,
+                        )
+                    )
+                    pair_factor = 1.0 if pole.imag == 0 else 2.0
+                    expected = pair_factor * (-residue / pole).real
+                    self.assertAlmostEqual(
+                        float(np.sum(wake)) * dt,
+                        expected,
+                        delta=1e-10 * pair_factor * abs(residue / pole),
+                    )
+
+
 class TestTripleBoxAverageStaysOnTheDevice(BLonDTestCase):
     """`triple_box_average_poles` must not copy back to the host.
 

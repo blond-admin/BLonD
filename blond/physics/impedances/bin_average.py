@@ -22,13 +22,15 @@ The price is one non-causal tap: :math:`B_2` reaches to
 the next one.
 
 For a pole :math:`p` with residue :math:`\rho`, wake
-:math:`W(t) = 2\,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`, the average
-:math:`\overline W = W * B_2` is the third difference of a third
-antiderivative (Steps 47-51 of
+:math:`W(t) = \kappa\,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`, where
+:math:`\kappa = 2` for a complex pole, which stands in for its unstored
+conjugate partner, and :math:`\kappa = 1` for a real pole, which has none.
+The average :math:`\overline W = W * B_2` is the third difference of a
+third antiderivative (Steps 47-51 of
 ``docs/models_new/pole-residue/bin_averaged_wake_derivation.py``):
 
 .. math::
-    \overline W(t) = 2\,\mathrm{Re}\!\left[\rho\,
+    \overline W(t) = \kappa\,\mathrm{Re}\!\left[\rho\,
       \frac{\varphi_3(t + \tfrac32\Delta t) - 3\varphi_3(t + \tfrac12\Delta t)
           + 3\varphi_3(t - \tfrac12\Delta t) - \varphi_3(t - \tfrac32\Delta t)}
       {\Delta t^3}\right],
@@ -36,7 +38,8 @@ antiderivative (Steps 47-51 of
     \varphi_3(t) = \frac{e^{p t} - 1 - p t - \tfrac12 (p t)^2}{p^3}\,\Theta(t),
 
 which past the onset, :math:`t > \tfrac32\Delta t`, collapses to the pure
-exponential :math:`2\,\mathrm{Re}[\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3
+exponential
+:math:`\kappa\,\mathrm{Re}[\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3
 e^{p (t - \frac32 \Delta t)}]`.
 
 Notes
