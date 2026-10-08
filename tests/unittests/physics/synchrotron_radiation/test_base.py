@@ -196,27 +196,33 @@ class TestSynchrotronRadiationBaseClass(BLonDTestCase):
             self.SRB.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
-        self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRB._damping_time)
-        self.assertIsNone(self.SRB._natural_energy_spread)
+        self.assertNotHasAttr(
+            self.SRB, "_energy_lost_due_to_synchrotron_radiation"
+        )
+        self.assertNotHasAttr(self.SRB, "_damping_time")
+        self.assertNotHasAttr(self.SRB, "_natural_energy_spread")
 
     def test_inputs_SynchrotronRadiationDrift(self):
         np.testing.assert_array_equal(
             self.SRD.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
-        self.assertIsNone(self.SRD._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRD._damping_time)
-        self.assertIsNone(self.SRD._natural_energy_spread)
+        self.assertNotHasAttr(
+            self.SRD, "_energy_lost_due_to_synchrotron_radiation"
+        )
+        self.assertNotHasAttr(self.SRD, "_damping_time")
+        self.assertNotHasAttr(self.SRD, "_natural_energy_spread")
 
     def test_inputs_SynchrotronRadiationSection(self):
         np.testing.assert_array_equal(
             self.SRS.share_of_radiation_integrals,
             0.1 * self.radiation_integrals,
         )
-        self.assertIsNone(self.SRS._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRS._damping_time)
-        self.assertIsNone(self.SRS._natural_energy_spread)
+        self.assertNotHasAttr(
+            self.SRS, "_energy_lost_due_to_synchrotron_radiation"
+        )
+        self.assertNotHasAttr(self.SRS, "_damping_time")
+        self.assertNotHasAttr(self.SRS, "_natural_energy_spread")
 
     def test_calculate_kick_SynchrotronRadiationBaseClass(self):
         np.random.seed(seed=self.seed)
@@ -422,9 +428,11 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
                 1 / (k + 1) * self.radiation_integrals,
                 decimal=self.decimal,
             )
-        self.assertIsNone(self.SRB._energy_lost_due_to_synchrotron_radiation)
-        self.assertIsNone(self.SRB._damping_time)
-        self.assertIsNone(self.SRB._natural_energy_spread)
+        self.assertNotHasAttr(
+            self.SRB, "_energy_lost_due_to_synchrotron_radiation"
+        )
+        self.assertNotHasAttr(self.SRB, "_damping_time")
+        self.assertNotHasAttr(self.SRB, "_natural_energy_spread")
 
     def test_calculate_kick_SynchrotronRadiationBaseClass(self):
         for k in range(self.number_of_turns):

@@ -27,6 +27,11 @@ import numpy as np
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    InitalisedInternally,
+    SetBy,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -69,6 +74,12 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
         super().__init__(section_index=section_index, name=name, **kwargs)
 
 
+_BY_ATTACH = (
+    "the `cavity_feedback` argument of an rf station, or "
+    "`RFStationBaseClass.attach_cavity_feedback(...)`"
+)
+
+
 class LocalFeedback(FeedbackBaseClass):
     """
     Baseclass for implementation of local feedback elements.
@@ -82,7 +93,25 @@ class LocalFeedback(FeedbackBaseClass):
         Profile the feedback should act on.
     name
         Name of the feedback.
+
+    Attributes
+    ----------
+    relative_voltage_correction
+        Relative correction to the setpoint voltage stemming from the
+        feedback, on the profile time grid.
+    phase_correction
+        Correction to the rf phase, in [rad], on the profile time grid.
     """
+
+    relative_voltage_correction: AssignedDuringTracking[NumpyArray] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+    phase_correction: AssignedDuringTracking[NumpyArray] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+    _parent_rf_station: InitalisedInternally[
+        SingleHarmonicRFStation | MultiHarmonicRFStation
+    ] = InitalisedInternally(_BY_ATTACH)
 
     def __init__(
         self,
@@ -92,15 +121,6 @@ class LocalFeedback(FeedbackBaseClass):
         super().__init__(
             name=name,
         )
-        self._parent_rf_station: (
-            SingleHarmonicRFStation | MultiHarmonicRFStation | None
-        ) = None
-
-        self.relative_voltage_correction: NumpyArray | None = None
-        """Relative correction to the setpoint voltage stemming from the feedback, has to be defined on the profile time grid."""
-        self.phase_correction: NumpyArray | None = None
-        """Correction to the rf phase, has to be defined on the profile time grid."""
-
         self.profile = profile
 
     def set_parent_rf_station(
@@ -119,7 +139,7 @@ class LocalFeedback(FeedbackBaseClass):
             SingleHarmonicRFStation,
         )
 
-        assert self._parent_rf_station is None, (
+        assert not hasattr(self, "_parent_rf_station"), (
             "This feedback has already one owner!"
         )
         if not isinstance(
@@ -162,6 +182,10 @@ class GlobalFeedback(FeedbackBaseClass):
         resolution order of inheriting elements.
     """
 
+    cavities: InitalisedInternally[list[RFStationBaseClass]] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -175,7 +199,6 @@ class GlobalFeedback(FeedbackBaseClass):
             **kwargs,
         )
         self.profile = profile
-        self.cavities: list[RFStationBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements

@@ -33,6 +33,7 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.ordering import requires
+from blond.generals.late_init import InitalisedInternally, SetBy
 from blond.physics.feedbacks.base import (
     GlobalFeedback,
 )
@@ -92,6 +93,13 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         The harmonic number of the main RF system. The type is int | None.
     """
 
+    _main_cavities: InitalisedInternally[list[RFStationBaseClass]] = (
+        InitalisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         profile: ProfileBaseClass,
@@ -120,8 +128,6 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
             None  # type is int | None, documented in class docstring
         )
 
-        self._main_cavities: list[RFStationBaseClass] | None = None
-        self._simulation: Simulation | None = None
         self._turn_counter: DynamicParameter | None = None
 
         self._first_turn_value_checked = False

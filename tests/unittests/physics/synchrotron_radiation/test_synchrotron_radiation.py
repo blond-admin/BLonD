@@ -68,8 +68,8 @@ class TestSynchrotronRadiationMaster(BLonDTestCase):
             ],
         )
 
-        self.assertIsNone(SRHandler._natural_energy_spread)
-        self.assertIsNone(SRHandler._energy_loss_per_turn)
+        self.assertNotHasAttr(SRHandler, "_natural_energy_spread")
+        self.assertNotHasAttr(SRHandler, "_energy_loss_per_turn")
 
         self.assertListEqual(SRHandler.generated_children, [])
 

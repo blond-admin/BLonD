@@ -28,6 +28,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
 from blond.core.scheduling import ScheduledBaseClass
+from blond.generals.late_init import ToBeDefined
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
@@ -44,6 +45,9 @@ if TYPE_CHECKING:
     from blond.physics.rf_station import RFStationBaseClass
 
     T = TypeVar("T")
+
+
+_BY_COMPUTE = "`SynchrotronRadiationMaster.compute_synchrotron_radiation_parameters(...)`"
 
 
 class SynchrotronRadiationMaster(Schedulable):
@@ -90,6 +94,14 @@ class SynchrotronRadiationMaster(Schedulable):
     >>> SRM.prepare_ring_for_synchrotron_radiation_tracking(ring=ring)
     """
 
+    # Diagnostics, computed on demand rather than by a lifecycle
+    # hook; this class has none.
+    _natural_energy_spread: ToBeDefined[NumpyArray] = ToBeDefined(_BY_COMPUTE)
+    _energy_loss_per_turn: ToBeDefined[NumpyArray] = ToBeDefined(_BY_COMPUTE)
+    _longitudinal_damping_time: ToBeDefined[NumpyArray] = ToBeDefined(
+        _BY_COMPUTE
+    )
+
     def __init__(
         self,
         track_before_element_type: list[
@@ -115,10 +127,6 @@ class SynchrotronRadiationMaster(Schedulable):
 
         self._disable_quantum_excitation = disable_quantum_excitation
 
-        self._natural_energy_spread: NumpyArray | None = None
-        self._energy_loss_per_turn: NumpyArray | None = None
-        self._longitudinal_damping_time: NumpyArray | None = None
-
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
     def __str__(self) -> str:
@@ -139,7 +147,7 @@ class SynchrotronRadiationMaster(Schedulable):
         )
 
     @property
-    def energy_loss_per_turn(self) -> NumpyArray | None:
+    def energy_loss_per_turn(self) -> NumpyArray:
         """
         Energy loss per turn, in [eV per turn].
 
@@ -151,7 +159,7 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._energy_loss_per_turn
 
     @property
-    def longitudinal_damping_time(self) -> NumpyArray | None:
+    def longitudinal_damping_time(self) -> NumpyArray:
         """
         Longitudinal damping time.
 
@@ -163,7 +171,7 @@ class SynchrotronRadiationMaster(Schedulable):
         return self._longitudinal_damping_time
 
     @property
-    def natural_energy_spread(self) -> NumpyArray | None:
+    def natural_energy_spread(self) -> NumpyArray:
         """
         Natural energy spread.
 

@@ -34,6 +34,11 @@ from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ordering import requires
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    InitalisedInternally,
+    SetBy,
+)
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -60,13 +65,24 @@ if TYPE_CHECKING:  # pragma: no cover
 class InductiveImpedanceSolver(WakeFieldSolver):
     """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
 
+    _beam: AssignedDuringTracking[BeamBaseClass] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    _Z_over_n: InitalisedInternally[float] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _turn_counter: InitalisedInternally[DynamicParameter] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+
     def __init__(self):
         super().__init__()
-        self._beam: BeamBaseClass | None = None
-        self._Z_over_n: float | None = None
-        self._turn_counter: DynamicParameter | None = None
-        self._parent_wakefield: WakeField | None = None
-        self._simulation: Simulation | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -157,6 +173,20 @@ class PeriodicFreqSolver(WakeFieldSolver):
     around the synchrotron takes ( long profiles).
     """
 
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _n_time: InitalisedInternally[int] = InitalisedInternally(SetBy.SIMULATION)
+    _freq_x: InitalisedInternally[NumpyArray] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _freq_y: InitalisedInternally[NumpyArray] = InitalisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+
     def __init__(
         self,
         t_periodicity: float | None = None,
@@ -170,12 +200,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self.expect_impedance_change = False
 
         self._t_periodicity = t_periodicity
-        self._parent_wakefield: WakeField | None = None
-        self._n_time: int | None = None
-        self._freq_x: NumpyArray | None = None
-        self._freq_y: NumpyArray | None = None
-
-        self._simulation: Simulation | None = None
 
         self._freq_y_needs_update = True  # at least one update
 
@@ -317,7 +341,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if not self._freq_y_needs_update:
             return
 
-        if (self._freq_y is None) or (
+        if not hasattr(self, "_freq_y") or (
             self._freq_x.shape != self._freq_y.shape
         ):
             self._freq_y = backend.zeros_like(
@@ -441,6 +465,16 @@ class TimeDomainFftSolver(WakeFieldSolver):
     the synchrotron revolution time (short profiles).
     """
 
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _impedance_from_wake_y: InitalisedInternally[NumpyArray] = (
+        InitalisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+
     def __init__(
         self,
         allow_next_fast_len: bool = True,
@@ -448,10 +482,6 @@ class TimeDomainFftSolver(WakeFieldSolver):
         super().__init__()
         self.expect_impedance_change = False
         self._allow_next_fast_len = allow_next_fast_len
-
-        self._parent_wakefield: WakeField | None = None
-        self._impedance_from_wake_y: NumpyArray | None = None
-        self._simulation: Simulation | None = None
 
         self._impedance_from_wake_y_needs_update = True  # update at least once
 
@@ -529,7 +559,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         n_t = (n_fft // 2) + 1
 
-        if (self._impedance_from_wake_y is None) or (
+        if not hasattr(self, "_impedance_from_wake_y") or (
             (n_t,) != self._impedance_from_wake_y.shape  # tuple vs shape-tuple
         ):
             self._impedance_from_wake_y = backend.zeros(
@@ -618,14 +648,22 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     :class:`~blond.physics.impedances.sources.Resonators` sources.
     """
 
+    _wake_function_vals: InitalisedInternally[NumpyArray] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    _wake_function_time: InitalisedInternally[NumpyArray] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+
     def __init__(self):
         super().__init__()
-        self._wake_function_vals: NumpyArray | None = None
-        self._wake_function_time: NumpyArray | None = None
         self._wake_function_vals_needs_update = True  # initialization
-
-        self._simulation: Simulation | None = None
-        self._parent_wakefield: WakeField | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -770,6 +808,19 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         time axes corresponding to _past_profiles.
     """
 
+    _last_reference_time: InitalisedInternally[float] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _maximum_storage_time: InitalisedInternally[float] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+
     def __init__(
         self,
         decay_fraction_threshold: float = 0.001,
@@ -781,13 +832,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         super().__init__()
 
-        self._last_reference_time: float | None = None
-
-        self._maximum_storage_time: float | None = None
         self._decay_fraction_threshold = decay_fraction_threshold
-
-        self._simulation: Simulation | None = None
-        self._parent_wakefield: WakeField | None = None
 
         # define wake function values and corresponding time axis
         self._past_profiles: deque[NumpyArray] = deque()
@@ -1101,16 +1146,22 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     representation of the last turn.
     """
 
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _wake_kernel: InitalisedInternally[NumpyArray | CupyArray] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    _simulation: InitalisedInternally[Simulation] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+
     def __init__(self, n_turns: int) -> None:
         # This import is here because of sphinx warning
         # `list assignment index out of range [autodoc]`
         from collections import deque
 
         self._n_wakes_full_turn = n_turns
-
-        self._parent_wakefield: WakeField | None = None
-        self._wake_kernel: NumpyArray | CupyArray | None = None
-        self._simulation: Simulation | None = None
 
         self._previous_wakes = deque(maxlen=n_turns)
 
@@ -1217,7 +1268,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
-        if self._wake_kernel is None:
+        if not hasattr(self, "_wake_kernel"):
             self._update_wake_kernel()
 
         _factor = self._hist_y_to_intensity_factor(
@@ -1260,20 +1311,32 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self._poles: NumpyArray | CupyArray | None = None
-        self._residues: NumpyArray | CupyArray | None = None
-        self._profile: EquidistantMultiProfile | StaticProfile | None = None
-        self._parent_wakefield: WakeField | None = None
-        self._voltage: NumpyArray | CupyArray | None = None
-        self.last_reference_time: float | None = None
-
-        self._charge_per_macroparticle: float | None = None  # in Coulomb
-
-        # counter rotation feature for muon collider
-        self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+    _poles: InitalisedInternally[NumpyArray | CupyArray] = (
+        InitalisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _residues: InitalisedInternally[NumpyArray | CupyArray] = (
+        InitalisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _profile: InitalisedInternally[EquidistantMultiProfile | StaticProfile] = (
+        InitalisedInternally(SetBy.SIMULATION)
+    )
+    _parent_wakefield: InitalisedInternally[WakeField] = InitalisedInternally(
+        SetBy.SIMULATION
+    )
+    _voltage: InitalisedInternally[NumpyArray | CupyArray] = (
+        InitalisedInternally(SetBy.RUN_SIMULATION)
+    )
+    last_reference_time: AssignedDuringTracking[float] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+    # In Coulomb.
+    _charge_per_macroparticle: AssignedDuringTracking[float] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+    # Counter rotation feature for muon collider.
+    _counterrotating_pole_signs: InitalisedInternally[
+        NumpyArray | CupyArray
+    ] = InitalisedInternally(SetBy.RUN_SIMULATION)
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -1380,7 +1443,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             else self._profile.hist_x
         )
 
-        if self._poles is None:
+        if not hasattr(self, "_poles"):
             self._finalize_solver(beam=beam)
             assert self._update_on_bin[0] == 0, "First bin must always update."
             assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (

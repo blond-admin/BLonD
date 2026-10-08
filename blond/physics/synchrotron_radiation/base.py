@@ -24,6 +24,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.generals.late_init import AssignedDuringTracking, SetBy
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -58,6 +59,17 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         raise ``NotImplementedError`` rather than silently being ignored.
     """
 
+    # Recorded from the most recent kick, for inspection only.
+    _energy_lost_due_to_synchrotron_radiation: AssignedDuringTracking[
+        float
+    ] = AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    _damping_time: AssignedDuringTracking[float] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    _natural_energy_spread: AssignedDuringTracking[float] = (
+        AssignedDuringTracking(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         name: str | None = None,
@@ -89,10 +101,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
         self.share_of_radiation_integrals = share_of_radiation_integrals
 
         self._disable_quantum_excitation = disable_quantum_excitation
-
-        self._energy_lost_due_to_synchrotron_radiation: float | None = None
-        self._damping_time: float | None = None
-        self._natural_energy_spread: float | None = None
 
     def _apply_kick(
         self,
