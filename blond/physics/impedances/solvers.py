@@ -1266,6 +1266,9 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 # spans the whole revolution period meets the check with equality, and its
 # two sides are computed along different routes.
 _CALL_GAP_TOLERANCE = 1e-6
+# Lag, in bin widths, past which the bin-averaged wake is a pure
+# exponential (the B-spline no longer straddles the causal onset).
+_CARRIED_ONSET_BINS = 1.5
 # Slack on the whole-bin check of the profile's own gaps, as a fraction of a
 # bin; no looser than the kernel's 1e-6 bin, which decides whether a bin is
 # two bins behind the read-out.
@@ -1349,6 +1352,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # far-field residues, the near-field taps at lags of one, zero and
         # minus one bin, and which bins have their neighbour one bin away.
         self._far_field_residues: NumpyArray | CupyArray | None = None
+        self._pair_factors: NumpyArray | CupyArray | None = None
         self._taps: NumpyArray | CupyArray | None = None
         self._adjacent: NumpyArray | CupyArray | None = None
         # The far-field state per pole, and the kernel's per-thread scratch.
@@ -1416,6 +1420,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             * (backend.expm1(pole_dt) / pole_dt) ** 3
             * backend.exp(pole_dt / 2.0)
         )
+        # 2 for a complex pole (standing in for its conjugate), 1 for a
+        # real one.
+        self._pair_factors = 2.0 - (self._poles.imag == 0)
         self._taps = triple_box_average_poles(
             backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float),
             self._poles,
@@ -1451,9 +1458,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             )
         return self._voltage_threaded
 
-    def _gap_since_previous_call(self, beam: BeamBaseClass) -> float:
+    def _carried_lag_since_previous_call(self, beam: BeamBaseClass) -> float:
         """
         Time from the previous call's last bin to this call's first, in [s].
+
+        Measured between bin centres, so two seamless calls are one bin
+        width apart.
 
         Parameters
         ----------
@@ -1462,33 +1472,94 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         Returns
         -------
-        gap_dt
-            At least one bin width. On the first call nothing is carried and
-            the state is zero, so any valid gap gives the same result; two
-            bin widths are reported.
+        carried_lag_dt
+            Exactly one bin width (seamless) or at least 1.5. On the first
+            call nothing is carried and the state is zero, so any valid lag
+            gives the same result; two bin widths are reported.
+
+        Raises
+        ------
+        ValueError
+            If the lag is shorter than one bin width, or longer than one
+            but shorter than 1.5.
         """
         bin_dt = self._bin_dt
         if self.last_reference_time is None:
             return 2.0 * bin_dt
         passed_dt = float(beam.reference.time - self.last_reference_time)
-        gap_dt = passed_dt - self._span_dt
-        # A profile spanning the whole revolution period meets this with
-        # equality; a longer one would let the bins of consecutive turns
-        # overlap and count the same charge twice. A gate on user-supplied
-        # geometry, so it raises rather than asserting.
-        if gap_dt < (1.0 - _CALL_GAP_TOLERANCE) * bin_dt:
+        carried_lag_dt = passed_dt - self._span_dt
+        lag_bins = carried_lag_dt / bin_dt
+        # A gate on user-supplied geometry, so it raises rather than
+        # asserting. Seamless calls (a profile spanning the whole
+        # revolution period) are one bin apart; a longer profile would let
+        # the bins of consecutive turns overlap and count the same charge
+        # twice.
+        if lag_bins < 1.0 - _CALL_GAP_TOLERANCE:
             raise ValueError(
                 "MultiPoleSparseSolve: the profile must not be longer than "
                 "the time between two calls of the solver. The profile "
                 f"spans {self._span_dt / bin_dt + 1:g} bins of {bin_dt} s, "
                 f"but only {passed_dt} s passed since the previous call, "
-                f"leaving {gap_dt / bin_dt} bin widths between the last bin "
+                f"leaving {lag_bins} bin widths between the last bin "
                 "of that call and the first bin of this one (at least 1 "
                 "needed)."
             )
-        # Exactly one bin can land a few ulp short; never hand the kernel a
-        # negative lag.
-        return max(gap_dt, bin_dt)
+        if lag_bins <= 1.0 + _CALL_GAP_TOLERANCE:
+            # Exactly one bin can land a few ulp short; never hand the
+            # kernel a negative lag.
+            return bin_dt
+        # Between seamless and the onset the carried charge would need the
+        # near-field series per pole every call.
+        if lag_bins < _CARRIED_ONSET_BINS - _CALL_GAP_TOLERANCE:
+            raise ValueError(
+                "MultiPoleSparseSolve: consecutive calls must be either "
+                "seamless or at least half a bin width apart. The last bin "
+                "of the previous call and the first bin of this one are "
+                f"{lag_bins} bin widths apart (centre to centre); allowed "
+                f"are exactly 1 or at least {_CARRIED_ONSET_BINS}."
+            )
+        return carried_lag_dt
+
+    def _carried_charge_voltage(
+        self, carried_lag_dt: float, sign: NumpyArray | CupyArray | float
+    ) -> NumpyArray | CupyArray:
+        r"""
+        The carried charge's whole contribution to this call's first bin.
+
+        Past the onset the bin-averaged wake of every pole is the pure
+        exponential, :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3
+        e^{p (t - \frac32\Delta t)}`, which is the far-field residue
+        advanced by :math:`t - 2\Delta t`; that is evaluated for all poles
+        at once. A seamless hand-over sits on the near tap and takes the
+        per-pole closed form.
+
+        Parameters
+        ----------
+        carried_lag_dt
+            Lag from the carried bin to this call's first bin, in [s].
+        sign
+            Per-pole sign with which the carried charge is seen, or 1.0.
+
+        Returns
+        -------
+        voltage
+            Length-1 array, in [V].
+        """
+        bin_dt = self._bin_dt
+        if carried_lag_dt == bin_dt:
+            return self._carried_charge * triple_box_average_poles(
+                backend.array([carried_lag_dt], dtype=backend.float),
+                self._poles,
+                self._residues * sign,
+                bin_dt,
+            )
+        wake = (
+            self._far_field_residues
+            * backend.exp(self._poles * (carried_lag_dt - 2.0 * bin_dt))
+        ).real
+        return self._carried_charge * backend.sum(
+            self._pair_factors * sign * wake
+        )
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -1512,7 +1583,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         hist_x, hist_y = profile.hist_x, profile.hist_y
         bin_dt = self._bin_dt
         factor = self._hist_y_to_intensity_factor(beam=beam, profile=profile)
-        gap_dt = self._gap_since_previous_call(beam)
+        carried_lag_dt = self._carried_lag_since_previous_call(beam)
 
         # Far field: the recursion, with the residues scaled to the
         # bin-averaged wake past its onset.
@@ -1522,8 +1593,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             profile=hist_y,
             carried_charge=self._carried_charge,
             carried_is_counterrotating=self._carried_is_counter_rotating,
-            state_lag_dt=gap_dt - bin_dt,
-            carried_lag_dt=gap_dt,
+            state_lag_dt=carried_lag_dt - bin_dt,
+            carried_lag_dt=carried_lag_dt,
             poles=self._poles,
             residues=self._far_field_residues,
             is_counterrotating_beam=beam.is_counter_rotating,
@@ -1543,20 +1614,14 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         voltage[:-1] += factor * taps[2] * adjacent * hist_y[1:]
 
         # The carried charge's whole contribution to the first bin, at the
-        # true lag: a near tap for a short gap, the far-field exponential
-        # for a long one. A pole's sign enters once if the two calls rotate
+        # true lag. A pole's sign enters once if the two calls rotate
         # opposite ways.
         sign = (
             self._counterrotating_pole_signs
             if beam.is_counter_rotating != self._carried_is_counter_rotating
             else 1.0
         )
-        voltage[:1] += self._carried_charge * triple_box_average_poles(
-            backend.array([gap_dt], dtype=backend.float),
-            self._poles,
-            self._residues * sign,
-            bin_dt,
-        )
+        voltage[:1] += self._carried_charge_voltage(carried_lag_dt, sign)
 
         self._carried_charge[:] = factor * hist_y[-1:]
         self._carried_is_counter_rotating = beam.is_counter_rotating

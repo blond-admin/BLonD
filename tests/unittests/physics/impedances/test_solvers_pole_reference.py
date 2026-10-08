@@ -13,6 +13,7 @@ either way it must be reported, not "fixed" by loosening a tolerance.
 """
 
 import unittest
+from unittest import mock
 
 import numpy as np
 from scipy.constants import elementary_charge as e
@@ -1060,14 +1061,16 @@ class TestFractionalCallGap(BLonDTestCase):
     """The gap between two calls is a time, not a whole number of bins.
 
     A profile that covers slightly less than a full revolution period
-    hands over on a fraction of a bin. Between one and two bin widths the
+    hands over on a fraction of a bin. Between 1.5 and two bin widths the
     carried charge comes due *between* two of the recursion's clocks,
     which the recursion cannot express on its own -- the solver has to
-    inject it from Python and pay the first bin as a near lag.
+    inject it from Python. A seamless hand-over (one bin width) pays the
+    first bin as a near tap; lags in between are rejected (see
+    `TestCarriedLag`).
     """
 
     def test_gaps_match_reference(self) -> None:
-        for call_gap in (1.0, 1.05, 1.5, 1.9999, 2.0, 3.0):
+        for call_gap in (1.0, 1.5, 1.9999, 2.0, 3.0):
             with self.subTest(call_gap=call_gap):
                 self._assert_matches_reference(call_gap)
 
@@ -1116,10 +1119,9 @@ class TestFractionalCallGap(BLonDTestCase):
         # caught by. These alternate, so consecutive hand-overs land on
         # different sides of the causal onset and of the whole-bin case.
         for call_gaps in (
-            (1.2, 1.7),
             (1.0, 1.7),
-            (1.2, 1.9999),
-            (1.05, 1.5),
+            (1.0, 1.9999),
+            (1.0, 1.5),
             (1.5, 2.5),
             (1.0, 3.0),
         ):
@@ -1138,11 +1140,38 @@ class TestFractionalCallGap(BLonDTestCase):
         # The carried charge keeps the flip of the call that produced it,
         # in the kernel and in the closed-form tap on the first bin alike.
         # A beam's own wake is unchanged by counter-rotation -- the two
-        # cancel -- so the same reference holds. 1.05 and 1.5 bin widths
-        # land on either side of the near-field onset.
-        for call_gap in (1.05, 1.5):
+        # cancel -- so the same reference holds. 1.0 and 1.5 bin widths
+        # take the seamless near tap and the far-field exponential.
+        for call_gap in (1.0, 1.5):
             with self.subTest(call_gap=call_gap):
                 self._assert_matches_reference(call_gap, counter_rotating=True)
+
+
+class TestCarriedLag(BLonDTestCase):
+    """Which hand-over lags the solver takes, and at what cost.
+
+    The carried charge reaches the next call's first bin either seamlessly
+    (one bin width, the near tap) or past the B-spline's onset (at least
+    1.5 bin widths, a pure exponential). Anything in between would need
+    the near-field series per pole every turn, so it is rejected.
+    """
+
+    def test_rejects_lag_between_seamless_and_onset(self) -> None:
+        for call_gap in (1.05, 1.2, 1.49):
+            with self.subTest(call_gap=call_gap):
+                with self.assertRaises(ValueError):
+                    _run_fractional_call_gap_case(call_gap)
+
+    def test_lag_past_onset_skips_per_pole_series(self) -> None:
+        # `triple_box_average_poles` loops over the poles in Python; past
+        # the onset only the one call that builds the near-field taps may
+        # reach it.
+        with mock.patch(
+            "blond.physics.impedances.solvers.triple_box_average_poles",
+            wraps=triple_box_average_poles,
+        ) as spied:
+            _run_fractional_call_gap_case(2.0, n_calls=4)
+        self.assertEqual(spied.call_count, 1)
 
 
 class TestTwoBeamsSharingOneSolver(BLonDTestCase):
@@ -1162,23 +1191,16 @@ class TestTwoBeamsSharingOneSolver(BLonDTestCase):
     """
 
     def test_alternating_beams_match_reference(self) -> None:
-        for call_gaps in ((1.5, 1.2), (1.0, 1.7), (2.5, 1.05)):
+        for call_gaps in ((1.5, 1.0), (1.0, 1.7), (2.5, 1.5)):
             with self.subTest(call_gaps=call_gaps):
                 self._assert_matches_reference(call_gaps)
-
-    def test_two_sub_onset_gaps_match_reference(self) -> None:
-        # Both hand-overs below the causal onset and different from each
-        # other, so both take the trailing tap's memo branch under the
-        # *same* sign pattern -- the one case where a memo of one lag per
-        # pattern would evict itself every turn.
-        self._assert_matches_reference((1.05, 1.2))
 
     def test_beams_taking_two_turns_each_match_reference(self) -> None:
         # A, A, B, B rather than A, B, A, B: the sign pattern of the
         # hand-over now changes every other call while the lag stays put.
         # A strictly alternating order never exercises that, and the
         # whole-bin hand-over below is the commonest geometry there is.
-        for call_gaps in ((1.0,), (1.2,), (1.5, 1.05)):
+        for call_gaps in ((1.0,), (1.7,), (1.5, 1.0)):
             with self.subTest(call_gaps=call_gaps):
                 self._assert_matches_reference(
                     call_gaps, beam_order=(0, 0, 1, 1)
@@ -1359,10 +1381,10 @@ class TestRealPolesAgainstConvolution(BLonDTestCase):
                     )
 
     def test_fractional_call_gaps_match_reference(self) -> None:
-        # 1.05 and 1.5 bin widths put the carried charge's first-bin term
-        # on either side of the near-field onset, 2.0 and 3.0 hand it to
-        # the recursion.
-        for call_gap in (1.05, 1.5, 2.0, 3.0):
+        # 1.0 and 1.5 bin widths put the carried charge's first-bin term
+        # on the seamless near tap and on the far-field exponential, 2.0
+        # and 3.0 hand it to the recursion.
+        for call_gap in (1.0, 1.5, 2.0, 3.0):
             bin_dt = _T_REV / (N_BINS_FULL_TURN - 1 + call_gap)
             for name, source in _real_pole_models(bin_dt).items():
                 with self.subTest(model=name, call_gap=call_gap):
