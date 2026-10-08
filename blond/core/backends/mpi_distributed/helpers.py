@@ -10,28 +10,97 @@
 
 from __future__ import annotations
 
+import os
 import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from types import ModuleType
+
     from numpy.random import Generator as NumpyGenerator
 
     from blond.core.backends.mpi_distributed.distributed_array import (
         DistributedArray,
     )
 
-try:
-    from mpi4py.MPI import COMM_WORLD as MPI_COMM_WORLD
+# Environment variables set by MPI launchers on every rank: Open MPI,
+# PMIx (Open MPI 5, PRRTE, `srun --mpi=pmix`), PMI/PMI2 (MPICH/Hydra,
+# Intel MPI, MS-MPI, `srun --mpi=pmi2`) and MVAPICH.
+MPI_LAUNCHER_ENV_KEYS = (
+    "OMPI_COMM_WORLD_SIZE",
+    "PMIX_RANK",
+    "PMI_RANK",
+    "PMI_SIZE",
+    "MV2_COMM_WORLD_SIZE",
+)
 
-    MPI_RANK = MPI_COMM_WORLD.Get_rank()
-    MPI_SIZE = MPI_COMM_WORLD.Get_size()
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
+
+def mpi_launched() -> bool:
+    """
+    Whether this process was started by an MPI launcher (e.g. `mpirun`).
+
+    BLonD only initialises MPI in that case. Importing `mpi4py.MPI` calls
+    `MPI_Init`, which would otherwise slow down every `import blond` and
+    set up the MPI runtime (e.g. UCX) in processes that never use MPI.
+
+    Returns
+    -------
+    launched
+        True if an MPI launcher variable is set, unless overridden by the
+        `BLOND_LOAD_MPI` environment variable (``True`` or ``False``).
+
+    Raises
+    ------
+    ValueError
+        If `BLOND_LOAD_MPI` is set to anything but ``True`` or ``False``.
+    """
+    # Normally `BLOND_LOAD_MPI` is unset and the launcher variables decide.
+    # It is an escape hatch: `True` for a launcher whose variables are not
+    # in `MPI_LAUNCHER_ENV_KEYS` (otherwise every rank would silently run
+    # as its own serial simulation), `False` to stay serial under one.
+    override = os.environ.get("BLOND_LOAD_MPI")
+    if override is None:
+        launched = any(key in os.environ for key in MPI_LAUNCHER_ENV_KEYS)
+    elif override in ("True", "False"):
+        launched = override == "True"
+    else:
+        raise ValueError(
+            "BLOND_LOAD_MPI environment variable must be either True"
+            f" or False, not {override}"
+        )
+    return launched
+
+
+def _import_mpi() -> ModuleType | None:
+    """
+    Import `mpi4py.MPI` only when running under an MPI launcher.
+
+    Returns
+    -------
+    mpi_module
+        The `mpi4py.MPI` module, or None when not launched by MPI or
+        `mpi4py` cannot be imported.
+    """
+    mpi_module = None
+    if mpi_launched():
+        try:
+            from mpi4py import MPI as mpi_module
+        except Exception as exc:
+            warnings.warn(str(exc), ImportWarning, stacklevel=1)
+    return mpi_module
+
+
+MPI = _import_mpi()
+if MPI is None:
     MPI_COMM_WORLD = None
     MPI_RANK = 0
     MPI_SIZE = 1
+else:
+    MPI_COMM_WORLD = MPI.COMM_WORLD
+    MPI_RANK = MPI_COMM_WORLD.Get_rank()
+    MPI_SIZE = MPI_COMM_WORLD.Get_size()
 
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
@@ -198,7 +267,7 @@ def distributed_zeros(
     return DistributedArray(local_ids)
 
 
-def mpi_is_distributed():
+def mpi_is_distributed() -> bool:
     """
     Whether the software runs with a MPI size > 1 or not.
 
@@ -207,13 +276,10 @@ def mpi_is_distributed():
     is_distributed
         Whether the software runs with a MPI size > 1 or not.
     """
-    if MPI_COMM_WORLD is None:
-        return False
-    if MPI_COMM_WORLD.Get_size() > 1:
-        return True
+    return MPI_SIZE > 1
 
 
-def mpi_barrier():
+def mpi_barrier() -> None:
     """
     Synchronize all processes.
 
@@ -237,7 +303,4 @@ def mpi_is_root() -> bool:
     bool
         Whether the current worker is the root worker.
     """
-    if MPI_COMM_WORLD is None:
-        return True
-    else:
-        return MPI_COMM_WORLD.Get_rank() == 0
+    return MPI_RANK == 0

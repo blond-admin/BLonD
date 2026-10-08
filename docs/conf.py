@@ -230,7 +230,7 @@ master_doc = "index"
 # General information about the project.
 
 project = "BLonD"
-copyright = "2014 - " + str(datetime.datetime.now().year)
+copyright = "2014 - " + str(datetime.datetime.now().year)  # noqa: A001 (Sphinx config name)
 author = "BLonD-admin"
 
 autodoc_mock_imports = ["mpi4py"]

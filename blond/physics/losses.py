@@ -16,10 +16,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant
+from blond.core.base import BeamPhysicsRelevant, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.base import DynamicParameter
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant, ABC):
@@ -78,7 +80,7 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
             beam.purge_flagged_entries()
 
 
-class BoxLosses(LossesBaseClass):
+class BoxLosses(LossesBaseClass, Schedulable):
     """
     Particles outside a rectangle will be flagged lost.
 
@@ -151,6 +153,42 @@ class BoxLosses(LossesBaseClass):
         self.e_min = float(e_min)
         self.e_max = float(e_max)
 
+        self._turn_counter: DynamicParameter | None = None
+        self._register_schedulable_variables(
+            "t_min", "t_max", "e_min", "e_max"
+        )
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
+        """
+        super().on_init_simulation(
+            simulation, turn_counter=simulation.turn_counter, **kwargs
+        )
+
+    def configure(
+        self, *, turn_counter: DynamicParameter | None = None, **kwargs
+    ) -> None:
+        """
+        Store the turn counter needed for schedule application during tracking.
+
+        Parameters
+        ----------
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        self._turn_counter = turn_counter
+        super().configure(**kwargs)
+
     def _track(self, beam: BeamBaseClass) -> None:
         """
         Main simulation routine to be called in the mainloop.
@@ -160,6 +198,14 @@ class BoxLosses(LossesBaseClass):
         beam
             Beam class to interact with this element.
         """
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=beam.reference.time,
+            )
         if beam.common_array_size > 0:
             backend.specials.loss_box(
                 e_max=backend.float(self.e_max),
