@@ -32,6 +32,12 @@ class TestBeam(BLonDTestCase):
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
         )
 
+    def test_is_set_up(self) -> None:
+        self.assertTrue(self.beam.is_set_up())
+        self.assertFalse(
+            Beam(intensity=1e12, particle_type=proton).is_set_up()
+        )
+
     def test_setup_beam(self) -> None:
         self.beam.setup_beam(
             dE=np.linspace(1, 10, 10),
