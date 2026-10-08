@@ -310,9 +310,6 @@ class _BrokenProperty:
 
 
 class TestUnfilled(BLonDTestCase):
-    def test_lists_every_declared_name_while_none_are_filled(self):
-        self.assertEqual(unfilled(_Owner()), ("energy", "time"))
-
     def test_excludes_a_filled_name(self):
         owner = _Owner()
         owner.setup(1.0)
@@ -337,6 +334,41 @@ class TestUnfilled(BLonDTestCase):
         owner.setup(1.0)
         del owner.energy
         self.assertIn("energy", unfilled(owner))
+
+    def test_filters_to_one_category(self):
+        self.assertEqual(unfilled(_Categorised(), ToBeDefined), ("by_user",))
+
+    def test_each_category_selects_its_own(self):
+        owner = _Categorised()
+        for category, expected in (
+            (InitalisedInternally, ("by_framework",)),
+            (AssignedDuringTracking, ("by_tracking",)),
+            (ToBeDefined, ("by_user",)),
+        ):
+            with self.subTest(category=category.__name__):
+                self.assertEqual(unfilled(owner, category), expected)
+
+    def test_omitting_the_category_reports_every_one(self):
+        self.assertEqual(
+            unfilled(_Categorised()),
+            ("by_framework", "by_tracking", "by_user"),
+        )
+
+    def test_a_filled_name_is_excluded_from_its_category(self):
+        owner = _Categorised()
+        owner.by_user = 1.0
+        self.assertEqual(unfilled(owner, ToBeDefined), ())
+
+    def test_resolves_a_category_declared_on_a_base_class(self):
+        self.assertEqual(
+            unfilled(_Child(), InitalisedInternally),
+            late_init_attributes(_Child),
+        )
+
+    def test_keeps_declaration_order(self):
+        self.assertEqual(
+            unfilled(_Owner(), InitalisedInternally), ("energy", "time")
+        )
 
 
 class TestCheckFilled(BLonDTestCase):

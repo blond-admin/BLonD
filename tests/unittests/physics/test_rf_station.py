@@ -1396,6 +1396,20 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
                 simulation=simulation
             )
 
+    def test_on_init_simulation_names_every_missing_parameter(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_counter = DynamicParameter(0)
+        del self.single_harmonic_cavity.voltage
+        del self.single_harmonic_cavity.phi_rf_design
+        del self.single_harmonic_cavity.harmonic
+        with self.assertRaises(ValueError) as context:
+            self.single_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
+        for attribute in ("voltage", "phi_rf_design", "harmonic"):
+            with self.subTest(attribute=attribute):
+                self.assertIn(attribute, str(context.exception))
+
     def test_calculate_synchronous_phase_with_synchrotron_radiation(self):
         radiation_integrals = np.array(
             [

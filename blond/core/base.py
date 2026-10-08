@@ -19,6 +19,7 @@ import numpy as np
 
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
 from blond.generals.formatting_ import pretty_string
+from blond.generals.late_init import ToBeDefined, unfilled
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -268,6 +269,34 @@ class Schedulable:
         assert hasattr(type(self), attribute) or attribute in vars(self), (
             f"{type(self).__name__} has no attribute {attribute!r} to schedule"
         )
+
+    def _assert_parameters_assigned(self) -> None:
+        """
+        Check every `ToBeDefined` attribute is supplied or scheduled.
+
+        Raises
+        ------
+        ValueError
+            Naming every attribute that is neither filled nor
+            scheduled, with the ways to supply it.
+        """
+        missing = [
+            attribute
+            for attribute in unfilled(self, ToBeDefined)
+            if attribute not in self.schedules
+        ]
+        if len(missing) > 0:
+            # ``name`` comes from `SimulationElementBase`, which this
+            # mixin does not require.
+            owner = getattr(self, "name", type(self).__name__)
+            raise ValueError(
+                f"'{owner}' has unassigned parameters:\n"
+                + "\n".join(
+                    f"  - `{attribute}`: set `.{attribute}=...` or "
+                    f"`.schedule(attribute='{attribute}', value=...)`"
+                    for attribute in missing
+                )
+            )
 
     def schedule(
         self,

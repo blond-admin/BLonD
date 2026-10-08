@@ -432,16 +432,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         """
         super().on_init_simulation(simulation=simulation, **kwargs)
 
-        for attribute in ("voltage", "phi_rf_design", "harmonic"):
-            if (
-                not hasattr(self, attribute)
-                and attribute not in self.schedules
-            ):
-                raise ValueError(
-                    f"You need to define `{attribute}` for "
-                    f"'{self.name}' via `.{attribute}=...` or "
-                    f"`.schedule(attribute='{attribute}', value=...)`"
-                )
+        self._assert_parameters_assigned()
 
     @requires(["BeamBaseClass"])
     def on_run_simulation(

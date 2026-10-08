@@ -94,6 +94,24 @@ class TestDriftSimple(BLonDTestCase):
             section_index=0,
         )
 
+    def test_on_init_simulation_names_the_missing_parameter(self):
+        drift = DriftSimple(orbit_length=1.0, name="D-1")
+        simulation = Mock(Simulation)
+        simulation.turn_counter = DynamicParameter(0)
+        with self.assertRaises(ValueError) as context:
+            drift.on_init_simulation(simulation=simulation)
+        message = str(context.exception)
+        self.assertIn("D-1", message)
+        self.assertIn("momentum_compaction_factor", message)
+
+    def test_on_init_simulation_accepts_a_scheduled_parameter(self):
+        drift = DriftSimple(orbit_length=1.0, name="D-1")
+        drift.schedule("momentum_compaction_factor", np.arange(10.0))
+        simulation = Mock(Simulation)
+        simulation.turn_counter = DynamicParameter(0)
+        drift.on_init_simulation(simulation=simulation)
+        self.assertHasAttr(drift, "momentum_compaction_factor")
+
     def test_setters2(self):
         drift_simple = DriftSimple(
             momentum_compaction_factor=20.0,  # highly relativistic

@@ -302,13 +302,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super().on_init_simulation(
             simulation, turn_counter=simulation.turn_counter, **kwargs
         )
-        if not hasattr(self, "momentum_compaction_factor") and (
-            "momentum_compaction_factor" not in self.schedules
-        ):
-            raise ValueError(
-                "You need to define `momentum_compaction_factor` via `.momentum_compaction_factor=...` "
-                "or `.schedule(attribute='momentum_compaction_factor', value=...)`"
-            )
+        self._assert_parameters_assigned()
 
     def configure(
         self, *, turn_counter: DynamicParameter | None = None, **kwargs

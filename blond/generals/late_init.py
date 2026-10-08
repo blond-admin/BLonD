@@ -329,7 +329,9 @@ def late_init_attributes(obj: object) -> tuple[str, ...]:
     )
 
 
-def unfilled(obj: object) -> tuple[str, ...]:
+def unfilled(
+    obj: object, category: type[_LateInit] = _LateInit
+) -> tuple[str, ...]:
     """
     List the late-initialised attributes that are not filled yet.
 
@@ -337,6 +339,8 @@ def unfilled(obj: object) -> tuple[str, ...]:
     ----------
     obj
         Instance to inspect.
+    category
+        Report only the attributes declared with this `_LateInit` class.
 
     Returns
     -------
@@ -344,8 +348,12 @@ def unfilled(obj: object) -> tuple[str, ...]:
         Names missing from the instance ``__dict__``, in the order
         `late_init_attributes` gives them. Empty if all are filled.
     """
-    return tuple(
+    names = (
         name for name in late_init_attributes(obj) if name not in vars(obj)
+    )
+    owner = type(obj)
+    return tuple(
+        name for name in names if isinstance(getattr(owner, name), category)
     )
 
 

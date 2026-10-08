@@ -246,6 +246,32 @@ class TestSchedulableLateInit(BLonDTestCase):
         self.assertEqual(schedulable.voltage, 3.0)
 
 
+class TestAssertParametersDefined(BLonDTestCase):
+    def test_names_an_undefined_parameter(self):
+        with self.assertRaises(ValueError) as context:
+            _LateVoltage()._assert_parameters_assigned()
+        self.assertIn("voltage", str(context.exception))
+
+    def test_falls_back_to_the_class_without_an_element_name(self):
+        # `Schedulable` is a mixin; `name` comes from
+        # `SimulationElementBase`, which it does not require.
+        with self.assertRaises(ValueError) as context:
+            _LateVoltage()._assert_parameters_assigned()
+        self.assertIn("_LateVoltage", str(context.exception))
+
+    def test_passes_once_the_parameter_is_defined(self):
+        schedulable = _LateVoltage()
+        schedulable.voltage = 1.0
+        self.assertIsNone(schedulable._assert_parameters_assigned())
+
+    def test_a_scheduled_parameter_counts_as_defined(self):
+        schedulable = _LateVoltage()
+        schedulable._register_schedulable_variables("voltage")
+        schedulable.schedule("voltage", np.arange(10.0))
+        del schedulable.voltage
+        self.assertIsNone(schedulable._assert_parameters_assigned())
+
+
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
         self.schedulable = Schedulable()
