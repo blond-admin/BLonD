@@ -50,6 +50,11 @@ class _Redeclarer(_Owner):
     )
 
 
+class _Shadower(_Owner):
+    energy = 1.0
+    time = 2.0
+
+
 class _NoLateInit:
     plain = 0.0
 
@@ -337,6 +342,9 @@ class TestUnfilled(BLonDTestCase):
         del owner.energy
         self.assertIn("energy", unfilled(owner))
 
+    def test_excludes_a_name_shadowed_by_a_plain_class_value(self):
+        self.assertEqual(unfilled(_Shadower()), ())
+
     def test_filters_to_one_category(self):
         self.assertEqual(unfilled(_Categorised(), ToBeDefined), ("by_user",))
 
@@ -379,8 +387,23 @@ class TestCheckFilled(BLonDTestCase):
         owner.setup(1.0)
         self.assertIsNone(check_filled(owner, "energy"))
 
-    def test_no_names_is_a_no_op(self):
-        self.assertIsNone(check_filled(_Categorised()))
+    def test_without_names_checks_every_declared_attribute(self):
+        with self.assertRaises(NotInitialisedError) as context:
+            check_filled(_Categorised())
+        message = str(context.exception)
+        for name in ("by_framework", "by_tracking", "by_user"):
+            with self.subTest(attribute=name):
+                self.assertIn(name, message)
+
+    def test_without_names_passes_when_every_one_is_filled(self):
+        owner = _Categorised()
+        owner.by_framework = 1.0
+        owner.by_tracking = 2.0
+        owner.by_user = 3.0
+        self.assertIsNone(check_filled(owner))
+
+    def test_without_declarations_nothing_is_checked(self):
+        self.assertIsNone(check_filled(_NoLateInit()))
 
     def test_ignores_names_that_are_filled(self):
         owner = _Categorised()
