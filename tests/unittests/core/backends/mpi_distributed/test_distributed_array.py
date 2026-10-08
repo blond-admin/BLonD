@@ -265,6 +265,47 @@ class TestDistributedArrayNoMPI(BLonDTestCase):
             self.assertEqual(distributed_array._size, 1)
 
 
+class _StdCancellationCases:
+    """Inputs where a one-pass ``sum(x**2)/n - mean**2`` breaks down.
+
+    Shared by the MPI and non-MPI test classes below, so the same cases
+    run whether or not the array is scattered.
+    """
+
+    def _std_of(self, array: np.ndarray) -> float:
+        distributed_array = DistributedArray(
+            backend.array(array, dtype=backend.float)
+        )
+        distributed_array.mpi_scatter()
+        return distributed_array.std()
+
+    def test_std_constant_array_is_zero(self):
+        # One-pass variance rounds slightly negative here and
+        # ``math.sqrt`` raises ``ValueError: math domain error``.
+        std = self._std_of(np.full(1000, 0.1))
+        self.assertAlmostEqual(std, 0.0, delta=1e-15)
+
+    def test_std_small_spread_large_offset(self):
+        rng = np.random.default_rng(42)
+        array = rng.normal(loc=1e-3, scale=1e-12, size=10_000)
+        expected = float(np.std(array))
+        std = self._std_of(array)
+        self.assertAlmostEqual(std, expected, delta=1e-6 * expected)
+
+
+class TestStdCancellationWithoutMPI(_StdCancellationCases, BLonDTestCase):
+    def setUp(self):
+        if mpi_is_distributed():
+            self.skipTest("Runs only without `mpirun`")
+
+
+@pytest.mark.mpi
+class TestStdCancellationMPI(_StdCancellationCases, BLonDTestCase):
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+
+
 if __name__ == "__main__":
     unittest.main()
 
