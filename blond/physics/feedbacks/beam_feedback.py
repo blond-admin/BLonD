@@ -90,8 +90,12 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
     average_de
         Average energy offset [eV] of the beam with respect to the synchronous energy.
     main_harmonic
-        The harmonic number of the main RF system. The type is int | None.
+        The harmonic number of the main RF system.
     """
+
+    main_harmonic: InitialisedInternally[int] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
 
     _main_cavities: InitialisedInternally[list[RFStationBaseClass]] = (
         InitialisedInternally(SetBy.RUN_SIMULATION)
@@ -124,10 +128,6 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
 
         self.drho = 0.0
         self.average_de = 0.0
-        self.main_harmonic = (
-            None  # type is int | None, documented in class docstring
-        )
-
         self._turn_counter: DynamicParameter | None = None
 
         self._first_turn_value_checked = False

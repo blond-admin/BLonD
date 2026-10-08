@@ -113,8 +113,8 @@ class Music(BeamPhysicsRelevant):
     #     recurrence after the last processed particle,
     #   - last_dt: dt of the last (largest-dt) particle of the
     #     previous turn, used to span the gap to this turn's first.
-    _parameter_array: InitialisedInternally[NumpyArray] = InitialisedInternally(
-        SetBy.RUN_SIMULATION
+    _parameter_array: InitialisedInternally[NumpyArray] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
     )
     # Reference clock time [s] at the previous track; the difference
     # to the current reference time is the exact elapsed time between

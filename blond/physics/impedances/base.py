@@ -21,6 +21,7 @@ from blond.core.ordering import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.late_init import AssignedDuringTracking
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -412,6 +413,13 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
     ... )
     """
 
+    _induced_voltage: AssignedDuringTracking[NumpyArray | CupyArray] = (
+        AssignedDuringTracking(
+            "`Simulation.run_simulation(...)` or "
+            "`WakeField.calc_induced_voltage(...)`"
+        )
+    )
+
     def __init__(
         self,
         sources: tuple[WakeFieldSource, ...],
@@ -429,7 +437,6 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         self.solver = solver
         self.sources = sources
         self.update_induced_voltage = True
-        self._induced_voltage = None
         self.track_profile = True
 
     def info_string(self, prefix="") -> str:
@@ -464,9 +471,12 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         -------
         NumpyArray | CupyArray
             Induced voltage array.
+
+        Raises
+        ------
+        NotInitialisedError
+            If the induced voltage has not been calculated yet.
         """
-        if self._induced_voltage is None:
-            raise AttributeError("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
     @requires(["MagneticCycleBase"])
