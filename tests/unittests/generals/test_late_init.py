@@ -8,7 +8,9 @@ from blond.generals.late_init import (
     SetBy,
     ToBeDefined,
     _LateInit,
+    check_filled,
     late_init_attributes,
+    unfilled,
 )
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -297,6 +299,110 @@ class TestSetBy(BLonDTestCase):
             with self.subTest(route=route.name):
                 rendered = str(route).format(owner="_Probe", attribute="attr")
                 self.assertIn(rendered, _message_for(route))
+
+
+class _BrokenProperty:
+    late: ToBeDefined[float] = ToBeDefined("the user")
+
+    @property
+    def broken(self) -> float:
+        raise AttributeError("not a late init")
+
+
+class TestUnfilled(BLonDTestCase):
+    def test_lists_every_declared_name_while_none_are_filled(self):
+        self.assertEqual(unfilled(_Owner()), ("energy", "time"))
+
+    def test_excludes_a_filled_name(self):
+        owner = _Owner()
+        owner.setup(1.0)
+        self.assertEqual(unfilled(owner), ("time",))
+
+    def test_empty_when_all_are_filled(self):
+        owner = _Owner()
+        owner.setup(1.0)
+        owner.time = 2.0
+        self.assertEqual(unfilled(owner), ())
+
+    def test_empty_without_declarations(self):
+        self.assertEqual(unfilled(_NoLateInit()), ())
+
+    def test_follows_declaration_order_across_the_mro(self):
+        self.assertEqual(
+            unfilled(_MultiOwner()), late_init_attributes(_MultiOwner)
+        )
+
+    def test_a_deleted_name_becomes_unfilled_again(self):
+        owner = _Owner()
+        owner.setup(1.0)
+        del owner.energy
+        self.assertIn("energy", unfilled(owner))
+
+
+class TestCheckFilled(BLonDTestCase):
+    def test_passes_when_every_name_is_filled(self):
+        owner = _Owner()
+        owner.setup(1.0)
+        self.assertIsNone(check_filled(owner, "energy"))
+
+    def test_no_names_is_a_no_op(self):
+        self.assertIsNone(check_filled(_Categorised()))
+
+    def test_ignores_names_that_are_filled(self):
+        owner = _Categorised()
+        owner.by_user = 1.0
+        with self.assertRaises(NotInitialisedError) as context:
+            check_filled(owner, "by_user", "by_tracking")
+        self.assertNotIn("by_user", str(context.exception))
+
+    def test_single_unfilled_keeps_the_descriptor_message(self):
+        owner = _Categorised()
+        with self.assertRaises(NotInitialisedError) as expected:
+            _ = owner.by_user
+        with self.assertRaises(NotInitialisedError) as actual:
+            check_filled(owner, "by_user")
+        self.assertEqual(str(actual.exception), str(expected.exception))
+        self.assertEqual(actual.exception.name, "by_user")
+        self.assertIs(actual.exception.obj, owner)
+
+    def test_reports_every_unfilled_attribute_in_one_error(self):
+        owner = _Categorised()
+        with self.assertRaises(NotInitialisedError) as context:
+            check_filled(owner, "by_framework", "by_tracking", "by_user")
+        message = str(context.exception)
+        for name in ("by_framework", "by_tracking", "by_user"):
+            with self.subTest(attribute=name):
+                self.assertIn(name, message)
+
+    def test_keeps_the_route_of_each_unfilled_attribute(self):
+        owner = _Categorised()
+        with self.assertRaises(NotInitialisedError) as context:
+            check_filled(owner, "by_framework", "by_tracking", "by_user")
+        message = str(context.exception)
+        for route in ("a setup hook", "`track()`", "the user"):
+            with self.subTest(route=route):
+                self.assertIn(route, message)
+
+    def test_does_not_stop_at_the_first_unfilled_attribute(self):
+        owner = _Categorised()
+        with self.assertRaises(NotInitialisedError) as context:
+            check_filled(owner, "by_framework", "by_user")
+        self.assertIn("by_user", str(context.exception))
+
+    def test_lists_in_the_order_the_names_are_given(self):
+        owner = _Categorised()
+        with self.assertRaises(NotInitialisedError) as context:
+            check_filled(owner, "by_user", "by_framework")
+        message = str(context.exception)
+        self.assertLess(
+            message.index("by_user"), message.index("by_framework")
+        )
+
+    def test_an_unrelated_attribute_error_is_not_aggregated(self):
+        with self.assertRaises(AttributeError) as context:
+            check_filled(_BrokenProperty(), "broken", "late")
+        self.assertNotIsInstance(context.exception, NotInitialisedError)
+        self.assertIn("not a late init", str(context.exception))
 
 
 if __name__ == "__main__":

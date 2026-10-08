@@ -327,3 +327,65 @@ def late_init_attributes(obj: object) -> tuple[str, ...]:
             for name in _declared.get(base, ())
         )
     )
+
+
+def unfilled(obj: object) -> tuple[str, ...]:
+    """
+    List the late-initialised attributes that are not filled yet.
+
+    Parameters
+    ----------
+    obj
+        Instance to inspect.
+
+    Returns
+    -------
+    tuple of str
+        Names missing from the instance ``__dict__``, in the order
+        `late_init_attributes` gives them. Empty if all are filled.
+    """
+    return tuple(
+        name for name in late_init_attributes(obj) if name not in vars(obj)
+    )
+
+
+def check_filled(obj: object, *names: str) -> None:
+    """
+    Check the named attributes, reporting every unfilled one at once.
+
+    Parameters
+    ----------
+    obj
+        Object owning the attributes.
+    *names
+        Names of the attributes to check, in the order to report them.
+
+    Raises
+    ------
+    NotInitialisedError
+        If any attribute is not filled yet.  One unfilled attribute
+        raises the descriptor's own error; several are combined into a
+        single error naming each attribute and what fills it.
+    """
+    errors = []
+    for name in names:
+        try:
+            getattr(obj, name)
+        except NotInitialisedError as exc:
+            # Only an unfilled attribute is collected.  An
+            # ``AttributeError`` from anywhere else is a bug, so it
+            # propagates instead of being folded into the summary.
+            errors.append(exc)
+
+    match len(errors):
+        case 0:
+            return
+        case 1:
+            raise errors[0]
+        case count:
+            raise NotInitialisedError(
+                f"{type(obj).__name__} has {count} attributes that are "
+                "not initialised:\n"
+                + "\n".join(f"  - {exc}" for exc in errors),
+                obj=obj,
+            )
