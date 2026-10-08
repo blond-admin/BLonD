@@ -27,6 +27,12 @@ from numpy.typing import NDArray as NumpyArray
 from blond.core.backends.backend import backend
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import (
+    InitialisedInternally,
+    SetBy,
+    check_filled,
+    late_init_attributes,
+)
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
@@ -210,11 +216,16 @@ class ObservablesBaseClass(MainLoopRelevant):
                 ),
             )
 
-    def assert_lateinit(self):
-        """Check that DenseArrays are already initialized."""
-        for parameter, value in self.__dict__.items():
-            if value is None:  # uninitialized
-                assert value is not None, f"`{parameter}` was not initialized."
+    def assert_lateinit(self) -> None:
+        """
+        Check that the late-initialised attributes are filled.
+
+        Raises
+        ------
+        NotInitialisedError
+            If any declared attribute has not been filled yet.
+        """
+        check_filled(self, *late_init_attributes(self))
 
 
 class ObservablesOncePerTurnBase(ObservablesBaseClass):
@@ -233,6 +244,16 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         Additional keyword arguments.
     """
 
+    _n_turns: InitialisedInternally[int] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _turns_array: InitialisedInternally[NumpyArray] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -242,17 +263,12 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
 
-        self._n_turns: int | None = None
-        self._turns_array: NumpyArray | None = None
-
         self._last_turn_i_observed = (
             -1
         )  # to avoid double recordings with multiple drifts in one section
 
-        self._simulation: Simulation | None = None
-
     @property  # as readonly attributes
-    def turns_array(self) -> NumpyArray | None:
+    def turns_array(self) -> NumpyArray:
         """
         Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
@@ -263,6 +279,11 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         -------
         turns_array
             Array with turn numbers for observations.
+
+        Raises
+        ------
+        NotInitialisedError
+            If `run_simulation` has not been called yet.
         """
         return self._turns_array
 
@@ -272,7 +293,15 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         pass
 
     def update(self) -> None:
-        """Update memory with new values."""
+        """
+        Update memory with new values.
+
+        Raises
+        ------
+        NotInitialisedError
+            If `run_simulation` has not been called yet.
+        """
+        self.assert_lateinit()
         if self._last_turn_i_observed != self._simulation.turn_counter.value:
             self._update()
             self._last_turn_i_observed = self._simulation.turn_counter.value
@@ -357,6 +386,31 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
     >>> beam_observation.plot_fancy(result_idx=-1)
     """
 
+    _beam: InitialisedInternally[BeamBaseClass] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _hist2d: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _xedges: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _yedges: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _reference_time: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _intensity: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _reference_total_energy: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _consider_intensity: InitialisedInternally[bool] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -368,15 +422,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam: BeamBaseClass | None = None
-        self._hist2d: DenseArrayRecorder | None = None
-        self._xedges: DenseArrayRecorder | None = None
-        self._yedges: DenseArrayRecorder | None = None
-        self._reference_time: DenseArrayRecorder | None = None
-        self._intensity: DenseArrayRecorder | None = None
-        self._reference_total_energy: DenseArrayRecorder | None = None
-
-        self._consider_intensity: bool | None = None
 
         if isinstance(bins, int):
             self._bins = (bins, bins)
@@ -464,14 +509,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
 
     def _update(self) -> None:
         """Update memory with new values."""
-        assert self._hist2d is not None
-        assert self._xedges is not None
-        assert self._intensity is not None
-        assert self._yedges is not None
-        assert self._beam is not None
-        assert self._reference_time is not None
-        assert self._reference_total_energy is not None
-
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
         self._intensity.write(self._beam.intensity)
@@ -504,13 +541,10 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         image
             The `AxesImage` pyplot object.
         """
+        self.assert_lateinit()
         if kwargs_imshow is None:
             kwargs_imshow = {}
 
-        assert self._intensity is not None
-        assert self._hist2d is not None
-        assert self._xedges is not None
-        assert self._yedges is not None
         assert result_idx < self._intensity._write_idx
         if result_idx < 0:
             result_idx = self._intensity._write_idx + result_idx
@@ -573,15 +607,12 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         ax_yhist
             The  pyplot `Axes` of the y histogram.
         """
+        self.assert_lateinit()
         if kwargs_imshow is None:
             kwargs_imshow = {}
         if kwargs_bar is None:
             kwargs_bar = {}
 
-        assert self._intensity is not None
-        assert self._hist2d is not None
-        assert self._xedges is not None
-        assert self._yedges is not None
         assert result_idx < self._intensity._write_idx
         if result_idx < 0:
             result_idx = self._intensity._write_idx + result_idx
@@ -707,6 +738,25 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _beam: InitialisedInternally[BeamBaseClass] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _dts: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _dEs: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _flags: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _reference_time: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _reference_total_energy: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -726,12 +776,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam: BeamBaseClass | None = None
-        self._dts: DenseArrayRecorder | None = None
-        self._dEs: DenseArrayRecorder | None = None
-        self._flags: DenseArrayRecorder | None = None
-        self._reference_time: DenseArrayRecorder | None = None
-        self._reference_total_energy: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -909,6 +953,25 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _beam: InitialisedInternally[BeamBaseClass] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _bunch_position: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _energy_spread: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _bunch_length: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _reference_time: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _reference_total_energy: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -918,12 +981,6 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             each_turn_i=each_turn_i,
             folder=folder,
         )
-        self._beam: BeamBaseClass | None = None
-        self._bunch_position: DenseArrayRecorder | None = None
-        self._energy_spread: DenseArrayRecorder | None = None
-        self._bunch_length: DenseArrayRecorder | None = None
-        self._reference_time: DenseArrayRecorder | None = None
-        self._reference_total_energy: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1084,6 +1141,16 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     ... )
     """
 
+    _phases: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _omegas: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _voltages: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1092,9 +1159,6 @@ class RFStationPhaseObservation(ObservablesOncePerTurnBase):
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._rf_station = rf_station
-        self._phases: DenseArrayRecorder | None = None
-        self._omegas: DenseArrayRecorder | None = None
-        self._voltages: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1216,6 +1280,10 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _hist_y: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1227,7 +1295,6 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
             folder=folder,
         )
         self._profile = profile
-        self._hist_y: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1315,6 +1382,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         mesh
             The `QuadMesh` pyplot object holding the waterfall plot.
         """
+        self.assert_lateinit()
         hist_y = self.hist_y
         turns = self.turns_array[: hist_y.shape[0]]
         return _plot_profile_waterfall(
@@ -1489,6 +1557,10 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
     ...     plt.plot(wake_obs.induced_voltage[index, :])
     """
 
+    _induced_voltage: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1500,7 +1572,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             folder=folder,
         )
         self._wakefield = wakefield
-        self._induced_voltage: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1594,6 +1665,10 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     ...     )
     """
 
+    _hist_y: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1602,7 +1677,6 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
-        self._hist_y: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -1695,6 +1769,7 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         mesh
             The `QuadMesh` pyplot object holding the waterfall plot.
         """
+        self.assert_lateinit()
         hist_y = self.hist_y
         turns = self.turns_array[: hist_y.shape[0]]
         return _plot_profile_waterfall(
@@ -1725,6 +1800,19 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         ``beam.dt_min`` and ``beam.dt_max``.
     """
 
+    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _t_revs: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+    _separatrices: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _beam: InitialisedInternally[BeamBaseClass] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1733,13 +1821,9 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         separatrix_lim: tuple[float, float] | None = None,
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
-        self._simulation: Simulation | None = None
 
-        self._t_revs: DenseArrayRecorder | None = None
-        self._separatrices: DenseArrayRecorder | None = None
         self._separatrix_points = separatrix_points
         self._separatrix_lim = separatrix_lim
-        self._beam = None
 
     def on_run_simulation(
         self,
@@ -1785,11 +1869,6 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         self,
     ) -> None:
         """Update memory with new values."""
-        assert self._beam is not None
-        assert self._simulation is not None
-        assert self._t_revs is not None
-        assert self._separatrices is not None
-
         self._t_revs.write(self._simulation.current_t_rev)
 
         # Separatrix
@@ -1831,6 +1910,10 @@ class DriftObservation(ObservablesOncePerTurnBase):
         saving or loading files.
     """
 
+    _eta_0s: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
+        SetBy.RUN_SIMULATION
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -1839,8 +1922,6 @@ class DriftObservation(ObservablesOncePerTurnBase):
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._drift: DriftSimple = drift
-
-        self._eta_0s: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,

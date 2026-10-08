@@ -21,6 +21,11 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.ordering import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.late_init import (
+    AssignedDuringTracking,
+    InitialisedInternally,
+    SetBy,
+)
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
 from blond.physics.impedances.base import WakeField
@@ -224,6 +229,22 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         saving or loading files.
     """
 
+    _sigma_dt: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _sigma_dE: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _mean_dt: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _mean_dE: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _rms_emittance: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -239,12 +260,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         self._beam_id_filter: int | None = (
             id(beam) if beam is not None else None
         )
-
-        self._sigma_dt: DenseArrayRecorder | None = None
-        self._sigma_dE: DenseArrayRecorder | None = None
-        self._mean_dt: DenseArrayRecorder | None = None
-        self._mean_dE: DenseArrayRecorder | None = None
-        self._rms_emittance: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -413,6 +428,25 @@ class InducedVoltageObservationCR(
         saving or loading files.
     """
 
+    _induced_voltage: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _beam_reference_time: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    _beam_profile: InitialisedInternally[DenseArrayRecorder] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+    beam_state: AssignedDuringTracking[bool] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    last_turn: AssignedDuringTracking[int] = AssignedDuringTracking(
+        SetBy.RUN_SIMULATION
+    )
+    turn_counter: InitialisedInternally[DynamicParameter] = (
+        InitialisedInternally(SetBy.RUN_SIMULATION)
+    )
+
     def __init__(
         self,
         each_turn_i: int,
@@ -424,14 +458,7 @@ class InducedVoltageObservationCR(
 
         self.each_turn_i = each_turn_i
 
-        self._induced_voltage: DenseArrayRecorder | None = None
-        self._beam_reference_time: DenseArrayRecorder | None = None
-        self._beam_profile: DenseArrayRecorder | None = None
         self._wake_field = wake_field
-
-        self.beam_state: bool | None = None
-        self.last_turn: int | None = None
-        self.turn_counter: DynamicParameter | None = None
 
     @requires(["RFStationBaseClass"])
     def on_run_simulation(
@@ -532,8 +559,11 @@ class InducedVoltageObservationCR(
         beam
             Beam class to interact with this element.
         """
+        # Both are written together, so one of them is enough to
+        # recognise the first passage.
         if (
-            self.beam_state != beam._is_counter_rotating
+            not hasattr(self, "beam_state")
+            or self.beam_state != beam._is_counter_rotating
             or self.last_turn != self.turn_counter.value
         ):
             # First passage of the beam should not be recorded.

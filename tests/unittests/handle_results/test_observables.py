@@ -27,6 +27,7 @@ from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.exceptions_ import NotInitialisedError
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -225,12 +226,23 @@ class TestObservables(BLonDTestCase):
     def test_assert_lateinit_fail(self) -> None:
         obs_helper = ObservablesHelper(each_turn_i=0)
 
+        with self.assertRaises(NotInitialisedError):
+            obs_helper.get_recorders()
+        with self.assertRaises(NotInitialisedError):
+            obs_helper.assert_lateinit()
+
+    def test_assert_lateinit_ignores_a_none_value(self) -> None:
+        obs_helper = ObservablesHelper(each_turn_i=1)
+        obs_helper.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+
         obs_helper.dummy_value = None
 
-        with self.assertRaises(AssertionError):
-            obs_helper.get_recorders()
-        with self.assertRaises(AssertionError):
-            obs_helper.assert_lateinit()
+        obs_helper.assert_lateinit()
+        self.assertEqual(obs_helper.get_recorders(), [])
 
 
 class TestBeamObservation(BLonDTestCase):
