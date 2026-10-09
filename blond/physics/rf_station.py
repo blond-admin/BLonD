@@ -89,7 +89,9 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         resolution order of inheriting elements.
     """
 
-    _ring: InitialisedInternally[Ring] = InitialisedInternally(SetBy.SIMULATION)
+    _ring: InitialisedInternally[Ring] = InitialisedInternally(
+        SetBy.SIMULATION
+    )
 
     def __init__(
         self,
@@ -431,8 +433,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Configure parameters collected by the MRO chain.
         """
         super().on_init_simulation(simulation=simulation, **kwargs)
-
-        self._assert_parameters_assigned()
 
     @requires(["BeamBaseClass"])
     def on_run_simulation(

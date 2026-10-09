@@ -302,7 +302,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         super().on_init_simulation(
             simulation, turn_counter=simulation.turn_counter, **kwargs
         )
-        self._assert_parameters_assigned()
 
     def configure(
         self, *, turn_counter: DynamicParameter | None = None, **kwargs

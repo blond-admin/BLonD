@@ -187,7 +187,7 @@ class MainLoopRelevant(Preparable):
             return False
 
 
-class Schedulable:
+class Schedulable(Preparable):
     """
     Base class for objects with schedule parameters.
 
@@ -230,6 +230,25 @@ class Schedulable:
         self.intended_for_scheduling = set()
         self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """
+        Check the schedulable parameters once the element is configured.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
+
+        Raises
+        ------
+        ValueError
+            If a parameter is neither assigned nor scheduled.
+        """
+        super().on_init_simulation(simulation=simulation, **kwargs)
+        self._assert_parameters_assigned()
 
     def _register_schedulable_variables(self, *names: str) -> None:
         """

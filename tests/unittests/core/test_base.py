@@ -237,6 +237,18 @@ class _LateVoltage(Schedulable):
     voltage: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
 
 
+class TestSchedulableOnInitSimulation(BLonDTestCase):
+    def test_rejects_unassigned_parameters(self):
+        with self.assertRaises(ValueError) as context:
+            _LateVoltage().on_init_simulation(simulation=None)
+        self.assertIn("voltage", str(context.exception))
+
+    def test_accepts_an_assigned_parameter(self):
+        element = _LateVoltage()
+        element.voltage = 1.0
+        self.assertIsNone(element.on_init_simulation(simulation=None))
+
+
 class TestSchedulableLateInit(BLonDTestCase):
     def test_schedule_accepts_unfilled_late_init(self):
         schedulable = _LateVoltage()
