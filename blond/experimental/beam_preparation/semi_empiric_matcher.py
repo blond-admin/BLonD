@@ -674,10 +674,13 @@ class SemiEmpiricMatcher(MatchingRoutine):
         assert simulation.turn_counter.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
+                # (len(ts) - 1) intervals, each split into
+                # _POTENTIAL_WELL_OVERSAMPLING, so that every
+                # _POTENTIAL_WELL_OVERSAMPLING-th point lies exactly on ts
                 dt=np.linspace(
                     ts.min(),
                     ts.max(),
-                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+                    (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
                 ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
