@@ -270,8 +270,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
     - return a non-negative NumPy array of the same shape. Its normalization
       does not matter; the beam is sampled from ``density / density.sum()``.
 
-    The Hamiltonian carries an arbitrary offset, so compare it relative to
-    its minimum rather than to absolute values.
+    The Hamiltonian is approximately zero at the bottom of the potential
+    well, because the matcher uses the minimum-subtracted potential from
+    :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`
+    (averaged between iterations). Subtracting its minimum, as in the example
+    below, makes a custom function independent of that convention.
 
     Examples
     --------
