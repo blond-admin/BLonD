@@ -62,6 +62,10 @@ if TYPE_CHECKING:  # pragma: no cover
 # (|p t| < 1, so the omitted tail is below 1 / 23! ~ 4e-23).
 _PHI3_SERIES_TERMS = 20
 _FACTORIAL_3 = 6.0
+# From this many bins on, `triple_box_average_poles` evaluates the near
+# branch on the few bins around the onset only (one host sync per call on
+# CuPy); below it, on the whole array (no sync).
+_NEAR_WINDOW_MIN_BINS = 4096
 
 # Knots of the quadratic B-spline `box * box * box`, in units of the bin
 # width: it is a different quadratic on each of (-3/2, -1/2), (-1/2, 1/2)
@@ -140,7 +144,11 @@ def _smoothed_pole(
 
 
 def triple_box_average_pole(
-    t: NumpyArray | CupyArray, pole: complex, residue: complex, dt: float
+    t: NumpyArray | CupyArray,
+    pole: complex,
+    residue: complex,
+    dt: float,
+    near_idx: NumpyArray | CupyArray | None = None,
 ) -> NumpyArray | CupyArray:
     r"""
     Bin-averaged wake of a single pole, :math:`\overline W = W * B_2`.
@@ -162,6 +170,11 @@ def triple_box_average_pole(
         Residue :math:`\rho`.
     dt
         Bin width, in [s].
+    near_idx
+        Indices of ``t`` with ``-1.5 * dt < t <= 1.5 * dt``, the only lags
+        where the near branch is nonzero (see :func:`_near_window`). If
+        given, the near branch is evaluated there only; if None, on the
+        whole array, which needs no host sync but is slow on long grids.
 
     Returns
     -------
@@ -170,27 +183,86 @@ def triple_box_average_pole(
     """
     onset = 1.5 * dt
     fully_causal = t > onset
-    # Both branches are evaluated everywhere and selected with `where`: a
-    # boolean-mask gather would sync a CuPy array to the host, and this is
-    # reached from the per-turn loop. Each branch's argument is clamped to
-    # its own side of the onset so the discarded values stay finite.
-    t_far = backend.where(fully_causal, t, onset)
-    t_near = backend.where(fully_causal, onset, t)
-
-    far = (residue * _smoothed_pole(t_far, pole, dt)).real
-    near = (
-        residue
-        * (
-            causal_third_antiderivative_factor(t_near + 1.5 * dt, pole)
-            - 3.0 * causal_third_antiderivative_factor(t_near + 0.5 * dt, pole)
-            + 3.0 * causal_third_antiderivative_factor(t_near - 0.5 * dt, pole)
-            - causal_third_antiderivative_factor(t_near - 1.5 * dt, pole)
-        )
-    ).real / dt**3
     # 2 - True == 1 for a real pole, 2 - False == 2 for a complex one; works
     # for a host scalar and a device slice alike, without a branch.
     pair_factor = 2.0 - (pole.imag == 0)
+    # The far argument is clamped to its side of the onset so the discarded
+    # values stay finite.
+    t_far = backend.where(fully_causal, t, onset)
+    far = (residue * _smoothed_pole(t_far, pole, dt)).real
+    if near_idx is not None:
+        # Zero, not the clamped far value, before the kernel's support.
+        wake = backend.where(fully_causal, far, 0.0)
+        wake[near_idx] = _near_branch(t[near_idx], pole, residue, dt)
+        return pair_factor * wake
+    # Both branches are evaluated everywhere and selected with `where`: a
+    # boolean-mask gather would sync a CuPy array to the host, and this is
+    # reached from the per-turn loop. The near argument is clamped to its
+    # side of the onset so the discarded values stay finite.
+    t_near = backend.where(fully_causal, onset, t)
+    near = _near_branch(t_near, pole, residue, dt)
     return pair_factor * backend.where(fully_causal, far, near)
+
+
+def _near_branch(
+    t: NumpyArray | CupyArray, pole: complex, residue: complex, dt: float
+) -> NumpyArray | CupyArray:
+    r"""
+    Single-pole wake from the third difference of :math:`\varphi_3`.
+
+    Parameters
+    ----------
+    t
+        Time array, in [s]. Meant for ``t <= 1.5 * dt``; zero for
+        ``t <= -1.5 * dt``.
+    pole
+        Pole :math:`p = -\alpha + i \bar\omega`, in [rad/s].
+    residue
+        Residue :math:`\rho`.
+    dt
+        Bin width, in [s].
+
+    Returns
+    -------
+    wake
+        Bin-averaged wake, without the pair factor.
+    """
+    return (
+        residue
+        * (
+            causal_third_antiderivative_factor(t + 1.5 * dt, pole)
+            - 3.0 * causal_third_antiderivative_factor(t + 0.5 * dt, pole)
+            + 3.0 * causal_third_antiderivative_factor(t - 0.5 * dt, pole)
+            - causal_third_antiderivative_factor(t - 1.5 * dt, pole)
+        )
+    ).real / dt**3
+
+
+def _near_window(
+    t: NumpyArray | CupyArray, dt: float
+) -> NumpyArray | CupyArray | None:
+    """
+    Find the indices where the near branch of a bin average is nonzero.
+
+    Parameters
+    ----------
+    t
+        Time array, in [s].
+    dt
+        Bin width, in [s].
+
+    Returns
+    -------
+    near_idx
+        Indices of ``-1.5 * dt < t <= 1.5 * dt``, or None for an array
+        shorter than ``_NEAR_WINDOW_MIN_BINS``, which is evaluated whole.
+    """
+    # Finding the window syncs a CuPy array to the host once. Short arrays,
+    # the per-turn lags of `MultiPoleSparseSolve` among them, skip it: the
+    # full-array evaluation is cheap there and needs no sync.
+    if len(t) < _NEAR_WINDOW_MIN_BINS:
+        return None
+    return backend.where((t > -1.5 * dt) & (t <= 1.5 * dt))[0]
 
 
 def triple_box_average_poles(
@@ -220,11 +292,17 @@ def triple_box_average_poles(
     """
     assert len(poles) == len(residues)
     out = backend.zeros(len(t), dtype=backend.float)
+    # The window depends on `t` and `dt` only, so it is found once.
+    near_idx = _near_window(t, dt)
     # Length-1 slices rather than `complex(poles[i])`: the latter is a
     # device-to-host transfer per pole inside the per-turn loop.
     for pole_i in range(len(poles)):
         out += triple_box_average_pole(
-            t, poles[pole_i : pole_i + 1], residues[pole_i : pole_i + 1], dt
+            t,
+            poles[pole_i : pole_i + 1],
+            residues[pole_i : pole_i + 1],
+            dt,
+            near_idx,
         )
     return out
 
