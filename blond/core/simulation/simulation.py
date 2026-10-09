@@ -274,9 +274,12 @@ class Simulation(Preparable):
         end_turn = start_turn_i + int_from_float_with_warning(
             n_turns, warning_stacklevel=2
         )
-        # deepcopy to prevent side effects
-        deepcopy(self).run_simulation(
-            beams=beams,
+        # Deepcopy simulation and beams in one go to prevent side effects
+        # on the caller's objects; a joint copy keeps references between
+        # them (e.g. `self._beams`) pointing at the copied beams.
+        simulation_copy, beams_copy = deepcopy((self, beams))
+        simulation_copy.run_simulation(
+            beams=beams_copy,
             n_turns=end_turn,
             show_progressbar=False,
             callbacks=start_profiling,

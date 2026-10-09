@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
@@ -430,6 +431,51 @@ class TestSimulation(BLonDTestCase):
             beams=(self.beam,),
             stats_lines=None,
         )
+
+    def test_profiling_leaves_beam_untouched(self):
+        dt_before = copy_to_cpu(self.beam.read_partial_dt()).copy()
+        dE_before = copy_to_cpu(self.beam.read_partial_dE()).copy()
+        reference_time_before = self.beam.reference.time
+        total_energy_before = self.beam.reference.total_energy
+
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=1,
+        )
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam.read_partial_dt()), dt_before
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam.read_partial_dE()), dE_before
+        )
+        self.assertEqual(self.beam.reference.time, reference_time_before)
+        self.assertEqual(self.beam.reference.total_energy, total_energy_before)
+
+    def _user_warnings_of_profiling(self) -> list[str]:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.simulation.profiling(
+                start_turn_i=10,
+                n_turns=20,
+                beams=(self.beam,),
+                stats_lines=1,
+            )
+        return [
+            str(warning.message)
+            for warning in caught
+            if issubclass(warning.category, UserWarning)
+        ]
+
+    def test_profiling_twice_warns_identically(self):
+        """A second ``profiling`` call must see the beam as the first did,
+        so it must not warn about a total energy left over from the
+        first call."""
+        warnings_first_call = self._user_warnings_of_profiling()
+        warnings_second_call = self._user_warnings_of_profiling()
+        self.assertEqual(warnings_second_call, warnings_first_call)
 
     def test_ring(self):
         self.assertIsInstance(self.simulation.ring, Ring)
