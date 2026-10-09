@@ -43,7 +43,10 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.bin_average import triple_box_average_poles
+from blond.physics.impedances.bin_average import (
+    triple_box_average_pole,
+    triple_box_average_poles,
+)
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
@@ -1334,33 +1337,85 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     state after the next call's first read-out, and its whole contribution
     to that first bin is added here in closed form at the true lag.
 
+    A pole whose wake dies within a bin gains nothing from the recursion:
+    when the sum of its far-field wake over every lag from two bins on is
+    below ``far_field_tolerance`` times the peak of its near taps, it
+    skips the recursion and only the near taps carry it. It keeps its
+    closed-form term for the carried charge, because a call gap between
+    1.5 and 2 bins reads that term where the bin-averaged wake of a fast
+    pole falls off only as :math:`(p\Delta t)^{-2}`, not exponentially.
+
+    Parameters
+    ----------
+    far_field_tolerance
+        Largest share of a pole's near-field peak its far field may have,
+        summed over all lags from two bins on, for the pole to skip the
+        recursion. The default of 1e-12 drops real poles decaying by more
+        than about 41 per bin; 0 keeps every pole.
+
     See Also
     --------
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, far_field_tolerance: float = 1e-12) -> None:
+        # Share of a pole's near field its far field may have and still be
+        # dropped from the recursion; see the class docstring.
+        self._far_field_tolerance = far_field_tolerance
+        # The `WakeField` this solver belongs to; gives sources and profile.
         self._parent_wakefield: WakeField | None = None
+
         # The model, concatenated over the sources at the first call.
+        # Poles p, in [rad/s]; -Re(p) > 0 is the decay rate, Im(p) the
+        # angular frequency. A complex pole stands for its conjugate too.
         self._poles: NumpyArray | CupyArray | None = None
+        # Residues, one per pole: the wake of a pole is rho * exp(p t).
         self._residues: NumpyArray | CupyArray | None = None
+        # Per pole, +1 or -1: how a counter-rotating beam sees this pole.
         self._counterrotating_pole_signs: NumpyArray | CupyArray | None = None
+
         # Read once at the first call, so no device transfer per turn.
+        # Profile bin width, in [s].
         self._bin_dt: float | None = None
-        self._span_dt: float | None = None  # first to last bin centre
-        # Fixed by the model and the bin width, so computed once: the
-        # far-field residues, the near-field taps at lags of one, zero and
-        # minus one bin, and which bins have their neighbour one bin away.
+        # Time from the first to the last bin centre of the profile, in [s].
+        self._span_dt: float | None = None
+
+        # Fixed by the model and the bin width, so computed once.
+        # Per pole, the residue of the bin-averaged wake past its onset at
+        # 1.5 bins, where it is a pure exponential; read two bins behind,
+        # so wake(t) = tail_residue * exp(p (t - 2 bin_dt)). Every pole.
+        self._tail_residues: NumpyArray | CupyArray | None = None
+        # The poles the far-field recursion keeps: those whose wake from
+        # two bins on is above the tolerance. The rest live only in the
+        # near taps (and in the carried charge's first-bin term).
+        self._far_field_poles: NumpyArray | CupyArray | None = None
+        # `_tail_residues` of the kept poles, handed to the kernel.
         self._far_field_residues: NumpyArray | CupyArray | None = None
+        # `_counterrotating_pole_signs` of the kept poles.
+        self._far_field_pole_signs: NumpyArray | CupyArray | None = None
+        # Per pole, 2 for a complex pole (it stands for its conjugate as
+        # well) and 1 for a real one.
         self._pair_factors: NumpyArray | CupyArray | None = None
+        # Near field: the bin-averaged wake summed over all poles at lags
+        # of +1, 0 and -1 bin, in [V/C]; applied to a bin's neighbours.
         self._taps: NumpyArray | CupyArray | None = None
+        # Per pair of consecutive bins, True if they are one bin apart (so
+        # the near taps apply); False across a gap in the profile.
         self._adjacent: NumpyArray | CupyArray | None = None
-        # The far-field state per pole, and the kernel's per-thread scratch.
+
+        # Changes every call.
+        # The far-field recursion's state, one complex number per kept pole:
+        # the wake of all charge so far, ready to read at the next bin.
         self._states: NumpyArray | CupyArray | None = None
+        # Kernel scratch, one voltage row per thread, summed afterwards.
         self._voltage_threaded: NumpyArray | CupyArray | None = None
-        # The previous call's last bin, its rotation, and when it was.
+        # The previous call's last bin as `factor * hist_y`: its charge in
+        # [C], negated as the induced voltage needs. Read by the next call.
         self._carried_charge: NumpyArray | CupyArray | None = None
+        # Whether the beam of the previous call was counter-rotating.
         self._carried_is_counter_rotating: bool = False
+        # Reference time of the previous call, in [s]; None before the
+        # first call. Gives the lag to the carried charge.
         self.last_reference_time: float | None = None
 
     def on_wakefield_init_simulation(
@@ -1415,7 +1470,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._span_dt = float(hist_x[-1] - hist_x[0])
 
         pole_dt = self._poles * bin_dt
-        self._far_field_residues = (
+        self._tail_residues = (
             self._residues
             * (backend.expm1(pole_dt) / pole_dt) ** 3
             * backend.exp(pole_dt / 2.0)
@@ -1423,6 +1478,14 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # 2 for a complex pole (standing in for its conjugate), 1 for a
         # real one.
         self._pair_factors = 2.0 - (self._poles.imag == 0)
+        far_field = backend.array(
+            np.flatnonzero(self._is_far_field_pole(bin_dt))
+        )
+        self._far_field_poles = self._poles[far_field]
+        self._far_field_residues = self._tail_residues[far_field]
+        self._far_field_pole_signs = self._counterrotating_pole_signs[
+            far_field
+        ]
         self._taps = triple_box_average_poles(
             backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float),
             self._poles,
@@ -1431,12 +1494,64 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
         self._adjacent = (hist_x[1:] - hist_x[:-1]) < 1.5 * bin_dt
 
-        self._states = backend.zeros(len(poles), dtype=backend.complex)
+        self._states = backend.zeros(
+            len(self._far_field_poles), dtype=backend.complex
+        )
         self._voltage_threaded = backend.zeros(
             (backend.specials.get_max_threads(), len(hist_x)),
             dtype=backend.float,
         )
         self._carried_charge = backend.zeros(1, dtype=backend.float)
+
+    def _is_far_field_pole(self, bin_dt: float) -> np.ndarray:
+        """
+        Which poles have a far field above the tolerance.
+
+        Compares a pole's far-field wake, summed over every lag from two
+        bins on, with the peak magnitude of its three near taps.
+
+        Parameters
+        ----------
+        bin_dt
+            Profile bin width, in [s].
+
+        Returns
+        -------
+        is_far_field_pole
+            Host boolean array, one entry per pole.
+        """
+        # The three near-tap lags, in [s].
+        lags = backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float)
+        # Per pole, the largest magnitude of its three near taps.
+        near_field_peaks = np.empty(len(self._poles))
+        for pole_i in range(len(self._poles)):
+            # Length-1 slices: the single-pole helper wants arrays.
+            pole = self._poles[pole_i : pole_i + 1]
+            residue = self._residues[pole_i : pole_i + 1]
+            # The taps are the real part; with the residue turned by -90
+            # degrees they are the imaginary part, so together the
+            # magnitude, whatever the residue's phase.
+            in_phase = triple_box_average_pole(lags, pole, residue, bin_dt)
+            quadrature = triple_box_average_pole(
+                lags, pole, -1j * residue, bin_dt
+            )
+            near_field_peaks[pole_i] = np.max(
+                np.hypot(copy_to_cpu(in_phase), copy_to_cpu(quadrature))
+            )
+        # The far field from two bins on is a geometric series, so its sum
+        # is tail_at_two_bins / (1 - decay_per_bin); compared below without
+        # that division, which is by zero for an undamped pole.
+        # |z| = |exp(p bin_dt)|, the factor by which the wake shrinks per bin.
+        decay_per_bin = copy_to_cpu(backend.exp(self._poles.real * bin_dt))
+        # Per pole, the magnitude of the far-field wake at a lag of 2 bins.
+        tail_at_two_bins = copy_to_cpu(
+            self._pair_factors * backend.abs(self._tail_residues)
+        )
+        return tail_at_two_bins >= (
+            self._far_field_tolerance
+            * near_field_peaks
+            * (1.0 - decay_per_bin)
+        )
 
     def _thread_scratch(self) -> NumpyArray | CupyArray:
         """
@@ -1528,9 +1643,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
         Past the onset the bin-averaged wake of every pole is the pure
         exponential, :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3
-        e^{p (t - \frac32\Delta t)}`, which is the far-field residue
-        advanced by :math:`t - 2\Delta t`; that is evaluated for all poles
-        at once. A seamless hand-over sits on the near tap and takes the
+        e^{p (t - \frac32\Delta t)}`, which is the tail residue advanced
+        by :math:`t - 2\Delta t`; that is evaluated for all poles at once,
+        those outside the recursion included. A seamless hand-over sits on the near tap and takes the
         per-pole closed form.
 
         Parameters
@@ -1554,7 +1669,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 bin_dt,
             )
         wake = (
-            self._far_field_residues
+            self._tail_residues
             * backend.exp(self._poles * (carried_lag_dt - 2.0 * bin_dt))
         ).real
         return self._carried_charge * backend.sum(
@@ -1588,23 +1703,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         # Far field: the recursion, with the residues scaled to the
         # bin-averaged wake past its onset.
         voltage = backend.zeros(len(hist_y), dtype=backend.float)
-        backend.specials.wake_from_pole_residue(
-            profile_time=hist_x,
-            profile=hist_y,
-            carried_charge=self._carried_charge,
-            carried_is_counterrotating=self._carried_is_counter_rotating,
-            state_lag_dt=carried_lag_dt - bin_dt,
-            carried_lag_dt=carried_lag_dt,
-            poles=self._poles,
-            residues=self._far_field_residues,
-            is_counterrotating_beam=beam.is_counter_rotating,
-            counterrotating_pole_signs=self._counterrotating_pole_signs,
-            factor=factor,
-            bin_dt=bin_dt,
-            states=self._states,
-            voltage=voltage,
-            voltage_threaded=self._thread_scratch(),
-        )
+        if len(self._far_field_poles) > 0:
+            backend.specials.wake_from_pole_residue(
+                profile_time=hist_x,
+                profile=hist_y,
+                carried_charge=self._carried_charge,
+                carried_is_counterrotating=self._carried_is_counter_rotating,
+                state_lag_dt=carried_lag_dt - bin_dt,
+                carried_lag_dt=carried_lag_dt,
+                poles=self._far_field_poles,
+                residues=self._far_field_residues,
+                is_counterrotating_beam=beam.is_counter_rotating,
+                counterrotating_pole_signs=self._far_field_pole_signs,
+                factor=factor,
+                bin_dt=bin_dt,
+                states=self._states,
+                voltage=voltage,
+                voltage_threaded=self._thread_scratch(),
+            )
 
         # Near field: the previous bin, the bin itself and the next bin --
         # when adjacent; a neighbour across a gap is the recursion's.

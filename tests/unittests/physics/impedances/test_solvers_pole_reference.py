@@ -264,6 +264,7 @@ def _run_solver_and_reference(
     resonator_params=(SHUNT_IMPEDANCE, CENTER_FREQUENCY, QUALITY_FACTOR),
     counter_rotating=False,
     source=None,
+    solver=None,
 ):
     """
     Run `MultiPoleSparseSolve` over `n_calls` turns and build its reference.
@@ -306,6 +307,8 @@ def _run_solver_and_reference(
     source
         A pole-residue source to use instead of a `Resonators` built from
         ``resonator_params``; ``counter_rotating`` must be false with it.
+    solver
+        The `MultiPoleSparseSolve` to run; a default one if None.
 
     Returns
     -------
@@ -328,7 +331,7 @@ def _run_solver_and_reference(
             ),
         )
     simulation, wakefield, drift, rf_station = _make_simulation(
-        solver=MultiPoleSparseSolve(),
+        solver=MultiPoleSparseSolve() if solver is None else solver,
         sources=(source,),
         n_bins=n_bins_profile,
         cut_right=cut_right,
@@ -400,6 +403,7 @@ def _run_fractional_call_gap_case(
     resonator_params=None,
     counter_rotating=False,
     source=None,
+    solver=None,
 ):
     """Single-gap shorthand for `_run_varying_call_gap_case`.
 
@@ -418,6 +422,8 @@ def _run_fractional_call_gap_case(
         impedance and the beam is marked counter-rotating.
     source
         A pole-residue source to use instead of a `Resonators`.
+    solver
+        The `MultiPoleSparseSolve` to run; a default one if None.
 
     Returns
     -------
@@ -432,6 +438,7 @@ def _run_fractional_call_gap_case(
         resonator_params=resonator_params,
         counter_rotating=counter_rotating,
         source=source,
+        solver=solver,
     )
 
 
@@ -441,6 +448,7 @@ def _run_varying_call_gap_case(
     resonator_params=None,
     counter_rotating=False,
     source=None,
+    solver=None,
 ):
     """
     Run the solver with inter-call gaps cycling through `call_gaps`.
@@ -480,6 +488,8 @@ def _run_varying_call_gap_case(
     source
         A pole-residue source to use instead of a `Resonators` built from
         ``resonator_params``.
+    solver
+        The `MultiPoleSparseSolve` to run; a default one if None.
 
     Returns
     -------
@@ -500,7 +510,7 @@ def _run_varying_call_gap_case(
             ),
         )
     simulation, wakefield, drift, rf_station = _make_simulation(
-        solver=MultiPoleSparseSolve(),
+        solver=MultiPoleSparseSolve() if solver is None else solver,
         sources=(source,),
         n_bins=n_bins_profile,
         cut_right=n_bins_profile * bin_dt,
@@ -721,12 +731,15 @@ def _prepare_sparse_gap_beam(simulation):
     return beam
 
 
-def _run_structural_gap_case(n_calls, resonator_params, source=None):
+def _run_structural_gap_case(
+    n_calls, resonator_params, source=None, solver=None
+):
     """
     Run `MultiPoleSparseSolve` on the structural-gap fixture and its
     reference, following the same sequential-per-call accumulation as
     `_run_solver_and_reference` (see its docstring for why). ``source``
-    replaces the `Resonators` built from ``resonator_params``.
+    replaces the `Resonators` built from ``resonator_params``, ``solver``
+    a default `MultiPoleSparseSolve`.
 
     Returns
     -------
@@ -742,7 +755,8 @@ def _run_structural_gap_case(n_calls, resonator_params, source=None):
     if source is None:
         source = Resonators(*resonator_params)
     simulation, wakefield, drift, rf_station = _make_sparse_profile_simulation(
-        solver=MultiPoleSparseSolve(), sources=(source,)
+        solver=MultiPoleSparseSolve() if solver is None else solver,
+        sources=(source,),
     )
     beam = _prepare_sparse_gap_beam(simulation)
 
@@ -1404,6 +1418,183 @@ class TestRealPolesAgainstConvolution(BLonDTestCase):
                     n_calls=3, resonator_params=None, source=source
                 )
                 self._assert_all_calls_match(voltages, expected, name)
+
+
+def _fast_pole_models(bin_dt):
+    """
+    Models with poles that decay within a bin, by name.
+
+    A real pole decaying by 60 per bin has a far-field wake of ~1e-16 of
+    its near taps, one decaying by 45 per bin ~1e-13, just under the
+    solver's default tolerance of 1e-12. The slow poles must stay in the
+    far field.
+
+    Parameters
+    ----------
+    bin_dt
+        Bin width of the profile, in [s].
+
+    Returns
+    -------
+    models
+        Mapping from name to ``(source, n_far_field_poles)``, the number
+        of poles that must stay in the far-field recursion.
+    """
+    slow_pole, slow_residue = _real_pole(0.15, bin_dt)
+    fast_pole, fast_residue = _real_pole(60.0, bin_dt)
+    edge_pole, edge_residue = _real_pole(45.0, bin_dt)
+    complex_poles, complex_residues, _ = Resonators(
+        *RESONATOR_PARAMS["slow_decay"]
+    ).get_vectorfit()
+    return {
+        "fast and slow poles": (
+            _PoleResidueSource(
+                [slow_pole, fast_pole, *copy_to_cpu(complex_poles)],
+                [slow_residue, fast_residue, *copy_to_cpu(complex_residues)],
+            ),
+            1 + len(complex_poles),
+        ),
+        "only fast poles": (
+            _PoleResidueSource(
+                [fast_pole, edge_pole], [fast_residue, edge_residue]
+            ),
+            0,
+        ),
+        "slow pole and one at the tolerance": (
+            _PoleResidueSource(
+                [slow_pole, edge_pole], [slow_residue, edge_residue]
+            ),
+            1,
+        ),
+    }
+
+
+class TestFastPolesLeaveTheFarField(BLonDTestCase):
+    """A pole whose wake dies within a bin skips the far-field recursion.
+
+    Past a lag of two bins its bin-averaged wake is below the tolerance,
+    so the three near taps hold all of it. It still counts in the carried
+    charge's first-bin term: a call gap between 1.5 and 2 bins puts that
+    term where the wake of a fast pole is only ~1/(p dt)^2 of its near
+    taps, far from negligible.
+    """
+
+    def _assert_all_calls_match(self, voltages, expected, rtol, message):
+        """
+        Compare every call's voltage with its reference.
+
+        Parameters
+        ----------
+        voltages
+            The solver's induced voltage per call.
+        expected
+            The reference voltage per call.
+        rtol
+            Tolerance, relative to the call's peak voltage.
+        message
+            Added to the failure message.
+        """
+        for call_index in range(len(voltages)):
+            scale = float(np.max(np.abs(expected[call_index])))
+            self.assertGreater(scale, 0.0, "fixture bug: no wake at all")
+            np.testing.assert_allclose(
+                voltages[call_index],
+                expected[call_index],
+                rtol=rtol,
+                atol=rtol * scale,
+                err_msg=f"call {call_index} of {message}",
+            )
+
+    def test_only_slow_poles_stay_in_the_far_field(self) -> None:
+        for name, (source, n_far_field_poles) in _fast_pole_models(
+            BIN_DT
+        ).items():
+            with self.subTest(model=name):
+                solver = MultiPoleSparseSolve()
+                _run_solver_and_reference(
+                    gap_bins=0, n_calls=1, source=source, solver=solver
+                )
+                self.assertEqual(
+                    len(solver._far_field_poles), n_far_field_poles
+                )
+
+    def test_zero_tolerance_keeps_every_pole(self) -> None:
+        source, _ = _fast_pole_models(BIN_DT)["only fast poles"]
+        solver = MultiPoleSparseSolve(far_field_tolerance=0.0)
+        _run_solver_and_reference(
+            gap_bins=0, n_calls=1, source=source, solver=solver
+        )
+        self.assertEqual(len(solver._far_field_poles), 2)
+
+    def test_whole_bin_gaps_match_reference(self) -> None:
+        for name, (source, _) in _fast_pole_models(BIN_DT).items():
+            for gap_bins, n_calls, call_gap_bins in (
+                (0, 3, 1),
+                (5, 3, 1),
+                (0, 3, 2),
+                (0, 3, 3),
+            ):
+                with self.subTest(
+                    model=name, gap_bins=gap_bins, call_gap_bins=call_gap_bins
+                ):
+                    voltages, expected = _run_solver_and_reference(
+                        gap_bins=gap_bins,
+                        n_calls=n_calls,
+                        call_gap_bins=call_gap_bins,
+                        source=source,
+                    )
+                    self._assert_all_calls_match(
+                        voltages,
+                        expected,
+                        1e-9,
+                        f"{name} with {gap_bins=}, {call_gap_bins=}",
+                    )
+
+    def test_fractional_call_gaps_match_reference(self) -> None:
+        # 1.5 and 1.75 bin widths put the carried charge's first-bin term
+        # where a fast pole's wake is still ~1e-3 of its near taps.
+        for call_gap in (1.0, 1.5, 1.75, 2.0, 3.0):
+            bin_dt = _T_REV / (N_BINS_FULL_TURN - 1 + call_gap)
+            for name, (source, _) in _fast_pole_models(bin_dt).items():
+                with self.subTest(model=name, call_gap=call_gap):
+                    voltages, expected = _run_fractional_call_gap_case(
+                        call_gap, source=source
+                    )
+                    self._assert_all_calls_match(
+                        voltages, expected, 1e-9, f"{name} with {call_gap=}"
+                    )
+
+    def test_structural_gap_matches_reference(self) -> None:
+        for name, (source, _) in _fast_pole_models(
+            _sparse_profile_bin_dt()
+        ).items():
+            with self.subTest(model=name):
+                _, _, voltages, expected = _run_structural_gap_case(
+                    n_calls=3, resonator_params=None, source=source
+                )
+                self._assert_all_calls_match(voltages, expected, 1e-9, name)
+
+    def test_matches_unpruned_solver_to_the_tolerance(self) -> None:
+        # The pruned solver drops at most `far_field_tolerance` of each
+        # pruned pole's near field, per bin of charge.
+        for call_gap in (1.0, 1.75, 3.0):
+            bin_dt = _T_REV / (N_BINS_FULL_TURN - 1 + call_gap)
+            for name, (source, _) in _fast_pole_models(bin_dt).items():
+                with self.subTest(model=name, call_gap=call_gap):
+                    pruned, _ = _run_fractional_call_gap_case(
+                        call_gap, source=source
+                    )
+                    unpruned, _ = _run_fractional_call_gap_case(
+                        call_gap,
+                        source=source,
+                        solver=MultiPoleSparseSolve(far_field_tolerance=0.0),
+                    )
+                    self._assert_all_calls_match(
+                        pruned,
+                        unpruned,
+                        N_BINS_FULL_TURN * 1e-12,
+                        f"{name} with {call_gap=}",
+                    )
 
 
 if __name__ == "__main__":
