@@ -674,16 +674,25 @@ class SemiEmpiricMatcher(MatchingRoutine):
         assert simulation.turn_counter.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
+                # Fine grid with dt[::_POTENTIAL_WELL_OVERSAMPLING] == ts
+                # (up to rounding), so the down-sampled potential well
+                # below is evaluated at ts. ts has len(ts) - 1 intervals;
+                # splitting each into _POTENTIAL_WELL_OVERSAMPLING needs
+                # (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1 points.
+                # len(ts) * _POTENTIAL_WELL_OVERSAMPLING points would put
+                # the down-sampled points off ts, shifting the well to
+                # later times by up to one grid step of ts.
                 dt=np.linspace(
                     ts.min(),
                     ts.max(),
-                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+                    (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
                 ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
                 until_section_index=self.until_section_index,
             )
         )
+        # back on ts, see the construction of dt above
         potential_well = (
             potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
