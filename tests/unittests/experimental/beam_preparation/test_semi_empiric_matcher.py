@@ -26,14 +26,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
 
         # pinned values
         expected_dt = {
-            10: 9.355702994976724e-10,
-            50: 1.2485632608699518e-09,
-            90: 1.5592397783789834e-09,
+            10: 9.355062581609325e-10,
+            50: 1.2482655930798127e-09,
+            90: 1.5590934365120964e-09,
         }
         expected_dE = {
-            10: -203032411.55599388,
-            50: -497189.05071394914,
-            90: 200758357.80584636,
+            10: -203101407.51540712,
+            50: -497358.00913441705,
+            90: 200826580.97967795,
         }
         sim = SimulationTwoRFStations()
         self._test_matching(sim)
@@ -136,14 +136,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
             )
         # pinned values
         expected_dt = {
-            10: 8.928249664334665e-10,
-            50: 1.1920829580980246e-09,
-            90: 1.4876368326620142e-09,
+            10: 8.929549851667122e-10,
+            50: 1.192092603549022e-09,
+            90: 1.4876912314632537e-09,
         }
         expected_dE = {
-            10: -202846763.82107335,
-            50: -491628.7760362582,
-            90: 200434969.8987505,
+            10: -202716777.35074392,
+            50: -491313.7348293215,
+            90: 200306528.9328857,
         }
         if DEV_PLOT2:
             sim.beam1.plot_scatter()
@@ -173,14 +173,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
 
         # pinned values
         expected_dt = {
-            10: 2.182994801837146e-09,
-            50: 2.4962545334460535e-09,
-            90: 2.8067623376809793e-09,
+            10: 2.18301320661425e-09,
+            50: 2.496231081650859e-09,
+            90: 2.8067602264468377e-09,
         }
         expected_dE = {
-            10: -2094329558.7487688,
-            50: -5128628.070840176,
-            90: 2070872131.6778007,
+            10: -2094659257.9682522,
+            50: -5129435.443617314,
+            90: 2071198138.118674,
         }
         sim = SimulationTwoRFStations(below_transition_crossing=True)
         self._test_matching(sim, below_transition_crossing=True)
@@ -276,14 +276,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
             )
         # pinned values
         expected_dt = {
-            10: 2.197490430890188e-09,
-            50: 2.5040588600000505e-09,
-            90: 2.8107171416585663e-09,
+            10: 2.1975148893120623e-09,
+            50: 2.504048432526325e-09,
+            90: 2.8107685142036107e-09,
         }
         expected_dE = {
-            10: -2092273594.6515977,
-            50: -5220070.339163311,
-            90: 2066723461.4492223,
+            10: -2092606583.036815,
+            50: -5220901.120948364,
+            90: 2067052383.4935844,
         }
         for percentile in (10, 50, 90):
             percentile_dt = float(
@@ -395,6 +395,170 @@ class TestSemiEmpiricMatcherPotentialWellGrid(BLonDTestCase):
                 rtol=0,
                 atol=1e-9 * (expected_dt[1] - expected_dt[0]),
             )
+
+
+def _lhc_kick_then_drift(voltage=6e6):
+    """LHC at 450 GeV/c, one RF kick per turn followed by the whole drift."""
+    from blond import (
+        ConstantMagneticCycle,
+        DriftSimple,
+        Ring,
+        SingleHarmonicRFStation,
+        momentum_compaction_factor,
+        proton,
+    )
+
+    ring = Ring(circumference=26658.883)
+    ring.add_elements(
+        [
+            SingleHarmonicRFStation(harmonic=35640, voltage=voltage, phi_rf=0),
+            DriftSimple(
+                orbit_length=26658.883,
+                momentum_compaction_factor=momentum_compaction_factor(
+                    transition_gamma=55.759505
+                ),
+            ),
+        ],
+        reorder=False,
+    )
+    simulation = Simulation(
+        ring=ring,
+        magnetic_cycle=ConstantMagneticCycle(
+            value=450e9, reference_particle=proton
+        ),
+    )
+    return simulation, Beam(intensity=1e9, particle_type=proton)
+
+
+class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
+    """Correction of the matched beam to the tracked one-turn map."""
+
+    drift = 3e-16  # drift per turn, [s/eV]
+    kick = 1e14  # slope of the RF kick per turn, [eV/s]
+
+    def _assert_correction(self, one_turn_map, expected_shear):
+        from blond.experimental.beam_preparation.semi_empiric_matcher import (
+            get_grid_correction_from_one_turn_map,
+        )
+
+        mu = np.arccos(0.5 * np.trace(one_turn_map))
+        shear_dt_per_dE, deltaE_scale = get_grid_correction_from_one_turn_map(
+            one_turn_map=one_turn_map,
+            beta_hamiltonian=np.sqrt(self.drift / self.kick),
+        )
+        np.testing.assert_allclose(shear_dt_per_dE, expected_shear, atol=1e-30)
+        # the discrete map has a larger energy spread than the smooth
+        # Hamiltonian, by 1 / cos(mu / 2) for all three element orders
+        np.testing.assert_allclose(
+            deltaE_scale, 1 / np.cos(mu / 2), rtol=1e-12
+        )
+
+    def test_grid_correction_kick_then_drift(self):
+        drift, kick = self.drift, self.kick
+        self._assert_correction(
+            np.array([[1 - drift * kick, drift], [-kick, 1]]), drift / 2
+        )
+
+    def test_grid_correction_drift_then_kick(self):
+        drift, kick = self.drift, self.kick
+        self._assert_correction(
+            np.array([[1, drift], [-kick, 1 - drift * kick]]), -drift / 2
+        )
+
+    def test_grid_correction_symmetric(self):
+        drift, kick = self.drift, self.kick
+        one_turn_map = np.array(
+            [
+                [1 - drift * kick / 2, drift * (1 - drift * kick / 4)],
+                [-kick, 1 - drift * kick / 2],
+            ]
+        )
+        self._assert_correction(one_turn_map, 0.0)
+
+    def test_get_one_turn_map_empiric_kick_then_drift(self):
+        from blond import momentum_compaction_factor, proton
+        from blond.experimental.beam_preparation.semi_empiric_matcher import (
+            get_one_turn_map_empiric,
+        )
+
+        voltage, harmonic = 6e6, 35640
+        simulation, _ = _lhc_kick_then_drift(voltage=voltage)
+        t_rev = simulation.magnetic_cycle.get_t_rev_init(
+            simulation.ring.circumference, particle_type=proton
+        )
+        omega_rf = 2 * np.pi * harmonic / t_rev
+
+        t_fixed, dE_fixed, one_turn_map = get_one_turn_map_empiric(
+            simulation=simulation,
+            t_guess=0.45 * t_rev / harmonic,  # off the fixed point
+            delta_t=1e-13,
+            delta_E=1e4,
+            particle_type=proton,
+        )
+
+        # above transition, the bucket centre is at omega_rf * t = pi
+        np.testing.assert_allclose(t_fixed, np.pi / omega_rf, rtol=1e-9)
+        np.testing.assert_allclose(dE_fixed, 0, atol=1e-3)
+        # kick, then drift: [[1 - drift kick, drift], [-kick, 1]]
+        energy = np.sqrt(450e9**2 + proton.mass**2)
+        beta = 450e9 / energy
+        alpha = momentum_compaction_factor(transition_gamma=55.759505)
+        drift = (
+            t_rev * (alpha - (proton.mass / energy) ** 2) / (beta**2 * energy)
+        )
+        kick = voltage * omega_rf
+        np.testing.assert_allclose(
+            one_turn_map,
+            [[1 - drift * kick, drift], [-kick, 1]],
+            rtol=1e-6,
+        )
+
+    def test_grid_correction_unstable_raises(self):
+        from blond.experimental.beam_preparation.semi_empiric_matcher import (
+            get_grid_correction_from_one_turn_map,
+        )
+
+        with self.assertRaises(ValueError):
+            get_grid_correction_from_one_turn_map(
+                one_turn_map=np.array([[1.0, self.drift], [self.kick, 1.0]]),
+                beta_hamiltonian=np.sqrt(self.drift / self.kick),
+            )
+
+    def _bunch_length_oscillation(self, correct_to_one_turn_map):
+        from blond import BeamStatisticsOncePerTurn
+
+        simulation, beam = _lhc_kick_then_drift()
+        simulation.prepare_beam(
+            beam=beam,
+            preparation_routine=SemiEmpiricMatcher(
+                time_limit=(0, 2.5e-9),
+                n_macroparticles=1e5,
+                hamilton_to_density_function=lambda hamilton_2D, **_: np.exp(
+                    -hamilton_2D / 1.7
+                ),
+                hamilton_to_density_kwargs={},
+                seed=1,
+                verbose=False,
+                correct_to_one_turn_map=correct_to_one_turn_map,
+            ),
+        )
+        statistics = BeamStatisticsOncePerTurn(each_turn_i=1)
+        simulation.run_simulation(
+            beams=(beam,),
+            n_turns=400,  # two synchrotron periods
+            observe=(statistics,),
+            show_progressbar=False,
+        )
+        bunch_length = copy_to_cpu(statistics.bunch_length)
+        return np.ptp(bunch_length) / bunch_length.mean()
+
+    def test_matched_bunch_length_does_not_oscillate(self):
+        # With the RF kick before the drift, the beam matched to the smooth
+        # Hamiltonian is tilted against the invariant ellipse of the
+        # one-turn map, and its length oscillates by about 1.4 % (the
+        # synchrotron phase advance is mu = 0.031 per turn).
+        self.assertGreater(self._bunch_length_oscillation(False), 0.01)
+        self.assertLess(self._bunch_length_oscillation(True), 0.005)
 
 
 class TestSemiEmpiricMatcherWarmup(BLonDTestCase):

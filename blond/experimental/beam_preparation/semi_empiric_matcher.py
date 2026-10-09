@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import gc
 import math
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -40,6 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
 
 
@@ -156,6 +158,182 @@ def get_hamilton_semi_analytic(
     return deltaE_grid, time_grid, hamilton_2D
 
 
+def get_one_turn_map_empiric(
+    simulation: Simulation,
+    t_guess: float,
+    delta_t: float,
+    delta_E: float,
+    particle_type: ParticleType,
+    intensity: int = 0,
+    until_section_index: int = -1,
+    newton_steps: int = 2,
+) -> tuple[float, float, NumpyArray]:
+    r"""
+    Fixed point and linear one-turn map, by tracking five probe particles.
+
+    Probe particles at the centre and at :math:`\pm` ``delta_t`` and
+    :math:`\pm` ``delta_E`` around it are tracked through one turn. The
+    central differences give the Jacobian
+
+    .. math::
+
+        M = \begin{pmatrix}
+            \partial t_1 / \partial t_0 & \partial t_1 / \partial \Delta E_0 \\
+            \partial \Delta E_1 / \partial t_0 &
+            \partial \Delta E_1 / \partial \Delta E_0
+        \end{pmatrix},
+
+    and Newton steps move the centre onto the fixed point of the one-turn
+    map. Since the map is tracked, ``M`` contains whatever the ring
+    contains: any drift formula, multi-harmonic RF stations, several RF
+    stations per turn and the order of the elements.
+
+    Parameters
+    ----------
+    simulation
+        Simulation whose one-turn map is tracked. It is not modified.
+    t_guess
+        Start value for the time coordinate of the fixed point, in [s],
+        e.g. the minimum of
+        :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`.
+    delta_t
+        Step in time for the central differences, in [s]. Small compared
+        to the bucket, so that the map is linear.
+    delta_E
+        Step in energy for the central differences, in [eV]. Small
+        compared to the bucket height, so that the map is linear.
+    particle_type
+        Type of particle (e.g., proton, electron).
+    intensity
+        Beam intensity (number of real particles) to include collective
+        effects. Default is 0 (no intensity effects).
+    until_section_index
+        Section index until which to run the simulation. Default is -1.
+    newton_steps
+        Number of Newton steps towards the fixed point. Default is 2.
+
+    Returns
+    -------
+    t_fixed
+        Time coordinate of the fixed point, in [s].
+    dE_fixed
+        Energy coordinate of the fixed point, in [eV].
+    one_turn_map
+        Jacobian :math:`M` of the one-turn map at the fixed point, shape
+        (2, 2), units [[1, s/eV], [eV/s, 1]].
+
+    See Also
+    --------
+    get_grid_correction_from_one_turn_map : Uses ``one_turn_map``.
+
+    Notes
+    -----
+    The Courant-Snyder parameters of the matched ellipse at the start of
+    the turn follow from :math:`M`, e.g.
+    :math:`\cos\mu = \mathrm{tr}(M) / 2` and
+    :math:`\alpha = (M_{11} - M_{22}) / (2 \sin\mu)`.
+    """
+    from blond.core.beam.beams import ProbeBeam  # prevent circular import
+
+    centre = np.array([t_guess, 0.0])
+    one_turn_map = np.eye(2)
+    for _ in range(newton_steps + 1):
+        dt = centre[0] + np.array([0.0, delta_t, -delta_t, 0.0, 0.0])
+        dE = centre[1] + np.array([0.0, 0.0, 0.0, delta_E, -delta_E])
+        probe_bunch = ProbeBeam(
+            dt=dt,
+            dE=dE,
+            particle_type=particle_type,
+            intensity=intensity,
+        )
+        # prevent side effect
+        deepcopy(simulation).run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            show_progressbar=False,
+            verbose=False,
+            until_section_index=until_section_index,
+        )
+        dt_1 = copy_to_cpu(probe_bunch.read_partial_dt()).astype(float)
+        dE_1 = copy_to_cpu(probe_bunch.read_partial_dE()).astype(float)
+        one_turn_map = np.array(
+            [
+                [
+                    (dt_1[1] - dt_1[2]) / (2 * delta_t),
+                    (dt_1[3] - dt_1[4]) / (2 * delta_E),
+                ],
+                [
+                    (dE_1[1] - dE_1[2]) / (2 * delta_t),
+                    (dE_1[3] - dE_1[4]) / (2 * delta_E),
+                ],
+            ]
+        )
+        residual = np.array([dt_1[0], dE_1[0]]) - centre
+        centre = centre - np.linalg.solve(one_turn_map - np.eye(2), residual)
+    return float(centre[0]), float(centre[1]), one_turn_map
+
+
+def get_grid_correction_from_one_turn_map(
+    one_turn_map: NumpyArray,
+    beta_hamiltonian: float,
+) -> tuple[float, float]:
+    r"""Shear and energy scale that turn Hamiltonian contours into the matched ellipse.
+
+    The contours of the semi-analytic Hamiltonian are upright ellipses near
+    the bucket centre, with the aspect ratio
+    :math:`\beta_H = \Delta t / \Delta E` given by the analytic drift term.
+    The particles keep the invariant ellipse of the tracked one-turn map
+    :math:`M` instead, which is tilted, because the kicks and drifts happen
+    one after the other, and whose aspect ratio differs from
+    :math:`\beta_H` by :math:`\mathcal{O}(\mu^2)`, :math:`\mu` being the
+    synchrotron phase advance per turn.
+
+    Mapping the Hamiltonian grid with
+    :math:`\Delta E \to s_E \Delta E`, then
+    :math:`t \to t + s_t \Delta E`, turns the upright ellipse into the
+    invariant one. Both keep the crossings of the contours with
+    :math:`\Delta E = 0`, which come from the empiric potential well, and
+    are the same for every bucket.
+
+    Parameters
+    ----------
+    one_turn_map
+        Jacobian of the one-turn map at the fixed point, shape (2, 2), see
+        :func:`get_one_turn_map_empiric`.
+    beta_hamiltonian
+        Aspect ratio :math:`\Delta t / \Delta E` of the Hamiltonian contours
+        at the bucket centre, :math:`\sqrt{a / V''}` for
+        :math:`H = a \Delta E^2 / 2 + V(t)`, in [s/eV].
+
+    Returns
+    -------
+    shear_dt_per_dE
+        :math:`s_t = (M_{11} - M_{22}) / (2 M_{21})`, slope
+        :math:`\mathrm{d}t / \mathrm{d}\Delta E` of the invariant ellipse
+        where it crosses :math:`\Delta E = 0`, in [s/eV].
+    deltaE_scale
+        :math:`s_E = \gamma \beta_H`, with the Courant-Snyder
+        :math:`\gamma = -M_{21} / \sin\mu`.
+
+    Raises
+    ------
+    ValueError
+        If ``one_turn_map`` is not linearly stable,
+        :math:`|\mathrm{tr}(M)| \geq 2`.
+    """
+    cos_mu = 0.5 * float(np.trace(one_turn_map))
+    if not abs(cos_mu) < 1:
+        raise ValueError(
+            f"The one-turn map is not linearly stable, {2 * cos_mu=}."
+        )
+    sin_mu = np.sign(one_turn_map[0, 1]) * np.sqrt(1 - cos_mu**2)
+    gamma_twiss = -one_turn_map[1, 0] / sin_mu
+    shear_dt_per_dE = (one_turn_map[0, 0] - one_turn_map[1, 1]) / (
+        2 * one_turn_map[1, 0]
+    )
+    return float(shear_dt_per_dE), float(gamma_twiss * beta_hamiltonian)
+
+
 class DebuggingEndpoints:
     """
     Helper to expose variables when debugging `SemiEmpiricMatcher`.
@@ -231,6 +409,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
         If ``True``, variables are saved into the `debug_helper` attribute.
     until_section_index
         Section index until which to run the simulation. Default is -1.
+    correct_to_one_turn_map
+        If ``True`` (default), tilt and scale the matched distribution in
+        energy so that its core is the invariant ellipse of the tracked
+        one-turn map, see :func:`get_grid_correction_from_one_turn_map`.
+        Without it, the bunch is matched to the smooth Hamiltonian only,
+        and its length oscillates by a fraction of :math:`\mu`, the
+        synchrotron phase advance per turn, unless the RF kicks sit in the
+        middle of the drifts. The correction is linear, so it does not
+        correct the shape of large-amplitude contours.
 
     See Also
     --------
@@ -365,6 +552,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         verbose: bool = True,
         debug=False,
         until_section_index: int = -1,
+        correct_to_one_turn_map: bool = True,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -404,6 +592,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
         self.until_section_index = until_section_index
+        self.correct_to_one_turn_map = correct_to_one_turn_map
+        # (shear_dt_per_dE, deltaE_scale), see
+        # `get_grid_correction_from_one_turn_map`
+        self._grid_correction: tuple[float, float] | None = None
         self.animate = animate
         self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
@@ -738,6 +930,13 @@ class SemiEmpiricMatcher(MatchingRoutine):
             self.debug_helper.last_density = density
             self.debug_helper.last_hamilton_2D = hamilton_2D
 
+        if self._grid_correction is not None:
+            # The density stays a function of H, but sits on the invariant
+            # ellipse of the one-turn map instead of the contours of H
+            shear_dt_per_dE, deltaE_scale = self._grid_correction
+            deltaE_grid = deltaE_scale * deltaE_grid
+            time_grid = time_grid + shear_dt_per_dE * deltaE_grid
+
         populate_beam(
             beam=beam,
             time_grid=time_grid.T,
@@ -827,17 +1026,110 @@ class SemiEmpiricMatcher(MatchingRoutine):
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
         if self.debug_helper is not None:
             self.debug_helper.last_potential_well = avg_pot_well
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
             reference_total_energy=beam.reference.total_energy,
             beta=beam.reference.beta,
-            eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference.gamma)
-            ),
+            eta=eta,
             shape=self.internal_grid_shape,
         )
+        if self.correct_to_one_turn_map:
+            self._grid_correction = self._measure_grid_correction(
+                beam=beam,
+                simulation=simulation,
+                ts=ts,
+                potential_well=avg_pot_well,
+                eta=eta,
+                deltaE_max=float(deltaE_grid.max()),
+            )
         return time_grid, deltaE_grid, hamilton_2D
+
+    def _measure_grid_correction(
+        self,
+        beam: BeamBaseClass,
+        simulation: Simulation,
+        ts: NumpyArray | CupyArray,
+        potential_well: NumpyArray | CupyArray,
+        eta: float,
+        deltaE_max: float,
+    ) -> tuple[float, float] | None:
+        """Track the one-turn map at the bucket centre and derive the grid correction.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object.
+        simulation
+            `Simulation` context manager.
+        ts
+            Time coordinates of ``potential_well``, in [s].
+        potential_well
+            Potential well that the Hamiltonian is built from.
+        eta
+            Slippage factor of the analytic drift term.
+        deltaE_max
+            Largest energy offset of the Hamiltonian grid, in [eV].
+
+        Returns
+        -------
+        grid_correction
+            ``(shear_dt_per_dE, deltaE_scale)``, see
+            :func:`get_grid_correction_from_one_turn_map`, or ``None`` with a
+            warning if the bucket centre has no linear motion to match to,
+            e.g. a flat potential well.
+        """
+        ts_cpu = copy_to_cpu(ts)
+        well = copy_to_cpu(potential_well)
+        i_min = int(np.argmin(well))
+        neighbours = slice(max(i_min - 3, 0), i_min + 4)
+        # V''(t) at the bucket centre, by a parabola through 7 points
+        curvature = (
+            2
+            * np.polyfit(
+                ts_cpu[neighbours] - ts_cpu[i_min], well[neighbours], 2
+            )[0]
+        )
+        drift_term = abs(eta) / (
+            beam.reference.beta**2 * beam.reference.total_energy
+        )
+        if not curvature > 0:
+            warnings.warn(
+                "SemiEmpiricMatcher: the potential well is flat at its"
+                " minimum, so the beam is not corrected to the one-turn map.",
+                stacklevel=2,
+            )
+            return None
+        beta_hamiltonian = float(np.sqrt(drift_term / curvature))
+        # small steps compared to the bucket: linear part of the map
+        delta_E = 1e-3 * deltaE_max
+        t_fixed, _, one_turn_map = get_one_turn_map_empiric(
+            simulation=simulation,
+            t_guess=float(ts_cpu[i_min]),
+            delta_t=delta_E * beta_hamiltonian,
+            delta_E=delta_E,
+            particle_type=beam.particle_type,
+            intensity=beam.intensity,
+            until_section_index=self.until_section_index,
+        )
+        grid_step = float(ts_cpu[1] - ts_cpu[0])
+        try:
+            if abs(t_fixed - ts_cpu[i_min]) > 10 * grid_step:
+                raise ValueError(
+                    f"no fixed point near the potential minimum, {t_fixed=}"
+                )
+            return get_grid_correction_from_one_turn_map(
+                one_turn_map=one_turn_map,
+                beta_hamiltonian=beta_hamiltonian,
+            )
+        except ValueError as exc:
+            warnings.warn(
+                "SemiEmpiricMatcher: the beam is not corrected to the"
+                f" one-turn map: {exc}",
+                stacklevel=2,
+            )
+            return None
 
     def _plot_current_state(
         self,

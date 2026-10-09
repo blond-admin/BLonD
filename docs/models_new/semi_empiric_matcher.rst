@@ -127,6 +127,35 @@ The matching routine proceeds as follows:
    according to the computed density map via
    :func:`~blond.experimental.beam_preparation.semi_empiric_matcher.populate_beam`.
 
+   **Correction to the one-turn map** (``correct_to_one_turn_map=True``,
+   default). The contours of :math:`H` are upright ellipses near the bucket
+   centre, but the tracked particles keep the invariant ellipse of the
+   *discrete* one-turn map: it is tilted, because kicks and drifts happen one
+   after the other, and its energy spread differs by
+   :math:`\mathcal{O}(\mu^2)`, :math:`\mu` being the synchrotron phase advance
+   per turn. Without correction, the bunch length oscillates by a fraction of
+   :math:`\mu` unless the RF kicks sit in the middle of the drifts.
+
+   Five probe particles around the bucket centre are tracked for one turn by
+   :func:`get_one_turn_map_empiric`,
+   which returns the fixed point and the Jacobian :math:`M` of the one-turn
+   map. Any drift formula, multi-harmonic RF and several RF stations per turn
+   are therefore included. The grid on which the density is sampled is then
+   mapped by :func:`get_grid_correction_from_one_turn_map`,
+
+   .. math::
+
+      \Delta E \to s_E\,\Delta E, \qquad t \to t + s_t\,\Delta E,
+      \qquad s_t = \frac{M_{11} - M_{22}}{2 M_{21}},
+      \qquad s_E = \gamma\,\beta_H,
+
+   with the Courant-Snyder :math:`\gamma = -M_{21} / \sin\mu` and the aspect
+   ratio :math:`\beta_H = \sqrt{a / V''}` of the contours of
+   :math:`H = a \Delta E^2 / 2 + V(t)`. Both keep the bunch length at
+   :math:`\Delta E = 0`, which comes from the empirical potential, and are the
+   same for every bucket. The correction is linear: large-amplitude contours
+   keep a residual mismatch.
+
 5. **Iterative matching with intensity effects**
 
    - Initially, all **intensity effects** (wakefields, profiles) are turned off.
@@ -189,6 +218,10 @@ API Reference
 .. autofunction:: hamilton_to_density_by_max
 
 .. autofunction:: get_hamilton_semi_analytic
+
+.. autofunction:: get_one_turn_map_empiric
+
+.. autofunction:: get_grid_correction_from_one_turn_map
 
 .. autoclass:: SemiEmpiricMatcher
    :members:
