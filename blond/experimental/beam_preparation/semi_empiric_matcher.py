@@ -53,48 +53,62 @@ def get_hamilton_semi_analytic(
     energy_range: tuple[float, float] | None = None,
 ) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
     r"""
-    Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
+    Compute the 2D Hamiltonian :math:`H(t, \Delta E)` of a potential well.
 
-    This function computes a semi-analytic Hamiltonian over a 2D grid defined by
-    time (:math:`t`) and energy difference (:math:`\Delta E`).
+    The time axis is ``ts``; the energy axis is sampled uniformly over
+    ``energy_range``.
 
     Notes
     -----
-    The Hamiltonian is computed using the relation:
+    The Hamiltonian is computed using the relation
 
     .. math::
 
-        H_{2D}(t, \Delta E) = \frac{1}{2} \frac{\eta E_0}{\beta^2 c^2} (\Delta E)^2 + V(t)
+        H(t, \Delta E) = \frac{1}{2} \frac{|\eta|}{\beta^2 E_0} (\Delta E)^2
+                         + V(t)
 
     where
 
-    - :math:`E_0` is the reference total energy [eV].
-    - :math:`V(t)` is the potential well interpolated at times :math:`t` [V].
-    - :math:`c` is the speed of light [m/s].
+    - :math:`E_0` is the reference total energy [eV],
+    - :math:`\eta` is the zeroth-order slippage factor,
+    - :math:`V(t)` is ``potential_well`` evaluated at ``ts`` [eV].
+
+    The absolute value :math:`|\eta|` assumes that ``potential_well`` is
+    oriented such that stable fixed points are minima on both sides of
+    transition, as returned by
+    :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`.
 
     Parameters
     ----------
     ts : array_like
         Time coordinates of the potential well [s].
     potential_well : array_like
-        Potential energy values corresponding to ``ts`` [V].
+        Potential well values at ``ts`` [eV]. Its offset is arbitrary.
     reference_total_energy : float
         Reference total energy :math:`E_0` [eV].
     eta : float
-        General synchrotron parameter (zeroth-order slippage factor) [unitless].
+        Zeroth-order slippage factor [unitless]. Only :math:`|\eta|` is used.
     beta : float
         Relativistic velocity factor :math:`\beta = v/c` [unitless].
     shape : tuple of int
-        Shape of the output Hamiltonian grid, as ``(num_time_points, num_energy_points)``.
+        Grid shape as ``(n_time, n_energy)``. Only ``n_energy`` is used;
+        the time axis always has ``len(ts)`` points.
     energy_range : tuple of float or None, optional
         Range of :math:`\Delta E` values to evaluate [eV].
-        If ``None``, it will comprise the largest separatrix inside the given potential.
+        If ``None``, the range is chosen symmetric around zero such that
+        :math:`H` spans the full depth of the potential well, which
+        comprises the largest separatrix inside the given potential.
 
     Returns
     -------
-    hamilton_2D : ndarray
-        2D array representing the semi-analytic Hamiltonian evaluated on a grid of
-        time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
+    deltaE_grid : numpy.ndarray
+        2D grid of energy offsets :math:`\Delta E` [eV], with shape
+        ``(len(ts), n_energy)``.
+    time_grid : numpy.ndarray
+        2D grid of time coordinates :math:`t` [s], same shape.
+    hamilton_2D : numpy.ndarray
+        Hamiltonian evaluated on the grid [eV], same shape. All outputs are
+        NumPy arrays, also when the inputs are CuPy arrays.
     """
     # from here only CPU code, because `populate_beam` can only
     # handle numpy arrays
@@ -134,7 +148,7 @@ def get_hamilton_semi_analytic(
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
     time_grid, deltaE_grid = np.meshgrid(ts, _dE_base, indexing="ij")
     # Expand potential V(t) to 2D grid
-    V = potential_well[:, None]  # [V]
+    V = potential_well[:, None]  # [eV]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
     hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
@@ -261,9 +275,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
     Examples
     --------
-    Fill a single LHC bucket with a truncated thermal distribution
-    :math:`\rho \propto \exp(-H / H_\mathrm{spread})`, cut at a fraction of
-    the Hamiltonian at the separatrix.
+    Fill a single LHC bucket with a density that decays exponentially in
+    the Hamiltonian, :math:`\rho \propto \exp(-H / H_\mathrm{decay})`,
+    cut at a fraction of the Hamiltonian at the separatrix.
 
     >>> import numpy as np
     >>> from blond import (
@@ -280,11 +294,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
     ...     SemiEmpiricMatcher,
     ... )
     >>>
-    >>> def truncated_thermal_density(
+    >>> def truncated_exponential_density(
     ...     time_grid,  # required, [s]
     ...     deltaE_grid,  # required, [eV]
     ...     hamilton_2D,  # required, [eV]
-    ...     spread,  # custom: thermal spread, in units of the well depth
+    ...     decay,  # custom: 1/e decay, as fraction of the well depth
     ...     filling,  # custom: cut, as fraction of the well depth
     ... ):
     ...     # H(t, dE=0) = V(t), so the minimum along dE is the potential
@@ -294,7 +308,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
     ...     hamilton_relative = (
     ...         hamilton_2D - potential_well.min()
     ...     ) / well_depth
-    ...     density = np.exp(-hamilton_relative / spread)
+    ...     density = np.exp(-hamilton_relative / decay)
     ...     density[hamilton_relative > filling] = 0.0
     ...     return density
     >>>
@@ -322,8 +336,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
     ...     preparation_routine=SemiEmpiricMatcher(
     ...         time_limit=(0, 2.5e-9),  # one RF bucket
     ...         n_macroparticles=1e5,
-    ...         hamilton_to_density_function=truncated_thermal_density,
-    ...         hamilton_to_density_kwargs=dict(spread=0.2, filling=0.8),
+    ...         hamilton_to_density_function=truncated_exponential_density,
+    ...         hamilton_to_density_kwargs=dict(decay=0.2, filling=0.8),
     ...         maxiter_intensity_effects=0,  # no intensity effects here
     ...     ),
     ... )
