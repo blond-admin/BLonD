@@ -19,6 +19,7 @@ from blond.core.backends.mpi_distributed.helpers import (
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -120,6 +121,16 @@ class TestBeam(BLonDTestCase):
 
     def test_plot_hist2d_executes_kwargs1(self) -> None:
         self.beam.plot_hist2d(cmap="viridis")
+
+    def test_plot_hist2d_uses_default_cmap(self) -> None:
+        image = self.beam.plot_hist2d()
+        self.assertEqual(image.get_cmap().name, DEFAULT_CMAP)
+        plt.close(image.axes.figure)
+
+    def test_plot_hist2d_keeps_user_cmap(self) -> None:
+        image = self.beam.plot_hist2d(cmap="viridis")
+        self.assertEqual(image.get_cmap().name, "viridis")
+        plt.close(image.axes.figure)
 
     def test_plot_hist2d_executes_kwargs2(self) -> None:
         self.beam.plot_hist2d(bins=12)
