@@ -271,6 +271,18 @@ class TestAssertParametersDefined(BLonDTestCase):
             _LateVoltage()._assert_parameters_assigned()
         self.assertIn("_LateVoltage", str(context.exception))
 
+    def test_offers_scheduling_for_a_registered_parameter(self):
+        schedulable = _LateVoltage()
+        schedulable._register_schedulable_variables("voltage")
+        with self.assertRaises(ValueError) as context:
+            schedulable._assert_parameters_assigned()
+        self.assertIn("schedule(attribute='voltage'", str(context.exception))
+
+    def test_omits_scheduling_for_an_unregistered_parameter(self):
+        with self.assertRaises(ValueError) as context:
+            _LateVoltage()._assert_parameters_assigned()
+        self.assertNotIn("schedule", str(context.exception))
+
     def test_passes_once_the_parameter_is_defined(self):
         schedulable = _LateVoltage()
         schedulable.voltage = 1.0

@@ -305,16 +305,19 @@ class Schedulable(Preparable):
             if attribute not in self.schedules
         ]
         if len(missing) > 0:
+            hints = []
+            for attribute in missing:
+                hint = f"  - `{attribute}`: set `.{attribute}=...`"
+                if attribute in self.intended_for_scheduling:
+                    hint += (
+                        f" or `.schedule(attribute='{attribute}', value=...)`"
+                    )
+                hints.append(hint)
             # ``name`` comes from `SimulationElementBase`, which this
             # mixin does not require.
             owner = getattr(self, "name", type(self).__name__)
             raise ValueError(
-                f"'{owner}' has unassigned parameters:\n"
-                + "\n".join(
-                    f"  - `{attribute}`: set `.{attribute}=...` or "
-                    f"`.schedule(attribute='{attribute}', value=...)`"
-                    for attribute in missing
-                )
+                f"'{owner}' has unassigned parameters:\n" + "\n".join(hints)
             )
 
     def schedule(
