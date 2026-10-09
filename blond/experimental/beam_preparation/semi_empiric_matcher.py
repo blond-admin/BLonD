@@ -218,10 +218,115 @@ class SemiEmpiricMatcher(MatchingRoutine):
     until_section_index
         Section index until which to run the simulation. Default is -1.
 
+    See Also
+    --------
+    hamilton_to_density_by_max : Default ``hamilton_to_density_function``.
+    blond.experimental.beam_preparation.bucket_filler_functions.multibunch_match_metric_to_hamilton :
+        Fill several buckets, fitting e.g. the RMS emittance of each bunch.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon :
+        Match to a measured line density.
+    blond.core.simulation.simulation.Simulation.get_potential_well_empiric :
+        Potential well that the Hamiltonian is built from.
+
     Notes
     -----
     This routine is intended for iterative beam-matching workflows where
     the potential well and intensity effects are both considered analytically.
+
+    Further documentation:
+
+    - :ref:`semi_empiric_matcher`: theory, algorithm and convergence
+      criterion.
+    - :ref:`potential_well_empiric`: how the potential well is obtained.
+    - :doc:`/examples/notebooks/tutorial_SemiEmpiricMatcher`: step-by-step
+      notebook, including matching to a measured line density.
+    - Example scripts ``blond/examples/scripts/EX_08_Semi_empiric_matcher.py``
+      (multi-bunch filling with a custom density function and a wakefield)
+      and ``blond/examples/scripts/EX_06_Acceleration_match_density.py``
+      (matching to a line density during acceleration).
+
+    **Custom density function.** ``hamilton_to_density_function`` is called
+    as ``hamilton_to_density_function(time_grid=..., deltaE_grid=...,
+    hamilton_2D=..., **hamilton_to_density_kwargs)``. It must therefore
+
+    - accept the keyword arguments ``time_grid`` [s], ``deltaE_grid`` [eV]
+      and ``hamilton_2D`` [eV] (spelled exactly like this), all NumPy arrays
+      of shape ``internal_grid_shape``,
+    - accept every key of ``hamilton_to_density_kwargs`` as keyword argument,
+    - return a non-negative NumPy array of the same shape. Its normalization
+      does not matter; the beam is sampled from ``density / density.sum()``.
+
+    The Hamiltonian carries an arbitrary offset, so compare it relative to
+    its minimum rather than to absolute values.
+
+    Examples
+    --------
+    Fill a single LHC bucket with a truncated thermal distribution
+    :math:`\rho \propto \exp(-H / H_\mathrm{spread})`, cut at a fraction of
+    the Hamiltonian at the separatrix.
+
+    >>> import numpy as np
+    >>> from blond import (
+    ...     Beam,
+    ...     ConstantMagneticCycle,
+    ...     DriftSimple,
+    ...     Ring,
+    ...     Simulation,
+    ...     SingleHarmonicRFStation,
+    ...     momentum_compaction_factor,
+    ...     proton,
+    ... )
+    >>> from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    ...     SemiEmpiricMatcher,
+    ... )
+    >>>
+    >>> def truncated_thermal_density(
+    ...     time_grid,  # required, [s]
+    ...     deltaE_grid,  # required, [eV]
+    ...     hamilton_2D,  # required, [eV]
+    ...     spread,  # custom: thermal spread, in units of the well depth
+    ...     filling,  # custom: cut, as fraction of the well depth
+    ... ):
+    ...     # H(t, dE=0) = V(t), so the minimum along dE is the potential
+    ...     potential_well = hamilton_2D.min(axis=1)
+    ...     well_depth = potential_well.max() - potential_well.min()
+    ...     # 0 at the bucket centre, 1 at the separatrix
+    ...     hamilton_relative = (
+    ...         hamilton_2D - potential_well.min()
+    ...     ) / well_depth
+    ...     density = np.exp(-hamilton_relative / spread)
+    ...     density[hamilton_relative > filling] = 0.0
+    ...     return density
+    >>>
+    >>> ring = Ring(circumference=26658.883)
+    >>> ring.add_elements(
+    ...     [
+    ...         SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0),
+    ...         DriftSimple(
+    ...             orbit_length=26658.883,
+    ...             momentum_compaction_factor=momentum_compaction_factor(
+    ...                 transition_gamma=55.759505
+    ...             ),
+    ...         ),
+    ...     ]
+    ... )
+    >>> sim = Simulation(
+    ...     ring=ring,
+    ...     magnetic_cycle=ConstantMagneticCycle(
+    ...         value=450e9, reference_particle=proton
+    ...     ),
+    ... )
+    >>> beam = Beam(intensity=1e11, particle_type=proton)
+    >>> sim.prepare_beam(
+    ...     beam=beam,
+    ...     preparation_routine=SemiEmpiricMatcher(
+    ...         time_limit=(0, 2.5e-9),  # one RF bucket
+    ...         n_macroparticles=1e5,
+    ...         hamilton_to_density_function=truncated_thermal_density,
+    ...         hamilton_to_density_kwargs=dict(spread=0.2, filling=0.8),
+    ...         maxiter_intensity_effects=0,  # no intensity effects here
+    ...     ),
+    ... )
     """
 
     def __init__(

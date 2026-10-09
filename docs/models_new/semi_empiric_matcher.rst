@@ -108,13 +108,17 @@ The matching routine proceeds as follows:
 
    Users can supply a custom function in place of :func:`hamilton_to_density_by_max`
    by providing it to ``hamilton_to_density_function``. The custom function must
-   accept the same arguments:
+   accept the keyword arguments
 
-   - ``hamilton_2D`` (:class:`numpy.ndarray` or :class:`cupy.ndarray`): the 2D Hamiltonian array
-   - ``density_modifier`` (float): exponent controlling density contrast
-   - ``hamilton_max`` (float): maximum Hamiltonian for normalization
+   - ``time_grid`` (:class:`numpy.ndarray`): 2D grid of time coordinates [s]
+   - ``deltaE_grid`` (:class:`numpy.ndarray`): 2D grid of energy offsets [eV]
+   - ``hamilton_2D`` (:class:`numpy.ndarray`): the 2D Hamiltonian [eV]
 
-   and return a 2D array of the same shape representing the density distribution.
+   plus every key of ``hamilton_to_density_kwargs`` (``density_modifier`` and
+   ``hamilton_max`` are only the parameters of the default function), and
+   return a non-negative 2D array of the same shape representing the density
+   distribution. A complete, runnable example is in the ``Examples`` section
+   of :class:`SemiEmpiricMatcher` below.
 
 
 4. **Particle population**
@@ -218,7 +222,7 @@ Example
            hamilton_max=1.0                   # Hamiltonian cutoff [eV]
        ),
        internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
-       tolerance=1e-6,                        # Convergence threshold
+       tolerance_potential_well=1e-6,         # Convergence threshold
        maxiter_intensity_effects=100,         # Max iterations with wakefields
        increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
        seed=42,                               # For reproducibility
@@ -260,7 +264,7 @@ Example
            hamilton_max=1.0
        ),
        internal_grid_shape=(1023, 1023),
-       tolerance=1e-6,
+       tolerance_potential_well=1e-6,
        verbose=True,
    )
 

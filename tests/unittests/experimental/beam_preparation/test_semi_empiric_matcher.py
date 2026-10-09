@@ -1,3 +1,4 @@
+import doctest
 import unittest
 from unittest import mock
 
@@ -448,6 +449,18 @@ class TestCallables:
             hamilton_2D,
             rtol=1e-12,
         )
+
+
+class TestSemiEmpiricMatcherDocstringExample(BLonDTestCase):
+    def test_docstring_example_runs(self):
+        """The ``Examples`` section of the class docstring stays runnable."""
+        finder = doctest.DocTestFinder(recurse=False)
+        (docstring_test,) = finder.find(SemiEmpiricMatcher, globs={})
+        runner = doctest.DocTestRunner()
+        runner.run(docstring_test)
+        results = runner.summarize(verbose=False)
+        self.assertGreater(results.attempted, 0)
+        self.assertEqual(results.failed, 0)
 
 
 if __name__ == "__main__":
