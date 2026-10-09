@@ -1515,7 +1515,7 @@ class TestFastPolesLeaveTheFarField(BLonDTestCase):
                     gap_bins=0, n_calls=1, source=source, solver=solver
                 )
                 self.assertEqual(
-                    len(solver._far_field_poles), n_far_field_poles
+                    len(solver._far_field.poles), n_far_field_poles
                 )
 
     def test_zero_tolerance_keeps_every_pole(self) -> None:
@@ -1524,7 +1524,7 @@ class TestFastPolesLeaveTheFarField(BLonDTestCase):
         _run_solver_and_reference(
             gap_bins=0, n_calls=1, source=source, solver=solver
         )
-        self.assertEqual(len(solver._far_field_poles), 2)
+        self.assertEqual(len(solver._far_field.poles), 2)
 
     def test_whole_bin_gaps_match_reference(self) -> None:
         for name, (source, _) in _fast_pole_models(BIN_DT).items():
