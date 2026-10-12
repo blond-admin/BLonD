@@ -7,6 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -171,6 +172,24 @@ class TestFilamentationMatcher(BLonDTestCase):
         )
 
         matcher.prepare_beam(simulation=self.sim, beam=self.beam)
+
+    def test_prepare_beam_animate_pauses_for_animate_pause_time(self):
+        matcher = FilamentationMatcher(
+            time_limit=self.time_limit,
+            energy_limit=self.energy_limit,
+            n_macroparticles=100,
+            n_iter=10,
+            every_iter_to_plot=5,
+            animate=True,
+            animate_pause_time=0.0,
+        )
+
+        with mock.patch("matplotlib.pyplot.pause") as pause:
+            matcher.prepare_beam(simulation=self.sim, beam=self.beam)
+
+        self.assertGreater(pause.call_count, 0)
+        for call in pause.call_args_list:
+            self.assertEqual(call, mock.call(0.0))
 
 
 if __name__ == "__main__":
