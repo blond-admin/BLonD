@@ -685,7 +685,8 @@ class TestRing(BLonDTestCase):
 
         element = Element()
 
-        self.ring.add_element(element)
+        with self.assertWarns(UserWarning):
+            self.ring.add_element(element)
 
         self.assertIsNot(element, self.ring.elements.elements[0])
         self.assertIs(element, self.ring.elements.elements[0]._element)

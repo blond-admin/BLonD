@@ -67,6 +67,9 @@ class Beam(BeamBaseClass):
        Default is False (co-rotating beam).
     """
 
+    # Deprecated; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["ratio"]
+
     def __init__(
         self,
         intensity: int | float,
@@ -214,12 +217,9 @@ class Beam(BeamBaseClass):
         warnings.warn(
             "`ratio` might be removed in future.",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
-        # As there are no weights, lets assume all weights are 1,
-        # The sum over all macro-particles with weight 1
-        # is thus `common_array_size`.
-        return self.intensity / self.common_array_size
+        return self._ratio
 
     @property
     def dt_min(self) -> float:
