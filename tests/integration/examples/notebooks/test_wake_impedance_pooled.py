@@ -1,7 +1,6 @@
-import importlib
-import os.path
 import unittest
 
+import matplotlib
 import pytest
 
 from blond.core.backends.backend import (
@@ -9,40 +8,16 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
-from blond.examples import notebooks
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.notebooks import ipynb_to_py
-
-NOTEBOOK_DIR = os.path.dirname(notebooks.__file__)
-import matplotlib
 
 matplotlib.use("agg")
 
 
-class TestTutorialSemiEmpiricMatcher(BLonDTestCase):
-    @classmethod
-    def setUpClass(cls):
-        # the notebook is converted to a python file
-        # so that debugging is easily possible
-        ipynb_to_py(
-            os.path.join(
-                NOTEBOOK_DIR,
-                "wake_impedance_pooled.ipynb",
-            ),
-            os.path.join(
-                NOTEBOOK_DIR,
-                "wake_impedance_pooled.py",
-            ),
-        )
+class TestWakeImpedancePooled(BLonDTestCase):
+    def run_notebook(self):
+        from blond.examples.notebooks import wake_impedance_pooled
 
-    @classmethod
-    def tearDownClass(cls):
-        os.remove(
-            os.path.join(
-                NOTEBOOK_DIR,
-                "wake_impedance_pooled.py",
-            )
-        )
+        wake_impedance_pooled.app.run()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
@@ -50,12 +25,7 @@ class TestTutorialSemiEmpiricMatcher(BLonDTestCase):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
-        # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import wake_impedance_pooled  # NOQA
-
-        importlib.reload(
-            wake_impedance_pooled
-        )  # make sure the script is executed
+        self.run_notebook()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -67,9 +37,8 @@ class TestTutorialSemiEmpiricMatcher(BLonDTestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
 
-        # this file is only created by `setUpClass` and deleted by `tearDownClass`tearDownClass`
-        from blond.examples.notebooks import wake_impedance_pooled  # NOQA
+        self.run_notebook()
 
-        importlib.reload(
-            wake_impedance_pooled
-        )  # make sure the script is executed
+
+if __name__ == "__main__":
+    unittest.main()

@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Helpful jupyter notebooks that are presented on the website."""
+"""Helpful marimo notebooks that are presented on the website."""

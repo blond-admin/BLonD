@@ -52,7 +52,7 @@ class TestPublicApi(BLonDTestCase):
         public_names = set(blond.__all__)
         offenders = []
         for path in sorted(EXAMPLES_DIR.rglob("*.py")):
-            tree = ast.parse(path.read_text())
+            tree = ast.parse(path.read_text(encoding="utf-8"))
             for node in ast.walk(tree):
                 if not isinstance(node, ast.ImportFrom) or not node.module:
                     continue

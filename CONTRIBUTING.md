@@ -40,7 +40,7 @@ blond/                        BLonD beam dynamics software.
 ├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
 ├──── noise_generators/       Module for noise generators.
 ├── examples/                 Overview of BLonD input files as a starting point for new simulations..
-├──── notebooks/              Helpful jupyter notebooks that are presented on the website.
+├──── notebooks/              Helpful marimo notebooks that are presented on the website.
 ├──── scripts/                Overview of BLonD input files as a starting point for new simulations..
 ├── experimental/             Untested/unstable code that might be changed in the future.
 ├──── acc_math/               Helpers for math to deal with the output of simulations.
@@ -342,6 +342,20 @@ See [`docs/create_docs.sh`](docs/create_docs.sh) for the full build steps.
 Built files appear in `docs/_build/html/`.
 
 Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
+
+### Example notebooks
+
+The notebooks in `blond/examples/notebooks/` are [marimo](https://marimo.io)
+notebooks: edit the `.py` files (`marimo edit <notebook>.py`). The `.ipynb`
+next to each one is generated, holds the executed outputs the docs show, and
+is committed. The doc build does not execute the notebooks, so regenerate the
+outputs yourself after changing a notebook, or when a BLonD change should
+show up in them:
+
+```bash
+python dev_tools/update_notebook_outputs.py            # all notebooks
+python dev_tools/update_notebook_outputs.py <nb>.py    # just one
+```
 
 ## Contributing
 
