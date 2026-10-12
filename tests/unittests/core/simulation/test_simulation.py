@@ -24,6 +24,7 @@ from blond import (
     mu_plus,
     proton,
 )
+from blond.acc_math.analytic.conversions import momentum_to_total_energy
 from blond.core.backends.backend import Numpy64Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
@@ -79,7 +80,9 @@ class TestSimulation(BLonDTestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=450e9,
+            reference_total_energy=momentum_to_total_energy(
+                450e9, proton.mass
+            ),
         )
         self.simulation = Simulation.from_locals(locals())
         self.simulation._beams = (beam1,)
@@ -130,7 +133,8 @@ class TestSimulation(BLonDTestCase):
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
-            reference_total_energy=63e9,
+            # The cycle below is given as kinetic energy.
+            reference_total_energy=63e9 + mu_plus.mass,
         )
         beam_CR = Beam(
             intensity=1e9, particle_type=mu_minus, is_counter_rotating=True
@@ -139,7 +143,8 @@ class TestSimulation(BLonDTestCase):
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
-            reference_total_energy=63e9,
+            # The cycle below is given as kinetic energy.
+            reference_total_energy=63e9 + mu_minus.mass,
         )
         n_cavities = 2
 
@@ -378,10 +383,15 @@ class TestSimulation(BLonDTestCase):
             observe=(observation,),
             common_name="newname",
         )
-        self.simulation.load_results(
-            **kwargs,
-            common_name="newname",
-        )
+        # FIXME: load_results() calls finalize(), which resets the
+        # caller's ramped beam to the initial cycle energy just to load
+        # files. Like the profiling() side effect fixed upstream, this
+        # warning should go away once that is fixed.
+        with self.assertWarns(UserWarning):
+            self.simulation.load_results(
+                **kwargs,
+                common_name="newname",
+            )
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
