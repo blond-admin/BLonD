@@ -24,7 +24,7 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -56,9 +56,10 @@ def plot_diff_if_failed(actual, expected, save: str | None = None):
             rtol=1e-3,
         )
     except Exception as exc:
-        plt.plot(expected, "o")
-        plt.plot(actual, "x")
-        plt.show()
+        if DEV_DRAW:
+            plt.plot(expected, "o")
+            plt.plot(actual, "x")
+            plt.show()
         raise exc
 
 
@@ -114,7 +115,9 @@ class TestWakeFields(unittest.TestCase):
         markers = ["s", "o", "1", "2", "3", "."]
         solvers = (
             InductiveImpedanceSolver(),
-            PeriodicFreqSolver(),
+            # The default periodicity (one LHC turn) means a ~5e6-point FFT;
+            # this wake is short, so 2 us gives identical results ~7x faster
+            PeriodicFreqSolver(t_periodicity=2e-6),
             TimeDomainFftSolver(),
             # SingleTurnResonatorConvolutionSolver(), # not applicable with `InductiveImpedance`
             # MultiPassResonatorSolver(), # TravelingWaveCavitySolver not applicable with `InductiveImpedance`
@@ -154,7 +157,9 @@ class TestWakeFields(unittest.TestCase):
     def test_source_TravelingWaveCavity(self):
         makers = ["s", "o", "1", "2", "3", "."]
         solvers = (
-            PeriodicFreqSolver(),
+            # Short wake: 2 us periodicity instead of one LHC turn keeps
+            # the FFT small (identical results, ~7x faster)
+            PeriodicFreqSolver(t_periodicity=2e-6),
             TimeDomainFftSolver(),
             # SingleTurnResonatorConvolutionSolver(), # not applicable with `TravelingWaveCavity`
             # MultiPassResonatorSolver(), # not applicable with `TravelingWaveCavity`
