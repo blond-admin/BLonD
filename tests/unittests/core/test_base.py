@@ -258,18 +258,20 @@ class TestSchedulable(unittest.TestCase):
     def test_schedule(self):
         schedulable = Schedulable()
         schedulable.voltage = None
-        with self.assertRaises(TypeError):
-            schedulable.schedule("voltage", 1)
-        schedulable.schedule("voltage", np.ones(10))
-        schedulable.schedule(
-            "voltage",
-            ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
-        )
-        schedulable.schedule(
-            "voltage",
-            ScheduledArray(np.ones(10)),
-        )
-        schedulable.schedule("voltage", np.ones(10))
+        # `voltage` is not in `intended_for_scheduling`, so each call warns.
+        with self.assertWarns(UserWarning):
+            with self.assertRaises(TypeError):
+                schedulable.schedule("voltage", 1)
+            schedulable.schedule("voltage", np.ones(10))
+            schedulable.schedule(
+                "voltage",
+                ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
+            )
+            schedulable.schedule(
+                "voltage",
+                ScheduledArray(np.ones(10)),
+            )
+            schedulable.schedule("voltage", np.ones(10))
 
 
 class TestUnsafeUserElement(BLonDTestCase):
@@ -302,7 +304,8 @@ class TestUnsafeUserElement(BLonDTestCase):
                 called_with.append(beam)
 
         element = Element()
-        wrapper = UnsafeUserElement(element)
+        with self.assertWarns(UserWarning):
+            wrapper = UnsafeUserElement(element)
 
         call_args = [1, 2, 3]
         for arg in call_args:

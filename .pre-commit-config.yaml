@@ -95,6 +95,16 @@ repos:
         # API; `legacy` is BLonD 2, excluded by repo convention.
         exclude: ^blond/(examples|legacy)/
 
+  # Every BLOND_* environment variable must be declared in pyproject.toml
+  - repo: local
+    hooks:
+      - id: check-env-vars
+        name: check BLOND_* environment variables are declared
+        entry: python dev_tools/precommit_check_env_vars.py
+        language: system
+        files: ^(blond/.*\.py|pyproject\.toml)$
+        pass_filenames: false
+
   # Every class exported at BLonD toplevel needs a documentation category
   - repo: local
     hooks:

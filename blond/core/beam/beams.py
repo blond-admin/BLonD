@@ -31,6 +31,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import AllowPlotting
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -65,6 +66,9 @@ class Beam(BeamBaseClass):
        Whether this beam rotates in the opposite direction to the main beam.
        Default is False (co-rotating beam).
     """
+
+    # Deprecated; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["ratio"]
 
     def __init__(
         self,
@@ -220,12 +224,9 @@ class Beam(BeamBaseClass):
         warnings.warn(
             "`ratio` might be removed in future.",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
-        # As there are no weights, lets assume all weights are 1,
-        # The sum over all macro-particles with weight 1
-        # is thus `common_array_size`.
-        return self.intensity / self.common_array_size
+        return self._ratio
 
     @property
     def dt_min(self) -> float:
@@ -321,7 +322,7 @@ class Beam(BeamBaseClass):
             Additional keyword arguments passed to ``matplotlib.pyplot.hist2d``.
             Common options include:
             - bins: number of bins (default: 256)
-            - cmap: colormap (default: 'viridis')
+            - cmap: colormap (default: ``DEFAULT_CMAP``, i.e. 'turbo')
             - range: data range [[xmin, xmax], [ymin, ymax]]
 
         Returns
@@ -338,7 +339,7 @@ class Beam(BeamBaseClass):
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
         if "cmap" not in kwargs:
-            kwargs["cmap"] = "viridis"
+            kwargs["cmap"] = DEFAULT_CMAP
         if "bins" not in kwargs:
             kwargs["bins"] = 256
         if mpi_is_distributed():

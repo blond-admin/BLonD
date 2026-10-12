@@ -25,8 +25,12 @@ from matplotlib.image import AxesImage
 from numpy.typing import NDArray as NumpyArray
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.callables import (
+    count_active_macroparticles,
+)
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
@@ -83,7 +87,7 @@ def _plot_profile_waterfall(
     if ax is None:
         ax = plt.gca()
 
-    default_kwargs_pcolormesh = {"shading": "nearest", "cmap": "viridis"}
+    default_kwargs_pcolormesh = {"shading": "nearest", "cmap": DEFAULT_CMAP}
     for key, value in default_kwargs_pcolormesh.items():
         if key not in kwargs_pcolormesh:
             kwargs_pcolormesh[key] = value
@@ -362,7 +366,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         each_turn_i: int,
         folder: str = "",
         bins: int | tuple[int, int] = 32,
-        range: AnyArray | None = None,
+        range: AnyArray | None = None,  # noqa: A002 (np API)
     ):
         super().__init__(
             each_turn_i=each_turn_i,
@@ -487,6 +491,86 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._xedges.write(xedges)
         self._yedges.write(yedges)
 
+    @property  # as readonly attributes
+    def hist2d(self) -> NumpyArray:
+        """
+        Return the 2D histograms of shape ``(n_observations, n_bins_dt, n_bins_dE)``.
+
+        The histograms are normalized as probability densities
+        (``density=True``). Multiply by `intensity` to get the
+        particle density.
+
+        Returns
+        -------
+        hist2d
+            Histogram array, in [1/(s eV)].
+        """
+        return self._hist2d.get_valid_entries()
+
+    @property  # as readonly attributes
+    def xedges(self) -> NumpyArray:
+        """
+        Return the ``dt`` bin edges of shape ``(n_observations, n_bins_dt + 1)``.
+
+        Without a fixed `range`, the edges can change between observations.
+
+        Returns
+        -------
+        xedges
+            Bin edges of ``dt``, in [s].
+        """
+        return self._xedges.get_valid_entries()
+
+    @property  # as readonly attributes
+    def yedges(self) -> NumpyArray:
+        """
+        Return the ``dE`` bin edges of shape ``(n_observations, n_bins_dE + 1)``.
+
+        Without a fixed `range`, the edges can change between observations.
+
+        Returns
+        -------
+        yedges
+            Bin edges of ``dE``, in [eV].
+        """
+        return self._yedges.get_valid_entries()
+
+    @property  # as readonly attributes
+    def intensity(self) -> NumpyArray:
+        """
+        Return the beam intensity of shape ``(n_observations,)``.
+
+        Returns
+        -------
+        intensity
+            Beam intensity array.
+        """
+        return self._intensity.get_valid_entries()
+
+    @property  # as readonly attributes
+    def reference_time(self) -> NumpyArray:
+        """
+        Return the reference time of shape ``(n_observations,)``.
+
+        Returns
+        -------
+        reference_time
+            Reference time array, in [s].
+        """
+        return self._reference_time.get_valid_entries()
+
+    @property  # as readonly attributes
+    def reference_total_energy(self) -> NumpyArray:
+        """
+        Return the reference total energy of shape ``(n_observations,)``.
+
+        Returns
+        -------
+        reference_total_energy
+            Reference total energy array, in [eV].
+        """
+        return self._reference_total_energy.get_valid_entries()
+
     def plot(
         self, result_idx: int, kwargs_imshow: dict | None = None
     ) -> AxesImage:
@@ -537,7 +621,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
                 float(yedges[-1]),
             ),
             "aspect": "auto",
-            "cmap": "viridis",
+            "cmap": DEFAULT_CMAP,
         }
         # prevent overriding user arguments
         for key, value in default_kwargs_imshow.items():
@@ -610,7 +694,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             "origin": "lower",
             "extent": [xedges[0], xedges[-1], yedges[0], yedges[-1]],
             "aspect": "auto",
-            "cmap": "viridis",
+            "cmap": DEFAULT_CMAP,
         }
         # prevent overriding user arguments
         for key, value in default_kwargs_imshow.items():
@@ -896,18 +980,21 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
 
     Examples
     --------
-    >>> bunch_statistics = BeamStatisticsOncePerTurn(each_turn_i=2, beam=...)
+    >>> from matplotlib import pyplot as plt
+    >>> from blond import Simulation
+    >>> from blond import BeamStatisticsOncePerTurn
+    >>>
+    >>> sim = Simulation(...)
+    >>> bunch_statistics = BeamStatisticsOncePerTurn(each_turn_i=2)
     >>>
     >>> sim.run_simulation(
     ...     beams=...,
     ...     observe=(bunch_statistics,),
     ... )
-    >>> turn_0 = 0  # first turn
-    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
-    >>> for index in (turn_0, turn_2)
-    ...     plt.plot(
-    ...         bunch_statistics.bunch_position()[index, :],
-    ...     )
+    >>> plt.plot(
+    ...     bunch_statistics.turns_array[: len(bunch_statistics.mean_dE)],
+    ...     bunch_statistics.mean_dE,
+    ... )
     """
 
     def __init__(
@@ -923,6 +1010,9 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self._bunch_position: DenseArrayRecorder | None = None
         self._energy_spread: DenseArrayRecorder | None = None
         self._bunch_length: DenseArrayRecorder | None = None
+        self._mean_dE: DenseArrayRecorder | None = None
+        self._n_macroparticles: DenseArrayRecorder | None = None
+        self._n_active_macroparticles: DenseArrayRecorder | None = None
         self._reference_time: DenseArrayRecorder | None = None
         self._reference_total_energy: DenseArrayRecorder | None = None
 
@@ -967,6 +1057,18 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_bunch_length",
             n_entries,
         )
+        self._mean_dE = DenseArrayRecorder(
+            f"{self.common_filepath}_mean_dE",
+            n_entries,
+        )
+        self._n_macroparticles = DenseArrayRecorder(
+            f"{self.common_filepath}_n_macroparticles",
+            n_entries,
+        )
+        self._n_active_macroparticles = DenseArrayRecorder(
+            f"{self.common_filepath}_n_active_macroparticles",
+            n_entries,
+        )
         self._reference_time = DenseArrayRecorder(
             f"{self.common_filepath}_reference_time",
             n_entries,
@@ -984,6 +1086,11 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
         self._bunch_position.write(self._beam.dt.mean())
         self._energy_spread.write(self._beam.dE.std())
         self._bunch_length.write(self._beam.dt.std())
+        self._mean_dE.write(self._beam._dE.mean())
+        self._n_macroparticles.write(self._beam.common_array_size)
+        self._n_active_macroparticles.write(
+            count_active_macroparticles(self._beam._flags)
+        )
 
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
@@ -1023,6 +1130,46 @@ class BeamStatisticsOncePerTurn(ObservablesOncePerTurnBase):
             Bunch length array.
         """
         return self._bunch_length.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dE(self):
+        """
+        Return array of mean energy offset of shape (n_observations,).
+
+        Returns
+        -------
+        mean_dE
+            Mean ``dE`` array, in [eV].
+        """
+        return self._mean_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def n_macroparticles(self):
+        """
+        Return the number of macro-particles of shape (n_observations,).
+
+        This counts all macro-particles, including the ones flagged as
+        lost that were not purged from the beam.
+
+        Returns
+        -------
+        n_macroparticles
+            Number of macro-particles array.
+        """
+        return self._n_macroparticles.get_valid_entries()
+
+    @property  # as readonly attributes
+    def n_active_macroparticles(self):
+        """
+        Return the number of active macro-particles of shape (n_observations,).
+
+        Returns
+        -------
+        n_active_macroparticles
+            Number of macro-particles flagged as
+            ``BeamFlags.ACTIVE``.
+        """
+        return self._n_active_macroparticles.get_valid_entries()
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -1738,6 +1885,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
 
         self._t_revs: DenseArrayRecorder | None = None
         self._separatrices: DenseArrayRecorder | None = None
+        self._separatrix_dts: DenseArrayRecorder | None = None
         self._separatrix_points = separatrix_points
         self._separatrix_lim = separatrix_lim
         self._beam = None
@@ -1779,6 +1927,10 @@ class SimulationObservation(ObservablesOncePerTurnBase):
             f"{self.common_filepath}_separatrices",
             (n_entries, 2, self._separatrix_points),
         )
+        self._separatrix_dts = DenseArrayRecorder(
+            f"{self.common_filepath}_separatrix_dts",
+            (n_entries, self._separatrix_points),
+        )
         self._simulation = simulation
         self._beam = beam
 
@@ -1790,6 +1942,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         assert self._simulation is not None
         assert self._t_revs is not None
         assert self._separatrices is not None
+        assert self._separatrix_dts is not None
 
         self._t_revs.write(self._simulation.current_t_rev)
 
@@ -1802,6 +1955,7 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         )
         ts = np.linspace(*separatrix_lim, self._separatrix_points)
         self._separatrices.write(sep.get_separatrix(beam=self._beam, dt=ts))
+        self._separatrix_dts.write(ts)
 
     @property  # as readonly attributes
     def t_revs(self) -> NumpyArray:
@@ -1814,6 +1968,38 @@ class SimulationObservation(ObservablesOncePerTurnBase):
             Revolution time, in [s] of shape ``(n_observations)``.
         """
         return self._t_revs.get_valid_entries()
+
+    @property  # as readonly attributes
+    def separatrices(self) -> NumpyArray:
+        """
+        Separatrix energies of shape ``(n_observations, 2, separatrix_points)``.
+
+        The second axis holds the upper and lower branch of the
+        separatrix, evaluated at the ``dt`` values in `separatrix_dts`.
+        Entries are ``NaN`` where ``dt`` lies outside any RF bucket.
+
+        Returns
+        -------
+        separatrices
+            Separatrix energies, in [eV].
+        """
+        return self._separatrices.get_valid_entries()
+
+    @property  # as readonly attributes
+    def separatrix_dts(self) -> NumpyArray:
+        """
+        Time grid of the separatrices of shape ``(n_observations, separatrix_points)``.
+
+        Without `separatrix_lim`, the grid spans ``beam.dt_min`` to
+        ``beam.dt_max`` of each observed turn, so it can change between
+        observations.
+
+        Returns
+        -------
+        separatrix_dts
+            Time grid of `separatrices`, in [s].
+        """
+        return self._separatrix_dts.get_valid_entries()
 
 
 class DriftObservation(ObservablesOncePerTurnBase):
