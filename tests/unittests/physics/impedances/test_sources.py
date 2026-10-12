@@ -410,7 +410,7 @@ class TestResonators(BLonDTestCase):
         )
 
     def test___init__neg_freq(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([-400e6]),
@@ -418,11 +418,20 @@ class TestResonators(BLonDTestCase):
             )
 
     def test___init__small_Q(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([400e6]),
                 quality_factors=np.array([0.49]),
+            )
+
+    def test___init__Q_equal_0_5(self):
+        # Q = 0.5 makes omega_bar = 0, so the wake divides by zero.
+        with self.assertRaises(ValueError):
+            self.resonators = Resonators(
+                shunt_impedances=np.array([1]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.5]),
             )
 
     def test___init__small_Q_raises_before_computing_nan(self):
@@ -430,7 +439,7 @@ class TestResonators(BLonDTestCase):
 
         with (
             warnings.catch_warnings(record=True) as caught,
-            self.assertRaises(RuntimeError),
+            self.assertRaises(ValueError),
         ):
             warnings.simplefilter("always")
             Resonators(
@@ -443,7 +452,7 @@ class TestResonators(BLonDTestCase):
         )
 
     def test___init__float_values(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
                 center_frequencies=400e6,

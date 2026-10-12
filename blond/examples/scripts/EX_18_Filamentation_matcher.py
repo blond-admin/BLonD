@@ -17,6 +17,7 @@ from blond import (
     BeamObservationInRingElement,
     ConstantMagneticCycle,
     DriftSimple,
+    FilamentationMatcher,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -24,7 +25,6 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.beam_preparation.filamentation_matcher import FilamentationMatcher
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover

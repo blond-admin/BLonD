@@ -31,6 +31,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import AllowPlotting
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -314,7 +315,7 @@ class Beam(BeamBaseClass):
             Additional keyword arguments passed to ``matplotlib.pyplot.hist2d``.
             Common options include:
             - bins: number of bins (default: 256)
-            - cmap: colormap (default: 'viridis')
+            - cmap: colormap (default: ``DEFAULT_CMAP``, i.e. 'turbo')
             - range: data range [[xmin, xmax], [ymin, ymax]]
 
         Returns
@@ -331,7 +332,7 @@ class Beam(BeamBaseClass):
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
         if "cmap" not in kwargs:
-            kwargs["cmap"] = "viridis"
+            kwargs["cmap"] = DEFAULT_CMAP
         if "bins" not in kwargs:
             kwargs["bins"] = 256
         if mpi_is_distributed():
