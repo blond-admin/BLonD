@@ -2,17 +2,19 @@ import matplotlib.pyplot as plt
 import pytest
 
 
-def _pause_without_sleep(interval: float) -> None:
-    """Draw the active figure like `plt.pause`, but skip the waiting."""
-    if plt.get_fignums() and plt.gcf().stale:
-        plt.gcf().canvas.draw_idle()
+def _skip(*args, **kwargs) -> None:
+    """Do nothing in place of a pyplot call that renders or waits."""
 
 
 @pytest.fixture(autouse=True)
-def pause_without_sleep(monkeypatch):
-    """Keep the examples' `plt.pause` animations from sleeping in tests.
+def skip_plot_rendering(monkeypatch):
+    """Keep the examples from rendering, saving or animating their plots.
 
-    With the non-interactive test backend `plt.pause` renders the figure
-    and then only waits, which added seconds of idle time to the examples.
+    The example tests only check that the scripts run. Drawing the figures
+    and the `plt.pause` waiting of the animations is wasted time; the
+    BLonD plotting methods the examples call have their own unit tests.
     """
-    monkeypatch.setattr(plt, "pause", _pause_without_sleep)
+    for name in ("draw", "pause", "savefig", "show"):
+        monkeypatch.setattr(plt, name, _skip)
+    yield
+    plt.close("all")
