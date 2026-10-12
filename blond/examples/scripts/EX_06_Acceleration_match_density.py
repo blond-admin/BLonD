@@ -18,17 +18,17 @@ from blond import (
     Beam,
     BeamObservationOncePerTurn,
     DriftSimple,
+    MagneticCyclePerTurn,
     RFStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    copy_to_cpu,
     momentum_compaction_factor,
     proton,
     setup_backend,
 )
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.experimental import ProfileMatcherAddon, SemiEmpiricMatcher
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing import pytest_active
 
 if TYPE_CHECKING:  # pragma: no cover

@@ -37,11 +37,11 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    VariNoise,
     momentum_compaction_factor,
     proton,
     setup_backend,
 )
-from blond.cycles.noise_generators import VariNoise
 from blond.specifics.cern.lhc.varinoise import lhc_spectrum_gain_y
 from blond.testing import pytest_active
 

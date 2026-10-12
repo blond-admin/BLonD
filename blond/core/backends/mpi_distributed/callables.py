@@ -10,18 +10,14 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-try:
-    from mpi4py import MPI
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
-    MPI = None
-
-from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
+from blond.core.backends.mpi_distributed.helpers import (
+    MPI,
+    mpi_is_distributed,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.backends.mpi_distributed.distributed_array import (
@@ -29,6 +25,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 from blond.core.backends.backend import backend
+from blond.core.beam.flags import BeamFlags
 
 
 def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
@@ -85,3 +82,24 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
 
     rms = np.sqrt(sigma_dt_squared * sigma_dE_squared - sigma_dE_dt**2)
     return float(rms)
+
+
+def count_active_macroparticles(flags: DistributedArray) -> int:
+    """
+    Count the macro-particles flagged as active across all processes.
+
+    Parameters
+    ----------
+    flags
+        The beam macro-particle flags.
+
+    Returns
+    -------
+    n_active_macroparticles
+        Number of macro-particles with the flag
+        ``BeamFlags.ACTIVE``.
+    """
+    local_count = int(backend.sum(flags.array_local == BeamFlags.ACTIVE.value))
+    if mpi_is_distributed():  # pragma: no cover
+        return int(MPI.COMM_WORLD.allreduce(local_count, op=MPI.SUM))
+    return local_count

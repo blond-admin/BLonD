@@ -21,6 +21,7 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     Ring,
+    ScheduledArray,
     Simulation,
     SingleHarmonicRFStation,
     StaticProfile,
@@ -30,7 +31,6 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.core.scheduling import ScheduledArray
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )

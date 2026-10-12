@@ -1,3 +1,4 @@
+import doctest
 import unittest
 from unittest import mock
 
@@ -25,14 +26,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
 
         # pinned values
         expected_dt = {
-            10: 9.37316899945945e-10,
-            50: 1.2509709354375757e-09,
-            90: 1.5621352417176764e-09,
+            10: 9.355702994976724e-10,
+            50: 1.2485632608699518e-09,
+            90: 1.5592397783789834e-09,
         }
         expected_dE = {
-            10: -203033118.014676,
-            50: -497190.7807013786,
-            90: 200759056.35187533,
+            10: -203032411.55599388,
+            50: -497189.05071394914,
+            90: 200758357.80584636,
         }
         sim = SimulationTwoRFStations()
         self._test_matching(sim)
@@ -134,14 +135,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
             )
         # pinned values
         expected_dt = {
-            10: 8.945807526908758e-10,
-            50: 1.1946294403398606e-09,
-            90: 1.4906477092137164e-09,
+            10: 8.928249664334665e-10,
+            50: 1.1920829580980246e-09,
+            90: 1.4876368326620142e-09,
         }
         expected_dE = {
-            10: -202934616.99385634,
-            50: -491867.9813599617,
-            90: 200521467.98119268,
+            10: -202846763.82107335,
+            50: -491628.7760362582,
+            90: 200434969.8987505,
         }
         if DEV_PLOT2:
             sim.beam1.plot_scatter()
@@ -171,14 +172,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
 
         # pinned values
         expected_dt = {
-            10: 2.184644423501519e-09,
-            50: 2.498358817146089e-09,
-            90: 2.809566454479882e-09,
+            10: 2.182994801837146e-09,
+            50: 2.4962545334460535e-09,
+            90: 2.8067623376809793e-09,
         }
         expected_dE = {
-            10: -2094325465.9539328,
-            50: -5128618.048338078,
-            90: 2070868084.7240956,
+            10: -2094329558.7487688,
+            50: -5128628.070840176,
+            90: 2070872131.6778007,
         }
         sim = SimulationTwoRFStations(below_transition_crossing=True)
         self._test_matching(sim, below_transition_crossing=True)
@@ -274,14 +275,14 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
             )
         # pinned values
         expected_dt = {
-            10: 2.198671357631324e-09,
-            50: 2.5062625899860837e-09,
-            90: 2.8134437780368726e-09,
+            10: 2.197490430890188e-09,
+            50: 2.5040588600000505e-09,
+            90: 2.8107171416585663e-09,
         }
         expected_dE = {
-            10: -2092017166.3373477,
-            50: -5219386.432623548,
-            90: 2067526837.520195,
+            10: -2092273594.6515977,
+            50: -5220070.339163311,
+            90: 2066723461.4492223,
         }
         for percentile in (10, 50, 90):
             percentile_dt = float(
@@ -376,6 +377,58 @@ def _run_matching(**matcher_kwargs):
     return matcher
 
 
+class TestSemiEmpiricMatcherPotentialWellGrid(BLonDTestCase):
+    def test_oversampled_potential_well_downsamples_onto_ts(self):
+        # The potential well is evaluated on an oversampled grid and then
+        # down-sampled with ``[::_POTENTIAL_WELL_OVERSAMPLING]``. The
+        # down-sampled points must coincide with the matcher grid ``ts``,
+        # otherwise the Hamiltonian is shifted in time and the matched
+        # bunch performs a dipole oscillation.
+        from blond.experimental.beam_preparation.semi_empiric_matcher import (
+            _POTENTIAL_WELL_OVERSAMPLING,
+        )
+        from blond.testing.simulation import SimulationTwoRFStations
+
+        sim = SimulationTwoRFStations()
+        t_rev = sim.simulation.magnetic_cycle.get_t_rev_init(
+            sim.simulation.ring.circumference,
+            particle_type=sim.beam1.particle_type,
+        )
+        n_time = 128 - 1
+        ts = np.linspace(0, t_rev) / 36540
+        expected_dt = np.linspace(ts.min(), ts.max(), n_time)
+        matcher = SemiEmpiricMatcher(
+            time_limit=(ts.min(), ts.max()),
+            hamilton_to_density_kwargs=dict(
+                hamilton_max=100,
+                density_modifier=4,
+            ),
+            n_macroparticles=1e3,
+            internal_grid_shape=(n_time, n_time),
+            verbose=False,
+        )
+        get_potential_well_empiric = Simulation.get_potential_well_empiric
+        with mock.patch.object(
+            Simulation,
+            "get_potential_well_empiric",
+            autospec=True,
+            side_effect=get_potential_well_empiric,
+        ) as spy:
+            sim.simulation.prepare_beam(
+                beam=sim.beam1,
+                preparation_routine=matcher,
+            )
+        self.assertGreater(spy.call_count, 0)
+        for call in spy.call_args_list:
+            dt = copy_to_cpu(call.kwargs["dt"])
+            np.testing.assert_allclose(
+                dt[::_POTENTIAL_WELL_OVERSAMPLING],
+                expected_dt,
+                rtol=0,
+                atol=1e-9 * (expected_dt[1] - expected_dt[0]),
+            )
+
+
 class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
     """Wiring of the frozen-beam ``warmup`` into the matcher iteration."""
 
@@ -458,6 +511,18 @@ class TestCallables:
             hamilton_2D,
             rtol=1e-12,
         )
+
+
+class TestSemiEmpiricMatcherDocstringExample(BLonDTestCase):
+    def test_docstring_example_runs(self):
+        """The ``Examples`` section of the class docstring stays runnable."""
+        finder = doctest.DocTestFinder(recurse=False)
+        (docstring_test,) = finder.find(SemiEmpiricMatcher, globs={})
+        runner = doctest.DocTestRunner()
+        runner.run(docstring_test)
+        results = runner.summarize(verbose=False)
+        self.assertGreater(results.attempted, 0)
+        self.assertEqual(results.failed, 0)
 
 
 if __name__ == "__main__":

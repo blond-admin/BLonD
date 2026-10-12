@@ -11,23 +11,17 @@
 
 from __future__ import annotations
 
-import warnings
 from math import sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.helpers import MPI
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
-
-try:
-    from mpi4py import MPI
-except Exception as exc:
-    warnings.warn(str(exc), ImportWarning, stacklevel=1)
-    MPI = None
 
 
 class DistributedArray:
@@ -307,7 +301,7 @@ class DistributedArray:
     def histogram(
         self,
         bins,
-        range: tuple[float, float] | None = None,
+        range: tuple[float, float] | None = None,  # noqa: A002 (np API)
         out: NumpyArray | CupyArray | None = None,
     ) -> NumpyArray | CupyArray:
         """
@@ -339,14 +333,13 @@ class DistributedArray:
             assert out.dtype == backend.float
             array_write_local = out
 
-        if range is None:
-            range = (self.min(), self.max())
+        hist_range = (self.min(), self.max()) if range is None else range
 
         backend.specials.histogram(
             array_read=self.array_local,
             array_write=array_write_local,
-            start=range[0],
-            stop=range[1],
+            start=hist_range[0],
+            stop=hist_range[1],
         )
 
         # Combine histograms from all processes
