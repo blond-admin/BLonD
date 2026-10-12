@@ -181,7 +181,7 @@ class TestPSBeamFeedback(BLonDTestCase):
         )
 
         # Track the next turn
-        self.simulation.turn_i.value = 1
+        self.simulation.turn_counter.value = 1
         self.beam_control.track(self.beam)
 
         # Check one-turn memory variables

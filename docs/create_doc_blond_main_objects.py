@@ -42,6 +42,10 @@ ASSIGNED_CATEGORIES = {
     "StaticProfile": Categories.LATTICE.value,
     "DynamicProfileConstNBins": Categories.LATTICE.value,
     "EquidistantMultiProfile": Categories.LATTICE.value,
+    "DriftExact": Categories.LATTICE.value,
+    "DynamicProfileConstCutoff": Categories.LATTICE.value,
+    "SynchrotronRadiationMaster": Categories.LATTICE.value,
+    "VariNoise": Categories.LATTICE.value,
     # Wakes
     "InductiveImpedance": Categories.WAKE.value,
     "PeriodicFreqSolver": Categories.WAKE.value,
@@ -50,16 +54,27 @@ ASSIGNED_CATEGORIES = {
     "ImpedanceTableFreq": Categories.WAKE.value,
     "TimeDomainFftSolver": Categories.WAKE.value,
     "MultiPoleSparseSolve": Categories.WAKE.value,
+    "ContinuousMultiTurnTimeDomainSolver": Categories.WAKE.value,
+    "MultiPassResonatorSolver": Categories.WAKE.value,
+    "SingleTurnResonatorConvolutionSolver": Categories.WAKE.value,
+    "ImpedanceTableTime": Categories.WAKE.value,
+    "TravelingWaveCavity": Categories.WAKE.value,
     # Cycle
     "MagneticCycleByTime": Categories.CYCLE.value,
     "MagneticCyclePerTurn": Categories.CYCLE.value,
     "MagneticCyclePerTurnAllRFStations": Categories.CYCLE.value,
     "ConstantMagneticCycle": Categories.CYCLE.value,
     "DerivativeInterpolator": Categories.CYCLE.value,
+    "ScheduledArray": Categories.CYCLE.value,
+    "ScheduledFunctional": Categories.CYCLE.value,
+    "ScheduledInterpolation": Categories.CYCLE.value,
     # Beam Generation & Distribution
     "Beam": Categories.BEAM.value,
     "EmptyBeam": Categories.BEAM.value,
     "BiGaussian": Categories.BEAM.value,
+    "Coasting": Categories.BEAM.value,
+    "FilamentationMatcher": Categories.BEAM.value,
+    "ParticleType": Categories.BEAM.value,
     # Diagnostics
     "RFStationPhaseObservation": Categories.DIAGNOSTICS.value,
     "StaticProfileObservation": Categories.DIAGNOSTICS.value,
@@ -71,6 +86,7 @@ ASSIGNED_CATEGORIES = {
     "BeamHist2dOncePerTurn": Categories.DIAGNOSTICS.value,
     "BeamStatisticsOncePerTurn": Categories.DIAGNOSTICS.value,
     "WakeFieldObservation": Categories.DIAGNOSTICS.value,
+    "StaticMultiProfileObservation": Categories.DIAGNOSTICS.value,
     # Plotting
     "AllowPlotting": Categories.PLOTTING.value,
     # Misc
